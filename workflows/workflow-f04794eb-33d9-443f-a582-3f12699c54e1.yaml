@@ -73,6 +73,14 @@ inputs:
       type: integer
       default: 10
       description: Maximum new domains to crawl for feed discovery.
+    dryRun:
+      type: boolean
+      default: false
+      description: If true, discover feeds but don't add them to the catalog.
+    category:
+      type: string
+      default: "discovered"
+      description: Category tag for discovered feeds in the catalog.
   required: []
 reports:
   require:
@@ -109,7 +117,7 @@ jobs:
         weight: 0
         allowFailure: false
       - name: discover
-        description: Discover new RSS feeds from article URLs and upsert into feed-catalog.
+        description: Discover new RSS feeds from article URLs.
         task:
           type: model_method
           modelType: "@svendowideit/feed-discovery"
@@ -117,8 +125,30 @@ jobs:
           methodName: discover
           inputs:
             maxSitesToCrawl: ${{ inputs.maxSitesToCrawl }}
+            dryRun: ${{ inputs.dryRun }}
         dependsOn:
           - step: generate
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: upsert-feed
+        description: Add each discovered feed to the feed-catalog.
+        forEach:
+          item: feed
+          in: '${{ data.latest("feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([]) }}'
+        concurrency: 3
+        task:
+          type: model_method
+          modelType: "@svendowideit/feed-catalog"
+          modelName: feed-catalog
+          methodName: add
+          inputs:
+            url: ${{ self.feed.url }}
+            category: ${{ inputs.category }}
+            name: ${{ self.feed.title }}
+        dependsOn:
+          - step: discover
             condition:
               type: succeeded
         weight: 0

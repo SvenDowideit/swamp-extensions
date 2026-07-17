@@ -15,7 +15,9 @@ import { z } from "npm:zod@4";
 
 const GlobalArgsSchema = z.object({
   /** Optional catalog name for multiple catalogs (default: "default"). */
-  catalogName: z.string().default("default").describe("Catalog name (for multiple catalogs)"),
+  catalogName: z.string().default("default").describe(
+    "Catalog name (for multiple catalogs)",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -25,7 +27,9 @@ const AddFeedArgsSchema = z.object({
   category: z.string().default("uncategorized").describe(
     "Category tag (e.g., tech, news, programming, podcasting)",
   ),
-  name: z.string().optional().describe("Human-readable feed name (defaults to hostname)"),
+  name: z.string().optional().describe(
+    "Human-readable feed name (defaults to hostname)",
+  ),
 }).describe("Arguments for adding a feed");
 
 type AddFeedArgs = z.infer<typeof AddFeedArgsSchema>;
@@ -149,7 +153,9 @@ export const model = {
         const logger = context.logger;
         const catalogName = context.globalArgs.catalogName;
 
-        let catalogData = await context.readResource("current") as FeedCatalog | null;
+        let catalogData = await context.readResource("current") as
+          | FeedCatalog
+          | null;
         if (!catalogData || catalogData.name !== catalogName) {
           catalogData = { name: catalogName, feeds: [], totalCount: 0 };
         }
@@ -163,7 +169,17 @@ export const model = {
         };
 
         if (catalogData.feeds.some((f) => f.url === newFeed.url)) {
-          throw new Error(`Feed already exists in catalog: ${newFeed.name} (${newFeed.url})`);
+          logger?.info("Feed already in catalog: {name} ({url})", {
+            name: newFeed.name,
+            url: newFeed.url,
+          });
+          // No-op — feed already exists, not an error
+          const handle = await context.writeResource("catalog", "current", {
+            name: catalogData.name,
+            feeds: catalogData.feeds,
+            totalCount: catalogData.totalCount,
+          });
+          return { dataHandles: [handle] };
         }
 
         catalogData.feeds.push(newFeed);
@@ -193,9 +209,13 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
 
-        const catalogData = await context.readResource("current") as FeedCatalog | null;
+        const catalogData = await context.readResource("current") as
+          | FeedCatalog
+          | null;
         if (!catalogData) {
-          throw new Error("No feed catalog found. Add a feed first with 'add'.");
+          throw new Error(
+            "No feed catalog found. Add a feed first with 'add'.",
+          );
         }
 
         const url = args.url.replace(/\/$/, "");
@@ -228,7 +248,9 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
 
-        const catalogData = await context.readResource("current") as FeedCatalog | null;
+        const catalogData = await context.readResource("current") as
+          | FeedCatalog
+          | null;
         let feeds: Feed[] = catalogData?.feeds ?? [];
 
         if (args.category) {

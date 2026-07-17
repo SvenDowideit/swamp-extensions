@@ -1,0 +1,18 @@
+manifestVersion: 1
+name: "@svendowideit/feed-discovery"
+version: "2026.07.17.1"
+description: "Discovers new RSS/Atom feeds by crawling domains from the news-reader's article URLs and upserting them into the feed-catalog."
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - feed_discovery.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

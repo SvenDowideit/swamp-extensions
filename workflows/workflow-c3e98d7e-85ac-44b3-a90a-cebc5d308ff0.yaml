@@ -1,0 +1,48 @@
+id: c3e98d7e-85ac-44b3-a90a-cebc5d308ff0
+name: discover-feeds
+description: |
+  Discover new RSS feeds from the news-reader's article URLs and add them to
+  the feed-catalog. Creates a feedback loop: more articles → more domains
+  crawled → more feeds discovered → more articles next time.
+
+  Usage:
+    swamp workflow run discover-feeds
+    swamp workflow run discover-feeds --input maxSitesToCrawl=20
+    swamp workflow run discover-feeds --input dryRun=true
+tags: {}
+inputs:
+  properties:
+    maxSitesToCrawl:
+      type: integer
+      default: 10
+      description: Maximum new domains to crawl.
+    category:
+      type: string
+      default: "discovered"
+      description: Category tag for discovered feeds.
+    dryRun:
+      type: boolean
+      default: false
+      description: If true, discover but don't add to catalog.
+  required: []
+jobs:
+  - name: main
+    description: Discover feeds from news-reader articles and upsert into feed-catalog.
+    steps:
+      - name: discover
+        description: Crawl new domains from article URLs to find RSS/Atom feeds.
+        task:
+          type: model_method
+          modelType: "@svendowideit/feed-discovery"
+          modelName: feed-discovery
+          methodName: discover
+          inputs:
+            maxSitesToCrawl: ${{ inputs.maxSitesToCrawl }}
+            category: ${{ inputs.category }}
+            dryRun: ${{ inputs.dryRun }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

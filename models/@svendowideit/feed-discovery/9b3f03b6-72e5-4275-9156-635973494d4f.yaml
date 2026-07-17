@@ -1,0 +1,10 @@
+type: '@svendowideit/feed-discovery'
+typeVersion: 2026.07.17.1
+id: 9b3f03b6-72e5-4275-9156-635973494d4f
+name: feed-discovery
+version: 1
+tags: {}
+globalArguments:
+  newsReaderModelId: d7d17e47-658c-4810-866a-cd5c25e13496
+  feedCatalogModelId: bef5d191-6889-4b08-a8ef-cd67193d0e16
+methods: {}

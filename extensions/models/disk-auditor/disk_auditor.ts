@@ -11,6 +11,7 @@
  * @module
  */
 import { z } from "npm:zod@4";
+import { resolve as resolvePath } from "jsr:@std/path@1";
 
 const GlobalArgsSchema = z.object({
   path: z.string().describe("Filesystem path to audit"),
@@ -1139,8 +1140,7 @@ export const model = {
           ) => Promise<{ name: string }>;
         },
       ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const root = context.globalArgs.path;
-        if (!root || root.trim() === "") {
+        if (!context.globalArgs.path || context.globalArgs.path.trim() === "") {
           context.logger?.info(
             "Missing required input: path\n\n" +
               "disk-auditor scans a filesystem path and classifies what's consuming disk space\n" +
@@ -1167,6 +1167,14 @@ export const model = {
         }
         const started = Date.now();
         const logger = context.logger;
+        // Expand relative paths and ~ to an absolute, unambiguous path.
+        // resolvePath handles "./foo", "../foo", and joins against Deno.cwd().
+        // Deno.realPathSync also resolves symlinks so the recorded path is canonical.
+        const rawPath = context.globalArgs.path;
+        const expanded = rawPath.startsWith("~")
+          ? resolvePath(Deno.env.get("HOME") ?? "~", rawPath.slice(1))
+          : resolvePath(rawPath);
+        const root = Deno.realPathSync(expanded);
         logger?.info("Auditing disk usage under {root}", { root });
 
         const result = await auditDisk({

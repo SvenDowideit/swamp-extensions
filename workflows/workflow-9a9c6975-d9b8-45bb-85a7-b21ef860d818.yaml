@@ -17,6 +17,9 @@ description: |
   Then read the result:
     swamp data get --workflow disk current --json | jq -r '.content' | jq '.findings[] | .title'
 tags: {}
+reports:
+  require:
+    - "@svendowideit/disk-summary"
 inputs:
   properties:
     path:

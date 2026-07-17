@@ -1111,7 +1111,7 @@ function buildFindings(
 /** Model definition for auditing local disk usage. */
 export const model = {
   type: "@svendowideit/disk-auditor",
-  version: "2026.07.17.3",
+  version: "2026.07.17.1",
   globalArguments: GlobalArgsSchema,
   resources: {
     audit: {
@@ -1218,6 +1218,7 @@ export const model = {
       },
     },
   },
+  reports: ["@svendowideit/disk-summary"],
 };
 
 /**

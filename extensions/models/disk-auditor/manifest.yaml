@@ -11,6 +11,9 @@ paths:
 models:
   - disk_auditor.ts
 
+reports:
+  - disk_audit_report.ts
+
 additionalFiles:
   - README.md
   - LICENSE.txt

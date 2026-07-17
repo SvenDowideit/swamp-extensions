@@ -37,31 +37,38 @@ this repo under `workflows/`):
 
 ```sh
 # Audit / — just say where, nothing else
-swamp workflow run disk --input path=/ --skip-reports
+swamp workflow run disk --input path=/
 
 # Audit /home, skipping node_modules too
-swamp workflow run disk --input path=/home --skip-reports
-
-# Read the findings
-swamp data get --workflow disk current --json \
-  | jq -r '.content' | jq '.findings[] | .title'
+swamp workflow run disk --input path=/home --input 'excludePatterns:json=[".git","node_modules"]'
 ```
 
-You can also use the model directly:
+A **formatted summary table** prints automatically after the scan — no need to
+run `swamp data get` separately. It shows findings (notable first), per-category
+rollups, largest directories, and largest files, all in human-readable sizes:
 
-```sh
-# Create a model that audits /var
-swamp model create @svendowideit/disk-auditor var-disk \
-  --global-arg path=/var
+```
+# Disk Audit: /home/sven
 
-# Run the audit — no depth or top-N args needed
-echo '{}' | swamp model method run var-disk audit --stdin --skip-reports
+507.0 GiB across 4,533,816 files in 124,744 dirs — scanned in 42.0s
 
-# Read the latest snapshot
-swamp data get var-disk current --json
+## Findings
+| Finding                                  | Size      | Count  | Notable |
+| Other: 336904 files, 58.1 GiB (47%)      | 58.1 GiB  | 336904 | ★       |
+| Books (audiobooks + ebooks): 22570 files | 27.7 GiB  | 22570  | ★       |
+| Ebooks: 22563 files, 26.3 GiB (21%)      | 26.3 GiB  | 22563  | ★       |
+...
 ```
 
-The audit output is structured JSON, so you can pipe it through `jq`:
+If you forget the `--input path=` argument, the tool prints a help message with
+all available inputs, their types, defaults, and usage examples — no cryptic
+error.
+
+Relative paths (`.`,``./foo`,`../bar`) and`~` are expanded to absolute,
+canonical paths before scanning, so logs and recorded data are always fully
+qualified and unambiguous.
+
+To read the structured JSON data (e.g. for scripting):
 
 ```sh
 # All findings, notable first
@@ -79,6 +86,20 @@ swamp data get --workflow disk current --json \
 # Largest individual files
 swamp data get --workflow disk current --json \
   | jq -r '.content' | jq '.notableFiles[0:10] | .[] | {name, bytes, category}'
+```
+
+You can also use the model directly:
+
+```sh
+# Create a model that audits /var
+swamp model create @svendowideit/disk-auditor var-disk \
+  --global-arg path=/var
+
+# Run the audit — no depth or top-N args needed
+echo '{}' | swamp model method run var-disk audit --stdin
+
+# Read the latest snapshot
+swamp data get var-disk current --json
 ```
 
 ## Method arguments
@@ -159,8 +180,13 @@ Errors (permission denied, broken symlinks, vanished files) are collected per
 path and returned in the `errors` array rather than aborting the whole audit —
 so a single unreadable subdirectory won't lose you the rest of the tree.
 
-For very large trees (>1M files), use `--skip-reports` — the built-in
-`@swamp/method-summary` report can overflow on huge outputs.
+A **summary report** (`@svendowideit/disk-summary`) runs automatically after
+each audit and prints a formatted markdown table with findings, categories,
+largest directories, and largest files. The report is a standalone extension in
+`extensions/reports/disk_audit_report.ts`, auto-attached via the model's
+`reports` field. For very large trees (>1M files), use `--skip-reports` to
+suppress the built-in `@swamp/method-summary` report (which can overflow on huge
+outputs) — the `@svendowideit/disk-summary` report handles large trees fine.
 
 No external services, credentials, or network access are required. The extension
 only reads the local filesystem under the configured `path`.

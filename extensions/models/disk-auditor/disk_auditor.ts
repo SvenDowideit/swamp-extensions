@@ -1141,7 +1141,7 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const root = context.globalArgs.path;
         if (!root || root.trim() === "") {
-          throw new Error(
+          context.logger?.info(
             "Missing required input: path\n\n" +
               "disk-auditor scans a filesystem path and classifies what's consuming disk space\n" +
               "(video, audio, books, docker, VM images, parquet, databases, archives, code,\n" +
@@ -1160,6 +1160,9 @@ export const model = {
               '  swamp workflow run disk --input path=/ --input \'excludePatterns:json=[".git","node_modules"]\'\n\n' +
               "Then read the result:\n" +
               "  swamp data get --workflow disk current --json | jq -r '.content' | jq '.findings[] | .title'",
+          );
+          throw new Error(
+            'Missing required input: path — run "swamp workflow run disk --input path=/" (see logged help above)',
           );
         }
         const started = Date.now();

@@ -1,10 +1,12 @@
 /**
  * Disk usage auditor — recursively measures which directories and files are
- * consuming disk space on a local filesystem path.
+ * consuming disk space on a local filesystem path, then classifies findings
+ * by content type (video, audio, books, docker images, databases, etc.) so
+ * the user can see *what* is taking up space, not just *where*.
  *
- * Cross-platform: uses only Deno runtime APIs (`Deno.stat`, `Deno.readDir`),
- * so the same extension runs on Linux, macOS, and Windows without shelling
- * out to OS-specific tools (`du`, `find`, PowerShell).
+ * Cross-platform: uses only Deno runtime APIs (`Deno.stat`, `Deno.readDir`,
+ * `Deno.lstat`), so the same extension runs on Linux, macOS, and Windows
+ * without shelling out to OS-specific tools (`du`, `find`, PowerShell).
  *
  * @module
  */
@@ -17,62 +19,309 @@ const GlobalArgsSchema = z.object({
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
 const AuditArgsSchema = z.object({
-  depth: z.number().int().min(0).max(20).default(3).describe(
-    "Maximum directory depth to recurse (0 = only the root entry)",
-  ),
-  topDirs: z.number().int().min(1).max(500).default(20).describe(
-    "How many largest immediate subdirectories of the root to report",
-  ),
-  topFiles: z.number().int().min(1).max(500).default(20).describe(
-    "How many largest individual files found during the walk to report",
-  ),
-  topExtensions: z.number().int().min(1).max(100).default(15).describe(
-    "How many file extensions (by total bytes) to report",
-  ),
-  excludePatterns: z.array(z.string()).default([]).describe(
-    'Glob-style patterns of directory names to skip (e.g. ["node_modules", ".git"])',
+  excludePatterns: z.array(z.string()).default([".git", ".swamp"]).describe(
+    'Glob-style directory names to skip (e.g. ["node_modules", ".git"])',
   ),
   followSymlinks: z.boolean().default(false).describe(
     "Whether to follow symbolic links when summing sizes (default false)",
+  ),
+  minNotableBytes: z.number().int().positive().default(1024 * 1024).describe(
+    "Minimum size for a file or dir to be considered 'notable' (default 1 MiB)",
   ),
 });
 
 type AuditArgs = z.infer<typeof AuditArgsSchema>;
 
-/** A single directory entry in a disk audit result. */
-export interface DirEntry {
-  /** Absolute filesystem path of the directory. */
-  path: string;
-  /** Directory name (last path component). */
-  name: string;
-  /** Total bytes consumed by this directory and everything beneath it. */
-  bytes: number;
-  /** Number of files within this directory subtree. */
-  fileCount: number;
-  /** Number of subdirectories within this directory subtree. */
-  dirCount: number;
+// ---------------------------------------------------------------------------
+// Content classification
+// ---------------------------------------------------------------------------
+
+/** Content category label. */
+const CATEGORIES = [
+  "video",
+  "audio",
+  "audiobook",
+  "ebook",
+  "image",
+  "docker",
+  "vm",
+  "database",
+  "parquet",
+  "archive",
+  "code",
+  "logs",
+  "node_modules",
+  "other",
+] as const;
+type Category = (typeof CATEGORIES)[number];
+
+/** File extension → category map. Order matters: first match wins. */
+const EXT_CATEGORY: Record<string, Category> = {
+  // video
+  mp4: "video",
+  mkv: "video",
+  avi: "video",
+  mov: "video",
+  webm: "video",
+  flv: "video",
+  wmv: "video",
+  m4v: "video",
+  mpg: "video",
+  mpeg: "video",
+  "3gp": "video",
+  vob: "video",
+  ogv: "video",
+  // audio (non-audiobook)
+  mp3: "audio",
+  ogg: "audio",
+  flac: "audio",
+  aac: "audio",
+  opus: "audio",
+  mid: "audio",
+  midi: "audio",
+  mka: "audio",
+  aiff: "audio",
+  wav: "audio",
+  // audiobook — by extension, refined by path later
+  m4b: "audiobook",
+  m4a: "audiobook",
+  aax: "audiobook",
+  // ebook
+  epub: "ebook",
+  mobi: "ebook",
+  azw: "ebook",
+  azw3: "ebook",
+  pdf: "ebook",
+  djvu: "ebook",
+  fb2: "ebook",
+  lit: "ebook",
+  rtf: "ebook",
+  // image
+  jpg: "image",
+  jpeg: "image",
+  png: "image",
+  gif: "image",
+  webp: "image",
+  bmp: "image",
+  tiff: "image",
+  tif: "image",
+  heic: "image",
+  avif: "image",
+  svg: "image",
+  ico: "image",
+  raw: "image",
+  cr2: "image",
+  nef: "image",
+  orf: "image",
+  arw: "image",
+  dng: "image",
+  // docker
+  // (handled by path/manifest detection — see classifyPath)
+  // vm / disk images
+  qcow2: "vm",
+  vmdk: "vm",
+  vdi: "vm",
+  vhd: "vm",
+  vhdx: "vm",
+  img: "vm",
+  iso: "vm",
+  wim: "vm",
+  // database
+  db: "database",
+  sqlite: "database",
+  sqlitedb: "database",
+  mdb: "database",
+  accdb: "database",
+  dbf: "database",
+  // parquet / columnar
+  parquet: "parquet",
+  arrow: "parquet",
+  orc: "parquet",
+  avro: "parquet",
+  // archive
+  zip: "archive",
+  tar: "archive",
+  gz: "archive",
+  "tar.gz": "archive",
+  bz2: "archive",
+  xz: "archive",
+  "7z": "archive",
+  rar: "archive",
+  zst: "archive",
+  lz4: "archive",
+  cab: "archive",
+  deb: "archive",
+  rpm: "archive",
+  // code
+  js: "code",
+  mjs: "code",
+  cjs: "code",
+  ts: "code",
+  tsx: "code",
+  jsx: "code",
+  py: "code",
+  rb: "code",
+  go: "code",
+  rs: "code",
+  java: "code",
+  kt: "code",
+  c: "code",
+  h: "code",
+  cpp: "code",
+  hpp: "code",
+  cs: "code",
+  php: "code",
+  swift: "code",
+  scala: "code",
+  clj: "code",
+  lua: "code",
+  pl: "code",
+  sh: "code",
+  bash: "code",
+  zsh: "code",
+  fish: "code",
+  ps1: "code",
+  // logs
+  log: "logs",
+  out: "logs",
+  err: "logs",
+};
+
+/** Directory-name → category map. */
+const DIR_CATEGORY: Record<string, Category> = {
+  node_modules: "node_modules",
+  ".git": "code",
+  ".cache": "other",
+  __pycache__: "code",
+  ".venv": "code",
+  venv: "code",
+};
+
+/** Docker-related directory names. */
+const DOCKER_DIR_NAMES = new Set([
+  "docker",
+  "overlay2",
+  "aufs",
+  "devicemapper",
+  "containers",
+  "image",
+  "volumes",
+  "buildkit",
+  "snapshots",
+  "diff",
+]);
+
+/** Audiobook path keywords. */
+const AUDIOBOOK_PATH_KEYWORDS = [
+  "audiobook",
+  "audiobooks",
+  "audible",
+  "librivox",
+];
+/** Ebook path keywords. */
+const EBOOK_PATH_KEYWORDS = ["ebook", "ebooks", "kindle", "calibre", "library"];
+
+function fileExtension(name: string): string {
+  const lower = name.toLowerCase();
+  // Handle compound extensions like .tar.gz
+  if (lower.endsWith(".tar.gz")) return "tar.gz";
+  if (lower.endsWith(".tar.bz2")) return "tar.bz2";
+  if (lower.endsWith(".tar.xz")) return "tar.xz";
+  const dot = lower.lastIndexOf(".");
+  if (dot <= 0 || dot === lower.length - 1) return "";
+  return lower.slice(dot + 1);
 }
 
-/** A single file entry in a disk audit result. */
-export interface FileEntry {
-  /** Absolute filesystem path of the file. */
-  path: string;
-  /** File name (last path component). */
-  name: string;
-  /** Size of the file in bytes. */
-  bytes: number;
-  /** Lowercased file extension without the dot, or empty string if none. */
-  extension: string;
+/** Classify a file by extension, refined by path context. */
+function classifyFile(ext: string, fullPath: string): Category {
+  // Extension-based first
+  let cat: Category = EXT_CATEGORY[ext] ?? "other";
+
+  // Path-based refinement: if m4a/m4b/aax is under an audiobook path → audiobook,
+  // if under a music path → audio. If mp3 is under audiobook path → audiobook.
+  const lowerPath = fullPath.toLowerCase();
+  if (cat === "audiobook" || ext === "mp3" || ext === "m4a") {
+    if (AUDIOBOOK_PATH_KEYWORDS.some((k) => lowerPath.includes(k))) {
+      cat = "audiobook";
+    } else if (cat === "audiobook") {
+      // m4b/aax without audiobook path context is still likely an audiobook
+      cat = "audiobook";
+    } else {
+      cat = "audio";
+    }
+  }
+
+  // Pdf under ebook path → ebook; pdf elsewhere → ebook still (default)
+  if (ext === "pdf" && EBOOK_PATH_KEYWORDS.some((k) => lowerPath.includes(k))) {
+    cat = "ebook";
+  }
+
+  // Images under raw/photo path stay image
+  return cat;
 }
 
-/** A per-extension byte aggregate in a disk audit result. */
-export interface ExtensionEntry {
-  /** Lowercased extension string, or `"(none)"` for extensionless files. */
-  extension: string;
-  /** Total bytes across all files with this extension. */
+// ---------------------------------------------------------------------------
+// Schema & output types
+// ---------------------------------------------------------------------------
+
+/** A content category rollup. */
+export interface CategoryRollup {
+  /** Category label. */
+  category: string;
+  /** Human-readable label (e.g. "Videos", "Audiobooks"). */
+  label: string;
+  /** Total bytes across all files in this category. */
   totalBytes: number;
-  /** Number of files with this extension. */
+  /** Number of files in this category. */
   fileCount: number;
+  /** Fraction of total disk usage (0..1). */
+  fraction: number;
+}
+
+/** A notable directory found during the walk. */
+export interface NotableDir {
+  /** Absolute filesystem path. */
+  path: string;
+  /** Directory name (last component). */
+  name: string;
+  /** Total bytes under this directory. */
+  bytes: number;
+  /** File count under this directory. */
+  fileCount: number;
+  /** Dominant content category (if one category is >50% of bytes). */
+  dominantCategory: string | null;
+  /** Depth from the audit root (0 = immediate child). */
+  depth: number;
+}
+
+/** A notable file found during the walk. */
+export interface NotableFile {
+  /** Absolute filesystem path. */
+  path: string;
+  /** File name. */
+  name: string;
+  /** Size in bytes. */
+  bytes: number;
+  /** Content category. */
+  category: string;
+}
+
+/** A semantic finding (a group of related items the user should know about). */
+export interface Finding {
+  /** Finding type — what kind of group this is. */
+  kind: string;
+  /** Human-readable title (e.g. "3 large Docker images", "Audiobooks: 42 files"). */
+  title: string;
+  /** Category label if applicable. */
+  category: string | null;
+  /** Total bytes for this finding. */
+  totalBytes: number;
+  /** Number of items in this finding. */
+  count: number;
+  /** Sample paths (up to 5). */
+  samplePaths: string[];
+  /** Whether this finding is notable enough to highlight. */
+  notable: boolean;
 }
 
 /** A per-path error recorded during the walk. */
@@ -95,39 +344,52 @@ export interface AuditOutput {
   totalFiles: number;
   /** Total number of subdirectories found under the root. */
   totalDirs: number;
-  /** Maximum recursion depth requested for the walk. */
-  maxDepth: number;
   /** Wall-clock duration of the audit in milliseconds. */
   durationMs: number;
-  /** Largest immediate subdirectories of the root, sorted by bytes desc. */
-  topDirs: DirEntry[];
-  /** Largest individual files found during the walk, sorted by bytes desc. */
-  largestFiles: FileEntry[];
-  /** Per-extension byte aggregates, sorted by totalBytes desc. */
-  extensions: ExtensionEntry[];
+  /** Per-category byte rollups, sorted by totalBytes desc. */
+  categories: CategoryRollup[];
+  /** Notable directories (large or category-dominant), sorted by bytes desc. */
+  notableDirs: NotableDir[];
+  /** Notable individual files (large), sorted by bytes desc. */
+  notableFiles: NotableFile[];
+  /** Semantic findings — grouped insights the user should know about. */
+  findings: Finding[];
   /** Per-path errors encountered during the walk (never aborts the audit). */
   errors: AuditError[];
 }
 
-const DirEntrySchema = z.object({
-  path: z.string(),
-  name: z.string(),
-  bytes: z.number().nonnegative(),
-  fileCount: z.number().int().nonnegative(),
-  dirCount: z.number().int().nonnegative(),
-});
-
-const FileEntrySchema = z.object({
-  path: z.string(),
-  name: z.string(),
-  bytes: z.number().nonnegative(),
-  extension: z.string(),
-});
-
-const ExtensionEntrySchema = z.object({
-  extension: z.string(),
+const CategoryRollupSchema = z.object({
+  category: z.string(),
+  label: z.string(),
   totalBytes: z.number().nonnegative(),
   fileCount: z.number().int().nonnegative(),
+  fraction: z.number().nonnegative(),
+});
+
+const NotableDirSchema = z.object({
+  path: z.string(),
+  name: z.string(),
+  bytes: z.number().nonnegative(),
+  fileCount: z.number().int().nonnegative(),
+  dominantCategory: z.string().nullable(),
+  depth: z.number().int().nonnegative(),
+});
+
+const NotableFileSchema = z.object({
+  path: z.string(),
+  name: z.string(),
+  bytes: z.number().nonnegative(),
+  category: z.string(),
+});
+
+const FindingSchema = z.object({
+  kind: z.string(),
+  title: z.string(),
+  category: z.string().nullable(),
+  totalBytes: z.number().nonnegative(),
+  count: z.number().int().nonnegative(),
+  samplePaths: z.array(z.string()),
+  notable: z.boolean(),
 });
 
 /** Zod schema describing the structured result of a disk usage audit. */
@@ -137,134 +399,20 @@ const AuditOutputSchema = z.object({
   totalBytes: z.number().nonnegative(),
   totalFiles: z.number().int().nonnegative(),
   totalDirs: z.number().int().nonnegative(),
-  maxDepth: z.number().int().nonnegative(),
   durationMs: z.number().nonnegative(),
-  topDirs: z.array(DirEntrySchema),
-  largestFiles: z.array(FileEntrySchema),
-  extensions: z.array(ExtensionEntrySchema),
+  categories: z.array(CategoryRollupSchema),
+  notableDirs: z.array(NotableDirSchema),
+  notableFiles: z.array(NotableFileSchema),
+  findings: z.array(FindingSchema),
   errors: z.array(z.object({
     path: z.string(),
     message: z.string(),
   })),
 });
 
-/** Model definition for auditing local disk usage. */
-export const model = {
-  type: "@svendowideit/disk-auditor",
-  version: "2026.07.17.2",
-  globalArguments: GlobalArgsSchema,
-  resources: {
-    audit: {
-      description: "Disk usage audit for a path",
-      schema: AuditOutputSchema,
-      lifetime: "infinite",
-      garbageCollection: 10,
-    },
-  },
-  methods: {
-    audit: {
-      description: "Recursively measure disk usage under the configured path",
-      arguments: AuditArgsSchema,
-      execute: async (
-        args: AuditArgs,
-        context: {
-          globalArgs: GlobalArgs;
-          logger?: {
-            info: (msg: string, props?: Record<string, unknown>) => void;
-            debug?: (msg: string, props?: Record<string, unknown>) => void;
-          };
-          writeResource: (
-            specName: string,
-            name: string,
-            data: Record<string, unknown>,
-          ) => Promise<{ name: string }>;
-        },
-      ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const root = context.globalArgs.path;
-        const started = Date.now();
-        const logger = context.logger;
-        logger?.info("Auditing disk usage under {root}", { root });
-
-        const result = await auditDisk({
-          root,
-          depth: args.depth,
-          excludePatterns: args.excludePatterns,
-          followSymlinks: args.followSymlinks,
-          topDirs: args.topDirs,
-          topFiles: args.topFiles,
-          topExtensions: args.topExtensions,
-          logger,
-          heartbeatMs: 2000,
-        });
-
-        const durationMs = Date.now() - started;
-        const durationS = (durationMs / 1000).toFixed(1);
-        logger?.info(
-          "Audit complete: {files} files, {dirs} dirs, {total} in {sec}s",
-          {
-            files: result.totalFiles,
-            dirs: result.totalDirs,
-            total: humanSize(result.totalBytes),
-            sec: durationS,
-          },
-        );
-
-        const handle = await context.writeResource("audit", "current", {
-          rootPath: result.rootPath,
-          scannedAt: result.scannedAt,
-          totalBytes: result.totalBytes,
-          totalFiles: result.totalFiles,
-          totalDirs: result.totalDirs,
-          maxDepth: result.maxDepth,
-          durationMs,
-          topDirs: result.topDirs,
-          largestFiles: result.largestFiles,
-          extensions: result.extensions,
-          errors: result.errors,
-        });
-
-        return { dataHandles: [handle] };
-      },
-    },
-  },
-};
-
-type WalkResult = {
-  bytes: number;
-  fileCount: number;
-  dirCount: number;
-  files: { path: string; name: string; bytes: number; extension: string }[];
-  dirs: {
-    path: string;
-    name: string;
-    bytes: number;
-    fileCount: number;
-    dirCount: number;
-  }[];
-  errors: { path: string; message: string }[];
-};
-
-const excluded = (name: string, patterns: string[]): boolean =>
-  patterns.some((p) => matchGlob(name, p));
-
-function matchGlob(name: string, pattern: string): boolean {
-  const re = globToRegExp(pattern);
-  return re.test(name);
-}
-
-function globToRegExp(pattern: string): RegExp {
-  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(
-    /\*/g,
-    ".*",
-  ).replace(/\?/g, ".");
-  return new RegExp(`^${escaped}$`);
-}
-
-function fileExtension(name: string): string {
-  const dot = name.lastIndexOf(".");
-  if (dot <= 0 || dot === name.length - 1) return "";
-  return name.slice(dot + 1).toLowerCase();
-}
+// ---------------------------------------------------------------------------
+// Human-readable size
+// ---------------------------------------------------------------------------
 
 /** Format a byte count as a human-readable binary size (e.g. 1.4 GiB, 512 KiB). */
 export function humanSize(bytes: number): string {
@@ -275,6 +423,16 @@ export function humanSize(bytes: number): string {
   const formatted = i === 0 ? value.toString() : value.toFixed(1);
   return `${formatted} ${units[i]}`;
 }
+
+// ---------------------------------------------------------------------------
+// Progress logging
+// ---------------------------------------------------------------------------
+
+/** Optional progress logger — the execute function passes the engine's logger. */
+export type ProgressLogger = {
+  info?: (msg: string, props?: Record<string, unknown>) => void;
+  debug?: (msg: string, props?: Record<string, unknown>) => void;
+};
 
 /** Running progress state threaded through the walk for heartbeat logging. */
 type ProgressState = {
@@ -359,47 +517,696 @@ function maybeLogProgress(state: ProgressState, logger?: ProgressLogger): void {
   logger.info(line);
 }
 
-/**
- * Recursively audit disk usage under `root`, returning the largest
- * subdirectories, largest files, and per-extension byte totals. Errors
- * encountered during the walk are collected rather than thrown.
- *
- * @param opts Configuration for the audit (root path, depth, exclusions, limits).
- * @returns The structured audit output.
- */
-/** Optional progress logger — the execute function passes the engine's logger. */
-export type ProgressLogger = {
-  info?: (msg: string, props?: Record<string, unknown>) => void;
-  debug?: (msg: string, props?: Record<string, unknown>) => void;
+// ---------------------------------------------------------------------------
+// Walk
+// ---------------------------------------------------------------------------
+
+type WalkResult = {
+  bytes: number;
+  fileCount: number;
+  dirCount: number;
+  files: {
+    path: string;
+    name: string;
+    bytes: number;
+    ext: string;
+    category: Category;
+  }[];
+  dirs: {
+    path: string;
+    name: string;
+    bytes: number;
+    fileCount: number;
+    dirCount: number;
+    depth: number;
+    categoryBreakdown: Map<Category, number>;
+    fileCountByCategory: Map<Category, number>;
+  }[];
+  errors: { path: string; message: string }[];
+  categoryBreakdown: Map<Category, number>;
+  fileCountByCategory: Map<Category, number>;
+};
+
+const MAX_DEPTH = 30;
+
+/** Glob match helper. */
+function matchGlob(name: string, pattern: string): boolean {
+  const re = globToRegExp(pattern);
+  return re.test(name);
+}
+
+function globToRegExp(pattern: string): RegExp {
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(
+    /\*/g,
+    ".*",
+  ).replace(/\?/g, ".");
+  return new RegExp(`^${escaped}$`);
+}
+
+const excluded = (name: string, patterns: string[]): boolean =>
+  patterns.some((p) => matchGlob(name, p));
+
+/** Recursively walk a directory, classifying every file and directory. */
+/** A frame on the iterative walk stack — one per directory being processed. */
+type WalkFrame = {
+  dir: string;
+  depth: number;
+  name: string;
+  entries: Deno.DirEntry[];
+  entryIndex: number;
+  bytes: number;
+  fileCount: number;
+  dirCount: number;
+  localCategoryBytes: Map<Category, number>;
+  localCategoryCounts: Map<Category, number>;
+  childCategoryBytes: Map<Category, number>;
+  childCategoryCounts: Map<Category, number>;
+  childDirs: WalkResult["dirs"];
+  childFiles: WalkResult["files"];
+};
+
+/** Iteratively walk a directory tree (stack-based, no recursion) classifying every file. */
+async function walk(opts: {
+  dir: string;
+  excludePatterns: string[];
+  followSymlinks: boolean;
+  errors: { path: string; message: string }[];
+  logger?: ProgressLogger;
+  state: ProgressState;
+  minNotableBytes: number;
+}): Promise<WalkResult> {
+  const { state, logger, minNotableBytes } = opts;
+  const rootResult: WalkResult = {
+    bytes: 0,
+    fileCount: 0,
+    dirCount: 0,
+    files: [],
+    dirs: [],
+    errors: opts.errors,
+    categoryBreakdown: new Map(),
+    fileCountByCategory: new Map(),
+  };
+
+  // Stack of frames; root is pushed first
+  const stack: WalkFrame[] = [];
+  const rootName = opts.dir.split(/[/\\]/).pop() ?? opts.dir;
+  const rootEntries = readDirEntries(opts.dir, opts.errors, state);
+  if (rootEntries === null) return rootResult;
+  stack.push({
+    dir: opts.dir,
+    depth: -1,
+    name: rootName,
+    entries: rootEntries,
+    entryIndex: 0,
+    bytes: 0,
+    fileCount: 0,
+    dirCount: 0,
+    localCategoryBytes: new Map(),
+    localCategoryCounts: new Map(),
+    childCategoryBytes: new Map(),
+    childCategoryCounts: new Map(),
+    childDirs: [],
+    childFiles: [],
+  });
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    state.currentPath = frame.dir;
+
+    // Process entries one at a time; when exhausted, pop and merge into parent
+    if (frame.entryIndex >= frame.entries.length) {
+      // Frame complete — compute its category breakdown
+      const categoryBreakdown = mergeCategoryMaps(frame.localCategoryBytes, [
+        frame.childCategoryBytes,
+      ]);
+      const fileCountByCategory = mergeCategoryMaps(frame.localCategoryCounts, [
+        frame.childCategoryCounts,
+      ]);
+      const frameResult: WalkResult = {
+        bytes: frame.bytes,
+        fileCount: frame.fileCount,
+        dirCount: frame.dirCount,
+        files: [...frame.childFiles],
+        dirs: [...frame.childDirs],
+        errors: opts.errors,
+        categoryBreakdown,
+        fileCountByCategory,
+      };
+      stack.pop();
+
+      if (stack.length > 0) {
+        const parent = stack[stack.length - 1];
+        // Add this dir as a child of parent
+        const dirDepth = frame.depth;
+        parent.childDirs.push({
+          path: frame.dir,
+          name: frame.name,
+          bytes: frameResult.bytes,
+          fileCount: frameResult.fileCount,
+          dirCount: frameResult.dirCount,
+          depth: dirDepth,
+          categoryBreakdown: frameResult.categoryBreakdown,
+          fileCountByCategory: frameResult.fileCountByCategory,
+        });
+        parent.bytes += frameResult.bytes;
+        parent.fileCount += frameResult.fileCount;
+        parent.dirCount += 1 + frameResult.dirCount;
+        for (const f of frameResult.files) parent.childFiles.push(f);
+        for (const d of frameResult.dirs) parent.childDirs.push(d);
+        // Merge category breakdown into parent's child maps
+        for (const [k, v] of frameResult.categoryBreakdown.entries()) {
+          parent.childCategoryBytes.set(
+            k,
+            (parent.childCategoryBytes.get(k) ?? 0) + v,
+          );
+        }
+        for (const [k, v] of frameResult.fileCountByCategory.entries()) {
+          parent.childCategoryCounts.set(
+            k,
+            (parent.childCategoryCounts.get(k) ?? 0) + v,
+          );
+        }
+        state.dirsScanned += 1;
+        state.bytesFound += frameResult.bytes;
+        state.filesScanned += frameResult.fileCount;
+        noteDir(state, {
+          path: frame.dir,
+          name: frame.name,
+          bytes: frameResult.bytes,
+        }, minNotableBytes);
+        maybeLogProgress(state, logger);
+      } else {
+        // This was the root frame
+        rootResult.bytes = frameResult.bytes;
+        rootResult.fileCount = frameResult.fileCount;
+        rootResult.dirCount = frameResult.dirCount;
+        rootResult.files = frameResult.files;
+        rootResult.dirs = frameResult.dirs;
+        rootResult.categoryBreakdown = frameResult.categoryBreakdown;
+        rootResult.fileCountByCategory = frameResult.fileCountByCategory;
+      }
+      continue;
+    }
+
+    const entry = frame.entries[frame.entryIndex];
+    frame.entryIndex++;
+    const fullPath = `${frame.dir}${
+      frame.dir.endsWith("/") ? "" : "/"
+    }${entry.name}`;
+
+    if (entry.isDirectory) {
+      if (excluded(entry.name, opts.excludePatterns)) continue;
+      const childDepth = frame.depth + 1;
+      if (childDepth > MAX_DEPTH) continue;
+      // Push child frame onto stack — we'll resume this frame after it completes
+      const childEntries = readDirEntries(fullPath, opts.errors, state);
+      if (childEntries === null) continue;
+      stack.push({
+        dir: fullPath,
+        depth: childDepth,
+        name: entry.name,
+        entries: childEntries,
+        entryIndex: 0,
+        bytes: 0,
+        fileCount: 0,
+        dirCount: 0,
+        localCategoryBytes: new Map(),
+        localCategoryCounts: new Map(),
+        childCategoryBytes: new Map(),
+        childCategoryCounts: new Map(),
+        childDirs: [],
+        childFiles: [],
+      });
+      continue;
+    }
+
+    if (entry.isSymlink && !opts.followSymlinks) {
+      continue;
+    }
+
+    let size = 0;
+    let isDir = false;
+    try {
+      const stat = opts.followSymlinks
+        ? await Deno.stat(fullPath)
+        : await Deno.lstat(fullPath);
+      if (stat.isDirectory) {
+        isDir = true;
+      } else {
+        size = stat.size ?? 0;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      opts.errors.push({ path: fullPath, message: msg });
+      state.errorsCount++;
+      continue;
+    }
+
+    if (isDir) {
+      const childDepth = frame.depth + 1;
+      if (childDepth > MAX_DEPTH) continue;
+      const childEntries = readDirEntries(fullPath, opts.errors, state);
+      if (childEntries === null) continue;
+      stack.push({
+        dir: fullPath,
+        depth: childDepth,
+        name: entry.name,
+        entries: childEntries,
+        entryIndex: 0,
+        bytes: 0,
+        fileCount: 0,
+        dirCount: 0,
+        localCategoryBytes: new Map(),
+        localCategoryCounts: new Map(),
+        childCategoryBytes: new Map(),
+        childCategoryCounts: new Map(),
+        childDirs: [],
+        childFiles: [],
+      });
+      continue;
+    }
+
+    const ext = fileExtension(entry.name);
+    const category = classifyFile(ext, fullPath);
+    frame.bytes += size;
+    frame.fileCount += 1;
+    state.bytesFound += size;
+    state.filesScanned += 1;
+    frame.childFiles.push({
+      path: fullPath,
+      name: entry.name,
+      bytes: size,
+      ext,
+      category,
+    });
+    noteFile(
+      state,
+      { path: fullPath, name: entry.name, bytes: size },
+      minNotableBytes,
+    );
+    frame.localCategoryBytes.set(
+      category,
+      (frame.localCategoryBytes.get(category) ?? 0) + size,
+    );
+    frame.localCategoryCounts.set(
+      category,
+      (frame.localCategoryCounts.get(category) ?? 0) + 1,
+    );
+    maybeLogProgress(state, logger);
+  }
+
+  return rootResult;
+}
+
+/** Read directory entries, returning null on error (error is pushed to errors). */
+function readDirEntries(
+  dir: string,
+  errors: { path: string; message: string }[],
+  state: ProgressState,
+): Deno.DirEntry[] | null {
+  try {
+    return Array.from(Deno.readDirSync(dir));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    errors.push({ path: dir, message: msg });
+    state.errorsCount++;
+    return null;
+  }
+}
+
+/** Merge a local map with child dirs' maps. */
+function mergeCategoryMaps(
+  local: Map<Category, number>,
+  childMaps: Map<Category, number>[],
+): Map<Category, number> {
+  const merged = new Map<Category, number>(local);
+  for (const childMap of childMaps) {
+    if (!childMap) continue;
+    for (const [k, v] of childMap.entries()) {
+      merged.set(k, (merged.get(k) ?? 0) + v);
+    }
+  }
+  return merged;
+}
+
+// ---------------------------------------------------------------------------
+// Analysis
+// ---------------------------------------------------------------------------
+
+/** Human-readable label for a category. */
+const CATEGORY_LABELS: Record<Category, string> = {
+  video: "Videos",
+  audio: "Audio",
+  audiobook: "Audiobooks",
+  ebook: "Ebooks",
+  image: "Images",
+  docker: "Docker",
+  vm: "VM/disk images",
+  database: "Databases",
+  parquet: "Parquet/columnar",
+  archive: "Archives",
+  code: "Source code",
+  logs: "Log files",
+  node_modules: "node_modules",
+  other: "Other",
+};
+
+/** Compute per-category rollups from the walk's file list. */
+function computeCategories(
+  files: { category: Category; bytes: number }[],
+  totalBytes: number,
+): CategoryRollup[] {
+  const bytesByCat = new Map<Category, number>();
+  const countByCat = new Map<Category, number>();
+  for (const f of files) {
+    bytesByCat.set(f.category, (bytesByCat.get(f.category) ?? 0) + f.bytes);
+    countByCat.set(f.category, (countByCat.get(f.category) ?? 0) + 1);
+  }
+  const result: CategoryRollup[] = [];
+  for (const cat of CATEGORIES) {
+    const total = bytesByCat.get(cat) ?? 0;
+    if (total === 0) continue;
+    result.push({
+      category: cat,
+      label: CATEGORY_LABELS[cat],
+      totalBytes: total,
+      fileCount: countByCat.get(cat) ?? 0,
+      fraction: totalBytes > 0 ? total / totalBytes : 0,
+    });
+  }
+  return result.sort((a, b) => b.totalBytes - a.totalBytes);
+}
+
+/** Find the dominant category for a directory (>50% of bytes). */
+function dominantCategory(breakdown: Map<Category, number>): Category | null {
+  let total = 0;
+  let best: Category | null = null;
+  let bestBytes = 0;
+  for (const [cat, bytes] of breakdown.entries()) {
+    total += bytes;
+    if (bytes > bestBytes) {
+      bestBytes = bytes;
+      best = cat;
+    }
+  }
+  if (total === 0 || best === null) return null;
+  return bestBytes / total > 0.5 ? best : null;
+}
+
+/** Select notable directories: large ones, or category-dominant at any depth. */
+function selectNotableDirs(
+  dirs: WalkResult["dirs"],
+  totalBytes: number,
+  minNotableBytes: number,
+): NotableDir[] {
+  const notable: NotableDir[] = [];
+  for (const d of dirs) {
+    let dom = dominantCategory(d.categoryBreakdown);
+    // Fall back to name-based classification for dirs whose content is "other"
+    // or undetermined but whose name matches a known category (node_modules, docker)
+    if (dom === null || dom === "other") {
+      const lower = d.name.toLowerCase();
+      if (DIR_CATEGORY[lower]) dom = DIR_CATEGORY[lower];
+      else if (DOCKER_DIR_NAMES.has(lower)) dom = "docker";
+    }
+    const isLarge = d.bytes >= minNotableBytes;
+    const isSignificantFraction = totalBytes > 0 && d.bytes / totalBytes > 0.01; // >1% of total
+    const hasDominantCategory = dom !== null && dom !== "other";
+    if (isLarge || isSignificantFraction || hasDominantCategory) {
+      notable.push({
+        path: d.path,
+        name: d.name,
+        bytes: d.bytes,
+        fileCount: d.fileCount,
+        dominantCategory: dom,
+        depth: d.depth,
+      });
+    }
+  }
+  // Sort by bytes desc, cap at 50 to keep output manageable
+  return notable.sort((a, b) => b.bytes - a.bytes).slice(0, 50);
+}
+
+/** Select notable files: large individual files, sorted by bytes. */
+function selectNotableFiles(
+  files: WalkResult["files"],
+  minNotableBytes: number,
+): NotableFile[] {
+  return files
+    .filter((f) => f.bytes >= minNotableBytes)
+    .sort((a, b) => b.bytes - a.bytes)
+    .slice(0, 50)
+    .map((f) => ({
+      path: f.path,
+      name: f.name,
+      bytes: f.bytes,
+      category: f.category,
+    }));
+}
+
+/** Build semantic findings from the walk results. */
+function buildFindings(
+  categories: CategoryRollup[],
+  notableDirs: NotableDir[],
+  notableFiles: NotableFile[],
+  totalBytes: number,
+): Finding[] {
+  const findings: Finding[] = [];
+  const totalFraction = (b: number) => totalBytes > 0 ? b / totalBytes : 0;
+
+  // 1. Per-category findings — notable if the category is >2% of total
+  for (const cat of categories) {
+    if (cat.fraction < 0.02) continue;
+    const sampleDirs = notableDirs
+      .filter((d) => d.dominantCategory === cat.category)
+      .slice(0, 3)
+      .map((d) => d.path);
+    const sampleFiles = notableFiles
+      .filter((f) => f.category === cat.category)
+      .slice(0, 3)
+      .map((f) => f.path);
+    findings.push({
+      kind: "category",
+      title: `${cat.label}: ${cat.fileCount} files, ${
+        humanSize(cat.totalBytes)
+      } (${(cat.fraction * 100).toFixed(0)}%)`,
+      category: cat.category,
+      totalBytes: cat.totalBytes,
+      count: cat.fileCount,
+      samplePaths: [...sampleDirs, ...sampleFiles].slice(0, 5),
+      notable: cat.fraction > 0.05,
+    });
+  }
+
+  // 2. Books combined (audiobooks + ebooks)
+  const audiobookCat = categories.find((c) => c.category === "audiobook");
+  const ebookCat = categories.find((c) => c.category === "ebook");
+  const bookBytes = (audiobookCat?.totalBytes ?? 0) +
+    (ebookCat?.totalBytes ?? 0);
+  const bookCount = (audiobookCat?.fileCount ?? 0) + (ebookCat?.fileCount ?? 0);
+  if (bookBytes > 0 && totalFraction(bookBytes) > 0.005) {
+    const samples = [
+      ...notableFiles.filter((f) => f.category === "audiobook").map((f) =>
+        f.path
+      ),
+      ...notableFiles.filter((f) => f.category === "ebook").map((f) => f.path),
+    ].slice(0, 5);
+    findings.push({
+      kind: "books-combined",
+      title: `Books (audiobooks + ebooks): ${bookCount} files, ${
+        humanSize(bookBytes)
+      }`,
+      category: null,
+      totalBytes: bookBytes,
+      count: bookCount,
+      samplePaths: samples,
+      notable: totalFraction(bookBytes) > 0.02,
+    });
+  }
+
+  // 3. Docker images — group docker-category dirs/files
+  const dockerBytes =
+    categories.find((c) => c.category === "docker")?.totalBytes ?? 0;
+  const dockerDirs = notableDirs.filter((d) => d.dominantCategory === "docker");
+  if (dockerBytes > 0 || dockerDirs.length > 0) {
+    const dockerCount = dockerDirs.length || 1;
+    findings.push({
+      kind: "docker",
+      title: `Docker: ${dockerCount} image${dockerCount > 1 ? "s" : ""}, ${
+        humanSize(dockerBytes)
+      }`,
+      category: "docker",
+      totalBytes: dockerBytes,
+      count: dockerCount,
+      samplePaths: dockerDirs.slice(0, 5).map((d) => d.path),
+      notable: dockerBytes > 0,
+    });
+  }
+
+  // 4. Large parquet files specifically
+  const parquetFiles = notableFiles.filter((f) => f.category === "parquet");
+  if (parquetFiles.length > 0) {
+    const parquetBytes = parquetFiles.reduce((s, f) => s + f.bytes, 0);
+    findings.push({
+      kind: "parquet",
+      title: `${parquetFiles.length} large Parquet file${
+        parquetFiles.length > 1 ? "s" : ""
+      }: ${humanSize(parquetBytes)}`,
+      category: "parquet",
+      totalBytes: parquetBytes,
+      count: parquetFiles.length,
+      samplePaths: parquetFiles.slice(0, 5).map((f) => f.path),
+      notable: parquetFiles.length > 0,
+    });
+  }
+
+  // 5. VM/disk images
+  const vmFiles = notableFiles.filter((f) => f.category === "vm");
+  if (vmFiles.length > 0) {
+    const vmBytes = vmFiles.reduce((s, f) => s + f.bytes, 0);
+    findings.push({
+      kind: "vm-images",
+      title: `${vmFiles.length} VM/disk image${
+        vmFiles.length > 1 ? "s" : ""
+      }: ${humanSize(vmBytes)}`,
+      category: "vm",
+      totalBytes: vmBytes,
+      count: vmFiles.length,
+      samplePaths: vmFiles.slice(0, 5).map((f) => f.path),
+      notable: vmFiles.length > 0,
+    });
+  }
+
+  // 6. node_modules directories
+  const nodeModulesDirs = notableDirs.filter((d) =>
+    d.dominantCategory === "node_modules" || d.name === "node_modules"
+  );
+  if (nodeModulesDirs.length > 0) {
+    const nmBytes = nodeModulesDirs.reduce((s, d) => s + d.bytes, 0);
+    findings.push({
+      kind: "node_modules",
+      title: `${nodeModulesDirs.length} node_modules dir${
+        nodeModulesDirs.length > 1 ? "s" : ""
+      }: ${humanSize(nmBytes)}`,
+      category: "node_modules",
+      totalBytes: nmBytes,
+      count: nodeModulesDirs.length,
+      samplePaths: nodeModulesDirs.slice(0, 5).map((d) => d.path),
+      notable: nodeModulesDirs.length > 0,
+    });
+  }
+
+  // Sort findings: notable first, then by totalBytes desc
+  return findings.sort((a, b) => {
+    if (a.notable !== b.notable) return a.notable ? -1 : 1;
+    return b.totalBytes - a.totalBytes;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Main entry
+// ---------------------------------------------------------------------------
+
+/** Model definition for auditing local disk usage. */
+export const model = {
+  type: "@svendowideit/disk-auditor",
+  version: "2026.07.17.3",
+  globalArguments: GlobalArgsSchema,
+  resources: {
+    audit: {
+      description: "Disk usage audit for a path",
+      schema: AuditOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+  },
+  methods: {
+    audit: {
+      description: "Recursively measure disk usage under the configured path",
+      arguments: AuditArgsSchema,
+      execute: async (
+        args: AuditArgs,
+        context: {
+          globalArgs: GlobalArgs;
+          logger?: {
+            info: (msg: string, props?: Record<string, unknown>) => void;
+            debug?: (msg: string, props?: Record<string, unknown>) => void;
+          };
+          writeResource: (
+            specName: string,
+            name: string,
+            data: Record<string, unknown>,
+          ) => Promise<{ name: string }>;
+        },
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const root = context.globalArgs.path;
+        const started = Date.now();
+        const logger = context.logger;
+        logger?.info("Auditing disk usage under {root}", { root });
+
+        const result = await auditDisk({
+          root,
+          excludePatterns: args.excludePatterns,
+          followSymlinks: args.followSymlinks,
+          minNotableBytes: args.minNotableBytes,
+          logger,
+          heartbeatMs: 2000,
+        });
+
+        const durationMs = Date.now() - started;
+        const durationS = (durationMs / 1000).toFixed(1);
+        logger?.info(
+          "Audit complete: {files} files, {dirs} dirs, {total} in {sec}s — {cats} categories, {findings} findings",
+          {
+            files: result.totalFiles,
+            dirs: result.totalDirs,
+            total: humanSize(result.totalBytes),
+            sec: durationS,
+            cats: result.categories.length,
+            findings: result.findings.length,
+          },
+        );
+
+        const handle = await context.writeResource("audit", "current", {
+          rootPath: result.rootPath,
+          scannedAt: result.scannedAt,
+          totalBytes: result.totalBytes,
+          totalFiles: result.totalFiles,
+          totalDirs: result.totalDirs,
+          durationMs,
+          categories: result.categories,
+          notableDirs: result.notableDirs,
+          notableFiles: result.notableFiles,
+          findings: result.findings,
+          errors: result.errors,
+        });
+
+        return { dataHandles: [handle] };
+      },
+    },
+  },
 };
 
 /**
- * Recursively audit disk usage under `root`, returning the largest
- * subdirectories, largest files, and per-extension byte totals. Errors
- * encountered during the walk are collected rather than thrown.
+ * Recursively audit disk usage under `root`, returning categorized findings.
+ * Errors encountered during the walk are collected rather than thrown.
  *
- * @param opts Configuration for the audit (root path, depth, exclusions, limits).
- * @returns The structured audit output.
+ * @param opts Configuration for the audit (root path, exclusions, limits).
+ * @returns The structured audit output with categories, findings, and notable items.
  */
 export async function auditDisk(opts: {
   root: string;
-  depth: number;
   excludePatterns: string[];
   followSymlinks: boolean;
-  topDirs: number;
-  topFiles: number;
-  topExtensions: number;
+  minNotableBytes: number;
   logger?: ProgressLogger;
   heartbeatMs?: number;
 }): Promise<AuditOutput> {
   const {
     root,
-    depth,
     excludePatterns,
     followSymlinks,
-    topDirs,
-    topFiles,
-    topExtensions,
+    minNotableBytes,
     logger,
     heartbeatMs,
   } = opts;
@@ -418,35 +1225,48 @@ export async function auditDisk(opts: {
       totalBytes: 0,
       totalFiles: 0,
       totalDirs: 0,
-      maxDepth: depth,
       durationMs: 0,
-      topDirs: [],
-      largestFiles: [],
-      extensions: [],
+      categories: [],
+      notableDirs: [],
+      notableFiles: [],
+      findings: [],
       errors: [{ path: root, message: msg }],
     };
   }
 
   if (!rootStat.isDirectory) {
+    const ext = fileExtension(root);
+    const category = classifyFile(ext, root);
+    const size = rootStat.size ?? 0;
     return {
       rootPath: root,
       scannedAt: new Date().toISOString(),
-      totalBytes: rootStat.size ?? 0,
+      totalBytes: size,
       totalFiles: rootStat.isFile ? 1 : 0,
       totalDirs: 0,
-      maxDepth: depth,
       durationMs: 0,
-      topDirs: [],
-      largestFiles: [{
+      categories: [{
+        category,
+        label: CATEGORY_LABELS[category],
+        totalBytes: size,
+        fileCount: 1,
+        fraction: 1,
+      }],
+      notableDirs: [],
+      notableFiles: [{
         path: root,
         name: root.split(/[/\\]/).pop() ?? root,
-        bytes: rootStat.size ?? 0,
-        extension: fileExtension(root),
+        bytes: size,
+        category,
       }],
-      extensions: [{
-        extension: fileExtension(root),
-        totalBytes: rootStat.size ?? 0,
-        fileCount: 1,
+      findings: [{
+        kind: "single-file",
+        title: `${root}: ${humanSize(size)} (${CATEGORY_LABELS[category]})`,
+        category,
+        totalBytes: size,
+        count: 1,
+        samplePaths: [root],
+        notable: true,
       }],
       errors,
     };
@@ -454,197 +1274,40 @@ export async function auditDisk(opts: {
 
   const walkResult = await walk({
     dir: root,
-    depth,
     excludePatterns,
     followSymlinks,
     errors,
     logger,
     state,
-    minNotableBytes: 1024 * 1024,
+    minNotableBytes,
   });
 
-  const topDirsList = walkResult.dirs
-    .sort((a, b) => b.bytes - a.bytes)
-    .slice(0, topDirs);
-
-  const largestFiles = walkResult.files
-    .sort((a, b) => b.bytes - a.bytes)
-    .slice(0, topFiles);
-
-  const extMap = new Map<string, { totalBytes: number; fileCount: number }>();
-  for (const f of walkResult.files) {
-    const key = f.extension || "(none)";
-    const entry = extMap.get(key) ?? { totalBytes: 0, fileCount: 0 };
-    entry.totalBytes += f.bytes;
-    entry.fileCount += 1;
-    extMap.set(key, entry);
-  }
-  const extensions = [...extMap.entries()]
-    .map(([extension, v]) => ({
-      extension,
-      totalBytes: v.totalBytes,
-      fileCount: v.fileCount,
-    }))
-    .sort((a, b) => b.totalBytes - a.totalBytes)
-    .slice(0, topExtensions);
+  const totalBytes = walkResult.bytes;
+  const categories = computeCategories(walkResult.files, totalBytes);
+  const notableDirs = selectNotableDirs(
+    walkResult.dirs,
+    totalBytes,
+    minNotableBytes,
+  );
+  const notableFiles = selectNotableFiles(walkResult.files, minNotableBytes);
+  const findings = buildFindings(
+    categories,
+    notableDirs,
+    notableFiles,
+    totalBytes,
+  );
 
   return {
     rootPath: root,
     scannedAt: new Date().toISOString(),
-    totalBytes: walkResult.bytes,
+    totalBytes,
     totalFiles: walkResult.fileCount,
     totalDirs: walkResult.dirCount,
-    maxDepth: depth,
-    durationMs: 0,
-    topDirs: topDirsList,
-    largestFiles,
-    extensions,
+    durationMs: Date.now() - startedMs,
+    categories,
+    notableDirs,
+    notableFiles,
+    findings,
     errors,
   };
-}
-
-async function walk(opts: {
-  dir: string;
-  depth: number;
-  excludePatterns: string[];
-  followSymlinks: boolean;
-  errors: { path: string; message: string }[];
-  logger?: ProgressLogger;
-  state: ProgressState;
-  minNotableBytes: number;
-}): Promise<WalkResult> {
-  const result: WalkResult = {
-    bytes: 0,
-    fileCount: 0,
-    dirCount: 0,
-    files: [],
-    dirs: [],
-    errors: opts.errors,
-  };
-  const { state, logger, minNotableBytes } = opts;
-  state.currentPath = opts.dir;
-
-  let entries: Deno.DirEntry[];
-  try {
-    entries = Array.from(Deno.readDirSync(opts.dir));
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    opts.errors.push({ path: opts.dir, message: msg });
-    state.errorsCount++;
-    return result;
-  }
-
-  for (const entry of entries) {
-    const fullPath = `${opts.dir}${
-      opts.dir.endsWith("/") ? "" : "/"
-    }${entry.name}`;
-
-    if (entry.isDirectory) {
-      if (excluded(entry.name, opts.excludePatterns)) continue;
-
-      const childResult = await walk({
-        dir: fullPath,
-        depth: opts.depth - 1,
-        excludePatterns: opts.excludePatterns,
-        followSymlinks: opts.followSymlinks,
-        errors: opts.errors,
-        logger,
-        state,
-        minNotableBytes,
-      });
-
-      if (opts.depth > 0) {
-        result.dirs.push({
-          path: fullPath,
-          name: entry.name,
-          bytes: childResult.bytes,
-          fileCount: childResult.fileCount,
-          dirCount: childResult.dirCount,
-        });
-      }
-      result.bytes += childResult.bytes;
-      result.fileCount += childResult.fileCount;
-      result.dirCount += 1 + childResult.dirCount;
-      state.dirsScanned += 1;
-      state.bytesFound += childResult.bytes;
-      state.filesScanned += childResult.fileCount;
-      noteDir(state, {
-        path: fullPath,
-        name: entry.name,
-        bytes: childResult.bytes,
-      }, minNotableBytes);
-      maybeLogProgress(state, logger);
-      continue;
-    }
-
-    if (entry.isSymlink && !opts.followSymlinks) {
-      continue;
-    }
-
-    let size = 0;
-    try {
-      const stat = opts.followSymlinks
-        ? await Deno.stat(fullPath)
-        : await Deno.lstat(fullPath);
-      if (stat.isDirectory) {
-        const childResult = await walk({
-          dir: fullPath,
-          depth: opts.depth - 1,
-          excludePatterns: opts.excludePatterns,
-          followSymlinks: opts.followSymlinks,
-          errors: opts.errors,
-          logger,
-          state,
-          minNotableBytes,
-        });
-        if (opts.depth > 0) {
-          result.dirs.push({
-            path: fullPath,
-            name: entry.name,
-            bytes: childResult.bytes,
-            fileCount: childResult.fileCount,
-            dirCount: childResult.dirCount,
-          });
-        }
-        result.bytes += childResult.bytes;
-        result.fileCount += childResult.fileCount;
-        result.dirCount += 1 + childResult.dirCount;
-        state.dirsScanned += 1;
-        state.bytesFound += childResult.bytes;
-        state.filesScanned += childResult.fileCount;
-        noteDir(state, {
-          path: fullPath,
-          name: entry.name,
-          bytes: childResult.bytes,
-        }, minNotableBytes);
-        maybeLogProgress(state, logger);
-        continue;
-      }
-      size = stat.size ?? 0;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      opts.errors.push({ path: fullPath, message: msg });
-      state.errorsCount++;
-      continue;
-    }
-
-    result.bytes += size;
-    result.fileCount += 1;
-    state.bytesFound += size;
-    state.filesScanned += 1;
-    result.files.push({
-      path: fullPath,
-      name: entry.name,
-      bytes: size,
-      extension: fileExtension(entry.name),
-    });
-    noteFile(
-      state,
-      { path: fullPath, name: entry.name, bytes: size },
-      minNotableBytes,
-    );
-    maybeLogProgress(state, logger);
-  }
-
-  return result;
 }

@@ -3,39 +3,25 @@ name: disk
 description: |
   Audit what's consuming disk space under a path.
 
-  Runs the @svendowideit/disk-auditor "audit" method with sensible defaults
-  (depth 3, top 20 dirs/files, top 15 extensions, skipping .git and .swamp).
-  Override any of those with --input flags.
+  Walks the entire tree (no depth limit to set), classifies every file by content
+  type (video, audio, audiobooks, ebooks, docker, VM images, parquet, databases,
+  archives, code, node_modules, etc.), and reports semantic findings — e.g.
+  "3 large Docker images", "Audiobooks: 42 files, 12 GiB", "Books combined:
+  100 files, 20 GiB". No need to specify depth or top-N — the extension adapts
+  based on what it finds.
 
   Usage:
     swamp workflow run disk --input path=/
-    swamp workflow run disk --input path=/var --input depth=5
     swamp workflow run disk --input path=/home --input 'excludePatterns:json=[".git","node_modules"]'
 
   Then read the result:
-    swamp data get --workflow disk current --json | jq '.attributes.topDirs[0:10]'
+    swamp data get --workflow disk current --json | jq -r '.content' | jq '.findings[] | .title'
 tags: {}
 inputs:
   properties:
     path:
       type: string
       description: Filesystem path to audit (required).
-    depth:
-      type: integer
-      default: 3
-      description: Max directory recursion depth (0 = only root's immediate children).
-    topDirs:
-      type: integer
-      default: 20
-      description: How many largest immediate subdirectories of the root to report.
-    topFiles:
-      type: integer
-      default: 20
-      description: How many largest individual files found during the walk to report.
-    topExtensions:
-      type: integer
-      default: 15
-      description: How many file extensions (by total bytes) to report.
     excludePatterns:
       type: array
       items:
@@ -46,13 +32,17 @@ inputs:
       type: boolean
       default: false
       description: Whether to follow symbolic links when summing sizes.
+    minNotableBytes:
+      type: integer
+      default: 1048576
+      description: Minimum size in bytes for a file or dir to be considered notable (default 1 MiB).
   required: ["path"]
 jobs:
   - name: main
     description: Audit disk usage under the given path.
     steps:
       - name: audit
-        description: Recursively measure disk usage.
+        description: Recursively measure and classify disk usage.
         task:
           type: model_method
           modelType: "@svendowideit/disk-auditor"
@@ -61,12 +51,9 @@ jobs:
           globalArgs:
             path: ${{ inputs.path }}
           inputs:
-            depth: ${{ inputs.depth }}
-            topDirs: ${{ inputs.topDirs }}
-            topFiles: ${{ inputs.topFiles }}
-            topExtensions: ${{ inputs.topExtensions }}
             excludePatterns: ${{ inputs.excludePatterns }}
             followSymlinks: ${{ inputs.followSymlinks }}
+            minNotableBytes: ${{ inputs.minNotableBytes }}
         dependsOn: []
         weight: 0
         allowFailure: false

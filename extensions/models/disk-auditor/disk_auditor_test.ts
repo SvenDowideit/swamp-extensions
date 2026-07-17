@@ -28,12 +28,9 @@ Deno.test("auditDisk reports total bytes across files", async () => {
     });
     const result = await auditDisk({
       root: tmp,
-      depth: 3,
       excludePatterns: [],
       followSymlinks: false,
-      topDirs: 10,
-      topFiles: 10,
-      topExtensions: 10,
+      minNotableBytes: 1024 * 1024,
     });
     assertEquals(result.totalBytes, 1000 + 3);
     assertEquals(result.totalFiles, 3);
@@ -44,86 +41,154 @@ Deno.test("auditDisk reports total bytes across files", async () => {
   }
 });
 
-Deno.test("auditDisk topDirs returns largest subdirectories sorted desc", async () => {
+Deno.test("auditDisk classifies video files into video category", async () => {
   const tmp = await Deno.makeTempDir();
   try {
     await makeTree(tmp, {
-      "small/a.txt": "s",
-      "big/big.bin": "y".repeat(5000),
-      "mid/m.txt": "z".repeat(100),
+      "movies/movie1.mp4": "x".repeat(5000),
+      "movies/movie2.mkv": "y".repeat(3000),
+      "other.txt": "z",
     });
     const result = await auditDisk({
       root: tmp,
-      depth: 2,
       excludePatterns: [],
       followSymlinks: false,
-      topDirs: 10,
-      topFiles: 10,
-      topExtensions: 10,
+      minNotableBytes: 1,
     });
-    assertEquals(result.topDirs.length, 3);
-    assertEquals(result.topDirs[0].name, "big");
-    assertEquals(result.topDirs[1].name, "mid");
-    assertEquals(result.topDirs[2].name, "small");
-    assertEquals(result.topDirs[0].bytes, 5000);
-    assertEquals(result.topDirs[1].bytes, 100);
-    assertEquals(result.topDirs[2].bytes, 1);
+    const videoCat = result.categories.find((c) => c.category === "video");
+    assertExists(videoCat);
+    assertEquals(videoCat.totalBytes, 8000);
+    assertEquals(videoCat.fileCount, 2);
+    // Should have a video category finding
+    const videoFinding = result.findings.find((f) => f.category === "video");
+    assertExists(videoFinding);
   } finally {
     await Deno.remove(tmp, { recursive: true });
   }
 });
 
-Deno.test("auditDisk largestFiles sorted by size", async () => {
+Deno.test("auditDisk combines audiobooks and ebooks into books finding", async () => {
   const tmp = await Deno.makeTempDir();
   try {
     await makeTree(tmp, {
-      "1.dat": "a".repeat(50),
-      "2.dat": "b".repeat(300),
-      "3.dat": "c".repeat(10),
+      "audiobooks/book1.m4b": "x".repeat(5000),
+      "audiobooks/book2.m4b": "y".repeat(3000),
+      "ebooks/novel.epub": "z".repeat(2000),
+      "ebooks/text.pdf": "w".repeat(1000),
     });
     const result = await auditDisk({
       root: tmp,
-      depth: 1,
       excludePatterns: [],
       followSymlinks: false,
-      topDirs: 10,
-      topFiles: 2,
-      topExtensions: 10,
+      minNotableBytes: 1,
     });
-    assertEquals(result.largestFiles.length, 2);
-    assertEquals(result.largestFiles[0].bytes, 300);
-    assertEquals(result.largestFiles[1].bytes, 50);
+    const audiobookCat = result.categories.find((c) => c.category === "audiobook");
+    assertExists(audiobookCat);
+    assertEquals(audiobookCat.totalBytes, 8000);
+
+    const ebookCat = result.categories.find((c) => c.category === "ebook");
+    assertExists(ebookCat);
+    assertEquals(ebookCat.totalBytes, 3000);
+
+    // Combined books finding
+    const booksFinding = result.findings.find((f) => f.kind === "books-combined");
+    assertExists(booksFinding);
+    assertEquals(booksFinding.count, 4);
+    assertEquals(booksFinding.totalBytes, 11000);
   } finally {
     await Deno.remove(tmp, { recursive: true });
   }
 });
 
-Deno.test("auditDisk extensions aggregate bytes and count", async () => {
+Deno.test("auditDisk detects docker directories by name", async () => {
   const tmp = await Deno.makeTempDir();
   try {
     await makeTree(tmp, {
-      "a.log": "x".repeat(100),
-      "b.log": "y".repeat(200),
-      "c.bin": "z".repeat(50),
+      "docker/overlay2/layer1.bin": "x".repeat(5000),
+      "docker/containers/abc.log": "y".repeat(1000),
     });
     const result = await auditDisk({
       root: tmp,
-      depth: 1,
       excludePatterns: [],
       followSymlinks: false,
-      topDirs: 10,
-      topFiles: 10,
-      topExtensions: 10,
+      minNotableBytes: 1,
     });
-    const logExt = result.extensions.find((e) => e.extension === "log");
-    assertExists(logExt);
-    assertEquals(logExt.totalBytes, 300);
-    assertEquals(logExt.fileCount, 2);
+    // The docker/ dir should be notable with docker dominant category
+    const dockerDir = result.notableDirs.find((d) => d.name === "docker");
+    assertExists(dockerDir);
+    assertEquals(dockerDir.dominantCategory, "docker");
+    // Docker finding should exist
+    const dockerFinding = result.findings.find((f) => f.kind === "docker");
+    assertExists(dockerFinding);
+  } finally {
+    await Deno.remove(tmp, { recursive: true });
+  }
+});
 
-    const binExt = result.extensions.find((e) => e.extension === "bin");
-    assertExists(binExt);
-    assertEquals(binExt.totalBytes, 50);
-    assertEquals(binExt.fileCount, 1);
+Deno.test("auditDisk detects large parquet files specifically", async () => {
+  const tmp = await Deno.makeTempDir();
+  try {
+    await makeTree(tmp, {
+      "data/big.parquet": "x".repeat(10000),
+      "data/small.csv": "y".repeat(100),
+    });
+    const result = await auditDisk({
+      root: tmp,
+      excludePatterns: [],
+      followSymlinks: false,
+      minNotableBytes: 1,
+    });
+    const parquetFinding = result.findings.find((f) => f.kind === "parquet");
+    assertExists(parquetFinding);
+    assertEquals(parquetFinding.count, 1);
+    assertEquals(parquetFinding.totalBytes, 10000);
+  } finally {
+    await Deno.remove(tmp, { recursive: true });
+  }
+});
+
+Deno.test("auditDisk detects node_modules directories", async () => {
+  const tmp = await Deno.makeTempDir();
+  try {
+    await makeTree(tmp, {
+      "project/node_modules/pkg/index.js": "x".repeat(5000),
+      "project/node_modules/pkg2/lib.js": "y".repeat(3000),
+      "project/src/app.ts": "z".repeat(100),
+    });
+    const result = await auditDisk({
+      root: tmp,
+      excludePatterns: [],
+      followSymlinks: false,
+      minNotableBytes: 1,
+    });
+    const nmFinding = result.findings.find((f) => f.kind === "node_modules");
+    assertExists(nmFinding);
+    assertEquals(nmFinding.count, 1);
+    assertEquals(nmFinding.totalBytes, 8000);
+  } finally {
+    await Deno.remove(tmp, { recursive: true });
+  }
+});
+
+Deno.test("auditDisk notableDirs includes dirs at any depth with dominant category", async () => {
+  const tmp = await Deno.makeTempDir();
+  try {
+    await makeTree(tmp, {
+      "a/b/c/deep_videos/x.mp4": "x".repeat(5000),
+      "a/b/c/deep_videos/y.mkv": "y".repeat(3000),
+      "a/b/other.txt": "z",
+    });
+    const result = await auditDisk({
+      root: tmp,
+      excludePatterns: [],
+      followSymlinks: false,
+      minNotableBytes: 1,
+    });
+    // deep_videos dir should be notable with video dominant category
+    const deepDir = result.notableDirs.find((d) => d.name === "deep_videos");
+    assertExists(deepDir);
+    assertEquals(deepDir.dominantCategory, "video");
+    assertEquals(deepDir.depth, 3);
   } finally {
     await Deno.remove(tmp, { recursive: true });
   }
@@ -139,16 +204,15 @@ Deno.test("auditDisk excludePatterns skips matching directories", async () => {
     });
     const result = await auditDisk({
       root: tmp,
-      depth: 5,
       excludePatterns: ["node_modules"],
       followSymlinks: false,
-      topDirs: 10,
-      topFiles: 10,
-      topExtensions: 10,
+      minNotableBytes: 1,
     });
     assertEquals(result.totalBytes, 5); // only keep/a.txt
-    assertEquals(result.totalDirs, 1); // keep/ (root not counted, node_modules excluded)
-    const foundExcluded = result.topDirs.find((d) => d.name === "node_modules");
+    assertEquals(result.totalDirs, 1); // keep/
+    const foundExcluded = result.notableDirs.find((d) =>
+      d.name === "node_modules"
+    );
     assertEquals(foundExcluded, undefined);
   } finally {
     await Deno.remove(tmp, { recursive: true });
@@ -158,16 +222,13 @@ Deno.test("auditDisk excludePatterns skips matching directories", async () => {
 Deno.test("auditDisk errors on missing root are reported not thrown", async () => {
   const result = await auditDisk({
     root: "/definitely/does/not/exist/xyz123",
-    depth: 3,
     excludePatterns: [],
     followSymlinks: false,
-    topDirs: 10,
-    topFiles: 10,
-    topExtensions: 10,
+    minNotableBytes: 1,
   });
   assertEquals(result.errors.length, 1);
   assertEquals(result.totalBytes, 0);
-  assertEquals(result.topDirs.length, 0);
+  assertEquals(result.notableDirs.length, 0);
 });
 
 Deno.test("auditDisk on a file path reports single file", async () => {
@@ -176,46 +237,17 @@ Deno.test("auditDisk on a file path reports single file", async () => {
     await Deno.writeTextFile(tmp, "x".repeat(42));
     const result = await auditDisk({
       root: tmp,
-      depth: 3,
       excludePatterns: [],
       followSymlinks: false,
-      topDirs: 10,
-      topFiles: 10,
-      topExtensions: 10,
+      minNotableBytes: 1,
     });
     assertEquals(result.totalFiles, 1);
     assertEquals(result.totalBytes, 42);
-    assertEquals(result.topDirs.length, 0);
-    assertEquals(result.largestFiles.length, 1);
-    assertEquals(result.largestFiles[0].bytes, 42);
+    assertEquals(result.notableDirs.length, 0);
+    assertEquals(result.notableFiles.length, 1);
+    assertEquals(result.notableFiles[0].bytes, 42);
   } finally {
     await Deno.remove(tmp);
-  }
-});
-
-Deno.test("auditDisk depth 0 walks root's immediate children only", async () => {
-  const tmp = await Deno.makeTempDir();
-  try {
-    await makeTree(tmp, {
-      "top.txt": "abc",
-      "sub/deep.txt": "x".repeat(9999),
-    });
-    const result = await auditDisk({
-      root: tmp,
-      depth: 0,
-      excludePatterns: [],
-      followSymlinks: false,
-      topDirs: 10,
-      topFiles: 10,
-      topExtensions: 10,
-    });
-    // depth 0 = no subdirs listed in topDirs (walk still recurses but dirs array only
-    // populated when depth > 0 at that level)
-    assertEquals(result.topDirs.length, 0);
-    // totalBytes still counts everything recursively
-    assertEquals(result.totalBytes, 9999 + 3);
-  } finally {
-    await Deno.remove(tmp, { recursive: true });
   }
 });
 

@@ -1,0 +1,40 @@
+id: f04794eb-33d9-443f-a582-3f12699c54e1
+name: news
+description: Fetch RSS/Atom feeds and generate HTML summary.
+inputs:
+  properties:
+    feeds:
+      type: array
+      items:
+        type: string
+      default: []
+      description: Feed URLs to fetch.
+    topN:
+      type: integer
+      default: 50
+      description: Number of articles in report.
+  required: []
+jobs:
+- name: main
+  steps:
+  - name: fetch
+    task:
+      type: model_method
+      modelType: "@svendowideit/news-reader"
+      modelName: news-reader
+      methodName: fetch
+      inputs:
+        feeds: ${{ inputs.feeds }}
+    dependsOn: []
+  - name: generate
+    task:
+      type: model_method
+      modelType: "@svendowideit/news-reader"
+      modelName: news-reader
+      methodName: generate
+      inputs:
+        topN: ${{ inputs.topN }}
+    dependsOn:
+    - step: fetch
+      condition: {type: succeeded}
+version: 1

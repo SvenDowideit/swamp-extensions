@@ -1,6 +1,39 @@
 id: f04794eb-33d9-443f-a582-3f12699c54e1
 name: news
-description: Fetch RSS/Atom feeds and generate HTML summary.
+description: |
+  Fetch RSS/Atom feeds every few hours and generate a static HTML news summary
+  page ranked by your learned preferences.
+
+  By default, reads feeds from the @svendowideit/feed-catalog model's stored
+  data — add feeds there first and this workflow will pick them up automatically.
+  You can also pass feeds directly via --input to override the catalog.
+
+  The extension learns from your feedback — mark articles as "interested" or
+  "ignored" and the keyword weights adjust to surface more of what you like.
+
+  Setup (one-time): add feeds to the catalog:
+    swamp model create @svendowideit/feed-catalog feed-catalog
+    swamp model method run feed-catalog add --input url="https://hnrss.org/frontpage" --input category=tech
+    swamp model method run feed-catalog add --input url="https://feeds.bbci.co.uk/news/rss.xml" --input category=news
+
+  Then run the news workflow (reads from catalog automatically):
+    swamp workflow run news
+
+  Or pass feeds directly (overrides catalog):
+    swamp workflow run news --input 'feeds:json=["https://feeds.bbci.co.uk/news/technology/rss.xml"]'
+
+  Record feedback on an article:
+    swamp workflow run news --input action=feedback --input articleId=<id> --input feedbackAction=interested
+
+  Then view the HTML:
+    swamp data get --workflow news news-page --json | jq -r '.content' > news.html && open news.html
+
+  Schedule: runs automatically every 4 hours via swamp serve (trigger.schedule).
+tags: {}
+trigger:
+  schedule: "0 */4 * * *"
+  inputs:
+    feeds: ["https://hnrss.org/frontpage", "https://feeds.bbci.co.uk/news/rss.xml"]
 inputs:
   properties:
     feeds:
@@ -8,33 +41,68 @@ inputs:
       items:
         type: string
       default: []
-      description: Feed URLs to fetch.
+      description: RSS/Atom feed URLs to fetch.
+    action:
+      type: string
+      enum: ["fetch_generate", "feedback"]
+      default: "fetch_generate"
+      description: Whether to fetch+generate, or record feedback.
+    articleId:
+      type: string
+      default: ""
+      description: Article ID for feedback (from the HTML page).
+    feedbackAction:
+      type: string
+      enum: ["interested", "ignored"]
+      default: "interested"
+      description: Whether the user found the article interesting or ignored it.
+    source:
+      type: string
+      default: ""
+      description: Feed source name (for feedback).
+    title:
+      type: string
+      default: ""
+      description: Article title (for feedback).
     topN:
       type: integer
       default: 50
-      description: Number of articles in report.
+      description: Number of articles in the HTML report.
   required: []
+reports:
+  require:
+    - "@svendowideit/news-html-report"
 jobs:
-- name: main
-  steps:
-  - name: fetch
-    task:
-      type: model_method
-      modelType: "@svendowideit/news-reader"
-      modelName: news-reader
-      methodName: fetch
-      inputs:
-        feeds: ${{ inputs.feeds }}
+  - name: main
+    description: Fetch feeds and generate HTML, or record feedback.
+    steps:
+      - name: fetch
+        description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided).
+        task:
+          type: model_method
+          modelType: "@svendowideit/news-reader"
+          modelName: news-reader
+          methodName: fetch
+          inputs:
+            feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("feed-catalog", "current").?attributes.?feeds.orValue([]) }}'
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: generate
+        description: Generate HTML report from fetched articles.
+        task:
+          type: model_method
+          modelType: "@svendowideit/news-reader"
+          modelName: news-reader
+          methodName: generate
+          inputs:
+            topN: ${{ inputs.topN }}
+        dependsOn:
+          - step: fetch
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
     dependsOn: []
-  - name: generate
-    task:
-      type: model_method
-      modelType: "@svendowideit/news-reader"
-      modelName: news-reader
-      methodName: generate
-      inputs:
-        topN: ${{ inputs.topN }}
-    dependsOn:
-    - step: fetch
-      condition: {type: succeeded}
+    weight: 0
 version: 1

@@ -1,0 +1,21 @@
+manifestVersion: 1
+name: "@svendowideit/news-reader"
+version: "2026.07.17.1"
+description: "Fetches RSS/Atom feeds, learns user preferences, and generates a static HTML news summary page ranked by predicted interest."
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - news_reader.ts
+
+reports:
+  - news_html_report.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

@@ -1,0 +1,75 @@
+id: 9a9c6975-d9b8-45bb-85a7-b21ef860d818
+name: disk
+description: |
+  Audit what's consuming disk space under a path.
+
+  Runs the @svendowideit/disk-auditor "audit" method with sensible defaults
+  (depth 3, top 20 dirs/files, top 15 extensions, skipping .git and .swamp).
+  Override any of those with --input flags.
+
+  Usage:
+    swamp workflow run disk --input path=/
+    swamp workflow run disk --input path=/var --input depth=5
+    swamp workflow run disk --input path=/home --input 'excludePatterns:json=[".git","node_modules"]'
+
+  Then read the result:
+    swamp data get --workflow disk current --json | jq '.attributes.topDirs[0:10]'
+tags: {}
+inputs:
+  properties:
+    path:
+      type: string
+      description: Filesystem path to audit (required).
+    depth:
+      type: integer
+      default: 3
+      description: Max directory recursion depth (0 = only root's immediate children).
+    topDirs:
+      type: integer
+      default: 20
+      description: How many largest immediate subdirectories of the root to report.
+    topFiles:
+      type: integer
+      default: 20
+      description: How many largest individual files found during the walk to report.
+    topExtensions:
+      type: integer
+      default: 15
+      description: How many file extensions (by total bytes) to report.
+    excludePatterns:
+      type: array
+      items:
+        type: string
+      default: [".git", ".swamp"]
+      description: Glob-style directory names to skip.
+    followSymlinks:
+      type: boolean
+      default: false
+      description: Whether to follow symbolic links when summing sizes.
+  required: ["path"]
+jobs:
+  - name: main
+    description: Audit disk usage under the given path.
+    steps:
+      - name: audit
+        description: Recursively measure disk usage.
+        task:
+          type: model_method
+          modelType: "@svendowideit/disk-auditor"
+          modelName: disk-auditor
+          methodName: audit
+          globalArgs:
+            path: ${{ inputs.path }}
+          inputs:
+            depth: ${{ inputs.depth }}
+            topDirs: ${{ inputs.topDirs }}
+            topFiles: ${{ inputs.topFiles }}
+            topExtensions: ${{ inputs.topExtensions }}
+            excludePatterns: ${{ inputs.excludePatterns }}
+            followSymlinks: ${{ inputs.followSymlinks }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

@@ -1,0 +1,18 @@
+manifestVersion: 1
+name: "@svendowideit/disk-auditor"
+version: "2026.07.17.1"
+description: "Recursively audits which directories and files are consuming disk space under a path — cross-OS (Linux/macOS/Windows) via Deno runtime APIs, no du/find."
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - disk_auditor.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

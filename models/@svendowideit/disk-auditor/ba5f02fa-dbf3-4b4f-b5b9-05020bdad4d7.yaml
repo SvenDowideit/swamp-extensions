@@ -1,0 +1,9 @@
+type: '@svendowideit/disk-auditor'
+typeVersion: 2026.07.17.1
+id: ba5f02fa-dbf3-4b4f-b5b9-05020bdad4d7
+name: local-disk
+version: 1
+tags: {}
+globalArguments:
+  path: /home/sven/src/swamp-project
+methods: {}

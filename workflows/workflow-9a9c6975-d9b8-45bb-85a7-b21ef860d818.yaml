@@ -21,7 +21,8 @@ inputs:
   properties:
     path:
       type: string
-      description: Filesystem path to audit (required).
+      default: ""
+      description: Filesystem path to audit (required — leave empty to see help).
     excludePatterns:
       type: array
       items:
@@ -36,7 +37,7 @@ inputs:
       type: integer
       default: 1048576
       description: Minimum size in bytes for a file or dir to be considered notable (default 1 MiB).
-  required: ["path"]
+  required: []
 jobs:
   - name: main
     description: Audit disk usage under the given path.

@@ -13,7 +13,7 @@
 import { z } from "npm:zod@4";
 
 const GlobalArgsSchema = z.object({
-  path: z.string().min(1).describe("Filesystem path to audit"),
+  path: z.string().describe("Filesystem path to audit"),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -1140,6 +1140,28 @@ export const model = {
         },
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const root = context.globalArgs.path;
+        if (!root || root.trim() === "") {
+          throw new Error(
+            "Missing required input: path\n\n" +
+              "disk-auditor scans a filesystem path and classifies what's consuming disk space\n" +
+              "(video, audio, books, docker, VM images, parquet, databases, archives, code,\n" +
+              "node_modules, etc.) with semantic findings — no depth or top-N knobs needed.\n\n" +
+              "Usage:\n" +
+              "  swamp workflow run disk --input path=/\n" +
+              "  swamp workflow run disk --input path=/home\n" +
+              "  swamp workflow run disk --input path=/var --skip-reports\n\n" +
+              "Inputs:\n" +
+              "  path              string    (required)  Filesystem path to audit\n" +
+              '  excludePatterns   string[]  default: [".git", ".swamp"]  Dir names to skip\n' +
+              "  followSymlinks    boolean   default: false   Follow symbolic links\n" +
+              "  minNotableBytes   integer   default: 1048576 (1 MiB)  Min size for notable items\n\n" +
+              "Examples:\n" +
+              "  swamp workflow run disk --input path=/home --skip-reports\n" +
+              '  swamp workflow run disk --input path=/ --input \'excludePatterns:json=[".git","node_modules"]\'\n\n' +
+              "Then read the result:\n" +
+              "  swamp data get --workflow disk current --json | jq -r '.content' | jq '.findings[] | .title'",
+          );
+        }
         const started = Date.now();
         const logger = context.logger;
         logger?.info("Auditing disk usage under {root}", { root });

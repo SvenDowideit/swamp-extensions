@@ -39,8 +39,8 @@ const FetchArgsSchema = z.object({
 type FetchArgs = z.infer<typeof FetchArgsSchema>;
 
 const GenerateArgsSchema = z.object({
-  topN: z.number().int().min(5).max(200).default(50).describe(
-    "Number of articles to include in the HTML report (default 50)",
+  topN: z.number().int().min(0).max(500).default(0).describe(
+    "Number of articles to include in the HTML report (0 = all articles, default 0)",
   ),
   title: z.string().default("News Summary").describe(
     "Title for the HTML report page",
@@ -482,7 +482,7 @@ export function generateHtml(
   title: string,
   generatedAt: string,
 ): string {
-  const top = articles.slice(0, 50);
+  const top = articles;
   const sections: string[] = [];
 
   sections.push(`<!DOCTYPE html>
@@ -763,7 +763,7 @@ export const model = {
           b.score - a.score || b.publishedAt.localeCompare(a.publishedAt)
         );
 
-        const top = scored.slice(0, args.topN);
+        const top = args.topN > 0 ? scored.slice(0, args.topN) : scored;
         const generatedAt = new Date().toISOString();
 
         logger?.info("Generating HTML with {count} articles", {

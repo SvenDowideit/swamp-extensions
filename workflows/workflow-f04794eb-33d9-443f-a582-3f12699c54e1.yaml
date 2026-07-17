@@ -63,8 +63,8 @@ inputs:
       description: Article title (for feedback).
     topN:
       type: integer
-      default: 50
-      description: Number of articles in the HTML report.
+      default: 0
+      description: Number of articles in the HTML report (0 = all).
     discoverNewFeeds:
       type: boolean
       default: true

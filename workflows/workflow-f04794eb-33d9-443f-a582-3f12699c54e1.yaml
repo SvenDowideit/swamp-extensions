@@ -1,28 +1,24 @@
 id: f04794eb-33d9-443f-a582-3f12699c54e1
 name: news
 description: |
-  Fetch RSS/Atom feeds every few hours and generate a static HTML news summary
-  page ranked by your learned preferences.
+  Full news feedback loop — fetches feeds from the catalog, generates an HTML
+  summary ranked by your preferences, then discovers new RSS feeds from the
+  article URLs and upserts them into the catalog for the next run.
 
-  By default, reads feeds from the @svendowideit/feed-catalog model's stored
-  data — add feeds there first and this workflow will pick them up automatically.
-  You can also pass feeds directly via --input to override the catalog.
-
-  The extension learns from your feedback — mark articles as "interested" or
-  "ignored" and the keyword weights adjust to surface more of what you like.
+  Loop: feed-catalog → fetch → generate HTML → discover new feeds → upsert into catalog
 
   Setup (one-time): add feeds to the catalog:
     swamp model create @svendowideit/feed-catalog feed-catalog
     swamp model method run feed-catalog add --input url="https://hnrss.org/frontpage" --input category=tech
     swamp model method run feed-catalog add --input url="https://feeds.bbci.co.uk/news/rss.xml" --input category=news
 
-  Then run the news workflow (reads from catalog automatically):
+  Then run the news workflow (reads from catalog, discovers more feeds each run):
     swamp workflow run news
 
-  Or pass feeds directly (overrides catalog):
+  Or pass feeds directly (overrides catalog, still discovers new feeds):
     swamp workflow run news --input 'feeds:json=["https://feeds.bbci.co.uk/news/technology/rss.xml"]'
 
-  Record feedback on an article:
+  Record feedback on an article (adjusts keyword weights for ranking):
     swamp workflow run news --input action=feedback --input articleId=<id> --input feedbackAction=interested
 
   Then view the HTML:
@@ -33,7 +29,8 @@ tags: {}
 trigger:
   schedule: "0 */4 * * *"
   inputs:
-    feeds: ["https://hnrss.org/frontpage", "https://feeds.bbci.co.uk/news/rss.xml"]
+    feeds: []
+    discoverNewFeeds: true
 inputs:
   properties:
     feeds:
@@ -41,12 +38,12 @@ inputs:
       items:
         type: string
       default: []
-      description: RSS/Atom feed URLs to fetch.
+      description: RSS/Atom feed URLs to fetch (overrides catalog if non-empty).
     action:
       type: string
       enum: ["fetch_generate", "feedback"]
       default: "fetch_generate"
-      description: Whether to fetch+generate, or record feedback.
+      description: Whether to fetch+generate+discover, or record feedback.
     articleId:
       type: string
       default: ""
@@ -68,13 +65,21 @@ inputs:
       type: integer
       default: 50
       description: Number of articles in the HTML report.
+    discoverNewFeeds:
+      type: boolean
+      default: true
+      description: Whether to discover new feeds from article URLs after generating the report.
+    maxSitesToCrawl:
+      type: integer
+      default: 10
+      description: Maximum new domains to crawl for feed discovery.
   required: []
 reports:
   require:
     - "@svendowideit/news-html-report"
 jobs:
   - name: main
-    description: Fetch feeds and generate HTML, or record feedback.
+    description: Fetch feeds, generate HTML, discover new feeds for next run.
     steps:
       - name: fetch
         description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided).
@@ -89,7 +94,7 @@ jobs:
         weight: 0
         allowFailure: false
       - name: generate
-        description: Generate HTML report from fetched articles.
+        description: Generate HTML report from fetched articles, ranked by preferences.
         task:
           type: model_method
           modelType: "@svendowideit/news-reader"
@@ -103,6 +108,21 @@ jobs:
               type: succeeded
         weight: 0
         allowFailure: false
+      - name: discover
+        description: Discover new RSS feeds from article URLs and upsert into feed-catalog.
+        task:
+          type: model_method
+          modelType: "@svendowideit/feed-discovery"
+          modelName: feed-discovery
+          methodName: discover
+          inputs:
+            maxSitesToCrawl: ${{ inputs.maxSitesToCrawl }}
+        dependsOn:
+          - step: generate
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
     dependsOn: []
     weight: 0
 version: 1

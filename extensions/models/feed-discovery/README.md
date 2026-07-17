@@ -29,11 +29,19 @@ swamp extension pull @svendowideit/feed-discovery
 
 ## Usage
 
-```sh
-# Create the model instance
-swamp model create @svendowideit/feed-discovery feed-discovery
+Feed discovery runs automatically as the last step of the **`news` workflow** —
+every time the news workflow fetches articles and generates the HTML report, it
+also discovers new feeds from the article URLs and upserts them into the
+feed-catalog for the next run:
 
-# Run discovery (reads news-reader snapshot, writes to feed-catalog)
+```sh
+# Run the full loop: fetch → generate HTML → discover new feeds
+swamp workflow run news
+
+# The news workflow's discovery step is on by default — disable it:
+swamp workflow run news --input discoverNewFeeds=false
+
+# Or run discovery standalone (reads existing news-reader snapshot):
 swamp model method run feed-discovery discover
 
 # Dry run (discover but don't add to catalog)
@@ -41,10 +49,11 @@ swamp model method run feed-discovery discover --input dryRun=true
 
 # Limit crawling and set a custom category
 swamp model method run feed-discovery discover --input maxSitesToCrawl=5 --input category=tech
-
-# View the discovery result
-swamp data get feed-discovery discovery-result --json | jq -r '.content' | jq '.discoveredFeeds[] | .url'
 ```
+
+The discovery model needs to know where the news-reader and feed-catalog data
+live — set the `newsReaderModelId` and `feedCatalogModelId` global args when
+creating the model instance. The news workflow auto-creates these definitions.
 
 ## Method arguments
 

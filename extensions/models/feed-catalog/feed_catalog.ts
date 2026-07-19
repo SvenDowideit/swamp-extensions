@@ -42,12 +42,18 @@ type RemoveFeedArgs = z.infer<typeof RemoveFeedArgsSchema>;
 
 const ListFeedsArgsSchema = z.object({
   category: z.string().optional().describe("Filter by category (optional)"),
-  limit: z.number().int().min(1).max(500).default(100).describe(
-    "Maximum feeds to return",
+  limit: z.number().int().min(0).max(500).default(0).describe(
+    "Maximum feeds to return. Use 0 for unlimited.",
   ),
 }).describe("Arguments for listing feeds");
 
 type ListFeedsArgs = z.infer<typeof ListFeedsArgsSchema>;
+
+const ListCategoriesArgsSchema = z.object({}).describe(
+  "Arguments for listing feed categories",
+);
+
+type ListCategoriesArgs = z.infer<typeof ListCategoriesArgsSchema>;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,6 +78,16 @@ export interface FeedCatalog {
   /** All feeds in this catalog. */
   feeds: Feed[];
   /** Total count of feeds. */
+  totalCount: number;
+}
+
+/** Output of the listCategories method. */
+export interface CategoriesList {
+  /** Catalog name. */
+  name: string;
+  /** All unique categories in the catalog. */
+  categories: string[];
+  /** Total count of categories. */
   totalCount: number;
 }
 
@@ -126,18 +142,30 @@ const FeedCatalogSchema = z.object({
   totalCount: z.number(),
 });
 
+const CategoriesListSchema = z.object({
+  name: z.string(),
+  categories: z.array(z.string()),
+  totalCount: z.number(),
+});
+
 // ---------------------------------------------------------------------------
 // Model definition
 // ---------------------------------------------------------------------------
 
 export const model = {
   type: "@svendowideit/feed-catalog",
-  version: "2026.07.17.1",
+  version: "2026.07.19.1",
   globalArguments: GlobalArgsSchema,
   resources: {
     catalog: {
       description: "Feed catalog (list of RSS/Atom feeds with categories)",
       schema: FeedCatalogSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    categories: {
+      description: "List of unique categories in the catalog",
+      schema: CategoriesListSchema,
       lifetime: "infinite",
       garbageCollection: 5,
     },
@@ -240,7 +268,8 @@ export const model = {
       },
     },
     list: {
-      description: "List all feeds in the catalog",
+      description:
+        "List feeds in the catalog. If category is omitted, all categories are returned. Use limit=0 for unlimited.",
       arguments: ListFeedsArgsSchema,
       execute: async (
         args: ListFeedsArgs,
@@ -251,20 +280,87 @@ export const model = {
         const catalogData = await context.readResource("current") as
           | FeedCatalog
           | null;
-        let feeds: Feed[] = catalogData?.feeds ?? [];
+        if (!catalogData) {
+          throw new Error(
+            "No feed catalog found. Add feeds first with the 'add' method.",
+          );
+        }
+
+        let feeds: Feed[] = catalogData.feeds;
 
         if (args.category) {
           feeds = feeds.filter((f) => f.category === args.category);
         }
 
-        feeds = feeds.slice(0, args.limit);
+        const limit = args.limit ?? 0;
+        if (limit > 0 && feeds.length > limit) {
+          feeds = feeds.slice(0, limit);
+        }
+
+        const output: FeedCatalog = {
+          name: catalogData.name,
+          feeds,
+          totalCount: feeds.length,
+        };
 
         logger?.info(
-          "Listing {count} feeds from catalog '{catalog}'",
-          { count: feeds.length, catalog: catalogData?.name ?? "(empty)" },
+          "Listing {count} feeds from catalog '{catalog}'{category}",
+          {
+            count: feeds.length,
+            catalog: catalogData.name,
+            category: args.category ? ` (category: ${args.category})` : "",
+          },
         );
 
-        return { dataHandles: [{ name: "feed-list" }] };
+        const handle = await context.writeResource(
+          "catalog",
+          "list-output",
+          { ...output },
+        );
+
+        return { dataHandles: [handle] };
+      },
+    },
+    listCategories: {
+      description: "List all unique categories in the catalog",
+      arguments: ListCategoriesArgsSchema,
+      execute: async (
+        _args: ListCategoriesArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const logger = context.logger;
+
+        const catalogData = await context.readResource("current") as
+          | FeedCatalog
+          | null;
+        if (!catalogData) {
+          throw new Error(
+            "No feed catalog found. Add feeds first with the 'add' method.",
+          );
+        }
+
+        const categories = Array.from(
+          new Set(catalogData.feeds.map((f) => f.category)),
+        ).sort();
+
+        const output: CategoriesList = {
+          name: catalogData.name,
+          categories,
+          totalCount: categories.length,
+        };
+
+        logger?.info(
+          "Found {count} categories in catalog '{catalog}'",
+          { count: categories.length, catalog: catalogData.name },
+        );
+
+        const handle = await context.writeResource(
+          "categories",
+          "list-output",
+          { ...output },
+        );
+
+        return { dataHandles: [handle] };
       },
     },
   },

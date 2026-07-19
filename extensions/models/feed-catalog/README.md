@@ -28,5 +28,18 @@ swamp workflow run news --input action=addFeed \
 List feeds:
 
 ```sh
-swamp data get feed-catalog current --json | jq '.content'
+# All feeds (up to limit)
+swamp model method run @svendowideit/feed-catalog list my-feeds
+
+# Filter by category
+swamp model method run @svendowideit/feed-catalog list my-feeds --arg category=tech
+
+# Unlimited feeds (limit=0)
+swamp model method run @svendowideit/feed-catalog list my-feeds --arg limit=0
+```
+
+List categories:
+
+```sh
+swamp model method run @svendowideit/feed-catalog listCategories my-feeds
 ```

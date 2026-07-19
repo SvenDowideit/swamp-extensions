@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/feed-catalog"
-version: "2026.07.19.1"
+version: "2026.07.19.1784424437"
 description: "Manages a curated list of RSS/Atom feeds for the news reader."
 
 repository: https://github.com/svendowideit/swamp-extensions

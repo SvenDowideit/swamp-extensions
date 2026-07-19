@@ -154,7 +154,7 @@ const CategoriesListSchema = z.object({
 
 export const model = {
   type: "@svendowideit/feed-catalog",
-  version: "2026.07.19.1",
+  version: "2026.07.19.1784424437",
   globalArguments: GlobalArgsSchema,
   resources: {
     catalog: {

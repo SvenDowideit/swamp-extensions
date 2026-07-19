@@ -338,6 +338,15 @@ export default function App() {
     }
   };
 
+  // Fetch data content when a data node is selected (top-level effect —
+  // hooks must not be called conditionally inside renderDetail).
+  React.useEffect(() => {
+    if (selection?.kind === "data") {
+      loaddataContent(selection.model, selection.name, selection.version);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection]);
+
   // ---- detail panel content ----
   const renderDetail = () => {
     if (!selection) {
@@ -418,7 +427,6 @@ export default function App() {
       const content = dataContent[key];
       const dl = dataByModel[selection.model];
       const item = dl?.groups.flatMap((g) => g.items).find((i) => i.name === selection.name);
-      React.useEffect(() => { loaddataContent(selection.model, selection.name, selection.version); }, [key]);
       return (
         <div>
           <h2>{selection.name}</h2>

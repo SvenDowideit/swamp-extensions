@@ -90,9 +90,10 @@ export default function App() {
   const [selection, setSelection] = React.useState<Selection>(null);
   const [trigger, setTrigger] = React.useState<TriggerState>(null);
   const [toast, setToast] = React.useState<{ msg: string; isError?: boolean } | null>(null);
-  const [nodes, setNodes] = React.useState<Node[]>([]);
-  const [edges, setEdges] = React.useState<Edge[]>([]);
   const [repoDir, setRepoDir] = React.useState("");
+  // nodes/edges are derived via useMemo from the caches + selection — never
+  // stored as separate state, so we don't thrash ReactFlow's viewport on
+  // every cache update.
 
   const showToast = (msg: string, isError?: boolean) => {
     setToast({ msg, isError });
@@ -105,62 +106,71 @@ export default function App() {
     refreshAll();
   }, []);
 
+  // ---- initial load: fetch all summaries, then all details in parallel,
+  // then set each cache ONCE. Avoids the per-fetch setState cascade that was
+  // triggering ~18 graph rebuilds on startup. ----
   const refreshAll = async () => {
     try {
       const [m, w] = await Promise.all([api.listModels(), api.listWorkflows()]);
       setModels(m.results);
       setWorkflows(w.results);
-      // Pre-load type + model detail + data list for every model, and workflow detail.
-      await Promise.all([
-        ...m.results.map((mod) => loadModelDetail(mod.name)),
-        ...w.results.map((wf) => loadWorkflowDetail(wf.name)),
+      // Fetch all details in parallel.
+      const [modelDetails, workflowDetails, typeDetails, dataLists] = await Promise.all([
+        Promise.all(m.results.map((mod) => api.getModel(mod.name).catch(() => null))),
+        Promise.all(w.results.map((wf) => api.getWorkflow(wf.name).catch(() => null))),
+        // Types: dedupe by type string.
+        Promise.all(Array.from(new Set(m.results.map((mod) => mod.type))).map((t) => api.getType(t).catch(() => null))),
+        Promise.all(m.results.map((mod) => api.listData(mod.name).catch(() => null))),
       ]);
-      // Build graph after detail is loaded.
+      const mc: Record<string, ModelDetail> = {};
+      m.results.forEach((mod, i) => { const d = modelDetails[i]; if (d) mc[mod.name] = d; });
+      setModelCache(mc);
+      const wc: Record<string, WorkflowDetail> = {};
+      w.results.forEach((wf, i) => { const d = workflowDetails[i]; if (d) wc[wf.name] = d; });
+      setWorkflowCache(wc);
+      const tc: Record<string, TypeDetail> = {};
+      Array.from(new Set(m.results.map((mod) => mod.type))).forEach((t, i) => { const d = typeDetails[i]; if (d) tc[t] = d; });
+      setTypeCache(tc);
+      const dc: Record<string, DataListResponse> = {};
+      m.results.forEach((mod, i) => { const d = dataLists[i]; if (d) dc[mod.name] = d; });
+      setDataByModel(dc);
     } catch (err) {
       showToast(String(err), true);
     }
   };
 
-  const loadModelDetail = async (name: string) => {
-    if (modelCache[name]) return modelCache[name];
+  // ---- trigger workflow from sidebar / detail ----
+  const triggerWorkflow = (name: string) => {
+    // Workflow input schema isn't a JsonSchema in the detail; we use an empty
+    // schema so the form shows "no inputs" — users pass raw key=value inputs
+    // via a freeform JSON textarea below by extending this.
+    setTrigger({ kind: "workflow", name, schema: EMPTY_SCHEMA });
+  };
+
+  const loaddataContent = async (model: string, name: string, version?: number) => {
+    const key = `${model}:${name}:${version ?? "latest"}`;
+    if (dataContent[key] !== undefined) return;
     try {
-      const detail = await api.getModel(name);
-      setModelCache((c) => ({ ...c, [name]: detail }));
-      // Also cache the type
-      if (!typeCache[detail.type]) {
-        try {
-          const t = await api.getType(detail.type);
-          setTypeCache((c) => ({ ...c, [detail.type]: t }));
-        } catch { /* ignore */ }
-      }
-      // And the data list
-      try {
-        const dl = await api.listData(name);
-        setDataByModel((c) => ({ ...c, [name]: dl }));
-      } catch { /* ignore */ }
-      return detail;
+      const data = await api.getData(model, name, version);
+      setDataContent((c) => ({ ...c, [key]: data }));
     } catch (err) {
       showToast(String(err), true);
     }
   };
 
-  const loadWorkflowDetail = async (name: string) => {
-    if (workflowCache[name]) return workflowCache[name];
-    try {
-      const detail = await api.getWorkflow(name);
-      setWorkflowCache((c) => ({ ...c, [name]: detail }));
-      return detail;
-    } catch (err) {
-      showToast(String(err), true);
-    }
-  };
-
-  // ---- rebuild graph whenever caches change ----
+  // Fetch data content when a data node is selected (top-level effect —
+  // hooks must not be called conditionally inside renderDetail).
   React.useEffect(() => {
-    buildGraph();
-  }, [modelCache, workflowCache, typeCache, dataByModel, selection]);
+    if (selection?.kind === "data") {
+      loaddataContent(selection.model, selection.name, selection.version);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection]);
 
-  const buildGraph = () => {
+  // ---- derive graph nodes/edges from caches. useMemo so we only rebuild
+  // when the underlying data actually changes — not on every selection click
+  // (selection only flips the `selected` flag, patched in below). ----
+  const { nodes, edges } = React.useMemo(() => {
     const n: Node[] = [];
     const e: Edge[] = [];
 
@@ -184,7 +194,7 @@ export default function App() {
       wfY += 130;
     }
 
-    // Model nodes (middle column) — group by type
+    // Model nodes (middle column)
     const modelX = 420;
     let modelY = 40;
     for (const m of models) {
@@ -216,15 +226,15 @@ export default function App() {
     // Type nodes (right of models)
     const typeX = 780;
     let typeY = 40;
-    const typeNodes: Record<string, string> = {};
+    const seenTypes = new Set<string>();
     for (const m of models) {
       const t = m.type;
-      if (typeNodes[t]) continue;
-      typeNodes[t] = `type:${t}`;
+      if (seenTypes.has(t)) continue;
+      seenTypes.add(t);
       const td = typeCache[t];
       const methods = td?.methods?.map((mm) => mm.name) || [];
       n.push({
-        id: typeNodes[t],
+        id: `type:${t}`,
         type: "swamp",
         position: { x: typeX, y: typeY },
         data: {
@@ -239,18 +249,18 @@ export default function App() {
       typeY += 150;
     }
 
-    // Data nodes (rightmost column) — one per (model, data-name) for the catalog resources.
+    // Data nodes (rightmost column) — only resource/file items, capped to
+    // avoid the catalog's dozens of per-feed report items swamping the canvas.
     const dataX = 1120;
     let dataY = 40;
-    const dataNodeIds: Record<string, string> = {};
     for (const m of models) {
       const dl = dataByModel[m.name];
       if (!dl) continue;
-      // Only show the top "resource" type items (catalog current/list-output) to avoid spam.
-      const items = dl.groups.flatMap((g) => g.items).filter((i) => i.type === "resource" || i.type === "file");
+      const items = dl.groups
+        .flatMap((g) => g.items)
+        .filter((i) => i.type === "resource" || i.type === "file");
       for (const item of items) {
         const id = `data:${m.name}:${item.name}`;
-        dataNodeIds[`${m.name}:${item.name}`] = id;
         n.push({
           id,
           type: "swamp",
@@ -267,7 +277,7 @@ export default function App() {
       }
     }
 
-    // Edges: workflow → model (each step's modelName)
+    // Edges: workflow → model
     for (const wf of workflows) {
       const wfId = `wf:${wf.name}`;
       const detail = workflowCache[wf.name];
@@ -304,7 +314,9 @@ export default function App() {
     for (const m of models) {
       const dl = dataByModel[m.name];
       if (!dl) continue;
-      const items = dl.groups.flatMap((g) => g.items).filter((i) => i.type === "resource" || i.type === "file");
+      const items = dl.groups
+        .flatMap((g) => g.items)
+        .filter((i) => i.type === "resource" || i.type === "file");
       for (const item of items) {
         e.push({
           id: `e:model:${m.name}->data:${m.name}:${item.name}`,
@@ -315,37 +327,9 @@ export default function App() {
       }
     }
 
-    setNodes(n);
-    setEdges(e);
-  };
-
-  // ---- trigger workflow from sidebar / detail ----
-  const triggerWorkflow = (name: string) => {
-    // Workflow input schema isn't a JsonSchema in the detail; we use an empty
-    // schema so the form shows "no inputs" — users pass raw key=value inputs
-    // via a freeform JSON textarea below by extending this.
-    setTrigger({ kind: "workflow", name, schema: EMPTY_SCHEMA });
-  };
-
-  const loaddataContent = async (model: string, name: string, version?: number) => {
-    const key = `${model}:${name}:${version ?? "latest"}`;
-    if (dataContent[key] !== undefined) return;
-    try {
-      const data = await api.getData(model, name, version);
-      setDataContent((c) => ({ ...c, [key]: data }));
-    } catch (err) {
-      showToast(String(err), true);
-    }
-  };
-
-  // Fetch data content when a data node is selected (top-level effect —
-  // hooks must not be called conditionally inside renderDetail).
-  React.useEffect(() => {
-    if (selection?.kind === "data") {
-      loaddataContent(selection.model, selection.name, selection.version);
-    }
+    return { nodes: n, edges: e };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selection]);
+  }, [models, workflows, modelCache, workflowCache, typeCache, dataByModel, selection]);
 
   // ---- detail panel content ----
   const renderDetail = () => {
@@ -424,7 +408,7 @@ export default function App() {
     }
     if (selection.kind === "data") {
       const key = `${selection.model}:${selection.name}:${selection.version ?? "latest"}`;
-      const content = dataContent[key];
+      const content = dataContent[key] as Record<string, unknown> | undefined;
       const dl = dataByModel[selection.model];
       const item = dl?.groups.flatMap((g) => g.items).find((i) => i.name === selection.name);
       return (
@@ -441,7 +425,20 @@ export default function App() {
             </>
           )}
           <h3>Content</h3>
-          {content === undefined ? <div>Loading…</div> : <JsonViewer data={content} />}
+          {content === undefined ? (
+            <div>Loading…</div>
+          ) : (
+            <DataTable title="content" value={(content as { content?: unknown }).content ?? content} />
+          )}
+          <h3>Metadata</h3>
+          {content === undefined ? (
+            <div>Loading…</div>
+          ) : (
+            <DataTable
+              title="metadata"
+              value={stripContent(content)}
+            />
+          )}
         </div>
       );
     }
@@ -561,4 +558,128 @@ function StepView({ step }: { step: WorkflowStep }) {
       )}
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// DataTable — renders a value as a table. For arrays of objects, renders a
+// proper HTML table with columns from the union of keys. For other shapes,
+// falls back to a two-column key/value table. Shows a count badge.
+// ---------------------------------------------------------------------------
+
+function DataTable({ title, value }: { title: string; value: unknown }) {
+  if (value === null || value === undefined) {
+    return <div className="data-table-empty">—</div>;
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <div className="data-table-meta">{title}: 0 rows</div>;
+    // If it's an array of objects, render a proper table.
+    if (typeof value[0] === "object" && value[0] !== null) {
+      const cols = collectColumns(value as Record<string, unknown>[]);
+      return (
+        <div className="data-table-wrap">
+          <div className="data-table-meta">{title}: {value.length} rows × {cols.length} columns</div>
+          <div className="data-table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>{cols.map((c) => <th key={c}>{c}</th>)}</tr>
+              </thead>
+              <tbody>
+                {value.map((row, i) => (
+                  <tr key={i}>
+                    {cols.map((c) => <td key={c}>{renderCell((row as Record<string, unknown>)[c])}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+    // Array of scalars — single-column table.
+    return (
+      <div className="data-table-wrap">
+        <div className="data-table-meta">{title}: {value.length} items</div>
+        <div className="data-table-scroll">
+          <table className="data-table">
+            <tbody>
+              {value.map((v, i) => <tr key={i}><td>{renderCell(v)}</td></tr>)}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) return <div className="data-table-meta">{title}: empty</div>;
+    return (
+      <div className="data-table-wrap">
+        <div className="data-table-meta">{title}: {entries.length} fields</div>
+        <div className="data-table-scroll">
+          <table className="data-table kv-table">
+            <tbody>
+              {entries.map(([k, v]) => (
+                <tr key={k}>
+                  <th>{k}</th>
+                  <td>{renderCell(v)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+  // scalar
+  return (
+    <div className="data-table-wrap">
+      <div className="data-table-meta">{title}</div>
+      <div className="data-table-scroll">
+        <table className="data-table">
+          <tbody><tr><td>{String(value)}</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function collectColumns(rows: Record<string, unknown>[]): string[] {
+  const seen = new Set<string>();
+  const cols: string[] = [];
+  for (const row of rows) {
+    for (const k of Object.keys(row)) {
+      if (!seen.has(k)) {
+        seen.add(k);
+        cols.push(k);
+      }
+    }
+  }
+  return cols;
+}
+
+function renderCell(v: unknown): React.ReactNode {
+  if (v === null || v === undefined) return <span style={{ color: "var(--muted)" }}>—</span>;
+  if (typeof v === "boolean") return String(v);
+  if (typeof v === "number") return v;
+  if (typeof v === "string") {
+    const display = v.length > 80 ? v.slice(0, 80) + "…" : v;
+    // URLs rendered as links
+    if (/^https?:\/\//.test(v)) {
+      return <a href={v} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>{display}</a>;
+    }
+    return display;
+  }
+  if (Array.isArray(v)) {
+    return <span style={{ color: "var(--muted)" }}>[{v.length} items]</span>;
+  }
+  if (typeof v === "object") {
+    const keys = Object.keys(v as Record<string, unknown>);
+    return <span style={{ color: "var(--muted)" }}>{`{${keys.length} fields}`}</span>;
+  }
+  return String(v);
+}
+
+function stripContent(obj: Record<string, unknown>): Record<string, unknown> {
+  const { content: _content, ...rest } = obj;
+  return rest;
 }

@@ -205,6 +205,65 @@ input, textarea, select {
 .toast.error { border-color: var(--red); }
 .toast.success { border-color: var(--green); }
 
+/* Data tables */
+.data-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+}
+.data-table-meta {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.data-table-meta .count {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+.data-table-scroll {
+  max-height: 380px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+.data-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+.data-table th, .data-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  word-break: break-word;
+}
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  z-index: 1;
+}
+.data-table tbody tr:hover { background: var(--panel); }
+.data-table.kv-table th {
+  width: 35%;
+  color: var(--accent);
+  background: var(--panel-2);
+}
+.data-table-empty { color: var(--muted); padding: 4px 0; }
+
 /* xyflow node styling */
 .swamp-node {
   border: 1px solid var(--border);

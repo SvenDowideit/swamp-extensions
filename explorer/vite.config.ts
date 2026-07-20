@@ -5,13 +5,20 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// HOST env var exposes the dev server on the network (default: localhost).
+// Set HOST=0.0.0.0 to listen on all interfaces.
+const HOST = process.env.HOST || "localhost";
+const BACKEND_PORT = process.env.BACKEND_PORT || "5174";
+
 export default defineConfig({
   root: "web",
   plugins: [react()],
   server: {
+    host: HOST,
     port: 5173,
+    strictPort: true,
     proxy: {
-      "/api": "http://0.0.0.0:5174",
+      "/api": `http://${HOST === "localhost" ? "localhost" : "127.0.0.1"}:${BACKEND_PORT}`,
     },
   },
   build: {

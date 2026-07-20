@@ -36,15 +36,31 @@ explorer/
 ## Run
 
 ```bash
-# Dev mode — runs server (5174) + vite dev (5173, proxies /api to 5174)
+# Dev mode — runs server (5174) + vite dev (5173, proxies /api to 5174).
+# Listens on localhost only by default.
 npm run dev
 # → open http://localhost:5173
 
+# Dev mode exposed on all interfaces (for remote/headless hosts):
+npm run dev:remote
+# → open http://<host-ip>:5173
+#   or set HOST explicitly: HOST=0.0.0.0 npm run dev
+
 # Production — builds server + web, serves everything from 5174
 npm run build
-NODE_ENV=production npm start
+npm start
 # → open http://localhost:5174
+#   or HOST=0.0.0.0 npm start   (listens on all interfaces)
 ```
+
+### Environment variables
+
+| Var | Default | Purpose |
+| --- | --- | --- |
+| `HOST` | `localhost` (vite) / `0.0.0.0` (server) | Listen address. Set `HOST=0.0.0.0` to expose on the network. |
+| `PORT` | `5174` | Backend server port. |
+| `BACKEND_PORT` | `5174` | Used by the vite dev proxy when `PORT` is overridden. |
+| `SWAMP_REPO_DIR` | auto-detected (walks up for `.swamp.yaml`) | Swamp repository to operate on. |
 
 ## API
 

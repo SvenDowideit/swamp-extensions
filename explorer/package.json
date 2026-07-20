@@ -10,7 +10,8 @@
     "dev:server": "tsx watch server/index.ts",
     "dev:web": "vite",
     "dev": "concurrently -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
-    "start": "node server/index.js",
+    "dev:remote": "HOST=0.0.0.0 concurrently -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
+    "start": "node dist/server/index.js",
     "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit"
   },
   "dependencies": {

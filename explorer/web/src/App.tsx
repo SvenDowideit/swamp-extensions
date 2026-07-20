@@ -670,13 +670,90 @@ function renderCell(v: unknown): React.ReactNode {
     return display;
   }
   if (Array.isArray(v)) {
-    return <span style={{ color: "var(--muted)" }}>[{v.length} items]</span>;
+    return <InlineArray value={v} />;
   }
   if (typeof v === "object") {
-    const keys = Object.keys(v as Record<string, unknown>);
-    return <span style={{ color: "var(--muted)" }}>{`{${keys.length} fields}`}</span>;
+    return <InlineObject value={v as Record<string, unknown>} />;
   }
   return String(v);
+}
+
+// Inline expandable nested values — used inside table cells.
+function InlineArray({ value }: { value: unknown[] }) {
+  const [open, setOpen] = React.useState(false);
+  const summary = `[${value.length} items]`;
+  if (value.length === 0) return <span style={{ color: "var(--muted)" }}>{summary}</span>;
+  // Array of objects → transposed table (one column per item, headers = keys down the left)
+  if (typeof value[0] === "object" && value[0] !== null && !Array.isArray(value[0])) {
+    const cols = collectColumns(value as Record<string, unknown>[]);
+    return (
+      <div className="inline-expandable">
+        <span className="inline-toggle" onClick={() => setOpen(!open)}>
+          <span className="inline-arrow">{open ? "▾" : "▸"}</span>
+          <span style={{ color: "var(--muted)" }}>{summary}</span>
+        </span>
+        {open && (
+          <div className="data-table-scroll inline-table">
+            <table className="data-table transposed">
+              <tbody>
+                {cols.map((c) => (
+                  <tr key={c}>
+                    <th>{c}</th>
+                    {value.map((row, i) => (
+                      <td key={i}>{renderCell((row as Record<string, unknown>)[c])}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  }
+  // Array of scalars / arrays — vertical list
+  return (
+    <div className="inline-expandable">
+      <span className="inline-toggle" onClick={() => setOpen(!open)}>
+        <span className="inline-arrow">{open ? "▾" : "▸"}</span>
+        <span style={{ color: "var(--muted)" }}>{summary}</span>
+      </span>
+      {open && (
+        <ul className="inline-list">
+          {value.map((v, i) => <li key={i}>{renderCell(v)}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function InlineObject({ value }: { value: Record<string, unknown> }) {
+  const [open, setOpen] = React.useState(false);
+  const keys = Object.keys(value);
+  const summary = `{${keys.length} fields}`;
+  if (keys.length === 0) return <span style={{ color: "var(--muted)" }}>{summary}</span>;
+  return (
+    <div className="inline-expandable">
+      <span className="inline-toggle" onClick={() => setOpen(!open)}>
+        <span className="inline-arrow">{open ? "▾" : "▸"}</span>
+        <span style={{ color: "var(--muted)" }}>{summary}</span>
+      </span>
+      {open && (
+        <div className="data-table-scroll inline-table">
+          <table className="data-table kv-table">
+            <tbody>
+              {Object.entries(value).map(([k, v]) => (
+                <tr key={k}>
+                  <th>{k}</th>
+                  <td>{renderCell(v)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function stripContent(obj: Record<string, unknown>): Record<string, unknown> {

@@ -36,6 +36,7 @@ function findRepoDir(start: string): string {
 const REPO_DIR = process.env.SWAMP_REPO_DIR ||
   findRepoDir(path.resolve(__dirname, ".."));
 const PORT = parseInt(process.env.PORT || "5174", 10);
+const HOST = process.env.HOST || "0.0.0.0";
 
 interface SwampResult<T> {
   stdout: string;
@@ -229,7 +230,7 @@ if (fsSync.existsSync(path.join(staticDir, "index.html"))) {
   );
 }
 
-app.listen(PORT, () => {
-  console.log(`swamp-explorer server listening on http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`swamp-explorer server listening on http://${HOST}:${PORT}`);
   console.log(`  repo: ${REPO_DIR}`);
 });

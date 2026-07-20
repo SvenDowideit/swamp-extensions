@@ -264,6 +264,56 @@ input, textarea, select {
 }
 .data-table-empty { color: var(--muted); padding: 4px 0; }
 
+/* Inline expandable nested values inside cells */
+.inline-expandable { display: inline-block; min-width: 100%; }
+.inline-toggle {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  user-select: none;
+}
+.inline-toggle:hover { color: var(--accent); }
+.inline-arrow {
+  display: inline-block;
+  width: 12px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.inline-toggle:hover .inline-arrow { color: var(--accent); }
+.inline-table {
+  margin-top: 4px;
+  max-height: 320px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.inline-table .data-table th, .inline-table .data-table td {
+  padding: 3px 6px;
+  font-size: 11px;
+}
+.inline-list {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  list-style: square;
+  color: var(--text);
+}
+.inline-list li { padding: 1px 0; }
+
+/* Transposed table: keys down the left, one column per item */
+.data-table.transposed th:first-child {
+  background: var(--panel-2);
+  color: var(--accent);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+.data-table.transposed td {
+  border-right: 1px solid var(--border);
+  min-width: 140px;
+  max-width: 320px;
+}
+.data-table.transposed tr:hover { background: var(--panel); }
+
 /* xyflow node styling */
 .swamp-node {
   border: 1px solid var(--border);

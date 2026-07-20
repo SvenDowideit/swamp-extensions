@@ -91,6 +91,7 @@ export default function App() {
   const [trigger, setTrigger] = React.useState<TriggerState>(null);
   const [toast, setToast] = React.useState<{ msg: string; isError?: boolean } | null>(null);
   const [repoDir, setRepoDir] = React.useState("");
+  const [loaded, setLoaded] = React.useState(false);
   // nodes/edges are derived via useMemo from the caches + selection — never
   // stored as separate state, so we don't thrash ReactFlow's viewport on
   // every cache update.
@@ -134,6 +135,7 @@ export default function App() {
       const dc: Record<string, DataListResponse> = {};
       m.results.forEach((mod, i) => { const d = dataLists[i]; if (d) dc[mod.name] = d; });
       setDataByModel(dc);
+      setLoaded(true);
     } catch (err) {
       showToast(String(err), true);
     }
@@ -174,8 +176,8 @@ export default function App() {
     const n: Node[] = [];
     const e: Edge[] = [];
 
-    // Workflow nodes (left column)
-    const wfX = 60;
+    // Workflow nodes (column 1)
+    const wfX = 40;
     let wfY = 40;
     for (const wf of workflows) {
       const id = `wf:${wf.name}`;
@@ -194,8 +196,8 @@ export default function App() {
       wfY += 130;
     }
 
-    // Model nodes (middle column)
-    const modelX = 420;
+    // Model nodes (column 2)
+    const modelX = 320;
     let modelY = 40;
     for (const m of models) {
       const id = `model:${m.name}`;
@@ -223,8 +225,8 @@ export default function App() {
       modelY += 150;
     }
 
-    // Type nodes (right of models)
-    const typeX = 780;
+    // Type nodes (column 3)
+    const typeX = 600;
     let typeY = 40;
     const seenTypes = new Set<string>();
     for (const m of models) {
@@ -249,9 +251,8 @@ export default function App() {
       typeY += 150;
     }
 
-    // Data nodes (rightmost column) — only resource/file items, capped to
-    // avoid the catalog's dozens of per-feed report items swamping the canvas.
-    const dataX = 1120;
+    // Data nodes (column 4, rightmost)
+    const dataX = 880;
     let dataY = 40;
     for (const m of models) {
       const dl = dataByModel[m.name];
@@ -496,28 +497,34 @@ export default function App() {
       </div>
 
       <div className="canvas">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          fitView
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#1e2533" />
-          <Controls />
-          <MiniMap
-            nodeColor={(n) => {
-              const d = n.data as unknown as NodeData;
-              if (d?.kind === "workflow") return "var(--accent-2)";
-              if (d?.kind === "model") return "var(--accent)";
-              if (d?.kind === "data") return "var(--green)";
-              return "var(--orange)";
-            }}
-          />
-        </ReactFlow>
+        {loaded ? (
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            fitView
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable
+            proOptions={{ hideAttribution: true }}
+          >
+            <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#1e2533" />
+            <Controls />
+            <MiniMap
+              nodeColor={(n) => {
+                const d = n.data as unknown as NodeData;
+                if (d?.kind === "workflow") return "var(--accent-2)";
+                if (d?.kind === "model") return "var(--accent)";
+                if (d?.kind === "data") return "var(--green)";
+                return "var(--orange)";
+              }}
+            />
+          </ReactFlow>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--muted)" }}>
+            Loading swamp data…
+          </div>
+        )}
       </div>
 
       <div className="detail">

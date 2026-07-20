@@ -173,112 +173,12 @@ export default function App() {
   // when the underlying data actually changes — not on every selection click
   // (selection only flips the `selected` flag, patched in below). ----
   const { nodes, edges } = React.useMemo(() => {
-    const n: Node[] = [];
+    // ---- 1. Build the edge set first so we can rank nodes by connectivity. ----
     const e: Edge[] = [];
 
-    // Workflow nodes (column 1)
-    const wfX = 40;
-    let wfY = 40;
-    for (const wf of workflows) {
-      const id = `wf:${wf.name}`;
-      n.push({
-        id,
-        type: "swamp",
-        position: { x: wfX, y: wfY },
-        data: {
-          kind: "workflow",
-          title: wf.name,
-          subtitle: `${wf.jobCount} job(s)`,
-          selected: selection?.kind === "workflow" && selection.name === wf.name,
-          onSelect: () => setSelection({ kind: "workflow", name: wf.name }),
-        } as unknown as Node["data"],
-      });
-      wfY += 130;
-    }
-
-    // Model nodes (column 2)
-    const modelX = 320;
-    let modelY = 40;
-    for (const m of models) {
-      const id = `model:${m.name}`;
-      const detail = modelCache[m.name];
-      const methods = detail?.methods?.map((mm) => mm.name) || [];
-      n.push({
-        id,
-        type: "swamp",
-        position: { x: modelX, y: modelY },
-        data: {
-          kind: "model",
-          title: m.name,
-          subtitle: m.type,
-          methods,
-          selected: selection?.kind === "model" && selection.name === m.name,
-          onSelect: () => setSelection({ kind: "model", name: m.name }),
-          onMethodClick: (method: string) => {
-            const methodSchema = detail?.methods.find((mm) => mm.name === method);
-            if (methodSchema) {
-              setTrigger({ kind: "method", model: m.name, method, schema: methodSchema.arguments });
-            }
-          },
-        } as unknown as Node["data"],
-      });
-      modelY += 150;
-    }
-
-    // Type nodes (column 3)
-    const typeX = 600;
-    let typeY = 40;
-    const seenTypes = new Set<string>();
-    for (const m of models) {
-      const t = m.type;
-      if (seenTypes.has(t)) continue;
-      seenTypes.add(t);
-      const td = typeCache[t];
-      const methods = td?.methods?.map((mm) => mm.name) || [];
-      n.push({
-        id: `type:${t}`,
-        type: "swamp",
-        position: { x: typeX, y: typeY },
-        data: {
-          kind: "type",
-          title: t,
-          subtitle: td ? `v${td.version}` : "",
-          methods,
-          selected: selection?.kind === "type" && selection.type === t,
-          onSelect: () => setSelection({ kind: "type", type: t }),
-        } as unknown as Node["data"],
-      });
-      typeY += 150;
-    }
-
-    // Data nodes (column 4, rightmost)
-    const dataX = 880;
-    let dataY = 40;
-    for (const m of models) {
-      const dl = dataByModel[m.name];
-      if (!dl) continue;
-      const items = dl.groups
-        .flatMap((g) => g.items)
-        .filter((i) => i.type === "resource" || i.type === "file");
-      for (const item of items) {
-        const id = `data:${m.name}:${item.name}`;
-        n.push({
-          id,
-          type: "swamp",
-          position: { x: dataX, y: dataY },
-          data: {
-            kind: "data",
-            title: item.name,
-            subtitle: `${m.name} · v${item.version}`,
-            selected: selection?.kind === "data" && selection.model === m.name && selection.name === item.name,
-            onSelect: () => setSelection({ kind: "data", model: m.name, name: item.name, version: item.version }),
-          } as unknown as Node["data"],
-        });
-        dataY += 120;
-      }
-    }
-
     // Edges: workflow → model
+    const wfToModels = new Map<string, Set<string>>(); // wf name → set of model names
+    const modelToWorkflows = new Map<string, Set<string>>(); // model name → set of wf names
     for (const wf of workflows) {
       const wfId = `wf:${wf.name}`;
       const detail = workflowCache[wf.name];
@@ -298,6 +198,10 @@ export default function App() {
             className: "workflow-edge",
             animated: true,
           });
+          if (!wfToModels.has(wf.name)) wfToModels.set(wf.name, new Set());
+          wfToModels.get(wf.name)!.add(mn);
+          if (!modelToWorkflows.has(mn)) modelToWorkflows.set(mn, new Set());
+          modelToWorkflows.get(mn)!.add(wf.name);
         }
       }
     }
@@ -327,6 +231,179 @@ export default function App() {
         });
       }
     }
+
+    // ---- 2. Compute per-node rank. Higher rank → higher up (smaller y).
+    //
+    // Rank is a blend of direct reuse (incoming edges) and transitive reuse
+    // (how many workflows can reach this node). Workflows that touch more
+    // reused models rank higher; models/types/data with no inbound edges sink.
+    //
+    // Build the directed adjacency for transitive reachability:
+    //   workflow → model → type
+    //   workflow → model → data
+    const adj = new Map<string, string[]>();
+    const inbound = new Map<string, number>();
+    const addEdge = (from: string, to: string) => {
+      if (!adj.has(from)) adj.set(from, []);
+      adj.get(from)!.push(to);
+      inbound.set(to, (inbound.get(to) || 0) + 1);
+    };
+    for (const wf of workflows) {
+      for (const mn of (wfToModels.get(wf.name) || [])) {
+        addEdge(`wf:${wf.name}`, `model:${mn}`);
+      }
+    }
+    for (const m of models) {
+      addEdge(`model:${m.name}`, `type:${m.type}`);
+      const dl = dataByModel[m.name];
+      if (dl) {
+        const items = dl.groups
+          .flatMap((g) => g.items)
+          .filter((i) => i.type === "resource" || i.type === "file");
+        for (const item of items) addEdge(`model:${m.name}`, `data:${m.name}:${item.name}`);
+      }
+    }
+
+    // Count distinct workflows that can reach each node (BFS from each workflow).
+    const reachCount = new Map<string, number>();
+    for (const wf of workflows) {
+      const start = `wf:${wf.name}`;
+      const visited = new Set<string>([start]);
+      const queue: string[] = [start];
+      while (queue.length) {
+        const cur = queue.shift()!;
+        for (const nxt of (adj.get(cur) || [])) {
+          if (!visited.has(nxt)) {
+            visited.add(nxt);
+            reachCount.set(nxt, (reachCount.get(nxt) || 0) + 1);
+            queue.push(nxt);
+          }
+        }
+      }
+    }
+
+    // Final rank: weighted sum of inbound edges and reachability.
+    //   workflows: # of distinct models they touch (more steps → higher)
+    //   others: inbound + reachCount (reused by many workflows → higher)
+    const rankOf = (id: string): number => {
+      const inb = inbound.get(id) || 0;
+      const reach = reachCount.get(id) || 0;
+      return inb * 2 + reach;
+    };
+    const wfRank = (name: string): number => {
+      const models = wfToModels.get(name);
+      const direct = models ? models.size : 0;
+      // add reach-weighted reuse of the models it calls
+      let reuse = 0;
+      for (const mn of (models || [])) reuse += reachCount.get(`model:${mn}`) || 0;
+      return direct * 3 + reuse;
+    };
+
+    // ---- 3. Sort each column by rank descending and assign y positions. ----
+    const n: Node[] = [];
+    const ROW_H = 140;
+    const TOP_Y = 40;
+
+    // Workflows (column 1)
+    const wfX = 40;
+    const wfSorted = [...workflows].sort((a, b) => wfRank(b.name) - wfRank(a.name));
+    wfSorted.forEach((wf, i) => {
+      n.push({
+        id: `wf:${wf.name}`,
+        type: "swamp",
+        position: { x: wfX, y: TOP_Y + i * ROW_H },
+        data: {
+          kind: "workflow",
+          title: wf.name,
+          subtitle: `${wf.jobCount} job(s)`,
+          selected: selection?.kind === "workflow" && selection.name === wf.name,
+          onSelect: () => setSelection({ kind: "workflow", name: wf.name }),
+        } as unknown as Node["data"],
+      });
+    });
+
+    // Models (column 2)
+    const modelX = 320;
+    const modelSorted = [...models].sort((a, b) =>
+      rankOf(`model:${b.name}`) - rankOf(`model:${a.name}`)
+    );
+    modelSorted.forEach((m, i) => {
+      const detail = modelCache[m.name];
+      const methods = detail?.methods?.map((mm) => mm.name) || [];
+      n.push({
+        id: `model:${m.name}`,
+        type: "swamp",
+        position: { x: modelX, y: TOP_Y + i * ROW_H },
+        data: {
+          kind: "model",
+          title: m.name,
+          subtitle: m.type,
+          methods,
+          selected: selection?.kind === "model" && selection.name === m.name,
+          onSelect: () => setSelection({ kind: "model", name: m.name }),
+          onMethodClick: (method: string) => {
+            const methodSchema = detail?.methods.find((mm) => mm.name === method);
+            if (methodSchema) {
+              setTrigger({ kind: "method", model: m.name, method, schema: methodSchema.arguments });
+            }
+          },
+        } as unknown as Node["data"],
+      });
+    });
+
+    // Types (column 3)
+    const typeX = 600;
+    const typeNames = Array.from(new Set(models.map((m) => m.type)));
+    const typeSorted = typeNames.sort((a, b) =>
+      rankOf(`type:${b}`) - rankOf(`type:${a}`)
+    );
+    typeSorted.forEach((t, i) => {
+      const td = typeCache[t];
+      const methods = td?.methods?.map((mm) => mm.name) || [];
+      n.push({
+        id: `type:${t}`,
+        type: "swamp",
+        position: { x: typeX, y: TOP_Y + i * ROW_H },
+        data: {
+          kind: "type",
+          title: t,
+          subtitle: td ? `v${td.version}` : "",
+          methods,
+          selected: selection?.kind === "type" && selection.type === t,
+          onSelect: () => setSelection({ kind: "type", type: t }),
+        } as unknown as Node["data"],
+      });
+    });
+
+    // Data (column 4)
+    const dataX = 880;
+    // Flatten to (model, item) pairs then sort by the parent model's rank.
+    const dataPairs: { modelName: string; item: DataListItem }[] = [];
+    for (const m of models) {
+      const dl = dataByModel[m.name];
+      if (!dl) continue;
+      const items = dl.groups
+        .flatMap((g) => g.items)
+        .filter((i) => i.type === "resource" || i.type === "file");
+      for (const item of items) dataPairs.push({ modelName: m.name, item });
+    }
+    dataPairs.sort((a, b) =>
+      rankOf(`data:${b.modelName}:${b.item.name}`) - rankOf(`data:${a.modelName}:${a.item.name}`)
+    );
+    dataPairs.forEach(({ modelName, item }, i) => {
+      n.push({
+        id: `data:${modelName}:${item.name}`,
+        type: "swamp",
+        position: { x: dataX, y: TOP_Y + i * 120 },
+        data: {
+          kind: "data",
+          title: item.name,
+          subtitle: `${modelName} · v${item.version}`,
+          selected: selection?.kind === "data" && selection.model === modelName && selection.name === item.name,
+          onSelect: () => setSelection({ kind: "data", model: modelName, name: item.name, version: item.version }),
+        } as unknown as Node["data"],
+      });
+    });
 
     return { nodes: n, edges: e };
     // eslint-disable-next-line react-hooks/exhaustive-deps

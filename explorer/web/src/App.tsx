@@ -683,7 +683,7 @@ function InlineArray({ value }: { value: unknown[] }) {
   const [open, setOpen] = React.useState(false);
   const summary = `[${value.length} items]`;
   if (value.length === 0) return <span style={{ color: "var(--muted)" }}>{summary}</span>;
-  // Array of objects → transposed table (one column per item, headers = keys down the left)
+  // Array of objects → keys as columns, one row per item
   if (typeof value[0] === "object" && value[0] !== null && !Array.isArray(value[0])) {
     const cols = collectColumns(value as Record<string, unknown>[]);
     return (
@@ -694,14 +694,14 @@ function InlineArray({ value }: { value: unknown[] }) {
         </span>
         {open && (
           <div className="data-table-scroll inline-table">
-            <table className="data-table transposed">
+            <table className="data-table">
+              <thead>
+                <tr>{cols.map((c) => <th key={c}>{c}</th>)}</tr>
+              </thead>
               <tbody>
-                {cols.map((c) => (
-                  <tr key={c}>
-                    <th>{c}</th>
-                    {value.map((row, i) => (
-                      <td key={i}>{renderCell((row as Record<string, unknown>)[c])}</td>
-                    ))}
+                {value.map((row, i) => (
+                  <tr key={i}>
+                    {cols.map((c) => <td key={c}>{renderCell((row as Record<string, unknown>)[c])}</td>)}
                   </tr>
                 ))}
               </tbody>

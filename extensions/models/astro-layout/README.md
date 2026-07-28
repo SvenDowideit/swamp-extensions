@@ -40,8 +40,13 @@ swamp model create @svendowideit/astro-layout my-blog \
   --global-arg siteUrl=https://example.com \
   --global-arg sourceDir=/path/to/markdown/content
 
-# Run generation (writes page resources)
-swamp model method run my-blog generate
+# Run generation (writes page resources and files to output directory)
+swamp model method run my-blog generate --input outputDir=./my-astro-site
+
+# With all options:
+swamp model method run my-blog generate \
+  --input outputDir=./my-astro-site \
+  --input includeDynamicComponents=true
 
 # View generated pages
 swamp data query my-blog page --json

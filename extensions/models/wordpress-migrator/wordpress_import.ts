@@ -12,16 +12,20 @@
  * authToken global argument.
  */
 import { z } from "npm:zod@4";
-import { resolve as resolvePath, join as joinPath } from "jsr:@std/path@1";
+import { join as joinPath, resolve as resolvePath } from "jsr:@std/path@1";
 
 const GlobalArgsSchema = z.object({
   siteUrl: z.string().describe("WordPress base URL (e.g. https://jig.tools)"),
   targetDir: z.string().describe(
     "Directory to write Markdown posts into (created if it does not exist)",
   ),
-  authToken: z.string().optional().describe(
-    "Optional WordPress REST API bearer token for password-protected/private content",
-  ),
+  authToken: z
+    .string()
+    .optional()
+    .describe(
+      "Optional WordPress REST API bearer token for password-protected/private content",
+    )
+    .meta({ sensitive: true }),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -94,7 +98,8 @@ async function fetchCategoryMap(
   const map = new Map<number, { name: string; slug?: string }>();
   let page = 1;
   for (;;) {
-    const url = `${siteUrl}/wp-json/wp/v2/categories?per_page=${perPage}&page=${page}`;
+    const url =
+      `${siteUrl}/wp-json/wp/v2/categories?per_page=${perPage}&page=${page}`;
     let cats: WpTerm[];
     try {
       cats = await fetchJson(url, token) as unknown as WpTerm[];
@@ -121,17 +126,18 @@ export function sanitize(name: string): string {
     .substring(0, 120) || "untitled";
 }
 
-
 /** Convert WP HTML post content into Markdown, returning body + image list. */
 // Convert WP HTML post content into Markdown, returning body + image list. Exported for tests.
-export function htmlToMarkdown(html: string): { markdown: string; images: string[] } {
+export function htmlToMarkdown(
+  html: string,
+): { markdown: string; images: string[] } {
   if (!html) return { markdown: "", images: [] };
   const images: string[] = [];
 
   // Pre-pass: collect every <img> src first so images nested in <p>/<a>/etc. are not lost
   // when block handlers below collapse wrappers into placeholders. Each image is replaced in
   // place with an index-tagged placeholder {{IMG:n}} that survives the markdown conversion.
-  let pre = html.replace(
+  const pre = html.replace(
     /<img\s+([^>]*)>/giu,
     (m: string) => {
       const s = m.match(/src=["']([^"']+)["']/i);
@@ -161,7 +167,8 @@ export function htmlToMarkdown(html: string): { markdown: string; images: string
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(
       /<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/giu,
-      (_m: string, href: string, inner: string) => `[${inner.trim()}](${sanitizeUrl(href)})`,
+      (_m: string, href: string, inner: string) =>
+        `[${inner.trim()}](${sanitizeUrl(href)})`,
     )
     // Unordered lists.
     .replace(/(?:^|\n)<ul[^>]*>([\s\S]*?)<\/ul>/giu, (_, i: string) => {
@@ -171,7 +178,8 @@ export function htmlToMarkdown(html: string): { markdown: string; images: string
     // Ordered lists.
     .replace(/(?:^|\n)<ol[^>]*>([\s\S]*?)<\/ol>/giu, (_, i: string) => {
       let n = 0;
-      const items = i.replace(/<li[^>]*>(.*?)<\/li>/giu, () => `${++n}. $1\n`).trim();
+      const items = i.replace(/<li[^>]*>(.*?)<\/li>/giu, () => `${++n}. $1\n`)
+        .trim();
       return `\n${items}\n`;
     })
     .replace(
@@ -183,7 +191,10 @@ export function htmlToMarkdown(html: string): { markdown: string; images: string
       /<blockquote[^>]*>([\s\S]*?)<\/blockquote>/giu,
       (_, i: string) => i.split("\n").map((l: string) => `> ${l}`).join("\n"),
     )
-    .replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/giu, "```\n$1\n```")
+    .replace(
+      /<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/giu,
+      "```\n$1\n```",
+    )
     .replace(
       /<pre[^>]*>([\s\S]*?)<\/pre>/giu,
       () => `\`\`\`\n$1\n\`\`\``,
@@ -206,7 +217,7 @@ export function htmlToMarkdown(html: string): { markdown: string; images: string
   // data-URI images) become empty; indexed ones are returned as-is so callers can swap in
   // downloaded asset paths of the form `assets/<name>.{ext}`.
   md = md.replace(/\{\{IMG(?::(\d+))?\}\}/gu, (_m: string, idx?: string) => {
-    if (!idx) return "";      // no downloadable file (e.g. data-URI) -> drop placeholder
+    if (!idx) return ""; // no downloadable file (e.g. data-URI) -> drop placeholder
     return `{{IMG:${Number(idx)}}}`;
   });
 
@@ -224,11 +235,26 @@ function sanitizeUrl(url: string): string {
 export function decodeEntities(s: string): string {
   if (!s) return "";
   const named: Record<string, string> = {
-    amp: "&", lt: "<", gt: ">", quot: '"', apos: "'",
-    nbsp: " ", hellip: "...", mdash: "-", ndash: "-", rdquo: '"', ldquo: '"',
-    "#8217": "'", "#8216": "\u2019", "#8220": '"', "#8221": '"', // typographic quotes → straight/dumb
+    amp: "&",
+    lt: "<",
+    gt: ">",
+    quot: '"',
+    apos: "'",
+    nbsp: " ",
+    hellip: "...",
+    mdash: "-",
+    ndash: "-",
+    rdquo: '"',
+    ldquo: '"',
+    "#8217": "'",
+    "#8216": "\u2019",
+    "#8220": '"',
+    "#8221": '"', // typographic quotes → straight/dumb
   };
-  return s.replace(/&(amp|lt|gt|quot|apos|nbsp|hellip|mdash|ndash|ldquo|rdquo|#8217|#8216);/gi, (m, k) => named[k] ?? m).replace(
+  return s.replace(
+    /&(amp|lt|gt|quot|apos|nbsp|hellip|mdash|ndash|ldquo|rdquo|#8217|#8216);/gi,
+    (m, k) => named[k] ?? m,
+  ).replace(
     /&#(\d+);/g,
     (_m: string, n: string) => String.fromCharCode(Number(n)),
   );
@@ -298,7 +324,11 @@ export const model = {
         await Deno.mkdir(base, { recursive: true });
 
         // Category lookup.
-        const catMap = await fetchCategoryMap(siteUrl, authToken, args.categoriesPerPage);
+        const catMap = await fetchCategoryMap(
+          siteUrl,
+          authToken,
+          args.categoriesPerPage,
+        );
 
         let page = 1;
         let totalPages = Infinity;
@@ -311,17 +341,25 @@ export const model = {
 
         // Count via first request to read x-wp-totalpages.
         const imageFolderAbs = joinPath(base, args.imageFolder);
-        if (args.downloadImages) await Deno.mkdir(imageFolderAbs, { recursive: true });
+        if (args.downloadImages) {
+          await Deno.mkdir(imageFolderAbs, { recursive: true });
+        }
 
         while (page <= totalPages && page <= 100) {
           let posts;
           try {
             // Fetch page to also discover pagination headers.
-            const url = `${siteUrl}/wp-json/wp/v2/posts?per_page=${args.perPage}&page=${page}` +
+            const url =
+              `${siteUrl}/wp-json/wp/v2/posts?per_page=${args.perPage}&page=${page}` +
               (authToken ? `&_embed` : "");
-            const resp = await fetch(url, authToken ? {
-              headers: { Authorization: `Bearer ${authToken}` },
-            } : undefined);
+            const resp = await fetch(
+              url,
+              authToken
+                ? {
+                  headers: { Authorization: `Bearer ${authToken}` },
+                }
+                : undefined,
+            );
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const totalPagesHeader = resp.headers.get("x-wp-totalpages");
             if (totalPagesHeader) totalPages = parseInt(totalPagesHeader, 10);
@@ -331,11 +369,19 @@ export const model = {
             break;
           }
 
-          for (const post of posts as Array<{
-            id: number; slug: string; date: string; link: string;
-            title?: { rendered?: string }; content?: { rendered?: string };
-            excerpt?: { rendered?: string }; categories?: number[]; tags?: number[];
-          }>) {
+          for (
+            const post of posts as Array<{
+              id: number;
+              slug: string;
+              date: string;
+              link: string;
+              title?: { rendered?: string };
+              content?: { rendered?: string };
+              excerpt?: { rendered?: string };
+              categories?: number[];
+              tags?: number[];
+            }>
+          ) {
             try {
               const postSlug = post.slug || `${post.id}`;
               const date = new Date(post.date).toISOString();
@@ -357,7 +403,9 @@ export const model = {
                 const t = catMap.get(tid);
                 if (t) {
                   const sl = sanitize(`tag-${t.slug ?? ""}`);
-                  postTags.push(sl === "tag-" ? t.name : `tags/${sl.replace(/^tag-/, "")}`);
+                  postTags.push(
+                    sl === "tag-" ? t.name : `tags/${sl.replace(/^tag-/, "")}`,
+                  );
                 }
               }
 
@@ -374,9 +422,17 @@ export const model = {
               // Download images and rewrite embeds to point at assets/.
               if (args.downloadImages && images.length > 0) {
                 for (let i = 0; i < images.length; i++) {
-                  const localPath = await downloadImage(images[i], postSlug, i, imageFolderAbs);
+                  const localPath = await downloadImage(
+                    images[i],
+                    postSlug,
+                    i,
+                    imageFolderAbs,
+                  );
                   if (localPath) {
-                    body = body.replace(`{{IMG:${i}}}`, `![${post.title?.rendered ?? ""}](${localPath})`);
+                    body = body.replace(
+                      `{{IMG:${i}}}`,
+                      `![${post.title?.rendered ?? ""}](${localPath})`,
+                    );
                     imagesDownloaded++;
                   } else {
                     // leave as raw URL link on failure
@@ -390,7 +446,10 @@ export const model = {
 
               // Frontmatter YAML. Decode HTML entities first, then escape quotes/newlines for YAML.
               const rawTitle = decodeEntities(post.title?.rendered ?? postSlug);
-              const safeTitle = rawTitle.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+              const safeTitle = rawTitle.replace(/\\/g, "\\\\").replace(
+                /"/g,
+                '\\"',
+              )
                 .replace(/\n/g, " ");
               const fm: string[] = [
                 "---",
@@ -403,7 +462,9 @@ export const model = {
               ];
               if (postTags.length) {
                 fm.push("tags:");
-                for (const t of postTags) fm.push(`  - "${t.replace(/"/g, '\\"')}"`);
+                for (const t of postTags) {
+                  fm.push(`  - "${t.replace(/"/g, '\\"')}"`);
+                }
               } else {
                 fm.push("tags:");
               }
@@ -412,13 +473,22 @@ export const model = {
                 for (const c of postCats) fm.push(`  - ${c}`);
               }
               const excerpt = post.excerpt?.rendered ?? "";
-               if (excerpt && excerpt.trim().length > 0) {
+              if (excerpt && excerpt.trim().length > 0) {
                 // Strip WP's auto-appended "Continue reading" HTML anchor / more-link from the rendered excerpt.
                 const strippedExcerpt = decodeEntities(excerpt).replace(
-                  /<a[^>]*>\s*continue\s+reading[\s\S]*?<\/a>/gi, "",
-                ).replace(/<span class="screen-reader-text">[\s\S]*<\/span>/gi, "");
-                const cleanExcerpt = htmlToMarkdown(strippedExcerpt).markdown.replace(/\n{3,}/g, "\n\n").trim();
-                fm.push(`excerpt: "${cleanExcerpt.replace(/"/g, '\\"').substring(0,500)}"`);
+                  /<a[^>]*>\s*continue\s+reading[\s\S]*?<\/a>/gi,
+                  "",
+                ).replace(
+                  /<span class="screen-reader-text">[\s\S]*<\/span>/gi,
+                  "",
+                );
+                const cleanExcerpt = htmlToMarkdown(strippedExcerpt).markdown
+                  .replace(/\n{3,}/g, "\n\n").trim();
+                fm.push(
+                  `excerpt: "${
+                    cleanExcerpt.replace(/"/g, '\\"').substring(0, 500)
+                  }"`,
+                );
               }
               fm.push("---", "");
 

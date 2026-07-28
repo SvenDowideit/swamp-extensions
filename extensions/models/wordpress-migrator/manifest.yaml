@@ -12,6 +12,8 @@ paths:
 models:
   - wordpress_import.ts
 
-additionalFiles: []
+additionalFiles:
+  - README.md
+  - LICENSE.txt
 
 platforms: []

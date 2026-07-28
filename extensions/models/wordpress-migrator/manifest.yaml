@@ -1,5 +1,5 @@
 manifestVersion: 1
-name: '@magistr/wordpress-import'
+name: '@svendowideit/wordpress-import'
 version: '2026.07.28.1'
 description: >-
   Import WordPress posts from a site's REST API (WP JSON) into Markdown files,

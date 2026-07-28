@@ -111,7 +111,8 @@ async function fetchCategoryMap(
 }
 
 /** Sanitize a string for use as (part of) a filename. */
-function sanitize(name: string): string {
+// Sanitize a string for use as (part of) a filename. Exported so extension tests can cover it directly.
+export function sanitize(name: string): string {
   return name
     .replace(/[\uE000-\uF8FF<>"\\\/:*?|]/g, "")
     .trim()
@@ -122,11 +123,26 @@ function sanitize(name: string): string {
 
 
 /** Convert WP HTML post content into Markdown, returning body + image list. */
-function htmlToMarkdown(html: string): { markdown: string; images: string[] } {
+// Convert WP HTML post content into Markdown, returning body + image list. Exported for tests.
+export function htmlToMarkdown(html: string): { markdown: string; images: string[] } {
   if (!html) return { markdown: "", images: [] };
   const images: string[] = [];
 
-  let md = html
+  // Pre-pass: collect every <img> src first so images nested in <p>/<a>/etc. are not lost
+  // when block handlers below collapse wrappers into placeholders. Each image is replaced in
+  // place with an index-tagged placeholder {{IMG:n}} that survives the markdown conversion.
+  let pre = html.replace(
+    /<img\s+([^>]*)>/giu,
+    (m: string) => {
+      const s = m.match(/src=["']([^"']+)["']/i);
+      const src = s ? s[1].trim() : "";
+      if (!src || src.startsWith("data:")) return "{{IMG}}";
+      images.push(src);
+      return `{{IMG:${images.length - 1}}}`;
+    },
+  );
+
+  let md = pre
     .replace(/<!--\s*wp:[\s\S]*?-->/g, "") // strip Gutenberg block comments (<? wp:... ?>)
     .replace(/<!--[\s\S]*?-->/g, "") // strip any remaining HTML comments
     // Strip wp-block attributes that add noise; keep the tag.
@@ -173,19 +189,7 @@ function htmlToMarkdown(html: string): { markdown: string; images: string[] } {
       () => `\`\`\`\n$1\n\`\`\``,
     )
     .replace(/<code[^>]*>(.*?)<\/code>/giu, "`$1`")
-    // Images — collect & placeholder.
-    .replace(
-      /<img\s+([^>]*)>/giu,
-      (m: string) => {
-        let src = "";
-        const s = m.match(/src=["']([^"']+)["']/i);
-        if (s) src = s[1];
-        // Resolve relative URLs against nothing — skip data uris / placeholders.
-        if (!src || src.startsWith("data:")) return "{{IMG}}";
-        images.push(src.trim());
-        return `{{IMG:${images.length - 1}}}`;
-      },
-    )
+    // Images were pre-collected above; remaining {{IMG:n}} placeholders are resolved at the end.
     .replace(/<\/?[^>]+>/g, "") // drop any remaining tags
     .replace(/&nbsp;/gi, " ")
     .replace(/&#8217;/g, "'")
@@ -198,13 +202,15 @@ function htmlToMarkdown(html: string): { markdown: string; images: string[] } {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  // Replace image placeholders with markdown embeds referencing downloaded files.
-  const finalImages: string[] = [];
-  md = md.replace(/\{\{IMG(?::(\d+))?\}\}/gu, (m: string, idx?: string) => {
-    if (!idx && images.length > 0) return `{{IMG:${images.length - 1}}}`;
-    return m; // placeholder handled below after download resolves indices
+  // Normalize image placeholders left over from the pre-pass: bare {{IMG}} (from dropped
+  // data-URI images) become empty; indexed ones are returned as-is so callers can swap in
+  // downloaded asset paths of the form `assets/<name>.{ext}`.
+  md = md.replace(/\{\{IMG(?::(\d+))?\}\}/gu, (_m: string, idx?: string) => {
+    if (!idx) return "";      // no downloadable file (e.g. data-URI) -> drop placeholder
+    return `{{IMG:${Number(idx)}}}`;
   });
-  for (let i = 0; i < images.length; i++) finalImages.push(images[i]);
+
+  const finalImages = images.slice();
 
   return { markdown: md, images: finalImages };
 }
@@ -214,7 +220,8 @@ function sanitizeUrl(url: string): string {
 }
 
 /** Decode named/numeric HTML entities in post titles/excerpts before YAML emission. */
-function decodeEntities(s: string): string {
+// Decode named/numeric HTML entities in post titles/excerpts before YAML emission. Exported for tests.
+export function decodeEntities(s: string): string {
   if (!s) return "";
   const named: Record<string, string> = {
     amp: "&", lt: "<", gt: ">", quot: '"', apos: "'",
@@ -253,7 +260,7 @@ async function downloadImage(
 
 /** Swamp model that imports WordPress posts from the REST API into Markdown files. */
 export const model = {
-  type: "@magistr/wordpress-import",
+  type: "@svendowideit/wordpress-import",
   version: "2026.07.28.1",
   globalArguments: GlobalArgsSchema,
   resources: {

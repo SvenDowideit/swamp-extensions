@@ -1,0 +1,15 @@
+# Minimal, fast-to-warm container to serve a generated/cloned astro-layout site locally.
+FROM node:20-alpine AS base
+WORKDIR /srv/astro-site
+
+# Install dependencies first (leverages Docker layer cache when lockfile/source changes)
+COPY package.json ./
+RUN npm ci --omit=dev 2>/dev/null || npm install --omit=dev --no-audit --no-fund
+
+# Copy the rest of the generated layout project
+COPY . .
+
+EXPOSE 4321
+
+# Astro's dev server must listen on the container's network interface (0.0.0.0)
+CMD ["npx", "astro", "dev", "--host", "0.0.0.0"]

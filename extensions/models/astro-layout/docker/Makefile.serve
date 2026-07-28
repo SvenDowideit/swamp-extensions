@@ -1,0 +1,23 @@
+# Usage:
+#   make -f extensions/models/astro-layout/docker/Makefile.serve \
+#        SERVE_DIR=/abs/or/rel/path/to/cloned-site      # required
+#   make -f extensions/models/astro-layout/docker/Makefile.serve stop PORT=4321  # optional stop
+SERVE_DIR ?= $(error SERVE_DIR is required, e.g. SERVE_DIR=./cloned-site)
+
+PORT ?= 4321
+
+REPO := @svendowideit/astro-layout
+DOCKERFILE := Dockerfile.serve
+IMAGE_NAME := astro-layout-serve:$(shell basename "$(abspath $(SERVE_DIR))")-$(shell echo "$$(md5sum <<<"$(CURDIR)$(SERVE_DIR)" 2>/dev/null || echo default)" | cut -c1-7)
+
+.PHONY: run stop
+run:  ## Build (re) and serve SERVE_DIR on host PORT -> container 4321
+	docker build -t $(IMAGE_NAME) -f $(DOCKERFILE) "$(CURDIR)/$(SERVE_DIR)"
+	@echo "Serving '$(SERVE_DIR)' at http://localhost:$(PORT)/"
+	docker run --rm \
+	  -p $(PORT):4321 \
+	  -v "$(abspath $(SERVE_DIR)):/srv/astro-site" \
+	  $(IMAGE_NAME)
+
+stop:  ## Stop a running serve container (leaves image in place)
+	@docker ps --filter "ancestor=$(IMAGE_NAME)" -q | xargs -r docker stop

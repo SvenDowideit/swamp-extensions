@@ -79,6 +79,15 @@ The extension will detect `ButtonComponent` and `InteractiveChart` as dynamic co
 
 ## Method arguments
 
+Both methods share these global input arguments, set at model create time:
+
+| Argument    | Description                          |
+|-------------|--------------------------------------|
+| `siteUrl`   | Base URL for the Astro site (e.g. https://example.com) — used as source for `clone`, emitted in layouts for both |
+| `sourceDir` | Directory containing markdown files to process by `generate`; required positional, unused by `clone` |
+
+### Generate method arguments
+
 | Argument                 | Type    | Default              | Description                                            |
 |--------------------------|---------|----------------------|--------------------------------------------------------|
 | `outputDir`              | string  | `./astro-site`       | Output directory for generated Astro project          |
@@ -103,9 +112,34 @@ swamp model create @svendowideit/astro-layout my-clone \
 swamp model method run my-clone clone \
   --input outputDir=./cloned-site \
   --input includeFonts=true
+
+# Serve the result locally in a container (see "Viewing your site locally" below)
+make -f docker/Makefile.serve SERVE_DIR=./cloned-site
 ```
 
-## Input global arguments
+## Viewing your site locally
+
+Both `generate` and `clone` produce an identical Astro project skeleton inside an output directory (`src/layouts/Layout.astro`, `package.json`, `astro.config.mjs`). The easiest way to preview the result without installing Node/npm/Astro on your host is to build a tiny dev-server image:
+
+```sh
+# 1️⃣ Generate (or clone) first — produces e.g. ./cloned-site or ./my-astro-site
+swamp model method run my-blog generate --input outputDir=./my-astro-site
+# …or: swamp model method run my-clone clone --input outputDir=./cloned-site
+
+# 2️⃣ Serve that directory in a cached Astro container on host port 4321 -> container 0.0.0.0:4321
+make -f extensions/models/astro-layout/docker/Makefile.serve \
+   SERVE_DIR=./cloned-site      # PORT=4321 (override if already taken)
+
+# Browse http://localhost:4321 — hot-reloading enabled, bind-mounted from your outputDir
+```
+
+How it works:
+
+- `docker/Dockerfile.serve` builds a throwaway image that runs Astro's dev server with `--host 0.0.0.0`, so the preview is reachable on `http://localhost:<PORT>/` and listens inside the container's network namespace (no per-host Node setup needed).
+- The Makefile binds your real outputDir into `/srv/astro-site` via a volume mount, so edits you make to `.astro`/`.mdx`/source files show up instantly with hot reload — nothing is copied.
+- Stop with `make -f extensions/models/astro-layout/docker/Makefile.serve stop PORT=4321`.
+
+> If you'd rather not use Docker: locally install Astro and run `npm install && npx astro dev --host 0.0.0.0` from inside your output directory, then open `http://localhost:4321/`.
 
 | Argument    | Description                          |
 |-------------|--------------------------------------|

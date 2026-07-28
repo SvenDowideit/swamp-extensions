@@ -84,6 +84,24 @@ The extension will detect `ButtonComponent` and `InteractiveChart` as dynamic co
 | `outputDir`              | string  | `./astro-site`       | Output directory for generated Astro project          |
 | `includeDynamicComponents` | boolean | `true`            | Generate placeholder comments for astro islands        |
 
+### Clone method arguments
+
+The `clone` method fetches an existing URL and produces a starter Astro layout that replicates its visual structure: colors, fonts and element classes.
+
+| Argument          | Type    | Default              | Description                                            |
+|-------------------|---------|----------------------|--------------------------------------------------------|
+| `outputDir`       | string  | `./astro-clone`      | Output directory for the cloned Astro project         |
+| `includeFonts`    | boolean | `true`               | Generate `@import`/`preconnect` links extracted from source |
+
+```sh
+# Clone an existing site's layout (siteUrl is taken from global args)
+swamp model create @svendowideit/astro-layout my-clone \
+  --global-arg siteUrl=https://example.com \
+  --global-arg sourceDir=/tmp/placeholder
+
+swamp model method run my-clone clone --input outputDir=./cloned-site
+```
+
 ## Input global arguments
 
 | Argument    | Description                          |

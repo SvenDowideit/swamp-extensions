@@ -42,10 +42,19 @@ const GenerateResultSchema = z.object({
   totalPages: z.number().int().nonnegative(),
   pagesGenerated: z.number().int().nonnegative(),
   skippedFiles: z.array(z.string()),
-  errors: z.array(z.object({ file: z.string(), error: z.string() })),
+   errors: z.array(z.object({ file: z.string(), error: z.string() })),
 });
 
-const AstroIslandPattern = /\$(\w+)\$/g;
+const ClonedSiteSchema = z.object({
+  sourceUrl: z.string().url(),
+  outputDir: z.string(),
+  title: z.string(),
+  matchedColors: z.array(z.string()),
+  fontsLinked: z.array(z.string()),
+  componentsGenerated: z.array(z.string()),
+});
+
+const AstroIslandPattern = /\$([A-Za-z_][\w$]*)\$/g;
 
 /** Frontmatter fields extracted from markdown files. */
 export interface ParsedFrontmatter {
@@ -198,6 +207,107 @@ const TS_CONFIG = `{
   }
 }`;
 
+const CloneArgsSchema = z.object({
+  outputDir: z.string()
+    .default("./astro-clone")
+    .describe("Output directory for the cloned Astro project"),
+  includeFonts: z.boolean()
+    .default(true)
+    .describe("Generate @font-face links extracted from the source page"),
+}).describe("Arguments for the clone method");
+
+type CloneArgs = z.infer<typeof CloneArgsSchema>;
+
+/** Result of cloning a URL into an Astro layout. */
+export interface ClonedSiteMeta {
+  sourceUrl: string;
+  outputDir: string;
+  title: string;
+  matchedColors: string[];
+  fontsLinked: string[];
+  componentsGenerated: string[];
+}
+
+const HEX_COLOR_PATTERN = /#[0-9a-fA-F]{3,8}/g;
+const RGB_COLOR_PATTERN = /rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+(?:\s*,\s*[\d.]+)?\s*\)/gi;
+
+/** Extract unique color strings (hex and rgb()/rgba()) from HTML. */
+export function extractColors(html: string): string[] {
+  const found = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = HEX_COLOR_PATTERN.exec(html)) !== null) {
+    if (/^#[0-9a-fA-F]{6}$/i.test(match[0])) found.add(match[0].toLowerCase());
+  }
+  HEX_COLOR_PATTERN.lastIndex = 0;
+  while ((match = RGB_COLOR_PATTERN.exec(html)) !== null) {
+    const norm = match[0]
+      .replace(/\s+/g, " ")
+      .replace(/,\s*/g, ",")
+      .toLowerCase();
+    found.add(norm);
+  }
+  return [...found];
+}
+
+/** Extract <link rel="stylesheet"> href URLs from HTML. */
+export function extractFontLinks(html: string): string[] {
+  const links = new Set<string>();
+  let match: RegExpExecArray | null;
+  const linkPattern = /<link[^>]*rel=["'](?:stylesheet|preconnect|dns-prefetch)['"][^>]*>/gi;
+  while ((match = linkPattern.exec(html)) !== null) {
+    const hrefMatch = /href\s*=\s*["']([^"']+)['"]/i.exec(match[0]);
+    if (hrefMatch?.[1]?.includes("font")) links.add(hrefMatch[1]);
+  }
+  return [...links];
+}
+
+/** Extract element class names from HTML for layout structuring. */
+export function extractClassNames(html: string, limit = 24): string[] {
+  const classes = new Set<string>();
+  let match: RegExpExecArray | null;
+  const pattern = /class\s*=\s*["']([^"']+)["']/gi;
+  while ((match = pattern.exec(html)) !== null) {
+    for (const cls of match[1].split(/\s+/).filter(Boolean)) {
+      classes.add(cls);
+      if (classes.size >= limit) return [...classes];
+    }
+  }
+  return [...classes];
+}
+
+/** Extract the <title> text from HTML. */
+export function extractTitle(html: string): string {
+  const match = /<title[^>]*>([^<]+)<\/title>/i.exec(html);
+  return (match?.[1] ?? "Cloned Site").trim();
+}
+
+/** Generate a Layout component that replicates source colors, fonts and classes. */
+export function generateCloneLayout(
+  title: string,
+  colors: string[],
+  fontLinks: string[],
+): string {
+  const cssVars = colors.slice(0, 8).map((c, i) => `--clone-color-${i + 1}: ${c};`).join("\n  ");
+  const fontStyles = fontLinks.map((f) => `@import url('${f}');`).join("\n");
+  return `---
+export interface LayoutProps { children?: import('react').JSX.Element }
+const siteTitle = "${title.replace(/"/g, '\\"')}";
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{siteTitle}</title>${fontStyles ? `\n    <style>\n${fontStyles}\n</style>` : ""}
+    <style>
+      .layout-container { ${cssVars} }
+    </style>
+  </head>
+  <body class="clone-layout">
+    <nav class="site-nav" />
+    <main class="site-content">{children}</main>
+  </body>
+</html>`;
+}
+
 export const model = {
   type: "@svendowideit/astro-layout",
   version: "2026.07.28.1",
@@ -212,6 +322,12 @@ export const model = {
     page: {
       description: "Generated astro page metadata",
       schema: GeneratedPageSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    clonedSite: {
+      description: "Metadata for a site cloned from an existing URL",
+      schema: ClonedSiteSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -413,6 +529,114 @@ export const model = {
           `Generated Astro layout for ${pagesWritten} markdown files to ${outputPath}`,
         );
         return { dataHandles: [resultHandle] };
+      },
+    },
+    clone: {
+      description:
+        "Clone the visual layout (colors, fonts, classes) of an existing URL into a starter Astro site",
+      arguments: CloneArgsSchema,
+      execute: async (args: CloneArgs, context: {
+        globalArgs: GlobalArgs;
+        logger?: { info(msg: string): void };
+        writeResource: (
+          specName: "result" | "page" | "clonedSite",
+          name: string,
+          data: Record<string, unknown>,
+        ) => Promise<{ name: string }>;
+      }) => {
+        const log = context.logger?.info ?? (() => {});
+        const outputPath = resolvePath(
+          Deno.cwd(),
+          args.outputDir || "./astro-clone",
+        );
+
+        await Deno.mkdir(joinPath(outputPath, "src", "layouts"), {
+          recursive: true,
+        });
+        await Deno.mkdir(joinPath(outputPath, "src", "pages"), {
+          recursive: true,
+        });
+
+        log(`Fetching ${context.globalArgs.siteUrl}`);
+        const resp = await fetch(context.globalArgs.siteUrl);
+        if (!resp.ok) {
+          throw new Error(
+            `Failed to fetch source URL: ${resp.status} ${resp.statusText}`,
+          );
+        }
+        const html = await resp.text();
+
+        const title = extractTitle(html);
+        const colors = extractColors(html);
+        const fontLinks = args.includeFonts ? extractFontLinks(html) : [];
+        const classNames = extractClassNames(html);
+
+        log(`Extracted ${colors.length} colors, ${fontLinks.length} font links`);
+        log(
+          `Found ${classNames.length} unique classes — generating component stubs`,
+        );
+
+        const layoutCode = generateCloneLayout(title, colors, fontLinks);
+        await Deno.writeTextFile(
+          joinPath(outputPath, "src", "layouts", "Layout.astro"),
+          layoutCode,
+        );
+
+        // Generate stub components for the first few classes so consumers can implement them
+        const componentNames = classNames.slice(0, 12).map((cls) => {
+          const safeName = sanitizeSlug(cls);
+          return `${safeName.charAt(0).toUpperCase()}${safeName.slice(1)}`;
+        }).filter(Boolean);
+
+        for (const compName of componentNames) {
+          await Deno.writeTextFile(
+            joinPath(outputPath, "src", "components", `${sanitizeSlug(compName)}.astro`),
+            generateComponentFile(compName),
+          );
+        }
+
+        // Generate an index page that mirrors the cloned site's title and color palette
+        const indexPage = `---
+import Layout from "../layouts/Layout.astro";
+const colors = ${JSON.stringify(colors.slice(0, 16))};
+---
+<Layout>
+  <article class="prose mx-auto py-8">
+    <h1>${title}</h1>
+    {colors.map((c) => (
+      <span style={\`background: \${c}\`}></span>
+    ))}
+  </article>
+</Layout>`;
+        await Deno.writeTextFile(
+          joinPath(outputPath, "src", "pages", "index.astro"),
+          indexPage,
+        );
+
+        await Deno.writeTextFile(
+          joinPath(outputPath, "package.json"),
+          PACKAGE_JSON,
+        );
+        await Deno.writeTextFile(
+          joinPath(outputPath, "astro.config.mjs"),
+          ASTRO_CONFIG,
+        );
+        await Deno.writeTextFile(
+          joinPath(outputPath, "tsconfig.json"),
+          TS_CONFIG,
+        );
+
+        log(`Cloned visual layout to ${outputPath}`);
+        const handle = await context.writeResource("clonedSite", title, {
+          sourceUrl: context.globalArgs.siteUrl,
+          outputDir: args.outputDir || "./astro-clone",
+          title,
+          matchedColors: colors,
+          fontsLinked: fontLinks,
+          componentsGenerated: componentNames,
+        });
+
+        return { dataHandles: [handle] };
       },
     },
   },

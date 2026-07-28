@@ -2,6 +2,11 @@ import { assertEquals } from "jsr:@std/assert@1";
 
 import {
   detectDynamicComponents,
+  extractClassNames,
+  extractColors,
+  extractFontLinks,
+  extractTitle,
+  generateCloneLayout,
   generateIslandPlaceholder,
   parseFrontmatter,
   sanitizeSlug,
@@ -129,3 +134,61 @@ function assertArrayIncludes(arr: string[], items: string[]) {
     }
   }
 }
+
+Deno.test("extractColors finds hex colors in CSS", () => {
+  const html = `
+    <style>
+      body { color: #1a2b3c; background: #ffffff; }
+      .accent { border-color: rgba(0, 0, 0, 0.5); }
+    </style>
+  `;
+  const result = extractColors(html);
+  assertEquals(result.includes("#1a2b3c"), true);
+  assertEquals(result.includes("#ffffff"), true);
+  assertEquals(result.some((c) => c.startsWith("rgba")), true);
+});
+
+Deno.test("extractFontLinks extracts font stylesheet hrefs", () => {
+  const html = `
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter">
+    <link rel="stylesheet" href="/styles/main.css">
+  `;
+  const result = extractFontLinks(html);
+  assertEquals(result.length, 2);
+  assertEquals(
+    result[1],
+    "https://fonts.googleapis.com/css?family=Inter",
+  );
+});
+
+Deno.test("extractTitle returns title text from head", () => {
+  const html = "<html><head><title>My Cloned Site</title></head>";
+  assertEquals(extractTitle(html), "My Cloned Site");
+});
+
+Deno.test("extractTitle falls back when missing", () => {
+  assertEquals(extractTitle("<div>no title here</div>"), "Cloned Site");
+});
+
+Deno.test("extractClassNames returns unique class list", () => {
+  const html = `
+    <div class="header container">a</div>
+    <nav class="header container">b</nav>
+    <aside class="sidebar">c</aside>
+  `;
+  const result = extractClassNames(html, 20);
+  assertEquals(result.includes("header"), true);
+  assertEquals(result.includes("container"), true);
+  assertEquals(result.includes("sidebar"), true);
+});
+
+Deno.test("generateCloneLayout produces CSS vars and font imports", () => {
+  const colors = ["#1a2b3c", "rgba(0,0,0,0.5)"];
+  const fonts = ["https://fonts.googleapis.com/css?family=Inter"];
+  const layout = generateCloneLayout("Test Site", colors, fonts);
+
+  assertEquals(layout.includes("--clone-color-1: #1a2b3c"), true);
+  assertEquals(layout.includes("@import url('https://fonts.googleapis.com/css?family=Inter')"), true);
+  assertEquals(layout.includes(`const siteTitle = "Test Site"`), true);
+});

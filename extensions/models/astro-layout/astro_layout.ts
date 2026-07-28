@@ -556,6 +556,9 @@ export const model = {
         await Deno.mkdir(joinPath(outputPath, "src", "pages"), {
           recursive: true,
         });
+        await Deno.mkdir(joinPath(outputPath, "src", "components"), {
+          recursive: true,
+        });
 
         log(`Fetching ${context.globalArgs.siteUrl}`);
         const resp = await fetch(context.globalArgs.siteUrl);

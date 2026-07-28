@@ -97,9 +97,12 @@ The `clone` method fetches an existing URL and produces a starter Astro layout t
 # Clone an existing site's layout (siteUrl is taken from global args)
 swamp model create @svendowideit/astro-layout my-clone \
   --global-arg siteUrl=https://example.com \
-  --global-arg sourceDir=/tmp/placeholder
+  --global-arg sourceDir=/tmp/placeholder   # unused by clone, required by model
 
-swamp model method run my-clone clone --input outputDir=./cloned-site
+# Run the clone method — outputDir and includeFonts both optional (defaults: ./astro-clone / true)
+swamp model method run my-clone clone \
+  --input outputDir=./cloned-site \
+  --input includeFonts=true
 ```
 
 ## Input global arguments

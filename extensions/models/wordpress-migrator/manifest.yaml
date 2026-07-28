@@ -1,0 +1,17 @@
+manifestVersion: 1
+name: '@magistr/wordpress-import'
+version: '2026.07.28.1'
+description: >-
+  Import WordPress posts from a site's REST API (WP JSON) into Markdown files,
+  with optional bearer-token auth and local image download for Obsidian git repos.
+repository: https://github.com/umag/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - wordpress_import.ts
+
+additionalFiles: []
+
+platforms: []

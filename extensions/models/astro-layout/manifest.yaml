@@ -1,0 +1,20 @@
+manifestVersion: 1
+name: '@svendowideit/astro-layout'
+version: '2026.07.28.1'
+description: >-
+  Generates an Astro static site layout from markdown files with automatic page
+  generation, layouts, and placeholder components for dynamic islands.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - astro_layout.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

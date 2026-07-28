@@ -1,0 +1,159 @@
+# @svendowideit/astro-layout
+
+A swamp model extension that generates an Astro static site layout from markdown files. It scans a directory of markdown files, creates page metadata for each, and detects dynamic component markers to generate placeholder comments for astro islands that users can implement later.
+
+## How it works
+
+1. **Scan** — reads all `.md` and `.markdown` files from the specified source directory
+2. **Parse** — extracts frontmatter (title, date, slug, tags) and body content
+3. **Detect dynamic components** — finds `$ComponentName$` markers in markdown for Astro islands
+4. **Generate pages** — creates structured page metadata with option to write Astro project structure
+
+## Features
+
+- Automatically generates Astro-compatible slugs from filenames or frontmatter
+- Detects `$ComponentName$` patterns in markdown content as placeholders for client-side islands
+- Parses standard YAML frontmatter (title, date, slug, draft, tags, category)
+- Supports both SSR and client-rendered component markers
+- Creates structured page resources that can be used to build Astro pages
+
+## Installation
+
+```sh
+swamp extension pull @svendowideit/astro-layout
+```
+
+Or use the source in this repo directly:
+
+```sh
+swamp extension source add <repo>/extensions/models
+swamp doctor extensions --repair -y
+```
+
+## Usage
+
+Create a model instance pointing at your markdown directory and base URL, then run the generate method:
+
+```sh
+# Create a model for your markdown site
+swamp model create @svendowideit/astro-layout my-blog \
+  --global-arg siteUrl=https://example.com \
+  --global-arg sourceDir=/path/to/markdown/content
+
+# Run generation (writes page resources)
+swamp model method run my-blog generate
+
+# View generated pages
+swamp data query my-blog page --json
+
+# Get the generation result summary
+swamp data query my-blog result --json
+```
+
+### Dynamic Component Markers
+
+Your markdown can include `$ComponentName$` markers to indicate where client-side island components should render:
+
+```markdown
+---
+title: Interactive Demo
+date: 2026-07-28
+---
+
+# My Page
+
+This content renders on the server.
+
+<InteractiveChart $data$ />
+
+A button like this would be hydrated as an island client-side:
+$ButtonComponent$
+```
+
+The extension will detect `ButtonComponent` and `InteractiveChart` as dynamic components that need to be implemented by users.
+
+## Method arguments
+
+| Argument                 | Type    | Default              | Description                                            |
+|--------------------------|---------|----------------------|--------------------------------------------------------|
+| `outputDir`              | string  | `./astro-site`       | Output directory for generated Astro project          |
+| `includeDynamicComponents` | boolean | `true`            | Generate placeholder comments for astro islands        |
+
+## Input global arguments
+
+| Argument    | Description                          |
+|-------------|--------------------------------------|
+| `siteUrl`   | Base URL for the Astro site (e.g. https://example.com) |
+| `sourceDir` | Directory containing markdown files to process |
+
+## Output structure
+
+Pages are stored as swamp data resources with the following schema:
+
+```json
+{
+  "slug": "my-page",
+  "title": "My Page Title",
+  "sourceFile": "/path/to/source.md",
+  "hasDynamicComponents": true,
+  "dynamicComponentKeys": ["ButtonComponent", "ChartWidget"]
+}
+```
+
+The generation result includes:
+
+- `siteUrl` — the configured base URL
+- `totalPages` — total input files processed (including skipped)
+- `pagesGenerated` — successfully processed pages  
+- `skippedFiles` — list of files that were empty/skipped
+- `errors` — any errors encountered with file paths
+
+## Markdown Frontmatter Support
+
+The extension parses these frontmatter fields:
+
+| Field | Type    | Description |
+|-------|---------|-------------|
+| `title` | string  | Page title (defaults to filename or "Untitled") |
+| `date` | string  | ISO date for the page |
+| `slug` | string  | URL slug (auto-generated from filename if not provided) |
+| `draft` | boolean | Whether this is a draft page |
+| `tags` | string[]| Array of tags/categories |
+| `category` | string | Single category label |
+
+## Example Astro Project Structure
+
+Once pages are generated, you can build an Astro project structure:
+
+```
+astro-site/
+├── src/
+│   ├── pages/
+│   │   ├── index.astro
+│   │   └── [slug].astro
+│   ├── layouts/
+│   │   └── Layout.astro
+│   └── components/
+│       └── ButtonComponent.tsx  # (implement your islands here)
+├── public/
+└── astro.config.mjs
+```
+
+## Development & tests
+
+Tests target the pure helpers (`parseFrontmatter`, `sanitizeSlug`, `detectDynamicComponents`) and run without network access:
+
+```sh
+deno test extensions/models/astro-layout/astro_layout_test.ts
+```
+
+Run swamp's extension lint/quality gate before publishing:
+
+```sh
+swamp extension fmt extensions/models/astro-layout/manifest.yaml
+swamp extension quality extensions/models/astro-layout/manifest.yaml
+```
+
+## License
+
+MIT — see LICENSE.txt for details.

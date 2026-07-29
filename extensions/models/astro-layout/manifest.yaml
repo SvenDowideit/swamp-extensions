@@ -17,4 +17,10 @@ additionalFiles:
   - README.md
   - LICENSE.txt
 
+# Non-allowlisted filenames (Dockerfile.serve, Makefile.serve) — exempt under binaries per swamp manifest spec.
+binaries:
+  - docker/Dockerfile.serve
+  - docker/Makefile.serve
+  - docker/resolve-serve-dir.sh
+
 platforms: []

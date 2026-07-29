@@ -42,7 +42,7 @@ const GenerateResultSchema = z.object({
   totalPages: z.number().int().nonnegative(),
   pagesGenerated: z.number().int().nonnegative(),
   skippedFiles: z.array(z.string()),
-   errors: z.array(z.object({ file: z.string(), error: z.string() })),
+  errors: z.array(z.object({ file: z.string(), error: z.string() })),
 });
 
 const ClonedSiteSchema = z.object({
@@ -140,10 +140,8 @@ export function generateIslandPlaceholder(
 
 const LAYOUT_TEMPLATE = (siteUrl: string) =>
   `---
-import type { Props } from "react";
-
 export interface LayoutProps {
-  children?: JSX.Element;
+  title?: string;
 }
 
 const siteTitle = "${siteUrl}";
@@ -152,7 +150,7 @@ const siteTitle = "${siteUrl}";
   <nav class="site-nav">
     <a href="/">Home</a>
   </nav>
-  <main class="site-content">{children}</main>
+  <main class="site-content"><slot /></main>
 </div>`;
 
 function generatePageAstro(slug: string, title: string): string {
@@ -229,7 +227,8 @@ export interface ClonedSiteMeta {
 }
 
 const HEX_COLOR_PATTERN = /#[0-9a-fA-F]{3,8}/g;
-const RGB_COLOR_PATTERN = /rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+(?:\s*,\s*[\d.]+)?\s*\)/gi;
+const RGB_COLOR_PATTERN =
+  /rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+(?:\s*,\s*[\d.]+)?\s*\)/gi;
 
 /** Extract unique color strings (hex and rgb()/rgba()) from HTML. */
 export function extractColors(html: string): string[] {
@@ -253,7 +252,8 @@ export function extractColors(html: string): string[] {
 export function extractFontLinks(html: string): string[] {
   const links = new Set<string>();
   let match: RegExpExecArray | null;
-  const linkPattern = /<link[^>]*rel=["'](?:stylesheet|preconnect|dns-prefetch)['"][^>]*>/gi;
+  const linkPattern =
+    /<link[^>]*rel=["'](?:stylesheet|preconnect|dns-prefetch)['"][^>]*>/gi;
   while ((match = linkPattern.exec(html)) !== null) {
     const hrefMatch = /href\s*=\s*["']([^"']+)['"]/i.exec(match[0]);
     if (hrefMatch?.[1]?.includes("font")) links.add(hrefMatch[1]);
@@ -287,23 +287,27 @@ export function generateCloneLayout(
   colors: string[],
   fontLinks: string[],
 ): string {
-  const cssVars = colors.slice(0, 8).map((c, i) => `--clone-color-${i + 1}: ${c};`).join("\n  ");
+  const cssVars = colors.slice(0, 8).map((c, i) =>
+    `--clone-color-${i + 1}: ${c};`
+  ).join("\n  ");
   const fontStyles = fontLinks.map((f) => `@import url('${f}');`).join("\n");
   return `---
-export interface LayoutProps { children?: import('react').JSX.Element }
+export interface LayoutProps { title?: string }
 const siteTitle = "${title.replace(/"/g, '\\"')}";
 ---
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>{siteTitle}</title>${fontStyles ? `\n    <style>\n${fontStyles}\n</style>` : ""}
+    <title>{siteTitle}</title>${
+    fontStyles ? `\n    <style>\n${fontStyles}\n</style>` : ""
+  }
     <style>
       .layout-container { ${cssVars} }
     </style>
   </head>
   <body class="clone-layout">
     <nav class="site-nav" />
-    <main class="site-content">{children}</main>
+    <main class="site-content"><slot /></main>
   </body>
 </html>`;
 }
@@ -574,7 +578,9 @@ export const model = {
         const fontLinks = args.includeFonts ? extractFontLinks(html) : [];
         const classNames = extractClassNames(html);
 
-        log(`Extracted ${colors.length} colors, ${fontLinks.length} font links`);
+        log(
+          `Extracted ${colors.length} colors, ${fontLinks.length} font links`,
+        );
         log(
           `Found ${classNames.length} unique classes — generating component stubs`,
         );
@@ -593,7 +599,12 @@ export const model = {
 
         for (const compName of componentNames) {
           await Deno.writeTextFile(
-            joinPath(outputPath, "src", "components", `${sanitizeSlug(compName)}.astro`),
+            joinPath(
+              outputPath,
+              "src",
+              "components",
+              `${sanitizeSlug(compName)}.astro`,
+            ),
             generateComponentFile(compName),
           );
         }

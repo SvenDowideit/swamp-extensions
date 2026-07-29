@@ -1,15 +1,19 @@
-# Minimal, fast-to-warm container to serve a generated/cloned astro-layout site locally.
-FROM node:20-alpine AS base
+# Throwaway dev-server image for a @svendowideit/astro-layout output project
+# (the directory produced by `generate` or `clone`). Node 22 is required by modern Astro.
+
+FROM node:22-alpine AS base
 WORKDIR /srv/astro-site
 
-# Install dependencies first (leverages Docker layer cache when lockfile/source changes)
+# Install astro as a devDependency BEFORE copying the site so the layer cache survives when only src/* edit.
 COPY package.json ./
-RUN npm ci --omit=dev 2>/dev/null || npm install --omit=dev --no-audit --no-fund
+RUN npm install --save-dev astro@latest --no-audit --no-fund && \
+    (test -f package-lock.json && npm ci 2>/dev/null || true)
 
-# Copy the rest of the generated layout project
+# Copy the generated Astro project in (src/, layouts, pages, config, tsconfig). node_modules stays intact.
 COPY . .
 
 EXPOSE 4321
 
-# Astro's dev server must listen on the container's network interface (0.0.0.0)
-CMD ["npx", "astro", "dev", "--host", "0.0.0.0"]
+# Serve at / -> http://localhost:<PORT>/. Reads from ./node_modules so astro/config resolves correctly;
+# bind-mounting is NOT used for the source dir (it would hide this node_modules), so edits require a rebuild.
+CMD ["./node_modules/.bin/astro", "dev", "--host", "0.0.0.0"]

@@ -25,6 +25,11 @@ const GenerateArgsSchema = z.object({
     .describe(
       "Generate placeholder comments for dynamic component islands",
     ),
+  layoutDir: z.string()
+    .optional()
+    .describe(
+      "Path to a cloned site directory — reuse its Layout.astro chrome (header, footer, sidebar) for markdown pages",
+    ),
 }).describe("Arguments for the generate method");
 
 type GenerateArgs = z.infer<typeof GenerateArgsSchema>;
@@ -158,21 +163,14 @@ const siteTitle = "${siteUrl}";
   <main class="site-content"><slot /></main>
 </div>`;
 
-function generatePageAstro(slug: string, title: string): string {
+function generatePageAstro(slug: string, title: string, mdxFile: string): string {
   const safeSlug = sanitizeSlug(slug);
   return `---
-import Layout from "../../layouts/Layout.astro";
-
-export const frontmatter = {
-  title: "${title}",
-  slug: "${safeSlug}"
-};
+import Layout from "../layouts/Layout.astro";
+import Content from "./${mdxFile}";
 ---
 <Layout>
-  <article class="prose mx-auto py-8">
-    <h1>${title}</h1>
-    <!-- Content from markdown rendered here -->
-  </article>
+  <Content />
 </Layout>`;
 }
 
@@ -434,6 +432,61 @@ export function extractBodyContent(html: string): string {
     .trim();
 }
 
+/** Find the main content region in body HTML and split it into chrome + content.
+ * Returns { before, main, after } where main is the content to replace with <slot />. */
+export function splitBodyContent(
+  bodyHtml: string,
+): { before: string; main: string; after: string } {
+  // Try common main-content selectors in priority order
+  const selectors = [
+    /<main\b[^>]*>/i,
+    /<div[^>]*\bid\s*=\s*["'](?:primary|content|main)["'][^>]*>/i,
+    /<div[^>]*\bclass\s*=\s*["'][^"']*\b(?:content-area|entry-content|site-content|post-content|page-content)\b[^"']*["'][^>]*>/i,
+    /<article\b[^>]*>/i,
+  ];
+
+  for (const pattern of selectors) {
+    const match = pattern.exec(bodyHtml);
+    if (!match) continue;
+
+    const tagName = (match[0].match(/^<(\w+)/)?.[1] ?? "div").toLowerCase();
+    const openTag = match[0];
+    const openIndex = match.index;
+
+    // Find matching closing tag
+    let depth = 1;
+    let searchFrom = openIndex + openTag.length;
+    const closePattern = new RegExp(`<\\/${tagName}\\s*>`, "gi");
+    closePattern.lastIndex = searchFrom;
+
+    let closeMatch: RegExpExecArray | null;
+    while ((closeMatch = closePattern.exec(bodyHtml)) !== null) {
+      // Count nested same-tag opens between here and the close
+      const between = bodyHtml.slice(searchFrom, closeMatch.index);
+      const nestedOpens = (between.match(
+        new RegExp(`<${tagName}\\b[^>]*>`, "gi"),
+      ) || []).length;
+      const nestedCloses = (between.match(
+        new RegExp(`<\\/${tagName}\\s*>`, "gi"),
+      ) || []).length;
+      depth += nestedOpens - nestedCloses - 1;
+      if (depth <= 0) {
+        const closeIndex = closeMatch.index + closeMatch[0].length;
+        return {
+          before: bodyHtml.slice(0, openIndex).trim(),
+          main: bodyHtml.slice(openIndex, closeIndex).trim(),
+          after: bodyHtml.slice(closeIndex).trim(),
+        };
+      }
+      depth = 1;
+      searchFrom = closeMatch.index + closeMatch[0].length;
+    }
+  }
+
+  // Fallback: return everything as main
+  return { before: "", main: bodyHtml, after: "" };
+}
+
 /** Resolve a relative URL against a base URL. */
 export function resolveUrl(href: string, baseUrl: string): string {
   try {
@@ -443,11 +496,14 @@ export function resolveUrl(href: string, baseUrl: string): string {
   }
 }
 
-/** Generate a Layout component that includes the source site's actual CSS. */
+/** Generate a Layout component that includes the source site's actual CSS
+ * and wraps the main content area with a <slot />. */
 export function generateCloneLayout(
   title: string,
   styleBlocks: string,
   bodyClasses: string,
+  beforeMain: string,
+  afterMain: string,
 ): string {
   return `---
 import type { Props } from "astro";
@@ -463,7 +519,9 @@ const siteTitle = ${JSON.stringify(title)};
 ${styleBlocks}
   </head>
   <body class="${bodyClasses}">
+    <Fragment set:html={${JSON.stringify(beforeMain)}} />
     <slot />
+    <Fragment set:html={${JSON.stringify(afterMain)}} />
   </body>
 </html>`;
 }
@@ -565,12 +623,25 @@ export const model = {
           recursive: true,
         });
 
-        // Write base files
-        const layoutCode = LAYOUT_TEMPLATE(siteUrl);
-        await Deno.writeTextFile(
-          joinPath(outputPath, "src", "layouts", "Layout.astro"),
-          layoutCode,
-        );
+        // Write base files — use cloned layout if layoutDir is provided
+        if (args.layoutDir) {
+          const layoutSrc = resolvePath(
+            Deno.cwd(),
+            joinPath(args.layoutDir, "src", "layouts", "Layout.astro"),
+          );
+          const layoutContent = await Deno.readTextFile(layoutSrc);
+          await Deno.writeTextFile(
+            joinPath(outputPath, "src", "layouts", "Layout.astro"),
+            layoutContent,
+          );
+          log(`Using cloned layout from ${layoutSrc}`);
+        } else {
+          const layoutCode = LAYOUT_TEMPLATE(siteUrl);
+          await Deno.writeTextFile(
+            joinPath(outputPath, "src", "layouts", "Layout.astro"),
+            layoutCode,
+          );
+        }
         await Deno.writeTextFile(
           joinPath(outputPath, "package.json"),
           PACKAGE_JSON,
@@ -647,6 +718,7 @@ export const model = {
               // Write page file if not index
               const isIndex = slug === "index";
               if (!isIndex) {
+                const mdxName = `${sanitizeSlug(slug)}.md`;
                 await Deno.writeTextFile(
                   joinPath(
                     outputPath,
@@ -654,7 +726,7 @@ export const model = {
                     "pages",
                     `${sanitizeSlug(slug)}.astro`,
                   ),
-                  generatePageAstro(slug, title),
+                  generatePageAstro(slug, title, mdxName),
                 );
 
                 await Deno.writeTextFile(
@@ -662,7 +734,7 @@ export const model = {
                     outputPath,
                     "src",
                     "pages",
-                    `${sanitizeSlug(slug)}.mdx`,
+                    mdxName,
                   ),
                   processedBody.replace(/^---[\s\S]*?---\s*/, ""),
                 );
@@ -670,7 +742,7 @@ export const model = {
                 // Write index page separately (or use slug-based routing)
                 await Deno.writeTextFile(
                   joinPath(outputPath, "src", "pages", "index.astro"),
-                  generatePageAstro("index", title),
+                  generatePageAstro("index", title, "index.md"),
                 );
                 await Deno.writeTextFile(
                   joinPath(outputPath, "src", "pages", "index.md"),
@@ -780,25 +852,26 @@ export const model = {
         const bodyClassMatch = /<body[^>]*class\s*=\s*["']([^"']+)["']/i.exec(html);
         const bodyClasses = bodyClassMatch?.[1] ?? "";
 
-        // Extract body content (minus scripts)
+        // Extract body content and split into chrome + main
         const bodyContent = extractBodyContent(html);
+        const { before, main, after } = splitBodyContent(bodyContent);
 
         log(
           `Extracted ${colors.length} colors, ${fontLinks.length} font links`,
         );
 
-        const layoutCode = generateCloneLayout(title, styleBlocks, bodyClasses);
+        const layoutCode = generateCloneLayout(title, styleBlocks, bodyClasses, before, after);
         await Deno.writeTextFile(
           joinPath(outputPath, "src", "layouts", "Layout.astro"),
           layoutCode,
         );
 
-        // Generate index page with the source site's body content
+        // Generate index page with the source site's main content
         const indexPage = `---
 import Layout from "../layouts/Layout.astro";
 ---
 <Layout>
-  <Fragment set:html={${JSON.stringify(bodyContent)}} />
+  <Fragment set:html={${JSON.stringify(main)}} />
 </Layout>`;
         await Deno.writeTextFile(
           joinPath(outputPath, "src", "pages", "index.astro"),

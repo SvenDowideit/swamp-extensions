@@ -184,12 +184,12 @@ Deno.test("extractClassNames returns unique class list", () => {
   assertEquals(result.includes("sidebar"), true);
 });
 
-Deno.test("generateCloneLayout produces CSS vars and font imports", () => {
-  const colors = ["#1a2b3c", "rgba(0,0,0,0.5)"];
-  const fonts = ["https://fonts.googleapis.com/css?family=Inter"];
-  const layout = generateCloneLayout("Test Site", colors, fonts);
+Deno.test("generateCloneLayout produces CSS and font imports", () => {
+  const css = `@import url('https://fonts.googleapis.com/css?family=Inter');\nbody { color: #1a2b3c; }`;
+  const layout = generateCloneLayout("Test Site", css, "home blog");
 
-  assertEquals(layout.includes("--clone-color-1: #1a2b3c"), true);
   assertEquals(layout.includes("@import url('https://fonts.googleapis.com/css?family=Inter')"), true);
+  assertEquals(layout.includes("body { color: #1a2b3c; }"), true);
   assertEquals(layout.includes(`const siteTitle = "Test Site"`), true);
+  assertEquals(layout.includes(`class="home blog"`), true);
 });

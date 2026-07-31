@@ -2,35 +2,34 @@
 #   make -f extensions/models/astro-layout/docker/Makefile.serve \
 #        SERVE_DIR=/abs/path/to/cloned-site      # required, relative or absolute
 #   PORT=8081 make    ...same above              # optional override (default 4321)
-#   make stop                                  # kill the most recent run by tag prefix
+#   make stop                                  # kill the running container
 
 HERE := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 SERVE_DIR ?= $(error SERVE_DIR is required, e.g. SERVE_DIR=./cloned-site)
 PORT      ?= 4321
 PREFIX    = astro-layout-serve
+CONTAINER = $(PREFIX)-container
 DOCKERFILE = Dockerfile.serve
 
 # Absolute path, resolved via a POSIX helper so relative AND absolute dirs work uniformly.
 SERVE_ABS := $(shell sh "$(HERE)/resolve-serve-dir.sh" '$(SERVE_DIR)')
 
-.PHONY: all run rebuild stop _need-md5sum
-
-_need-md5sum:
-	@command -v md5sum >/dev/null 2>&1 || { echo 'ERROR: this makefile requires coreutils (md5sum).' >&2; exit 1; }
+.PHONY: all run rebuild stop
 
 all: run
 
-run: _need-md5sum ## Build the image for SERVE_DIR and serve at http://localhost:<PORT>/ -> container 4321
-	docker build -t $(PREFIX):$(shell printf '%s' '$(SERVE_ABS)' | md5sum | cut -c1-7) \
+run: ## Build and serve at http://localhost:<PORT>/ -> container 4321
+	@docker rm -f $(CONTAINER) 2>/dev/null || true
+	docker build \
+	  -t $(PREFIX):latest \
 	  -f "$(HERE)/$(DOCKERFILE)" "$(SERVE_ABS)"
 	@echo "Serving '$(SERVE_DIR)' -> http://localhost:$(PORT)/   ($(SERVE_ABS))"
-	-docker run --rm \
+	docker run --rm --name $(CONTAINER) \
 	  -p $(PORT):4321 \
-	  $(PREFIX):$(shell printf '%s' '$(SERVE_ABS)' | md5sum | cut -c1-7)
+	  $(PREFIX):latest
 
-rebuild: _need-md5sum ## Clear cached layers for SERVE_DIR then (re)serve at http://localhost:<PORT>/ -> 4321
-	-docker rmi -f "$(PREFIX):$(shell printf '%s' '$(SERVE_ABS)' | md5sum | cut -c1-7)" 2>/dev/null || true
+rebuild: ## Alias for run (always builds from scratch)
 	$(MAKE) --no-print-directory -f $(firstword $(MAKEFILE_LIST)) run SERVE_DIR=$(SERVE_DIR) PORT=$(PORT)
 
-stop: ## Stop any running serve container tagged with PREFIX (images remain cached for reuse)
-	@docker ps --filter "ancestor=$(PREFIX)" --format '{{.ID}}' | xargs -r docker stop 2>/dev/null || true
+stop: ## Stop the running serve container (image remains cached for reuse)
+	@docker rm -f $(CONTAINER) 2>/dev/null || true

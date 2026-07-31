@@ -338,43 +338,129 @@ export function synthesizeRegions(
   return out;
 }
 
-/** Generate a Layout component that replicates source colors, fonts and classes. */
+/** Decode HTML entities like &#038; -> & */
+export function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&#0*38;/g, "&")
+    .replace(/&#0*39;/g, "'")
+    .replace(/&#0*34;/g, '"')
+    .replace(/&#0*60;/g, "<")
+    .replace(/&#0*62;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+/** Rewrite relative url() references in CSS to absolute, given the stylesheet's URL. */
+export function rewriteCssUrls(css: string, stylesheetUrl: string): string {
+  const base = stylesheetUrl.replace(/\/[^/]*$/, "/");
+  return css.replace(
+    /url\(\s*["']?(?!https?:\/\/|data:)([^)"'\s]+)["']?\s*\)/gi,
+    (_, path) => {
+      try {
+        return `url("${new URL(path, base).href}")`;
+      } catch {
+        return `url("${path}")`;
+      }
+    },
+  );
+}
+
+/** Walk the <head> in document order, fetching all CSS (inline + linked)
+ * and returning separate <style> blocks preserving the original cascade. */
+export async function collectCssInOrder(
+  html: string,
+  siteUrl: string,
+  log: (msg: string) => void,
+): Promise<string> {
+  const headMatch = /<head[^>]*>([\s\S]*?)<\/head>/i.exec(html);
+  if (!headMatch) return "";
+  const head = headMatch[1];
+
+  const blocks: string[] = [];
+  const tagPattern = /<(style|link)([\s\S]*?)>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = tagPattern.exec(head)) !== null) {
+    const tagName = match[1].toLowerCase();
+    const attrs = match[2];
+
+    if (tagName === "style") {
+      const contentMatch = /<style[^>]*>([\s\S]*?)<\/style>/i.exec(
+        head.slice(match.index),
+      );
+      if (contentMatch) {
+        blocks.push(`<style is:global>\n${contentMatch[1].trim()}\n</style>`);
+        tagPattern.lastIndex = match.index + contentMatch[0].length;
+      }
+    } else if (tagName === "link") {
+      const relMatch = /rel\s*=\s*["']stylesheet["']/i.test(attrs);
+      if (!relMatch) continue;
+      const hrefMatch = /href\s*=\s*["']([^"']+)["']/i.exec(attrs);
+      if (!hrefMatch?.[1]) continue;
+      const decoded = decodeHtmlEntities(hrefMatch[1]);
+      const resolved = resolveUrl(decoded, siteUrl);
+      try {
+        log(`Fetching stylesheet: ${resolved}`);
+        const cssResp = await fetch(resolved);
+        if (cssResp.ok) {
+          const cssText = await cssResp.text();
+          const rewritten = rewriteCssUrls(cssText, resolved);
+          blocks.push(`<style is:global>\n/* ${resolved} */\n${rewritten}\n</style>`);
+        } else {
+          log(`  Skipped (HTTP ${cssResp.status}): ${resolved}`);
+        }
+      } catch (e) {
+        log(`  Failed to fetch: ${resolved} — ${(e as Error).message}`);
+      }
+    }
+  }
+
+  return blocks.join("\n");
+}
+
+/** Extract the <body> inner HTML, stripping <script> tags. */
+export function extractBodyContent(html: string): string {
+  const bodyMatch = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(html);
+  if (!bodyMatch) return "";
+  return bodyMatch[1]
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
+    .trim();
+}
+
+/** Resolve a relative URL against a base URL. */
+export function resolveUrl(href: string, baseUrl: string): string {
+  try {
+    return new URL(href, baseUrl).href;
+  } catch {
+    return href;
+  }
+}
+
+/** Generate a Layout component that includes the source site's actual CSS. */
 export function generateCloneLayout(
   title: string,
-  colors: string[],
-  fontLinks: string[],
-  orderedClasses = [] as string[] | undefined,
+  styleBlocks: string,
+  bodyClasses: string,
 ): string {
-  const cssVars = colors.slice(0, 8).map((c, i) =>
-    `--clone-color-${i + 1}: ${c};`
-  ).join("\n  ");
-  const fontStyles = fontLinks.map((f) => `@import url('${f}');`).join("\n");
-
-  // Scaffold this source's DOM region flow (jig.tools e.g. yields site-header, entry-content=>main,
-  // widget-area=>aside, colophon=>footer). Body classes are limited to recognizable page-shell tokens;
-  // framework-only wp-* wrappers and deep child element classes are excluded so markup stays semantic.
-  const regions = synthesizeRegions(orderedClasses ?? []);
-  const bodyCls = Array.from(new Set<string>(orderedClasses ?? []))
-    .filter((c) => !c.startsWith("wp-"))
-    .slice(0, 12).join(" ");
-
   return `---
 import type { Props } from "astro";
 
 export interface LayoutProps extends Record<string, unknown> {}
-const siteTitle = "${title.replace(/"/g, '\\"')}";
+const siteTitle = ${JSON.stringify(title)};
 ---
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>{siteTitle}</title>${
-    fontStyles ? `\n    <style>\n${fontStyles}\n</style>` : ""
-  }
-    <style>
-      .layout-container { ${cssVars} }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{siteTitle}</title>
+${styleBlocks}
   </head>
-  <body class="clone-layout ${bodyCls}">${renderRegions(regions)}
+  <body class="${bodyClasses}">
+    <slot />
   </body>
 </html>`;
 }
@@ -645,7 +731,7 @@ export const model = {
     },
     clone: {
       description:
-        "Clone the visual layout (colors, fonts, classes) of an existing URL into a starter Astro site",
+        "Clone the visual layout (CSS, fonts, body content) of an existing URL into a starter Astro site",
       arguments: CloneArgsSchema,
       execute: async (args: CloneArgs, context: {
         globalArgs: GlobalArgs;
@@ -661,6 +747,7 @@ export const model = {
           Deno.cwd(),
           args.outputDir || "./astro-clone",
         );
+        const siteUrl = context.globalArgs.siteUrl;
 
         await Deno.mkdir(joinPath(outputPath, "src", "layouts"), {
           recursive: true,
@@ -668,12 +755,9 @@ export const model = {
         await Deno.mkdir(joinPath(outputPath, "src", "pages"), {
           recursive: true,
         });
-        await Deno.mkdir(joinPath(outputPath, "src", "components"), {
-          recursive: true,
-        });
 
-        log(`Fetching ${context.globalArgs.siteUrl}`);
-        const resp = await fetch(context.globalArgs.siteUrl);
+        log(`Fetching ${siteUrl}`);
+        const resp = await fetch(siteUrl);
         if (!resp.ok) {
           throw new Error(
             `Failed to fetch source URL: ${resp.status} ${resp.statusText}`,
@@ -686,54 +770,32 @@ export const model = {
         const fontLinks = args.includeFonts ? extractFontLinks(html) : [];
         const classNames = extractClassNames(html);
 
+        // Collect CSS in document order: each <style> and <link> becomes a <style is:global> block
+        const styleBlocks = await collectCssInOrder(html, siteUrl, log);
+
+        // Extract body classes from the source page
+        const bodyClassMatch = /<body[^>]*class\s*=\s*["']([^"']+)["']/i.exec(html);
+        const bodyClasses = bodyClassMatch?.[1] ?? "";
+
+        // Extract body content (minus scripts)
+        const bodyContent = extractBodyContent(html);
+
         log(
           `Extracted ${colors.length} colors, ${fontLinks.length} font links`,
         );
-        log(
-          `Found ${classNames.length} unique classes — generating component stubs`,
-        );
 
-        const layoutCode = generateCloneLayout(
-          title,
-          colors,
-          fontLinks,
-          classNames,
-        );
+        const layoutCode = generateCloneLayout(title, styleBlocks, bodyClasses);
         await Deno.writeTextFile(
           joinPath(outputPath, "src", "layouts", "Layout.astro"),
           layoutCode,
         );
 
-        // Generate stub components for the first few classes so consumers can implement them
-        const componentNames = classNames.slice(0, 12).map((cls) => {
-          const safeName = sanitizeSlug(cls);
-          return `${safeName.charAt(0).toUpperCase()}${safeName.slice(1)}`;
-        }).filter(Boolean);
-
-        for (const compName of componentNames) {
-          await Deno.writeTextFile(
-            joinPath(
-              outputPath,
-              "src",
-              "components",
-              `${sanitizeSlug(compName)}.astro`,
-            ),
-            generateComponentFile(compName),
-          );
-        }
-
-        // Generate an index page that mirrors the cloned site's title and color palette
+        // Generate index page with the source site's body content
         const indexPage = `---
 import Layout from "../layouts/Layout.astro";
-const colors = ${JSON.stringify(colors.slice(0, 16))};
 ---
 <Layout>
-  <article class="prose mx-auto py-8">
-    <h1>${title}</h1>
-    {colors.map((c) => (
-      <span style={\`background: \${c}\`}></span>
-    ))}
-  </article>
+  <Fragment set:html={${JSON.stringify(bodyContent)}} />
 </Layout>`;
         await Deno.writeTextFile(
           joinPath(outputPath, "src", "pages", "index.astro"),
@@ -755,13 +817,13 @@ const colors = ${JSON.stringify(colors.slice(0, 16))};
 
         log(`Cloned visual layout to ${outputPath}`);
         const handle = await context.writeResource("clonedSite", title, {
-          sourceUrl: context.globalArgs.siteUrl,
+          sourceUrl: siteUrl,
           outputDir: args.outputDir || "./astro-clone",
           title,
           matchedColors: colors,
           fontsLinked: fontLinks,
-          componentsGenerated: componentNames,
-          regionsSynthesized: synthesizeRegions(classNames),
+          componentsGenerated: [],
+          regionsSynthesized: [],
         });
 
         return { dataHandles: [handle] };

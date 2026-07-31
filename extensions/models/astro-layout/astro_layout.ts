@@ -432,17 +432,19 @@ export function extractBodyContent(html: string): string {
     .trim();
 }
 
-/** Find the main content region in body HTML and split it into chrome + content.
- * Returns { before, main, after } where main is the content to replace with <slot />. */
+/** Find the main content region in body HTML and split around it.
+ * Returns { before, after, wrapperOpen, wrapperClose } where before/after are
+ * balanced HTML fragments and the wrapper tags go around the <slot />. */
 export function splitBodyContent(
   bodyHtml: string,
-): { before: string; main: string; after: string } {
-  // Try common main-content selectors in priority order
+): { before: string; after: string; wrapperOpen: string; wrapperClose: string; main: string } {
   const selectors = [
+    /<div[^>]*\bid\s*=\s*["']primary["'][^>]*>/i,
+    /<div[^>]*\bclass\s*=\s*["'][^"']*\b(?:content-area|entry-content)\b[^"']*["'][^>]*>/i,
     /<main\b[^>]*>/i,
-    /<div[^>]*\bid\s*=\s*["'](?:primary|content|main)["'][^>]*>/i,
-    /<div[^>]*\bclass\s*=\s*["'][^"']*\b(?:content-area|entry-content|site-content|post-content|page-content)\b[^"']*["'][^>]*>/i,
     /<article\b[^>]*>/i,
+    /<div[^>]*\bid\s*=\s*["']content["'][^>]*>/i,
+    /<div[^>]*\bclass\s*=\s*["'][^"']*\bsite-content\b[^"']*["'][^>]*>/i,
   ];
 
   for (const pattern of selectors) {
@@ -453,7 +455,6 @@ export function splitBodyContent(
     const openTag = match[0];
     const openIndex = match.index;
 
-    // Find matching closing tag
     let depth = 1;
     let searchFrom = openIndex + openTag.length;
     const closePattern = new RegExp(`<\\/${tagName}\\s*>`, "gi");
@@ -461,7 +462,6 @@ export function splitBodyContent(
 
     let closeMatch: RegExpExecArray | null;
     while ((closeMatch = closePattern.exec(bodyHtml)) !== null) {
-      // Count nested same-tag opens between here and the close
       const between = bodyHtml.slice(searchFrom, closeMatch.index);
       const nestedOpens = (between.match(
         new RegExp(`<${tagName}\\b[^>]*>`, "gi"),
@@ -472,19 +472,17 @@ export function splitBodyContent(
       depth += nestedOpens - nestedCloses - 1;
       if (depth <= 0) {
         const closeIndex = closeMatch.index + closeMatch[0].length;
-        return {
-          before: bodyHtml.slice(0, openIndex).trim(),
-          main: bodyHtml.slice(openIndex, closeIndex).trim(),
-          after: bodyHtml.slice(closeIndex).trim(),
-        };
+        const inner = bodyHtml.slice(openIndex + openTag.length, closeMatch.index).trim();
+        const before = bodyHtml.slice(0, openIndex);
+        const after = bodyHtml.slice(closeIndex);
+        return { before, after, wrapperOpen: openTag, wrapperClose: closeMatch[0], main: inner };
       }
       depth = 1;
       searchFrom = closeMatch.index + closeMatch[0].length;
     }
   }
 
-  // Fallback: return everything as main
-  return { before: "", main: bodyHtml, after: "" };
+  return { before: "", after: "", wrapperOpen: "", wrapperClose: "", main: bodyHtml };
 }
 
 /** Resolve a relative URL against a base URL. */
@@ -497,13 +495,15 @@ export function resolveUrl(href: string, baseUrl: string): string {
 }
 
 /** Generate a Layout component that includes the source site's actual CSS
- * and wraps the main content area with a <slot />. */
+ * and replaces the main content area with a <slot /> inside the original wrapper. */
 export function generateCloneLayout(
   title: string,
   styleBlocks: string,
   bodyClasses: string,
-  beforeMain: string,
-  afterMain: string,
+  before: string,
+  after: string,
+  wrapperOpen: string,
+  wrapperClose: string,
 ): string {
   return `---
 import type { Props } from "astro";
@@ -519,9 +519,11 @@ const siteTitle = ${JSON.stringify(title)};
 ${styleBlocks}
   </head>
   <body class="${bodyClasses}">
-    <Fragment set:html={${JSON.stringify(beforeMain)}} />
+    <Fragment set:html={${JSON.stringify(before)}} />
+    <Fragment set:html={${JSON.stringify(wrapperOpen)}} />
     <slot />
-    <Fragment set:html={${JSON.stringify(afterMain)}} />
+    <Fragment set:html={${JSON.stringify(wrapperClose)}} />
+    <Fragment set:html={${JSON.stringify(after)}} />
   </body>
 </html>`;
 }
@@ -854,7 +856,7 @@ export const model = {
 
         // Extract body content and split into chrome + main
         const bodyContent = extractBodyContent(html);
-        const { before, main, after } = splitBodyContent(bodyContent);
+        const { before, after, main } = splitBodyContent(bodyContent);
 
         log(
           `Extracted ${colors.length} colors, ${fontLinks.length} font links`,

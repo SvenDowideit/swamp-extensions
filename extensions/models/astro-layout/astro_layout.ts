@@ -52,6 +52,11 @@ const ClonedSiteSchema = z.object({
   matchedColors: z.array(z.string()),
   fontsLinked: z.array(z.string()),
   componentsGenerated: z.array(z.string()),
+  regionsSynthesized: z.array(z.object({
+    tag: z.string(),
+    id: z.string().optional(),
+    cls: z.string(),
+  })),
 });
 
 const AstroIslandPattern = /\$([A-Za-z_][\w$]*)\$/g;
@@ -248,29 +253,40 @@ export function extractColors(html: string): string[] {
   return [...found];
 }
 
-/** Extract <link rel="stylesheet"> href URLs from HTML. */
+/** Extract external font stylesheet <link href> URLs from HTML.
+
+Only `rel=stylesheet` links are considered; preconnect/dns-prefetch origins (e.g.
+https://fonts.gstatic.com) and non-CSS paths like `/styles/main.css` are excluded so emitted
+`@import url(...)` statements never try to load an HTML page as a stylesheet (which browsers
+reject with MIME type / NS_ERROR_CORRUPTED_CONTENT). */
 export function extractFontLinks(html: string): string[] {
   const links = new Set<string>();
   let match: RegExpExecArray | null;
-  const linkPattern =
-    /<link[^>]*rel=["'](?:stylesheet|preconnect|dns-prefetch)['"][^>]*>/gi;
+  // Match <link> tags whose rel is exactly "stylesheet" — preconnect/dns-prefetch hosts the font CDN origin but are NOT stylesheet sources.
+  const linkPattern = /<link[^>]*\brel\s*=\s*["']stylesheet["'][^>]*>/gi;
   while ((match = linkPattern.exec(html)) !== null) {
     const hrefMatch = /href\s*=\s*["']([^"']+)['"]/i.exec(match[0]);
-    if (hrefMatch?.[1]?.includes("font")) links.add(hrefMatch[1]);
+    const href = hrefMatch?.[1];
+    // Only rel=stylesheet hrefs are collected here, so preconnect/dns-prefetch *hosts* (which caused
+    // NS_ERROR_CORRUPTED_CONTENT when emitted as @import) never reach this branch. Keep any absolute
+    // fonts-hosted stylesheet; bare origins were already excluded because they aren't rel=stylesheet.
+    if (href && /^https?:\/\//i.test(href)) {
+      links.add(href);
+    }
   }
   return [...links];
 }
 
-/** Extract element class names from HTML for layout structuring. */
+/** Extract element class names from HTML, preserving DOM encounter order (first appearance wins). */
 export function extractClassNames(html: string, limit = 24): string[] {
   const classes = new Set<string>();
   let match: RegExpExecArray | null;
   const pattern = /class\s*=\s*["']([^"']+)["']/gi;
   while ((match = pattern.exec(html)) !== null) {
     for (const cls of match[1].split(/\s+/).filter(Boolean)) {
-      classes.add(cls);
-      if (classes.size >= limit) return [...classes];
+      if (!classes.has(cls) && classes.size < limit) classes.add(cls); // insertion order preserved by Set.prototype.values()
     }
+    if (classes.size >= limit) break;
   }
   return [...classes];
 }
@@ -281,18 +297,71 @@ export function extractTitle(html: string): string {
   return (match?.[1] ?? "Cloned Site").trim();
 }
 
+/** Map a class name onto its HTML region tag + role so the layout mirrors recognizable page structure. */
+export function regionForClass(
+  cls: string,
+): { tag: string; id?: string; cls: string } | null {
+  switch (cls) {
+    case "site-header":
+      return { tag: "header", id: "masthead", cls };
+    case "entry-content":
+      return { tag: "main", id: "primary", cls };
+    case "content-area":
+      return { tag: "<div>", id: "primary", cls };
+    case "widget-area":
+      return { tag: "aside", id: "secondary", cls };
+    case "site":
+    case "no-js":
+    case "hfeed":
+      return { tag: "<div>", cls };
+    case "footer":
+    case "colophon":
+      return { tag: "footer", id: "colophon", cls };
+    default:
+      if (cls.startsWith("wp-")) return null; // skip framework-only classes like wp-embed-responsive
+      return null;
+  }
+}
+
+/** Build a scaffold mirroring the page's recognizable regions, in DOM encounter order. */
+export function synthesizeRegions(
+  orderedClasses: string[],
+): Array<{ tag: string; id?: string; cls: string }> {
+  const seen = new Set<string>();
+  const out: Array<{ tag: string; id?: string; cls: string }> = [];
+  for (const c of orderedClasses) {
+    if (seen.has(c)) continue;
+    const r = regionForClass(c);
+    if (r) out.push(r);
+    seen.add(c);
+  }
+  return out;
+}
+
 /** Generate a Layout component that replicates source colors, fonts and classes. */
 export function generateCloneLayout(
   title: string,
   colors: string[],
   fontLinks: string[],
+  orderedClasses = [] as string[] | undefined,
 ): string {
   const cssVars = colors.slice(0, 8).map((c, i) =>
     `--clone-color-${i + 1}: ${c};`
   ).join("\n  ");
   const fontStyles = fontLinks.map((f) => `@import url('${f}');`).join("\n");
+
+  // Scaffold this source's DOM region flow (jig.tools e.g. yields site-header, entry-content=>main,
+  // widget-area=>aside, colophon=>footer). Body classes are limited to recognizable page-shell tokens;
+  // framework-only wp-* wrappers and deep child element classes are excluded so markup stays semantic.
+  const regions = synthesizeRegions(orderedClasses ?? []);
+  const bodyCls = Array.from(new Set<string>(orderedClasses ?? []))
+    .filter((c) => !c.startsWith("wp-"))
+    .slice(0, 12).join(" ");
+
   return `---
-export interface LayoutProps { title?: string }
+import type { Props } from "astro";
+
+export interface LayoutProps extends Record<string, unknown> {}
 const siteTitle = "${title.replace(/"/g, '\\"')}";
 ---
 <html lang="en">
@@ -305,11 +374,50 @@ const siteTitle = "${title.replace(/"/g, '\\"')}";
       .layout-container { ${cssVars} }
     </style>
   </head>
-  <body class="clone-layout">
-    <nav class="site-nav" />
-    <main class="site-content"><slot /></main>
+  <body class="clone-layout ${bodyCls}">${renderRegions(regions)}
   </body>
 </html>`;
+}
+
+/** Serialize synthesized regions into valid, slot-bearing Astro HTML (header, main w/ slot, aside, footer). */
+function renderRegions(
+  regs: Array<{ tag: string; id?: string; cls: string }>,
+): string {
+  if (regs.length === 0) {
+    return `\n    <nav class="site-nav" />\n    <main class="site-content"><slot /></main>`;
+  }
+
+  const headerRegions = regs.filter((r) => r.tag === "header");
+  const asideRegions = regs.filter((r) => r.tag === "aside");
+  const footerRegions = regs.filter((r) => r.tag === "footer");
+  const mainCls =
+    regs.find((r) => ["main", "content-area"].includes(r.tag))?.cls ??
+      "site-content";
+
+  let out = "";
+  for (const r of headerRegions) {
+    out += `\n    <${r.tag}${r.id ? ` id="${r.id}"` : ""} class="${
+      regCls(r.cls)
+    }"><slot name="header" /></${r.tag}>`;
+  }
+  // single primary content region always rendered; entry-content/content-area both become main#primary
+  out += `\n    <main id="primary" class="${regCls(mainCls)}"><slot /></main>`;
+
+  for (const r of asideRegions) {
+    out += `\n    <${r.tag} id="${r.id ?? "secondary"}" class="${
+      regCls(r.cls)
+    }">...<slot name="sidebar" />...</${r.tag}>`;
+  }
+  for (const r of footerRegions) {
+    out += `\n    <${r.tag}${r.id ? ` id="${r.id}"` : ""} class="${
+      regCls(r.cls)
+    }"><slot name="footer" /></${r.tag}>`;
+  }
+  return out;
+}
+
+function regCls(cls: string | undefined): string {
+  return cls ?? "";
 }
 
 export const model = {
@@ -585,7 +693,12 @@ export const model = {
           `Found ${classNames.length} unique classes — generating component stubs`,
         );
 
-        const layoutCode = generateCloneLayout(title, colors, fontLinks);
+        const layoutCode = generateCloneLayout(
+          title,
+          colors,
+          fontLinks,
+          classNames,
+        );
         await Deno.writeTextFile(
           joinPath(outputPath, "src", "layouts", "Layout.astro"),
           layoutCode,
@@ -648,6 +761,7 @@ const colors = ${JSON.stringify(colors.slice(0, 16))};
           matchedColors: colors,
           fontsLinked: fontLinks,
           componentsGenerated: componentNames,
+          regionsSynthesized: synthesizeRegions(classNames),
         });
 
         return { dataHandles: [handle] };

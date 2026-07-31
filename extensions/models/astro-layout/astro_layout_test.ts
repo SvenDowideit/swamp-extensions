@@ -148,16 +148,17 @@ Deno.test("extractColors finds hex colors in CSS", () => {
   assertEquals(result.some((c) => c.startsWith("rgba")), true);
 });
 
-Deno.test("extractFontLinks extracts font stylesheet hrefs", () => {
+Deno.test("extractFontLinks returns only rel=stylesheet hrefs (preconnect/dns-prefetch hosts excluded so @import never loads an HTML origin)", () => {
   const html = `
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter">
-    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="stylesheet" href="/styles/main.css">   <!-- relative -> not copied -->
   `;
   const result = extractFontLinks(html);
-  assertEquals(result.length, 2);
+  assertEquals(result.length, 1);
   assertEquals(
-    result[1],
+    result[0],
     "https://fonts.googleapis.com/css?family=Inter",
   );
 });

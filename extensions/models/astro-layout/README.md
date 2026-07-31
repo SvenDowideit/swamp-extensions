@@ -95,12 +95,13 @@ Both methods share these global input arguments, set at model create time:
 
 ### Clone method arguments
 
-The `clone` method fetches an existing URL and produces a starter Astro layout that replicates its visual structure: colors, fonts and element classes.
+The `clone` method fetches an existing URL and produces a starter Astro layout that replicates its visual structure: CSS, fonts, body content and element classes.
 
 | Argument          | Type    | Default              | Description                                            |
 |-------------------|---------|----------------------|--------------------------------------------------------|
 | `outputDir`       | string  | `./astro-clone`      | Output directory for the cloned Astro project         |
 | `includeFonts`    | boolean | `true`               | Generate `@import`/`preconnect` links extracted from source |
+| `siteUrl`         | string  | _(global siteUrl)_   | Override the model's global siteUrl for this clone run |
 
 ```sh
 # Clone an existing site's layout (siteUrl is taken from global args)
@@ -112,6 +113,11 @@ swamp model create @svendowideit/astro-layout my-clone \
 swamp model method run my-clone clone \
   --input outputDir=./cloned-site \
   --input includeFonts=true
+
+# Override the siteUrl for a single run without changing the model's global value
+swamp model method run my-clone clone \
+  --input siteUrl=https://another-site.com \
+  --input outputDir=./cloned-site
 
 # Serve the result locally in a container (see "Viewing your site locally" below)
 make -f docker/Makefile.serve SERVE_DIR=./cloned-site

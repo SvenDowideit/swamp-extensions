@@ -217,6 +217,9 @@ const CloneArgsSchema = z.object({
   includeFonts: z.boolean()
     .default(true)
     .describe("Generate @font-face links extracted from the source page"),
+  siteUrl: z.string()
+    .optional()
+    .describe("Override the model's global siteUrl for this clone run"),
 }).describe("Arguments for the clone method");
 
 type CloneArgs = z.infer<typeof CloneArgsSchema>;
@@ -747,7 +750,7 @@ export const model = {
           Deno.cwd(),
           args.outputDir || "./astro-clone",
         );
-        const siteUrl = context.globalArgs.siteUrl;
+        const siteUrl = args.siteUrl || context.globalArgs.siteUrl;
 
         await Deno.mkdir(joinPath(outputPath, "src", "layouts"), {
           recursive: true,

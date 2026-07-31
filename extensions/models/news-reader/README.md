@@ -7,10 +7,13 @@ and generates a static HTML news summary page ranked by predicted interest.
 
 1. **Fetch** — downloads RSS/Atom feeds, parses articles (title, URL, summary,
    keywords), and stores them as a versioned data resource.
-2. **Generate** — reads the latest articles, scores them against your learned
+2. **Filter by age** — filters fetched articles to show only those within the
+   specified time range (default: last 3 days). Supports h/d/w/m suffixes
+   (e.g., "2h", "7d", "4w", "1m").
+3. **Generate** — reads the filtered articles, scores them against your learned
    keyword preferences, and writes a static HTML page with the top articles
    sorted by interest score.
-3. **Feedback** — you mark articles as "interested" or "ignored" (via the HTML
+4. **Feedback** — you mark articles as "interested" or "ignored" (via the HTML
    page's 👍/👎 buttons or the CLI). The model recomputes keyword weights from
    your feedback, so future reports surface more of what you like.
 
@@ -37,8 +40,14 @@ swamp model create @svendowideit/feed-catalog feed-catalog
 swamp model method run feed-catalog add --input url="https://hnrss.org/frontpage" --input category=tech --input name="Hacker News"
 swamp model method run feed-catalog add --input url="https://feeds.bbci.co.uk/news/technology/rss.xml" --input category=tech --input name="BBC Tech"
 
-# Run the news workflow — reads feeds from catalog automatically
+# Run the news workflow — reads feeds from catalog automatically, shows last 3 days by default
 swamp workflow run news
+
+# Show last 2 days of news:
+swamp workflow run news --input newsAge=2d
+
+# Show last week of news:
+swamp workflow run news --input newsAge=1w
 
 # View the HTML
 swamp data get --workflow news news-page --json | jq -r '.content' > news.html
@@ -73,11 +82,12 @@ clipboard — paste it into the terminal to record your preference.
 
 ## Methods
 
-| Method     | Description                                | Key arguments                                        |
-| ---------- | ------------------------------------------ | ---------------------------------------------------- |
-| `fetch`    | Fetch RSS/Atom feeds and store articles    | `feeds` (URL[]), `maxArticlesPerFeed`                |
-| `generate` | Generate HTML report from latest articles  | `topN`, `title`                                      |
-| `feedback` | Record user interest/ignore for an article | `articleId`, `action`, `source`, `title`, `keywords` |
+| Method        | Description                                              | Key arguments                                        |
+| ------------- | -------------------------------------------------------- | ---------------------------------------------------- |
+| `fetch`       | Fetch RSS/Atom feeds and store articles                  | `feeds` (URL[]), `maxArticlesPerFeed`                |
+| `filterByAge` | Filter articles by age for HTML generation               | `newsAge` (default: "3d", supports h/d/w/m suffixes) |
+| `generate`    | Generate HTML report from filtered articles              | `topN`, `title`                                      |
+| `feedback`    | Record user interest/ignore for an article               | `articleId`, `action`, `source`, `title`, `keywords` |
 
 ## Output
 
@@ -89,9 +99,11 @@ The `generate` method writes a static HTML file as a swamp data artifact
 - **Article cards** — title (links to original), source, date, summary,
   keywords, interest score badge (★/↑/↓/·), and feedback buttons
 - **Keyboard shortcuts** — `j`/`k` to navigate between articles
+- **Age filter info** — shows the time range of news being displayed
 
 The `fetch` method stores articles as a structured JSON resource (`snapshot`
-spec) with all parsed metadata.
+spec) with all parsed metadata. The `filterByAge` method creates a filtered
+snapshot that includes the age filter information.
 
 ## Scheduled execution
 

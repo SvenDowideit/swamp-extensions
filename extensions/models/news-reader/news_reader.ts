@@ -19,6 +19,31 @@ const GlobalArgsSchema = z.object({}).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
+/** Parse a newsAge string (e.g., "3d", "2h", "4w", "1m") into milliseconds. */
+export function parseNewsAge(ageStr: string): number {
+  const match = ageStr.match(/^(\d+)([hdwm])$/i);
+  if (!match) {
+    throw new Error(
+      `Invalid newsAge format: "${ageStr}". Use h (hours), d (days), w (weeks), or m (months). Example: "3d" for 3 days.`,
+    );
+  }
+  const value = parseInt(match[1], 10);
+  const unit = match[2].toLowerCase();
+  const hours = value * 60 * 60 * 1000;
+  switch (unit) {
+    case "h":
+      return value * 60 * 60 * 1000;
+    case "d":
+      return value * 24 * 60 * 60 * 1000;
+    case "w":
+      return value * 7 * 24 * 60 * 60 * 1000;
+    case "m":
+      return value * 30 * 24 * 60 * 60 * 1000;
+    default:
+      throw new Error(`Unknown age unit: ${unit}`);
+  }
+}
+
 const FeedInputSchema = z.object({
   url: z.string().url(),
   name: z.string().optional(),
@@ -48,6 +73,14 @@ const GenerateArgsSchema = z.object({
 }).describe("Arguments for the generate method");
 
 type GenerateArgs = z.infer<typeof GenerateArgsSchema>;
+
+const FilterByAgeArgsSchema = z.object({
+  newsAge: z.string().default("3d").describe(
+    "Time range of news to show (e.g., 2h, 7d, 4w, 1m). Supports h (hours), d (days), w (weeks), m (months). Defaults to 3 days.",
+  ),
+}).describe("Arguments for the filterByAge method");
+
+type FilterByAgeArgs = z.infer<typeof FilterByAgeArgsSchema>;
 
 const FeedbackArgsSchema = z.object({
   articleId: z.string().describe("Article ID (hash of URL)"),
@@ -153,6 +186,11 @@ const FeedbackEntrySchema = z.object({
   source: z.string(),
   title: z.string(),
   keywords: z.array(z.string()),
+});
+
+const FilteredSnapshotSchema = FeedSnapshotSchema.extend({
+  filteredAt: z.iso.datetime(),
+  ageFilter: z.string(),
 });
 
 const PreferencesSchema = z.object({
@@ -481,9 +519,22 @@ export function generateHtml(
   prefs: Preferences,
   title: string,
   generatedAt: string,
+  ageFilter?: string,
 ): string {
   const top = articles;
   const sections: string[] = [];
+
+  let metaText = `Generated ${
+    escapeHtml(generatedAt)
+  } · ${articles.length} articles from ${
+    new Set(articles.map((a) => a.source)).size
+  } sources · ${prefs.interested.length} interested, ${prefs.ignored.length} ignored`;
+  
+  if (ageFilter && ageFilter !== "") {
+    metaText += ` · Filtering last ${escapeHtml(ageFilter)}`;
+  }
+  
+  sections.push(`<div class="meta">${metaText}</div>`);
 
   sections.push(`<!DOCTYPE html>
 <html lang="en">
@@ -632,6 +683,12 @@ export const model = {
       lifetime: "7d",
       garbageCollection: 20,
     },
+    filteredSnapshot: {
+      description: "Age-filtered snapshot for HTML generation",
+      schema: FilteredSnapshotSchema,
+      lifetime: "7d",
+      garbageCollection: 20,
+    },
     preferences: {
       description: "User article preferences and learned keyword weights",
       schema: PreferencesSchema,
@@ -714,12 +771,12 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-    generate: {
+    filterByAge: {
       description:
-        "Generate static HTML report from latest articles, ranked by interest",
-      arguments: GenerateArgsSchema,
+        "Filter articles by age and store filtered snapshot for HTML generation",
+      arguments: FilterByAgeArgsSchema,
       execute: async (
-        args: GenerateArgs,
+        args: FilterByAgeArgs,
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
@@ -734,6 +791,71 @@ export const model = {
           throw new Error(
             "No articles found — run the 'fetch' method first with some feed URLs",
           );
+        }
+
+        const maxAgeMs = parseNewsAge(args.newsAge);
+        const now = new Date().getTime();
+        const cutoff = now - maxAgeMs;
+
+        logger?.info("Filtering {total} articles by age (max: {age})", {
+          total: snapshotData.articles.length,
+          age: args.newsAge,
+        });
+
+        const filteredArticles = snapshotData.articles.filter((a) => {
+          const pubDate = new Date(a.publishedAt).getTime();
+          return pubDate >= cutoff;
+        });
+
+        logger?.info("Filtered to {n} articles within last {age}", {
+          n: filteredArticles.length,
+          age: args.newsAge,
+        });
+
+        const handle = await context.writeResource(
+          "snapshot",
+          "filtered-snapshot",
+          {
+            fetchedAt: new Date().toISOString(),
+            articles: filteredArticles,
+            errors: snapshotData.errors,
+            filteredAt: new Date().toISOString(),
+            ageFilter: args.newsAge,
+          },
+        );
+
+        return { dataHandles: [handle] };
+      },
+    },
+    generate: {
+      description:
+        "Generate static HTML report from latest articles, ranked by interest",
+      arguments: GenerateArgsSchema,
+      execute: async (
+        args: GenerateArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const logger = context.logger;
+
+        let snapshotData = await context.readResource("filtered-snapshot") as
+          | (FeedSnapshot & { filteredAt: string; ageFilter: string }) | null;
+        
+        if (!snapshotData) {
+          snapshotData = await context.readResource("feed-snapshot") as
+            | FeedSnapshot
+            | null;
+          if (
+            !snapshotData || !snapshotData.articles ||
+            snapshotData.articles.length === 0
+          ) {
+            throw new Error(
+              "No articles found — run the 'fetch' method first with some feed URLs",
+            );
+          }
+        } else {
+          logger?.info("Using filtered snapshot from {ageFilter}", {
+            ageFilter: snapshotData.ageFilter,
+          });
         }
 
         const prefsData = await context.readResource("prefs-current") as
@@ -770,7 +892,13 @@ export const model = {
           count: top.length,
         });
 
-        const html = generateHtml(top, prefs, args.title, generatedAt);
+        const html = generateHtml(
+          top,
+          prefs,
+          args.title,
+          generatedAt,
+          snapshotData.filteredAt ? (snapshotData as any).ageFilter : undefined,
+        );
 
         const writer = context.createFileWriter("report", "news-page");
         const handle = await writer.writeText(html);

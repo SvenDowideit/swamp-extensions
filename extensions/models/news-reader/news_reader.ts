@@ -164,6 +164,10 @@ export interface Preferences {
   interested: FeedbackEntry[];
   /** Articles the user marked as ignored. */
   ignored: FeedbackEntry[];
+  /** Article IDs the user has scrolled into view (seen). */
+  seen: string[];
+  /** Article IDs the user has opened (clicked the link). */
+  read: string[];
   /** Computed keyword weights (positive = interesting, negative = ignored). */
   keywordWeights: Record<string, number>;
 }
@@ -226,6 +230,8 @@ const FilteredSnapshotSchema = FeedSnapshotSchema.extend({
 const PreferencesSchema = z.object({
   interested: z.array(FeedbackEntrySchema),
   ignored: z.array(FeedbackEntrySchema),
+  seen: z.array(z.string()),
+  read: z.array(z.string()),
   keywordWeights: z.record(z.string(), z.number()),
 });
 
@@ -501,9 +507,25 @@ async function fetchFeed(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Preference scoring
-// ---------------------------------------------------------------------------
+/** Normalize loaded preferences to ensure all fields exist (backward compat). */
+function normalizePrefs(raw: Record<string, unknown> | null): Preferences {
+  if (!raw) {
+    return {
+      interested: [],
+      ignored: [],
+      seen: [],
+      read: [],
+      keywordWeights: {},
+    };
+  }
+  return {
+    interested: (raw.interested as FeedbackEntry[]) ?? [],
+    ignored: (raw.ignored as FeedbackEntry[]) ?? [],
+    seen: (raw.seen as string[]) ?? [],
+    read: (raw.read as string[]) ?? [],
+    keywordWeights: (raw.keywordWeights as Record<string, number>) ?? {},
+  };
+}
 
 /** Recompute keyword weights from feedback entries. */
 export function computeKeywordWeights(
@@ -554,6 +576,8 @@ export function generateHtml(
 ): string {
   const top = articles;
   const sections: string[] = [];
+  const seenSet = new Set(prefs.seen ?? []);
+  const readSet = new Set(prefs.read ?? []);
 
   let metaText = `${articles.length} articles from ${
     new Set(articles.map((a) => a.source)).size
@@ -576,12 +600,17 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .article { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: white; transition: border-color 0.2s; position: relative; }
 .article::before { content: ''; position: absolute; top: 4px; left: 4px; width: 128px; height: 128px; background-image: var(--watermark); background-size: 128px; background-repeat: no-repeat; opacity: 0.1; pointer-events: none; }
 .article:hover { border-color: #4a90d9; }
+.article.seen { border-left: 3px solid #ffc107; }
+.article.read { border-left: 3px solid #28a745; opacity: 0.85; }
 .article h3 { margin: 0 0 8px 0; }
 .article h3 a { color: #1a5276; text-decoration: none; }
 .article h3 a:hover { text-decoration: underline; }
 .article-actions { float: right; }
 .article-actions a { color: #888; text-decoration: none; cursor: pointer; margin-left: 8px; font-size: 0.85em; }
 .article-actions a:hover { color: #4a90d9; }
+.article-indicators { display: inline-block; margin-left: 8px; font-size: 0.8em; }
+.article-indicators .seen-badge { color: #ffc107; }
+.article-indicators .read-badge { color: #28a745; }
 .source { color: #888; font-size: 0.85em; }
 .score { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; }
 .score-high { background: #d4edda; color: #155724; }
@@ -641,6 +670,19 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
       keywords: a.keywords,
     });
 
+    const isSeen = seenSet.has(a.id);
+    const isRead = readSet.has(a.id);
+    const stateClass = isRead ? " read" : isSeen ? " seen" : "";
+    const indicators = (isSeen || isRead)
+      ? `<span class="article-indicators">${
+        isRead ? '<span class="read-badge" title="read">📖</span>' : ""
+      }${
+        isSeen && !isRead
+          ? '<span class="seen-badge" title="seen">👁</span>'
+          : ""
+      }</span>`
+      : "";
+
     const domain = a.source.includes(".") ? a.source : (() => {
       try {
         return new URL(a.url).hostname;
@@ -652,8 +694,12 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
       encodeURIComponent(domain)
     }&sz=64`;
     sections.push(
-      `<div class="article" tabindex="0" style="--watermark: url('${faviconUrl}')">
-<h3><a href="${escapeHtml(a.url)}" target="_blank">${escapeHtml(a.title)}</a>
+      `<div class="article${stateClass}" tabindex="0" data-article-id="${
+        escapeHtml(a.id)
+      }" style="--watermark: url('${faviconUrl}')">
+<h3><a href="${escapeHtml(a.url)}" target="_blank" data-article-id="${
+        escapeHtml(a.id)
+      }">${escapeHtml(a.title)}</a>${indicators}
 <span class="article-actions">
 <a onclick="sendFeedback('interested',${
         escapeHtml(articleJson)
@@ -707,6 +753,48 @@ async function sendFeedback(action, article) {
     setTimeout(() => el.textContent = action === 'interested' ? '👍' : '👎', 2000);
   }
 }
+
+async function sendSeen(articleId) {
+  try {
+    await fetch(FEEDBACK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ articleId, action: 'seen' })
+    });
+  } catch {}
+}
+
+async function sendRead(articleId) {
+  try {
+    await fetch(FEEDBACK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ articleId, action: 'read' })
+    });
+  } catch {}
+}
+
+const seenSent = new Set();
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.getAttribute('data-article-id');
+      if (id && !seenSent.has(id)) {
+        seenSent.add(id);
+        sendSeen(id);
+      }
+    }
+  });
+}, { threshold: 0.3 });
+
+document.querySelectorAll('.article').forEach(el => observer.observe(el));
+
+document.querySelectorAll('.article h3 a[data-article-id]').forEach(link => {
+  link.addEventListener('click', (e) => {
+    const id = link.getAttribute('data-article-id');
+    if (id) sendRead(id);
+  });
+});
 
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -953,13 +1041,9 @@ export const model = {
         }
 
         const prefsData = await context.readResource("prefs-current") as
-          | Preferences
+          | Record<string, unknown>
           | null;
-        const prefs: Preferences = prefsData ?? {
-          interested: [],
-          ignored: [],
-          keywordWeights: {},
-        };
+        const prefs = normalizePrefs(prefsData);
 
         logger?.info(
           "Scoring {articles} articles against {interested} interested, {ignored} ignored",
@@ -1021,13 +1105,9 @@ export const model = {
         const logger = context.logger;
 
         const prefsData = await context.readResource("prefs-current") as
-          | Preferences
+          | Record<string, unknown>
           | null;
-        const prefs: Preferences = prefsData ?? {
-          interested: [],
-          ignored: [],
-          keywordWeights: {},
-        };
+        const prefs = normalizePrefs(prefsData);
 
         const entry: FeedbackEntry = {
           articleId: args.articleId,
@@ -1066,6 +1146,8 @@ export const model = {
           {
             interested: prefs.interested,
             ignored: prefs.ignored,
+            seen: prefs.seen,
+            read: prefs.read,
             keywordWeights: prefs.keywordWeights,
           },
         );
@@ -1084,13 +1166,9 @@ export const model = {
         const logger = context.logger;
 
         const prefsData = await context.readResource("prefs-current") as
-          | Preferences
+          | Record<string, unknown>
           | null;
-        const prefs: Preferences = prefsData ?? {
-          interested: [],
-          ignored: [],
-          keywordWeights: {},
-        };
+        const prefs = normalizePrefs(prefsData);
 
         let totalProcessed = 0;
         let batchCount = 0;
@@ -1124,7 +1202,7 @@ export const model = {
             items: Array<{
               id: string;
               articleId: string;
-              action: "interested" | "ignored";
+              action: "interested" | "ignored" | "seen" | "read";
               source: string;
               title: string;
               keywords: string[];
@@ -1145,31 +1223,41 @@ export const model = {
           const processedIds: string[] = [];
 
           for (const item of body.items) {
-            const entry: FeedbackEntry = {
-              articleId: item.articleId,
-              recordedAt: new Date().toISOString(),
-              source: item.source ?? "",
-              title: item.title ?? "",
-              keywords: item.keywords ?? [],
-            };
-
-            if (item.action === "interested") {
-              prefs.ignored = prefs.ignored.filter((e) =>
-                e.articleId !== item.articleId
-              );
-              if (
-                !prefs.interested.some((e) => e.articleId === item.articleId)
-              ) {
-                prefs.interested.push(entry);
+            if (item.action === "seen") {
+              if (!prefs.seen.includes(item.articleId)) {
+                prefs.seen.push(item.articleId);
+              }
+            } else if (item.action === "read") {
+              if (!prefs.read.includes(item.articleId)) {
+                prefs.read.push(item.articleId);
               }
             } else {
-              prefs.interested = prefs.interested.filter((e) =>
-                e.articleId !== item.articleId
-              );
-              if (
-                !prefs.ignored.some((e) => e.articleId === item.articleId)
-              ) {
-                prefs.ignored.push(entry);
+              const entry: FeedbackEntry = {
+                articleId: item.articleId,
+                recordedAt: new Date().toISOString(),
+                source: item.source ?? "",
+                title: item.title ?? "",
+                keywords: item.keywords ?? [],
+              };
+
+              if (item.action === "interested") {
+                prefs.ignored = prefs.ignored.filter((e) =>
+                  e.articleId !== item.articleId
+                );
+                if (
+                  !prefs.interested.some((e) => e.articleId === item.articleId)
+                ) {
+                  prefs.interested.push(entry);
+                }
+              } else {
+                prefs.interested = prefs.interested.filter((e) =>
+                  e.articleId !== item.articleId
+                );
+                if (
+                  !prefs.ignored.some((e) => e.articleId === item.articleId)
+                ) {
+                  prefs.ignored.push(entry);
+                }
               }
             }
 
@@ -1208,6 +1296,8 @@ export const model = {
           {
             interested: prefs.interested,
             ignored: prefs.ignored,
+            seen: prefs.seen,
+            read: prefs.read,
             keywordWeights: prefs.keywordWeights,
           },
         );

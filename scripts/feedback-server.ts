@@ -53,7 +53,7 @@ function parseArgs(): { port: number; htmlPath: string; queueDir: string } {
 
 interface FeedbackEntry {
   articleId: string;
-  action: "interested" | "ignored";
+  action: "interested" | "ignored" | "seen" | "read";
   source?: string;
   title?: string;
   keywords?: string[];
@@ -172,9 +172,14 @@ async function handleRequest(
             400,
           );
         }
-        if (body.action !== "interested" && body.action !== "ignored") {
+        if (
+          body.action !== "interested" &&
+          body.action !== "ignored" &&
+          body.action !== "seen" &&
+          body.action !== "read"
+        ) {
           return jsonResponse(
-            { error: 'action must be "interested" or "ignored"' },
+            { error: 'action must be "interested", "ignored", "seen", or "read"' },
             400,
           );
         }

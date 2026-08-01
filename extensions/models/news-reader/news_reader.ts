@@ -925,7 +925,7 @@ export const model = {
 
         if (!snapshotData) {
           snapshotData = await context.readResource("feed-snapshot") as
-            | FeedSnapshot
+            | (FeedSnapshot & { filteredAt: string; ageFilter: string })
             | null;
           if (
             !snapshotData || !snapshotData.articles ||
@@ -980,7 +980,7 @@ export const model = {
           prefs,
           args.title,
           generatedAt,
-          snapshotData.filteredAt ? (snapshotData as any).ageFilter : undefined,
+          snapshotData.filteredAt ? snapshotData.ageFilter : undefined,
         );
 
         const writer = context.createFileWriter("report", "news-page");

@@ -8,6 +8,16 @@ import {
   parseFeed,
   type Preferences,
   scoreArticle,
+} import {
+  type Article,
+  computeKeywordWeights,
+  extractKeywords,
+  filterArticlesByAge,
+  generateHtml,
+  parseFeed,
+  parseNewsAge,
+  type Preferences,
+  scoreArticle,
 } from "./news_reader.ts";
 
 const sampleArticle = (overrides: Partial<Article> = {}): Article => ({
@@ -217,4 +227,77 @@ Deno.test("parseFeed parses Atom feed", () => {
   assertEquals(articles[0].summary, "Atom article summary");
   assertEquals(articles[0].source, "example.com");
   assertEquals(articles[0].keywords.includes("science"), true);
+});
+
+import { assertThrows } from "jsr:@std/assert@1";
+
+Deno.test("parseNewsAge parses valid age strings", () => {
+  // Hours
+  assertEquals(parseNewsAge("2h"), 2 * 60 * 60 * 1000);
+  assertEquals(parseNewsAge("12h"), 12 * 60 * 60 * 1000);
+  
+  // Days
+  assertEquals(parseNewsAge("1d"), 24 * 60 * 60 * 1000);
+  assertEquals(parseNewsAge("3d"), 3 * 24 * 60 * 60 * 1000);
+  assertEquals(parseNewsAge("7d"), 7 * 24 * 60 * 60 * 1000);
+  
+  // Weeks
+  assertEquals(parseNewsAge("1w"), 7 * 24 * 60 * 60 * 1000);
+  assertEquals(parseNewsAge("4w"), 4 * 7 * 24 * 60 * 60 * 1000);
+  
+  // Months (approximate, 30 days)
+  assertEquals(parseNewsAge("1m"), 30 * 24 * 60 * 60 * 1000);
+});
+
+Deno.test("parseNewsAge rejects invalid age strings", () => {
+  assertThrows(() => parseNewsAge("2x"));
+  assertThrows(() => parseNewsAge("days"));
+  assertThrows(() => parseNewsAge(""));
+  assertThrows(() => parseNewsAge("abc"));
+});
+
+// Helper function for testing - extract the filtering logic
+function filterArticlesByAge(
+  articles: Article[],
+  maxAgeMs: number,
+  nowMs: number
+): Article[] {
+  const cutoff = nowMs - maxAgeMs;
+  return articles.filter((a) => {
+    const pubDate = new Date(a.publishedAt).getTime();
+    return pubDate >= cutoff;
+  });
+}
+
+Deno.test("filterArticlesByAge filters by publication date", () => {
+  const now = new Date();
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+  
+  // Use different dates for each article
+  const articles: Article[] = [
+    { ...sampleArticle(), id: "recent", publishedAt: now.toISOString() },
+    {
+      ...sampleArticle({ id: "one-hour-ago" }),
+      publishedAt: oneHourAgo.toISOString()
+    },
+    {
+      ...sampleArticle({ id: "two-hours-ago" }),
+      publishedAt: twoHoursAgo.toISOString()
+    }
+  ];
+  
+  // Filter for last 90 minutes (should only get "recent")
+  let filtered = filterArticlesByAge(articles, parseNewsAge("1.5h"), now.getTime());
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0].id, "recent");
+  
+  // Filter for last 2 hours (should get "recent" and "one-hour-ago")
+  filtered = filterArticlesByAge(articles, parseNewsAge("2h"), now.getTime());
+  assertEquals(filtered.length, 2);
+  assertEquals(filtered.map(a => a.id).includes("two-hours-ago"), false);
+  
+  // Filter for last 30 minutes (should get nothing since all are older)
+  filtered = filterArticlesByAge(articles, parseNewsAge("0.5h"), now.getTime());
+  assertEquals(filtered.length, 0);
 });

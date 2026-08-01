@@ -29,7 +29,6 @@ export function parseNewsAge(ageStr: string): number {
   }
   const value = parseInt(match[1], 10);
   const unit = match[2].toLowerCase();
-  const hours = value * 60 * 60 * 1000;
   switch (unit) {
     case "h":
       return value * 60 * 60 * 1000;
@@ -42,6 +41,19 @@ export function parseNewsAge(ageStr: string): number {
     default:
       throw new Error(`Unknown age unit: ${unit}`);
   }
+}
+
+/** Filter articles by age based on publication date. */
+export function filterArticlesByAge(
+  articles: Article[],
+  maxAgeMs: number,
+  nowMs?: number,
+): Article[] {
+  const cutoff = (nowMs ?? Date.now()) - maxAgeMs;
+  return articles.filter((a) => {
+    const pubDate = new Date(a.publishedAt).getTime();
+    return pubDate >= cutoff;
+  });
 }
 
 const FeedInputSchema = z.object({
@@ -837,13 +849,13 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
 
-        let snapshotData = await context.readResource("filtered-snapshot") as
-          | (FeedSnapshot & { filteredAt: string; ageFilter: string }) | null;
-        
-        if (!snapshotData) {
-          snapshotData = await context.readResource("feed-snapshot") as
-            | FeedSnapshot
-            | null;
+         let snapshotData = await context.readResource("filteredSnapshot") as
+           | (FeedSnapshot & { filteredAt: string; ageFilter: string }) | null;
+         
+         if (!snapshotData) {
+           snapshotData = await context.readResource("feed-snapshot") as
+             | FeedSnapshot
+             | null;
           if (
             !snapshotData || !snapshotData.articles ||
             snapshotData.articles.length === 0

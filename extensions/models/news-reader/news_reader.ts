@@ -568,8 +568,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .score-low { background: #f8d7da; color: #721c24; }
 .score-zero { background: #e2e3e5; color: #6c757d; }
 .summary { color: #555; margin-top: 8px; font-size: 0.95em; line-height: 1.5; }
-.keywords { margin-top: 8px; }
-.keyword { display: inline-block; background: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-right: 4px; }
+.keyword { display: inline-block; background: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; margin-right: 4px; }
 .feedback { margin-top: 8px; font-size: 0.85em; }
 .feedback a { color: #4a90d9; text-decoration: none; margin-right: 12px; cursor: pointer; }
 .feedback a:hover { text-decoration: underline; }
@@ -624,18 +623,17 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
       escapeHtml(a.source)
     } · <span class="pubdate" data-date="${
       escapeHtml(a.publishedAt)
-    }"></span></span>
+    }"></span>${
+      a.keywords.length > 0
+        ? " · " + a.keywords.slice(0, 6).map(kw =>
+            `<span class="keyword">${escapeHtml(kw)}</span>`
+          ).join("")
+        : ""
+    }</span>
 <span class="score ${scoreClass}">${scoreLabel} ${a.score}</span>
 <div class="summary">${escapeHtml(a.summary.slice(0, 200))}${
       a.summary.length > 200 ? "…" : ""
     }</div>`);
-    if (a.keywords.length > 0) {
-      sections.push('<div class="keywords">');
-      for (const kw of a.keywords.slice(0, 6)) {
-        sections.push(`<span class="keyword">${escapeHtml(kw)}</span>`);
-      }
-      sections.push("</div>");
-    }
     // Feedback links — copy a CLI command to clipboard
     const feedbackCmd = (action: string) =>
       `swamp workflow run news --input action=feedback --input articleId=${a.id} --input feedbackAction=${action} --input 'source=${

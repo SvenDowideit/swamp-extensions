@@ -52,7 +52,8 @@ export function filterArticlesByAge(
   const cutoff = (nowMs ?? Date.now()) - maxAgeMs;
   return articles.filter((a) => {
     const pubDate = new Date(a.publishedAt).getTime();
-    return pubDate >= cutoff;
+    // Filter: published date must be within the last X hours AND not in the future
+    return pubDate >= cutoff && pubDate <= nowMs!;
   });
 }
 
@@ -787,11 +788,43 @@ export const model = {
       description:
         "Filter articles by age and store filtered snapshot for HTML generation",
       arguments: FilterByAgeArgsSchema,
-      execute: async (
+       execute: async (
         args: FilterByAgeArgs,
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
+
+        // Skip filtering if there's an existing filtered-snapshot that's recent
+        const existingSnapshot = await context.readResource("filtered-snapshot") as
+          | (FeedSnapshot & { filteredAt: string; ageFilter: string }) | null;
+        
+        if (existingSnapshot && existingSnapshot.filteredAt) {
+          const now = new Date().getTime();
+          const filteredAt = new Date(existingSnapshot.filteredAt).getTime();
+          const timeSinceFiltered = now - filteredAt;
+          
+          // Reuse snapshot if less than 30 minutes old
+          if (timeSinceFiltered < 30 * 60 * 1000) {
+            logger?.info("Reusing existing filtered-snapshot ({age} old)", {
+              age: `${Math.round(timeSinceFiltered / 60000)}m`,
+            });
+            
+            // Update the snapshot with current timestamp but same articles
+            const handle = await context.writeResource(
+              "filteredSnapshot",
+              "filtered-snapshot",
+              {
+                fetchedAt: new Date().toISOString(),
+                articles: existingSnapshot.articles,
+                errors: [],
+                filteredAt: new Date().toISOString(),
+                ageFilter: args.newsAge,
+              },
+            );
+            
+            return { dataHandles: [handle] };
+          }
+        }
 
         const snapshotData = await context.readResource("feed-snapshot") as
           | FeedSnapshot
@@ -849,7 +882,7 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
 
-         let snapshotData = await context.readResource("filteredSnapshot") as
+         let snapshotData = await context.readResource("filtered-snapshot") as
            | (FeedSnapshot & { filteredAt: string; ageFilter: string }) | null;
          
          if (!snapshotData) {

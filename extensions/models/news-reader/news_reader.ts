@@ -626,9 +626,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 <h3><a href="${escapeHtml(a.url)}" target="_blank">${
       escapeHtml(a.title)
     }</a></h3>
-<span class="source">${escapeHtml(a.source)} · ${
-      escapeHtml(a.publishedAt)
-    }</span>
+<span class="source">${escapeHtml(a.source)} · <span class="pubdate" data-date="${escapeHtml(a.publishedAt)}"></span></span>
 <span class="score ${scoreClass}">${scoreLabel} ${a.score}</span>
 <div class="summary">${escapeHtml(a.summary.slice(0, 200))}${
       a.summary.length > 200 ? "…" : ""
@@ -673,6 +671,25 @@ document.addEventListener('keydown', (e) => {
   let idx = current ? Array.from(articles).indexOf(current) : -1;
   if (e.key === 'j') { idx = Math.min(idx + 1, articles.length - 1); articles[idx]?.focus(); }
   if (e.key === 'k') { idx = Math.max(idx - 1, 0); articles[idx]?.focus(); }
+});
+
+document.querySelectorAll('.pubdate').forEach(el => {
+  const dateStr = el.getAttribute('data-date');
+  if (dateStr) {
+    try {
+      const date = new Date(dateStr);
+      const formatted = date.toLocaleString('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      el.textContent = formatted;
+    } catch (err) {
+      el.textContent = dateStr;
+    }
+  }
 });
 </script>
 </body>

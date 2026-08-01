@@ -432,6 +432,7 @@ export function parseFeed(xml: string, feedUrl: string): Article[] {
       extractTag(item, isAtom ? "summary" : "description") ?? "",
     ).slice(0, 500);
     const publishedAt = extractTag(item, isAtom ? "published" : "pubDate") ??
+      (isAtom ? extractTag(item, "updated") : null) ??
       new Date().toISOString();
     const categories = extractAllTags(item, "category")
       .map((c) => c.toLowerCase())

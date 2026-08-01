@@ -6,15 +6,6 @@ import {
   extractKeywords,
   generateHtml,
   parseFeed,
-  type Preferences,
-  scoreArticle,
-} import {
-  type Article,
-  computeKeywordWeights,
-  extractKeywords,
-  filterArticlesByAge,
-  generateHtml,
-  parseFeed,
   parseNewsAge,
   type Preferences,
   scoreArticle,
@@ -227,6 +218,23 @@ Deno.test("parseFeed parses Atom feed", () => {
   assertEquals(articles[0].summary, "Atom article summary");
   assertEquals(articles[0].source, "example.com");
   assertEquals(articles[0].keywords.includes("science"), true);
+});
+
+Deno.test("parseFeed falls back to <updated> when Atom feed has no <published>", () => {
+  const xml = `<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+<title>Atom Test Feed</title>
+<entry>
+<title>Atom Article</title>
+<link href="https://example.com/atom/1"/>
+<summary>Atom article summary</summary>
+<updated>2025-07-03T00:00:00Z</updated>
+<category term="science"/>
+</entry>
+</feed>`;
+  const articles = parseFeed(xml, "https://example.com/atom.xml");
+  assertEquals(articles.length, 1);
+  assertEquals(articles[0].publishedAt, "2025-07-03T00:00:00Z");
 });
 
 import { assertThrows } from "jsr:@std/assert@1";

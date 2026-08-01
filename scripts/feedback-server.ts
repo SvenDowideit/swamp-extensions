@@ -1,7 +1,7 @@
 /**
  * Feedback queue HTTP server for the news-reader workflow.
  *
- * Stores feedback entries as individual ULID-named JSON files in a queue
+ * Stores feedback entries as individual time-sortable JSON files in a queue
  * directory. The news workflow's gather-feedback step polls GET, processes
  * entries, and deletes them via DELETE.
  *
@@ -21,7 +21,11 @@
  *   GET  /  — serve the HTML page (if --html provided)
  */
 
-import { ulid } from "npm:ulid@2.0.2";
+function generateId(): string {
+  const ts = Date.now().toString(36).padStart(8, "0");
+  const rand = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  return `${ts}-${rand}`;
+}
 
 const PORT = parseInt(Deno.env.get("FEEDBACK_PORT") ?? "8765");
 const HTML_PATH = Deno.env.get("FEEDBACK_HTML_PATH") ?? "";
@@ -176,7 +180,7 @@ async function handleRequest(
         }
 
         const entry: QueuedEntry = {
-          id: ulid(),
+          id: generateId(),
           createdAt: new Date().toISOString(),
           articleId: body.articleId,
           action: body.action,

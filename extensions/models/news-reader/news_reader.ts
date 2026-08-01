@@ -540,11 +540,11 @@ export function generateHtml(
   let metaText = `${articles.length} articles from ${
     new Set(articles.map((a) => a.source)).size
   } sources · ${prefs.interested.length} interested, ${prefs.ignored.length} ignored`;
-  
+
   if (ageFilter && ageFilter !== "") {
     metaText += ` · Filtering last ${escapeHtml(ageFilter)}`;
   }
-  
+
   sections.push(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -619,7 +619,11 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 <h3><a href="${escapeHtml(a.url)}" target="_blank">${
       escapeHtml(a.title)
     }</a></h3>
-<span class="source">${escapeHtml(a.source)} · <span class="pubdate" data-date="${escapeHtml(a.publishedAt)}"></span></span>
+<span class="source">${
+      escapeHtml(a.source)
+    } · <span class="pubdate" data-date="${
+      escapeHtml(a.publishedAt)
+    }"></span></span>
 <span class="score ${scoreClass}">${scoreLabel} ${a.score}</span>
 <div class="summary">${escapeHtml(a.summary.slice(0, 200))}${
       a.summary.length > 200 ? "…" : ""
@@ -817,27 +821,31 @@ export const model = {
       description:
         "Filter articles by age and store filtered snapshot for HTML generation",
       arguments: FilterByAgeArgsSchema,
-       execute: async (
+      execute: async (
         args: FilterByAgeArgs,
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
 
         // Skip filtering if there's an existing filtered-snapshot that's recent
-        const existingSnapshot = await context.readResource("filtered-snapshot") as
-          | (FeedSnapshot & { filteredAt: string; ageFilter: string }) | null;
-        
+        const existingSnapshot = await context.readResource(
+          "filtered-snapshot",
+        ) as (FeedSnapshot & { filteredAt: string; ageFilter: string }) | null;
+
         if (existingSnapshot && existingSnapshot.filteredAt) {
           const now = new Date().getTime();
           const filteredAt = new Date(existingSnapshot.filteredAt).getTime();
           const timeSinceFiltered = now - filteredAt;
-          
+
           // Reuse snapshot only if less than 30 minutes old AND same age filter
-          if (timeSinceFiltered < 30 * 60 * 1000 && existingSnapshot.ageFilter === args.newsAge) {
+          if (
+            timeSinceFiltered < 30 * 60 * 1000 &&
+            existingSnapshot.ageFilter === args.newsAge
+          ) {
             logger?.info("Reusing existing filtered-snapshot ({age} old)", {
               age: `${Math.round(timeSinceFiltered / 60000)}m`,
             });
-            
+
             // Update the snapshot with current timestamp but same articles
             const handle = await context.writeResource(
               "filteredSnapshot",
@@ -850,7 +858,7 @@ export const model = {
                 ageFilter: args.newsAge,
               },
             );
-            
+
             return { dataHandles: [handle] };
           }
         }
@@ -911,13 +919,14 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
 
-         let snapshotData = await context.readResource("filtered-snapshot") as
-           | (FeedSnapshot & { filteredAt: string; ageFilter: string }) | null;
-         
-         if (!snapshotData) {
-           snapshotData = await context.readResource("feed-snapshot") as
-             | FeedSnapshot
-             | null;
+        let snapshotData = await context.readResource("filtered-snapshot") as
+          | (FeedSnapshot & { filteredAt: string; ageFilter: string })
+          | null;
+
+        if (!snapshotData) {
+          snapshotData = await context.readResource("feed-snapshot") as
+            | FeedSnapshot
+            | null;
           if (
             !snapshotData || !snapshotData.articles ||
             snapshotData.articles.length === 0

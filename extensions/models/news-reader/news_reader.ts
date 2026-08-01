@@ -673,12 +673,16 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
     const isSeen = seenSet.has(a.id);
     const isRead = readSet.has(a.id);
     const stateClass = isRead ? " read" : isSeen ? " seen" : "";
+    const seenCount = prefs.seen.length;
+    const readCount = prefs.read.length;
     const indicators = (isSeen || isRead)
       ? `<span class="article-indicators">${
-        isRead ? '<span class="read-badge" title="read">📖</span>' : ""
+        isRead
+          ? `<span class="read-badge" title="read">📖 ${readCount} 👁 ${seenCount}</span>`
+          : ""
       }${
         isSeen && !isRead
-          ? '<span class="seen-badge" title="seen">👁</span>'
+          ? `<span class="seen-badge" title="seen">👁 ${seenCount}</span>`
           : ""
       }</span>`
       : "";
@@ -790,7 +794,7 @@ const observer = new IntersectionObserver((entries) => {
 document.querySelectorAll('.article').forEach(el => observer.observe(el));
 
 document.querySelectorAll('.article h3 a[data-article-id]').forEach(link => {
-  link.addEventListener('click', (e) => {
+  link.addEventListener('mousedown', () => {
     const id = link.getAttribute('data-article-id');
     if (id) sendRead(id);
   });

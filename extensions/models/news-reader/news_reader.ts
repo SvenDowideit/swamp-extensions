@@ -561,6 +561,9 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .article h3 { margin: 0 0 8px 0; }
 .article h3 a { color: #1a5276; text-decoration: none; }
 .article h3 a:hover { text-decoration: underline; }
+.article-actions { float: right; }
+.article-actions a { color: #888; text-decoration: none; cursor: pointer; margin-left: 8px; font-size: 0.85em; }
+.article-actions a:hover { color: #4a90d9; }
 .source { color: #888; font-size: 0.85em; }
 .score { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; }
 .score-high { background: #d4edda; color: #155724; }
@@ -569,9 +572,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .score-zero { background: #e2e3e5; color: #6c757d; }
 .summary { color: #555; margin-top: 8px; font-size: 0.95em; line-height: 1.5; }
 .keyword { display: inline-block; background: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; margin-right: 4px; }
-.feedback { margin-top: 8px; font-size: 0.85em; }
-.feedback a { color: #4a90d9; text-decoration: none; margin-right: 12px; cursor: pointer; }
-.feedback a:hover { text-decoration: underline; }
+
 .stats { background: #e8f0fe; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
 </style>
 </head>
@@ -615,10 +616,23 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
       : a.score < 0
       ? "↓"
       : "·";
+    const feedbackCmd = (action: string) =>
+      `swamp workflow run news --input action=feedback --input articleId=${a.id} --input feedbackAction=${action} --input 'source=${
+        encodeURIComponent(a.source)
+      }' --input 'title=${encodeURIComponent(a.title.slice(0, 80))}'`;
+
     sections.push(`<div class="article" tabindex="0">
 <h3><a href="${escapeHtml(a.url)}" target="_blank">${
       escapeHtml(a.title)
-    }</a></h3>
+    }</a>
+<span class="article-actions">
+<a onclick="navigator.clipboard.writeText('${
+      escapeHtml(feedbackCmd("interested"))
+    }').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='👍',2000)})" title="👍 interested">👍</a>
+<a onclick="navigator.clipboard.writeText('${
+      escapeHtml(feedbackCmd("ignored"))
+    }').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='👎',2000)})" title="👎 ignore">👎</a>
+</span></h3>
 <span class="source">${
       escapeHtml(a.source)
     } · <span class="pubdate" data-date="${
@@ -634,26 +648,6 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 <div class="summary">${escapeHtml(a.summary.slice(0, 200))}${
       a.summary.length > 200 ? "…" : ""
     }</div>`);
-    // Feedback links — copy a CLI command to clipboard
-    const feedbackCmd = (action: string) =>
-      `swamp workflow run news --input action=feedback --input articleId=${a.id} --input feedbackAction=${action} --input 'source=${
-        encodeURIComponent(a.source)
-      }' --input 'title=${encodeURIComponent(a.title.slice(0, 80))}'`;
-    sections.push(`<div class="feedback">
-<a onclick="navigator.clipboard.writeText('${
-      escapeHtml(feedbackCmd("interested"))
-    }').then(()=>{this.textContent='✓ copied';setTimeout(()=>this.textContent='👍 interested',2000)})">👍 interested</a>
-<a onclick="navigator.clipboard.writeText('${
-      escapeHtml(feedbackCmd("ignored"))
-    }').then(()=>{this.textContent='✓ copied';setTimeout(()=>this.textContent='👎 ignore',2000)})">👎 ignore</a>
-${
-      a.reasons.length > 0
-        ? `<span style="color:#aaa">because: ${
-          escapeHtml(a.reasons.join(", "))
-        }</span>`
-        : ""
-    }
-</div>`);
     sections.push("</div>");
   }
 

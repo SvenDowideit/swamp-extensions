@@ -76,6 +76,7 @@ jobs:
   steps:
   - name: fetch
     description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided).
+    guard: ${{ data.latest("news-reader", "feed-snapshot") != null && timestamp(run.startedAt) - timestamp(data.latest("news-reader", "feed-snapshot").attributes.fetchedAt) < duration("3h") }}
     task:
       type: model_method
       modelType: '@svendowideit/news-reader'
@@ -98,7 +99,10 @@ jobs:
     dependsOn:
     - step: fetch
       condition:
-        type: succeeded
+        type: or
+        conditions:
+        - type: succeeded
+        - type: skipped
     weight: 0
     allowFailure: false
   - name: generate

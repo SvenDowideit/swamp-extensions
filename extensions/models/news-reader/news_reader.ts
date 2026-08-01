@@ -832,8 +832,8 @@ export const model = {
           const filteredAt = new Date(existingSnapshot.filteredAt).getTime();
           const timeSinceFiltered = now - filteredAt;
           
-          // Reuse snapshot if less than 30 minutes old
-          if (timeSinceFiltered < 30 * 60 * 1000) {
+          // Reuse snapshot only if less than 30 minutes old AND same age filter
+          if (timeSinceFiltered < 30 * 60 * 1000 && existingSnapshot.ageFilter === args.newsAge) {
             logger?.info("Reusing existing filtered-snapshot ({age} old)", {
               age: `${Math.round(timeSinceFiltered / 60000)}m`,
             });
@@ -878,7 +878,7 @@ export const model = {
 
         const filteredArticles = snapshotData.articles.filter((a) => {
           const pubDate = new Date(a.publishedAt).getTime();
-          return pubDate >= cutoff;
+          return pubDate >= cutoff && pubDate <= now;
         });
 
         logger?.info("Filtered to {n} articles within last {age}", {

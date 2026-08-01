@@ -537,9 +537,7 @@ export function generateHtml(
   const top = articles;
   const sections: string[] = [];
 
-  let metaText = `Generated ${
-    escapeHtml(generatedAt)
-  } · ${articles.length} articles from ${
+  let metaText = `${articles.length} articles from ${
     new Set(articles.map((a) => a.source)).size
   } sources · ${prefs.interested.length} interested, ${prefs.ignored.length} ignored`;
   
@@ -547,8 +545,6 @@ export function generateHtml(
     metaText += ` · Filtering last ${escapeHtml(ageFilter)}`;
   }
   
-  sections.push(`<div class="meta">${metaText}</div>`);
-
   sections.push(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -581,11 +577,8 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 </head>
 <body>
 <h1>${escapeHtml(title)}</h1>
-<div class="meta">Generated ${
-    escapeHtml(generatedAt)
-  } · ${articles.length} articles from ${
-    new Set(articles.map((a) => a.source)).size
-  } sources · ${prefs.interested.length} interested, ${prefs.ignored.length} ignored</div>`);
+<meta class="generated-at" data-generated="${escapeHtml(generatedAt)}">
+<div class="meta">${metaText}</div>`);
 
   // Interest profile section
   const topKeywords = Object.entries(prefs.keywordWeights)
@@ -675,6 +668,25 @@ document.addEventListener('keydown', (e) => {
 
 document.querySelectorAll('.pubdate').forEach(el => {
   const dateStr = el.getAttribute('data-date');
+  if (dateStr) {
+    try {
+      const date = new Date(dateStr);
+      const formatted = date.toLocaleString('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      el.textContent = formatted;
+    } catch (err) {
+      el.textContent = dateStr;
+    }
+  }
+});
+
+document.querySelectorAll('.generated-at').forEach(el => {
+  const dateStr = el.getAttribute('data-generated');
   if (dateStr) {
     try {
       const date = new Date(dateStr);

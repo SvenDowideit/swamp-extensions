@@ -813,7 +813,7 @@ export const model = {
         });
 
         const handle = await context.writeResource(
-          "snapshot",
+          "filteredSnapshot",
           "filtered-snapshot",
           {
             fetchedAt: new Date().toISOString(),

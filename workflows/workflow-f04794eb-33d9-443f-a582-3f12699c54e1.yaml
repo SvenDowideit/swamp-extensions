@@ -1,33 +1,10 @@
 id: f04794eb-33d9-443f-a582-3f12699c54e1
 name: news
-description: |
-  Full news feedback loop — fetches feeds from the catalog, generates an HTML
-  summary ranked by your preferences, then discovers new RSS feeds from the
-  article URLs and upserts them into the catalog for the next run.
-
-  Loop: feed-catalog → fetch → generate HTML → discover new feeds → upsert into catalog
-
-  Setup (one-time): add feeds to the catalog:
-    swamp model create @svendowideit/feed-catalog feed-catalog
-    swamp model method run feed-catalog add --input url="https://hnrss.org/frontpage" --input category=tech
-    swamp model method run feed-catalog add --input url="https://feeds.bbci.co.uk/news/rss.xml" --input category=news
-
-  Then run the news workflow (reads from catalog, discovers more feeds each run):
-    swamp workflow run news
-
-  Or pass feeds directly (overrides catalog, still discovers new feeds):
-    swamp workflow run news --input 'feeds:json=["https://feeds.bbci.co.uk/news/technology/rss.xml"]'
-
-  Record feedback on an article (adjusts keyword weights for ranking):
-    swamp workflow run news --input action=feedback --input articleId=<id> --input feedbackAction=interested
-
-  Then view the HTML:
-    swamp data get --workflow news news-page --json | jq -r '.content' > news.html && open news.html
-
-  Schedule: runs automatically every 4 hours via swamp serve (trigger.schedule).
+description: "Full news feedback loop — fetches feeds from the catalog, generates an HTML\nsummary ranked by your preferences, then discovers new RSS feeds from the\narticle URLs and upserts them into the catalog for the next run.\n\nLoop: feed-catalog → fetch → filter by age (default: last 3 days) → generate HTML → discover new feeds → upsert into catalog\n\nSetup (one-time): add feeds to the catalog:\n  swamp model create @svendowideit/feed-catalog feed-catalog\n  swamp model method run feed-catalog add --input url=\"https://hnrss.org/frontpage\" --input category=tech\n  swamp model method run feed-catalog add --input url=\"https://feeds.bbci.co.uk/news/rss.xml\" --input category=news\n\nThen run the news workflow (reads from catalog, discovers more feeds each run):\n  swamp workflow run news\n\nOr pass feeds directly (overrides catalog, still discovers new feeds):\n  swamp workflow run news --input 'feeds:json=[\"https://feeds.bbci.co.uk/news/technology/rss.xml\"]'\n\nRecord feedback\
+  \ on an article (adjusts keyword weights for ranking):\n  swamp workflow run news --input action=feedback --input articleId=<id> --input feedbackAction=interested\n\nThen view the HTML:\n  swamp data get --workflow news news-page --json | jq -r '.content' > news.html && open news.html\n\nSchedule: runs automatically every 4 hours via swamp serve (trigger.schedule).\n"
 tags: {}
 trigger:
-  schedule: "0 */4 * * *"
+  schedule: 0 */4 * * *
   inputs:
     feeds: []
     discoverNewFeeds: true
@@ -41,25 +18,29 @@ inputs:
       description: RSS/Atom feed URLs to fetch (overrides catalog if non-empty).
     action:
       type: string
-      enum: ["fetch_generate", "feedback"]
-      default: "fetch_generate"
+      enum:
+      - fetch_generate
+      - feedback
+      default: fetch_generate
       description: Whether to fetch+generate+discover, or record feedback.
     articleId:
       type: string
-      default: ""
+      default: ''
       description: Article ID for feedback (from the HTML page).
     feedbackAction:
       type: string
-      enum: ["interested", "ignored"]
-      default: "interested"
+      enum:
+      - interested
+      - ignored
+      default: interested
       description: Whether the user found the article interesting or ignored it.
     source:
       type: string
-      default: ""
+      default: ''
       description: Feed source name (for feedback).
     title:
       type: string
-      default: ""
+      default: ''
       description: Article title (for feedback).
     topN:
       type: integer
@@ -79,80 +60,99 @@ inputs:
       description: If true, discover feeds but don't add them to the catalog.
     category:
       type: string
-      default: "discovered"
+      default: discovered
       description: Category tag for discovered feeds in the catalog.
+    newsAge:
+      type: string
+      default: 3d
+      description: Time range of news to show (e.g., 2h, 7d, 4w, 1m). Supports h (hours), d (days), w (weeks), m (months). Defaults to 3 days.
   required: []
 reports:
   require:
-    - "@svendowideit/news-html-report"
+  - '@svendowideit/news-html-report'
 jobs:
-  - name: main
-    description: Fetch feeds, generate HTML, discover new feeds for next run.
-    steps:
-      - name: fetch
-        description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided).
-        task:
-          type: model_method
-          modelType: "@svendowideit/news-reader"
-          modelName: news-reader
-          methodName: fetch
-          inputs:
-            feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("feed-catalog", "current").?attributes.?feeds.orValue([]) }}'
-        dependsOn: []
-        weight: 0
-        allowFailure: false
-      - name: generate
-        description: Generate HTML report from fetched articles, ranked by preferences.
-        task:
-          type: model_method
-          modelType: "@svendowideit/news-reader"
-          modelName: news-reader
-          methodName: generate
-          inputs:
-            topN: ${{ inputs.topN }}
-        dependsOn:
-          - step: fetch
-            condition:
-              type: succeeded
-        weight: 0
-        allowFailure: false
-      - name: discover
-        description: Discover new RSS feeds from article URLs.
-        task:
-          type: model_method
-          modelType: "@svendowideit/feed-discovery"
-          modelName: feed-discovery
-          methodName: discover
-          inputs:
-            maxSitesToCrawl: ${{ inputs.maxSitesToCrawl }}
-            dryRun: ${{ inputs.dryRun }}
-        dependsOn:
-          - step: generate
-            condition:
-              type: succeeded
-        weight: 0
-        allowFailure: true
-      - name: upsert-feed
-        description: Add each discovered feed to the feed-catalog.
-        forEach:
-          item: feed
-          in: '${{ data.latest("feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([]) }}'
-        concurrency: 3
-        task:
-          type: model_method
-          modelType: "@svendowideit/feed-catalog"
-          modelName: feed-catalog
-          methodName: add
-          inputs:
-            url: ${{ self.feed.url }}
-            category: ${{ inputs.category }}
-            name: ${{ self.feed.title }}
-        dependsOn:
-          - step: discover
-            condition:
-              type: succeeded
-        weight: 0
-        allowFailure: true
+- name: main
+  description: Fetch feeds, filter by age, generate HTML, discover new feeds for next run.
+  steps:
+  - name: fetch
+    description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided).
+    task:
+      type: model_method
+      modelType: '@svendowideit/news-reader'
+      modelName: news-reader
+      methodName: fetch
+      inputs:
+        feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("feed-catalog", "current").?attributes.?feeds.orValue([]) }}'
     dependsOn: []
     weight: 0
+    allowFailure: false
+  - name: filter
+    description: 'Filter articles by age (default: last 3 days).'
+    task:
+      type: model_method
+      modelType: '@svendowideit/news-reader'
+      modelName: news-reader
+      methodName: filterByAge
+      inputs:
+        newsAge: ${{ inputs.newsAge }}
+    dependsOn:
+    - step: fetch
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: false
+  - name: generate
+    description: Generate HTML report from filtered articles, ranked by preferences.
+    task:
+      type: model_method
+      modelType: '@svendowideit/news-reader'
+      modelName: news-reader
+      methodName: generate
+      inputs:
+        topN: ${{ inputs.topN }}
+    dependsOn:
+    - step: filter
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: false
+  - name: discover
+    description: Discover new RSS feeds from article URLs.
+    task:
+      type: model_method
+      modelType: '@svendowideit/feed-discovery'
+      modelName: feed-discovery
+      methodName: discover
+      inputs:
+        maxSitesToCrawl: ${{ inputs.maxSitesToCrawl }}
+        dryRun: ${{ inputs.dryRun }}
+    dependsOn:
+    - step: generate
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: true
+  - name: upsert-feed
+    description: Add each discovered feed to the feed-catalog.
+    forEach:
+      item: feed
+      in: ${{ data.latest("feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([]) }}
+    concurrency: 3
+    task:
+      type: model_method
+      modelType: '@svendowideit/feed-catalog'
+      modelName: feed-catalog
+      methodName: add
+      inputs:
+        url: ${{ self.feed.url }}
+        category: ${{ inputs.category }}
+        name: ${{ self.feed.title }}
+    dependsOn:
+    - step: discover
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: true
+  dependsOn: []
+  weight: 0
 version: 1

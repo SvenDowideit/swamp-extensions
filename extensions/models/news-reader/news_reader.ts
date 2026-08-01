@@ -828,42 +828,6 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
 
-        // Skip filtering if there's an existing filtered-snapshot that's recent
-        const existingSnapshot = await context.readResource(
-          "filtered-snapshot",
-        ) as (FeedSnapshot & { filteredAt: string; ageFilter: string }) | null;
-
-        if (existingSnapshot && existingSnapshot.filteredAt) {
-          const now = new Date().getTime();
-          const filteredAt = new Date(existingSnapshot.filteredAt).getTime();
-          const timeSinceFiltered = now - filteredAt;
-
-          // Reuse snapshot only if less than 30 minutes old AND same age filter
-          if (
-            timeSinceFiltered < 30 * 60 * 1000 &&
-            existingSnapshot.ageFilter === args.newsAge
-          ) {
-            logger?.info("Reusing existing filtered-snapshot ({age} old)", {
-              age: `${Math.round(timeSinceFiltered / 60000)}m`,
-            });
-
-            // Update the snapshot with current timestamp but same articles
-            const handle = await context.writeResource(
-              "filteredSnapshot",
-              "filtered-snapshot",
-              {
-                fetchedAt: new Date().toISOString(),
-                articles: existingSnapshot.articles,
-                errors: [],
-                filteredAt: new Date().toISOString(),
-                ageFilter: args.newsAge,
-              },
-            );
-
-            return { dataHandles: [handle] };
-          }
-        }
-
         const snapshotData = await context.readResource("feed-snapshot") as
           | FeedSnapshot
           | null;

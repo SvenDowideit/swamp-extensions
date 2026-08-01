@@ -602,6 +602,11 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .article:hover { border-color: #4a90d9; }
 .article.seen { border-left: 3px solid #ffc107; }
 .article.read { border-left: 3px solid #28a745; opacity: 0.85; }
+.article.hidden { display: none; }
+.toggle-bar { margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.toggle-btn { padding: 4px 12px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; font-size: 0.85em; }
+.toggle-btn:hover { border-color: #4a90d9; }
+.toggle-btn.active { background: #4a90d9; color: white; border-color: #4a90d9; }
 .article h3 { margin: 0 0 8px 0; }
 .article h3 a { color: #1a5276; text-decoration: none; }
 .article h3 a:hover { text-decoration: underline; }
@@ -646,6 +651,15 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
     sections.push("</div>");
   }
 
+  const readArticleCount = top.filter((a) => readSet.has(a.id)).length;
+  const seenNotReadCount =
+    top.filter((a) => seenSet.has(a.id) && !readSet.has(a.id)).length;
+
+  sections.push(`<div class="toggle-bar">
+<button class="toggle-btn" id="toggle-read" onclick="toggleRead()">📖 Read (${readArticleCount})</button>
+<button class="toggle-btn" id="toggle-seen" onclick="toggleSeen()">👁 Seen (${seenNotReadCount})</button>
+</div>`);
+
   sections.push("<div id='articles'>");
 
   for (const a of top) {
@@ -672,7 +686,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 
     const isSeen = seenSet.has(a.id);
     const isRead = readSet.has(a.id);
-    const stateClass = isRead ? " read" : isSeen ? " seen" : "";
+    const stateClass = isRead ? " read hidden" : isSeen ? " seen hidden" : "";
     const seenCount = prefs.seen.length;
     const readCount = prefs.read.length;
     const indicators = (isSeen || isRead)
@@ -799,6 +813,22 @@ document.querySelectorAll('.article h3 a[data-article-id]').forEach(link => {
     if (id) sendRead(id);
   });
 });
+
+function toggleRead() {
+  const btn = document.getElementById('toggle-read');
+  const show = btn.classList.toggle('active');
+  document.querySelectorAll('.article.read').forEach(el => {
+    el.classList.toggle('hidden', !show);
+  });
+}
+
+function toggleSeen() {
+  const btn = document.getElementById('toggle-seen');
+  const show = btn.classList.toggle('active');
+  document.querySelectorAll('.article.seen:not(.read)').forEach(el => {
+    el.classList.toggle('hidden', !show);
+  });
+}
 
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;

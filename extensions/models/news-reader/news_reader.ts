@@ -556,7 +556,8 @@ export function generateHtml(
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #fafafa; color: #222; }
 h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .meta { color: #666; font-size: 0.9em; margin-bottom: 20px; }
-.article { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: white; transition: border-color 0.2s; }
+.article { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: white; transition: border-color 0.2s; position: relative; }
+.article::before { content: ''; position: absolute; top: 4px; left: 4px; width: 128px; height: 128px; background-image: var(--watermark); background-size: 128px; background-repeat: no-repeat; opacity: 0.1; pointer-events: none; }
 .article:hover { border-color: #4a90d9; }
 .article h3 { margin: 0 0 8px 0; }
 .article h3 a { color: #1a5276; text-decoration: none; }
@@ -621,7 +622,13 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
         encodeURIComponent(a.source)
       }' --input 'title=${encodeURIComponent(a.title.slice(0, 80))}'`;
 
-    sections.push(`<div class="article" tabindex="0">
+    const domain = a.source.includes(".")
+      ? a.source
+      : (() => {
+        try { return new URL(a.url).hostname; } catch { return a.source; }
+      })();
+    const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+    sections.push(`<div class="article" tabindex="0" style="--watermark: url('${faviconUrl}')">
 <h3><a href="${escapeHtml(a.url)}" target="_blank">${
       escapeHtml(a.title)
     }</a>

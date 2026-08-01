@@ -109,6 +109,20 @@ const FeedbackArgsSchema = z.object({
 
 type FeedbackArgs = z.infer<typeof FeedbackArgsSchema>;
 
+const GatherFeedbackArgsSchema = z.object({
+  serverUrl: z.string().default("http://localhost:8765").describe(
+    "URL of the feedback queue HTTP server",
+  ),
+  batchSize: z.number().int().min(1).max(100).default(20).describe(
+    "Number of feedback entries to process per batch",
+  ),
+  maxBatches: z.number().int().min(1).max(50).default(5).describe(
+    "Maximum number of batches to process in one run",
+  ),
+}).describe("Arguments for the gatherFeedback method");
+
+type GatherFeedbackArgs = z.infer<typeof GatherFeedbackArgsSchema>;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -617,50 +631,80 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
       : a.score < 0
       ? "↓"
       : "·";
-    const feedbackCmd = (action: string) =>
-      `swamp workflow run news --input action=feedback --input articleId=${a.id} --input feedbackAction=${action} --input 'source=${
-        encodeURIComponent(a.source)
-      }' --input 'title=${encodeURIComponent(a.title.slice(0, 80))}'`;
+    const articleJson = JSON.stringify({
+      articleId: a.id,
+      source: a.source,
+      title: a.title.slice(0, 200),
+      keywords: a.keywords,
+    });
 
-    const domain = a.source.includes(".")
-      ? a.source
-      : (() => {
-        try { return new URL(a.url).hostname; } catch { return a.source; }
-      })();
-    const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
-    sections.push(`<div class="article" tabindex="0" style="--watermark: url('${faviconUrl}')">
-<h3><a href="${escapeHtml(a.url)}" target="_blank">${
-      escapeHtml(a.title)
-    }</a>
+    const domain = a.source.includes(".") ? a.source : (() => {
+      try {
+        return new URL(a.url).hostname;
+      } catch {
+        return a.source;
+      }
+    })();
+    const faviconUrl = `https://www.google.com/s2/favicons?domain=${
+      encodeURIComponent(domain)
+    }&sz=64`;
+    sections.push(
+      `<div class="article" tabindex="0" style="--watermark: url('${faviconUrl}')">
+<h3><a href="${escapeHtml(a.url)}" target="_blank">${escapeHtml(a.title)}</a>
 <span class="article-actions">
-<a onclick="navigator.clipboard.writeText('${
-      escapeHtml(feedbackCmd("interested"))
-    }').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='👍',2000)})" title="👍 interested">👍</a>
-<a onclick="navigator.clipboard.writeText('${
-      escapeHtml(feedbackCmd("ignored"))
-    }').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='👎',2000)})" title="👎 ignore">👎</a>
+<a onclick="sendFeedback('interested',${
+        escapeHtml(articleJson)
+      })" title="👍 interested">👍</a>
+<a onclick="sendFeedback('ignored',${
+        escapeHtml(articleJson)
+      })" title="👎 ignore">👎</a>
 </span></h3>
 <span class="source">${
-      escapeHtml(a.source)
-    } · <span class="pubdate" data-date="${
-      escapeHtml(a.publishedAt)
-    }"></span>${
-      a.keywords.length > 0
-        ? " · " + a.keywords.slice(0, 6).map(kw =>
+        escapeHtml(a.source)
+      } · <span class="pubdate" data-date="${
+        escapeHtml(a.publishedAt)
+      }"></span>${
+        a.keywords.length > 0
+          ? " · " + a.keywords.slice(0, 6).map((kw) =>
             `<span class="keyword">${escapeHtml(kw)}</span>`
           ).join("")
-        : ""
-    }</span>
+          : ""
+      }</span>
 <span class="score ${scoreClass}">${scoreLabel} ${a.score}</span>
 <div class="summary">${escapeHtml(a.summary.slice(0, 200))}${
-      a.summary.length > 200 ? "…" : ""
-    }</div>`);
+        a.summary.length > 200 ? "…" : ""
+      }</div>`,
+    );
     sections.push("</div>");
   }
 
   sections.push("</div>");
   sections.push(`
 <script>
+const FEEDBACK_URL = '/api/feedback';
+
+async function sendFeedback(action, article) {
+  const el = event.target;
+  el.textContent = '…';
+  try {
+    const res = await fetch(FEEDBACK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...article, action })
+    });
+    if (res.ok) {
+      el.textContent = '✓';
+      setTimeout(() => el.textContent = action === 'interested' ? '👍' : '👎', 2000);
+    } else {
+      el.textContent = '✗';
+      setTimeout(() => el.textContent = action === 'interested' ? '👍' : '👎', 2000);
+    }
+  } catch {
+    el.textContent = '✗';
+    setTimeout(() => el.textContent = action === 'interested' ? '👍' : '👎', 2000);
+  }
+}
+
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   const articles = document.querySelectorAll('.article');
@@ -720,7 +764,7 @@ document.querySelectorAll('.generated-at').forEach(el => {
 /** Model definition for fetching RSS feeds and generating news summaries. */
 export const model = {
   type: "@svendowideit/news-reader",
-  version: "2026.07.17.1",
+  version: "2026.08.01.1",
   globalArguments: GlobalArgsSchema,
   resources: {
     snapshot: {
@@ -1005,6 +1049,148 @@ export const model = {
           action: args.action,
           id: args.articleId,
         });
+
+        const handle = await context.writeResource(
+          "preferences",
+          "prefs-current",
+          {
+            interested: prefs.interested,
+            ignored: prefs.ignored,
+            keywordWeights: prefs.keywordWeights,
+          },
+        );
+
+        return { dataHandles: [handle] };
+      },
+    },
+    gatherFeedback: {
+      description:
+        "Poll the feedback queue HTTP server, import entries into preferences, and delete processed entries",
+      arguments: GatherFeedbackArgsSchema,
+      execute: async (
+        args: GatherFeedbackArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const logger = context.logger;
+
+        const prefsData = await context.readResource("prefs-current") as
+          | Preferences
+          | null;
+        const prefs: Preferences = prefsData ?? {
+          interested: [],
+          ignored: [],
+          keywordWeights: {},
+        };
+
+        let totalProcessed = 0;
+        let batchCount = 0;
+
+        while (batchCount < args.maxBatches) {
+          const getUrl =
+            `${args.serverUrl}/api/feedback?limit=${args.batchSize}`;
+          logger?.info("Polling feedback queue: {url}", { url: getUrl });
+
+          let resp: Response;
+          try {
+            resp = await fetch(getUrl, {
+              signal: AbortSignal.timeout(10000),
+            });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger?.info("Feedback server unreachable: {error}", {
+              error: msg,
+            });
+            break;
+          }
+
+          if (!resp.ok) {
+            logger?.info("Feedback server returned {status}", {
+              status: resp.status,
+            });
+            break;
+          }
+
+          const body = await resp.json() as {
+            items: Array<{
+              id: string;
+              articleId: string;
+              action: "interested" | "ignored";
+              source: string;
+              title: string;
+              keywords: string[];
+            }>;
+            remaining: number;
+          };
+
+          if (!body.items || body.items.length === 0) {
+            logger?.info("No pending feedback entries");
+            break;
+          }
+
+          logger?.info("Processing {count} feedback entries (batch {batch})", {
+            count: body.items.length,
+            batch: batchCount + 1,
+          });
+
+          const processedIds: string[] = [];
+
+          for (const item of body.items) {
+            const entry: FeedbackEntry = {
+              articleId: item.articleId,
+              recordedAt: new Date().toISOString(),
+              source: item.source ?? "",
+              title: item.title ?? "",
+              keywords: item.keywords ?? [],
+            };
+
+            if (item.action === "interested") {
+              prefs.ignored = prefs.ignored.filter((e) =>
+                e.articleId !== item.articleId
+              );
+              if (
+                !prefs.interested.some((e) => e.articleId === item.articleId)
+              ) {
+                prefs.interested.push(entry);
+              }
+            } else {
+              prefs.interested = prefs.interested.filter((e) =>
+                e.articleId !== item.articleId
+              );
+              if (
+                !prefs.ignored.some((e) => e.articleId === item.articleId)
+              ) {
+                prefs.ignored.push(entry);
+              }
+            }
+
+            processedIds.push(item.id);
+            totalProcessed++;
+          }
+
+          prefs.keywordWeights = computeKeywordWeights(prefs);
+
+          const deleteUrl = `${args.serverUrl}/api/feedback?ids=${
+            processedIds.join(",")
+          }`;
+          try {
+            await fetch(deleteUrl, {
+              method: "DELETE",
+              signal: AbortSignal.timeout(5000),
+            });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger?.info("Failed to delete processed entries: {error}", {
+              error: msg,
+            });
+          }
+
+          batchCount++;
+        }
+
+        logger?.info(
+          "Gathered {count} feedback entries across {batches} batches",
+          { count: totalProcessed, batches: batchCount },
+        );
 
         const handle = await context.writeResource(
           "preferences",

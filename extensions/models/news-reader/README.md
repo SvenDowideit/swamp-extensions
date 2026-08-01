@@ -5,15 +5,18 @@ and generates a static HTML news summary page ranked by predicted interest.
 
 ## How it works
 
-1. **Fetch** — downloads RSS/Atom feeds, parses articles (title, URL, summary,
+1. **Gather feedback** — polls the feedback queue HTTP server for any pending
+   👍/👎 clicks from the HTML page, imports them into preferences, and deletes
+   processed entries from the queue.
+2. **Fetch** — downloads RSS/Atom feeds, parses articles (title, URL, summary,
    keywords), and stores them as a versioned data resource.
-2. **Filter by age** — filters fetched articles to show only those within the
+3. **Filter by age** — filters fetched articles to show only those within the
    specified time range (default: last 3 days). Supports h/d/w/m suffixes
    (e.g., "2h", "7d", "4w", "1m").
-3. **Generate** — reads the filtered articles, scores them against your learned
+4. **Generate** — reads the filtered articles, scores them against your learned
    keyword preferences, and writes a static HTML page with the top articles
    sorted by interest score.
-4. **Feedback** — you mark articles as "interested" or "ignored" (via the HTML
+5. **Feedback** — you mark articles as "interested" or "ignored" (via the HTML
    page's 👍/👎 buttons or the CLI). The model recomputes keyword weights from
    your feedback, so future reports surface more of what you like.
 
@@ -21,6 +24,47 @@ The preference learning is keyword-based: each article's title/summary keywords
 are extracted, and your feedback adjusts per-keyword weights (+1 for interested,
 -1 for ignored). New articles are scored by summing the weights of their
 matching keywords.
+
+## Feedback architecture
+
+Feedback flows through a decoupled queue to avoid requiring a running server
+during workflow execution:
+
+```
+┌──────────────┐   POST /api/feedback    ┌──────────────────┐
+│  HTML Page   │ ──────────────────────→ │  Deno HTTP Server │
+│  (browser)   │ ←────────────────────── │  :8765            │
+└──────────────┘   JSON responses        │  feedback-queue/  │
+                                          │    01J...json     │
+                                          │    01J...json     │
+                                          └──────────────────┘
+                                                   ↑ GET/DELETE
+┌───────────────────────────────────────────────────┘
+│  swamp workflow run news
+│    step: gather-feedback  ← polls API, imports, deletes
+│    step: fetch
+│    step: filter
+│    step: generate
+│    ...
+```
+
+- **HTML page** — clicking 👍/👎 sends a `fetch` POST to the feedback server
+  with the article's ID, source, title, and keywords. No clipboard copy-paste
+  needed.
+- **Feedback server** (`scripts/feedback-server.ts`) — a small Deno HTTP server
+  that stores each feedback entry as a ULID-named JSON file in a queue
+  directory. ULIDs are time-sortable, so `GET /api/feedback?limit=N` returns
+  the oldest entries first. `DELETE /api/feedback?ids=...` removes processed
+  entries.
+- **gatherFeedback method** — the workflow's first step polls the server,
+  imports entries into the `preferences` resource (same logic as the
+  `feedback` method), and deletes them from the queue. The server is optional
+  — if unreachable, the step is skipped (`allowFailure: true`) and the
+  workflow proceeds with existing preferences.
+
+This design is idempotent: each feedback entry has a unique ULID, so
+re-processing the same entry is a no-op (the `feedback` method deduplicates by
+`articleId` within each list).
 
 ## Installation
 
@@ -40,6 +84,10 @@ swamp model create @svendowideit/feed-catalog feed-catalog
 swamp model method run feed-catalog add --input url="https://hnrss.org/frontpage" --input category=tech --input name="Hacker News"
 swamp model method run feed-catalog add --input url="https://feeds.bbci.co.uk/news/technology/rss.xml" --input category=tech --input name="BBC Tech"
 
+# Start the feedback server (in a separate terminal)
+# If `deno` is not on your PATH, swamp installs it at ~/.swamp/deno/deno
+deno run --allow-net --allow-read --allow-write scripts/feedback-server.ts --html news.html
+
 # Run the news workflow — reads feeds from catalog automatically, shows last 3 days by default
 swamp workflow run news
 
@@ -49,9 +97,8 @@ swamp workflow run news --input newsAge=2d
 # Show last week of news:
 swamp workflow run news --input newsAge=1w
 
-# View the HTML
-swamp data get --workflow news news-page --json | jq -r '.content' > news.html
-open news.html
+# View the HTML (served by the feedback server at http://localhost:8765)
+open http://localhost:8765
 ```
 
 You can also pass feeds directly to override the catalog:
@@ -65,29 +112,31 @@ The workflow is also **scheduled** — it runs automatically every 4 hours via
 
 ### Recording feedback
 
-After viewing the HTML page, mark articles as interesting or ignored:
+Click 👍 or 👎 on any article in the HTML page. The feedback is sent to the
+queue server and picked up on the next workflow run. No clipboard copy-paste
+needed.
+
+You can also record feedback directly via the CLI:
 
 ```sh
 # Mark an article as interesting
-swamp workflow run news --input action=feedback --input articleId=abc123 --input feedbackAction=interested \
+swamp model method run news-reader feedback --input articleId=abc123 --input action=interested \
   --input source=hnrss.org --input title="AI breakthrough in quantum computing"
 
 # Mark an article as ignored
-swamp workflow run news --input action=feedback --input articleId=def456 --input feedbackAction=ignored \
+swamp model method run news-reader feedback --input articleId=def456 --input action=ignored \
   --input source=bbc.co.uk --input title="Boring sports result"
 ```
 
-The HTML page includes 👍/👎 buttons that copy the feedback command to your
-clipboard — paste it into the terminal to record your preference.
-
 ## Methods
 
-| Method        | Description                                              | Key arguments                                        |
-| ------------- | -------------------------------------------------------- | ---------------------------------------------------- |
-| `fetch`       | Fetch RSS/Atom feeds and store articles                  | `feeds` (URL[]), `maxArticlesPerFeed`                |
-| `filterByAge` | Filter articles by age for HTML generation               | `newsAge` (default: "3d", supports h/d/w/m suffixes) |
-| `generate`    | Generate HTML report from filtered articles              | `topN`, `title`                                      |
-| `feedback`    | Record user interest/ignore for an article               | `articleId`, `action`, `source`, `title`, `keywords` |
+| Method           | Description                                              | Key arguments                                        |
+| ---------------- | -------------------------------------------------------- | ---------------------------------------------------- |
+| `gatherFeedback` | Poll feedback queue server, import entries, delete them  | `serverUrl`, `batchSize`, `maxBatches`               |
+| `fetch`          | Fetch RSS/Atom feeds and store articles                  | `feeds` (URL[]), `maxArticlesPerFeed`                |
+| `filterByAge`    | Filter articles by age for HTML generation               | `newsAge` (default: "3d", supports h/d/w/m suffixes) |
+| `generate`       | Generate HTML report from filtered articles              | `topN`, `title`                                      |
+| `feedback`       | Record user interest/ignore for an article               | `articleId`, `action`, `source`, `title`, `keywords` |
 
 ## Output
 

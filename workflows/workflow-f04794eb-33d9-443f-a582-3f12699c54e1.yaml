@@ -1,7 +1,6 @@
 id: f04794eb-33d9-443f-a582-3f12699c54e1
 name: news
-description: "Full news feedback loop — fetches feeds from the catalog, generates an HTML\nsummary ranked by your preferences, then discovers new RSS feeds from the\narticle URLs and upserts them into the catalog for the next run.\n\nLoop: feed-catalog → fetch → filter by age (default: last 3 days) → generate HTML → discover new feeds → upsert into catalog\n\nSetup (one-time): add feeds to the catalog:\n  swamp model create @svendowideit/feed-catalog feed-catalog\n  swamp model method run feed-catalog add --input url=\"https://hnrss.org/frontpage\" --input category=tech\n  swamp model method run feed-catalog add --input url=\"https://feeds.bbci.co.uk/news/rss.xml\" --input category=news\n\nThen run the news workflow (reads from catalog, discovers more feeds each run):\n  swamp workflow run news\n\nOr pass feeds directly (overrides catalog, still discovers new feeds):\n  swamp workflow run news --input 'feeds:json=[\"https://feeds.bbci.co.uk/news/technology/rss.xml\"]'\n\nRecord feedback\
-  \ on an article (adjusts keyword weights for ranking):\n  swamp workflow run news --input action=feedback --input articleId=<id> --input feedbackAction=interested\n\nThen view the HTML:\n  swamp data get --workflow news news-page --json | jq -r '.content' > news.html && open news.html\n\nSchedule: runs automatically every 4 hours via swamp serve (trigger.schedule).\n"
+description: "Full news feedback loop — gathers feedback from the queue server, fetches\nfeeds from the catalog, generates an HTML summary ranked by your\npreferences, then discovers new RSS feeds from the article URLs and\nupserts them into the catalog for the next run.\n\nLoop: gather-feedback → feed-catalog → fetch → filter by age (default: last 3 days) → generate HTML → discover new feeds → upsert into catalog\n\nSetup (one-time): add feeds to the catalog:\n  swamp model create @svendowideit/feed-catalog feed-catalog\n  swamp model method run feed-catalog add --input url=\"https://hnrss.org/frontpage\" --input category=tech\n  swamp model method run feed-catalog add --input url=\"https://feeds.bbci.co.uk/news/rss.xml\" --input category=news\n\nStart the feedback server (in a separate terminal):\n  deno run --allow-net --allow-read --allow-write scripts/feedback-server.ts --html news.html\n\nThen run the news workflow (reads from catalog, discovers more feeds each run):\n  swamp workflow run news\n\nOr pass feeds directly (overrides catalog, still discovers new feeds):\n  swamp workflow run news --input 'feeds:json=[\"https://feeds.bbci.co.uk/news/technology/rss.xml\"]'\n\nThen view the HTML (served by the feedback server at http://localhost:8765):\n  open http://localhost:8765\n\nSchedule: runs automatically every 4 hours via swamp serve (trigger.schedule).\n"
 tags: {}
 trigger:
   schedule: 0 */4 * * *
@@ -66,14 +65,40 @@ inputs:
       type: string
       default: 3d
       description: Time range of news to show (e.g., 2h, 7d, 4w, 1m). Supports h (hours), d (days), w (weeks), m (months). Defaults to 3 days.
+    feedbackServerUrl:
+      type: string
+      default: http://localhost:8765
+      description: URL of the feedback queue HTTP server.
+    feedbackBatchSize:
+      type: integer
+      default: 20
+      description: Number of feedback entries to process per batch.
+    feedbackMaxBatches:
+      type: integer
+      default: 5
+      description: Maximum number of batches to process in one run.
   required: []
 reports:
   require:
   - '@svendowideit/news-html-report'
 jobs:
 - name: main
-  description: Fetch feeds, filter by age, generate HTML, discover new feeds for next run.
+  description: Gather feedback, fetch feeds, filter by age, generate HTML, discover new feeds for next run.
   steps:
+  - name: gather-feedback
+    description: Poll the feedback queue server and import any pending feedback entries into preferences.
+    task:
+      type: model_method
+      modelType: '@svendowideit/news-reader'
+      modelName: news-reader
+      methodName: gatherFeedback
+      inputs:
+        serverUrl: ${{ inputs.feedbackServerUrl }}
+        batchSize: ${{ inputs.feedbackBatchSize }}
+        maxBatches: ${{ inputs.feedbackMaxBatches }}
+    dependsOn: []
+    weight: 0
+    allowFailure: true
   - name: fetch
     description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided).
     guard: ${{ data.latest("news-reader", "feed-snapshot") != null && timestamp(run.startedAt) - timestamp(data.latest("news-reader", "feed-snapshot").attributes.fetchedAt) < duration("3h") }}

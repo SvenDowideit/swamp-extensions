@@ -77,6 +77,10 @@ inputs:
       type: integer
       default: 5
       description: Maximum number of batches to process in one run.
+    outputPath:
+      type: string
+      default: news.html
+      description: If set, write the generated HTML to this local file path (e.g., news.html).
   required: []
 reports:
   require:
@@ -139,6 +143,7 @@ jobs:
       methodName: generate
       inputs:
         topN: ${{ inputs.topN }}
+        outputPath: ${{ inputs.outputPath }}
     dependsOn:
     - step: filter
       condition:

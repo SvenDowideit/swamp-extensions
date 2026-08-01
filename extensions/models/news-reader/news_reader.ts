@@ -83,6 +83,9 @@ const GenerateArgsSchema = z.object({
   title: z.string().default("News Summary").describe(
     "Title for the HTML report page",
   ),
+  outputPath: z.string().optional().describe(
+    "If set, also write the HTML to this local file path (e.g., news.html)",
+  ),
 }).describe("Arguments for the generate method");
 
 type GenerateArgs = z.infer<typeof GenerateArgsSchema>;
@@ -997,6 +1000,13 @@ export const model = {
         logger?.info("HTML report written ({size} bytes)", {
           size: html.length,
         });
+
+        if (args.outputPath) {
+          await Deno.writeTextFile(args.outputPath, html);
+          logger?.info("HTML also written to {path}", {
+            path: args.outputPath,
+          });
+        }
 
         return { dataHandles: [handle] };
       },

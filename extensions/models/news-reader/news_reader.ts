@@ -116,10 +116,10 @@ const GatherFeedbackArgsSchema = z.object({
   serverUrl: z.string().default("http://localhost:8765").describe(
     "URL of the feedback queue HTTP server",
   ),
-  batchSize: z.number().int().min(1).max(100).default(20).describe(
+  batchSize: z.number().int().min(1).max(100).default(100).describe(
     "Number of feedback entries to process per batch",
   ),
-  maxBatches: z.number().int().min(1).max(50).default(5).describe(
+  maxBatches: z.number().int().min(1).max(50).default(20).describe(
     "Maximum number of batches to process in one run",
   ),
 }).describe("Arguments for the gatherFeedback method");
@@ -1206,8 +1206,9 @@ export const model = {
 
         let totalProcessed = 0;
         let batchCount = 0;
+        let queued = 1; // assume pending until first poll reports otherwise
 
-        while (batchCount < args.maxBatches) {
+        while (batchCount < args.maxBatches && queued > 0) {
           const getUrl =
             `${args.serverUrl}/api/feedback?limit=${args.batchSize}`;
           logger?.info("Polling feedback queue: {url}", { url: getUrl });
@@ -1242,12 +1243,15 @@ export const model = {
               keywords: string[];
             }>;
             remaining: number;
+            queued: number;
           };
 
           if (!body.items || body.items.length === 0) {
             logger?.info("No pending feedback entries");
             break;
           }
+
+          queued = body.queued ?? body.items.length;
 
           logger?.info("Processing {count} feedback entries (batch {batch})", {
             count: body.items.length,

@@ -98,6 +98,18 @@ async function readEntries(dir: string, limit: number): Promise<QueuedEntry[]> {
   return entries.slice(0, limit);
 }
 
+async function countEntries(dir: string): Promise<number> {
+  let count = 0;
+  try {
+    for await (const dirEntry of Deno.readDir(dir)) {
+      if (dirEntry.isFile && dirEntry.name.endsWith(".json")) count++;
+    }
+  } catch {
+    // dir doesn't exist yet
+  }
+  return count;
+}
+
 async function deleteEntry(dir: string, id: string): Promise<boolean> {
   const path = `${dir}/${id}.json`;
   try {
@@ -215,6 +227,7 @@ async function handleRequest(
       return jsonResponse({
         items: entries,
         remaining: entries.length,
+        queued: await countEntries(queueDir),
       });
     }
 

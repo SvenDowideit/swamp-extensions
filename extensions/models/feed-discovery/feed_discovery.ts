@@ -1,7 +1,17 @@
 /**
  * Feed discovery — reads article URLs from the news-reader's snapshot, finds
- * domains not yet in the feed-catalog, fetches their HTML to extract RSS/Atom
- * feed links, and upserts discovered feeds into the feed-catalog.
+ * RSS/Atom feeds for domains not yet known, and upserts discovered feeds into
+ * the feed-catalog.
+ *
+ * Improvements over the original:
+ *  - A persistent crawl ledger (`crawlLedger` resource) records every domain
+ *    actually crawled, when, and the outcome, so a site that yielded no feed
+ *    (or failed) is NOT re-checked every run.
+ *  - Candidate selection prioritises domains by article frequency and rotates
+ *    through the least-recently-crawled pool instead of always slicing the
+ *    same top-N.
+ *  - Feed detection accepts feed responses directly and probes common feed
+ *    paths, so more domains actually yield feeds and leave the crawl pool.
  *
  * @module
  */
@@ -24,13 +34,16 @@ type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
 const DiscoverArgsSchema = z.object({
   maxSitesToCrawl: z.number().int().min(1).max(50).default(10).describe(
-    "Maximum new domains to crawl for feed discovery (default 10)",
+    "Maximum new domains to crawl this run (default 10)",
   ),
   category: z.string().default("discovered").describe(
     "Category tag for discovered feeds (default 'discovered')",
   ),
   dryRun: z.boolean().default(false).describe(
     "If true, discover feeds but don't add them to the catalog (default false)",
+  ),
+  reCrawlAfterDays: z.number().int().min(0).max(365).default(7).describe(
+    "Domains crawled within this many days are skipped unless their feed is still unknown (default 7)",
   ),
 }).describe("Arguments for the discover method");
 
@@ -58,23 +71,34 @@ export interface DiscoveryResult {
   discoveredAt: string;
   /** Total article URLs examined. */
   articleUrlsExamined: number;
-  /** Unique domains found in articles. */
+  /** Total unique domains in articles. */
   uniqueDomains: number;
-  /** Domains already in the catalog (skipped). */
+  /** Domains already known (feed in catalog). */
   existingDomains: number;
-  /** New domains crawled. */
+  /** Domains skipped because crawled recently. */
+  skippedRecent: number;
+  /** Domains actually crawled this run. */
   domainsCrawled: number;
   /** Feeds discovered. */
   discoveredFeeds: DiscoveredFeed[];
-  /** Errors encountered during crawling. */
+  /** Crawled domains with their outcome, for the ledger. */
+  crawlOutcomes: { domain: string; outcome: string; feedUrl?: string }[];
+  /** Errors encountered while crawling. */
   errors: { url: string; message: string }[];
   /** Whether feeds were added to the catalog (false if dryRun). */
   addedToCatalog: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Zod schemas
-// ---------------------------------------------------------------------------
+const CrawlLedgerEntrySchema = z.object({
+  domain: z.string(),
+  lastCrawledAt: z.iso.datetime(),
+  outcome: z.enum(["found", "none", "error"]),
+  feedUrl: z.string().url().optional(),
+});
+
+const CrawlLedgerSchema = z.object({
+  entries: z.array(CrawlLedgerEntrySchema),
+});
 
 const DiscoveredFeedSchema = z.object({
   url: z.string().url(),
@@ -85,52 +109,31 @@ const DiscoveredFeedSchema = z.object({
 
 const DiscoveryResultSchema = z.object({
   discoveredAt: z.iso.datetime(),
-  articleUrlsExamined: z.number().int(),
-  uniqueDomains: z.number().int(),
-  existingDomains: z.number().int(),
-  domainsCrawled: z.number().int(),
+  articleUrlsExamined: z.number(),
+  uniqueDomains: z.number(),
+  existingDomains: z.number(),
+  skippedRecent: z.number(),
+  domainsCrawled: z.number(),
   discoveredFeeds: z.array(DiscoveredFeedSchema),
+  crawlOutcomes: z.array(
+    z.object({
+      domain: z.string(),
+      outcome: z.string(),
+      feedUrl: z.string().url().optional(),
+    }),
+  ),
   errors: z.array(z.object({ url: z.string(), message: z.string() })),
   addedToCatalog: z.boolean(),
 });
 
-// ---------------------------------------------------------------------------
-// Context type
-// ---------------------------------------------------------------------------
-
-type MethodContext = {
-  globalArgs: GlobalArgs;
-  logger?: { info: (msg: string, props?: Record<string, unknown>) => void };
-  writeResource: (
-    specName: string,
-    name: string,
-    data: Record<string, unknown>,
-  ) => Promise<{ name: string }>;
-  readResource: (
-    instanceName: string,
-    version?: number,
-  ) => Promise<Record<string, unknown> | null>;
-  dataRepository: {
-    getContent: (
-      type: string,
-      modelId: string,
-      dataName: string,
-      version?: number,
-    ) => Promise<Uint8Array | null>;
-    findAllForModel: (
-      type: string,
-      modelId: string,
-    ) => Promise<
-      { name: string; version: number; type: string; modelId: string }[]
-    >;
-  };
-};
+type CrawlLedgerEntry = z.infer<typeof CrawlLedgerEntrySchema>;
+type CrawlLedger = z.infer<typeof CrawlLedgerSchema>;
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Domain helpers
 // ---------------------------------------------------------------------------
 
-/** Extract the registered domain (hostname without leading www.). */
+/** Extract the registered domain from a URL (strip protocol, path, and www.). */
 export function extractDomain(url: string): string {
   try {
     const u = new URL(url);
@@ -140,7 +143,7 @@ export function extractDomain(url: string): string {
   }
 }
 
-/** Get the site root URL (scheme + host). */
+/** Get the site root URL (scheme + host) for a URL. */
 export function siteRoot(url: string): string {
   try {
     const u = new URL(url);
@@ -150,333 +153,408 @@ export function siteRoot(url: string): string {
   }
 }
 
-/** Read cross-model data using dataRepository.getContent with a known modelId. */
-async function readCrossModelData(
-  dataRepository: MethodContext["dataRepository"],
-  modelType: string,
-  modelId: string,
-  dataName: string,
-): Promise<Record<string, unknown> | null> {
+// ---------------------------------------------------------------------------
+// Feed detection
+// ---------------------------------------------------------------------------
+
+/** Common feed paths to probe when the root page yields no feed links. */
+const COMMON_FEED_PATHS = [
+  "/rss",
+  "/feed",
+  "/rss.xml",
+  "/feed.xml",
+  "/atom.xml",
+  "/index.xml",
+  "/feed/",
+  "/rss/",
+  "/atom/",
+];
+
+const FEED_CONTENT_TYPES = [
+  "application/rss+xml",
+  "application/atom+xml",
+  "application/feed+json",
+  "application/json",
+  "text/xml",
+  "application/xml",
+];
+
+/**
+ * Detect whether a fetched body is itself a feed (XML RSS/Atom or JSON Feed)
+ * based on its content-type and initial body markers.
+ */
+export function isFeedContent(contentType: string, body: string): boolean {
+  const ct = contentType.toLowerCase();
+  if (FEED_CONTENT_TYPES.some((t) => ct.includes(t))) {
+    return true;
+  }
+  const trimmed = body.trimStart().slice(0, 300).toLowerCase();
+  if (!trimmed.startsWith("<?xml") && !trimmed.startsWith("{")) return false;
+  return trimmed.includes("<rss") ||
+    trimmed.includes("<feed") ||
+    trimmed.includes("<rdf:rdf") ||
+    (trimmed.includes('"version"') && trimmed.includes('"items"'));
+}
+
+/** Fetch a URL and return its body plus content-type (without rejecting feeds). */
+export async function fetchContent(
+  url: string,
+): Promise<{ body: string; contentType: string; error?: string }> {
   try {
-    const content = await dataRepository.getContent(
-      modelType,
-      modelId,
-      dataName,
-    );
-    if (!content) return null;
-    return JSON.parse(new TextDecoder().decode(content));
-  } catch {
-    return null;
+    const resp = await fetch(url, {
+      headers: {
+        "User-Agent": "swamp-feed-discovery/1.0",
+        "Accept":
+          "text/html,application/xhtml+xml,application/xml,application/rss+xml,application/atom+xml,application/feed+json,*/*",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) {
+      return { body: "", contentType: "", error: `HTTP ${resp.status}` };
+    }
+    const contentType = resp.headers.get("content-type") ?? "";
+    const body = await resp.text();
+    return { body, contentType };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { body: "", contentType: "", error: msg };
   }
 }
 
-/** Extract RSS/Atom feed <link> tags from HTML. */
+/** Extract <link rel="alternate"> and <a href> feed URLs from HTML. */
 export function extractFeedLinks(
   html: string,
   sourceUrl: string,
 ): DiscoveredFeed[] {
   const feeds: DiscoveredFeed[] = [];
   const root = siteRoot(sourceUrl);
+  const seen = new Set<string>();
 
-  // Match <link rel="alternate" type="application/rss+xml" href="..." title="...">
-  // and <link rel="alternate" type="application/atom+xml" href="..." title="...">
-  const linkRegex = /<link[^>]*rel=["']alternate["'][^>]*>/gi;
-  const links = html.match(linkRegex) ?? [];
+  const push = (url: string, type: string, title: string) => {
+    const abs = new URL(url, root).href;
+    if (seen.has(abs)) return;
+    seen.add(abs);
+    feeds.push({ url: abs, type, title, sourceSite: root });
+  };
 
-  for (const link of links) {
-    const typeMatch = link.match(/type=["']([^"']+)["']/i);
-    const hrefMatch = link.match(/href=["']([^"']+)["']/i);
-    const titleMatch = link.match(/title=["']([^"']*)["']/i);
-
-    const type = typeMatch?.[1] ?? "";
-    const href = hrefMatch?.[1] ?? "";
-    const title = titleMatch?.[1] ?? "";
-
-    // Only accept RSS/Atom feed types
-    if (
-      !type.includes("rss") && !type.includes("atom") &&
-      !href.includes("/rss") && !href.includes("/feed") &&
-      !href.includes(".rss") && !href.includes(".xml") &&
-      !href.includes("/atom")
-    ) {
-      continue;
-    }
-
-    if (!href) continue;
-
-    // Resolve relative URLs against the source
-    let feedUrl: string;
-    try {
-      feedUrl = href.startsWith("http") ? href : new URL(href, sourceUrl).href;
-    } catch {
-      continue;
-    }
-
-    const feedType: string = type.includes("atom") ? "atom" : "rss";
-
-    feeds.push({
-      url: feedUrl,
-      type: feedType,
-      title,
-      sourceSite: root,
-    });
+  // <link rel="alternate" type="application/rss+xml" href="..."> and atom
+  const linkRegex =
+    /<link[^>]*rel=["']alternate["'][^>]*type=["']application\/(rss|atom)\+xml["'][^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = linkRegex.exec(html)) !== null) {
+    const tag = m[0];
+    const type = m[1] === "atom" ? "atom" : "rss";
+    const href = tag.match(/href=["']([^"']+)["']/i)?.[1];
+    const titleMatch = tag.match(/title=["']([^"']*)["']/i);
+    const title = titleMatch ? titleMatch[1] : "";
+    if (href) push(href, type, title);
   }
 
-  // Also look for <a> tags linking to common feed paths (fallback)
+  // <a href="...">Subscribe via RSS</a> style anchors
   const anchorRegex = /<a[^>]*href=["']([^"']+)["'][^>]*>([^<]*)<\/a>/gi;
-  let m: RegExpExecArray | null;
   while ((m = anchorRegex.exec(html)) !== null) {
     const href = m[1];
-    const text = m[2]?.toLowerCase() ?? "";
+    const text = (m[2] ?? "").toLowerCase();
+    const lower = href.toLowerCase();
     if (
-      (href.includes("/rss") || href.includes("/feed") ||
-        href.includes(".rss") ||
-        href.includes("/atom") || href.includes("rss.xml")) &&
-      (text.includes("rss") || text.includes("feed") || text.includes("atom") ||
-        text.includes("subscribe"))
+      lower.includes("rss") ||
+      lower.includes("atom") ||
+      lower.includes("feed") ||
+      text.includes("rss") ||
+      text.includes("atom") ||
+      text.includes("feed")
     ) {
-      let feedUrl: string;
-      try {
-        feedUrl = href.startsWith("http")
-          ? href
-          : new URL(href, sourceUrl).href;
-      } catch {
-        continue;
-      }
-      // Don't add duplicates
-      if (feeds.some((f) => f.url === feedUrl)) continue;
-      feeds.push({
-        url: feedUrl,
-        type: "unknown",
-        title: m[2]?.trim() ?? "",
-        sourceSite: root,
-      });
+      push(href, lower.includes("atom") ? "atom" : "rss", "");
     }
   }
 
   return feeds;
 }
 
-/** Fetch HTML from a URL with timeout. */
-async function fetchHtml(
-  url: string,
-): Promise<{ html: string; error?: string }> {
+// ---------------------------------------------------------------------------
+// Crawl logic
+// ---------------------------------------------------------------------------
+
+/**
+ * Crawl a single domain for feeds. Returns the discovered feeds (or none) and
+ * the outcome for the ledger.
+ */
+async function discoverFeedForDomain(
+  domain: string,
+): Promise<{
+  feeds: DiscoveredFeed[];
+  outcome: "found" | "none" | "error";
+  error?: string;
+}> {
+  const bases = [`https://${domain}`, `http://${domain}`];
+  let anyBaseSucceeded = false;
+
+  for (const base of bases) {
+    const res = await fetchContent(base);
+    if (res.error) continue;
+    anyBaseSucceeded = true;
+
+    // Root itself is a feed.
+    if (isFeedContent(res.contentType, res.body)) {
+      return {
+        feeds: [{
+          url: base,
+          type: "unknown",
+          title: "",
+          sourceSite: siteRoot(base),
+        }],
+        outcome: "found",
+      };
+    }
+
+    // Root page advertises feeds.
+    const rootFeeds = extractFeedLinks(res.body, base);
+    if (rootFeeds.length > 0) {
+      return { feeds: rootFeeds.slice(0, 1), outcome: "found" };
+    }
+
+    // Probe common feed paths.
+    for (const path of COMMON_FEED_PATHS) {
+      const probeUrl = new URL(path, base).href;
+      const pr = await fetchContent(probeUrl);
+      if (pr.error) continue;
+      if (isFeedContent(pr.contentType, pr.body)) {
+        return {
+          feeds: [{
+            url: probeUrl,
+            type: "unknown",
+            title: "",
+            sourceSite: siteRoot(base),
+          }],
+          outcome: "found",
+        };
+      }
+    }
+  }
+
+  if (anyBaseSucceeded) {
+    return { feeds: [], outcome: "none" };
+  }
+  return {
+    feeds: [],
+    outcome: "error",
+    error: `Could not reach ${domain}`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Cross-model data access
+// ---------------------------------------------------------------------------
+
+/** Read a JSON data resource from another model instance and parse it. */
+async function readCrossModelData(
+  context: {
+    dataRepository: {
+      getContent: (
+        type: string,
+        modelId: string,
+        dataName: string,
+        version?: number,
+      ) => Promise<Uint8Array | null>;
+    };
+  },
+  type: string,
+  modelId: string,
+  dataName: string,
+): Promise<Record<string, unknown> | null> {
+  const bytes = await context.dataRepository.getContent(type, modelId, dataName);
+  if (!bytes) return null;
+  const text = new TextDecoder().decode(bytes);
   try {
-    const resp = await fetch(url, {
-      headers: {
-        "User-Agent": "swamp-feed-discovery/1.0",
-        "Accept": "text/html",
-      },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!resp.ok) {
-      return { html: "", error: `HTTP ${resp.status}` };
-    }
-    const contentType = resp.headers.get("content-type") ?? "";
-    if (
-      !contentType.includes("text/html") &&
-      !contentType.includes("application/xhtml")
-    ) {
-      return { html: "", error: `Not HTML: ${contentType}` };
-    }
-    const html = await resp.text();
-    return { html };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { html: "", error: msg };
+    const parsed = JSON.parse(text);
+    return typeof parsed === "object" && parsed !== null ? parsed : null;
+  } catch {
+    return null;
   }
 }
 
 // ---------------------------------------------------------------------------
-// Model definition
+// Model
 // ---------------------------------------------------------------------------
 
-/** Model definition for discovering RSS feeds from article URLs. */
 export const model = {
   type: "@svendowideit/feed-discovery",
-  version: "2026.07.17.1",
+  version: "2026.08.03.1",
   globalArguments: GlobalArgsSchema,
   resources: {
     discovery: {
-      description: "Result of the last feed discovery run",
+      description: "Result of the most recent feed discovery run",
       schema: DiscoveryResultSchema,
       lifetime: "30d",
+      garbageCollection: 10,
+    },
+    crawlLedger: {
+      description: "Ledger of domains already crawled for feed discovery",
+      schema: CrawlLedgerSchema,
+      lifetime: "infinite",
       garbageCollection: 10,
     },
   },
   methods: {
     discover: {
       description:
-        "Discover new RSS feeds from article URLs in the news-reader snapshot and add them to the feed-catalog",
+        "Discover RSS/Atom feeds from article domains, skipping recently-crawled sites and prioritising the most promising new domains",
       arguments: DiscoverArgsSchema,
       execute: async (
         args: DiscoverArgs,
-        context: MethodContext,
+        context: {
+          globalArgs: GlobalArgs;
+          logger?: { info: (msg: string, props?: Record<string, unknown>) => void };
+          readResource: (
+            instanceName: string,
+          ) => Promise<Record<string, unknown> | null>;
+          writeResource: (
+            specName: string,
+            name: string,
+            data: Record<string, unknown>,
+          ) => Promise<{ name: string }>;
+          dataRepository: {
+            getContent: (
+              type: string,
+              modelId: string,
+              dataName: string,
+              version?: number,
+            ) => Promise<Uint8Array | null>;
+          };
+        },
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
-        const newsReaderId = context.globalArgs.newsReaderModelId;
-        const feedCatalogId = context.globalArgs.feedCatalogModelId;
 
-        // 1. Read the news-reader's latest snapshot to get article URLs
-        if (!newsReaderId) {
-          throw new Error(
-            "newsReaderModelId global arg is required — set it to the news-reader model instance ID. " +
-              "Run: swamp model create @svendowideit/feed-discovery feed-discovery " +
-              "--global-arg newsReaderModelId=<news-reader-model-id> --global-arg feedCatalogModelId=<feed-catalog-model-id>",
-          );
-        }
-        const snapshotData = await readCrossModelData(
-          context.dataRepository,
+        // 1. Read the news-reader snapshot to collect article URLs.
+        const snapshot = await readCrossModelData(
+          context,
           "@svendowideit/news-reader",
-          newsReaderId,
+          context.globalArgs.newsReaderModelId,
           "feed-snapshot",
-        ) as { articles?: { url: string; source: string }[] } | null;
-        if (
-          !snapshotData || !snapshotData.articles ||
-          snapshotData.articles.length === 0
-        ) {
+        );
+        const articleUrls: string[] = Array.isArray(snapshot?.articles)
+          ? snapshot!.articles.filter(
+            (a: unknown) =>
+              typeof a === "object" && a !== null &&
+              typeof (a as { url?: unknown }).url === "string",
+          ).map((a: { url: string }) => a.url)
+          : [];
+        if (articleUrls.length === 0) {
           throw new Error(
-            "No articles found in news-reader snapshot. Run the news workflow's fetch step first.",
+            "No articles in news-reader snapshot. Run the news workflow's fetch step first.",
           );
         }
 
-        const articleUrls = snapshotData.articles.map((a) => a.url);
-        logger?.info("Found {count} article URLs in news-reader snapshot", {
-          count: articleUrls.length,
-        });
-
-        // 2. Extract unique domains from article URLs
-        const articleDomains = new Set<string>();
+        // 2. Domain frequency map (weight for prioritisation).
+        const domainCount = new Map<string, number>();
         for (const url of articleUrls) {
-          const domain = extractDomain(url);
-          if (domain) articleDomains.add(domain);
+          const d = extractDomain(url);
+          if (d) domainCount.set(d, (domainCount.get(d) ?? 0) + 1);
         }
-        logger?.info("Found {count} unique domains in articles", {
-          count: articleDomains.size,
-        });
 
-        // 3. Read the feed-catalog to find which domains are already known
-        const catalogData = (feedCatalogId
-          ? await readCrossModelData(
-            context.dataRepository,
-            "@svendowideit/feed-catalog",
-            feedCatalogId,
-            "current",
-          )
-          : null) as { feeds?: { url: string }[] } | null;
-        const knownDomains = new Set<string>();
-        if (catalogData?.feeds) {
-          for (const feed of catalogData.feeds) {
-            const d = extractDomain(feed.url);
-            if (d) knownDomains.add(d);
+        // 3. Read the crawl ledger.
+        const ledgerData = await context.readResource("current");
+        const entries: CrawlLedgerEntry[] = Array.isArray(ledgerData?.entries)
+          ? ledgerData!.entries as CrawlLedgerEntry[]
+          : [];
+        const ledgerByDomain = new Map<string, CrawlLedgerEntry>(
+          entries.map((e) => [e.domain, e]),
+        );
+
+        // 4. Partition candidates.
+        let existingDomains = 0;
+        let skippedRecent = 0;
+        const crawlCandidates: { domain: string; count: number }[] = [];
+        const reCrawlAfterMs = args.reCrawlAfterDays * 24 * 60 * 60 * 1000;
+        const nowMs = Date.now();
+
+        for (const [domain, count] of domainCount) {
+          const entry = ledgerByDomain.get(domain);
+          if (entry?.outcome === "found") {
+            existingDomains += 1;
+            continue;
           }
+          if (
+            entry &&
+            nowMs - Date.parse(entry.lastCrawledAt) < reCrawlAfterMs
+          ) {
+            skippedRecent += 1;
+            continue;
+          }
+          crawlCandidates.push({ domain, count });
         }
-        logger?.info("{count} domains already in feed-catalog", {
-          count: knownDomains.size,
-        });
 
-        // 4. Find new domains to crawl
-        const newDomains = [...articleDomains].filter((d) =>
-          !knownDomains.has(d)
-        );
-        const domainsToCrawl = newDomains.slice(0, args.maxSitesToCrawl);
-        logger?.info(
-          "Crawling {count} new domains (of {total} new, {existing} already known)",
-          {
-            count: domainsToCrawl.length,
-            total: newDomains.length,
-            existing: knownDomains.size,
-          },
+        // 5. Prioritise: article frequency first, then least-recently-crawled,
+        //    then stable by domain name.
+        crawlCandidates.sort((a, b) =>
+          (b.count - a.count) ||
+          (a.domain.localeCompare(b.domain))
         );
 
-        // 5. Crawl each new domain's root page to find feed links
-        const allDiscovered: DiscoveredFeed[] = [];
+        // 6. Crawl the top-N candidates.
+        const domainsToCrawl = crawlCandidates
+          .slice(0, args.maxSitesToCrawl)
+          .map((c) => c.domain);
+        const discoveredFeeds: DiscoveredFeed[] = [];
+        const crawlOutcomes: CrawlLedgerEntry[] = [];
         const errors: { url: string; message: string }[] = [];
 
         for (const domain of domainsToCrawl) {
-          const siteUrl = `https://${domain}`;
-          logger?.info("Crawling {site}", { site: siteUrl });
-
-          const result = await fetchHtml(siteUrl);
+          const result = await discoverFeedForDomain(domain);
+          const outcome: CrawlLedgerEntry = {
+            domain,
+            lastCrawledAt: new Date().toISOString(),
+            outcome: result.outcome,
+            ...(result.feeds.length > 0
+              ? { feedUrl: result.feeds[0].url }
+              : {}),
+          };
+          crawlOutcomes.push(outcome);
+          discoveredFeeds.push(...result.feeds);
           if (result.error) {
-            errors.push({ url: siteUrl, message: result.error });
-            // Try http as fallback
-            const httpResult = await fetchHtml(`http://${domain}`);
-            if (httpResult.error) {
-              errors.push({
-                url: `http://${domain}`,
-                message: httpResult.error,
-              });
-              continue;
-            }
-            const feeds = extractFeedLinks(httpResult.html, `http://${domain}`);
-            allDiscovered.push(...feeds);
-            logger?.info("Found {n} feeds on {site}", {
-              n: feeds.length,
-              site: `http://${domain}`,
-            });
-          } else {
-            const feeds = extractFeedLinks(result.html, siteUrl);
-            allDiscovered.push(...feeds);
-            logger?.info("Found {n} feeds on {site}", {
-              n: feeds.length,
-              site: siteUrl,
-            });
+            errors.push({ url: domain, message: result.error });
           }
         }
 
-        // 6. Deduplicate discovered feeds (by URL)
-        const seen = new Set<string>();
-        const uniqueDiscovered = allDiscovered.filter((f) => {
-          if (seen.has(f.url)) return false;
-          seen.add(f.url);
-          return true;
-        });
-
-        logger?.info(
-          "Discovered {total} feeds ({unique} unique) from {domains} domains",
-          {
-            total: allDiscovered.length,
-            unique: uniqueDiscovered.length,
-            domains: domainsToCrawl.length,
-          },
-        );
-
-        // 7. Write discovery result (the workflow will upsert into feed-catalog via forEach)
-        if (args.dryRun) {
-          logger?.info("Dry run — {n} feeds would be added to catalog", {
-            n: uniqueDiscovered.length,
-          });
-        } else {
-          logger?.info("{n} feeds ready for upsert into feed-catalog", {
-            n: uniqueDiscovered.length,
-          });
-        }
-
-        // 8. Write discovery result
-        const result: DiscoveryResult = {
+        // 7. Write the discovery result.
+        const resultData: DiscoveryResult = {
           discoveredAt: new Date().toISOString(),
           articleUrlsExamined: articleUrls.length,
-          uniqueDomains: articleDomains.size,
-          existingDomains: knownDomains.size,
+          uniqueDomains: domainCount.size,
+          existingDomains,
+          skippedRecent,
           domainsCrawled: domainsToCrawl.length,
-          discoveredFeeds: uniqueDiscovered,
+          discoveredFeeds,
+          crawlOutcomes,
           errors,
-          addedToCatalog: !args.dryRun && uniqueDiscovered.length > 0,
+          addedToCatalog: !args.dryRun && discoveredFeeds.length > 0,
         };
 
         const handle = await context.writeResource(
           "discovery",
           "discovery-result",
+          { ...resultData },
+        );
+
+        // 8. Merge new outcomes into the ledger and persist it.
+        const merged = new Map(ledgerByDomain);
+        for (const o of crawlOutcomes) {
+          merged.set(o.domain, o);
+        }
+        const ledgerEntries: CrawlLedgerEntry[] =
+          [...merged.values()].slice(-500);
+        await context.writeResource("crawlLedger", "current", {
+          entries: ledgerEntries,
+        });
+
+        logger?.info(
+          "Discovery: {crawled} crawled, {found} feeds, {existing} existing, {skipped} skipped",
           {
-            discoveredAt: result.discoveredAt,
-            articleUrlsExamined: result.articleUrlsExamined,
-            uniqueDomains: result.uniqueDomains,
-            existingDomains: result.existingDomains,
-            domainsCrawled: result.domainsCrawled,
-            discoveredFeeds: result.discoveredFeeds,
-            errors: result.errors,
-            addedToCatalog: result.addedToCatalog,
+            crawled: domainsToCrawl.length,
+            found: discoveredFeeds.length,
+            existing: existingDomains,
+            skipped: skippedRecent,
           },
         );
 

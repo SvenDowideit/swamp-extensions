@@ -548,11 +548,26 @@ export const model = {
           entries: ledgerEntries,
         });
 
+        // Log each newly-discovered feed (these are new to the catalog by
+        // construction, since existing/found domains are skipped above).
+        for (const feed of discoveredFeeds) {
+          logger?.info(
+            "Discovered new feed: {url} ({type}){title}",
+            {
+              url: feed.url,
+              type: feed.type,
+              title: feed.title ? ` "${feed.title}"` : "",
+              sourceSite: feed.sourceSite,
+            },
+          );
+        }
+
         logger?.info(
-          "Discovery: {crawled} crawled, {found} feeds, {existing} existing, {skipped} skipped",
+          "Discovery: {articles} articles analysed, {found} new feeds found, {crawled} crawled, {existing} existing, {skipped} skipped",
           {
-            crawled: domainsToCrawl.length,
+            articles: articleUrls.length,
             found: discoveredFeeds.length,
+            crawled: domainsToCrawl.length,
             existing: existingDomains,
             skipped: skippedRecent,
           },

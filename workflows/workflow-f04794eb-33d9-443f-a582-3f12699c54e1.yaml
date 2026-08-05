@@ -93,6 +93,14 @@ inputs:
       type: string
       default: discovered
       description: Category tag for queued pages when added to the catalog.
+    maxPagesPerRun:
+      type: integer
+      default: 50
+      description: Maximum number of gathered pages to analyze for feed discovery per run.
+    probeCommonPaths:
+      type: boolean
+      default: true
+      description: When no feed link is advertised, probe common feed paths on the page's site root.
     outputPath:
       type: string
       default: news.html
@@ -218,11 +226,27 @@ jobs:
     dependsOn: []
     weight: 0
     allowFailure: true
+  - name: analyze-pages
+    description: Analyze each gathered page and discover RSS/Atom feeds, writing a page-discovery-result resource.
+    task:
+      type: model_method
+      modelType: '@svendowideit/feed-analysis'
+      modelName: feed-analysis
+      methodName: analyzePages
+      inputs:
+        maxPagesPerRun: ${{ inputs.maxPagesPerRun }}
+        probeCommonPaths: ${{ inputs.probeCommonPaths }}
+    dependsOn:
+    - step: gather-pages
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: true
   - name: upsert-page
-    description: Add each queued page to the feed-catalog.
+    description: Add each discovered page feed to the feed-catalog.
     forEach:
-      item: page
-      in: ${{ data.latest("news-reader", "pages-queue").?attributes.?pages.orValue([]) }}
+      item: feed
+      in: ${{ data.latest("feed-analysis", "page-discovery-result").?attributes.?discoveredFeeds.orValue([]) }}
     concurrency: 3
     task:
       type: model_method
@@ -230,11 +254,11 @@ jobs:
       modelName: feed-catalog
       methodName: add
       inputs:
-        url: ${{ self.page.url }}
-        category: ${{ self.page.category }}
-        name: ${{ self.page.name }}
+        url: ${{ self.feed.url }}
+        category: ${{ self.feed.category }}
+        name: ${{ self.feed.title }}
     dependsOn:
-    - step: gather-pages
+    - step: analyze-pages
       condition:
         type: succeeded
     weight: 0

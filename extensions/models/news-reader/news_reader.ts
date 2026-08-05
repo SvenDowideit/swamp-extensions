@@ -1532,7 +1532,7 @@ export const model = {
         });
 
         const handle = await context.writeResource(
-          "pages-queue",
+          "pagesQueue",
           "pages-current",
           {
             pages,

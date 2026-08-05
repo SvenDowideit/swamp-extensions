@@ -678,12 +678,24 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .keyword { display: inline-block; background: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; margin-right: 4px; }
 
 .stats { background: #e8f0fe; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+.add-url { display: flex; gap: 8px; align-items: center; margin-bottom: 20px; }
+.add-url input { flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95em; }
+.add-url button { padding: 6px 14px; border: 1px solid #4a90d9; border-radius: 4px; background: #4a90d9; color: white; cursor: pointer; font-size: 0.95em; }
+.add-url button:hover { background: #3577b8; }
+.add-status { font-size: 0.85em; color: #666; min-width: 120px; margin-left: 8px; }
+.add-status.ok { color: #28a745; }
+.add-status.err { color: #d9534f; }
 </style>
 </head>
 <body>
 <h1>${escapeHtml(title)}</h1>
 <meta class="generated-at" data-generated="${escapeHtml(generatedAt)}">
-<div class="meta">${metaText}</div>`);
+<div class="meta">${metaText}</div>
+<div class="add-url">
+<input id="add-url-input" type="url" placeholder="https://example.com/feed-or-page" autocomplete="off">
+<button id="add-url-btn" onclick="submitUrl()">Add</button>
+<span id="add-status" class="add-status"></span>
+</div>`);
 
   // Interest profile section
   const topKeywords = Object.entries(prefs.keywordWeights)
@@ -927,6 +939,43 @@ document.querySelectorAll('.generated-at').forEach(el => {
       el.textContent = dateStr;
     }
   }
+});
+
+const PAGES_URL = '/api/pages';
+const addInput = document.getElementById('add-url-input');
+const addStatus = document.getElementById('add-status');
+
+async function submitUrl() {
+  const url = addInput.value.trim();
+  if (!url) return;
+  const btn = document.getElementById('add-url-btn');
+  btn.textContent = '…';
+  addStatus.textContent = '';
+  addStatus.className = 'add-status';
+  try {
+    const res = await fetch(PAGES_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    if (res.ok) {
+      addStatus.textContent = '✓ submitted';
+      addStatus.className = 'add-status ok';
+      addInput.value = '';
+    } else {
+      addStatus.textContent = '✗ failed';
+      addStatus.className = 'add-status err';
+    }
+  } catch {
+    addStatus.textContent = '✗ failed';
+    addStatus.className = 'add-status err';
+  }
+  btn.textContent = 'Add';
+}
+
+addInput.addEventListener('input', () => {
+  addStatus.textContent = '';
+  addStatus.className = 'add-status';
 });
 </script>
 </body>
@@ -1454,6 +1503,7 @@ export const model = {
 
           const processedIds: string[] = [];
           for (const item of body.items) {
+            logger?.info("Queued page: {url}", { url: item.url });
             pages.push({
               url: item.url,
               name: extractPageName(item.url),

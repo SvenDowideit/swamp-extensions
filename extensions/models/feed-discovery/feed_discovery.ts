@@ -501,6 +501,7 @@ export const model = {
         const errors: { url: string; message: string }[] = [];
 
         for (const domain of domainsToCrawl) {
+          logger?.info("Crawling domain for feeds: {domain}", { domain });
           const result = await discoverFeedForDomain(domain);
           const outcome: CrawlLedgerEntry = {
             domain,

@@ -116,6 +116,15 @@ Click 👍 or 👎 on any article in the HTML page. The feedback is sent to the
 queue server and picked up on the next workflow run. No clipboard copy-paste
 needed.
 
+### Pages-to-parse queue
+
+Alongside feedback, the same queue server (`scripts/feedback-server.ts`) hosts
+a **pages queue** (`POST/GET/DELETE /api/pages`). The news workflow's
+`gather-pages` step polls it, and `upsert-page` adds each queued page to the
+feed-catalog via `feed-catalog.add` (same inputs as the CLI command) — so a
+page URL queued in the browser gets crawled and its feeds catalogued on the
+next run. See `scripts/README.md`.
+
 You can also record feedback directly via the CLI:
 
 ```sh
@@ -133,6 +142,7 @@ swamp model method run news-reader feedback --input articleId=def456 --input act
 | Method           | Description                                              | Key arguments                                        |
 | ---------------- | -------------------------------------------------------- | ---------------------------------------------------- |
 | `gatherFeedback` | Poll feedback queue server, import entries, delete them  | `serverUrl`, `batchSize`, `maxBatches`               |
+| `gatherPages`    | Poll pages queue server, collect pages into `pagesQueue` resource, delete them | `serverUrl`, `batchSize`, `maxBatches`, `category` |
 | `fetch`          | Fetch RSS/Atom feeds and store articles                  | `feeds` (URL[]), `maxArticlesPerFeed`                |
 | `filterByAge`    | Filter articles by age for HTML generation               | `newsAge` (default: "3d", supports h/d/w/m suffixes) |
 | `generate`       | Generate HTML report from filtered articles              | `topN`, `title`                                      |

@@ -106,3 +106,72 @@ FEEDBACK_PORT=9999 FEEDBACK_HTML_PATH=news.html FEEDBACK_QUEUE_DIR=/tmp/queue \
 | `--allow-read`  | Read HTML file and queue JSON files      |
 | `--allow-write` | Create queue directory and write/delete JSON files |
 | `--allow-env`   | Read `FEEDBACK_*` environment variables  |
+
+---
+
+## Pages-to-parse queue
+
+The same server also hosts a second queue for *pages to parse* — URLs the user
+(or a browser extension / bookmarklet) wants the news workflow to crawl for
+feed discovery, in addition to the feed URLs already in the catalog. It behaves
+exactly like the feedback queue, but the workflow imports each queued page as a
+new catalog entry via `feed-catalog.add` instead of updating preferences.
+
+### Endpoints
+
+| Method | Path              | Description                                      |
+| ------ | ----------------- | ------------------------------------------------ |
+| POST   | `/api/pages`      | Enqueue a page URL to parse for feed discovery   |
+| GET    | `/api/pages`      | List queued pages, oldest first (`?limit=N`, default 20, max 100) |
+| DELETE | `/api/pages`      | Delete one (`?id=ULID`) or batch (`?ids=ULID1,ULID2`) |
+
+### POST body
+
+```json
+{
+  "url": "https://example.com/article/123"
+}
+```
+
+`pageUrl` is accepted as an alias for `url`. Returns `{ "id": "01JABC...", "status": "queued" }`.
+
+### GET response
+
+```json
+{
+  "items": [
+    { "id": "01JABC...", "url": "https://example.com/article/123", "createdAt": "2026-08-05T06:00:00.000Z" }
+  ],
+  "remaining": 1,
+  "queued": 1
+}
+```
+
+### Storage
+
+Same file-per-entry layout as feedback, in the pages directory (default:
+`~/.swamp/pages-queue/`).
+
+### Workflow integration
+
+The `news` workflow (`workflows/workflow-f04794eb-33d9-443f-a582-3f12699c54e1.yaml`)
+adds two steps:
+
+- `gather-pages` — calls the news-reader `gatherPages` method, which polls
+  `GET /api/pages?limit=N`, collects `{ url, name, category }` entries into the
+  `pagesQueue` resource, and DELETEs the processed pages.
+- `upsert-page` — `forEach` over `data.latest("news-reader","pages-queue").?attributes.?pages.orValue([])`,
+  calling `feed-catalog.add` with `url`/`category`/`name` — the same inputs as
+  the `feed-catalog add` CLI command.
+
+New inputs: `pagesServerUrl`, `pagesBatchSize`, `pagesMaxBatches`,
+`pagesCategory` (all default to the feedback equivalents).
+
+### Pages-dir flag
+
+Same mechanism as `--queue-dir` / `FEEDBACK_QUEUE_DIR`, but for pages:
+
+| Flag / env              | Default                  |
+| ----------------------- | ------------------------ |
+| `--pages-dir`           | `~/.swamp/pages-queue/`  |
+| `FEEDBACK_PAGES_DIR`    | (same default)           |

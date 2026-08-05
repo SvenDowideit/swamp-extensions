@@ -7,17 +7,21 @@
  *
  * Usage:
  *   deno run --allow-net --allow-read --allow-write --allow-env \
- *     scripts/feedback-server.ts [--port 8765] [--html path/to/news.html] [--queue-dir path/to/queue]
+ *     scripts/feedback-server.ts [--port 8765] [--html path/to/news.html] [--queue-dir path/to/queue] [--pages-dir path/to/pages]
  *
  * If `deno` is not on your PATH, swamp installs it at ~/.swamp/deno/deno:
  *   ~/.swamp/deno/deno run --allow-net --allow-read --allow-write --allow-env \
- *     scripts/feedback-server.ts [--port 8765] [--html path/to/news.html] [--queue-dir path/to/queue]
+ *     scripts/feedback-server.ts [--port 8765] [--html path/to/news.html] [--queue-dir path/to/queue] [--pages-dir path/to/pages]
  *
  * Endpoints:
  *   POST /api/feedback  — enqueue a feedback entry
  *   GET  /api/feedback?limit=N  — dequeue oldest N entries
  *   DELETE /api/feedback?id=ULID  — delete one entry
  *   DELETE /api/feedback?ids=ULID1,ULID2  — batch delete
+ *   POST /api/pages  — enqueue a page URL to parse for feed discovery
+ *   GET  /api/pages?limit=N  — list queued pages (oldest first)
+ *   DELETE /api/pages?id=ULID  — delete one page
+ *   DELETE /api/pages?ids=ULID1,ULID2  — batch delete
  *   GET  /  — serve the HTML page (if --html provided)
  */
 
@@ -30,11 +34,18 @@ function generateId(): string {
 const PORT = parseInt(Deno.env.get("FEEDBACK_PORT") ?? "8765");
 const HTML_PATH = Deno.env.get("FEEDBACK_HTML_PATH") ?? "";
 const QUEUE_DIR = Deno.env.get("FEEDBACK_QUEUE_DIR") ?? "";
+const PAGES_DIR = Deno.env.get("FEEDBACK_PAGES_DIR") ?? "";
 
-function parseArgs(): { port: number; htmlPath: string; queueDir: string } {
+function parseArgs(): {
+  port: number;
+  htmlPath: string;
+  queueDir: string;
+  pagesDir: string;
+} {
   let port = PORT;
   let htmlPath = HTML_PATH;
   let queueDir = QUEUE_DIR;
+  let pagesDir = PAGES_DIR;
   const args = Deno.args;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--port" && i + 1 < args.length) {
@@ -43,12 +54,17 @@ function parseArgs(): { port: number; htmlPath: string; queueDir: string } {
       htmlPath = args[++i];
     } else if (args[i] === "--queue-dir" && i + 1 < args.length) {
       queueDir = args[++i];
+    } else if (args[i] === "--pages-dir" && i + 1 < args.length) {
+      pagesDir = args[++i];
     }
   }
   if (!queueDir) {
     queueDir = `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/feedback-queue`;
   }
-  return { port, htmlPath, queueDir };
+  if (!pagesDir) {
+    pagesDir = `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/pages-queue`;
+  }
+  return { port, htmlPath, queueDir, pagesDir };
 }
 
 interface FeedbackEntry {
@@ -64,6 +80,12 @@ interface QueuedEntry extends FeedbackEntry {
   createdAt: string;
 }
 
+interface QueuedPage {
+  id: string;
+  url: string;
+  createdAt: string;
+}
+
 async function ensureQueueDir(dir: string): Promise<void> {
   try {
     await Deno.mkdir(dir, { recursive: true });
@@ -72,20 +94,23 @@ async function ensureQueueDir(dir: string): Promise<void> {
   }
 }
 
-async function writeEntry(dir: string, entry: QueuedEntry): Promise<void> {
-  const path = `${dir}/${entry.id}.json`;
+async function writeEntry(dir: string, entry: unknown): Promise<void> {
+  const path = `${dir}/${(entry as { id: string }).id}.json`;
   await Deno.writeTextFile(path, JSON.stringify(entry));
 }
 
-async function readEntries(dir: string, limit: number): Promise<QueuedEntry[]> {
-  const entries: QueuedEntry[] = [];
+async function readEntries<T extends { id: string }>(
+  dir: string,
+  limit: number,
+): Promise<T[]> {
+  const entries: T[] = [];
   try {
     for await (const dirEntry of Deno.readDir(dir)) {
       if (dirEntry.isFile && dirEntry.name.endsWith(".json")) {
         const path = `${dir}/${dirEntry.name}`;
         const text = await Deno.readTextFile(path);
         try {
-          entries.push(JSON.parse(text) as QueuedEntry);
+          entries.push(JSON.parse(text) as T);
         } catch {
           // skip corrupt files
         }
@@ -147,6 +172,7 @@ async function handleRequest(
   req: Request,
   htmlPath: string,
   queueDir: string,
+  pagesDir: string,
 ): Promise<Response> {
   const url = new URL(req.url);
 
@@ -164,7 +190,10 @@ async function handleRequest(
     try {
       const html = await Deno.readTextFile(htmlPath);
       return new Response(html, {
-        headers: { "Content-Type": "text/html; charset=utf-8", ...corsHeaders() },
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          ...corsHeaders(),
+        },
       });
     } catch {
       return new Response("HTML file not found", {
@@ -191,7 +220,10 @@ async function handleRequest(
           body.action !== "read"
         ) {
           return jsonResponse(
-            { error: 'action must be "interested", "ignored", "seen", or "read"' },
+            {
+              error:
+                'action must be "interested", "ignored", "seen", or "read"',
+            },
             400,
           );
         }
@@ -256,17 +288,84 @@ async function handleRequest(
     }
   }
 
+  if (url.pathname === "/api/pages") {
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        const urlValue = body.url ?? body.pageUrl ?? "";
+        if (!urlValue) {
+          return jsonResponse(
+            { error: "url is required" },
+            400,
+          );
+        }
+        const entry: QueuedPage = {
+          id: generateId(),
+          url: String(urlValue),
+          createdAt: new Date().toISOString(),
+        };
+        await ensureQueueDir(pagesDir);
+        await writeEntry(pagesDir, entry);
+        return jsonResponse({ id: entry.id, status: "queued" }, 201);
+      } catch (err) {
+        return jsonResponse(
+          { error: err instanceof Error ? err.message : "Invalid request" },
+          400,
+        );
+      }
+    }
+
+    if (req.method === "GET") {
+      const limit = Math.min(
+        Math.max(parseInt(url.searchParams.get("limit") ?? "20"), 1),
+        100,
+      );
+      const entries = await readEntries(pagesDir, limit) as QueuedPage[];
+      return jsonResponse({
+        items: entries,
+        remaining: entries.length,
+        queued: await countEntries(pagesDir),
+      });
+    }
+
+    if (req.method === "DELETE") {
+      const idParam = url.searchParams.get("id");
+      const idsParam = url.searchParams.get("ids");
+
+      if (idsParam) {
+        const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
+        const deleted = await deleteEntries(pagesDir, ids);
+        return jsonResponse({ deleted, ids });
+      }
+
+      if (idParam) {
+        const ok = await deleteEntry(pagesDir, idParam);
+        return jsonResponse(
+          { id: idParam, status: ok ? "deleted" : "not_found" },
+          ok ? 200 : 404,
+        );
+      }
+
+      return jsonResponse(
+        { error: "Provide ?id= or ?ids= query parameter" },
+        400,
+      );
+    }
+  }
+
   return new Response("Not found", { status: 404, headers: corsHeaders() });
 }
 
-const { port, htmlPath, queueDir } = parseArgs();
+const { port, htmlPath, queueDir, pagesDir } = parseArgs();
 
 await ensureQueueDir(queueDir);
+await ensureQueueDir(pagesDir);
 
-Deno.serve({ port }, (req) => handleRequest(req, htmlPath, queueDir));
+Deno.serve({ port }, (req) => handleRequest(req, htmlPath, queueDir, pagesDir));
 
 console.error(`Feedback server listening on http://localhost:${port}`);
 console.error(`Queue directory: ${queueDir}`);
+console.error(`Pages directory: ${pagesDir}`);
 if (htmlPath) {
   console.error(`Serving HTML from: ${htmlPath}`);
 }

@@ -77,6 +77,22 @@ inputs:
       type: integer
       default: 20
       description: Maximum number of batches to process in one run.
+    pagesServerUrl:
+      type: string
+      default: http://localhost:8765
+      description: URL of the pages queue HTTP server.
+    pagesBatchSize:
+      type: integer
+      default: 100
+      description: Number of queued pages to process per batch.
+    pagesMaxBatches:
+      type: integer
+      default: 20
+      description: Maximum number of batches to process in one run.
+    pagesCategory:
+      type: string
+      default: discovered
+      description: Category tag for queued pages when added to the catalog.
     outputPath:
       type: string
       default: news.html
@@ -183,6 +199,42 @@ jobs:
         name: ${{ self.feed.title }}
     dependsOn:
     - step: discover
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: true
+  - name: gather-pages
+    description: Poll the pages queue server and collect queued page URLs into a data resource.
+    task:
+      type: model_method
+      modelType: '@svendowideit/news-reader'
+      modelName: news-reader
+      methodName: gatherPages
+      inputs:
+        serverUrl: ${{ inputs.pagesServerUrl }}
+        batchSize: ${{ inputs.pagesBatchSize }}
+        maxBatches: ${{ inputs.pagesMaxBatches }}
+        category: ${{ inputs.pagesCategory }}
+    dependsOn: []
+    weight: 0
+    allowFailure: true
+  - name: upsert-page
+    description: Add each queued page to the feed-catalog.
+    forEach:
+      item: page
+      in: ${{ data.latest("news-reader", "pages-queue").?attributes.?pages.orValue([]) }}
+    concurrency: 3
+    task:
+      type: model_method
+      modelType: '@svendowideit/feed-catalog'
+      modelName: feed-catalog
+      methodName: add
+      inputs:
+        url: ${{ self.page.url }}
+        category: ${{ self.page.category }}
+        name: ${{ self.page.name }}
+    dependsOn:
+    - step: gather-pages
       condition:
         type: succeeded
     weight: 0

@@ -124,7 +124,48 @@ const GatherFeedbackArgsSchema = z.object({
   ),
 }).describe("Arguments for the gatherFeedback method");
 
+const GatherPagesArgsSchema = z.object({
+  serverUrl: z.string().default("http://localhost:8765").describe(
+    "URL of the pages queue HTTP server",
+  ),
+  batchSize: z.number().int().min(1).max(100).default(100).describe(
+    "Number of queued pages to process per batch",
+  ),
+  maxBatches: z.number().int().min(1).max(50).default(20).describe(
+    "Maximum number of batches to process in one run",
+  ),
+  category: z.string().optional().describe(
+    "Category tag applied to each page when adding to the catalog",
+  ),
+}).describe("Arguments for the gatherPages method");
+
 type GatherFeedbackArgs = z.infer<typeof GatherFeedbackArgsSchema>;
+
+type GatherPagesArgs = z.infer<typeof GatherPagesArgsSchema>;
+
+/** A queued page returned by the pages queue HTTP server. */
+export interface QueuedPage {
+  id: string;
+  url: string;
+  createdAt: string;
+}
+
+/** A page entry normalized for catalog upsert. */
+export interface PageEntry {
+  url: string;
+  name?: string;
+  category?: string;
+}
+
+/** Derive a human-readable name from a page URL hostname. */
+function extractPageName(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, "");
+  } catch {
+    return url.replace(/https?:\/\//, "").replace(/\/$/, "");
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -233,6 +274,17 @@ const PreferencesSchema = z.object({
   seen: z.array(z.string()),
   read: z.array(z.string()),
   keywordWeights: z.record(z.string(), z.number()),
+});
+
+const PageEntrySchema = z.object({
+  url: z.string().url(),
+  name: z.string().optional(),
+  category: z.string().optional(),
+});
+
+const PagesQueueSchema = z.object({
+  pages: z.array(PageEntrySchema),
+  gatheredAt: z.iso.datetime(),
 });
 
 // ---------------------------------------------------------------------------
@@ -910,6 +962,12 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 5,
     },
+    pagesQueue: {
+      description: "Page URLs pulled from the pages queue for catalog upsert",
+      schema: PagesQueueSchema,
+      lifetime: "7d",
+      garbageCollection: 20,
+    },
   },
   files: {
     report: {
@@ -1337,6 +1395,98 @@ export const model = {
             seen: prefs.seen,
             read: prefs.read,
             keywordWeights: prefs.keywordWeights,
+          },
+        );
+
+        return { dataHandles: [handle] };
+      },
+    },
+    gatherPages: {
+      description:
+        "Poll the pages queue HTTP server, return queued page URLs as a data resource",
+      arguments: GatherPagesArgsSchema,
+      execute: async (
+        args: GatherPagesArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const logger = context.logger;
+
+        const pages: PageEntry[] = [];
+        let batchCount = 0;
+        let queued = 1; // assume pending until first poll reports otherwise
+
+        while (batchCount < args.maxBatches && queued > 0) {
+          const getUrl = `${args.serverUrl}/api/pages?limit=${args.batchSize}`;
+          logger?.info("Polling pages queue: {url}", { url: getUrl });
+
+          let resp: Response;
+          try {
+            resp = await fetch(getUrl, {
+              signal: AbortSignal.timeout(10000),
+            });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger?.info("Pages queue server unreachable: {error}", {
+              error: msg,
+            });
+            break;
+          }
+
+          if (!resp.ok) {
+            logger?.info("Pages queue returned {status}", {
+              status: resp.status,
+            });
+            break;
+          }
+
+          const body = await resp.json() as { items: QueuedPage[] };
+          if (!body.items || body.items.length === 0) {
+            logger?.info("No queued pages");
+            break;
+          }
+
+          queued = body.items.length;
+
+          logger?.info("Processing {count} queued pages (batch {batch})", {
+            count: body.items.length,
+            batch: batchCount + 1,
+          });
+
+          const processedIds: string[] = [];
+          for (const item of body.items) {
+            pages.push({
+              url: item.url,
+              name: extractPageName(item.url),
+              category: args.category,
+            });
+            processedIds.push(item.id);
+          }
+
+          const deleteUrl = `${args.serverUrl}/api/pages?ids=${
+            processedIds.join(",")
+          }`;
+          try {
+            await fetch(deleteUrl, { method: "DELETE" });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger?.info("Failed to delete processed pages: {error}", {
+              error: msg,
+            });
+          }
+
+          batchCount++;
+        }
+
+        logger?.info("Gathered {count} pages from queue", {
+          count: pages.length,
+        });
+
+        const handle = await context.writeResource(
+          "pages-queue",
+          "pages-current",
+          {
+            pages,
+            gatheredAt: new Date().toISOString(),
           },
         );
 

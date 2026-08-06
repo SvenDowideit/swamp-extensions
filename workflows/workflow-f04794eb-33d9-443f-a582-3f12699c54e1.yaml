@@ -1,6 +1,26 @@
 id: f04794eb-33d9-443f-a582-3f12699c54e1
 name: news
-description: "Full news feedback loop — gathers feedback from the queue server, fetches\nfeeds from the catalog, generates an HTML summary ranked by your\npreferences, then discovers new RSS feeds from the article URLs and\nupserts them into the catalog for the next run.\n\nLoop: gather-feedback → dedupe (flag duplicate catalog feeds) → fetch → filter by age (default: last 3 days) → generate HTML → discover new feeds → upsert into catalog\n\nSetup (one-time): add feeds to the catalog:\n  swamp model create @svendowideit/feed-catalog feed-catalog\n  swamp model method run feed-catalog add --input url=\"https://hnrss.org/frontpage\" --input category=tech\n  swamp model method run feed-catalog add --input url=\"https://feeds.bbci.co.uk/news/rss.xml\" --input category=news\n\nStart the feedback server (in a separate terminal):\n  deno run --allow-net --allow-read --allow-write scripts/feedback-server.ts --html news.html\n\nThen run the news workflow (reads from catalog, discovers more feeds each run):\n  swamp workflow run news\n\nOr pass feeds directly (overrides catalog, still discovers new feeds):\n  swamp workflow run news --input 'feeds:json=[\"https://feeds.bbci.co.uk/news/technology/rss.xml\"]'\n\nThen view the HTML (served by the feedback server at http://localhost:8765):\n  open http://localhost:8765\n\nSchedule: runs automatically every 4 hours via swamp serve (trigger.schedule).\n"
+description: |
+  Full news feedback loop — gathers feedback from the queue server, fetches
+  feeds from the catalog, generates an HTML summary ranked by your
+  preferences, then discovers new RSS feeds from the article URLs and
+  upserts them into the catalog for the next run, finally rendering
+  feeds.html (a duplicate-grouped catalog listing).
+
+  Loop: gather-feedback → dedupe (flag duplicate catalog feeds) → fetch → filter by age (default: last 3 days) → generate HTML → discover new feeds → upsert into catalog → generate feeds.html listing
+
+  Setup (one-time): add feeds to the catalog:
+    swamp model create @svendowideit/feed-catalog feed-catalog
+    swamp model method run feed-catalog add --input url="https://hnrss.org/frontpage" --input category=tech
+    swamp model method run feed-catalog add --input url="https://feeds.bbci.co.uk/news/rss.xml" --input category=news
+
+  Run the workflow (fetches catalog feeds, generates news.html and feeds.html):
+    swamp workflow run news
+
+  Then view the results (served by scripts/feedback-server.ts):
+    open http://localhost:8765            # news.html
+    open http://localhost:8765/feeds.html  # feeds listing
+
 tags: {}
 trigger:
   schedule: 0 */4 * * *
@@ -48,7 +68,8 @@ inputs:
     discoverNewFeeds:
       type: boolean
       default: true
-      description: Whether to discover new feeds from article URLs after generating the report.
+      description: Whether to discover new feeds from article URLs after generating
+        the report.
     maxSitesToCrawl:
       type: integer
       default: 10
@@ -64,7 +85,8 @@ inputs:
     newsAge:
       type: string
       default: 3d
-      description: Time range of news to show (e.g., 2h, 7d, 4w, 1m). Supports h (hours), d (days), w (weeks), m (months). Defaults to 3 days.
+      description: Time range of news to show (e.g., 2h, 7d, 4w, 1m). Supports h (hours),
+        d (days), w (weeks), m (months). Defaults to 3 days.
     feedbackServerUrl:
       type: string
       default: http://localhost:8765
@@ -96,25 +118,30 @@ inputs:
     maxPagesPerRun:
       type: integer
       default: 50
-      description: Maximum number of gathered pages to analyze for feed discovery per run.
+      description: Maximum number of gathered pages to analyze for feed discovery
+        per run.
     probeCommonPaths:
       type: boolean
       default: true
-      description: When no feed link is advertised, probe common feed paths on the page's site root.
+      description: When no feed link is advertised, probe common feed paths on the
+        page's site root.
     outputPath:
       type: string
       default: news.html
-      description: If set, write the generated HTML to this local file path (e.g., news.html).
+      description: If set, write the generated HTML to this local file path (e.g.,
+        news.html).
   required: []
 reports:
   require:
   - '@svendowideit/news-html-report'
 jobs:
 - name: main
-  description: Gather feedback, fetch feeds, filter by age, generate HTML, discover new feeds for next run.
+  description: Gather feedback, fetch feeds, filter by age, generate HTML, discover
+    new feeds for next run.
   steps:
   - name: gather-feedback
-    description: Poll the feedback queue server and import any pending feedback entries into preferences.
+    description: Poll the feedback queue server and import any pending feedback entries
+      into preferences.
     task:
       type: model_method
       modelType: '@svendowideit/news-reader'
@@ -128,7 +155,8 @@ jobs:
     weight: 0
     allowFailure: true
   - name: dedupe
-    description: Fetch each catalog feed, group by content identity, and mark duplicate feeds so fetch skips them.
+    description: Fetch each catalog feed, group by content identity, and mark duplicate
+      feeds so fetch skips them.
     task:
       type: model_method
       modelType: '@svendowideit/feed-catalog'
@@ -139,15 +167,19 @@ jobs:
     weight: 0
     allowFailure: true
   - name: fetch
-    description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided), skipping feeds marked duplicate by the dedupe step.
-    guard: ${{ data.latest("news-reader", "feed-snapshot") != null && timestamp(run.startedAt) - timestamp(data.latest("news-reader", "feed-snapshot").attributes.fetchedAt) < duration("3h") }}
+    description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided),
+      skipping feeds marked duplicate by the dedupe step.
+    guard: ${{ data.latest("news-reader", "feed-snapshot") != null && timestamp(run.startedAt)
+      - timestamp(data.latest("news-reader", "feed-snapshot").attributes.fetchedAt)
+      < duration("3h") }}
     task:
       type: model_method
       modelType: '@svendowideit/news-reader'
       modelName: news-reader
       methodName: fetch
       inputs:
-        feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("feed-catalog", "current").?attributes.?feeds.orValue([]) }}'
+        feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("feed-catalog",
+          "current").?attributes.?feeds.orValue([]) }}'
     dependsOn:
     - step: dedupe
       condition:
@@ -211,7 +243,8 @@ jobs:
     description: Add each discovered feed to the feed-catalog.
     forEach:
       item: feed
-      in: ${{ data.latest("feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([]) }}
+      in: ${{ data.latest("feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([])
+        }}
     concurrency: 3
     task:
       type: model_method
@@ -229,7 +262,8 @@ jobs:
     weight: 0
     allowFailure: true
   - name: gather-pages
-    description: Poll the pages queue server and collect queued page URLs into a data resource.
+    description: Poll the pages queue server and collect queued page URLs into a data
+      resource.
     task:
       type: model_method
       modelType: '@svendowideit/news-reader'
@@ -244,7 +278,8 @@ jobs:
     weight: 0
     allowFailure: true
   - name: analyze-pages
-    description: Analyze each gathered page and discover RSS/Atom feeds, writing a page-discovery-result resource.
+    description: Analyze each gathered page and discover RSS/Atom feeds, writing a
+      page-discovery-result resource.
     task:
       type: model_method
       modelType: '@svendowideit/feed-analysis'
@@ -263,7 +298,8 @@ jobs:
     description: Add each discovered page feed to the feed-catalog.
     forEach:
       item: feed
-      in: ${{ data.latest("feed-analysis", "page-discovery-result").?attributes.?discoveredFeeds.orValue([]) }}
+      in: ${{ data.latest("feed-analysis", "page-discovery-result").?attributes.?discoveredFeeds.orValue([])
+        }}
     concurrency: 3
     task:
       type: model_method
@@ -278,6 +314,33 @@ jobs:
     - step: analyze-pages
       condition:
         type: succeeded
+    weight: 0
+    allowFailure: true
+  - name: generate-feeds-html
+    description: Render a static feeds.html listing all catalog feeds, grouped by
+      duplicates, after discovered feeds are upserted.
+    task:
+      type: model_method
+      modelType: '@svendowideit/feed-catalog'
+      modelName: feed-catalog
+      methodName: generateFeedsHtml
+      inputs:
+        outputPath: feeds.html
+    dependsOn:
+    - step: upsert-feed
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: failed
+        - type: skipped
+    - step: upsert-page
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: failed
+        - type: skipped
     weight: 0
     allowFailure: true
   dependsOn: []

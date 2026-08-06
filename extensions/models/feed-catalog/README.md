@@ -63,3 +63,23 @@ marked `duplicate: true` / `duplicateOf: <canonical>` so the news workflow's
 The result is stored as the `dedupe-result` data resource: group counts, number
 of groups with duplicates, how many feeds were marked, and any per-feed fetch
 errors.
+
+## HTML page
+
+The `generateFeedsHtml` method renders a static HTML page listing all feeds in
+the catalog, grouping each feed together with the duplicates that point back to
+it:
+
+```sh
+# Write to feeds.html in the current directory (default)
+swamp model method run @svendowideit/feed-catalog generateFeedsHtml my-feeds
+
+# Custom output path and title
+swamp model method run @svendowideit/feed-catalog generateFeedsHtml my-feeds \
+  --arg outputPath=docs/feeds.html --arg title="My Feed Index"
+```
+
+Each canonical feed is shown with its duplicates indented underneath, flagged
+with a `duplicate of …` badge. The page is written both to `outputPath` and as a
+`report` file artifact (`feeds-page`), retrievable with
+`swamp data get my-feeds feeds-page --version 1`.

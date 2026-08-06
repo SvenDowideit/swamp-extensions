@@ -22,8 +22,9 @@
  *   GET  /api/pages?limit=N  — list queued pages (oldest first)
  *   DELETE /api/pages?id=ULID  — delete one page
  *   DELETE /api/pages?ids=ULID1,ULID2  — batch delete
- *   GET  /  — serve the HTML page (if --html provided)
- */
+  *   GET  /  — serve the HTML page (if --html provided)
+  *   GET  /feeds.html  — serve the feeds listing (if --feeds provided)
+  */
 
 function generateId(): string {
   const ts = Date.now().toString(36).padStart(8, "0");
@@ -33,17 +34,20 @@ function generateId(): string {
 
 const PORT = parseInt(Deno.env.get("FEEDBACK_PORT") ?? "8765");
 const HTML_PATH = Deno.env.get("FEEDBACK_HTML_PATH") ?? "";
+const FEEDS_PATH = Deno.env.get("FEEDBACK_FEEDS_PATH") ?? "";
 const QUEUE_DIR = Deno.env.get("FEEDBACK_QUEUE_DIR") ?? "";
 const PAGES_DIR = Deno.env.get("FEEDBACK_PAGES_DIR") ?? "";
 
 function parseArgs(): {
   port: number;
   htmlPath: string;
+  feedsPath: string;
   queueDir: string;
   pagesDir: string;
 } {
   let port = PORT;
   let htmlPath = HTML_PATH;
+  let feedsPath = FEEDS_PATH;
   let queueDir = QUEUE_DIR;
   let pagesDir = PAGES_DIR;
   const args = Deno.args;
@@ -52,6 +56,8 @@ function parseArgs(): {
       port = parseInt(args[++i], 10);
     } else if (args[i] === "--html" && i + 1 < args.length) {
       htmlPath = args[++i];
+    } else if (args[i] === "--feeds" && i + 1 < args.length) {
+      feedsPath = args[++i];
     } else if (args[i] === "--queue-dir" && i + 1 < args.length) {
       queueDir = args[++i];
     } else if (args[i] === "--pages-dir" && i + 1 < args.length) {
@@ -64,7 +70,7 @@ function parseArgs(): {
   if (!pagesDir) {
     pagesDir = `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/pages-queue`;
   }
-  return { port, htmlPath, queueDir, pagesDir };
+  return { port, htmlPath, feedsPath, queueDir, pagesDir };
 }
 
 interface FeedbackEntry {
@@ -171,6 +177,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 async function handleRequest(
   req: Request,
   htmlPath: string,
+  feedsPath: string,
   queueDir: string,
   pagesDir: string,
 ): Promise<Response> {
@@ -178,6 +185,29 @@ async function handleRequest(
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders() });
+  }
+
+  if (req.method === "GET" && url.pathname === "/feeds.html") {
+    if (!feedsPath) {
+      return new Response("No feeds page configured. Use --feeds flag.", {
+        status: 404,
+        headers: corsHeaders(),
+      });
+    }
+    try {
+      const html = await Deno.readTextFile(feedsPath);
+      return new Response(html, {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          ...corsHeaders(),
+        },
+      });
+    } catch {
+      return new Response("Feeds file not found", {
+        status: 404,
+        headers: corsHeaders(),
+      });
+    }
   }
 
   if (req.method === "GET" && (url.pathname === "/" || url.pathname === "")) {
@@ -356,16 +386,21 @@ async function handleRequest(
   return new Response("Not found", { status: 404, headers: corsHeaders() });
 }
 
-const { port, htmlPath, queueDir, pagesDir } = parseArgs();
+const { port, htmlPath, feedsPath, queueDir, pagesDir } = parseArgs();
 
 await ensureQueueDir(queueDir);
 await ensureQueueDir(pagesDir);
 
-Deno.serve({ port }, (req) => handleRequest(req, htmlPath, queueDir, pagesDir));
+Deno.serve({ port }, (req) =>
+  handleRequest(req, htmlPath, feedsPath, queueDir, pagesDir)
+);
 
 console.error(`Feedback server listening on http://localhost:${port}`);
 console.error(`Queue directory: ${queueDir}`);
 console.error(`Pages directory: ${pagesDir}`);
 if (htmlPath) {
-  console.error(`Serving HTML from: ${htmlPath}`);
+  console.error(`Serving HTML from: ${htmlPath} (at /)`);
+}
+if (feedsPath) {
+  console.error(`Serving feeds HTML from: ${feedsPath} (at /feeds.html)`);
 }

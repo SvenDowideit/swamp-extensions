@@ -72,6 +72,15 @@ const DedupeResultSchema = z.object({
 
 type ListCategoriesArgs = z.infer<typeof ListCategoriesArgsSchema>;
 
+const GenerateFeedsHtmlArgsSchema = z.object({
+  outputPath: z.string().default("feeds.html").describe(
+    "Local file path to write the generated HTML page (default: feeds.html)",
+  ),
+  title: z.string().default("Feed Catalog").describe("Page title"),
+}).describe("Arguments for generating the feeds HTML page");
+
+type GenerateFeedsHtmlArgs = z.infer<typeof GenerateFeedsHtmlArgsSchema>;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -218,6 +227,119 @@ function feedIdentity(xml: string): { identity: string | null; score: number } {
   return { identity, score };
 }
 
+/** Escape HTML special characters for safe interpolation. */
+function escapeHtml(s: string): string {
+  const map: Record<string, string> = {
+    "&": "\u0026amp;",
+    "<": "\u003c;",
+    ">": "\u003e;",
+    '"': "\u0026quot;",
+    "'": "\u0026#39;",
+  };
+  return s.replace(/[&<>"']/g, (c) => map[c]);
+}
+
+/**
+ * Build a static HTML page listing all feeds, grouping each feed together with
+ * the duplicates that point back to it (canonical first, duplicates indented
+ * underneath).
+ */
+export function generateFeedsHtml(
+  feeds: Feed[],
+  title: string,
+  generatedAt: string,
+): string {
+  const canonical = feeds.filter((f) => !f.duplicate);
+  const dupMap = new Map<string, Feed[]>();
+  for (const f of feeds) {
+    if (f.duplicate && f.duplicateOf) {
+      const list = dupMap.get(f.duplicateOf) ?? [];
+      list.push(f);
+      dupMap.set(f.duplicateOf, list);
+    }
+  }
+  // Feeds marked as duplicates whose canonical isn't present (e.g., removed).
+  const orphanDups = feeds.filter(
+    (f) => f.duplicate && f.duplicateOf &&
+      !canonical.some((c) => c.url === f.duplicateOf),
+  );
+
+  const categories = Array.from(new Set(canonical.map((f) => f.category)))
+    .sort();
+
+  const card = (f: Feed, badge: string): string => {
+    const name = escapeHtml(f.name);
+    const url = escapeHtml(f.url);
+    const added = escapeHtml(f.addedAt);
+    return [
+      `<div class="feed">`,
+      `<h3>${name}<span class="badge">${badge}</span></h3>`,
+      `<div class="url"><a href="${url}">${url}</a></div>`,
+      `<div class="added">added ${added}</div>`,
+      `</div>`,
+    ].join("\n");
+  };
+
+  const sections: string[] = [];
+  sections.push(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(title)}</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 960px; margin: 0 auto; padding: 24px; background: #fafafa; color: #222; }
+h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+.meta { color: #666; font-size: 0.9em; margin: 12px 0 24px; }
+h2 { margin-top: 30px; color: #333; }
+.feed { border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 16px; margin: 8px 0; background: white; }
+.feed h3 { margin: 0 0 6px 0; font-size: 1.05em; }
+.feed .url { color: #555; font-size: 0.85em; word-break: break-all; }
+.feed .added { color: #888; font-size: 0.8em; margin-top: 6px; }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 0.75em; background: #eee; color: #444; margin-left: 8px; font-weight: normal; }
+.badge.dup { background: #ffc107; color: #222; }
+.feed.dup { border-left: 3px solid #ffc107; margin-left: 26px; }
+</style>
+</head>
+<body>
+<h1>${escapeHtml(title)}</h1>
+<div class="meta">${feeds.length} feeds · ${canonical.length} canonical · ${dupMap.size} duplicate groups · generated ${escapeHtml(generatedAt)}</div>`);
+
+  for (const category of categories) {
+    sections.push(`<h2>${escapeHtml(category)}</h2>`);
+    for (const f of canonical.filter((c) => c.category === category)) {
+      sections.push(card(f, "canonical"));
+      const dups = (dupMap.get(f.url) ?? []).filter((d) =>
+        d.category === category,
+      );
+      for (const d of dups) {
+        sections.push(
+          card(d, `duplicate of ${escapeHtml(f.name)}`).replace(
+            `<div class="feed">`,
+            `<div class="feed dup">`,
+          ),
+        );
+      }
+    }
+  }
+
+  if (orphanDups.length > 0) {
+    sections.push(`<h2>Orphan duplicates</h2>`);
+    for (const d of orphanDups) {
+      sections.push(
+        card(d, "duplicate (canonical missing)").replace(
+          `<div class="feed">`,
+          `<div class="feed dup">`,
+        ),
+      );
+    }
+  }
+
+  sections.push(`</body>
+</html>`);
+  return sections.join("\n");
+}
+
 // ---------------------------------------------------------------------------
 // Shared context type for all methods
 // ---------------------------------------------------------------------------
@@ -234,6 +356,11 @@ type MethodContext = {
     instanceName: string,
     version?: number,
   ) => Promise<Record<string, unknown> | null>;
+  createFileWriter: (
+    specName: string,
+    instanceName: string,
+    overrides?: Record<string, unknown>,
+  ) => Promise<{ writeText: (text: string) => Promise<{ name: string }> }>;
 };
 
 // ---------------------------------------------------------------------------
@@ -267,7 +394,7 @@ const CategoriesListSchema = z.object({
 
 export const model = {
   type: "@svendowideit/feed-catalog",
-  version: "2026.07.19.1784424437",
+  version: "2026.08.06.1784424437",
   globalArguments: GlobalArgsSchema,
   resources: {
     catalog: {
@@ -285,6 +412,14 @@ export const model = {
     dedupe: {
       description: "Result of the dedupe method",
       schema: DedupeResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+  },
+  files: {
+    report: {
+      description: "Generated static HTML pages (e.g. the feeds listing)",
+      contentType: "text/html",
       lifetime: "infinite",
       garbageCollection: 5,
     },
@@ -446,6 +581,42 @@ export const model = {
           },
         );
         return { dataHandles: [handle, resultHandle] };
+      },
+    },
+    generateFeedsHtml: {
+      description:
+        "Generate a static HTML page listing all feeds in the catalog, grouping each feed with its duplicates.",
+      arguments: GenerateFeedsHtmlArgsSchema,
+      execute: async (
+        args: GenerateFeedsHtmlArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const logger = context.logger;
+        const catalogData = await context.readResource("current") as
+          | FeedCatalog
+          | null;
+        if (!catalogData) {
+          throw new Error(
+            "No feed catalog found. Add feeds first with the 'add' method.",
+          );
+        }
+        const generatedAt = new Date().toISOString();
+        const html = generateFeedsHtml(
+          catalogData.feeds,
+          args.title,
+          generatedAt,
+        );
+
+        const writer = await context.createFileWriter("report", "feeds-page");
+        const handle = await writer.writeText(html);
+        await Deno.writeTextFile(args.outputPath, html);
+
+        logger?.info(
+          "Wrote feeds HTML to {path} ({bytes} bytes) and file artifact",
+          { path: args.outputPath, bytes: html.length },
+        );
+
+        return { dataHandles: [handle] };
       },
     },
     remove: {

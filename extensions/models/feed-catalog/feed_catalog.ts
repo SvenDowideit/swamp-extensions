@@ -270,7 +270,9 @@ function feedIdentity(xml: string): { identity: string | null; score: number } {
     hasTag(channel, /<description[\s>][\s\S]*?<\/description>/i) ||
     hasTag(channel, /<subtitle[\s>][\s\S]*?<\/subtitle>/i)
   ) score += 1;
-  if (hasTag(channel, /<(author|managingEditor|webMaster)[\s>][\s\S]*?<\/\1>/i)) {
+  if (
+    hasTag(channel, /<(author|managingEditor|webMaster)[\s>][\s\S]*?<\/\1>/i)
+  ) {
     score += 1;
   }
   if (hasTag(channel, /<(lastBuildDate|pubDate|updated)[\s>][\s\S]*?<\/\1>/i)) {
@@ -315,7 +317,8 @@ export function generateFeedsHtml(
   }
   // Feeds marked as duplicates whose canonical isn't present (e.g., removed).
   const orphanDups = feeds.filter(
-    (f) => f.duplicate && f.duplicateOf &&
+    (f) =>
+      f.duplicate && f.duplicateOf &&
       !canonical.some((c) => c.url === f.duplicateOf),
   );
 
@@ -369,17 +372,21 @@ h2 { margin-top: 30px; color: #333; }
 </head>
 <body>
 <h1>${escapeHtml(title)}</h1>
-<div class="meta">${feeds.length} feeds · ${canonical.length} canonical · ${dupMap.size} duplicate groups · ${invalidFeeds.length} invalid · generated ${escapeHtml(generatedAt)}</div>
-${invalidFeeds.length > 0
-    ? `<div class="toggle"><button id="toggle-invalid" type="button">Show invalid feeds (${invalidFeeds.length})</button></div>`
-    : ""}`);
+<div class="meta">${feeds.length} feeds · ${canonical.length} canonical · ${dupMap.size} duplicate groups · ${invalidFeeds.length} invalid · generated ${
+    escapeHtml(generatedAt)
+  }</div>
+${
+    invalidFeeds.length > 0
+      ? `<div class="toggle"><button id="toggle-invalid" type="button">Show invalid feeds (${invalidFeeds.length})</button></div>`
+      : ""
+  }`);
 
   for (const category of categories) {
     sections.push(`<h2>${escapeHtml(category)}</h2>`);
     for (const f of canonical.filter((c) => c.category === category)) {
       sections.push(card(f, "canonical"));
       const dups = (dupMap.get(f.url) ?? []).filter((d) =>
-        d.category === category,
+        d.category === category
       );
       for (const d of dups) {
         sections.push(

@@ -223,6 +223,22 @@ jobs:
         type: succeeded
     weight: 0
     allowFailure: false
+  - name: generate-feeds-html
+    description: Render a static feeds.html listing all catalog feeds, grouped by
+      duplicates, from the same feeds data used to generate news.html.
+    task:
+      type: model_method
+      modelType: '@svendowideit/feed-catalog'
+      modelName: feed-catalog
+      methodName: generateFeedsHtml
+      inputs:
+        outputPath: feeds.html
+    dependsOn:
+    - step: filter
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: true
   - name: discover
     description: Discover new RSS feeds from article URLs.
     task:
@@ -314,33 +330,6 @@ jobs:
     - step: analyze-pages
       condition:
         type: succeeded
-    weight: 0
-    allowFailure: true
-  - name: generate-feeds-html
-    description: Render a static feeds.html listing all catalog feeds, grouped by
-      duplicates, after discovered feeds are upserted.
-    task:
-      type: model_method
-      modelType: '@svendowideit/feed-catalog'
-      modelName: feed-catalog
-      methodName: generateFeedsHtml
-      inputs:
-        outputPath: feeds.html
-    dependsOn:
-    - step: upsert-feed
-      condition:
-        type: or
-        conditions:
-        - type: succeeded
-        - type: failed
-        - type: skipped
-    - step: upsert-page
-      condition:
-        type: or
-        conditions:
-        - type: succeeded
-        - type: failed
-        - type: skipped
     weight: 0
     allowFailure: true
   dependsOn: []

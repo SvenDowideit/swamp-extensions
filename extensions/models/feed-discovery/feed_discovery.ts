@@ -441,20 +441,44 @@ export const model = {
               typeof (a as { url?: unknown }).url === "string",
           ).map((a: { url: string }) => a.url)
           : [];
-        const nonFeedUrls: string[] = Array.isArray(snapshot?.nonFeedUrls)
-          ? snapshot!.nonFeedUrls.filter(
-            (n: unknown) =>
-              typeof n === "object" && n !== null &&
-              typeof (n as { url?: unknown }).url === "string",
-          ).map((n: { url: string }) => n.url)
-          : [];
-        if (articleUrls.length === 0 && nonFeedUrls.length === 0) {
+const nonFeedUrls: string[] = Array.isArray(snapshot?.nonFeedUrls)
+  ? snapshot!.nonFeedUrls.filter(
+    (n: unknown) =>
+      typeof n === "object" && n !== null &&
+      typeof (n as { url?: unknown }).url === "string",
+  ).map((n: { url: string }) => n.url)
+  : [];
+
+        // 1b. Also collect catalog entries flagged as non-feeds by the
+        //     feed-catalog's dedupe step — it performs the same HTML-page
+        //     detection as the news fetch step, so the two paths back each
+        //     other up even when only one workflow ran.
+        let dedupeNonFeedUrls: string[] = [];
+        try {
+          const dedupeResult = await readCrossModelData(
+            context,
+            "@svendowideit/feed-catalog",
+            context.globalArgs.feedCatalogModelId,
+            "dedupe-result",
+          );
+          dedupeNonFeedUrls = Array.isArray(dedupeResult?.nonFeedUrls)
+            ? dedupeResult!.nonFeedUrls.filter(
+              (n: unknown) =>
+                typeof n === "object" && n !== null &&
+                typeof (n as { url?: unknown }).url === "string",
+            ).map((n: { url: string }) => n.url)
+            : [];
+        } catch {
+          dedupeNonFeedUrls = [];
+        }
+        const allNonFeedUrls = [...nonFeedUrls, ...dedupeNonFeedUrls];
+        if (articleUrls.length === 0 && allNonFeedUrls.length === 0) {
           throw new Error(
-            "No articles or non-feed URLs in news-reader snapshot. Run the news workflow's fetch step first.",
+            "No articles or non-feed URLs in news-reader snapshot or feed-catalog dedupe result. Run the news workflow's fetch step first.",
           );
         }
 
-        // 2. Domain frequency map (weight for prioritisation).
+// 2. Domain frequency map (weight for prioritisation).
         const domainCount = new Map<string, number>();
         for (const url of articleUrls) {
           const d = extractDomain(url);
@@ -463,9 +487,10 @@ export const model = {
 
         // 2b. Domains that must be crawled: catalog entries that turned out to
         //     be HTML pages. These are force-included so we re-discover the real
-        //     feed for the domain.
+        //     feed for the domain. Sources: the news-reader snapshot AND the
+        //     feed-catalog dedupe result (backup detection path).
         const forcedDomains = new Map<string, number>();
-        for (const url of nonFeedUrls) {
+        for (const url of allNonFeedUrls) {
           const d = extractDomain(url);
           if (d) forcedDomains.set(d, (forcedDomains.get(d) ?? 0) + 1);
         }

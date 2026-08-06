@@ -67,6 +67,9 @@ const DedupeResultSchema = z.object({
   errors: z.array(
     z.object({ url: z.string(), message: z.string() }),
   ).optional(),
+  nonFeedUrls: z.array(
+    z.object({ url: z.string(), contentType: z.string() }),
+  ).optional(),
   ranAt: z.iso.datetime(),
 });
 
@@ -163,6 +166,52 @@ function extractChannel(xml: string): string {
 /** True if a string contains a given tag form. */
 function hasTag(text: string, re: RegExp): boolean {
   return re.test(text);
+}
+
+/**
+ * True if a fetched body is a feed (RSS/Atom/JSON feed) rather than a plain
+ * HTML page. Mirrors news-reader's `isFeedBody` so the dedupe step can flag
+ * catalog entries that resolved to HTML pages — the same detection the
+ * news workflow's fetch step performs — so the two paths back each other up.
+ */
+function isFeedBody(contentType: string, body: string): boolean {
+  const ct = contentType.toLowerCase();
+  // 1. Content-type header: definite feed types win immediately.
+  if (
+    ct.includes("rss+xml") ||
+    ct.includes("atom+xml") ||
+    ct.includes("feed+json") ||
+    ct.includes("text/xml") ||
+    ct.includes("application/xml") ||
+    ct.includes("application/json")
+  ) {
+    return true;
+  }
+  // 2. Content-type header: definite HTML pages are not feeds.
+  if (ct.includes("html") || ct.includes("xhtml")) return false;
+
+  // 3. Body content detection — many servers send no/odd content-type, so
+  //    inspect the body markers directly.
+  const trimmed = body.trimStart().slice(0, 300).toLowerCase();
+  // Feed bodies: XML/RSS/Atom/JSON-feed markers.
+  if (trimmed.startsWith("<?xml") || trimmed.startsWith("{")) {
+    return trimmed.includes("<rss") ||
+      trimmed.includes("<feed") ||
+      trimmed.includes("<rdf:rdf") ||
+      (trimmed.includes('"version"') && trimmed.includes('"items"'));
+  }
+  // HTML bodies: well-known structural tags mark a page, not a feed.
+  if (
+    trimmed.startsWith("<!doctype") ||
+    trimmed.includes("<html") ||
+    trimmed.includes("<head") ||
+    trimmed.includes("<body") ||
+    trimmed.includes("<title")
+  ) {
+    return false;
+  }
+  // Unknown → treat as not-a-feed so it gets flagged for re-discovery.
+  return false;
 }
 
 /**
@@ -502,16 +551,19 @@ export const model = {
         // Fetch each feed once, compute its identity + expressiveness score.
         const groups = new Map<string, Array<Feed & { score: number }>>();
         const errors: { url: string; message: string }[] = [];
+        const nonFeedUrls: { url: string; contentType: string }[] = [];
         const total = catalogData.feeds.length;
         let processed = 0;
         let lastProgressLog = 0;
         for (const feed of catalogData.feeds) {
           let xml: string;
+          let contentType = "";
           try {
             const resp = await fetch(feed.url, {
               headers: { "User-Agent": "swamp-feed-catalog/1.0" },
               signal: AbortSignal.timeout(15000),
             });
+            contentType = resp.headers.get("content-type") ?? "";
             if (!resp.ok) {
               errors.push({ url: feed.url, message: `HTTP ${resp.status}` });
               processed++;
@@ -522,6 +574,18 @@ export const model = {
             const msg = err instanceof Error ? err.message : String(err);
             errors.push({ url: feed.url, message: msg });
             processed++;
+            continue;
+          }
+          // Flag catalog entries that resolved to HTML pages instead of feeds —
+          // same detection as the news workflow's fetch step, so feed-discovery
+          // can re-crawl the domain even when only this workflow ran.
+          if (!isFeedBody(contentType, xml)) {
+            nonFeedUrls.push({ url: feed.url, contentType });
+            processed++;
+            logger?.info(
+              "Feed {url} is not a feed (HTML page or unknown content type); flagged for re-discovery",
+              { url: feed.url, contentType },
+            );
             continue;
           }
           const { identity, score } = feedIdentity(xml);
@@ -600,16 +664,18 @@ export const model = {
             groupsWithDuplicates,
             markedDuplicates,
             errors,
+            nonFeedUrls,
             ranAt: new Date().toISOString(),
           },
         );
         logger?.info(
-          "Dedupe: {groups} groups, {dupGroups} with duplicates, {marked} marked, {errors} errors",
+          "Dedupe: {groups} groups, {dupGroups} with duplicates, {marked} marked, {errors} errors, {nonFeeds} non-feed",
           {
             groups: groups.size,
             dupGroups: groupsWithDuplicates,
             marked: markedDuplicates,
             errors: errors.length,
+            nonFeeds: nonFeedUrls.length,
           },
         );
         return { dataHandles: [handle, resultHandle] };

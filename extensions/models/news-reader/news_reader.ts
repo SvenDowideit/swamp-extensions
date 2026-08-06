@@ -542,6 +542,7 @@ export function parseFeed(xml: string, feedUrl: string): Article[] {
 /** Detect whether a fetched body looks like an RSS/Atom/JSON feed. */
 function isFeedBody(contentType: string, body: string): boolean {
   const ct = contentType.toLowerCase();
+  // 1. Content-type header: definite feed types win immediately.
   if (
     ct.includes("rss+xml") ||
     ct.includes("atom+xml") ||
@@ -552,12 +553,31 @@ function isFeedBody(contentType: string, body: string): boolean {
   ) {
     return true;
   }
+  // 2. Content-type header: definite HTML pages are not feeds.
+  if (ct.includes("html") || ct.includes("xhtml")) return false;
+
+  // 3. Body content detection — many servers send no/odd content-type, so
+  //    inspect the body markers directly.
   const trimmed = body.trimStart().slice(0, 300).toLowerCase();
-  if (!trimmed.startsWith("<?xml") && !trimmed.startsWith("{")) return false;
-  return trimmed.includes("<rss") ||
-    trimmed.includes("<feed") ||
-    trimmed.includes("<rdf:rdf") ||
-    (trimmed.includes('"version"') && trimmed.includes('"items"'));
+  // Feed bodies: XML/RSS/Atom/JSON-feed markers.
+  if (trimmed.startsWith("<?xml") || trimmed.startsWith("{")) {
+    return trimmed.includes("<rss") ||
+      trimmed.includes("<feed") ||
+      trimmed.includes("<rdf:rdf") ||
+      (trimmed.includes('"version"') && trimmed.includes('"items"'));
+  }
+  // HTML bodies: well-known structural tags mark a page, not a feed.
+  if (
+    trimmed.startsWith("<!doctype") ||
+    trimmed.includes("<html") ||
+    trimmed.includes("<head") ||
+    trimmed.includes("<body") ||
+    trimmed.includes("<title")
+  ) {
+    return false;
+  }
+  // Unknown → treat as not-a-feed so it gets flagged for re-discovery.
+  return false;
 }
 
 /** Fetch a single feed URL and parse articles. */

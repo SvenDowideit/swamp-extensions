@@ -13,7 +13,10 @@ and generates a static HTML news summary page ranked by predicted interest.
    step only pulls each distinct feed once.
 3. **Fetch** — downloads RSS/Atom feeds (skipping any marked duplicate), parses
    articles (title, URL, summary, keywords), and stores them as a versioned data
-   resource.
+   resource. If a catalog URL turns out to be an **HTML page instead of a feed**
+   (e.g. a page URL pasted into the catalog rather than a real RSS/Atom URL),
+   the fetch step detects it and records it in the snapshot's `nonFeedUrls` list
+   instead of silently producing "0 articles".
 4. **Filter by age** — filters fetched articles to show only those within the
    specified time range (default: last 3 days). Supports h/d/w/m suffixes
    (e.g., "2h", "7d", "4w", "1m").
@@ -148,7 +151,7 @@ swamp model method run news-reader feedback --input articleId=def456 --input act
 | ---------------- | -------------------------------------------------------- | ---------------------------------------------------- |
 | `gatherFeedback` | Poll feedback queue server, import entries, delete them  | `serverUrl`, `batchSize`, `maxBatches`               |
 | `gatherPages`    | Poll pages queue server, collect pages into `pagesQueue` resource, delete them | `serverUrl`, `batchSize`, `maxBatches`, `category` |
-| `fetch`          | Fetch RSS/Atom feeds (skipping duplicates) and store articles | `feeds` (URL[]), `maxArticlesPerFeed`            |
+| `fetch`          | Fetch RSS/Atom feeds (skipping duplicates), detect non-feed HTML pages, store articles + `nonFeedUrls` | `feeds` (URL[]), `maxArticlesPerFeed`            |
 | `filterByAge`    | Filter articles by age for HTML generation               | `newsAge` (default: "3d", supports h/d/w/m suffixes) |
 | `generate`       | Generate HTML report from filtered articles              | `topN`, `title`                                      |
 | `feedback`       | Record user interest/ignore for an article               | `articleId`, `action`, `source`, `title`, `keywords` |
@@ -168,8 +171,11 @@ The `generate` method writes a static HTML file as a swamp data artifact
 The `fetch` method stores articles as a structured JSON resource (`snapshot`
 spec) with all parsed metadata. Feed objects in the catalog marked
 `duplicate: true` (by the `dedupe` step) are skipped, so each distinct feed is
-fetched only once. The `filterByAge` method creates a filtered
-snapshot that includes the age filter information.
+fetched only once. The snapshot also carries `nonFeedUrls` — catalog URLs that
+resolved to HTML pages (or unknown content types) instead of feeds — so the
+feed-discovery step can re-crawl their domains and find the real feed. The
+`filterByAge` method creates a filtered snapshot that includes the age filter
+information.
 
 ## Scheduled execution
 

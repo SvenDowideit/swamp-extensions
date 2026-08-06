@@ -17,6 +17,12 @@ feed-catalog.
    category (or a custom category via `--input category=...`)
 7. Writes a discovery result with stats and all discovered feeds
 
+It also reads the snapshot's `nonFeedUrls` — catalog entries that turned out to
+be HTML pages instead of feeds (flagged by the news-reader's `fetch` step). The
+domains of those entries are **force-crawled** even if the crawl ledger says
+they were recently visited, so a bad catalog entry automatically triggers
+re-discovery of the real feed for that domain.
+
 This creates a **feedback loop**: news-reader fetches articles → feed-discovery
 finds new feeds from those articles' domains → feed-catalog grows → news-reader
 fetches from more sources next time.
@@ -68,7 +74,9 @@ creating the model instance. The news workflow auto-creates these definitions.
 The discovery model needs to read data from two other models:
 
 1. **news-reader** — must have a `feed-snapshot` resource (run the news
-   workflow's `fetch` step first to populate it with article URLs)
+   workflow's `fetch` step first to populate it with article URLs). The snapshot
+   must also carry `nonFeedUrls` — catalog URLs the fetch step flagged as HTML
+   pages instead of feeds — so their domains get force-crawled.
 2. **feed-catalog** — must exist (feeds discovered are upserted into it)
 
 ## Feedback loop

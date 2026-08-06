@@ -426,7 +426,8 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
 
-        // 1. Read the news-reader snapshot to collect article URLs.
+        // 1. Read the news-reader snapshot to collect article URLs and any
+        //    catalog entries that resolved to HTML pages instead of feeds.
         const snapshot = await readCrossModelData(
           context,
           "@svendowideit/news-reader",
@@ -440,9 +441,16 @@ export const model = {
               typeof (a as { url?: unknown }).url === "string",
           ).map((a: { url: string }) => a.url)
           : [];
-        if (articleUrls.length === 0) {
+        const nonFeedUrls: string[] = Array.isArray(snapshot?.nonFeedUrls)
+          ? snapshot!.nonFeedUrls.filter(
+            (n: unknown) =>
+              typeof n === "object" && n !== null &&
+              typeof (n as { url?: unknown }).url === "string",
+          ).map((n: { url: string }) => n.url)
+          : [];
+        if (articleUrls.length === 0 && nonFeedUrls.length === 0) {
           throw new Error(
-            "No articles in news-reader snapshot. Run the news workflow's fetch step first.",
+            "No articles or non-feed URLs in news-reader snapshot. Run the news workflow's fetch step first.",
           );
         }
 
@@ -451,6 +459,15 @@ export const model = {
         for (const url of articleUrls) {
           const d = extractDomain(url);
           if (d) domainCount.set(d, (domainCount.get(d) ?? 0) + 1);
+        }
+
+        // 2b. Domains that must be crawled: catalog entries that turned out to
+        //     be HTML pages. These are force-included so we re-discover the real
+        //     feed for the domain.
+        const forcedDomains = new Map<string, number>();
+        for (const url of nonFeedUrls) {
+          const d = extractDomain(url);
+          if (d) forcedDomains.set(d, (forcedDomains.get(d) ?? 0) + 1);
         }
 
         // 3. Read the crawl ledger.
@@ -469,7 +486,15 @@ export const model = {
         const reCrawlAfterMs = args.reCrawlAfterDays * 24 * 60 * 60 * 1000;
         const nowMs = Date.now();
 
+        // Forced (non-feed) domains always get crawled, regardless of the
+        // ledger, so a bad catalog entry triggers re-discovery.
+        for (const [domain, count] of forcedDomains) {
+          crawlCandidates.push({ domain, count });
+        }
+
         for (const [domain, count] of domainCount) {
+          // Skip domains already covered by a forced non-feed entry.
+          if (forcedDomains.has(domain)) continue;
           const entry = ledgerByDomain.get(domain);
           if (entry?.outcome === "found") {
             existingDomains += 1;
@@ -492,10 +517,19 @@ export const model = {
           (a.domain.localeCompare(b.domain))
         );
 
-        // 6. Crawl the top-N candidates.
-        const domainsToCrawl = crawlCandidates
-          .slice(0, args.maxSitesToCrawl)
-          .map((c) => c.domain);
+        // 6. Crawl the top-N candidates. Forced (non-feed) domains are always
+        //    included even when the ledger says they were recently crawled.
+        const forcedDomainNames = [...forcedDomains.keys()];
+        const domainsToCrawl = [
+          ...forcedDomainNames,
+          ...crawlCandidates
+            .filter((c) => !forcedDomains.has(c.domain))
+            .slice(
+              0,
+              Math.max(0, args.maxSitesToCrawl - forcedDomainNames.length),
+            )
+            .map((c) => c.domain),
+        ];
         const discoveredFeeds: DiscoveredFeed[] = [];
         const crawlOutcomes: CrawlLedgerEntry[] = [];
         const errors: { url: string; message: string }[] = [];
@@ -564,11 +598,12 @@ export const model = {
         }
 
         logger?.info(
-          "Discovery: {articles} articles analysed, {found} new feeds found, {crawled} crawled, {existing} existing, {skipped} skipped",
+          "Discovery: {articles} articles analysed, {found} new feeds found, {crawled} crawled, {forced} forced, {existing} existing, {skipped} skipped",
           {
             articles: articleUrls.length,
             found: discoveredFeeds.length,
             crawled: domainsToCrawl.length,
+            forced: forcedDomainNames.length,
             existing: existingDomains,
             skipped: skippedRecent,
           },

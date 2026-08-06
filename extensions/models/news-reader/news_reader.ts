@@ -255,6 +255,9 @@ const FeedSnapshotSchema = z.object({
   fetchedAt: z.iso.datetime(),
   articles: z.array(ArticleSchema),
   errors: z.array(z.object({ url: z.string(), message: z.string() })),
+  nonFeedUrls: z.array(
+    z.object({ url: z.string().url(), contentType: z.string() }),
+  ),
 });
 
 const FeedbackEntrySchema = z.object({
@@ -536,28 +539,67 @@ export function parseFeed(xml: string, feedUrl: string): Article[] {
   return articles;
 }
 
+/** Detect whether a fetched body looks like an RSS/Atom/JSON feed. */
+function isFeedBody(contentType: string, body: string): boolean {
+  const ct = contentType.toLowerCase();
+  if (
+    ct.includes("rss+xml") ||
+    ct.includes("atom+xml") ||
+    ct.includes("feed+json") ||
+    ct.includes("text/xml") ||
+    ct.includes("application/xml") ||
+    ct.includes("application/json")
+  ) {
+    return true;
+  }
+  const trimmed = body.trimStart().slice(0, 300).toLowerCase();
+  if (!trimmed.startsWith("<?xml") && !trimmed.startsWith("{")) return false;
+  return trimmed.includes("<rss") ||
+    trimmed.includes("<feed") ||
+    trimmed.includes("<rdf:rdf") ||
+    (trimmed.includes('"version"') && trimmed.includes('"items"'));
+}
+
 /** Fetch a single feed URL and parse articles. */
 async function fetchFeed(
   url: string,
   maxArticles: number,
-): Promise<{ articles: Article[]; error?: string }> {
+): Promise<{
+  articles: Article[];
+  error?: string;
+  isFeed: boolean;
+  contentType: string;
+}> {
   try {
     const resp = await fetch(url, {
-      headers: { "User-Agent": "swamp-news-reader/1.0" },
+      headers: {
+        "User-Agent": "swamp-news-reader/1.0",
+        "Accept":
+          "application/rss+xml,application/atom+xml,application/feed+json,application/xml,text/xml,*/*",
+      },
       signal: AbortSignal.timeout(15000),
     });
     if (!resp.ok) {
-      return { articles: [], error: `HTTP ${resp.status}` };
+      return {
+        articles: [],
+        error: `HTTP ${resp.status}`,
+        isFeed: false,
+        contentType: "",
+      };
     }
-    const xml = await resp.text();
-    const articles = parseFeed(xml, url).slice(0, maxArticles);
+    const contentType = resp.headers.get("content-type") ?? "";
+    const body = await resp.text();
+    const isFeed = isFeedBody(contentType, body);
+    const articles = isFeed
+      ? parseFeed(body, url).slice(0, maxArticles)
+      : [];
     for (const a of articles) {
       a.id = await hashId(a.url);
     }
-    return { articles };
+    return { articles, isFeed, contentType };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { articles: [], error: msg };
+    return { articles: [], error: msg, isFeed: false, contentType: "" };
   }
 }
 
@@ -1075,6 +1117,7 @@ export const model = {
 
         const allArticles: Article[] = [];
         const errors: { url: string; message: string }[] = [];
+        const nonFeedUrls: { url: string; contentType: string }[] = [];
 
         for (const feedUrl of feedUrls) {
           logger?.info("Fetching {url}", { url: feedUrl });
@@ -1085,6 +1128,12 @@ export const model = {
               url: feedUrl,
               error: result.error,
             });
+          } else if (!result.isFeed) {
+            nonFeedUrls.push({ url: feedUrl, contentType: result.contentType });
+            logger?.info("Not a feed (HTML page or unknown): {url}", {
+              url: feedUrl,
+              contentType: result.contentType,
+            });
           } else {
             allArticles.push(...result.articles);
             logger?.info("Got {n} articles from {url}", {
@@ -1094,10 +1143,14 @@ export const model = {
           }
         }
 
-        logger?.info("Fetched {total} articles total, {errors} errors", {
-          total: allArticles.length,
-          errors: errors.length,
-        });
+        logger?.info(
+          "Fetched {total} articles total, {errors} errors, {nonFeeds} non-feed URLs",
+          {
+            total: allArticles.length,
+            errors: errors.length,
+            nonFeeds: nonFeedUrls.length,
+          },
+        );
 
         const handle = await context.writeResource(
           "snapshot",
@@ -1106,6 +1159,7 @@ export const model = {
             fetchedAt: new Date().toISOString(),
             articles: allArticles,
             errors,
+            nonFeedUrls,
           },
         );
 

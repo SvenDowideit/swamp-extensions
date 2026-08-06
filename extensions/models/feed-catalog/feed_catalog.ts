@@ -53,6 +53,23 @@ const ListCategoriesArgsSchema = z.object({}).describe(
   "Arguments for listing feed categories",
 );
 
+const DedupeArgsSchema = z.object({}).describe(
+  "Arguments for deduplicating the feed catalog",
+);
+
+type DedupeArgs = z.infer<typeof DedupeArgsSchema>;
+
+const DedupeResultSchema = z.object({
+  name: z.string(),
+  groups: z.number(),
+  groupsWithDuplicates: z.number(),
+  markedDuplicates: z.number(),
+  errors: z.array(
+    z.object({ url: z.string(), message: z.string() }),
+  ).optional(),
+  ranAt: z.iso.datetime(),
+});
+
 type ListCategoriesArgs = z.infer<typeof ListCategoriesArgsSchema>;
 
 // ---------------------------------------------------------------------------
@@ -69,6 +86,10 @@ export interface Feed {
   category: string;
   /** ISO-8601 timestamp when feed was added. */
   addedAt: string;
+  /** Whether this feed is a duplicate of another catalog feed. */
+  duplicate?: boolean;
+  /** URL of the canonical feed that this feed duplicates. */
+  duplicateOf?: string;
 }
 
 /** The complete feed catalog. */
@@ -107,6 +128,96 @@ export function extractFeedName(url: string): string {
   }
 }
 
+/** Normalize a feed item id for duplicate comparison. */
+function normalizeId(id: string): string {
+  const trimmed = id.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const u = new URL(trimmed);
+      u.hash = "";
+      return u.href.replace(/\/$/, "").toLowerCase();
+    } catch {
+      // fall through to plain lowercasing
+    }
+  }
+  return trimmed.toLowerCase();
+}
+
+/** Extract the channel/feed-level block (first <channel> or <feed>). */
+function extractChannel(xml: string): string {
+  const channel = xml.match(/<channel[\s>][\s\S]*?<\/channel>/i);
+  if (channel) return channel[0];
+  const feed = xml.match(/<feed[\s>][\s\S]*?<\/feed>/i);
+  return feed?.[0] ?? "";
+}
+
+/** True if a string contains a given tag form. */
+function hasTag(text: string, re: RegExp): boolean {
+  return re.test(text);
+}
+
+/**
+ * Compute a feed's canonical identity (sorted normalized item ids, or the
+ * rel=self link when no items exist) and an expressiveness score used to pick
+ * which duplicate is canonical.
+ */
+function feedIdentity(xml: string): { identity: string | null; score: number } {
+  const channel = extractChannel(xml);
+  const isAtom = channel.includes("<entry") || channel.includes("<feed");
+  const itemRegex = isAtom
+    ? /<entry[\s>][\s\S]*?<\/entry>/gi
+    : /<item[\s>][\s\S]*?<\/item>/gi;
+  const items = xml.match(itemRegex) ?? [];
+  const ids: string[] = [];
+  for (const item of items) {
+    let id: string | null = null;
+    if (isAtom) {
+      const m = item.match(/<id[^>]*>([\s\S]*?)<\/id>/i);
+      id = m?.[1] ?? null;
+      if (!id) {
+        const lm = item.match(/<link[^>]*href=["']([^"']+)["'][^>]*>/i);
+        id = lm?.[1] ?? null;
+      }
+    } else {
+      const gm = item.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i);
+      id = gm?.[1] ?? null;
+      if (!id) {
+        const lm = item.match(/<link[^>]*>([\s\S]*?)<\/link>/i);
+        id = lm?.[1] ?? null;
+      }
+    }
+    if (id) ids.push(normalizeId(id));
+  }
+  const uniq = Array.from(new Set(ids)).sort();
+  let identity: string | null = null;
+  if (uniq.length > 0) {
+    identity = "items:" + uniq.join("\n");
+  } else {
+    const self = xml.match(
+      /<link[^>]*\brel=["']self["'][^>]*href=["']([^"']+)["'][^>]*>/i,
+    )?.[1] ?? null;
+    if (self) identity = "self:" + normalizeId(self);
+  }
+  if (!identity) return { identity: null, score: 0 };
+
+  let score = 0;
+  if (hasTag(channel, /<title[\s>][\s\S]*?<\/title>/i)) score += 1;
+  if (isAtom) score += 1;
+  if (
+    hasTag(channel, /<description[\s>][\s\S]*?<\/description>/i) ||
+    hasTag(channel, /<subtitle[\s>][\s\S]*?<\/subtitle>/i)
+  ) score += 1;
+  if (hasTag(channel, /<(author|managingEditor|webMaster)[\s>][\s\S]*?<\/\1>/i)) {
+    score += 1;
+  }
+  if (hasTag(channel, /<(lastBuildDate|pubDate|updated)[\s>][\s\S]*?<\/\1>/i)) {
+    score += 1;
+  }
+  if (hasTag(channel, /<link[\s>]/i)) score += 1;
+  if (uniq.length > 0) score += 1;
+  return { identity, score };
+}
+
 // ---------------------------------------------------------------------------
 // Shared context type for all methods
 // ---------------------------------------------------------------------------
@@ -134,6 +245,8 @@ const FeedSchema = z.object({
   name: z.string(),
   category: z.string(),
   addedAt: z.iso.datetime(),
+  duplicate: z.boolean().optional(),
+  duplicateOf: z.string().optional(),
 });
 
 const FeedCatalogSchema = z.object({
@@ -166,6 +279,12 @@ export const model = {
     categories: {
       description: "List of unique categories in the catalog",
       schema: CategoriesListSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    dedupe: {
+      description: "Result of the dedupe method",
+      schema: DedupeResultSchema,
       lifetime: "infinite",
       garbageCollection: 5,
     },
@@ -226,6 +345,107 @@ export const model = {
         });
 
         return { dataHandles: [handle] };
+      },
+    },
+    dedupe: {
+      description:
+        "Fetch each catalog feed, group duplicates by content identity, and mark the less expressive (or second) feed as a duplicate.",
+      arguments: DedupeArgsSchema,
+      execute: async (
+        _args: DedupeArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        const logger = context.logger;
+        const catalogName = context.globalArgs.catalogName;
+        const catalogData = await context.readResource("current") as
+          | FeedCatalog
+          | null;
+        if (!catalogData) {
+          throw new Error("No feed catalog found. Add feeds first with 'add'.");
+        }
+
+        // Fetch each feed once, compute its identity + expressiveness score.
+        const groups = new Map<string, Array<Feed & { score: number }>>();
+        const errors: { url: string; message: string }[] = [];
+        for (const feed of catalogData.feeds) {
+          let xml: string;
+          try {
+            const resp = await fetch(feed.url, {
+              headers: { "User-Agent": "swamp-feed-catalog/1.0" },
+              signal: AbortSignal.timeout(15000),
+            });
+            if (!resp.ok) {
+              errors.push({ url: feed.url, message: `HTTP ${resp.status}` });
+              continue;
+            }
+            xml = await resp.text();
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            errors.push({ url: feed.url, message: msg });
+            continue;
+          }
+          const { identity, score } = feedIdentity(xml);
+          if (!identity) continue; // no items/self-link → leave as-is
+          const group = groups.get(identity) ?? [];
+          group.push({ ...feed, score });
+          groups.set(identity, group);
+        }
+
+        // Within each group pick the most expressive feed as canonical; ties →
+        // the earliest-added feed wins, so the "second" duplicate is marked.
+        const duplicateOf = new Map<string, string>();
+        let groupsWithDuplicates = 0;
+        for (const [identity, group] of groups) {
+          if (group.length <= 1) continue;
+          groupsWithDuplicates++;
+          group.sort(
+            (a, b) => (b.score - a.score) || a.addedAt.localeCompare(b.addedAt),
+          );
+          const canonical = group[0];
+          for (let i = 1; i < group.length; i++) {
+            duplicateOf.set(group[i].url, canonical.url);
+          }
+        }
+
+        let markedDuplicates = 0;
+        const updatedFeeds = catalogData.feeds.map((feed) => {
+          const canonical = duplicateOf.get(feed.url);
+          if (canonical) {
+            markedDuplicates++;
+            return { ...feed, duplicate: true, duplicateOf: canonical };
+          }
+          return feed;
+        });
+        catalogData.feeds = updatedFeeds;
+        catalogData.totalCount = updatedFeeds.length;
+
+        const handle = await context.writeResource("catalog", "current", {
+          name: catalogData.name,
+          feeds: catalogData.feeds,
+          totalCount: catalogData.totalCount,
+        });
+        const resultHandle = await context.writeResource(
+          "dedupe",
+          "dedupe-result",
+          {
+            name: catalogData.name,
+            groups: groups.size,
+            groupsWithDuplicates,
+            markedDuplicates,
+            errors,
+            ranAt: new Date().toISOString(),
+          },
+        );
+        logger?.info(
+          "Dedupe: {groups} groups, {dupGroups} with duplicates, {marked} marked, {errors} errors",
+          {
+            groups: groups.size,
+            dupGroups: groupsWithDuplicates,
+            marked: markedDuplicates,
+            errors: errors.length,
+          },
+        );
+        return { dataHandles: [handle, resultHandle] };
       },
     },
     remove: {

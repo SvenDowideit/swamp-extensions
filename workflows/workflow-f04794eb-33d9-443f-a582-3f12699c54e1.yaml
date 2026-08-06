@@ -127,8 +127,19 @@ jobs:
     dependsOn: []
     weight: 0
     allowFailure: true
+  - name: dedupe
+    description: Fetch each catalog feed, group by content identity, and mark duplicate feeds so fetch skips them.
+    task:
+      type: model_method
+      modelType: '@svendowideit/feed-catalog'
+      modelName: feed-catalog
+      methodName: dedupe
+      inputs: {}
+    dependsOn: []
+    weight: 0
+    allowFailure: true
   - name: fetch
-    description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided).
+    description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided), skipping feeds marked duplicate by the dedupe step.
     guard: ${{ data.latest("news-reader", "feed-snapshot") != null && timestamp(run.startedAt) - timestamp(data.latest("news-reader", "feed-snapshot").attributes.fetchedAt) < duration("3h") }}
     task:
       type: model_method
@@ -137,7 +148,13 @@ jobs:
       methodName: fetch
       inputs:
         feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("feed-catalog", "current").?attributes.?feeds.orValue([]) }}'
-    dependsOn: []
+    dependsOn:
+    - step: dedupe
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: failed
     weight: 0
     allowFailure: false
   - name: filter

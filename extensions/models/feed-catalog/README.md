@@ -43,3 +43,23 @@ List categories:
 ```sh
 swamp model method run @svendowideit/feed-catalog listCategories my-feeds
 ```
+
+## Deduplication
+
+The `dedupe` method keeps the catalog tidy by flagging feeds that duplicate
+another feed already in the catalog:
+
+```sh
+swamp model method run @svendowideit/feed-catalog dedupe my-feeds
+```
+
+It fetches every feed, groups them by content identity (sorted normalized item
+IDs, or a `self` link when there are no items), and within each group keeps the
+most expressive feed (highest score for title/format/description/author/date/
+link/items — ties broken by earliest `addedAt`) as canonical. The rest are
+marked `duplicate: true` / `duplicateOf: <canonical>` so the news workflow's
+`fetch` step skips them.
+
+The result is stored as the `dedupe-result` data resource: group counts, number
+of groups with duplicates, how many feeds were marked, and any per-feed fetch
+errors.

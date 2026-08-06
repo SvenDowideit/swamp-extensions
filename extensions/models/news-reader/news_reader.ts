@@ -62,6 +62,8 @@ const FeedInputSchema = z.object({
   name: z.string().optional(),
   category: z.string().optional(),
   addedAt: z.string().optional(),
+  duplicate: z.boolean().optional(),
+  duplicateOf: z.string().optional(),
 }).describe("A feed from the feed-catalog");
 
 const FetchArgsSchema = z.object({
@@ -1035,10 +1037,21 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
-        // Normalize feeds: accept string URLs or feed objects from feed-catalog
-        const feedUrls: string[] = args.feeds.map((f) =>
-          typeof f === "string" ? f : f.url
-        );
+        // Normalize feeds: accept string URLs or feed objects from feed-catalog.
+        // Skip feeds marked as duplicates by the feed-catalog `dedupe` method.
+        const skipped: string[] = [];
+        const feedUrls: string[] = args.feeds.reduce<string[]>((acc, f) => {
+          if (typeof f === "string") {
+            acc.push(f);
+            return acc;
+          }
+          if (f.duplicate === true) {
+            skipped.push(f.url);
+            return acc;
+          }
+          acc.push(f.url);
+          return acc;
+        }, []);
 
         if (feedUrls.length === 0) {
           throw new Error(
@@ -1053,6 +1066,12 @@ export const model = {
           );
         }
         logger?.info("Fetching {count} feeds", { count: feedUrls.length });
+        if (skipped.length > 0) {
+          logger?.info("Skipped {n} duplicate feeds: {urls}", {
+            n: skipped.length,
+            urls: skipped.join(", "),
+          });
+        }
 
         const allArticles: Article[] = [];
         const errors: { url: string; message: string }[] = [];

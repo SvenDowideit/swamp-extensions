@@ -8,15 +8,19 @@ and generates a static HTML news summary page ranked by predicted interest.
 1. **Gather feedback** — polls the feedback queue HTTP server for any pending
    👍/👎 clicks from the HTML page, imports them into preferences, and deletes
    processed entries from the queue.
-2. **Fetch** — downloads RSS/Atom feeds, parses articles (title, URL, summary,
-   keywords), and stores them as a versioned data resource.
-3. **Filter by age** — filters fetched articles to show only those within the
+2. **Dedupe** — the feed-catalog `dedupe` method fetches each catalog feed and
+   flags feeds that duplicate another (marked `duplicate: true`), so the fetch
+   step only pulls each distinct feed once.
+3. **Fetch** — downloads RSS/Atom feeds (skipping any marked duplicate), parses
+   articles (title, URL, summary, keywords), and stores them as a versioned data
+   resource.
+4. **Filter by age** — filters fetched articles to show only those within the
    specified time range (default: last 3 days). Supports h/d/w/m suffixes
    (e.g., "2h", "7d", "4w", "1m").
-4. **Generate** — reads the filtered articles, scores them against your learned
+5. **Generate** — reads the filtered articles, scores them against your learned
    keyword preferences, and writes a static HTML page with the top articles
    sorted by interest score.
-5. **Feedback** — you mark articles as "interested" or "ignored" (via the HTML
+6. **Feedback** — you mark articles as "interested" or "ignored" (via the HTML
    page's 👍/👎 buttons or the CLI). The model recomputes keyword weights from
    your feedback, so future reports surface more of what you like.
 
@@ -42,7 +46,8 @@ during workflow execution:
 ┌───────────────────────────────────────────────────┘
 │  swamp workflow run news
 │    step: gather-feedback  ← polls API, imports, deletes
-│    step: fetch
+│    step: dedupe           ← feed-catalog flags duplicate feeds
+│    step: fetch            ← skips feeds marked duplicate
 │    step: filter
 │    step: generate
 │    ...
@@ -143,7 +148,7 @@ swamp model method run news-reader feedback --input articleId=def456 --input act
 | ---------------- | -------------------------------------------------------- | ---------------------------------------------------- |
 | `gatherFeedback` | Poll feedback queue server, import entries, delete them  | `serverUrl`, `batchSize`, `maxBatches`               |
 | `gatherPages`    | Poll pages queue server, collect pages into `pagesQueue` resource, delete them | `serverUrl`, `batchSize`, `maxBatches`, `category` |
-| `fetch`          | Fetch RSS/Atom feeds and store articles                  | `feeds` (URL[]), `maxArticlesPerFeed`                |
+| `fetch`          | Fetch RSS/Atom feeds (skipping duplicates) and store articles | `feeds` (URL[]), `maxArticlesPerFeed`            |
 | `filterByAge`    | Filter articles by age for HTML generation               | `newsAge` (default: "3d", supports h/d/w/m suffixes) |
 | `generate`       | Generate HTML report from filtered articles              | `topN`, `title`                                      |
 | `feedback`       | Record user interest/ignore for an article               | `articleId`, `action`, `source`, `title`, `keywords` |
@@ -161,7 +166,9 @@ The `generate` method writes a static HTML file as a swamp data artifact
 - **Age filter info** — shows the time range of news being displayed
 
 The `fetch` method stores articles as a structured JSON resource (`snapshot`
-spec) with all parsed metadata. The `filterByAge` method creates a filtered
+spec) with all parsed metadata. Feed objects in the catalog marked
+`duplicate: true` (by the `dedupe` step) are skipped, so each distinct feed is
+fetched only once. The `filterByAge` method creates a filtered
 snapshot that includes the age filter information.
 
 ## Scheduled execution

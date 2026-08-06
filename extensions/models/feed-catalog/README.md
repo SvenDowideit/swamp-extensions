@@ -99,3 +99,9 @@ Each canonical feed is shown with its duplicates indented underneath, flagged
 with a `duplicate of …` badge. The page is written both to `outputPath` and as a
 `report` file artifact (`feeds-page`), retrievable with
 `swamp data get my-feeds feeds-page --version 1`.
+
+Feeds marked `invalid: true` are hidden by default — the meta line reports the
+count (e.g. `3 invalid`) and a "Show invalid feeds (N)" button toggles a
+separate `Invalid feeds` section that renders each one with an `invalid` badge
+and its `invalidReason`. The page includes a small inline script that powers
+the toggle; if there are no invalid feeds, no button or section is rendered.

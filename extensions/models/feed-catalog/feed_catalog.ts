@@ -303,7 +303,8 @@ export function generateFeedsHtml(
   title: string,
   generatedAt: string,
 ): string {
-  const canonical = feeds.filter((f) => !f.duplicate);
+  const canonical = feeds.filter((f) => !f.duplicate && f.invalid !== true);
+  const invalidFeeds = feeds.filter((f) => f.invalid === true);
   const dupMap = new Map<string, Feed[]>();
   for (const f of feeds) {
     if (f.duplicate && f.duplicateOf) {
@@ -325,11 +326,15 @@ export function generateFeedsHtml(
     const name = escapeHtml(f.name);
     const url = escapeHtml(f.url);
     const added = escapeHtml(f.addedAt);
+    const reason = f.invalid && f.invalidReason
+      ? `\n<div class="reason">${escapeHtml(f.invalidReason)}</div>`
+      : "";
+    const cls = f.invalid ? " feed invalid" : "";
     return [
-      `<div class="feed">`,
+      `<div class="feed${cls}">`,
       `<h3>${name}<span class="badge">${badge}</span></h3>`,
       `<div class="url"><a href="${url}">${url}</a></div>`,
-      `<div class="added">added ${added}</div>`,
+      `<div class="added">added ${added}</div>${reason}`,
       `</div>`,
     ].join("\n");
   };
@@ -352,12 +357,22 @@ h2 { margin-top: 30px; color: #333; }
 .feed .added { color: #888; font-size: 0.8em; margin-top: 6px; }
 .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 0.75em; background: #eee; color: #444; margin-left: 8px; font-weight: normal; }
 .badge.dup { background: #ffc107; color: #222; }
+.badge.invalid { background: #e53935; color: white; }
 .feed.dup { border-left: 3px solid #ffc107; margin-left: 26px; }
+.feed.invalid { border-left: 3px solid #e53935; opacity: 0.55; }
+.feed.invalid .reason { color: #e53935; font-size: 0.8em; margin-top: 6px; }
+.toggle { margin: 0 0 12px; }
+.toggle button { padding: 4px 10px; border: 1px solid #ccc; border-radius: 6px; background: white; cursor: pointer; font-size: 0.85em; }
+#invalid-feeds { display: none; }
+#invalid-feeds.show { display: block; }
 </style>
 </head>
 <body>
 <h1>${escapeHtml(title)}</h1>
-<div class="meta">${feeds.length} feeds · ${canonical.length} canonical · ${dupMap.size} duplicate groups · generated ${escapeHtml(generatedAt)}</div>`);
+<div class="meta">${feeds.length} feeds · ${canonical.length} canonical · ${dupMap.size} duplicate groups · ${invalidFeeds.length} invalid · generated ${escapeHtml(generatedAt)}</div>
+${invalidFeeds.length > 0
+    ? `<div class="toggle"><button id="toggle-invalid" type="button">Show invalid feeds (${invalidFeeds.length})</button></div>`
+    : ""}`);
 
   for (const category of categories) {
     sections.push(`<h2>${escapeHtml(category)}</h2>`);
@@ -389,9 +404,35 @@ h2 { margin-top: 30px; color: #333; }
     }
   }
 
+  if (invalidFeeds.length > 0) {
+    sections.push(`<div id="invalid-feeds">
+<h2>Invalid feeds</h2>`);
+    for (const f of invalidFeeds) {
+      sections.push(card(f, "invalid"));
+    }
+    sections.push(`</div>`);
+  }
+
+  sections.push(feedCatalogPageScript());
   sections.push(`</body>
 </html>`);
   return sections.join("\n");
+}
+
+function feedCatalogPageScript(): string {
+  return `<script>
+(function () {
+  var btn = document.getElementById("toggle-invalid");
+  var section = document.getElementById("invalid-feeds");
+  if (!btn || !section) return;
+  btn.addEventListener("click", function () {
+    var show = section.classList.toggle("show");
+    btn.textContent = show
+      ? "Hide invalid feeds"
+      : "Show invalid feeds (" + section.querySelectorAll(".feed").length + ")";
+  });
+})();
+</script>`;
 }
 
 // ---------------------------------------------------------------------------

@@ -363,7 +363,11 @@ async function readCrossModelData(
   modelId: string,
   dataName: string,
 ): Promise<Record<string, unknown> | null> {
-  const bytes = await context.dataRepository.getContent(type, modelId, dataName);
+  const bytes = await context.dataRepository.getContent(
+    type,
+    modelId,
+    dataName,
+  );
   if (!bytes) return null;
   const text = new TextDecoder().decode(bytes);
   try {
@@ -405,7 +409,9 @@ export const model = {
         args: DiscoverArgs,
         context: {
           globalArgs: GlobalArgs;
-          logger?: { info: (msg: string, props?: Record<string, unknown>) => void };
+          logger?: {
+            info: (msg: string, props?: Record<string, unknown>) => void;
+          };
           readResource: (
             instanceName: string,
           ) => Promise<Record<string, unknown> | null>;
@@ -441,13 +447,13 @@ export const model = {
               typeof (a as { url?: unknown }).url === "string",
           ).map((a: { url: string }) => a.url)
           : [];
-const nonFeedUrls: string[] = Array.isArray(snapshot?.nonFeedUrls)
-  ? snapshot!.nonFeedUrls.filter(
-    (n: unknown) =>
-      typeof n === "object" && n !== null &&
-      typeof (n as { url?: unknown }).url === "string",
-  ).map((n: { url: string }) => n.url)
-  : [];
+        const nonFeedUrls: string[] = Array.isArray(snapshot?.nonFeedUrls)
+          ? snapshot!.nonFeedUrls.filter(
+            (n: unknown) =>
+              typeof n === "object" && n !== null &&
+              typeof (n as { url?: unknown }).url === "string",
+          ).map((n: { url: string }) => n.url)
+          : [];
 
         // 1b. Also collect catalog entries flagged as non-feeds by the
         //     feed-catalog's dedupe step — it performs the same HTML-page
@@ -478,7 +484,7 @@ const nonFeedUrls: string[] = Array.isArray(snapshot?.nonFeedUrls)
           );
         }
 
-// 2. Domain frequency map (weight for prioritisation).
+        // 2. Domain frequency map (weight for prioritisation).
         const domainCount = new Map<string, number>();
         for (const url of articleUrls) {
           const d = extractDomain(url);
@@ -602,8 +608,9 @@ const nonFeedUrls: string[] = Array.isArray(snapshot?.nonFeedUrls)
         for (const o of crawlOutcomes) {
           merged.set(o.domain, o);
         }
-        const ledgerEntries: CrawlLedgerEntry[] =
-          [...merged.values()].slice(-500);
+        const ledgerEntries: CrawlLedgerEntry[] = [...merged.values()].slice(
+          -500,
+        );
         await context.writeResource("crawlLedger", "current", {
           entries: ledgerEntries,
         });

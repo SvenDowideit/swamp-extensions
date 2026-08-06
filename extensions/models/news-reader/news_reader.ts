@@ -611,9 +611,7 @@ async function fetchFeed(
     const contentType = resp.headers.get("content-type") ?? "";
     const body = await resp.text();
     const isFeed = isFeedBody(contentType, body);
-    const articles = isFeed
-      ? parseFeed(body, url).slice(0, maxArticles)
-      : [];
+    const articles = isFeed ? parseFeed(body, url).slice(0, maxArticles) : [];
     for (const a of articles) {
       a.id = await hashId(a.url);
     }

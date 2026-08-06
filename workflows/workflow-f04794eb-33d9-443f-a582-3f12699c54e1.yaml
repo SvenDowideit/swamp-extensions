@@ -255,7 +255,7 @@ jobs:
         type: succeeded
     weight: 0
     allowFailure: true
-  - name: upsert-feed
+  - name: upsert-feed[${{ self.feed.title }}]
     description: Add each discovered feed to the feed-catalog.
     forEach:
       item: feed
@@ -310,7 +310,7 @@ jobs:
         type: succeeded
     weight: 0
     allowFailure: true
-  - name: upsert-page
+  - name: upsert-page[${{ self.feed.title }}]
     description: Add each discovered page feed to the feed-catalog.
     forEach:
       item: feed

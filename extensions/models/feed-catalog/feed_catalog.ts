@@ -502,6 +502,9 @@ export const model = {
         // Fetch each feed once, compute its identity + expressiveness score.
         const groups = new Map<string, Array<Feed & { score: number }>>();
         const errors: { url: string; message: string }[] = [];
+        const total = catalogData.feeds.length;
+        let processed = 0;
+        let lastProgressLog = 0;
         for (const feed of catalogData.feeds) {
           let xml: string;
           try {
@@ -511,19 +514,38 @@ export const model = {
             });
             if (!resp.ok) {
               errors.push({ url: feed.url, message: `HTTP ${resp.status}` });
+              processed++;
               continue;
             }
             xml = await resp.text();
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             errors.push({ url: feed.url, message: msg });
+            processed++;
             continue;
           }
           const { identity, score } = feedIdentity(xml);
-          if (!identity) continue; // no items/self-link → leave as-is
+          if (!identity) {
+            processed++;
+            continue; // no items/self-link → leave as-is
+          }
           const group = groups.get(identity) ?? [];
           group.push({ ...feed, score });
           groups.set(identity, group);
+          processed++;
+
+          // Periodic progress so long dedupe runs report "x of y" as they go.
+          const now = Date.now();
+          if (
+            processed % 10 === 0 ||
+            now - lastProgressLog >= 10_000
+          ) {
+            lastProgressLog = now;
+            logger?.info(
+              "Dedupe progress: {done} of {total} feeds",
+              { done: processed, total },
+            );
+          }
         }
 
         // Within each group pick the most expressive feed as canonical; ties →
@@ -538,7 +560,17 @@ export const model = {
           );
           const canonical = group[0];
           for (let i = 1; i < group.length; i++) {
-            duplicateOf.set(group[i].url, canonical.url);
+            const dup = group[i];
+            duplicateOf.set(dup.url, canonical.url);
+            logger?.info(
+              "Feed {url} ({name}) marked duplicate of {canonical} ({canonicalName})",
+              {
+                url: dup.url,
+                name: dup.name,
+                canonical: canonical.url,
+                canonicalName: canonical.name,
+              },
+            );
           }
         }
 

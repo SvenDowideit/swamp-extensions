@@ -60,6 +60,13 @@ link/items — ties broken by earliest `addedAt`) as canonical. The rest are
 marked `duplicate: true` / `duplicateOf: <canonical>` so the news workflow's
 `fetch` step skips them.
 
+Because dedupe fetches every catalog feed (each with an up to 15s timeout), a
+large catalog can take minutes. The method logs **periodic progress** — `Dedupe
+progress: {done} of {total} feeds` at most once every 10 seconds (or every 10
+feeds) — so long runs show how far along they are, and it logs **each decided
+duplicate** as `Feed {url} ({name}) marked duplicate of {canonical} ({name})`
+so you can see exactly which URLs were flagged.
+
 The result is stored as the `dedupe-result` data resource: group counts, number
 of groups with duplicates, how many feeds were marked, and any per-feed fetch
 errors.

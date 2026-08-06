@@ -169,9 +169,9 @@ jobs:
   - name: fetch
     description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided),
       skipping feeds marked duplicate by the dedupe step.
-    guard: ${{ data.latest("news-reader", "feed-snapshot") != null && timestamp(run.startedAt)
-      - timestamp(data.latest("news-reader", "feed-snapshot").attributes.fetchedAt)
-      < duration("3h") }}
+    #guard: ${{ data.latest("news-reader", "feed-snapshot") != null && timestamp(run.startedAt)
+    #  - timestamp(data.latest("news-reader", "feed-snapshot").attributes.fetchedAt)
+    #  < duration("3h") }}
     task:
       type: model_method
       modelType: '@svendowideit/news-reader'

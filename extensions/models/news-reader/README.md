@@ -9,14 +9,17 @@ and generates a static HTML news summary page ranked by predicted interest.
    👍/👎 clicks from the HTML page, imports them into preferences, and deletes
    processed entries from the queue.
 2. **Dedupe** — the feed-catalog `dedupe` method fetches each catalog feed and
-   flags feeds that duplicate another (marked `duplicate: true`), so the fetch
-   step only pulls each distinct feed once.
-3. **Fetch** — downloads RSS/Atom feeds (skipping any marked duplicate), parses
-   articles (title, URL, summary, keywords), and stores them as a versioned data
-   resource. If a catalog URL turns out to be an **HTML page instead of a feed**
-   (e.g. a page URL pasted into the catalog rather than a real RSS/Atom URL),
-   the fetch step detects it and records it in the snapshot's `nonFeedUrls` list
-   instead of silently producing "0 articles".
+   flags feeds that duplicate another (marked `duplicate: true`). URLs that
+   resolve to an **HTML page or unknown content type** instead of a feed are
+   marked `invalid: true`, so they are skipped on future runs.
+3. **Fetch** — downloads RSS/Atom feeds (skipping any marked `duplicate: true`
+   or `invalid: true`), parses articles (title, URL, summary, keywords), and
+   stores them as a versioned data resource. If a catalog URL turns out to be an
+   **HTML page instead of a feed** (e.g. a page URL pasted into the catalog
+   rather than a real RSS/Atom URL), the fetch step detects it and records it in
+   the snapshot's `nonFeedUrls` list instead of silently producing "0 articles".
+   Feeds already marked invalid by the `dedupe` step are skipped and never
+   re-fetched.
 4. **Filter by age** — filters fetched articles to show only those within the
    specified time range (default: last 3 days). Supports h/d/w/m suffixes
    (e.g., "2h", "7d", "4w", "1m").
@@ -169,13 +172,13 @@ The `generate` method writes a static HTML file as a swamp data artifact
 - **Age filter info** — shows the time range of news being displayed
 
 The `fetch` method stores articles as a structured JSON resource (`snapshot`
-spec) with all parsed metadata. Feed objects in the catalog marked
-`duplicate: true` (by the `dedupe` step) are skipped, so each distinct feed is
-fetched only once. The snapshot also carries `nonFeedUrls` — catalog URLs that
-resolved to HTML pages (or unknown content types) instead of feeds — so the
-feed-discovery step can re-crawl their domains and find the real feed. The
-`filterByAge` method creates a filtered snapshot that includes the age filter
-information.
+spec) with all parsed metadata. Feed objects marked `duplicate: true` or
+`invalid: true` (by the `dedupe` step) are skipped, so each distinct feed is
+fetched only once and non-feed URLs are never re-fetched. The snapshot also
+carries `nonFeedUrls` — catalog URLs that resolved to HTML pages (or unknown
+content types) instead of feeds — so the feed-discovery step can re-crawl their
+domains and find the real feed. The `filterByAge` method creates a filtered
+snapshot that includes the age filter information.
 
 ## Scheduled execution
 

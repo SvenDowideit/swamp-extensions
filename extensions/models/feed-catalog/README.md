@@ -67,9 +67,18 @@ feeds) — so long runs show how far along they are, and it logs **each decided
 duplicate** as `Feed {url} ({name}) marked duplicate of {canonical} ({name})`
 so you can see exactly which URLs were flagged.
 
+### Invalid feeds
+
+When a catalog URL turns out to be an **HTML page (or unknown content type)
+instead of an RSS/Atom feed**, dedupe marks that entry `invalid: true` with
+`invalidReason: "not a feed (HTML page or unknown content type)"`, so the news
+workflow's `fetch` step stops re-fetching it on future runs. Entries already
+marked invalid by a previous run are skipped entirely (not re-fetched). The
+`dedupe-result` data resource reports how many were marked via `markedInvalid`.
+
 The result is stored as the `dedupe-result` data resource: group counts, number
-of groups with duplicates, how many feeds were marked, and any per-feed fetch
-errors.
+of groups with duplicates, how many were marked duplicate, how many were marked
+invalid, and any per-feed fetch errors.
 
 ## HTML page
 

@@ -64,6 +64,7 @@ const DedupeResultSchema = z.object({
   groups: z.number(),
   groupsWithDuplicates: z.number(),
   markedDuplicates: z.number(),
+  markedInvalid: z.number(),
   errors: z.array(
     z.object({ url: z.string(), message: z.string() }),
   ).optional(),
@@ -102,6 +103,10 @@ export interface Feed {
   duplicate?: boolean;
   /** URL of the canonical feed that this feed duplicates. */
   duplicateOf?: string;
+  /** Whether this feed resolved to an HTML page/unknown content instead of a feed. */
+  invalid?: boolean;
+  /** Human-readable reason the feed was marked invalid (e.g. not a feed). */
+  invalidReason?: string;
 }
 
 /** The complete feed catalog. */
@@ -423,6 +428,8 @@ const FeedSchema = z.object({
   addedAt: z.iso.datetime(),
   duplicate: z.boolean().optional(),
   duplicateOf: z.string().optional(),
+  invalid: z.boolean().optional(),
+  invalidReason: z.string().optional(),
 });
 
 const FeedCatalogSchema = z.object({
@@ -443,7 +450,7 @@ const CategoriesListSchema = z.object({
 
 export const model = {
   type: "@svendowideit/feed-catalog",
-  version: "2026.08.06.1784424437",
+  version: "2026.08.06.1784424438",
   globalArguments: GlobalArgsSchema,
   resources: {
     catalog: {
@@ -552,10 +559,17 @@ export const model = {
         const groups = new Map<string, Array<Feed & { score: number }>>();
         const errors: { url: string; message: string }[] = [];
         const nonFeedUrls: { url: string; contentType: string }[] = [];
+        const nonFeedSet = new Set<string>();
         const total = catalogData.feeds.length;
         let processed = 0;
         let lastProgressLog = 0;
         for (const feed of catalogData.feeds) {
+          // Skip entries already marked invalid by a previous run — they are
+          // not feeds and should not be re-fetched.
+          if (feed.invalid === true) {
+            processed++;
+            continue;
+          }
           let xml: string;
           let contentType = "";
           try {
@@ -581,6 +595,7 @@ export const model = {
           // can re-crawl the domain even when only this workflow ran.
           if (!isFeedBody(contentType, xml)) {
             nonFeedUrls.push({ url: feed.url, contentType });
+            nonFeedSet.add(feed.url);
             processed++;
             logger?.info(
               "Feed {url} is not a feed (HTML page or unknown content type); flagged for re-discovery",
@@ -639,11 +654,20 @@ export const model = {
         }
 
         let markedDuplicates = 0;
+        let markedInvalid = 0;
         const updatedFeeds = catalogData.feeds.map((feed) => {
           const canonical = duplicateOf.get(feed.url);
           if (canonical) {
             markedDuplicates++;
             return { ...feed, duplicate: true, duplicateOf: canonical };
+          }
+          if (nonFeedSet.has(feed.url)) {
+            markedInvalid++;
+            return {
+              ...feed,
+              invalid: true,
+              invalidReason: "not a feed (HTML page or unknown content type)",
+            };
           }
           return feed;
         });
@@ -663,6 +687,7 @@ export const model = {
             groups: groups.size,
             groupsWithDuplicates,
             markedDuplicates,
+            markedInvalid,
             errors,
             nonFeedUrls,
             ranAt: new Date().toISOString(),
@@ -674,6 +699,7 @@ export const model = {
             groups: groups.size,
             dupGroups: groupsWithDuplicates,
             marked: markedDuplicates,
+            invalid: markedInvalid,
             errors: errors.length,
             nonFeeds: nonFeedUrls.length,
           },

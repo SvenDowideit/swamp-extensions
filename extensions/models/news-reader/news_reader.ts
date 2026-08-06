@@ -64,6 +64,7 @@ const FeedInputSchema = z.object({
   addedAt: z.string().optional(),
   duplicate: z.boolean().optional(),
   duplicateOf: z.string().optional(),
+  invalid: z.boolean().optional(),
 }).describe("A feed from the feed-catalog");
 
 const FetchArgsSchema = z.object({
@@ -1054,7 +1055,7 @@ addInput.addEventListener('input', () => {
 /** Model definition for fetching RSS feeds and generating news summaries. */
 export const model = {
   type: "@svendowideit/news-reader",
-  version: "2026.08.01.1",
+  version: "2026.08.06.1",
   globalArguments: GlobalArgsSchema,
   resources: {
     snapshot: {
@@ -1111,6 +1112,10 @@ export const model = {
             skipped.push(f.url);
             return acc;
           }
+          if (f.invalid === true) {
+            skipped.push(f.url);
+            return acc;
+          }
           acc.push(f.url);
           return acc;
         }, []);
@@ -1129,7 +1134,7 @@ export const model = {
         }
         logger?.info("Fetching {count} feeds", { count: feedUrls.length });
         if (skipped.length > 0) {
-          logger?.info("Skipped {n} duplicate feeds: {urls}", {
+          logger?.info("Skipped {n} duplicate/invalid feeds: {urls}", {
             n: skipped.length,
             urls: skipped.join(", "),
           });

@@ -595,7 +595,6 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: Array<{ name: string }> }> => {
         const logger = context.logger;
-        const catalogName = context.globalArgs.catalogName;
         const catalogData = await context.readResource("current") as
           | FeedCatalog
           | null;
@@ -679,7 +678,7 @@ export const model = {
         // the earliest-added feed wins, so the "second" duplicate is marked.
         const duplicateOf = new Map<string, string>();
         let groupsWithDuplicates = 0;
-        for (const [identity, group] of groups) {
+        for (const [, group] of groups) {
           if (group.length <= 1) continue;
           groupsWithDuplicates++;
           group.sort(

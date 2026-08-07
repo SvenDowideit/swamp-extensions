@@ -102,6 +102,12 @@ const FilterByAgeArgsSchema = z.object({
 
 type FilterByAgeArgs = z.infer<typeof FilterByAgeArgsSchema>;
 
+const CleanupCdataArgsSchema = z.object({}).describe(
+  "Strip CDATA wrappers from existing keywords in snapshots and preferences",
+);
+
+type CleanupCdataArgs = z.infer<typeof CleanupCdataArgsSchema>;
+
 const FeedbackArgsSchema = z.object({
   articleId: z.string().describe("Article ID (hash of URL)"),
   action: z.enum(["interested", "ignored"]).describe(
@@ -483,9 +489,15 @@ function extractAllTags(xml: string, tag: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = termRe.exec(xml)) !== null) results.push(m[1]);
   if (results.length === 0) {
-    while ((m = textRe.exec(xml)) !== null) results.push(m[1].trim());
+    while ((m = textRe.exec(xml)) !== null) {
+      results.push(stripCdata(m[1].trim()));
+    }
   }
   return results;
+}
+
+function stripCdata(s: string): string {
+  return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").trim();
 }
 
 /** Parse an RSS/Atom XML feed string into articles. */
@@ -1094,6 +1106,97 @@ export const model = {
     },
   },
   methods: {
+    cleanupCdata: {
+      description:
+        "Strip CDATA wrappers from existing keywords in snapshots and preferences. Run once to clean up data from before the CDATA-stripping fix.",
+      arguments: CleanupCdataArgsSchema,
+      execute: async (
+        _args: CleanupCdataArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        const logger = context.logger;
+        const handles: Array<{ name: string }> = [];
+
+        const strip = (s: string) =>
+          s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").trim();
+
+        const snapshotData = await context.readResource("feed-snapshot") as
+          | FeedSnapshot
+          | null;
+        if (snapshotData?.articles) {
+          let fixed = 0;
+          for (const a of snapshotData.articles) {
+            const before = a.keywords.length;
+            a.keywords = a.keywords.map(strip).filter((k) => k.length > 0);
+            if (a.keywords.length !== before) fixed++;
+          }
+          const h = await context.writeResource("snapshot", "feed-snapshot", {
+            fetchedAt: snapshotData.fetchedAt,
+            articles: snapshotData.articles,
+            errors: snapshotData.errors,
+            nonFeedUrls: (snapshotData as Record<string, unknown>).nonFeedUrls ?? [],
+          });
+          handles.push(h);
+          logger?.info("Cleaned {fixed} articles in snapshot", { fixed });
+        }
+
+        const filteredData = await context.readResource("filtered-snapshot") as
+          | (FeedSnapshot & { filteredAt: string; ageFilter: string })
+          | null;
+        if (filteredData?.articles) {
+          let fixed = 0;
+          for (const a of filteredData.articles) {
+            const before = a.keywords.length;
+            a.keywords = a.keywords.map(strip).filter((k) => k.length > 0);
+            if (a.keywords.length !== before) fixed++;
+          }
+          const h = await context.writeResource(
+            "filteredSnapshot",
+            "filtered-snapshot",
+            {
+              fetchedAt: filteredData.fetchedAt,
+              articles: filteredData.articles,
+              errors: filteredData.errors,
+              nonFeedUrls: (filteredData as Record<string, unknown>).nonFeedUrls ?? [],
+              filteredAt: filteredData.filteredAt,
+              ageFilter: filteredData.ageFilter,
+            },
+          );
+          handles.push(h);
+          logger?.info("Cleaned {fixed} articles in filtered snapshot", { fixed });
+        }
+
+        const prefsData = await context.readResource("prefs-current") as
+          | Record<string, unknown>
+          | null;
+        if (prefsData) {
+          const prefs = normalizePrefs(prefsData);
+          let fixed = 0;
+          for (const e of prefs.interested) {
+            const before = e.keywords.length;
+            e.keywords = e.keywords.map(strip).filter((k) => k.length > 0);
+            if (e.keywords.length !== before) fixed++;
+          }
+          for (const e of prefs.ignored) {
+            const before = e.keywords.length;
+            e.keywords = e.keywords.map(strip).filter((k) => k.length > 0);
+            if (e.keywords.length !== before) fixed++;
+          }
+          prefs.keywordWeights = computeKeywordWeights(prefs);
+          const h = await context.writeResource("preferences", "prefs-current", {
+            interested: prefs.interested,
+            ignored: prefs.ignored,
+            seen: prefs.seen,
+            read: prefs.read,
+            keywordWeights: prefs.keywordWeights,
+          });
+          handles.push(h);
+          logger?.info("Cleaned {fixed} feedback entries in preferences", { fixed });
+        }
+
+        return { dataHandles: handles };
+      },
+    },
     fetch: {
       description: "Fetch RSS/Atom feeds and store articles",
       arguments: FetchArgsSchema,

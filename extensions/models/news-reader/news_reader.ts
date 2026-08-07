@@ -65,6 +65,7 @@ const FeedInputSchema = z.object({
   duplicate: z.boolean().optional(),
   duplicateOf: z.string().optional(),
   invalid: z.boolean().optional(),
+  enabled: z.boolean().optional(),
 }).describe("A feed from the feed-catalog");
 
 const FetchArgsSchema = z.object({
@@ -1102,7 +1103,7 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
         // Normalize feeds: accept string URLs or feed objects from feed-catalog.
-        // Skip feeds marked as duplicates by the feed-catalog `dedupe` method.
+        // Skip feeds marked as duplicates, invalid, or disabled.
         const skipped: string[] = [];
         const feedUrls: string[] = args.feeds.reduce<string[]>((acc, f) => {
           if (typeof f === "string") {
@@ -1114,6 +1115,10 @@ export const model = {
             return acc;
           }
           if (f.invalid === true) {
+            skipped.push(f.url);
+            return acc;
+          }
+          if (f.enabled === false) {
             skipped.push(f.url);
             return acc;
           }
@@ -1135,7 +1140,7 @@ export const model = {
         }
         logger?.info("Fetching {count} feeds", { count: feedUrls.length });
         if (skipped.length > 0) {
-          logger?.info("Skipped {n} duplicate/invalid feeds: {urls}", {
+          logger?.info("Skipped {n} duplicate/invalid/disabled feeds: {urls}", {
             n: skipped.length,
             urls: skipped.join(", "),
           });

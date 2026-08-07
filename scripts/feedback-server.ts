@@ -37,6 +37,7 @@ const HTML_PATH = Deno.env.get("FEEDBACK_HTML_PATH") ?? "";
 const FEEDS_PATH = Deno.env.get("FEEDBACK_FEEDS_PATH") ?? "";
 const QUEUE_DIR = Deno.env.get("FEEDBACK_QUEUE_DIR") ?? "";
 const PAGES_DIR = Deno.env.get("FEEDBACK_PAGES_DIR") ?? "";
+const FEED_STATE_DIR = Deno.env.get("FEEDBACK_FEED_STATE_DIR") ?? "";
 
 function parseArgs(): {
   port: number;
@@ -44,12 +45,14 @@ function parseArgs(): {
   feedsPath: string;
   queueDir: string;
   pagesDir: string;
+  feedStateDir: string;
 } {
   let port = PORT;
   let htmlPath = HTML_PATH;
   let feedsPath = FEEDS_PATH;
   let queueDir = QUEUE_DIR;
   let pagesDir = PAGES_DIR;
+  let feedStateDir = FEED_STATE_DIR;
   const args = Deno.args;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--port" && i + 1 < args.length) {
@@ -62,6 +65,8 @@ function parseArgs(): {
       queueDir = args[++i];
     } else if (args[i] === "--pages-dir" && i + 1 < args.length) {
       pagesDir = args[++i];
+    } else if (args[i] === "--feed-state-dir" && i + 1 < args.length) {
+      feedStateDir = args[++i];
     }
   }
   if (!queueDir) {
@@ -70,7 +75,10 @@ function parseArgs(): {
   if (!pagesDir) {
     pagesDir = `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/pages-queue`;
   }
-  return { port, htmlPath, feedsPath, queueDir, pagesDir };
+  if (!feedStateDir) {
+    feedStateDir = `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/feed-state`;
+  }
+  return { port, htmlPath, feedsPath, queueDir, pagesDir, feedStateDir };
 }
 
 interface FeedbackEntry {
@@ -180,6 +188,7 @@ async function handleRequest(
   feedsPath: string,
   queueDir: string,
   pagesDir: string,
+  feedStateDir: string,
 ): Promise<Response> {
   const url = new URL(req.url);
 
@@ -318,6 +327,75 @@ async function handleRequest(
     }
   }
 
+  if (url.pathname === "/api/feed") {
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        const feedUrl = body.url ?? "";
+        const enabled = body.enabled;
+        if (!feedUrl || typeof enabled !== "boolean") {
+          return jsonResponse(
+            { error: "url (string) and enabled (boolean) are required" },
+            400,
+          );
+        }
+        const entry = {
+          id: generateId(),
+          url: feedUrl,
+          enabled,
+          createdAt: new Date().toISOString(),
+        };
+        await ensureQueueDir(feedStateDir);
+        await writeEntry(feedStateDir, entry);
+        return jsonResponse({ id: entry.id, status: "queued" }, 201);
+      } catch (err) {
+        return jsonResponse(
+          { error: err instanceof Error ? err.message : "Invalid request" },
+          400,
+        );
+      }
+    }
+
+    if (req.method === "GET") {
+      const limit = Math.min(
+        Math.max(parseInt(url.searchParams.get("limit") ?? "20"), 1),
+        100,
+      );
+      const entries = await readEntries(feedStateDir, limit) as Array<{
+        id: string; url: string; enabled: boolean; createdAt: string;
+      }>;
+      return jsonResponse({
+        items: entries,
+        remaining: entries.length,
+        queued: await countEntries(feedStateDir),
+      });
+    }
+
+    if (req.method === "DELETE") {
+      const idParam = url.searchParams.get("id");
+      const idsParam = url.searchParams.get("ids");
+
+      if (idsParam) {
+        const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
+        const deleted = await deleteEntries(feedStateDir, ids);
+        return jsonResponse({ deleted, ids });
+      }
+
+      if (idParam) {
+        const ok = await deleteEntry(feedStateDir, idParam);
+        return jsonResponse(
+          { id: idParam, status: ok ? "deleted" : "not_found" },
+          ok ? 200 : 404,
+        );
+      }
+
+      return jsonResponse(
+        { error: "Provide ?id= or ?ids= query parameter" },
+        400,
+      );
+    }
+  }
+
   if (url.pathname === "/api/pages") {
     if (req.method === "POST") {
       try {
@@ -386,18 +464,20 @@ async function handleRequest(
   return new Response("Not found", { status: 404, headers: corsHeaders() });
 }
 
-const { port, htmlPath, feedsPath, queueDir, pagesDir } = parseArgs();
+const { port, htmlPath, feedsPath, queueDir, pagesDir, feedStateDir } = parseArgs();
 
 await ensureQueueDir(queueDir);
 await ensureQueueDir(pagesDir);
+await ensureQueueDir(feedStateDir);
 
 Deno.serve({ port }, (req) =>
-  handleRequest(req, htmlPath, feedsPath, queueDir, pagesDir)
+  handleRequest(req, htmlPath, feedsPath, queueDir, pagesDir, feedStateDir)
 );
 
 console.error(`Feedback server listening on http://localhost:${port}`);
 console.error(`Queue directory: ${queueDir}`);
 console.error(`Pages directory: ${pagesDir}`);
+console.error(`Feed state directory: ${feedStateDir}`);
 if (htmlPath) {
   console.error(`Serving HTML from: ${htmlPath} (at /)`);
 }

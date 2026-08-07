@@ -36,6 +36,7 @@ swamp workflow run news
 | GET    | `/api/feedback`   | Dequeue oldest N entries (`?limit=N`, default 20) |
 | DELETE | `/api/feedback`   | Delete one entry (`?id=ULID`) or batch (`?ids=ULID1,ULID2`) |
 | GET    | `/`               | Serve the HTML page (if `--html` flag provided)  |
+| GET    | `/feeds.html`     | Serve the feeds listing (if `--feeds` flag provided) |
 
 ### POST body
 
@@ -182,3 +183,65 @@ Same mechanism as `--queue-dir` / `FEEDBACK_QUEUE_DIR`, but for pages:
 | ----------------------- | ------------------------ |
 | `--pages-dir`           | `~/.swamp/pages-queue/`  |
 | `FEEDBACK_PAGES_DIR`    | (same default)           |
+
+---
+
+## Feed enable/disable queue
+
+A third queue for toggling feeds on/off. The feeds.html page has a
+"Disable"/"Enable" button on each feed. Clicks are sent to the server, stored
+as files, and picked up by the workflow on its next run.
+
+### Endpoints
+
+| Method | Path              | Description                                      |
+| ------ | ----------------- | ------------------------------------------------ |
+| POST   | `/api/feed`       | Enqueue a feed enable/disable toggle             |
+| GET    | `/api/feed`       | Dequeue oldest N entries (`?limit=N`, default 20) |
+| DELETE | `/api/feed`       | Delete one (`?id=ULID`) or batch (`?ids=ULID1,ULID2`) |
+
+### POST body
+
+```json
+{
+  "url": "https://feeds.bbci.co.uk/news/rss.xml",
+  "enabled": false
+}
+```
+
+### GET response
+
+```json
+{
+  "items": [
+    {
+      "id": "01JABC...",
+      "url": "https://feeds.bbci.co.uk/news/rss.xml",
+      "enabled": false,
+      "createdAt": "2026-08-07T06:00:00.000Z"
+    }
+  ],
+  "remaining": 1,
+  "queued": 1
+}
+```
+
+### Storage
+
+Same file-per-entry layout as feedback, in the feed-state directory (default:
+`~/.swamp/feed-state/`).
+
+### Workflow integration
+
+The `news` workflow adds a `gather-feed-state` step that calls the feed-catalog
+`gatherFeedState` method, which polls `GET /api/feed?limit=N`, applies
+`enabled` to each matching catalog feed, and DELETEs the processed entries.
+The `fetch` step depends on `gather-feed-state`, so disabled feeds are skipped
+when gathering articles.
+
+### Feed-state-dir flag
+
+| Flag / env              | Default                  |
+| ----------------------- | ------------------------ |
+| `--feed-state-dir`      | `~/.swamp/feed-state/`   |
+| `FEEDBACK_FEED_STATE_DIR` | (same default)         |

@@ -106,6 +106,20 @@ const GenerateFeedsHtmlArgsSchema = z.object({
 
 type GenerateFeedsHtmlArgs = z.infer<typeof GenerateFeedsHtmlArgsSchema>;
 
+const GatherFeedStateArgsSchema = z.object({
+  serverUrl: z.string().default("http://localhost:8765").describe(
+    "URL of the feedback queue HTTP server",
+  ),
+  batchSize: z.number().int().min(1).max(100).default(100).describe(
+    "Number of feed state entries to process per batch",
+  ),
+  maxBatches: z.number().int().min(1).max(50).default(5).describe(
+    "Maximum number of batches to process in one run",
+  ),
+}).describe("Arguments for gathering feed enabled/disabled state from the feedback server");
+
+type GatherFeedStateArgs = z.infer<typeof GatherFeedStateArgsSchema>;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -128,6 +142,8 @@ export interface Feed {
   invalid?: boolean;
   /** Human-readable reason the feed was marked invalid (e.g. not a feed). */
   invalidReason?: string;
+  /** Whether this feed is enabled for fetching (default true). */
+  enabled?: boolean;
 }
 
 /** Per-feed article counts (seen/read/interested/ignored). */
@@ -399,15 +415,19 @@ export function generateFeedsHtml(
     const reason = f.invalid && f.invalidReason
       ? `\n<div class="reason">${escapeHtml(f.invalidReason)}</div>`
       : "";
-    const cls = f.invalid ? " feed invalid" : "";
+    const cls = f.invalid ? " feed invalid" : (f.enabled === false ? " feed disabled" : "");
     const countsHtml = counts
       ? `\n<div class="counts">👁 seen ${counts.seen} · 📖 read ${counts.read} · 👍 interested ${counts.interested} · 👎 ignored ${counts.ignored}</div>`
       : "";
+    const enabled = f.enabled !== false;
+    const toggleHtml = f.invalid
+      ? ""
+      : `\n<button class="feed-toggle" data-url="${url}" data-enabled="${enabled}">${enabled ? "Disable" : "Enable"}</button>`;
     return [
       `<div class="feed${cls}">`,
       `<h3>${name}<span class="badge">${badge}</span></h3>`,
       `<div class="url"><a href="${url}">${url}</a></div>`,
-      `<div class="added">added ${added}</div>${reason}${countsHtml}`,
+      `<div class="added">added ${added}</div>${reason}${countsHtml}${toggleHtml}`,
       `</div>`,
     ].join("\n");
   };
@@ -437,6 +457,10 @@ h2 { margin-top: 30px; color: #333; }
 .feed.dup { border-left: 3px solid #ffc107; margin-left: 26px; }
 .feed.invalid { border-left: 3px solid #e53935; opacity: 0.55; }
 .feed.invalid .reason { color: #e53935; font-size: 0.8em; margin-top: 6px; }
+.feed.disabled { border-left: 3px solid #999; opacity: 0.55; }
+.feed-toggle { margin-top: 8px; padding: 3px 10px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; font-size: 0.8em; }
+.feed-toggle:hover { border-color: #4a90d9; }
+.feed-toggle.saving { opacity: 0.5; pointer-events: none; }
 .toggle { margin: 0 0 12px; }
 .toggle button { padding: 4px 10px; border: 1px solid #ccc; border-radius: 6px; background: white; cursor: pointer; font-size: 0.85em; }
 #invalid-feeds { display: none; }
@@ -505,13 +529,50 @@ function feedCatalogPageScript(): string {
 (function () {
   var btn = document.getElementById("toggle-invalid");
   var section = document.getElementById("invalid-feeds");
-  if (!btn || !section) return;
-  btn.addEventListener("click", function () {
-    var show = section.classList.toggle("show");
-    btn.textContent = show
-      ? "Hide invalid feeds"
-      : "Show invalid feeds (" + section.querySelectorAll(".feed").length + ")";
-  });
+  if (btn && section) {
+    btn.addEventListener("click", function () {
+      var show = section.classList.toggle("show");
+      btn.textContent = show
+        ? "Hide invalid feeds"
+        : "Show invalid feeds (" + section.querySelectorAll(".feed").length + ")";
+    });
+  }
+
+  var toggles = document.querySelectorAll(".feed-toggle");
+  for (var i = 0; i < toggles.length; i++) {
+    toggles[i].addEventListener("click", function () {
+      var el = this;
+      var url = el.getAttribute("data-url");
+      var enabled = el.getAttribute("data-enabled") === "true";
+      var newEnabled = !enabled;
+      el.classList.add("saving");
+      el.textContent = "…";
+      fetch("/api/feed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url, enabled: newEnabled })
+      }).then(function (res) {
+        if (res.ok) {
+          el.setAttribute("data-enabled", String(newEnabled));
+          el.textContent = newEnabled ? "Disable" : "Enable";
+          var feed = el.closest(".feed");
+          if (feed) {
+            if (newEnabled) {
+              feed.classList.remove("disabled");
+            } else {
+              feed.classList.add("disabled");
+            }
+          }
+        } else {
+          el.textContent = enabled ? "Disable" : "Enable";
+        }
+      }).catch(function () {
+        el.textContent = enabled ? "Disable" : "Enable";
+      }).finally(function () {
+        el.classList.remove("saving");
+      });
+    });
+  }
 })();
 </script>`;
 }
@@ -552,6 +613,7 @@ const FeedSchema = z.object({
   duplicateOf: z.string().optional(),
   invalid: z.boolean().optional(),
   invalidReason: z.string().optional(),
+  enabled: z.boolean().optional(),
 });
 
 const FeedCatalogSchema = z.object({
@@ -862,6 +924,151 @@ export const model = {
           "Wrote feeds HTML to {path} ({bytes} bytes) and file artifact",
           { path: args.outputPath, bytes: html.length },
         );
+
+        return { dataHandles: [handle] };
+      },
+    },
+    gatherFeedState: {
+      description:
+        "Poll the feedback server's /api/feed endpoint, apply enabled/disabled state to the catalog, and delete processed entries.",
+      arguments: GatherFeedStateArgsSchema,
+      execute: async (
+        args: GatherFeedStateArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const logger = context.logger;
+
+        logger?.info("Gathering feed state from {serverUrl} (max {batches} batches of {size})", {
+          serverUrl: args.serverUrl,
+          batches: args.maxBatches,
+          size: args.batchSize,
+        });
+
+        const catalogData = await context.readResource("current") as
+          | FeedCatalog
+          | null;
+        if (!catalogData) {
+          throw new Error(
+            "No feed catalog found. Add feeds first with the 'add' method.",
+          );
+        }
+
+        let totalProcessed = 0;
+        let batchCount = 0;
+        let queued = 1;
+
+        while (batchCount < args.maxBatches && queued > 0) {
+          const getUrl =
+            `${args.serverUrl}/api/feed?limit=${args.batchSize}`;
+          logger?.info("Polling feed state queue (batch {batch}): {url}", {
+            url: getUrl,
+            batch: batchCount + 1,
+          });
+
+          let resp: Response;
+          try {
+            resp = await fetch(getUrl, {
+              signal: AbortSignal.timeout(10000),
+            });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger?.info("Feed state server unreachable: {error}", {
+              error: msg,
+            });
+            break;
+          }
+
+          if (!resp.ok) {
+            let bodyText = "";
+            try { bodyText = await resp.text(); } catch { /* ignore */ }
+            logger?.info("Feed state server returned HTTP {status}: {body}", {
+              status: resp.status,
+              body: bodyText.slice(0, 200),
+            });
+            break;
+          }
+
+          const body = await resp.json() as {
+            items: Array<{
+              id: string;
+              url: string;
+              enabled: boolean;
+              createdAt: string;
+            }>;
+            remaining: number;
+            queued: number;
+          };
+
+          if (!body.items || body.items.length === 0) {
+            logger?.info("No pending feed state entries (queued: {queued})", {
+              queued: body.queued ?? 0,
+            });
+            break;
+          }
+
+          queued = body.queued ?? body.items.length;
+
+          logger?.info("Processing {count} feed state entries (batch {batch}, {queued} queued)", {
+            count: body.items.length,
+            batch: batchCount + 1,
+            queued,
+          });
+
+          const processedIds: string[] = [];
+
+          for (const item of body.items) {
+            const feed = catalogData.feeds.find((f) => f.url === item.url);
+            if (feed) {
+              const was = feed.enabled !== false;
+              feed.enabled = item.enabled;
+              logger?.info("Feed {url}: enabled {was} → {now}", {
+                url: item.url,
+                was,
+                now: item.enabled,
+              });
+            } else {
+              logger?.info("Feed {url} not found in catalog — skipping", {
+                url: item.url,
+              });
+            }
+            processedIds.push(item.id);
+            totalProcessed++;
+          }
+
+          if (processedIds.length > 0) {
+            const deleteUrl =
+              `${args.serverUrl}/api/feed?ids=${processedIds.join(",")}`;
+            try {
+              const delResp = await fetch(deleteUrl, {
+                method: "DELETE",
+                signal: AbortSignal.timeout(10000),
+              });
+              if (delResp.ok) {
+                logger?.info("Deleted {count} processed feed state entries", {
+                  count: processedIds.length,
+                });
+              }
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              logger?.info("Failed to delete feed state entries: {error}", {
+                error: msg,
+              });
+            }
+          }
+
+          batchCount++;
+        }
+
+        logger?.info(
+          "Gathered feed state: {processed} entries applied",
+          { processed: totalProcessed },
+        );
+
+        const handle = await context.writeResource("catalog", "current", {
+          name: catalogData.name,
+          feeds: catalogData.feeds,
+          totalCount: catalogData.totalCount,
+        });
 
         return { dataHandles: [handle] };
       },

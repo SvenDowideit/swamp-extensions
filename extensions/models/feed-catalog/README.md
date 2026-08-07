@@ -105,3 +105,19 @@ count (e.g. `3 invalid`) and a "Show invalid feeds (N)" button toggles a
 separate `Invalid feeds` section that renders each one with an `invalid` badge
 and its `invalidReason`. The page includes a small inline script that powers
 the toggle; if there are no invalid feeds, no button or section is rendered.
+
+Each non-invalid feed has a **Disable/Enable** button that sends a `POST` to
+`/api/feed` on the feedback server. The workflow's `gather-feed-state` step
+polls the queue, applies the `enabled` flag to the catalog, and deletes
+processed entries. Feeds with `enabled: false` are skipped by the `fetch` step
+and shown with a greyed-out `disabled` style on the feeds page.
+
+## Feed state sync
+
+The `gatherFeedState` method polls the feedback server's `/api/feed` endpoint
+and applies enabled/disabled state to the catalog:
+
+```sh
+swamp model method run @svendowideit/feed-catalog gatherFeedState my-feeds \
+  --arg serverUrl=http://localhost:8765
+```

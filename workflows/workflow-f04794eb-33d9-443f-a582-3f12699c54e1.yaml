@@ -166,6 +166,27 @@ jobs:
     dependsOn: []
     weight: 0
     allowFailure: true
+  - name: gather-feed-state
+    description: Poll the feedback server's /api/feed endpoint, apply enabled/disabled
+      state to the catalog, and delete processed entries.
+    task:
+      type: model_method
+      modelType: '@svendowideit/feed-catalog'
+      modelName: feed-catalog
+      methodName: gatherFeedState
+      inputs:
+        serverUrl: ${{ inputs.feedbackServerUrl }}
+        batchSize: ${{ inputs.feedbackBatchSize }}
+        maxBatches: ${{ inputs.feedbackMaxBatches }}
+    dependsOn:
+    - step: dedupe
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: failed
+    weight: 0
+    allowFailure: true
   - name: fetch
     description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided),
       skipping feeds marked duplicate by the dedupe step.
@@ -182,6 +203,12 @@ jobs:
           "current").?attributes.?feeds.orValue([]) }}'
     dependsOn:
     - step: dedupe
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: failed
+    - step: gather-feed-state
       condition:
         type: or
         conditions:

@@ -76,11 +76,32 @@ const DedupeResultSchema = z.object({
 
 type ListCategoriesArgs = z.infer<typeof ListCategoriesArgsSchema>;
 
+const idOrNum = z.union([z.string(), z.number()]);
+
 const GenerateFeedsHtmlArgsSchema = z.object({
   outputPath: z.string().default("feeds.html").describe(
     "Local file path to write the generated HTML page (default: feeds.html)",
   ),
   title: z.string().default("Feed Catalog").describe("Page title"),
+  prefs: z.object({
+    interested: z.array(
+      z.object({ articleId: idOrNum, source: z.string() }).passthrough(),
+    ).optional(),
+    ignored: z.array(
+      z.object({ articleId: idOrNum, source: z.string() }).passthrough(),
+    ).optional(),
+    seen: z.array(idOrNum).optional(),
+    read: z.array(idOrNum).optional(),
+  }).optional().describe(
+    "News-reader preferences used for per-feed seen/read/interested/ignored counts",
+  ),
+  snapshot: z.object({
+    articles: z.array(
+      z.object({ id: idOrNum, source: z.string() }).passthrough(),
+    ).optional(),
+  }).optional().describe(
+    "News-reader feed snapshot used to map article IDs to feed sources",
+  ),
 }).describe("Arguments for generating the feeds HTML page");
 
 type GenerateFeedsHtmlArgs = z.infer<typeof GenerateFeedsHtmlArgsSchema>;
@@ -107,6 +128,14 @@ export interface Feed {
   invalid?: boolean;
   /** Human-readable reason the feed was marked invalid (e.g. not a feed). */
   invalidReason?: string;
+}
+
+/** Per-feed article counts (seen/read/interested/ignored). */
+export interface FeedCounts {
+  seen: number;
+  read: number;
+  interested: number;
+  ignored: number;
 }
 
 /** The complete feed catalog. */
@@ -304,6 +333,13 @@ export function generateFeedsHtml(
   feeds: Feed[],
   title: string,
   generatedAt: string,
+  prefs?: {
+    interested?: { articleId: string; source: string }[];
+    ignored?: { articleId: string; source: string }[];
+    seen?: string[];
+    read?: string[];
+  },
+  snapshot?: { articles?: { id: string; source: string }[] },
 ): string {
   const canonical = feeds.filter((f) => !f.duplicate && f.invalid !== true);
   const invalidFeeds = feeds.filter((f) => f.invalid === true);
@@ -325,7 +361,38 @@ export function generateFeedsHtml(
   const categories = Array.from(new Set(canonical.map((f) => f.category)))
     .sort();
 
-  const card = (f: Feed, badge: string): string => {
+  // Per-feed article counts derived from news-reader preferences + snapshot.
+  // Article `source` is the feed hostname, which matches the catalog feed `name`.
+  const seenSet = new Set(prefs?.seen ?? []);
+  const readSet = new Set(prefs?.read ?? []);
+  const interested = prefs?.interested ?? [];
+  const ignored = prefs?.ignored ?? [];
+  const articles = snapshot?.articles ?? [];
+
+  const countsFor = (feed: Feed): FeedCounts => {
+    // News-reader articles carry the feed hostname as their `source`, which
+    // matches the hostname of the catalog feed URL (not the display name).
+    let src = "";
+    try {
+      src = new URL(feed.url).hostname.toLowerCase();
+    } catch {
+      return { seen: 0, read: 0, interested: 0, ignored: 0 };
+    }
+    let seen = 0;
+    let read = 0;
+    for (const a of articles) {
+      if ((a.source ?? "").toLowerCase() !== src) continue;
+      if (seenSet.has(a.id)) seen++;
+      if (readSet.has(a.id)) read++;
+    }
+    let interestedCount = 0;
+    let ignoredCount = 0;
+    for (const e of interested) if ((e.source ?? "").toLowerCase() === src) interestedCount++;
+    for (const e of ignored) if ((e.source ?? "").toLowerCase() === src) ignoredCount++;
+    return { seen, read, interested: interestedCount, ignored: ignoredCount };
+  };
+
+  const card = (f: Feed, badge: string, counts?: FeedCounts): string => {
     const name = escapeHtml(f.name);
     const url = escapeHtml(f.url);
     const added = escapeHtml(f.addedAt);
@@ -333,11 +400,14 @@ export function generateFeedsHtml(
       ? `\n<div class="reason">${escapeHtml(f.invalidReason)}</div>`
       : "";
     const cls = f.invalid ? " feed invalid" : "";
+    const countsHtml = counts
+      ? `\n<div class="counts">👁 seen ${counts.seen} · 📖 read ${counts.read} · 👍 interested ${counts.interested} · 👎 ignored ${counts.ignored}</div>`
+      : "";
     return [
       `<div class="feed${cls}">`,
       `<h3>${name}<span class="badge">${badge}</span></h3>`,
       `<div class="url"><a href="${url}">${url}</a></div>`,
-      `<div class="added">added ${added}</div>${reason}`,
+      `<div class="added">added ${added}</div>${reason}${countsHtml}`,
       `</div>`,
     ].join("\n");
   };
@@ -351,6 +421,8 @@ export function generateFeedsHtml(
 <title>${escapeHtml(title)}</title>
 <style>
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 960px; margin: 0 auto; padding: 24px; background: #fafafa; color: #222; }
+.header a { color: #1a5276; text-decoration: none; font-size: 0.9em; }
+.header a:hover { text-decoration: underline; }
 h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .meta { color: #666; font-size: 0.9em; margin: 12px 0 24px; }
 h2 { margin-top: 30px; color: #333; }
@@ -358,6 +430,7 @@ h2 { margin-top: 30px; color: #333; }
 .feed h3 { margin: 0 0 6px 0; font-size: 1.05em; }
 .feed .url { color: #555; font-size: 0.85em; word-break: break-all; }
 .feed .added { color: #888; font-size: 0.8em; margin-top: 6px; }
+.feed .counts { color: #555; font-size: 0.85em; margin-top: 6px; }
 .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 0.75em; background: #eee; color: #444; margin-left: 8px; font-weight: normal; }
 .badge.dup { background: #ffc107; color: #222; }
 .badge.invalid { background: #e53935; color: white; }
@@ -371,6 +444,7 @@ h2 { margin-top: 30px; color: #333; }
 </style>
 </head>
 <body>
+<nav class="header"><a href="/">← News summary</a></nav>
 <h1>${escapeHtml(title)}</h1>
 <div class="meta">${feeds.length} feeds · ${canonical.length} canonical · ${dupMap.size} duplicate groups · ${invalidFeeds.length} invalid · generated ${
     escapeHtml(generatedAt)
@@ -384,7 +458,7 @@ ${
   for (const category of categories) {
     sections.push(`<h2>${escapeHtml(category)}</h2>`);
     for (const f of canonical.filter((c) => c.category === category)) {
-      sections.push(card(f, "canonical"));
+      sections.push(card(f, "canonical", countsFor(f)));
       const dups = (dupMap.get(f.url) ?? []).filter((d) =>
         d.category === category
       );
@@ -776,6 +850,8 @@ export const model = {
           catalogData.feeds,
           args.title,
           generatedAt,
+          args.prefs,
+          args.snapshot,
         );
 
         const writer = await context.createFileWriter("report", "feeds-page");

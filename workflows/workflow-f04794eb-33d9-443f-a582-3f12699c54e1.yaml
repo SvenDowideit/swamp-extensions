@@ -225,7 +225,8 @@ jobs:
     allowFailure: false
   - name: generate-feeds-html
     description: Render a static feeds.html listing all catalog feeds, grouped by
-      duplicates, from the same feeds data used to generate news.html.
+      duplicates, with per-feed seen/read/interested/ignored article counts and a
+      cross-link back to the news summary.
     task:
       type: model_method
       modelType: '@svendowideit/feed-catalog'
@@ -233,6 +234,8 @@ jobs:
       methodName: generateFeedsHtml
       inputs:
         outputPath: feeds.html
+        prefs: ${{ data.latest("news-reader", "prefs-current").?attributes.orValue({}) }}
+        snapshot: ${{ data.latest("news-reader", "feed-snapshot").?attributes.orValue({}) }}
     dependsOn:
     - step: filter
       condition:
@@ -255,7 +258,7 @@ jobs:
         type: succeeded
     weight: 0
     allowFailure: true
-  - name: upsert-feed[${{ self.feed.title }}]
+  - name: upsert-feed #[${{ self.feed.title }}]
     description: Add each discovered feed to the feed-catalog.
     forEach:
       item: feed

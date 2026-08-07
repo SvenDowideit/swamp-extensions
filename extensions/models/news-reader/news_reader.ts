@@ -710,6 +710,8 @@ export function generateHtml(
 <title>${escapeHtml(title)}</title>
 <style>
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #fafafa; color: #222; }
+.header a { color: #1a5276; text-decoration: none; font-size: 0.9em; }
+.header a:hover { text-decoration: underline; }
 h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .meta { color: #666; font-size: 0.9em; margin-bottom: 20px; }
 .article { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: white; transition: border-color 0.2s; position: relative; }
@@ -751,6 +753,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 </style>
 </head>
 <body>
+<nav class="header"><a href="/feeds.html">Feeds catalog →</a></nav>
 <h1>${escapeHtml(title)}</h1>
 <meta class="generated-at" data-generated="${escapeHtml(generatedAt)}">
 <div class="meta">${metaText}</div>

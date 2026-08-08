@@ -236,8 +236,7 @@ function isFeedBody(contentType: string, body: string): boolean {
     ct.includes("atom+xml") ||
     ct.includes("feed+json") ||
     ct.includes("text/xml") ||
-    ct.includes("application/xml") ||
-    ct.includes("application/json")
+    ct.includes("application/xml")
   ) {
     return true;
   }
@@ -335,11 +334,11 @@ function feedIdentity(xml: string): { identity: string | null; score: number } {
 /** Escape HTML special characters for safe interpolation. */
 function escapeHtml(s: string): string {
   const map: Record<string, string> = {
-    "&": "\u0026amp;",
-    "<": "\u003c;",
-    ">": "\u003e;",
-    '"': "\u0026quot;",
-    "'": "\u0026#39;",
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
   };
   return s.replace(/[&<>"']/g, (c) => map[c]);
 }

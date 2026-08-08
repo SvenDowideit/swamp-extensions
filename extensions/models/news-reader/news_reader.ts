@@ -49,11 +49,11 @@ export function filterArticlesByAge(
   maxAgeMs: number,
   nowMs?: number,
 ): Article[] {
-  const cutoff = (nowMs ?? Date.now()) - maxAgeMs;
+  const now = nowMs ?? Date.now();
+  const cutoff = now - maxAgeMs;
   return articles.filter((a) => {
     const pubDate = new Date(a.publishedAt).getTime();
-    // Filter: published date must be within the last X hours AND not in the future
-    return pubDate >= cutoff && pubDate <= nowMs!;
+    return pubDate >= cutoff && pubDate <= now;
   });
 }
 
@@ -580,8 +580,7 @@ function isFeedBody(contentType: string, body: string): boolean {
     ct.includes("atom+xml") ||
     ct.includes("feed+json") ||
     ct.includes("text/xml") ||
-    ct.includes("application/xml") ||
-    ct.includes("application/json")
+    ct.includes("application/xml")
   ) {
     return true;
   }
@@ -887,12 +886,8 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
         escapeHtml(a.id)
       }">${escapeHtml(a.title)}</a>${indicators}${dupBadge}
 <span class="article-actions">
-<a onclick="sendFeedback('interested',${
-        escapeHtml(articleJson)
-      })" title="👍 interested">👍</a>
-<a onclick="sendFeedback('ignored',${
-        escapeHtml(articleJson)
-      })" title="👎 ignore">👎</a>
+<a onclick="sendFeedback('interested',${articleJson},event)" title="👍 interested">👍</a>
+<a onclick="sendFeedback('ignored',${articleJson},event)" title="👎 ignore">👎</a>
 </span></h3>
 <span class="source">${
         escapeHtml(a.source)
@@ -918,7 +913,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 <script>
 const FEEDBACK_URL = '/api/feedback';
 
-async function sendFeedback(action, article) {
+async function sendFeedback(action, article, event) {
   const el = event.target;
   el.textContent = '…';
   try {
@@ -1468,6 +1463,8 @@ export const model = {
             fetchedAt: new Date().toISOString(),
             articles: filteredArticles,
             errors: snapshotData.errors,
+            nonFeedUrls:
+              (snapshotData as Record<string, unknown>).nonFeedUrls ?? [],
             filteredAt: new Date().toISOString(),
             ageFilter: args.newsAge,
           },

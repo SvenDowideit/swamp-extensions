@@ -174,7 +174,6 @@ const FEED_CONTENT_TYPES = [
   "application/rss+xml",
   "application/atom+xml",
   "application/feed+json",
-  "application/json",
   "text/xml",
   "application/xml",
 ];

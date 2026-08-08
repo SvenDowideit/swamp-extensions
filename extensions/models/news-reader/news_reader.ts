@@ -1159,7 +1159,8 @@ export const model = {
             fetchedAt: snapshotData.fetchedAt,
             articles: snapshotData.articles,
             errors: snapshotData.errors,
-            nonFeedUrls: (snapshotData as Record<string, unknown>).nonFeedUrls ?? [],
+            nonFeedUrls:
+              (snapshotData as Record<string, unknown>).nonFeedUrls ?? [],
           });
           handles.push(h);
           logger?.info("Cleaned {fixed} articles in snapshot", { fixed });
@@ -1182,13 +1183,16 @@ export const model = {
               fetchedAt: filteredData.fetchedAt,
               articles: filteredData.articles,
               errors: filteredData.errors,
-              nonFeedUrls: (filteredData as Record<string, unknown>).nonFeedUrls ?? [],
+              nonFeedUrls:
+                (filteredData as Record<string, unknown>).nonFeedUrls ?? [],
               filteredAt: filteredData.filteredAt,
               ageFilter: filteredData.ageFilter,
             },
           );
           handles.push(h);
-          logger?.info("Cleaned {fixed} articles in filtered snapshot", { fixed });
+          logger?.info("Cleaned {fixed} articles in filtered snapshot", {
+            fixed,
+          });
         }
 
         const prefsData = await context.readResource("prefs-current") as
@@ -1208,15 +1212,21 @@ export const model = {
             if (e.keywords.length !== before) fixed++;
           }
           prefs.keywordWeights = computeKeywordWeights(prefs);
-          const h = await context.writeResource("preferences", "prefs-current", {
-            interested: prefs.interested,
-            ignored: prefs.ignored,
-            seen: prefs.seen,
-            read: prefs.read,
-            keywordWeights: prefs.keywordWeights,
-          });
+          const h = await context.writeResource(
+            "preferences",
+            "prefs-current",
+            {
+              interested: prefs.interested,
+              ignored: prefs.ignored,
+              seen: prefs.seen,
+              read: prefs.read,
+              keywordWeights: prefs.keywordWeights,
+            },
+          );
           handles.push(h);
-          logger?.info("Cleaned {fixed} feedback entries in preferences", { fixed });
+          logger?.info("Cleaned {fixed} feedback entries in preferences", {
+            fixed,
+          });
         }
 
         return { dataHandles: handles };
@@ -1359,7 +1369,7 @@ export const model = {
         let duplicateCount = 0;
         const deduped: Article[] = [];
 
-        for (const [url, group] of urlGroups) {
+        for (const [_url, group] of urlGroups) {
           if (group.length === 1) {
             deduped.push(group[0]);
             continue;
@@ -1401,7 +1411,8 @@ export const model = {
             fetchedAt: snapshotData.fetchedAt,
             articles: deduped,
             errors: snapshotData.errors,
-            nonFeedUrls: (snapshotData as Record<string, unknown>).nonFeedUrls ?? [],
+            nonFeedUrls:
+              (snapshotData as Record<string, unknown>).nonFeedUrls ?? [],
           },
         );
 

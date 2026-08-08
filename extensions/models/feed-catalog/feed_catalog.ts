@@ -116,7 +116,9 @@ const GatherFeedStateArgsSchema = z.object({
   maxBatches: z.number().int().min(1).max(50).default(5).describe(
     "Maximum number of batches to process in one run",
   ),
-}).describe("Arguments for gathering feed enabled/disabled state from the feedback server");
+}).describe(
+  "Arguments for gathering feed enabled/disabled state from the feedback server",
+);
 
 type GatherFeedStateArgs = z.infer<typeof GatherFeedStateArgsSchema>;
 
@@ -392,7 +394,11 @@ export function generateFeedsHtml(
   const articleById = new Map<string, typeof articles[number]>();
   for (const a of articles) articleById.set(a.id, a);
 
-  const incr = (m: Map<string, Map<string, number>>, k1: string, k2: string) => {
+  const incr = (
+    m: Map<string, Map<string, number>>,
+    k1: string,
+    k2: string,
+  ) => {
     const inner = m.get(k1) ?? new Map<string, number>();
     inner.set(k2, (inner.get(k2) ?? 0) + 1);
     m.set(k1, inner);
@@ -404,9 +410,13 @@ export function generateFeedsHtml(
 
   for (const a of articles) {
     const src = getSrc(a);
-    const dupSources = (a as Record<string, unknown>).duplicateSources as string[] | undefined;
+    const dupSources = (a as Record<string, unknown>).duplicateSources as
+      | string[]
+      | undefined;
     const isDup = (a as Record<string, unknown>).duplicate === true;
-    const dupOf = (a as Record<string, unknown>).duplicateOf as string | undefined;
+    const dupOf = (a as Record<string, unknown>).duplicateOf as
+      | string
+      | undefined;
 
     if (dupSources && dupSources.length > 0) {
       for (const other of dupSources) {
@@ -443,7 +453,14 @@ export function generateFeedsHtml(
     try {
       src = new URL(feed.url).hostname.toLowerCase();
     } catch {
-      return { seen: 0, read: 0, interested: 0, ignored: 0, dedupedFrom: 0, dedupedTo: 0 };
+      return {
+        seen: 0,
+        read: 0,
+        interested: 0,
+        ignored: 0,
+        dedupedFrom: 0,
+        dedupedTo: 0,
+      };
     }
     let seen = 0;
     let read = 0;
@@ -458,13 +475,25 @@ export function generateFeedsHtml(
     }
     let interestedCount = 0;
     let ignoredCount = 0;
-    for (const e of interested) if ((e.source ?? "").toLowerCase() === src) interestedCount++;
-    for (const e of ignored) if ((e.source ?? "").toLowerCase() === src) ignoredCount++;
-    return { seen, read, interested: interestedCount, ignored: ignoredCount, dedupedFrom: dedupedFromCount, dedupedTo: dedupedToCount };
+    for (const e of interested) {
+      if ((e.source ?? "").toLowerCase() === src) interestedCount++;
+    }
+    for (const e of ignored) {
+      if ((e.source ?? "").toLowerCase() === src) ignoredCount++;
+    }
+    return {
+      seen,
+      read,
+      interested: interestedCount,
+      ignored: ignoredCount,
+      dedupedFrom: dedupedFromCount,
+      dedupedTo: dedupedToCount,
+    };
   };
 
   const engagementScore = (counts: FeedCounts): number =>
-    counts.interested * 3 + counts.read * 2 + counts.seen * 1 - counts.ignored * 2;
+    counts.interested * 3 + counts.read * 2 + counts.seen * 1 -
+    counts.ignored * 2;
 
   const card = (f: Feed, badge: string, counts?: FeedCounts): string => {
     const name = escapeHtml(f.name);
@@ -473,33 +502,55 @@ export function generateFeedsHtml(
     const reason = f.invalid && f.invalidReason
       ? `\n<div class="reason">${escapeHtml(f.invalidReason)}</div>`
       : "";
-    const cls = f.invalid ? " feed invalid" : (f.enabled === false ? " feed disabled" : "");
+    const cls = f.invalid
+      ? " feed invalid"
+      : (f.enabled === false ? " feed disabled" : "");
     const countsHtml = counts
-      ? `\n<div class="counts">👁 seen ${counts.seen} · 📖 read ${counts.read} · 👍 interested ${counts.interested} · 👎 ignored ${counts.ignored}${counts.dedupedFrom > 0 || counts.dedupedTo > 0 ? ` · ↗ deduped ${counts.dedupedFrom} away · ← ${counts.dedupedTo} from others` : ""}</div>`
+      ? `\n<div class="counts">👁 seen ${counts.seen} · 📖 read ${counts.read} · 👍 interested ${counts.interested} · 👎 ignored ${counts.ignored}${
+        counts.dedupedFrom > 0 || counts.dedupedTo > 0
+          ? ` · ↗ deduped ${counts.dedupedFrom} away · ← ${counts.dedupedTo} from others`
+          : ""
+      }</div>`
       : "";
 
     let src = "";
-    try { src = new URL(f.url).hostname.toLowerCase(); } catch { /* */ }
+    try {
+      src = new URL(f.url).hostname.toLowerCase();
+    } catch { /* */ }
 
     const shared = sharedWith.get(src);
     const sharedLine = shared && shared.size > 0
-      ? `\n<div class="xr shared">↔ shares articles with: ${topN(shared, 5).map((s) => `<span class="xr-tag">${escapeHtml(s)}</span>`).join(" ")}</div>`
+      ? `\n<div class="xr shared">↔ shares articles with: ${
+        topN(shared, 5).map((s) =>
+          `<span class="xr-tag">${escapeHtml(s)}</span>`
+        ).join(" ")
+      }</div>`
       : "";
 
     const toMap = dedupedTo.get(src);
     const toLine = toMap && toMap.size > 0
-      ? `\n<div class="xr to">↗ deduped to: ${topN(toMap, 3).map((s) => `<span class="xr-tag">${escapeHtml(s)}</span>`).join(" ")}</div>`
+      ? `\n<div class="xr to">↗ deduped to: ${
+        topN(toMap, 3).map((s) =>
+          `<span class="xr-tag">${escapeHtml(s)}</span>`
+        ).join(" ")
+      }</div>`
       : "";
 
     const fromMap = dedupedFrom.get(src);
     const fromLine = fromMap && fromMap.size > 0
-      ? `\n<div class="xr from">← deduped from: ${topN(fromMap, 3).map((s) => `<span class="xr-tag">${escapeHtml(s)}</span>`).join(" ")}</div>`
+      ? `\n<div class="xr from">← deduped from: ${
+        topN(fromMap, 3).map((s) =>
+          `<span class="xr-tag">${escapeHtml(s)}</span>`
+        ).join(" ")
+      }</div>`
       : "";
 
     const enabled = f.enabled !== false;
     const toggleHtml = f.invalid
       ? ""
-      : `\n<button class="feed-toggle" data-url="${url}" data-enabled="${enabled}">${enabled ? "Disable" : "Enable"}</button>`;
+      : `\n<button class="feed-toggle" data-url="${url}" data-enabled="${enabled}">${
+        enabled ? "Disable" : "Enable"
+      }</button>`;
     return [
       `<div class="feed${cls}">`,
       `<h3>${name}<span class="badge">${badge}</span></h3>`,
@@ -1024,11 +1075,14 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
 
-        logger?.info("Gathering feed state from {serverUrl} (max {batches} batches of {size})", {
-          serverUrl: args.serverUrl,
-          batches: args.maxBatches,
-          size: args.batchSize,
-        });
+        logger?.info(
+          "Gathering feed state from {serverUrl} (max {batches} batches of {size})",
+          {
+            serverUrl: args.serverUrl,
+            batches: args.maxBatches,
+            size: args.batchSize,
+          },
+        );
 
         const catalogData = await context.readResource("current") as
           | FeedCatalog
@@ -1044,8 +1098,7 @@ export const model = {
         let queued = 1;
 
         while (batchCount < args.maxBatches && queued > 0) {
-          const getUrl =
-            `${args.serverUrl}/api/feed?limit=${args.batchSize}`;
+          const getUrl = `${args.serverUrl}/api/feed?limit=${args.batchSize}`;
           logger?.info("Polling feed state queue (batch {batch}): {url}", {
             url: getUrl,
             batch: batchCount + 1,
@@ -1066,7 +1119,9 @@ export const model = {
 
           if (!resp.ok) {
             let bodyText = "";
-            try { bodyText = await resp.text(); } catch { /* ignore */ }
+            try {
+              bodyText = await resp.text();
+            } catch { /* ignore */ }
             logger?.info("Feed state server returned HTTP {status}: {body}", {
               status: resp.status,
               body: bodyText.slice(0, 200),
@@ -1094,11 +1149,14 @@ export const model = {
 
           queued = body.queued ?? body.items.length;
 
-          logger?.info("Processing {count} feed state entries (batch {batch}, {queued} queued)", {
-            count: body.items.length,
-            batch: batchCount + 1,
-            queued,
-          });
+          logger?.info(
+            "Processing {count} feed state entries (batch {batch}, {queued} queued)",
+            {
+              count: body.items.length,
+              batch: batchCount + 1,
+              queued,
+            },
+          );
 
           const processedIds: string[] = [];
 
@@ -1122,8 +1180,9 @@ export const model = {
           }
 
           if (processedIds.length > 0) {
-            const deleteUrl =
-              `${args.serverUrl}/api/feed?ids=${processedIds.join(",")}`;
+            const deleteUrl = `${args.serverUrl}/api/feed?ids=${
+              processedIds.join(",")
+            }`;
             try {
               const delResp = await fetch(deleteUrl, {
                 method: "DELETE",

@@ -20,13 +20,21 @@ and generates a static HTML news summary page ranked by predicted interest.
    the snapshot's `nonFeedUrls` list instead of silently producing "0 articles".
    Feeds already marked invalid by the `dedupe` step are skipped and never
    re-fetched.
-4. **Filter by age** — filters fetched articles to show only those within the
+4. **Dedupe articles** — groups all fetched articles by URL. When the same
+   article appears in multiple feeds, the first (alphabetically by source) is
+   kept as the primary and annotated with `duplicateSources` (which other feeds
+   carry it) and `duplicateCount` (how many). The rest are marked
+   `duplicate: true` with a `duplicateOf` pointer to the primary, so they are
+   filtered out of the HTML report.
+5. **Filter by age** — filters fetched articles to show only those within the
    specified time range (default: last 3 days). Supports h/d/w/m suffixes
-   (e.g., "2h", "7d", "4w", "1m").
-5. **Generate** — reads the filtered articles, scores them against your learned
+   (e.g., "2h", "7d", "4w", "1m"). Articles marked `duplicate: true` are
+   skipped.
+6. **Generate** — reads the filtered articles, scores them against your learned
    keyword preferences, and writes a static HTML page with the top articles
-   sorted by interest score.
-6. **Feedback** — you mark articles as "interested" or "ignored" (via the HTML
+   sorted by interest score. Primary articles that appear in multiple feeds show
+   a `↗ N feeds` badge with a tooltip listing the other sources.
+7. **Feedback** — you mark articles as "interested" or "ignored" (via the HTML
    page's 👍/👎 buttons or the CLI). The model recomputes keyword weights from
    your feedback, so future reports surface more of what you like.
 
@@ -54,8 +62,9 @@ during workflow execution:
 │    step: gather-feedback  ← polls API, imports, deletes
 │    step: dedupe           ← feed-catalog flags duplicate feeds
 │    step: fetch            ← skips feeds marked duplicate
-│    step: filter
-│    step: generate
+│    step: dedupe-articles  ← merges duplicate articles by URL
+│    step: filter           ← skips duplicate-marked articles
+│    step: generate         ← shows cross-feed indicators
 │    ...
 ```
 
@@ -155,8 +164,9 @@ swamp model method run news-reader feedback --input articleId=def456 --input act
 | `gatherFeedback` | Poll feedback queue server, import entries, delete them  | `serverUrl`, `batchSize`, `maxBatches`               |
 | `gatherPages`    | Poll pages queue server, collect pages into `pagesQueue` resource, delete them | `serverUrl`, `batchSize`, `maxBatches`, `category` |
 | `fetch`          | Fetch RSS/Atom feeds (skipping duplicates), detect non-feed HTML pages, store articles + `nonFeedUrls` | `feeds` (URL[]), `maxArticlesPerFeed`            |
-| `filterByAge`    | Filter articles by age for HTML generation               | `newsAge` (default: "3d", supports h/d/w/m suffixes) |
-| `generate`       | Generate HTML report from filtered articles              | `topN`, `title`                                      |
+| `dedupeArticles` | Group articles by URL, mark duplicates, annotate primaries with cross-feed source info | _(none)_                                             |
+| `filterByAge`    | Filter articles by age for HTML generation (skips `duplicate: true` articles) | `newsAge` (default: "3d", supports h/d/w/m suffixes) |
+| `generate`       | Generate HTML report from filtered articles, with cross-feed duplicate indicators | `topN`, `title`                                      |
 | `feedback`       | Record user interest/ignore for an article               | `articleId`, `action`, `source`, `title`, `keywords` |
 
 ## Output
@@ -167,7 +177,9 @@ The `generate` method writes a static HTML file as a swamp data artifact
 - **Interest profile** — top keywords with their weights (green = interesting,
   red = ignored)
 - **Article cards** — title (links to original), source, date, summary,
-  keywords, interest score badge (★/↑/↓/·), and feedback buttons
+  keywords, interest score badge (★/↑/↓/·), and feedback buttons. Primary
+  articles that appear in multiple feeds show a `↗ N feeds` badge (purple pill)
+  with a tooltip listing the other feed sources.
 - **Keyboard shortcuts** — `j`/`k` to navigate between articles
 - **Age filter info** — shows the time range of news being displayed
 

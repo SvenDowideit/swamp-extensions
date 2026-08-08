@@ -152,6 +152,8 @@ export interface FeedCounts {
   read: number;
   interested: number;
   ignored: number;
+  dedupedFrom: number;
+  dedupedTo: number;
 }
 
 /** The complete feed catalog. */
@@ -385,28 +387,84 @@ export function generateFeedsHtml(
   const ignored = prefs?.ignored ?? [];
   const articles = snapshot?.articles ?? [];
 
+  const getSrc = (a: { source?: string }) => (a.source ?? "").toLowerCase();
+
+  const articleById = new Map<string, typeof articles[number]>();
+  for (const a of articles) articleById.set(a.id, a);
+
+  const incr = (m: Map<string, Map<string, number>>, k1: string, k2: string) => {
+    const inner = m.get(k1) ?? new Map<string, number>();
+    inner.set(k2, (inner.get(k2) ?? 0) + 1);
+    m.set(k1, inner);
+  };
+
+  const sharedWith = new Map<string, Map<string, number>>();
+  const dedupedTo = new Map<string, Map<string, number>>();
+  const dedupedFrom = new Map<string, Map<string, number>>();
+
+  for (const a of articles) {
+    const src = getSrc(a);
+    const dupSources = (a as Record<string, unknown>).duplicateSources as string[] | undefined;
+    const isDup = (a as Record<string, unknown>).duplicate === true;
+    const dupOf = (a as Record<string, unknown>).duplicateOf as string | undefined;
+
+    if (dupSources && dupSources.length > 0) {
+      for (const other of dupSources) {
+        const o = other.toLowerCase();
+        incr(sharedWith, src, o);
+        incr(sharedWith, o, src);
+        incr(dedupedFrom, src, o);
+        incr(dedupedTo, o, src);
+      }
+    }
+
+    if (isDup && dupOf) {
+      const primary = articleById.get(dupOf);
+      if (primary) {
+        const ps = getSrc(primary);
+        incr(sharedWith, src, ps);
+        incr(sharedWith, ps, src);
+        incr(dedupedTo, src, ps);
+        incr(dedupedFrom, ps, src);
+      }
+    }
+  }
+
+  const topN = (m: Map<string, number> | undefined, n: number): string[] => {
+    if (!m || m.size === 0) return [];
+    return [...m.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, n)
+      .map(([k]) => k);
+  };
+
   const countsFor = (feed: Feed): FeedCounts => {
-    // News-reader articles carry the feed hostname as their `source`, which
-    // matches the hostname of the catalog feed URL (not the display name).
     let src = "";
     try {
       src = new URL(feed.url).hostname.toLowerCase();
     } catch {
-      return { seen: 0, read: 0, interested: 0, ignored: 0 };
+      return { seen: 0, read: 0, interested: 0, ignored: 0, dedupedFrom: 0, dedupedTo: 0 };
     }
     let seen = 0;
     let read = 0;
+    let dedupedFromCount = 0;
+    let dedupedToCount = 0;
     for (const a of articles) {
-      if ((a.source ?? "").toLowerCase() !== src) continue;
+      if (getSrc(a) !== src) continue;
       if (seenSet.has(a.id)) seen++;
       if (readSet.has(a.id)) read++;
+      if ((a as Record<string, unknown>).duplicate === true) dedupedFromCount++;
+      if ((a as Record<string, unknown>).duplicateCount > 0) dedupedToCount++;
     }
     let interestedCount = 0;
     let ignoredCount = 0;
     for (const e of interested) if ((e.source ?? "").toLowerCase() === src) interestedCount++;
     for (const e of ignored) if ((e.source ?? "").toLowerCase() === src) ignoredCount++;
-    return { seen, read, interested: interestedCount, ignored: ignoredCount };
+    return { seen, read, interested: interestedCount, ignored: ignoredCount, dedupedFrom: dedupedFromCount, dedupedTo: dedupedToCount };
   };
+
+  const engagementScore = (counts: FeedCounts): number =>
+    counts.interested * 3 + counts.read * 2 + counts.seen * 1 - counts.ignored * 2;
 
   const card = (f: Feed, badge: string, counts?: FeedCounts): string => {
     const name = escapeHtml(f.name);
@@ -417,8 +475,27 @@ export function generateFeedsHtml(
       : "";
     const cls = f.invalid ? " feed invalid" : (f.enabled === false ? " feed disabled" : "");
     const countsHtml = counts
-      ? `\n<div class="counts">👁 seen ${counts.seen} · 📖 read ${counts.read} · 👍 interested ${counts.interested} · 👎 ignored ${counts.ignored}</div>`
+      ? `\n<div class="counts">👁 seen ${counts.seen} · 📖 read ${counts.read} · 👍 interested ${counts.interested} · 👎 ignored ${counts.ignored}${counts.dedupedFrom > 0 || counts.dedupedTo > 0 ? ` · ↗ deduped ${counts.dedupedFrom} away · ← ${counts.dedupedTo} from others` : ""}</div>`
       : "";
+
+    let src = "";
+    try { src = new URL(f.url).hostname.toLowerCase(); } catch { /* */ }
+
+    const shared = sharedWith.get(src);
+    const sharedLine = shared && shared.size > 0
+      ? `\n<div class="xr shared">↔ shares articles with: ${topN(shared, 5).map((s) => `<span class="xr-tag">${escapeHtml(s)}</span>`).join(" ")}</div>`
+      : "";
+
+    const toMap = dedupedTo.get(src);
+    const toLine = toMap && toMap.size > 0
+      ? `\n<div class="xr to">↗ deduped to: ${topN(toMap, 3).map((s) => `<span class="xr-tag">${escapeHtml(s)}</span>`).join(" ")}</div>`
+      : "";
+
+    const fromMap = dedupedFrom.get(src);
+    const fromLine = fromMap && fromMap.size > 0
+      ? `\n<div class="xr from">← deduped from: ${topN(fromMap, 3).map((s) => `<span class="xr-tag">${escapeHtml(s)}</span>`).join(" ")}</div>`
+      : "";
+
     const enabled = f.enabled !== false;
     const toggleHtml = f.invalid
       ? ""
@@ -427,7 +504,7 @@ export function generateFeedsHtml(
       `<div class="feed${cls}">`,
       `<h3>${name}<span class="badge">${badge}</span></h3>`,
       `<div class="url"><a href="${url}">${url}</a></div>`,
-      `<div class="added">added ${added}</div>${reason}${countsHtml}${toggleHtml}`,
+      `<div class="added">added ${added}</div>${reason}${countsHtml}${sharedLine}${toLine}${fromLine}${toggleHtml}`,
       `</div>`,
     ].join("\n");
   };
@@ -458,6 +535,11 @@ h2 { margin-top: 30px; color: #333; }
 .feed.invalid { border-left: 3px solid #e53935; opacity: 0.55; }
 .feed.invalid .reason { color: #e53935; font-size: 0.8em; margin-top: 6px; }
 .feed.disabled { border-left: 3px solid #999; opacity: 0.55; }
+.xr { font-size: 0.8em; margin-top: 4px; color: #666; }
+.xr-tag { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 0.9em; margin-right: 3px; }
+.xr.shared .xr-tag { background: #e8e0f0; color: #6c4a9e; }
+.xr.to .xr-tag { background: #fce4ec; color: #c62828; }
+.xr.from .xr-tag { background: #e8f5e9; color: #2e7d32; }
 .feed-toggle { margin-top: 8px; padding: 3px 10px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; font-size: 0.8em; }
 .feed-toggle:hover { border-color: #4a90d9; }
 .feed-toggle.saving { opacity: 0.5; pointer-events: none; }
@@ -481,8 +563,12 @@ ${
 
   for (const category of categories) {
     sections.push(`<h2>${escapeHtml(category)}</h2>`);
-    for (const f of canonical.filter((c) => c.category === category)) {
-      sections.push(card(f, "canonical", countsFor(f)));
+    const catFeeds = canonical
+      .filter((c) => c.category === category)
+      .map((f) => ({ feed: f, counts: countsFor(f) }))
+      .sort((a, b) => engagementScore(b.counts) - engagementScore(a.counts));
+    for (const { feed: f, counts } of catFeeds) {
+      sections.push(card(f, "canonical", counts));
       const dups = (dupMap.get(f.url) ?? []).filter((d) =>
         d.category === category
       );

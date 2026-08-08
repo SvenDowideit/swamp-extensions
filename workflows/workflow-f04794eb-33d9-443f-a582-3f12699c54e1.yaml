@@ -7,7 +7,7 @@ description: |
   upserts them into the catalog for the next run, finally rendering
   feeds.html (a duplicate-grouped catalog listing).
 
-  Loop: gather-feedback → dedupe (flag duplicate catalog feeds) → fetch → filter by age (default: last 3 days) → generate HTML → discover new feeds → upsert into catalog → generate feeds.html listing
+  Loop: gather-feedback → dedupe (flag duplicate catalog feeds) → fetch → dedupe-articles (merge duplicate articles by URL) → filter by age (default: last 3 days) → generate HTML → discover new feeds → upsert into catalog → generate feeds.html listing
 
   Setup (one-time): add feeds to the catalog:
     swamp model create @svendowideit/feed-catalog feed-catalog
@@ -192,7 +192,7 @@ jobs:
       skipping feeds marked duplicate by the dedupe step.
     #guard: ${{ data.latest("news-reader", "feed-snapshot") != null && timestamp(run.startedAt)
     #  - timestamp(data.latest("news-reader", "feed-snapshot").attributes.fetchedAt)
-    #  < duration("3h") }}
+    #  < duration("1h") }}
     task:
       type: model_method
       modelType: '@svendowideit/news-reader'
@@ -216,6 +216,22 @@ jobs:
         - type: failed
     weight: 0
     allowFailure: false
+  - name: dedupe-articles
+    description: Group articles by URL, mark duplicates, and annotate primary articles
+      with duplicate source info so the filter step skips them and the HTML shows
+      cross-feed indicators.
+    task:
+      type: model_method
+      modelType: '@svendowideit/news-reader'
+      modelName: news-reader
+      methodName: dedupeArticles
+      inputs: {}
+    dependsOn:
+    - step: fetch
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: false
   - name: filter
     description: 'Filter articles by age (default: last 3 days).'
     task:
@@ -226,12 +242,9 @@ jobs:
       inputs:
         newsAge: ${{ inputs.newsAge }}
     dependsOn:
-    - step: fetch
+    - step: dedupe-articles
       condition:
-        type: or
-        conditions:
-        - type: succeeded
-        - type: skipped
+        type: succeeded
     weight: 0
     allowFailure: false
   - name: generate

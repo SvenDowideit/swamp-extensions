@@ -94,6 +94,12 @@ const GenerateArgsSchema = z.object({
 
 type GenerateArgs = z.infer<typeof GenerateArgsSchema>;
 
+const DedupeArticlesArgsSchema = z.object({}).describe(
+  "Group articles by URL, mark duplicates, and annotate primary articles with duplicate source info",
+);
+
+type DedupeArticlesArgs = z.infer<typeof DedupeArticlesArgsSchema>;
+
 const FilterByAgeArgsSchema = z.object({
   newsAge: z.string().default("3d").describe(
     "Time range of news to show (e.g., 2h, 7d, 4w, 1m). Supports h (hours), d (days), w (weeks), m (months). Defaults to 3 days.",
@@ -197,6 +203,14 @@ export interface Article {
   summary: string;
   /** Keywords/tags extracted from the article. */
   keywords: string[];
+  /** True if this article is a duplicate of another (filtered from output). */
+  duplicate?: boolean;
+  /** The article ID of the primary article this duplicates. */
+  duplicateOf?: string;
+  /** For primary articles: list of source names that also carry this article. */
+  duplicateSources?: string[];
+  /** For primary articles: how many other feeds carry this same article. */
+  duplicateCount?: number;
 }
 
 /** A snapshot of all fetched articles from all feeds. */
@@ -257,6 +271,10 @@ const ArticleSchema = z.object({
   publishedAt: z.string(),
   summary: z.string(),
   keywords: z.array(z.string()),
+  duplicate: z.boolean().optional(),
+  duplicateOf: z.string().optional(),
+  duplicateSources: z.array(z.string()).optional(),
+  duplicateCount: z.number().int().optional(),
 });
 
 const FeedSnapshotSchema = z.object({
@@ -746,6 +764,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .article-indicators { display: inline-block; margin-left: 8px; font-size: 0.8em; }
 .article-indicators .seen-badge { color: #ffc107; }
 .article-indicators .read-badge { color: #28a745; }
+.dup-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 0.75em; background: #e8e0f0; color: #6c4a9e; cursor: help; }
 .source { color: #888; font-size: 0.85em; }
 .score { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; }
 .score-high { background: #d4edda; color: #155724; }
@@ -844,6 +863,12 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
       }</span>`
       : "";
 
+    const dupBadge = (a.duplicateSources && a.duplicateSources.length > 0)
+      ? `<span class="dup-badge" title="Also from: ${
+        a.duplicateSources.map((s) => escapeHtml(s)).join(", ")
+      }">↗ ${a.duplicateCount} feed${a.duplicateCount === 1 ? "" : "s"}</span>`
+      : "";
+
     const domain = a.source.includes(".") ? a.source : (() => {
       try {
         return new URL(a.url).hostname;
@@ -860,7 +885,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
       }" style="--watermark: url('${faviconUrl}')">
 <h3><a href="${escapeHtml(a.url)}" target="_blank" data-article-id="${
         escapeHtml(a.id)
-      }">${escapeHtml(a.title)}</a>${indicators}
+      }">${escapeHtml(a.title)}</a>${indicators}${dupBadge}
 <span class="article-actions">
 <a onclick="sendFeedback('interested',${
         escapeHtml(articleJson)
@@ -1069,7 +1094,7 @@ addInput.addEventListener('input', () => {
 /** Model definition for fetching RSS feeds and generating news summaries. */
 export const model = {
   type: "@svendowideit/news-reader",
-  version: "2026.08.06.1",
+  version: "2026.08.08.1",
   globalArguments: GlobalArgsSchema,
   resources: {
     snapshot: {
@@ -1300,6 +1325,89 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
+    dedupeArticles: {
+      description:
+        "Group articles by URL, mark duplicates, and annotate primary articles with duplicate source info",
+      arguments: DedupeArticlesArgsSchema,
+      execute: async (
+        _args: DedupeArticlesArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const logger = context.logger;
+
+        const snapshotData = await context.readResource("feed-snapshot") as
+          | FeedSnapshot
+          | null;
+        if (
+          !snapshotData || !snapshotData.articles ||
+          snapshotData.articles.length === 0
+        ) {
+          throw new Error(
+            "No articles found — run the 'fetch' method first with some feed URLs",
+          );
+        }
+
+        const articles = snapshotData.articles;
+        const urlGroups = new Map<string, Article[]>();
+
+        for (const a of articles) {
+          const existing = urlGroups.get(a.url) ?? [];
+          existing.push(a);
+          urlGroups.set(a.url, existing);
+        }
+
+        let duplicateCount = 0;
+        const deduped: Article[] = [];
+
+        for (const [url, group] of urlGroups) {
+          if (group.length === 1) {
+            deduped.push(group[0]);
+            continue;
+          }
+
+          group.sort((a, b) => a.source.localeCompare(b.source));
+          const primary = group[0];
+          const dupSources = group.slice(1).map((a) => a.source);
+
+          deduped.push({
+            ...primary,
+            duplicateSources: dupSources,
+            duplicateCount: dupSources.length,
+          });
+
+          for (const dup of group.slice(1)) {
+            deduped.push({
+              ...dup,
+              duplicate: true,
+              duplicateOf: primary.id,
+            });
+            duplicateCount++;
+          }
+        }
+
+        logger?.info(
+          "Deduped {total} articles: {duplicates} duplicates across {groups} URL groups",
+          {
+            total: articles.length,
+            duplicates: duplicateCount,
+            groups: urlGroups.size,
+          },
+        );
+
+        const handle = await context.writeResource(
+          "snapshot",
+          "feed-snapshot",
+          {
+            fetchedAt: snapshotData.fetchedAt,
+            articles: deduped,
+            errors: snapshotData.errors,
+            nonFeedUrls: (snapshotData as Record<string, unknown>).nonFeedUrls ?? [],
+          },
+        );
+
+        return { dataHandles: [handle] };
+      },
+    },
     filterByAge: {
       description:
         "Filter articles by age and store filtered snapshot for HTML generation",
@@ -1332,6 +1440,7 @@ export const model = {
         });
 
         const filteredArticles = snapshotData.articles.filter((a) => {
+          if (a.duplicate === true) return false;
           const pubDate = new Date(a.publishedAt).getTime();
           return pubDate >= cutoff && pubDate <= now;
         });

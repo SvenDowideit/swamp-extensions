@@ -100,6 +100,39 @@ with a `duplicate of …` badge. The page is written both to `outputPath` and as
 `report` file artifact (`feeds-page`), retrievable with
 `swamp data get my-feeds feeds-page --version 1`.
 
+### Per-feed article counts
+
+When the news-reader's `prefs` and `snapshot` data are passed in (as the
+workflow does), each feed card shows per-feed article engagement counts:
+
+- **👁 seen / 📖 read / 👍 interested / 👎 ignored** — counts from the
+  news-reader's preferences, matched by feed hostname
+- **↗ deduped N away** — articles from this feed that were marked as duplicates
+  of another feed's article
+- **← N from others** — articles from this feed that are the primary/canonical
+  copy, with duplicates coming from other feeds
+
+### Cross-feed article sharing
+
+Each feed card also shows cross-reference lines (only when non-zero):
+
+- **↔ shares articles with: host1 host2 …** (purple tags, top 5) — feeds that
+  share articles with this one
+- **↗ deduped to: host1 host2 …** (red tags, top 3) — feeds whose articles were
+  kept as primary over this feed's duplicates
+- **← deduped from: host1 host2 …** (green tags, top 3) — feeds whose articles
+  were marked as duplicates of this feed's
+
+### Engagement-based sorting
+
+Within each category, canonical feeds are sorted by an engagement score so the
+feeds you interact with most float to the top and ignored feeds sink to the
+bottom:
+
+```
+engagementScore = interested × 3 + read × 2 + seen × 1 − ignored × 2
+```
+
 Feeds marked `invalid: true` are hidden by default — the meta line reports the
 count (e.g. `3 invalid`) and a "Show invalid feeds (N)" button toggles a
 separate `Invalid feeds` section that renders each one with an `invalid` badge

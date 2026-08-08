@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/feed-analysis"
-version: "2026.08.06.1"
+version: "2026.08.08.1"
 description: "Analyzes pages gathered by the news-reader, discovers RSS/Atom feeds in each page, and writes a page-discovery-result resource for catalog upsert."
 
 repository: https://github.com/svendowideit/swamp-extensions

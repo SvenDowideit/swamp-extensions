@@ -5,3 +5,7 @@ tools:
   - opencode
 gitignoreManaged: true
 upgradedAt: "2026-08-06T11:31:28.090Z"
+vault:
+  type: "@svendowideit/systemd-creds"
+  config:
+    credstoreDir: "~/.config/credstore"  # optional, this is the default

@@ -314,7 +314,7 @@ Branching is copy-on-write at the storage layer — creating a branch is instant
 | **Managed** | ★★★☆☆ Only on providers that allow custom C extensions (RDS yes, Cloud SQL limited, Supabase yes). |
 | **PG compatibility** | ★★★★★ Real PostgreSQL + extension. |
 
-**Verdict**: The most complete SQL-standard system versioning implementation for vanilla PostgreSQL. Provides the `FOR SYSTEM_TIME AS OF` syntax that Config B (manual triggers) lacks. The `periods` extension is more feature-complete than the older `temporal_tables` extension (arkhipov, 1k stars, BSD-2-Clause) which only provides trigger-based history tracking without the standard SQL query syntax. Good upgrade path from Config B.
+**Verdict**: The most complete SQL-standard system versioning implementation for vanilla PostgreSQL. Provides the `FOR SYSTEM_TIME AS OF` syntax that Config B (manual triggers) lacks. Good upgrade path from Config B.
 
 **Key operations**:
 ```sql
@@ -350,9 +350,87 @@ SELECT periods.add_system_time_period('servers',
     excluded_column_names => ARRAY['last_login', 'login_count']);
 ```
 
+### Config H: Vanilla PostgreSQL + `temporal_tables` Extension (Trigger-Based)
+
+- **Source**: <https://github.com/arkhipov/temporal_tables>
+- **License**: BSD 2-Clause
+- **Stars**: ~1,000
+- **Language**: C (Postgres extension)
+- **PG compatibility**: 9.2–15
+
+| Criterion | Assessment |
+|-----------|-----------|
+| **Native versioning** | ★★★☆☆ Trigger-based system-period tracking only. `versioning()` trigger function moves old rows to a history table on UPDATE/DELETE. No standard SQL query syntax — queries use raw `sys_period` range comparisons. No `FOR SYSTEM_TIME AS OF` syntax. |
+| **Schema mapping** | ★★★★★ Standard Postgres DDL. |
+| **Schema migration** | ★★★☆☆ `ALTER TABLE` must be applied to both main and history tables manually. No built-in validation. Trigger must be temporarily dropped during bulk operations. |
+| **Maturity** | ★★★☆☆ Community-maintained, 1k stars. Development has stopped — only patches for PG version compatibility. More battle-tested than `periods` due to age and adoption. |
+| **Self-host** | ★★★★★ Any PG 9.2–15 with the extension installed. |
+| **Managed** | ★★★☆☆ Only on providers that allow custom C extensions (RDS yes, Cloud SQL limited, Supabase yes). |
+| **PG compatibility** | ★★★★★ Real PostgreSQL + extension. |
+
+**Verdict**: The older, more widely-adopted option. Provides the same underlying mechanism as Config B (manual triggers) but packaged as a C extension for better performance. Lacks the standard SQL query syntax that `periods` provides. Development is in maintenance-only mode.
+
+**Key operations**:
+```sql
+-- Create table and add system-period column
+CREATE TABLE employees (
+    name text NOT NULL PRIMARY KEY,
+    department text,
+    salary numeric(20, 2)
+);
+ALTER TABLE employees ADD COLUMN sys_period tstzrange NOT NULL;
+
+-- Create history table
+CREATE TABLE employees_history (LIKE employees);
+
+-- Create versioning trigger
+CREATE TRIGGER versioning_trigger
+BEFORE INSERT OR UPDATE OR DELETE ON employees
+FOR EACH ROW EXECUTE PROCEDURE versioning('sys_period',
+                                          'employees_history',
+                                          true);
+
+-- Query current state
+SELECT * FROM employees;
+
+-- Query at a specific time (manual range comparison, no standard syntax)
+SELECT * FROM employees_history
+WHERE sys_period @> '2026-08-12T10:30:00Z'::TIMESTAMPTZ;
+
+-- Set custom system time (useful for data warehousing)
+SELECT set_system_time('2026-08-08 06:42:00+08');
+SELECT set_system_time(NULL);  -- revert to CURRENT_TIMESTAMP
+
+-- Prune history (manual)
+DELETE FROM employees_history
+WHERE upper(sys_period) < NOW() - INTERVAL '90 days';
+```
+
+### `periods` vs `temporal_tables` — Comparison
+
+| Feature | `periods` (Config G) | `temporal_tables` (Config H) |
+|---------|---------------------|------------------------------|
+| **SQL standard** | SQL:2011/SQL:2016 `SYSTEM VERSIONING` | No standard — custom trigger API |
+| **Query syntax** | `FOR system_time AS OF '...'` / `FROM ... TO ...` / `BETWEEN ... AND ...` | Manual `sys_period @> ts` range comparisons |
+| **History table** | Auto-created and managed | Must create manually with `LIKE` |
+| **Access control** | Integrated — history table inherits base table privileges | Manual — must manage separately |
+| **Schema changes** | `DROP SYSTEM VERSIONING` → alter both → `ADD SYSTEM VERSIONING` (validates compatibility) | Manually alter both tables, drop/recreate trigger |
+| **Column exclusions** | Built-in `excluded_column_names` parameter | Not supported — must work around with separate tables |
+| **Portion updates** | Supported (`FOR PORTION OF validity`) | Not supported |
+| **Period predicates** | `CONTAINS`, `OVERLAPS`, `PRECEDES`, `SUCCEEDS`, etc. | Not supported |
+| **Unique keys with periods** | `WITHOUT OVERLAPS` on PK/UNIQUE | Not supported |
+| **Foreign keys with periods** | Supported via `add_foreign_key` | Not supported |
+| **Custom system time** | Not supported (uses `transaction_timestamp()`) | Supported via `set_system_time()` |
+| **Stars / adoption** | ~318 | ~1,000 |
+| **Development status** | Active maintenance, feature-complete | Maintenance-only, no new features |
+| **PG version range** | 9.5–15 | 9.2–15 |
+| **Swamp fit** | ★★★★★ Best PG extension option — standard SQL, managed history, access control | ★★★☆☆ Functional but requires more manual work in the adapter |
+
+**Recommendation for swamp**: `periods` (Config G) is the better choice. The standard SQL query syntax (`FOR system_time AS OF`) maps cleanly to swamp's versioning model. The auto-managed history table and integrated access control reduce adapter complexity. The only advantage of `temporal_tables` is its larger install base and `set_system_time()` for data warehousing — neither of which matters for swamp's use case.
+
 **References**:
 - `periods` extension: <https://github.com/xocolatl/periods>
-- Older `temporal_tables` extension (trigger-only, no standard SQL syntax): <https://github.com/arkhipov/temporal_tables>
+- `temporal_tables` extension: <https://github.com/arkhipov/temporal_tables>
 - PostgreSQL wiki on temporal extensions: <https://wiki.postgresql.org/wiki/Temporal_Extensions>
 - SQL:2011/SQL:2016 system-versioned tables specification
 
@@ -397,6 +475,47 @@ In other words: PG 18/19 can enforce that two rows don't have overlapping valid-
 #### PostgreSQL Wiki: Temporal Extensions
 - **URL**: <https://wiki.postgresql.org/wiki/Temporal_Extensions>
 - **Relevance**: Comprehensive catalog of all PostgreSQL temporal extensions and features. Lists the four extensions covered in this document (`periods`, `temporal_tables`, `nearform/temporal_tables`, `pg_bitemporal`) plus PostgreSQL core features supporting temporality (range types, PERIOD types, temporal predicates). Confirms that no PostgreSQL core version (through 19 beta 2) includes native system versioning — it remains extension territory.
+
+#### DuckDB + DuckLake + Quack
+- **DuckDB**: <https://github.com/duckdb/duckdb> | <https://duckdb.org/> (40k stars, MIT, C++)
+- **DuckLake**: <https://ducklake.select/> | <https://duckdb.org/docs/current/core_extensions/ducklake> (1.0 released April 2026)
+- **Quack**: <https://duckdb.org/docs/current/quack/overview> (beta, released May 2026, targeting production with DuckDB v2.0 fall 2026)
+- **Why not as primary datastore**: DuckLake 1.0 is 4 months old, Quack is 3 months old and still beta. No Postgres wire protocol — uses DuckDB's own Quack protocol over HTTP. Would need a DuckDB server process running alongside swamp (not embedded in the Deno extension). DuckLake doesn't support indexes, primary keys, foreign keys, or UNIQUE/CHECK constraints — these would need to be enforced in the extension layer.
+- **Why it's now a real contender**: Quack gives DuckDB proper multi-process client-server with concurrent read/write. Benchmarks show 5,434 tx/s at 8 threads (beating PostgreSQL for small writes) and 60M rows transferred in 4.94s. DuckLake provides native snapshot versioning with `AT (VERSION => n)` time-travel syntax, `ducklake_snapshots()` for version listing, and `ducklake_expire_snapshots()` for built-in GC. The combination of DuckDB (fast OLAP + server mode) + DuckLake (native snapshot versioning) is architecturally the closest match to the original vision of "native database versioning mapped to swamp versioning."
+- **Architecture model**: A DuckDB process runs as a Quack server with the DuckLake extension loaded. The swamp datastore extension connects to it as a Quack client. Model schemas map to DuckDB tables. Versioning is handled natively by DuckLake snapshots. Schema migration uses DuckLake's schema evolution.
+- **DuckLake versioning model** (native, no triggers needed):
+  ```sql
+  -- Every write automatically creates a snapshot
+  INSERT INTO servers VALUES (...);
+  UPDATE servers SET name = 'new' WHERE id = 1;
+  -- List all snapshots (versions)
+  SELECT * FROM ducklake_snapshots('my_catalog');
+  -- Time-travel to any snapshot
+  SELECT * FROM servers AT (VERSION => 3);
+  SELECT * FROM servers AT (TIMESTAMP => '2026-08-12 10:30:00');
+  -- Row-level changes between snapshots
+  SELECT * FROM ducklake_table_changes('my_catalog', 'main', 'servers', 1, 5);
+  -- GC old snapshots
+  CALL ducklake_expire_snapshots('my_catalog', older_than => NOW() - INTERVAL '30 days');
+  ```
+- **Quack server setup** (the "something to host the primary embedded duckdb"):
+  ```sql
+  -- Server side (one DuckDB process, persistent)
+  INSTALL ducklake; LOAD ducklake;
+  INSTALL quack; LOAD quack;
+  ATTACH 'ducklake:swamp.ducklake' AS swamp (DATA_PATH './swamp_data');
+  CALL quack_serve('quack:localhost:9494', token => 'swamp-secret-token');
+  
+  -- Client side (swamp extension connects here)
+  ATTACH 'quack:localhost:9494' AS remote (TOKEN 'swamp-secret-token');
+  ```
+- **Key limitations for swamp**:
+  - No indexes, PKs, FKs, UNIQUE/CHECK constraints in DuckLake — must enforce in extension
+  - Quack is beta, protocol may change before v2.0
+  - DuckLake doesn't support transactions across multiple tables atomically
+  - Need a separate DuckDB server process (not embedded in Deno)
+  - DuckDB's Node.js client (`@duckdb/node-api`) would be the integration point for the Deno extension
+- **Potential complementary role**: Even if not the primary datastore, DuckDB's `postgres` extension can query swamp data stored in PostgreSQL for fast historical analysis. DuckLake could serve as an archival format for old versions.
 
 ---
 

@@ -12,7 +12,7 @@ type RunCommand = (
   stdin?: string,
 ) => Promise<{ stdout: string; stderr: string; code: number }>;
 
-function defaultRunCommand(
+async function defaultRunCommand(
   args: string[],
   stdin?: string,
 ): Promise<{ stdout: string; stderr: string; code: number }> {
@@ -27,8 +27,8 @@ function defaultRunCommand(
 
   if (stdin !== undefined) {
     const writer = child.stdin.getWriter();
-    writer.write(new TextEncoder().encode(stdin));
-    writer.close();
+    await writer.write(new TextEncoder().encode(stdin));
+    await writer.close();
   }
 
   return child.output().then(({ code, stdout, stderr }) => ({

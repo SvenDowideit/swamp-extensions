@@ -648,45 +648,15 @@ SELECT * FROM order_summary WHERE customer_id = 42;
 - **Relevance**: Comprehensive catalog of all PostgreSQL temporal extensions and features. Lists the four extensions covered in this document (`periods`, `temporal_tables`, `nearform/temporal_tables`, `pg_bitemporal`) plus PostgreSQL core features supporting temporality (range types, PERIOD types, temporal predicates). Confirms that no PostgreSQL core version (through 19 beta 2) includes native system versioning — it remains extension territory.
 
 #### DuckDB + DuckLake + Quack
-- **DuckDB**: <https://github.com/duckdb/duckdb> | <https://duckdb.org/> (40k stars, MIT, C++)
-- **DuckLake**: <https://ducklake.select/> | <https://duckdb.org/docs/current/core_extensions/ducklake> (1.0 released April 2026)
-- **Quack**: <https://duckdb.org/docs/current/quack/overview> (beta, released May 2026, targeting production with DuckDB v2.0 fall 2026)
-- **Why not as primary datastore**: DuckLake 1.0 is 4 months old, Quack is 3 months old and still beta. No Postgres wire protocol — uses DuckDB's own Quack protocol over HTTP. Would need a DuckDB server process running alongside swamp (not embedded in the Deno extension). DuckLake doesn't support indexes, primary keys, foreign keys, or UNIQUE/CHECK constraints — these would need to be enforced in the extension layer.
-- **Why it's now a real contender**: Quack gives DuckDB proper multi-process client-server with concurrent read/write. Benchmarks show 5,434 tx/s at 8 threads (beating PostgreSQL for small writes) and 60M rows transferred in 4.94s. DuckLake provides native snapshot versioning with `AT (VERSION => n)` time-travel syntax, `ducklake_snapshots()` for version listing, and `ducklake_expire_snapshots()` for built-in GC. The combination of DuckDB (fast OLAP + server mode) + DuckLake (native snapshot versioning) is architecturally the closest match to the original vision of "native database versioning mapped to swamp versioning."
-- **Architecture model**: A DuckDB process runs as a Quack server with the DuckLake extension loaded. The swamp datastore extension connects to it as a Quack client. Model schemas map to DuckDB tables. Versioning is handled natively by DuckLake snapshots. Schema migration uses DuckLake's schema evolution.
-- **DuckLake versioning model** (native, no triggers needed):
-  ```sql
-  -- Every write automatically creates a snapshot
-  INSERT INTO servers VALUES (...);
-  UPDATE servers SET name = 'new' WHERE id = 1;
-  -- List all snapshots (versions)
-  SELECT * FROM ducklake_snapshots('my_catalog');
-  -- Time-travel to any snapshot
-  SELECT * FROM servers AT (VERSION => 3);
-  SELECT * FROM servers AT (TIMESTAMP => '2026-08-12 10:30:00');
-  -- Row-level changes between snapshots
-  SELECT * FROM ducklake_table_changes('my_catalog', 'main', 'servers', 1, 5);
-  -- GC old snapshots
-  CALL ducklake_expire_snapshots('my_catalog', older_than => NOW() - INTERVAL '30 days');
-  ```
-- **Quack server setup** (the "something to host the primary embedded duckdb"):
-  ```sql
-  -- Server side (one DuckDB process, persistent)
-  INSTALL ducklake; LOAD ducklake;
-  INSTALL quack; LOAD quack;
-  ATTACH 'ducklake:swamp.ducklake' AS swamp (DATA_PATH './swamp_data');
-  CALL quack_serve('quack:localhost:9494', token => 'swamp-secret-token');
-  
-  -- Client side (swamp extension connects here)
-  ATTACH 'quack:localhost:9494' AS remote (TOKEN 'swamp-secret-token');
-  ```
-- **Key limitations for swamp**:
-  - No indexes, PKs, FKs, UNIQUE/CHECK constraints in DuckLake — must enforce in extension
-  - Quack is beta, protocol may change before v2.0
-  - DuckLake doesn't support transactions across multiple tables atomically
-  - Need a separate DuckDB server process (not embedded in Deno)
-  - DuckDB's Node.js client (`@duckdb/node-api`) would be the integration point for the Deno extension
-- **Potential complementary role**: Even if not the primary datastore, DuckDB's `postgres` extension can query swamp data stored in PostgreSQL for fast historical analysis. DuckLake could serve as an archival format for old versions.
+
+See **[DUCKDB_IDEAS.md](DUCKDB_IDEAS.md)** for a full evaluation of DuckDB as a
+swamp datastore candidate. DuckDB combined with the DuckLake lakehouse format
+(native snapshot versioning) and the Quack client-server protocol (multi-process
+concurrent read/write over HTTP) is architecturally the closest match to the
+original vision of "native database versioning mapped to swamp versioning."
+However, both DuckLake (1.0, April 2026) and Quack (beta, May 2026) are very
+new, and DuckLake lacks indexes, primary keys, foreign keys, and UNIQUE/CHECK
+constraints — these would need to be enforced in the extension layer.
 
 ---
 

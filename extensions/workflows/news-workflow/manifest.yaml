@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/news-workflow"
-version: "2026.08.08.1"
+version: "2026.08.08.2"
 description: "Full news feedback loop — gathers feedback from a queue server, fetches feeds from the catalog, deduplicates articles by URL, generates an HTML summary ranked by user preferences, discovers new RSS feeds from article URLs, upserts them into the catalog, and renders a feeds.html catalog listing."
 
 repository: https://github.com/svendowideit/swamp-extensions

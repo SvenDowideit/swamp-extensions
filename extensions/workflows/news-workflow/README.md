@@ -30,16 +30,31 @@ fetching RSS/Atom feeds to generating a personalized HTML news summary.
 swamp extension pull @svendowideit/news-workflow
 ```
 
-This pulls the workflow and its dependencies (news-reader, feed-catalog,
-feed-discovery, feed-analysis).
+This pulls the workflow YAML and the feedback server scripts. The model
+extensions it depends on must be pulled separately:
+
+```sh
+swamp extension pull @svendowideit/news-reader
+swamp extension pull @svendowideit/feed-catalog
+swamp extension pull @svendowideit/feed-discovery
+swamp extension pull @svendowideit/feed-analysis
+```
+
+Then create the model instances the workflow references:
+
+```sh
+swamp model create @svendowideit/news-reader news-reader
+swamp model create @svendowideit/feed-catalog feed-catalog
+swamp model create @svendowideit/feed-discovery feed-discovery
+swamp model create @svendowideit/feed-analysis feed-analysis
+```
 
 ## Usage
 
 ### One-time setup
 
 ```sh
-# Create the feed catalog and add feeds
-swamp model create @svendowideit/feed-catalog feed-catalog
+# Add feeds to the catalog
 swamp model method run feed-catalog add --input url="https://hnrss.org/frontpage" --input category=tech --input name="Hacker News"
 swamp model method run feed-catalog add --input url="https://feeds.bbci.co.uk/news/technology/rss.xml" --input category=tech --input name="BBC Tech"
 

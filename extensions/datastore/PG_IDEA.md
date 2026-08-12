@@ -440,6 +440,177 @@ PostgreSQL 18 (released September 2025) added **temporal constraints** — `WITH
 
 In other words: PG 18/19 can enforce that two rows don't have overlapping valid-time periods, but it won't automatically archive old row versions or let you query "what did this table look like last Tuesday." System versioning remains the domain of extensions (`periods`, `temporal_tables`) or manual trigger-based implementations (Config B).
 
+### Config I: immudb — Cryptographic Immutable Database
+
+- **Website**: <https://immudb.io/>
+- **Source**: <https://github.com/codenotary/immudb>
+- **License**: Business Source License 1.1 (free for non-production, production requires license)
+- **Stars**: ~9,000
+- **Language**: Go
+- **Docker pulls**: 157M+
+
+| Criterion | Assessment |
+|-----------|-----------|
+| **Native versioning** | ★★★★★ Cryptographic append-only Merkle tree. Data is never mutated or deleted — new versions are new entries. `DIFF OF` SQL syntax compares table state between two transaction points (`SINCE TX 100 UNTIL TX 200`), returning `_diff_action` (INSERT/UPDATE/DELETE) per row. Built-in `immudb_history()`, `immudb_verify_row()`, and `immudb_verify_tx()` functions for cryptographic proof queries. |
+| **Schema mapping** | ★★★★★ Full DDL: CREATE/DROP TABLE, ALTER COLUMN, FOREIGN KEY, CREATE/DROP VIEW, CREATE/DROP SEQUENCE, partial indexes. `pg_catalog` and `information_schema` introspection for ORM compatibility. |
+| **Schema migration** | ★★★★☆ Standard `ALTER TABLE` support. Since data is append-only, old rows keep old schema naturally. |
+| **Maturity** | ★★★★★ Production (v1.9.5+, 4,894 commits). 157M+ Docker pulls. |
+| **Self-host** | ★★★★★ Single binary, Docker, Kubernetes/Helm. Embeddable as Go library. |
+| **Managed** | ★☆☆☆☆ No managed cloud offering from Codenotary. |
+| **PG compatibility** | ★★★★★ PostgreSQL wire protocol v3. Any Postgres client works (psql, JDBC, SQLAlchemy, Django ORM, GORM, ActiveRecord, pgx, tokio-postgres). Full SQL: JOINs, CTEs, window functions, subqueries, RETURNING, views, sequences, 75+ built-in functions. |
+
+**Verdict**: The strongest unexpected candidate. PostgreSQL wire protocol means zero client changes. Cryptographic immutability provides native versioning without application-layer work — every write is a verifiable entry in a Merkle tree. The `DIFF OF` syntax gives row-level change detection between versions. Embeddable as a Go library (architecturally aligned with swamp's model-as-code philosophy). Main concern: BSL 1.1 license restricts production use without a license.
+
+**Key versioning operations**:
+```sql
+-- Every write is automatically versioned (append-only, never mutated)
+INSERT INTO servers (id, name, region) VALUES (1, 'web-01', 'us-east-1');
+UPDATE servers SET region = 'eu-west-1' WHERE id = 1;
+
+-- Query current state (latest version of each row)
+SELECT * FROM servers;
+
+-- Query history of a specific row
+SELECT * FROM immudb_history('servers') WHERE id = 1;
+
+-- Diff between two transaction points
+SELECT * FROM DIFF OF servers SINCE TX 100 UNTIL TX 200;
+-- Returns rows with _diff_action column: INSERT, UPDATE, or DELETE
+
+-- Cryptographically verify a row hasn't been tampered with
+SELECT immudb_verify_row('servers', 1);
+
+-- Verify an entire transaction
+SELECT immudb_verify_tx(100);
+
+-- Time-travel: query state as of a specific transaction
+SELECT * FROM servers BEFORE TX 150;
+```
+
+**Unique architectural properties**:
+- **Zero-trust design**: cryptographic proof and verification built into the protocol — clients don't need to trust the database server
+- **Parallel Merkle tree** with sync/async indexing and extended B-tree
+- **Structured audit logging**: every operation recorded as JSON audit event in immudb's own tamper-proof KV store
+- **Triple-model**: Key-Value, Document, and SQL relational in one engine
+- **Embeddable**: can run fully in-process as a Go library with no server process
+- **Performance**: ~1.8M writes/sec on 4-core SSD
+
+### Config J: Feldera — Incremental Computation Engine
+
+- **Website**: <https://feldera.com/>
+- **Source**: <https://github.com/feldera/feldera>
+- **License**: MIT
+- **Stars**: ~2,000
+- **Language**: Rust
+- **Maturity**: Pre-1.0, active development (8,571 commits, VC-backed)
+
+| Criterion | Assessment |
+|-----------|-----------|
+| **Native versioning** | ★★★☆☆ Incremental view maintenance (IVM) based on the DBSP formal model (VLDB 2023). Instead of storing historical snapshots, Feldera incrementally updates views by computing only over changes. Fault tolerance with exact recovery: can restart from the exact point of a crash. Checkpoint-based recovery provides point-in-time state without storing every version. This is versioning-as-computation, not versioning-as-storage. |
+| **Schema mapping** | ★★★★★ Full SQL DDL: CREATE TABLE, CREATE VIEW, deeply nested views. Strongly typed. |
+| **Schema migration** | ★★★☆☆ Pipeline-based — schema changes require pipeline restart. Not designed for frequent DDL changes. |
+| **Maturity** | ★★☆☆☆ Pre-1.0, active development. Backed by VC funding. |
+| **Self-host** | ★★★★☆ Docker, Docker Compose, from-source with `cargo run`. Web console included. Single binary. |
+| **Managed** | ★☆☆☆☆ No managed cloud offering. |
+| **PG compatibility** | ★★★★☆ Full SQL (not Postgres wire protocol — REST API + Python SDK). Ad-hoc queries via Apache DataFusion. |
+
+**Verdict**: Architecturally fascinating but less direct fit for swamp's primary use case. The incremental computation model is genuinely novel — you don't store versions, you compute them. For swamp, this could enable "live" models that automatically reflect upstream changes without re-running methods. However, it's more of a stream processor than a traditional database, and the pipeline abstraction doesn't map cleanly to "tables with versioned rows." MIT license is excellent. Worth watching as it matures.
+
+**Key concepts**:
+```sql
+-- Define a pipeline: tables + views
+CREATE TABLE orders (
+    id BIGINT,
+    customer_id BIGINT,
+    amount DECIMAL,
+    status VARCHAR
+);
+
+CREATE VIEW order_summary AS
+SELECT customer_id, COUNT(*) as order_count, SUM(amount) as total
+FROM orders
+GROUP BY customer_id;
+
+-- Changes arrive incrementally — views update automatically
+-- No need to re-run the query over all data
+INSERT INTO orders VALUES (1, 42, 99.99, 'pending');
+
+-- Query current state (always up-to-date)
+SELECT * FROM order_summary WHERE customer_id = 42;
+
+-- Fault tolerance: restart from exact crash point, no data loss
+-- Checkpoints provide point-in-time recovery
+```
+
+**Unique architectural properties**:
+- **DBSP theory**: the only engine that can evaluate arbitrary SQL incrementally with formal correctness guarantees
+- **Unified offline/online compute**: same pipeline works over both live streaming and historical batch data
+- **Delta-joins**: avoids intermediate state blowup on multi-way joins (tested up to 64 relations)
+- **Incremental recursion**: supports incrementally updating tree and graph structures
+- **Millions of events/sec on a laptop** without tuning
+- **Fault tolerance as versioning**: checkpoint-based recovery provides point-in-time state
+
+### Config K: TerminusDB — Git-for-Data Knowledge Graph
+
+- **Website**: <https://terminusdb.org/>
+- **Source**: <https://github.com/terminusdb/terminusdb>
+- **License**: Apache 2.0
+- **Stars**: ~3,400
+- **Language**: Prolog/Rust
+- **Maturity**: Production (v12.0.5, 5,798 commits, new maintainers at DFRNT)
+
+| Criterion | Assessment |
+|-----------|-----------|
+| **Native versioning** | ★★★★★ Git-like revision control for structured data. Every update creates a commit. Supports diff (differences between commits as patches), push/pull/clone between nodes, branching, and time-travel queries to any commit. This is the most literal "git for data" implementation — commits, branches, diffs, merge, push/pull applied to JSON documents in a knowledge graph. |
+| **Schema mapping** | ★★★★☆ Strong schema constraints via JSON-LD context. Supports `@type`, `@id`, `@class`, `@unfoldable`, `@metadata`. Schema-full and schema-less modes. Not DDL-based — schemas are documents. |
+| **Schema migration** | ★★★★☆ Schema changes are versioned as commits. Git-like merge semantics for schema evolution. |
+| **Maturity** | ★★★★☆ Production (v12). Apache 2.0 license. |
+| **Self-host** | ★★★★☆ Docker, Snap, from-source. DFRNT Studio for visual modeling. |
+| **Managed** | ★★★☆☆ Enterprise version with clustering available. |
+| **PG compatibility** | ★☆☆☆☆ No SQL. Query via WOQL (datalog-based), GraphQL, or REST API. Not Postgres wire protocol. |
+
+**Verdict**: Architecturally the most interesting for versioning, but limited by lack of SQL. The git-like collaboration model (branches, diffs, merges, time-travel) is exactly what a data versioning system needs. The knowledge graph model is a bonus for linked-data use cases. However, the absence of SQL means it can't satisfy the schema-to-table mapping requirement without a translation layer. Apache 2.0 license is ideal. The Prolog core is both a strength (logical inference, unification, backtracking) and a risk (smaller developer ecosystem).
+
+**Key versioning operations**:
+```json
+// Every update creates a commit (git-like)
+// Branch, diff, merge, push, pull, clone at database level
+
+// Query at a specific commit (time-travel)
+// WOQL query with commit reference
+
+// Diff between two commits
+// Returns patch operations (insert/update/delete)
+
+// Push/pull between nodes
+// Full git collaboration model for structured data
+```
+
+**Unique architectural properties**:
+- **Prolog-based engine**: native unification, backtracking, and logical inference
+- **Datalog reasoning**: WOQL enables goal-seeking problem-solving queries
+- **JSON-LD knowledge graph**: documents are linked in a semantic graph, not just flat tables
+- **Temporal reasoning**: Allen Interval Algebra for ISO8601 date/time/duration reasoning
+- **Succinct data structures**: constant-time range queries over arbitrary-size ordered data
+- **Git semantics at database level**: branch, diff, merge, push, pull, clone — full collaboration
+
+### Config I/J/K — Comparative Analysis
+
+| Dimension | immudb (Config I) | Feldera (Config J) | TerminusDB (Config K) |
+|-----------|-------------------|-------------------|----------------------|
+| **Versioning approach** | Cryptographic append-only log | Incremental computation (IVM) | Git-like revision control |
+| **SQL support** | PostgreSQL wire protocol (excellent) | Full SQL (excellent) | None (WOQL/GraphQL) |
+| **Schema mapping** | Full DDL, pg_catalog | Full SQL DDL | JSON-LD schema constraints |
+| **Concurrency** | ACID SSI, multi-process | Pipeline-based, strong consistency | ACID, git-merge semantics |
+| **Maturity** | Production (v1.9+) | Pre-1.0, active development | Production (v12) |
+| **License** | BSL 1.1 (restrictive) | MIT (permissive) | Apache 2.0 (permissive) |
+| **Self-hosted** | Yes (binary, Docker, K8s) | Yes (Docker, source) | Yes (Docker, Snap, source) |
+| **Managed cloud** | No | No | Enterprise only |
+| **Embeddable** | Yes (Go library) | No | No |
+| **Swamp fit** | ★★★★☆ Strong — PG wire protocol, native versioning, embeddable | ★★★☆☆ Novel — incremental views could enable live models | ★★☆☆☆ Best versioning model, but no SQL |
+
+**Recommendation for swamp**: immudb (Config I) is the strongest unexpected candidate. PostgreSQL wire protocol means zero client changes. Cryptographic immutability provides native versioning without application-layer work. The `DIFF OF` syntax gives row-level change detection between versions. The embeddable Go library is architecturally aligned with swamp's model-as-code philosophy. Main concern is the BSL 1.1 license. Feldera (Config J) is worth tracking for future "live model" use cases. TerminusDB (Config K) has the best versioning model but the lack of SQL is a hard blocker.
+
 ### Additional Candidates Considered but Not Evaluated in Detail
 
 #### TimescaleDB

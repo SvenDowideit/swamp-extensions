@@ -322,6 +322,110 @@ roles in a swamp ecosystem:
 
 ---
 
+## Existing Implementation: `@zocc/duckdb`
+
+- **Source**: <https://github.com/CCAgentOrg/swamp-zocc-extensions/tree/main/datastore/duckdb>
+- **Type**: `@zocc/duckdb` (model) + `@zocc/duckdb-datastore` (datastore)
+- **License**: Apache 2.0
+- **Status**: Published, ships under OpenFlaw Manifesto
+
+This is a **working DuckDB integration for swamp** — but it solves a
+fundamentally different problem than what DUCKDB_IDEAS.md envisions.
+
+### What it does
+
+**Model component (`@zocc/duckdb`)** — a swamp model type that provides SQL
+query methods against DuckDB database files:
+
+- `list_tables` — list tables with column names, types, and nullability
+- `query` — execute arbitrary SQL and return structured results
+- `summarize` — quick overview with row counts per table
+- `import_data` — load CSV, JSON, NDJSON, or Parquet into a DuckDB table
+- `export_data` — export query results or tables to CSV, JSON, or Parquet
+
+**Datastore component (`@zocc/duckdb-datastore`)** — a swamp datastore
+provider that stores swamp's runtime files in a DuckDB database:
+
+```yaml
+# .swamp.yaml
+datastore:
+  type: "@zocc/duckdb-datastore"
+  config:
+    database: "/path/to/swamp-data.duckdb"
+    schema: "swamp"
+```
+
+### Architecture
+
+```
+┌──────────────────────────────────────────┐
+│  Swamp Core                              │
+├──────────────────────────────────────────┤
+│  @zocc/duckdb (model)                    │
+│  - list_tables, query, summarize         │
+│  - import_data, export_data              │
+│  - Shells out to `duckdb` CLI binary     │
+├──────────────────────────────────────────┤
+│  @zocc/duckdb-datastore (datastore)      │
+│  - File-based locking (nonce, 5s TTL)    │
+│  - Stores swamp files in DuckDB tables   │
+└──────────────────┬───────────────────────┘
+                   │ subprocess (duckdb CLI)
+┌──────────────────▼───────────────────────┐
+│  DuckDB (embedded, single-file)          │
+│  - No DuckLake, no Quack, no server mode │
+│  - Single-process, file-locked           │
+└──────────────────────────────────────────┘
+```
+
+### What it does NOT do (and DUCKDB_IDEAS.md envisions)
+
+| Feature | `@zocc/duckdb` | DUCKDB_IDEAS.md vision |
+|---------|---------------|------------------------|
+| **DuckLake snapshot versioning** | No — plain DuckDB tables, no snapshots | Yes — `AT (VERSION => n)` time-travel, `ducklake_snapshots()`, built-in GC |
+| **Quack client-server** | No — subprocess CLI, single-process | Yes — Quack server with multi-process concurrent read/write over HTTP |
+| **Model schema → table mapping** | No — model is a SQL query tool, not a schema manager | Yes — Zod→DDL mapping, typed tables per model |
+| **Data versioning** | No — plain tables, no history | Yes — native DuckLake snapshots on every write |
+| **In-process DuckDB** | No — shells out to `duckdb` CLI binary (~50-100ms overhead per call) | Yes — `@duckdb/node-api` for direct in-process access |
+| **Connection pooling** | No — each query spawns a new CLI process | Yes — persistent Quack connections with HTTP connection caching |
+
+### Relationship to DUCKDB_IDEAS.md
+
+The existing extension is a **pragmatic, working tool** — it lets swamp
+workflows query and manipulate DuckDB databases using the CLI. It's a model
+type for data analysis, not a versioned datastore. DUCKDB_IDEAS.md describes
+a much more ambitious architecture (DuckLake snapshots, Quack server mode,
+schema-to-table mapping) that doesn't exist yet.
+
+The two are at completely different levels:
+
+```
+@zocc/duckdb (exists):              DUCKDB_IDEAS.md (research):
+┌──────────────────────┐            ┌──────────────────────────┐
+│  Model: SQL queries   │            │  Schema Manager          │
+│  via duckdb CLI       │            │  (Zod→DDL, versioning)   │
+├──────────────────────┤            ├──────────────────────────┤
+│  Datastore: file      │            │  DuckDB Adapter           │
+│  storage in DuckDB    │            │  (Quack client, DuckLake) │
+└──────────────────────┘            ├──────────────────────────┤
+                                    │  DuckDB Server Process    │
+                                    │  (Quack + DuckLake)       │
+                                    └──────────────────────────┘
+```
+
+### Known flaws (self-documented)
+
+The extension ships under the [OpenFlaw Manifesto](https://ccagentorg.github.io/OpenFlaw/)
+and honestly documents its limitations:
+
+- **Subprocess overhead**: every query spawns `duckdb` CLI (~50-100ms latency)
+- **No connection pooling**: concurrent queries serialize through CLI invocations
+- **File-lock contention**: multi-process writes may retry on lock collision
+- **Large result set truncation**: `limit=0` can OOM on huge tables
+- **No in-process DuckDB**: requires CLI binary on PATH
+
+---
+
 ## References
 
 - DuckDB: <https://github.com/duckdb/duckdb> | <https://duckdb.org/>

@@ -660,6 +660,321 @@ constraints — these would need to be enforced in the extension layer.
 
 ---
 
+## 1a. Existing Implementation: `@webframp/postgres-datastore`
+
+- **Source**: <https://github.com/webframp/swamp-extensions/tree/main/datastore/postgres>
+- **Type**: `@webframp/postgres-datastore`
+- **License**: MIT
+- **Status**: Production-ready, published to swamp registry
+
+This is a **working, production-hardened swamp datastore** that stores swamp's
+runtime data in PostgreSQL. It is a pure `DatastoreProvider` — it replaces
+swamp's default filesystem datastore with PostgreSQL-backed blob storage.
+
+### What it does
+
+- **Row-based distributed locking** with fencing tokens — deliberately avoids
+  `pg_advisory_lock` because advisory locks are lost on Aurora failover.
+  Row-based locks stored in a WAL-replicated table survive promotion.
+- **Two-phase sync** (`preparePush`/`commitPush`) with monotonic `commitSeq`
+  ordering, dirty-path tracking via a local sidecar file, lazy hydration,
+  scoped sync (per-model prefixes), and tombstone GC (7-day retention).
+- **OpenTelemetry instrumentation** across SQL operations, lock
+  acquisition/release, and sync push/pull. Spans are no-ops when no
+  `TracerProvider` is registered.
+- **RDS/Aurora/Aurora Serverless v2** compatibility with SSL CA verification
+  (`verify-ca` mode), read-replica detection (health check fails if connected
+  to a replica), and Aurora Serverless v2 minimum ACU guidance.
+- **Heartbeat-based TTL** — stale locks from crashed processes are
+  automatically reclaimed after TTL expiry.
+- **Retry on transient errors** with jittered backoff for lock contention and
+  PostgreSQL connection failures.
+
+### Architecture
+
+```
+┌──────────────────────────────────────────┐
+│  Swamp Core (model create, method run)   │
+├──────────────────────────────────────────┤
+│  @webframp/postgres-datastore            │
+│  ┌────────────────────────────────────┐  │
+│  │  DatastoreProvider                 │  │
+│  │  - createLock (row-based, fenced)  │  │
+│  │  - createVerifier (health check)   │  │
+│  │  - createSyncService (two-phase)   │  │
+│  │  - resolveDatastorePath            │  │
+│  ├────────────────────────────────────┤  │
+│  │  SQL Driver (npm:postgres@3)       │  │
+│  └────────────────────────────────────┘  │
+└──────────────────┬───────────────────────┘
+                   │ PostgreSQL wire protocol
+┌──────────────────▼───────────────────────┐
+│  PostgreSQL (RDS, Aurora, self-hosted)   │
+│  ┌────────────────────────────────────┐  │
+│  │  swamp.locks (distributed locking)  │  │
+│  │  swamp.files (BYTEA blob storage)   │  │
+│  │  swamp.sync_state (watermarks)      │  │
+│  │  swamp.commit_seq (monotonic seq)   │  │
+│  └────────────────────────────────────┘  │
+└──────────────────────────────────────────┘
+```
+
+### Configuration
+
+```yaml
+# .swamp.yaml
+datastore:
+  type: "@webframp/postgres-datastore"
+  config:
+    connectionString: "postgres://user:pass@your-host:5432/swamp"
+    schema: "swamp"
+    ssl: "verify-ca"
+    sslCaPath: "/path/to/rds-global-bundle.pem"
+```
+
+### Required schema (run once)
+
+```sql
+CREATE SCHEMA IF NOT EXISTS swamp;
+
+CREATE TABLE swamp.locks (
+  key         TEXT PRIMARY KEY,
+  holder      TEXT NOT NULL,
+  hostname    TEXT NOT NULL,
+  pid         INTEGER NOT NULL,
+  acquired_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ttl_ms      INTEGER NOT NULL DEFAULT 30000,
+  nonce       TEXT NOT NULL
+);
+```
+
+### What it does NOT do (and PG_IDEA.md envisions)
+
+| Feature | `@webframp/postgres-datastore` | PG_IDEA.md vision |
+|---------|-------------------------------|-------------------|
+| **Model schema → table mapping** | No — stores everything as blobs in one `files` table | Yes — each model gets its own typed table with Zod→DDL mapping |
+| **Data versioning** | No — it's a key-value blob store | Yes — system-versioned tables, temporal extensions, snapshot versioning |
+| **`SELECT * FROM model_name`** | No — data is opaque blobs, not queryable rows | Yes — model data is live in typed columns |
+| **Schema migration** | No — blobs have no schema | Yes — gradual row migration on model schema changes |
+| **Import external tables** | No | Yes — read-only and read-write modes |
+| **Multi-database routing** | No — single connection string | Yes — per-model-type connection overrides |
+
+### Relationship to PG_IDEA.md
+
+The existing extension is the **DatastoreProvider layer** from PG_IDEA.md's
+architecture diagram — the bottom two layers (SQL Driver + DatastoreProvider)
+already built and production-hardened. The Schema Manager and Versioning
+Adapter layers from the plan don't exist yet.
+
+```
+PG_IDEA.md architecture:              Existing extension:
+┌─────────────────────────┐          ┌─────────────────────────┐
+│  Schema Manager         │ ← missing│                         │
+│  (Zod→DDL, versioning)  │          │                         │
+├─────────────────────────┤          │                         │
+│  Versioning Adapter     │ ← missing│  @webframp/             │
+├─────────────────────────┤          │  postgres-datastore     │
+│  DatastoreProvider      │ ← exists │  (lock, sync, health,   │
+├─────────────────────────┤          │   file storage)         │
+│  SQL Driver             │ ← exists │                         │
+└─────────────────────────┘          └─────────────────────────┘
+```
+
+The existing extension is a **solid foundation** — it solves the "store swamp's
+files in PostgreSQL with team-safe distributed locking" problem. PG_IDEA.md's
+schema management and versioning features could be built as a separate layer on
+top of it, or as a different extension type (a model type that uses the
+datastore's connection). They're complementary, not competing.
+
+### Key design decisions that differ from PG_IDEA.md assumptions
+
+1. **Row-based locks, not advisory locks** — PG_IDEA.md suggests
+   `pg_advisory_lock`. The existing extension deliberately avoids them because
+   advisory locks are lost on Aurora failover. Row-based locks with fencing
+   tokens survive promotion. This is a lesson PG_IDEA.md should incorporate.
+
+2. **Blob storage, not typed tables** — The existing extension stores
+   everything as `BYTEA` in a single table. This is correct for a datastore
+   (it's storing swamp's internal files). PG_IDEA.md's typed-table vision
+   would be a separate layer on top, or a different extension type entirely.
+
+3. **Two-phase sync** — The existing extension has `preparePush`/`commitPush`
+   for team-safe sync with monotonic commitSeq ordering. PG_IDEA.md doesn't
+   address sync at this level of detail.
+
+4. **Production maturity** — The existing extension is tested with real
+   RDS/Aurora, has OTel instrumentation, handles edge cases (read replica
+   detection, SSL CA bundles, tombstone GC, jittered retry backoff).
+    PG_IDEA.md is a research document.
+
+---
+
+## 1b. Historical Reference: Foswiki MongoDBPlugin (2011)
+
+- **Source**: <https://github.com/foswiki/MongoDBPlugin>
+- **Author**: Sven Dowideit, Paul Harvey
+- **Language**: Perl
+- **Status**: Historical — implemented 2010–2012, 209 commits, 125/3868 test failures at final state
+
+This is a prior implementation of the same core idea — replacing a
+filesystem-based versioned data store with a database — for the Foswiki wiki
+engine. Foswiki's data model is strikingly similar to swamp's: every "topic"
+(wiki page) has a versioned history, metadata fields, attachments, and
+structured form data. The MongoDBPlugin replaced Foswiki's RCS-based flat-file
+storage with MongoDB.
+
+### Architecture
+
+```
+┌──────────────────────────────────────────┐
+│  Foswiki Core (view, edit, search)       │
+├──────────────────────────────────────────┤
+│  Store API (Perl interface)              │
+│  - saveTopic, readTopic, getRevision    │
+│  - querySearch, moveWeb, ...            │
+├──────────────────────────────────────────┤
+│  MongoDBPlugin (Store implementation)    │
+│  - Translates Store API → MongoDB ops    │
+│  - Query translator (FoswikiQL → Mongo)  │
+│  - One database per web (namespace)     │
+└──────────────────┬───────────────────────┘
+                   │ MongoDB wire protocol
+┌──────────────────▼───────────────────────┐
+│  MongoDB (document store)                │
+│  - Topics as documents with embedded     │
+│    revision history                      │
+│  - Indexed fields for query performance  │
+└──────────────────────────────────────────┘
+```
+
+### Versioning Model
+
+Each topic was stored as a **single MongoDB document** with embedded revision
+history:
+
+```javascript
+// MongoDB document for a topic
+{
+  _id: "Lauries/TestQuery1",
+  web: "Lauries",
+  topic: "TestQuery1",
+  // Current version fields (denormalized for fast reads)
+  text: "current topic text...",
+  author: "SvenDowideit",
+  date: ISODate("2011-04-05T04:13:29Z"),
+  form: { Category: "Test", Status: "Active" },
+  // Embedded revision history
+  revisions: [
+    { rev: 5, text: "current topic text...", author: "SvenDowideit",
+      date: ISODate("2011-04-05T04:13:29Z"), comment: "fixed query" },
+    { rev: 4, text: "previous text...", author: "PaulHarvey",
+      date: ISODate("2011-03-28T07:59:45Z"), comment: "added form" },
+    // ... more revisions
+  ]
+}
+```
+
+Key design decisions:
+- **Current version denormalized** at the document root for fast reads
+  (`SELECT * FROM topic` = read the document, skip the revisions array)
+- **History embedded** in the same document — no joins needed for version queries
+- **One database per web** (namespace) — allowed more indexes per namespace and
+  better memory management in MongoDB's MMAPv1 storage engine
+- **Schema was dynamic** — form fields were stored as nested objects, not typed
+  columns. This caused the "everything is a string" bug (Item10628) where
+  numeric comparisons failed because MongoDB stored numbers as strings in the
+  dynamic schema.
+
+### Performance Journey
+
+The development log documents a methodical performance optimization process
+across 4 milestones, on identical hardware (2GB RAM, C2D 1.8GHz, slow disk):
+
+| Milestone | Change | Query time | Total render | Notes |
+|-----------|--------|-----------|-------------|-------|
+| Baseline (RCS files) | Flat-file store | — | 5.4s | Raw text regex on topic files |
+| M1 | Initial MongoDB port | 0.41s | 1.59s | First working version |
+| M2 | Query optimization | 0.13s | 1.59s | Better index usage |
+| M3 | Listener API + MetaCache fixes | 0.0001s | 1.30s | Avoided round-trips, fixed core bottlenecks |
+| M4 | One DB per web + full history | 0.09s | 0.98s (CGI) / 0.79s (FastCGI) | Added entire topic history, still faster |
+
+**Overall: 5.4s → 0.79s (6.8x faster)** on the same hardware, while adding
+full version history that wasn't present in the flat-file baseline.
+
+### What Worked
+
+1. **Document model was a natural fit** for Foswiki's semi-structured data —
+   topics have arbitrary form fields, metadata, and attachments. MongoDB's
+   dynamic schema handled this without migrations.
+
+2. **Embedded revision history** eliminated joins — reading a topic at any
+   version was a single document lookup. This is the document-store equivalent
+   of system-versioned tables.
+
+3. **Query translation** from Foswiki's query language to MongoDB's query
+   language was effective — structured queries over indexed fields were 10-100x
+   faster than flat-file regex scans.
+
+4. **Namespace-per-web** (one database per web) improved index efficiency and
+   memory management — a pattern directly applicable to swamp's multi-model
+   routing.
+
+5. **Methodical benchmarking** at every milestone caught regressions early and
+   guided optimization.
+
+### What Didn't Work
+
+1. **"Everything is a string"** — MongoDB's dynamic schema meant form field
+   values were stored as strings by default. Numeric comparisons (`> 5`) failed
+   silently. This is the core problem PG_IDEA.md's Zod→DDL mapping solves:
+   strict typing at the database level.
+
+2. **No schema enforcement** — form fields could be missing, misspelled, or
+   wrong-typed with no database-level error. Validation was entirely in the
+   application layer.
+
+3. **Embedded history grew documents** — as revision counts increased, document
+   size grew unboundedly. MongoDB's 16MB document limit was a hard ceiling.
+   PG_IDEA.md's separate history table approach avoids this.
+
+4. **No cross-topic transactions** — MongoDB didn't support multi-document
+   transactions in 2011. Saving a topic and its attachments wasn't atomic.
+
+5. **Test failures never fully resolved** — 125/3868 tests still failing at
+   final state, mostly around edge cases in query translation and version
+   history semantics.
+
+### Lessons for Swamp
+
+| MongoDBPlugin (2011) | PG_IDEA.md (2026) | Lesson |
+|---------------------|-------------------|--------|
+| Dynamic schema (MongoDB documents) | Strict schema (Zod→DDL) | **Typed columns are essential** — the "everything is a string" bug was a direct consequence of dynamic schema |
+| Embedded revision history | Separate history table (system-versioned) | **Separate history avoids document bloat** — embedded history hit MongoDB's 16MB limit |
+| One DB per web (namespace) | Per-model connection routing | **Namespace isolation works** — separate databases/indexes per domain improve performance |
+| Query translation layer | CEL expressions + SQL | **Query translation is the hard part** — 125 test failures were mostly query edge cases |
+| Methodical benchmarking | Performance benchmarks in verification plan | **Benchmark at every step** — the milestone log caught regressions immediately |
+| No cross-document transactions | Distributed lock + versioning | **Atomicity matters** — swamp's lock + version model is stronger than 2011 MongoDB |
+| Application-layer validation | Database constraints (CHECK, NOT NULL, FK) | **Push constraints to the DB** — application-only validation is fragile |
+
+### Architectural Contrast
+
+The MongoDBPlugin was a **document-store approach**: one document per entity,
+history embedded, schema dynamic, queries translated. PG_IDEA.md is a
+**relational approach**: one table per model, history in separate tables,
+schema strict (Zod→DDL), queries native SQL.
+
+Both approaches solve the same problem (replace filesystem versioned storage
+with a database), but the relational approach addresses the specific failures
+of the document approach: type safety, schema enforcement, unbounded document
+growth, and cross-entity consistency.
+
+The MongoDBPlugin's performance journey also validates the core premise of
+PG_IDEA.md: moving from flat files to an indexed database with structured
+queries yields order-of-magnitude performance improvements, even on modest
+hardware.
+
+---
+
 ## 2. Recommendation
 
 ### Primary target: Config B/C — Vanilla PostgreSQL + System-Versioned Tables

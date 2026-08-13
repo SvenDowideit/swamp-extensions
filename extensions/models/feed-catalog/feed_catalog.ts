@@ -602,9 +602,7 @@ h2 { margin-top: 30px; color: #333; }
 <body>
 <nav class="header"><a href="/">← News summary</a></nav>
 <h1>${escapeHtml(title)}</h1>
-<div class="meta">${feeds.length} feeds · ${canonical.length} canonical · ${dupMap.size} duplicate groups · ${invalidFeeds.length} invalid · generated ${
-    escapeHtml(generatedAt)
-  }</div>
+<div class="meta">${feeds.length} feeds · ${canonical.length} canonical · ${dupMap.size} duplicate groups · ${invalidFeeds.length} invalid · generated <span class="generated-at" data-generated="${escapeHtml(generatedAt)}"></span></div>
 ${
     invalidFeeds.length > 0
       ? `<div class="toggle"><button id="toggle-invalid" type="button">Show invalid feeds (${invalidFeeds.length})</button></div>`
@@ -709,6 +707,25 @@ function feedCatalogPageScript(): string {
       });
     });
   }
+
+  document.querySelectorAll('.generated-at').forEach(el => {
+    const dateStr = el.getAttribute('data-generated');
+    if (dateStr) {
+      try {
+        const date = new Date(dateStr);
+        const formatted = date.toLocaleString('en-GB', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        el.textContent = formatted;
+      } catch (err) {
+        el.textContent = dateStr;
+      }
+    }
+  });
 })();
 </script>`;
 }

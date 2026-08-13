@@ -786,8 +786,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 <body>
 <nav class="header"><a href="/feeds.html">Feeds catalog →</a></nav>
 <h1>${escapeHtml(title)}</h1>
-<meta class="generated-at" data-generated="${escapeHtml(generatedAt)}">
-<div class="meta">${metaText}</div>
+<div class="meta">${metaText} · generated <span class="generated-at" data-generated="${escapeHtml(generatedAt)}"></span></div>
 <div class="add-url">
 <input id="add-url-input" type="url" placeholder="https://example.com/feed-or-page" autocomplete="off">
 <button id="add-url-btn" onclick="submitUrl()">Add</button>

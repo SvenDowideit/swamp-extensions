@@ -1,0 +1,77 @@
+manifestVersion: 1
+name: '@svendowideit/postgres-datastore'
+version: 2026.08.13.1
+description: >
+  PostgreSQL datastore and model type for swamp. Stores swamp runtime data in
+  PostgreSQL with distributed locking via pg_advisory_lock, and provides a model
+  type for creating versioned tables with SQL:2011 SYSTEM VERSIONING via the
+  `periods` extension.
+
+  ## Datastore
+
+  Use PostgreSQL as the storage backend for swamp runtime data.
+
+  ```yaml
+  # .swamp.yaml
+  datastore:
+    type: "@svendowideit/postgres-datastore"
+    config:
+      connectionString: "postgres://user:pass@host:5432/swamp"
+      schema: "swamp"
+      ssl: "require"
+  ```
+
+  ```bash
+  export SWAMP_DATASTORE='@svendowideit/postgres-datastore:{"connectionString":"postgres://user:pass@host:5432/swamp"}'
+  ```
+
+  ## Model
+
+  Create versioned PostgreSQL tables from Zod schema definitions, run data
+  operations with automatic version snapshots, query current and historical
+  data, migrate schemas with gradual row migration, and import existing tables.
+
+  ```bash
+  swamp model create @svendowideit/postgres-model mydb
+  swamp model method run mydb create --input tableName=servers --input schema='{"name":"string","region":"string"}'
+  swamp model method run mydb run --input tableName=servers --input operation=insert --input data='[{"name":"web-01","region":"us-east-1"}]'
+  swamp model method run mydb query --input tableName=servers
+  swamp model method run mydb list_versions --input tableName=servers
+  ```
+
+  ## Prerequisites
+
+  - PostgreSQL 15+ with the `periods` extension installed
+  - The datastore auto-creates the required schema and installs the extension
+
+  See the README for full documentation on backup/restore, disaster recovery,
+  security, upgrades, and troubleshooting.
+repository: 'https://github.com/svendowideit/swamp-project'
+paths:
+  base: manifest
+models:
+  - postgres_model/mod.ts
+workflows: []
+vaults: []
+drivers: []
+datastores:
+  - mod.ts
+reports: []
+additionalFiles:
+  - README.md
+  - LICENSE.md
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64
+labels:
+  - postgres
+  - postgresql
+  - datastore
+  - model
+  - versioning
+  - temporal
+  - periods
+  - sql
+dependencies: []

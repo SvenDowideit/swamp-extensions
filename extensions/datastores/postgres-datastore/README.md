@@ -52,6 +52,239 @@ The extension has two components:
 └──────────────────────────────────────────────────────────┘
 ```
 
+## 1a. How Swamp Uses PostgreSQL Under the Hood
+
+When you configure this datastore, swamp's internal runtime files (definitions,
+workflows, data snapshots, outputs, bundles, etc.) are stored in PostgreSQL
+instead of the local filesystem. This section explains what that looks like
+from the database side — so you can inspect, query, and understand the data
+using standard `psql` or any PostgreSQL client.
+
+### Swamp's native tables
+
+The datastore creates a `swamp.files` table (in the schema you configure) that
+stores every swamp runtime file as a row:
+
+```sql
+-- The core storage table
+SELECT path, hash, size, updated_at, deleted_at
+FROM swamp.files
+ORDER BY path
+LIMIT 20;
+```
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `path` | `TEXT PRIMARY KEY` | File path relative to the swamp data directory (e.g. `data/@myorg/aws-ec2/my-server/result.json`) |
+| `hash` | `TEXT` | SHA-256 hash of the file content |
+| `size` | `BIGINT` | File size in bytes |
+| `content` | `BYTEA` | The actual file content (binary) |
+| `updated_at` | `TIMESTAMPTZ` | When this row was last written |
+| `deleted_at` | `TIMESTAMPTZ` | When this file was deleted (NULL = active, non-NULL = tombstone) |
+
+This is the same data you'd see in `.swamp/data/`, `.swamp/definitions-evaluated/`,
+`.swamp/workflows-evaluated/`, etc. — just stored in PostgreSQL instead of on disk.
+
+### What normal swamp models and workflows look like in SQL
+
+When you run a swamp model or workflow with this datastore configured, the
+output data is stored as rows in `swamp.files`. Here's what happens step by step:
+
+**1. Model definition is evaluated** — swamp writes the evaluated definition:
+
+```sql
+SELECT path, length(content) AS bytes
+FROM swamp.files
+WHERE path LIKE 'definitions-evaluated/%'
+ORDER BY path;
+```
+
+Example output:
+```
+                    path                     | bytes
+---------------------------------------------+-------
+ definitions-evaluated/@myorg/aws-ec2/my-ec2 |  2048
+```
+
+**2. Method runs and writes output data** — swamp writes the method's output
+as a JSON file:
+
+```sql
+SELECT path, length(content) AS bytes
+FROM swamp.files
+WHERE path LIKE 'data/@myorg/aws-ec2/%'
+ORDER BY path;
+```
+
+Example output:
+```
+                        path                         | bytes
+-----------------------------------------------------+-------
+ data/@myorg/aws-ec2/my-ec2/result.json              |  4096
+ data/@myorg/aws-ec2/my-ec2/result.json.meta         |   256
+```
+
+**3. Inspect the actual output data** — since it's stored as BYTEA, you can
+cast it to text to read the JSON:
+
+```sql
+SELECT
+  path,
+  convert_from(content, 'UTF8') AS json_content
+FROM swamp.files
+WHERE path = 'data/@myorg/aws-ec2/my-ec2/result.json';
+```
+
+**4. Workflow runs** — workflow evaluation state is stored similarly:
+
+```sql
+SELECT path, updated_at
+FROM swamp.files
+WHERE path LIKE 'workflows-evaluated/%'
+ORDER BY updated_at DESC
+LIMIT 10;
+```
+
+**5. Workflow run history** — each workflow run produces output files:
+
+```sql
+SELECT path, updated_at
+FROM swamp.files
+WHERE path LIKE 'workflow-runs/%'
+ORDER BY updated_at DESC
+LIMIT 10;
+```
+
+### Finding all data for a specific model
+
+```sql
+-- Everything related to a specific model
+SELECT
+  path,
+  pg_size_pretty(length(content)) AS size,
+  updated_at
+FROM swamp.files
+WHERE path LIKE '%@myorg/aws-ec2%'
+ORDER BY path;
+```
+
+### Finding recent activity
+
+```sql
+-- What happened in the last hour?
+SELECT
+  path,
+  updated_at,
+  CASE WHEN deleted_at IS NOT NULL THEN 'DELETED' ELSE 'active' END AS status
+FROM swamp.files
+WHERE updated_at > NOW() - INTERVAL '1 hour'
+ORDER BY updated_at DESC;
+```
+
+### Storage usage
+
+```sql
+-- How much space is swamp using?
+SELECT
+  COUNT(*) AS file_count,
+  pg_size_pretty(SUM(length(content))) AS total_size,
+  pg_size_pretty(SUM(CASE WHEN deleted_at IS NULL THEN length(content) ELSE 0 END)) AS active_size,
+  COUNT(*) FILTER (WHERE deleted_at IS NOT NULL) AS tombstone_count
+FROM swamp.files;
+```
+
+### Sync state (team environments)
+
+When multiple people share a swamp repo via this datastore, the sync state
+tracks what's been pushed and pulled:
+
+```sql
+SELECT key, value, updated_at
+FROM swamp.sync_state;
+```
+
+| key | value | Description |
+|-----|-------|-------------|
+| `commit_seq` | `42` | Monotonic commit counter — used to detect new changes |
+| `last_pushed_at` | `"2026-08-13T10:30:00+00"` | When the last push happened (legacy watermark) |
+
+### Distributed locks
+
+When swamp operations are running, you can see active locks:
+
+```sql
+SELECT
+  lock_key,
+  holder,
+  hostname,
+  pid,
+  acquired_at,
+  ttl_ms,
+  age(NOW(), acquired_at) AS lock_age
+FROM swamp._locks
+ORDER BY acquired_at DESC;
+```
+
+If a lock is older than its `ttl_ms`, the holder process has likely crashed
+and the lock will be automatically reclaimed by the next acquirer.
+
+### Namespace registry
+
+In team setups, each repo gets a namespace:
+
+```sql
+SELECT namespace, repo_id, created_at
+FROM swamp._namespace
+ORDER BY namespace;
+```
+
+### How the datastore and model type work together
+
+The datastore (`@svendowideit/postgres-datastore`) and the model type
+(`@svendowideit/postgres-model`) serve different purposes:
+
+| Layer | What it stores | Table(s) | Example query |
+|-------|---------------|----------|---------------|
+| **Datastore** | Swamp's internal runtime files (definitions, outputs, workflow state) | `swamp.files`, `swamp.sync_state`, `swamp._locks`, `swamp._namespace` | `SELECT path FROM swamp.files WHERE path LIKE 'data/%'` |
+| **Model type** | Your application data in typed, versioned tables | Per-model tables (e.g. `swamp.servers`, `swamp.servers_history`) + `swamp._versions` | `SELECT * FROM swamp.servers` |
+
+The datastore is always active when you use this extension — it replaces
+swamp's filesystem storage. The model type is optional — you use it when you
+want typed, versioned tables for your application data instead of JSON blobs
+in `swamp.files`.
+
+### Direct SQL access to model data
+
+When you use the model type to create versioned tables, you can query them
+directly with any PostgreSQL client:
+
+```sql
+-- Current data (always the latest version)
+SELECT * FROM swamp.servers;
+
+-- Historical data at a specific point in time
+SELECT * FROM swamp.servers__as_of('2026-08-12T10:30:00Z');
+
+-- All versions of a specific row
+SELECT * FROM swamp.servers_history WHERE id = 'abc-123' ORDER BY row_end DESC;
+
+-- Version metadata (who created each version, when, why)
+SELECT version_id, timestamp, method, model_name, message
+FROM swamp._versions
+WHERE table_name = 'servers'
+ORDER BY timestamp DESC;
+
+-- Row-level changes between two versions
+SELECT * FROM swamp.servers_history
+WHERE row_end > (SELECT timestamp FROM swamp._versions WHERE version_id = 'v1')
+  AND row_end <= (SELECT timestamp FROM swamp._versions WHERE version_id = 'v2')
+ORDER BY row_end;
+```
+
+This means you can use standard BI tools (Metabase, Grafana, Tableau), ORMs,
+or direct `psql` queries against your swamp-managed data — it's just regular
+PostgreSQL tables with automatic version history.
+
 ## 2. Prerequisites
 
 - **PostgreSQL 15+** — required for `gen_random_uuid()` (used for auto-generated primary keys)

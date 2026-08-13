@@ -15,7 +15,32 @@ import { z } from "npm:zod@4";
 // Schemas
 // ---------------------------------------------------------------------------
 
-const GlobalArgsSchema = z.object({}).strict();
+const GlobalArgsSchema = z.object({
+  /** Base URL of an OpenAI-compatible LLM server (Ollama: http://localhost:11434). */
+  llmBaseUrl: z.string().url().default("http://localhost:11434").describe(
+    "Base URL of an OpenAI-compatible LLM server. The /v1/chat/completions path is used. Defaults to a local Ollama instance.",
+  ),
+  /** Model tag used for fusion (Ollama model, e.g. llama3, mistral, qwen2.5). */
+  llmModel: z.string().default("").describe(
+    "LLM model tag used for story fusion (Ollama model, e.g. llama3, mistral, qwen2.5).",
+  ),
+  /** API key for LLM servers that require auth (Ollama usually does not). */
+  llmApiKey: z.string().optional().describe(
+    "Optional API key for LLM servers that require authentication. Ollama typically does not need one.",
+  ),
+  /** Sampling temperature for fusion LLM calls (low = deterministic). */
+  llmTemperature: z.number().min(0).max(2).default(0.1).describe(
+    "Sampling temperature for fusion LLM calls. Low values keep extraction deterministic.",
+  ),
+  /** Minimum articles per cluster before LLM fusion triggers (conservative by default). */
+  fusionMinClusterSize: z.number().int().min(1).default(2).describe(
+    "Minimum cluster size to trigger LLM fusion. Singletons stay as ordinary summaries unless a story already exists.",
+  ),
+  /** How long article citations live before aging out; core facts are never dropped. */
+  citationRetentionDays: z.number().int().min(0).default(30).describe(
+    "How long article citations live before aging out of a story. Core facts always survive.",
+  ),
+}).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
@@ -260,6 +285,101 @@ export interface ScoredArticle extends Article {
 }
 
 // ---------------------------------------------------------------------------
+// Story fusion data model (persistent story objects)
+// ---------------------------------------------------------------------------
+
+/** A canonical entity reference (IDs, not bare names). */
+export interface EntityRef {
+  /** Canonical entity name (e.g. "BBC", "Tesla", "Gaza"). */
+  name: string;
+  /** Canonical URL/ID when available (feed origin, canonical link). */
+  canonicalUrl?: string;
+  /** Entity kind (person, org, place, product). */
+  kind?: string;
+}
+
+/** A claim — the atomic unit of a story. Every fact, not every article. */
+export interface Claim {
+  /** Claim text. Uncertainty markers ("reportedly", "alleged") preserved. */
+  text: string;
+  /** Article URLs that support this claim. */
+  sources: string[];
+  /** Confidence status. "conflicting" when in a Conflict. */
+  status: "confirmed" | "reported" | "alleged" | "conflicting";
+  /** True if introduced since the last run. */
+  isDelta: boolean;
+  /** Added timestamp (ISO). */
+  addedAt: string;
+}
+
+/** An unresolved disagreement between two claims. Never reconciled. */
+export interface Conflict {
+  claimA: Claim;
+  claimB: Claim;
+  /** Human note, e.g. "death toll discrepancy between sources". */
+  note: string;
+  /** When resolved, if ever. */
+  resolvedAt?: string;
+}
+
+/** Persistent story object — accumulates across runs, survives filter windows. */
+export interface Story {
+  /** Stable ID: hash of (canonical topic + entities). */
+  id: string;
+  /** Frozen at seed time; new articles must match it. */
+  identity: {
+    topic: string;
+    entities: EntityRef[];
+    seedArticleIds: string[];
+  };
+  /** Stable established facts (survive the age filter window). */
+  core: Claim[];
+  /** Delta since last run, newest first. */
+  updates: Claim[];
+  /** Unresolved disagreements. */
+  conflicts: Conflict[];
+  status: "confirmed" | "reported" | "alleged" | "unresolved";
+  /** Age-managed article references; core facts never dropped. */
+  citations: ArticleRef[];
+  createdAt: string;
+  lastUpdatedAt: string;
+  lastRegenAt: string;
+}
+
+/** A lightweight article reference for story citations. */
+export interface ArticleRef {
+  url: string;
+  title: string;
+  source: string;
+  publishedAt: string;
+  firstSeenAt: string;
+}
+
+/** A cluster of articles judged to be the same story (cheap, pre-LLM). */
+export interface StoryCluster {
+  /** Canonical topic candidate (from the earliest article). */
+  topic: string;
+  /** Candidate entities. */
+  entities: EntityRef[];
+  /** Articles in the cluster. */
+  articles: Article[];
+  /** True if entity/URL matching was ambiguous — needs the "same story?" LLM gate. */
+  needsGate: boolean;
+  /** Stable cluster hash for grouping. */
+  key: string;
+}
+
+/** Output of an LLM fusion pass. */
+export interface FuseResult {
+  /** Genuinely new claims (quote-first, deduped against existing core). */
+  newClaims: Claim[];
+  /** Conflicts surfaced between new claims and existing core. */
+  conflicts: Conflict[];
+  /** Updated story status. */
+  status: Story["status"];
+}
+
+// ---------------------------------------------------------------------------
 // Zod schemas for resources
 // ---------------------------------------------------------------------------
 
@@ -318,13 +438,93 @@ const PagesQueueSchema = z.object({
   gatheredAt: z.iso.datetime(),
 });
 
+const StorySchema = z.object({
+  id: z.string(),
+  identity: z.object({
+    topic: z.string(),
+    entities: z.array(z.object({
+      name: z.string(),
+      canonicalUrl: z.string().optional(),
+      kind: z.string().optional(),
+    })),
+    seedArticleIds: z.array(z.string()),
+  }),
+  core: z.array(z.object({
+    text: z.string(),
+    sources: z.array(z.string()),
+    status: z.enum(["confirmed", "reported", "alleged", "conflicting"]),
+    isDelta: z.boolean(),
+    addedAt: z.string(),
+  })),
+  updates: z.array(z.object({
+    text: z.string(),
+    sources: z.array(z.string()),
+    status: z.enum(["confirmed", "reported", "alleged", "conflicting"]),
+    isDelta: z.boolean(),
+    addedAt: z.string(),
+  })),
+  conflicts: z.array(z.object({
+    claimA: z.object({
+      text: z.string(),
+      sources: z.array(z.string()),
+      status: z.enum(["confirmed", "reported", "alleged", "conflicting"]),
+      isDelta: z.boolean(),
+      addedAt: z.string(),
+    }),
+    claimB: z.object({
+      text: z.string(),
+      sources: z.array(z.string()),
+      status: z.enum(["confirmed", "reported", "alleged", "conflicting"]),
+      isDelta: z.boolean(),
+      addedAt: z.string(),
+    }),
+    note: z.string(),
+    resolvedAt: z.string().optional(),
+  })),
+  status: z.enum(["confirmed", "reported", "alleged", "unresolved"]),
+  citations: z.array(z.object({
+    url: z.string(),
+    title: z.string(),
+    source: z.string(),
+    publishedAt: z.string(),
+    firstSeenAt: z.string(),
+  })),
+  createdAt: z.string(),
+  lastUpdatedAt: z.string(),
+  lastRegenAt: z.string(),
+});
+
+const StoriesStateSchema = z.object({
+  stories: z.array(StorySchema),
+});
+
+const ClusterSchema = z.object({
+  topic: z.string(),
+  entities: z.array(z.object({
+    name: z.string(),
+    canonicalUrl: z.string().optional(),
+    kind: z.string().optional(),
+  })),
+  articles: z.array(z.unknown()),
+  needsGate: z.boolean(),
+  key: z.string(),
+});
+
+const ClustersStateSchema = z.object({
+  clusters: z.array(ClusterSchema),
+  absorbable: z.array(ArticleSchema),
+});
+
 // ---------------------------------------------------------------------------
 // Shared context type
 // ---------------------------------------------------------------------------
 
 type MethodContext = {
   globalArgs: GlobalArgs;
-  logger?: { info: (msg: string, props?: Record<string, unknown>) => void };
+    logger?: {
+      info: (msg: string, props?: Record<string, unknown>) => void;
+      warning: (msg: string, props?: Record<string, unknown>) => void;
+    };
   writeResource: (
     specName: string,
     name: string,
@@ -488,6 +688,565 @@ export function extractKeywords(
     .slice(0, maxKeywords)
     .map(([w]) => w);
 }
+
+// ---------------------------------------------------------------------------
+// LLM helpers (OpenAI-compatible chat/completions)
+// ---------------------------------------------------------------------------
+
+/** A chat message for an OpenAI-compatible endpoint. */
+type ChatMessage = { role: "system" | "user"; content: string };
+
+/**
+ * Call an OpenAI-compatible /v1/chat/completions endpoint (works with Ollama
+ * and most local/remote servers). Returns the assistant message content.
+ */
+export async function chatCompletion(
+  args: GlobalArgs,
+  messages: ChatMessage[],
+  opts?: { json?: boolean },
+): Promise<string> {
+  const base = args.llmBaseUrl.replace(/\/+$/, "");
+  const url = `${base}/v1/chat/completions`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (args.llmApiKey) headers.Authorization = `Bearer ${args.llmApiKey}`;
+
+  const body = {
+    model: args.llmModel,
+    messages,
+    temperature: args.llmTemperature,
+    stream: false,
+    ...(opts?.json
+      ? { response_format: { type: "json_object" } }
+      : {}),
+  };
+
+  let resp: Response;
+  try {
+    resp = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(120000),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `LLM server unreachable at ${url}: ${msg}. Check llmBaseUrl / llmModel global args.`,
+    );
+  }
+
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => "");
+    throw new Error(
+      `LLM request failed (${resp.status} ${resp.statusText}): ${errText.slice(0, 300)}`,
+    );
+  }
+
+  const data = await resp.json() as { choices?: { message?: { content?: string } }[] };
+  const content = data.choices?.[0]?.message?.content;
+  if (typeof content !== "string" || content.length === 0) {
+    throw new Error(
+      `LLM returned no content: ${JSON.stringify(data).slice(0, 300)}`,
+    );
+  }
+  return content;
+}
+
+/**
+ * Extract the first JSON object from an LLM response, tolerating markdown
+ * code fences and surrounding prose.
+ */
+export function extractJsonObject<T = Record<string, unknown>>(
+  raw: string,
+): T {
+  let text = raw.trim();
+  // Strip markdown code fences.
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) text = fence[1].trim();
+  // Fall back to the first {...} span if fences are absent.
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error(`No JSON object in LLM response: ${raw.slice(0, 300)}`);
+  }
+  const json = text.slice(start, end + 1);
+  return JSON.parse(json) as T;
+}
+
+// ---------------------------------------------------------------------------
+// Story clustering (cheap, no LLM)
+// ---------------------------------------------------------------------------
+
+const STOP_ENTITIES = new Set([
+  "the", "a", "an", "and", "or", "but", "of", "in", "on", "for", "with",
+  "by", "from", "at", "to", "is", "are", "was", "were", "has", "had",
+  "have", "will", "would", "could", "should", "may", "might", "can",
+  "this", "that", "these", "those", "it", "they", "them", "their", "who",
+  "what", "when", "where", "which", "why", "how", "not", "no", "yes",
+]);
+
+/** Heuristic entity candidates from title + summary (proper nouns / key terms). */
+export function extractEntities(
+  title: string,
+  summary: string,
+  maxEntities = 5,
+): string[] {
+  const text = `${title} ${summary}`;
+  const candidates = text.match(/[A-Z][A-Za-z0-9&'.\-]+/g) ?? [];
+  const out: string[] = [];
+  for (const c of candidates) {
+    const lower = c.toLowerCase();
+    if (STOP_ENTITIES.has(lower)) continue;
+    if (lower.length < 3) continue;
+    if (!out.includes(c)) out.push(c);
+    if (out.length >= maxEntities) break;
+  }
+  // Fall back to keywords if no capitalized entities were found.
+  if (out.length === 0) {
+    return extractKeywords(title, summary, maxEntities).map((k) =>
+      k.charAt(0).toUpperCase() + k.slice(1)
+    );
+  }
+  return out;
+}
+
+/** Normalize an article URL to a canonical key (lowercase, strip query/fragment). */
+export function canonicalUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.hostname.toLowerCase()}${u.pathname.toLowerCase()}`;
+  } catch {
+    return url.toLowerCase();
+  }
+}
+
+/** Day-normalized publish key for date proximity (e.g. 2026-08-13). */
+export function dayKey(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
+
+/** Stable cluster key from topic + entities. */
+export function clusterKey(topic: string, entities: EntityRef[]): string {
+  const names = entities.map((e) => e.name.toLowerCase()).sort();
+  return clusterHash(`${topic.toLowerCase()}::${names.join(",")}`);
+}
+
+/**
+ * Conservatively cluster articles by extracted entities, canonical URLs and
+ * date proximity. Ambiguous pairs are flagged with needsGate for the LLM
+ * "same story?" check instead of being force-joined.
+ */
+export function clusterStories(
+  articles: Article[],
+  existing: Story[] = [],
+  maxClusterSize = 40,
+): { clusters: StoryCluster[]; absorbable: Article[] } {
+  const clusters: StoryCluster[] = [];
+
+  // Existing stories can absorb matching articles; seed new clusters otherwise.
+  const absorbable: Article[] = [];
+  const leftovers: Article[] = [];
+
+  for (const a of articles) {
+    const entities = extractEntities(a.title, a.summary ?? "");
+    const canon = canonicalUrl(a.url);
+    let matched = false;
+
+    for (const st of existing) {
+      const stCanons = st.citations.map((c) => canonicalUrl(c.url));
+      const stEntities = st.identity.entities.map((e) => e.name.toLowerCase());
+      const entMatch = entities.filter((e) =>
+        stEntities.includes(e.toLowerCase())
+      ).length;
+      const urlMatch = stCanons.includes(canon);
+
+      // Conservative: require a concrete entity hit OR canonical-URL match.
+      if (urlMatch || entMatch >= 2) {
+        matched = true;
+        absorbable.push(a);
+        break;
+      }
+    }
+    if (!matched) leftovers.push(a);
+  }
+
+  // Group leftovers into fresh clusters by entity overlap + date proximity.
+  const used = new Set<string>();
+  for (const a of leftovers) {
+    if (used.has(a.id)) continue;
+    const entities = extractEntities(a.title, a.summary ?? "");
+    const canon = canonicalUrl(a.url);
+    const day = dayKey(a.publishedAt);
+
+    const group: Article[] = [a];
+    used.add(a.id);
+    let needsGate = false;
+
+    for (const b of leftovers) {
+      if (used.has(b.id)) continue;
+      const bEntities = extractEntities(b.title, b.summary ?? "");
+      const bCanon = canonicalUrl(b.url);
+      const bDay = dayKey(b.publishedAt);
+      const shared = entities.filter((e) =>
+        bEntities.includes(e)
+      ).length;
+      const urlMatch = canon === bCanon;
+      const sameDay = day !== "" && bDay !== "" && day === bDay;
+      const nearDay = day !== "" && bDay !== "" &&
+        Math.abs(new Date(day).getTime() - new Date(bDay).getTime()) <= 48 * 3600 * 1000;
+
+      if (shared >= 2 || (shared >= 1 && sameDay) || urlMatch) {
+        group.push(b);
+        used.add(b.id);
+      } else if (shared === 1 && nearDay) {
+        needsGate = true;
+      }
+    }
+
+    const topic = group[0].title.replace(/\s+/g, " ").trim().slice(0, 120);
+    const entRefs: EntityRef[] = [];
+    for (const e of extractEntities(group[0].title, group[0].summary ?? "")) {
+      entRefs.push({ name: e, kind: guessEntityKind(e) });
+    }
+    const key = clusterKey(topic, entRefs);
+    clusters.push({
+      topic,
+      entities: entRefs,
+      articles: group.slice(0, maxClusterSize),
+      needsGate,
+      key,
+    });
+  }
+
+  // Merge any absorbable articles back into their matched clusters below;
+  // they are handled by fuseStory against the existing Story directly.
+  return { clusters, absorbable };
+}
+
+/** Crude entity kind heuristic (person/org/place/product). */
+export function guessEntityKind(name: string): string {
+  if (/^[A-Z][a-z]+$/.test(name) && name.length <= 20) return "person";
+  if (/[A-Z]{2,}/.test(name)) return "org";
+  return "place";
+}
+
+export function clusterHash(input: string): string {
+  const data = new TextEncoder().encode(input);
+  return [...new Uint8Array(data)].reduce(
+    (acc, b) => (acc + b * 31) % 2147483647,
+    7,
+  ).toString(36).slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+// LLM fusion (seed / delta / regen)
+// ---------------------------------------------------------------------------
+
+/** Render a cluster's articles for the LLM seed prompt. */
+function articlesForPrompt(cluster: StoryCluster): string {
+  return cluster.articles.map((a, i) => {
+    const src = a.source || canonicalUrl(a.url);
+    return `[${i + 1}] ${a.title} (${src}, ${a.publishedAt || "no date"})\n${a.summary ?? ""}`;
+  }).join("\n");
+}
+
+/**
+ * Seed a new story from a cluster. Uses the LLM to extract core facts
+ * (confirmed claims) and candidate entities, then persists a Story object.
+ */
+export async function seedStory(
+  args: GlobalArgs,
+  cluster: StoryCluster,
+): Promise<Story> {
+  const prompt = `You are a meticulous news fusion engine. Given the following
+articles that all cover the SAME story, extract:
+1. "topic": a concise canonical topic phrase (no quotes, lowercase-ish).
+2. "entities": array of {name, kind} for the key named entities (person/org/place/product).
+3. "claims": array of core fact strings that are SUPPORTED by the articles.
+   Preserve uncertainty markers ("reportedly", "allegedly", "about").
+4. "status": one of confirmed|reported|alleged|unresolved.
+
+Be conservative: do not invent facts. Return ONLY JSON, no prose.
+
+Articles:
+${articlesForPrompt(cluster)}`;
+
+  const raw = await chatCompletion(args, [
+    { role: "system", content: "You output strictly valid JSON. No markdown." },
+    { role: "user", content: prompt },
+  ], { json: true });
+
+  const parsed = extractJsonObject<{
+    topic?: string;
+    entities?: { name: string; kind?: string }[];
+    claims?: string[];
+    status?: Story["status"];
+  }>(raw);
+
+  const topic = parsed.topic || cluster.topic;
+  const entities: EntityRef[] = (parsed.entities ?? []).map((e) => ({
+    name: e.name,
+    kind: e.kind ?? guessEntityKind(e.name),
+  }));
+  if (entities.length === 0) {
+    entities.push(...cluster.entities);
+  }
+
+  const now = new Date().toISOString();
+  const claims: Claim[] = (parsed.claims ?? []).map((text) => ({
+    text,
+    sources: cluster.articles.map((a) => a.url),
+    status: "confirmed",
+    isDelta: true,
+    addedAt: now,
+  }));
+
+  const citations: ArticleRef[] = cluster.articles.map((a) => ({
+    url: a.url,
+    title: a.title,
+    source: a.source,
+    publishedAt: a.publishedAt,
+    firstSeenAt: now,
+  }));
+
+  return {
+    id: cluster.key || clusterHash(topic + "::" + entities.map((e) => e.name).join(",")),
+    identity: { topic, entities, seedArticleIds: cluster.articles.map((a) => a.id) },
+    core: claims,
+    updates: claims,
+    conflicts: [],
+    status: parsed.status ?? "reported",
+    citations,
+    createdAt: now,
+    lastUpdatedAt: now,
+    lastRegenAt: now,
+  };
+}
+
+/** Merge new cluster articles into an existing story via the LLM delta pass. */
+export async function fuseStory(
+  args: GlobalArgs,
+  story: Story,
+  newArticles: Article[],
+): Promise<Story> {
+  if (newArticles.length === 0) return story;
+
+  const existingClaims = story.core.map((c) => c.text).join("\n- ");
+  const prompt = `You are a meticulous news fusion engine. A story already has
+these established core claims:
+- ${existingClaims}
+
+New articles on the same story follow. Extract:
+1. "newClaims": array of GENUINELY NEW fact strings (quote-first) supported by
+   the new articles. Do NOT repeat existing claims. Preserve uncertainty markers.
+2. "conflicts": array of {claimA, claimB, note} ONLY when a new claim
+   contradicts an existing one (e.g. different figures). Never reconcile.
+3. "status": confirmed|reported|alleged|unresolved.
+
+Be conservative. Return ONLY JSON, no prose.
+
+New articles:
+${newArticles.map((a, i) =>
+    `[${i + 1}] ${a.title} (${a.source || canonicalUrl(a.url)}, ${a.publishedAt || "no date"})\n${a.summary ?? ""}`
+  ).join("\n")}`;
+
+  const raw = await chatCompletion(args, [
+    { role: "system", content: "You output strictly valid JSON. No markdown." },
+    { role: "user", content: prompt },
+  ], { json: true });
+
+  const parsed = extractJsonObject<{
+    newClaims?: string[];
+    conflicts?: { claimA: string; claimB: string; note: string }[];
+    status?: Story["status"];
+  }>(raw);
+
+  const now = new Date().toISOString();
+  const newClaims: Claim[] = (parsed.newClaims ?? []).map((text) => ({
+    text,
+    sources: newArticles.map((a) => a.url),
+    status: "confirmed",
+    isDelta: true,
+    addedAt: now,
+  }));
+
+  const conflicts: Conflict[] = (parsed.conflicts ?? []).map((c) => ({
+    claimA: {
+      text: c.claimA,
+      sources: newArticles.map((a) => a.url),
+      status: "conflicting",
+      isDelta: true,
+      addedAt: now,
+    },
+    claimB: {
+      text: c.claimB,
+      sources: story.citations.map((c2) => c2.url),
+      status: "conflicting",
+      isDelta: false,
+      addedAt: story.lastUpdatedAt,
+    },
+    note: c.note,
+  }));
+
+  // Claim dedup: drop new claims already present in core.
+  const coreTexts = new Set(story.core.map((c) => c.text.toLowerCase()));
+  const deduped = newClaims.filter((c) => !coreTexts.has(c.text.toLowerCase()));
+
+  const newCitations: ArticleRef[] = newArticles.map((a) => ({
+    url: a.url,
+    title: a.title,
+    source: a.source,
+    publishedAt: a.publishedAt,
+    firstSeenAt: now,
+  }));
+
+  return {
+    ...story,
+    core: [...story.core, ...deduped],
+    updates: [...deduped, ...conflicts.map((c) => c.claimA)],
+    conflicts: [...story.conflicts, ...conflicts],
+    status: parsed.status ?? story.status,
+    citations: [...story.citations, ...newCitations],
+    lastUpdatedAt: now,
+  };
+}
+
+/** Full re-fusion pass over all citations (flush drift, P3). */
+export async function regenStory(
+  args: GlobalArgs,
+  story: Story,
+): Promise<Story> {
+  const existing = story.core.map((c) => c.text).join("\n- ");
+  const prompt = `You are a meticulous news fusion engine. Given these established
+claims and their cited articles, reconcile to:
+1. "coreClaims": array of the strongest consolidated claim strings.
+2. "conflicts": array of {claimA, claimB, note} for any unresolved contradictions.
+3. "status": confirmed|reported|alleged|unresolved.
+
+Established claims:
+- ${existing}
+
+Cited articles:
+${story.citations.map((c, i) =>
+    `[${i + 1}] ${c.title} (${c.source || canonicalUrl(c.url)}, ${c.publishedAt || "no date"})`
+  ).join("\n")}
+
+Return ONLY JSON, no prose.`;
+
+  const raw = await chatCompletion(args, [
+    { role: "system", content: "You output strictly valid JSON. No markdown." },
+    { role: "user", content: prompt },
+  ], { json: true });
+
+  const parsed = extractJsonObject<{
+    coreClaims?: string[];
+    conflicts?: { claimA: string; claimB: string; note: string }[];
+    status?: Story["status"];
+  }>(raw);
+
+  const now = new Date().toISOString();
+  const allUrls = story.citations.map((c) => c.url);
+  const core: Claim[] = (parsed.coreClaims ?? story.core.map((c) => c.text)).map(
+    (text) => ({
+      text,
+      sources: allUrls,
+      status: "confirmed",
+      isDelta: false,
+      addedAt: story.lastUpdatedAt,
+    }),
+  );
+
+  const parsedConflicts = parsed.conflicts ?? [];
+  const conflicts: Conflict[] = [
+    ...parsedConflicts.map((c) => ({
+      claimA: {
+        text: c.claimA,
+        sources: allUrls,
+        status: "conflicting" as const,
+        isDelta: false,
+        addedAt: now,
+      },
+      claimB: {
+        text: c.claimB,
+        sources: allUrls,
+        status: "conflicting" as const,
+        isDelta: false,
+        addedAt: now,
+      },
+      note: c.note,
+    })),
+    ...(story.conflicts ?? []),
+  ];
+
+  return {
+    ...story,
+    core,
+    conflicts,
+    status: parsed.status ?? story.status,
+    lastUpdatedAt: now,
+    lastRegenAt: now,
+  };
+}
+
+/** Age out citations older than the retention window; core facts survive. */
+export function ageOutCitations(
+  story: Story,
+  retentionDays: number,
+): Story {
+  if (retentionDays <= 0) return story;
+  const cutoff = Date.now() - retentionDays * 24 * 3600 * 1000;
+  const citations = story.citations.filter(
+    (c) => new Date(c.firstSeenAt).getTime() >= cutoff,
+  );
+  return { ...story, citations };
+}
+
+/** Render a story to inline HTML for the news page. */
+export function renderStories(
+  stories: Story[],
+  title = "Fused stories",
+): string {
+  if (stories.length === 0) return "";
+  const parts: string[] = [
+    `<section class="stories"><h2>${escapeHtml(title)}</h2>`,
+  ];
+  for (const st of stories) {
+    parts.push(`<div class="story">`);
+    parts.push(
+      `<h3>${escapeHtml(st.identity.topic)} <span class="story-status">${escapeHtml(st.status)}</span></h3>`,
+    );
+    if (st.conflicts.length > 0) {
+      parts.push(`<div class="conflicts"><b>Conflicts:</b>`);
+      for (const c of st.conflicts) {
+        parts.push(
+          `<p class="conflict"><span class="claimA">${escapeHtml(c.claimA.text)}</span> ⚠ <span class="claimB">${escapeHtml(c.claimB.text)}</span> <em>${escapeHtml(c.note)}</em></p>`,
+        );
+      }
+      parts.push(`</div>`);
+    }
+    parts.push(`<ul class="claims">`);
+    for (const c of st.core) {
+      parts.push(`<li>${escapeHtml(c.text)} <span class="src-count">(${c.sources.length} src)</span></li>`);
+    }
+    parts.push(`</ul>`);
+    parts.push(`<div class="citations">`);
+    for (const c of st.citations) {
+      parts.push(
+        `<a href="${escapeHtml(c.url)}" target="_blank" rel="noopener">${escapeHtml(c.title || c.url)}</a> `,
+      );
+    }
+    parts.push(`</div>`);
+    parts.push(`</div>`);
+  }
+  parts.push(`</section>`);
+  return parts.join("\n");
+}
+
+
 
 /** Extract the first occurrence of an XML tag's text content. */
 function extractTag(xml: string, tag: string): string | null {
@@ -718,6 +1477,7 @@ export function generateHtml(
   title: string,
   generatedAt: string,
   ageFilter?: string,
+  storiesHtml?: string,
 ): string {
   const top = articles;
   const sections: string[] = [];
@@ -908,6 +1668,9 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
   }
 
   sections.push("</div>");
+  if (storiesHtml && storiesHtml.trim() !== "") {
+    sections.push(storiesHtml);
+  }
   sections.push(`
 <script>
 const FEEDBACK_URL = '/api/feedback';
@@ -1112,6 +1875,24 @@ export const model = {
     pagesQueue: {
       description: "Page URLs pulled from the pages queue for catalog upsert",
       schema: PagesQueueSchema,
+      lifetime: "7d",
+      garbageCollection: 20,
+    },
+    stories: {
+      description: "Persistent fused story objects (survive age-filter windows)",
+      schema: StoriesStateSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    clusters: {
+      description: "Transient story clusters awaiting LLM seed/fuse",
+      schema: ClustersStateSchema,
+      lifetime: "7d",
+      garbageCollection: 20,
+    },
+    storiesHtml: {
+      description: "Rendered inline HTML fragment for fused stories",
+      schema: z.object({ html: z.string() }),
       lifetime: "7d",
       garbageCollection: 20,
     },
@@ -1534,12 +2315,16 @@ export const model = {
           count: top.length,
         });
 
+        const storiesState = await context.readResource("stories-html-current") as
+          | { html: string }
+          | null;
         const html = generateHtml(
           top,
           prefs,
           args.title,
           generatedAt,
           snapshotData.filteredAt ? snapshotData.ageFilter : undefined,
+          storiesState?.html,
         );
 
         const writer = context.createFileWriter("report", "news-page");
@@ -1863,6 +2648,294 @@ export const model = {
           },
         );
 
+        return { dataHandles: [handle] };
+      },
+    },
+    clusterArticles: {
+      description:
+        "Conservatively cluster filtered articles into same-story groups (no LLM). Requires a filtered-snapshot resource.",
+      arguments: z.object({
+        snapshotName: z.string().default("filtered-snapshot"),
+        maxClusterSize: z.number().int().min(1).max(100).default(40),
+      }),
+      execute: async (
+        args: { snapshotName: string; maxClusterSize: number },
+        context: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        const logger = context.logger;
+        const snap = await context.readResource(args.snapshotName) as
+          | { articles: Article[] }
+          | null;
+        if (!snap || !snap.articles || snap.articles.length === 0) {
+          throw new Error("No articles — run 'fetch' first with some feeds.");
+        }
+        const storiesState = await context.readResource("stories-current") as
+          | { stories: Story[] }
+          | null;
+        const clusters = clusterStories(
+          snap.articles,
+          storiesState?.stories ?? [],
+          args.maxClusterSize,
+        );
+        const handle = await context.writeResource(
+          "clusters",
+          "clusters-current",
+          {
+            clusters: clusters.clusters,
+            absorbable: clusters.absorbable,
+          } as unknown as Record<string, unknown>,
+        );
+        logger?.info(
+          "Clustered {n} articles into {c} story clusters ({gate} ambiguous, {absorb} absorbed)",
+          {
+            n: snap.articles.length,
+            c: clusters.clusters.length,
+            gate: clusters.clusters.filter((x) => x.needsGate).length,
+            absorb: clusters.absorbable.length,
+          },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    seedStories: {
+      description:
+        "LLM-seed persistent Story objects from the current clusters resource.",
+      arguments: z.object({
+        minClusterSize: z.number().int().min(1).default(2),
+      }),
+      execute: async (
+        args: { minClusterSize: number },
+        context: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        const logger = context.logger;
+        const ga = context.globalArgs as GlobalArgs;
+        if (!ga.llmModel) {
+          logger?.info(
+            "Fusion skipped: no llmModel configured (set globalArguments.llmModel + llmBaseUrl to enable)",
+          );
+          const storiesState = await context.readResource("stories-current") as
+            | { stories: Story[] }
+            | null;
+          const handle = await context.writeResource(
+            "stories",
+            "stories-current",
+            { stories: storiesState?.stories ?? [] } as unknown as Record<string, unknown>,
+          );
+          return { dataHandles: [handle] };
+        }
+        const clustersState = await context.readResource("clusters-current") as
+          | { clusters: StoryCluster[] }
+          | null;
+        const clusters = clustersState?.clusters ?? [];
+        if (!clusters || clusters.length === 0) {
+          throw new Error("No clusters — run 'clusterArticles' first.");
+        }
+        const storiesState = await context.readResource("stories-current") as
+          | { stories: Story[] }
+          | null;
+        const existing = storiesState?.stories ?? [];
+        const newStories: Story[] = [];
+        for (const c of clusters) {
+          if (c.articles.length < args.minClusterSize) continue;
+          try {
+            const st = await seedStory(ga, c);
+            newStories.push(st);
+            logger?.info("Seeded story '{topic}' ({id})", {
+              topic: st.identity.topic,
+              id: st.id,
+            });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger?.warning("Seed failed for '{topic}': {error}", {
+              topic: c.topic,
+              error: msg,
+            });
+          }
+        }
+        const merged = [...existing, ...newStories];
+        const handle = await context.writeResource(
+          "stories",
+          "stories-current",
+          { stories: merged } as unknown as Record<string, unknown>,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    fuseStories: {
+      description:
+        "LLM-delta pass: absorb new cluster articles into existing stories and persist.",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        const logger = context.logger;
+        const ga = context.globalArgs as GlobalArgs;
+        if (!ga.llmModel) {
+          logger?.info(
+            "Fusion skipped: no llmModel configured (set globalArguments.llmModel + llmBaseUrl to enable)",
+          );
+          const storiesState = await context.readResource("stories-current") as
+            | { stories: Story[] }
+            | null;
+          const handle = await context.writeResource(
+            "stories",
+            "stories-current",
+            { stories: storiesState?.stories ?? [] } as unknown as Record<string, unknown>,
+          );
+          return { dataHandles: [handle] };
+        }
+        const stories = (await context.readResource("stories-current") as
+          | { stories: Story[] }
+          | null)?.stories ?? [];
+        const clustersState = await context.readResource("clusters-current") as
+          | { clusters: StoryCluster[]; absorbable: Article[] }
+          | null;
+        const clusters = clustersState?.clusters ?? [];
+        const absorbable = clustersState?.absorbable ?? [];
+        const existingById = new Map(stories.map((s) => [s.id, s]));
+        const toUpdate: Story[] = [];
+
+        // Fresh clusters: fuse each into the matching existing story.
+        for (const c of clusters ?? []) {
+          const st = existingById.get(c.key) ?? existingById.get(
+            clusterKey(c.topic, c.entities),
+          );
+          if (!st) continue;
+          try {
+            const updated = await fuseStory(ga, st, c.articles);
+            toUpdate.push(updated);
+            logger?.info("Fused {n} articles into story '{topic}'", {
+              n: c.articles.length,
+              topic: st.identity.topic,
+            });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger?.warning("Fuse failed for '{topic}': {error}", {
+              topic: c.topic,
+              error: msg,
+            });
+          }
+        }
+
+        // Absorbable articles already matched an existing story at cluster time;
+        // re-match by entity overlap and fuse each one individually.
+        for (const a of absorbable ?? []) {
+          const aEntities = extractEntities(a.title, a.summary ?? "");
+          let st: Story | undefined;
+          for (const s of stories) {
+            const sEntities = s.identity.entities.map((e) => e.name.toLowerCase());
+            const shared = aEntities.filter((e) =>
+              sEntities.includes(e.toLowerCase())
+            ).length;
+            if (shared >= 2) {
+              st = s;
+              break;
+            }
+          }
+          if (!st) continue;
+          try {
+            const updated = await fuseStory(ga, st, [a]);
+            toUpdate.push(updated);
+            logger?.info("Absorbed article '{title}' into story '{topic}'", {
+              title: a.title,
+              topic: st.identity.topic,
+            });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger?.warning("Absorb failed for '{topic}': {error}", {
+              topic: st.identity.topic,
+              error: msg,
+            });
+          }
+        }
+
+        const merged = stories.map((s) => {
+          const upd = toUpdate.find((u) => u.id === s.id);
+          return upd ?? s;
+        });
+        const handle = await context.writeResource(
+          "stories",
+          "stories-current",
+          { stories: merged } as unknown as Record<string, unknown>,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    regenStories: {
+      description:
+        "Throttled P3 pass: full LLM re-fusion of each story from its citations.",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        const logger = context.logger;
+        const ga = context.globalArgs as GlobalArgs;
+        if (!ga.llmModel) {
+          logger?.info(
+            "Fusion skipped: no llmModel configured (set globalArguments.llmModel + llmBaseUrl to enable)",
+          );
+          const storiesState = await context.readResource("stories-current") as
+            | { stories: Story[] }
+            | null;
+          const handle = await context.writeResource(
+            "stories",
+            "stories-current",
+            { stories: storiesState?.stories ?? [] } as unknown as Record<string, unknown>,
+          );
+          return { dataHandles: [handle] };
+        }
+        const storiesState = await context.readResource("stories-current") as
+          | { stories: Story[] }
+          | null;
+        const stories = storiesState?.stories ?? [];
+        const updated: Story[] = [];
+        for (const st of stories) {
+          try {
+            updated.push(await regenStory(ga, st));
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger?.warning("Regen failed for '{topic}': {error}", {
+              topic: st.identity.topic,
+              error: msg,
+            });
+          }
+        }
+        const handle = await context.writeResource(
+          "stories",
+          "stories-current",
+          { stories: updated } as unknown as Record<string, unknown>,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    renderStories: {
+      description:
+        "Render persistent stories to an inline HTML fragment resource (storiesHtml).",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        const logger = context.logger;
+        const ga = context.globalArgs as GlobalArgs;
+        const storiesState = await context.readResource("stories-current") as
+          | { stories: Story[] }
+          | null;
+        const stories = storiesState?.stories ?? [];
+        const aged = stories.map((s) =>
+          ageOutCitations(s, ga.citationRetentionDays)
+        );
+        const html = renderStories(aged, "Fused stories");
+        const handle = await context.writeResource(
+          "storiesHtml",
+          "stories-html-current",
+          { html } as unknown as Record<string, unknown>,
+        );
+        logger?.info("Rendered {n} fused stories to storiesHtml", {
+          n: aged.length,
+        });
         return { dataHandles: [handle] };
       },
     },

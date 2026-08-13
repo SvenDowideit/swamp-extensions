@@ -105,6 +105,75 @@ When running `swamp serve`, the workflow fires automatically.
 | `pagesCategory` | `string` | `discovered` | Category for queued pages |
 | `maxPagesPerRun` | `integer` | `50` | Max pages to analyze per run |
 | `probeCommonPaths` | `boolean` | `true` | Probe common feed paths |
+## Story fusion (LLM)
+
+The workflow has an optional, LLM-driven fusion pass that turns short-lived
+filtered articles into **persistent story objects** that survive the age-filter
+window:
+
+1. **cluster** — `clusterArticles`: deterministically groups filtered articles
+   into same-story clusters (no LLM, gated by `fusionMinClusterSize`).
+2. **fuse** — `fuseStories`: absorbs each cluster's articles into an existing
+   persistent story, keeping provenance per claim.
+3. **seed** — `seedStories`: creates a fresh `Story` object for clusters with no
+   existing story.
+4. **render** — `renderStories`: renders the accumulated stories into an inline
+   `storiesHtml` fragment included in `news.html`.
+
+`fuse`, `seed`, and `regen` call the LLM and are **disabled by default**: they
+no-op (skip the LLM call) when the model instance has no `llmModel` configured.
+The `render` step still runs, so previously fused stories remain on the page.
+
+### Enabling fusion (the real switch)
+
+Because the workflow calls existing model instances (not direct type execution),
+there is **no workflow input** that gates fusion. The on/off switch is the model
+instance `local-news` (`models/@svendowideit/news-reader/e2f17e65-f276-48b2-b381-85f84d8240fa.yaml`)
+`globalArguments.llmModel`:
+
+| Arg | Default | Description |
+|---|---|---|
+| `llmBaseUrl` | `http://localhost:11434` | Base URL of an OpenAI-compatible LLM server (Ollama). The `/v1/chat/completions` path is used. |
+| `llmModel` | `""` | Model tag used by the fusion LLM calls. **Empty = fusion disabled**. Set a tag to enable. |
+| `llmApiKey` | — | API key for LLM servers that require auth (Ollama usually doesn't). |
+| `llmTemperature` | `0.1` | Sampling temperature (low = deterministic extraction). |
+| `fusionMinClusterSize` | `2` | Minimum cluster size before LLM fusion triggers. |
+| `citationRetentionDays` | `30` | How long article citations live before aging out; core facts always survive. |
+
+With `globalArguments: {}` the defaults apply and `llmModel` is empty, so fusion
+is **off** out of the box.
+
+#### Enable against a local Ollama
+
+Edit `models/@svendowideit/news-reader/e2f17e65-f276-48b2-b381-85f84d8240fa.yaml`:
+
+```yaml
+globalArguments:
+  llmBaseUrl: http://localhost:11434
+  llmModel: llama3
+```
+
+Then just run the workflow — no special input needed:
+
+```sh
+swamp workflow run @svendowideit/news
+```
+
+#### Enable a remote/proxied LLM with an API key
+
+```yaml
+globalArguments:
+  llmBaseUrl: https://api.openai.com/v1
+  llmModel: gpt-4o-mini
+  llmApiKey: sk-...            # your key
+  llmTemperature: 0.1
+  fusionMinClusterSize: 2
+  citationRetentionDays: 30
+```
+
+> Note: guards on workflow `inputs` are evaluated against schema **defaults**, not
+> runtime `--input` bindings, so a workflow input cannot gate fusion. Configure
+> the model instance's `globalArguments` instead.
 
 ## Dependencies
 

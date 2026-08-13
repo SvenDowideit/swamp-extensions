@@ -1,13 +1,22 @@
 import { assertEquals, assertExists } from "jsr:@std/assert@1";
 
 import {
+  ageOutCitations,
   type Article,
+  canonicalUrl,
+  clusterHash,
+  clusterKey,
+  clusterStories,
   computeKeywordWeights,
+  dayKey,
+  extractEntities,
   extractKeywords,
   generateHtml,
   parseFeed,
   parseNewsAge,
   type Preferences,
+  renderStories,
+  type Story,
   scoreArticle,
 } from "./news_reader.ts";
 
@@ -308,4 +317,142 @@ Deno.test("filterArticlesByAge filters by publication date", () => {
   // Filter for last 30 minutes (should get nothing since all are older)
   filtered = filterArticlesByAge(articles, parseNewsAge("0.5h"), now.getTime());
   assertEquals(filtered.length, 0);
+});
+
+const storySample = (overrides: Partial<Story> = {}): Story => ({
+  id: clusterHash("topic::entity1,entity2"),
+  identity: {
+    topic: "topic",
+    entities: [
+      { name: "Entity1", kind: "org" },
+      { name: "Entity2", kind: "person" },
+    ],
+    seedArticleIds: ["a1"],
+  },
+  core: [
+    {
+      text: "Core claim one",
+      sources: ["https://example.com/a1"],
+      status: "confirmed",
+      isDelta: false,
+      addedAt: "2026-08-10T00:00:00Z",
+    },
+  ],
+  updates: [],
+  conflicts: [],
+  status: "confirmed",
+  citations: [
+    {
+      url: "https://example.com/a1",
+      title: "Article one",
+      source: "example.com",
+      publishedAt: "2026-08-10T00:00:00Z",
+      firstSeenAt: "2026-08-10T00:00:00Z",
+    },
+  ],
+  createdAt: "2026-08-10T00:00:00Z",
+  lastUpdatedAt: "2026-08-10T00:00:00Z",
+  lastRegenAt: "2026-08-10T00:00:00Z",
+  ...overrides,
+});
+
+Deno.test("extractEntities pulls capitalized named entities and skips stop words", () => {
+  const entities = extractEntities(
+    "OpenAI releases new model",
+    "The company announced a product in California.",
+  );
+  assertExists(entities.find((e) => e.includes("OpenAI")));
+  assertExists(entities.find((e) => e.includes("California")));
+  assertEquals(entities.includes("The"), false);
+});
+
+Deno.test("canonicalUrl normalizes host and path, drops query/fragment", () => {
+  assertEquals(
+    canonicalUrl("https://Example.com/Article?x=1#frag"),
+    "example.com/article",
+  );
+});
+
+Deno.test("dayKey returns ISO date prefix for valid dates", () => {
+  assertEquals(dayKey("2026-08-13T12:00:00Z"), "2026-08-13");
+  assertEquals(dayKey("not-a-date"), "");
+});
+
+Deno.test("clusterKey is stable and entity-order independent", () => {
+  const a = clusterKey("topic", [
+    { name: "Beta", kind: "org" },
+    { name: "Alpha", kind: "org" },
+  ]);
+  const b = clusterKey("topic", [
+    { name: "Alpha", kind: "org" },
+    { name: "Beta", kind: "org" },
+  ]);
+  assertEquals(a, b);
+});
+
+Deno.test("clusterStories groups articles sharing entities or canonical URL", () => {
+  const articles: Article[] = [
+    sampleArticle({
+      id: "a1",
+      title: "OpenAI launches new chip",
+      summary: "OpenAI announced a new AI chip",
+      url: "https://openai.example/story1",
+    }),
+    sampleArticle({
+      id: "a2",
+      title: "OpenAI chip details",
+      summary: "OpenAI reveals more about its chip",
+      url: "https://openai.example/story2",
+    }),
+    sampleArticle({
+      id: "a3",
+      title: "Unrelated cooking tips",
+      summary: "How to bake bread at home",
+      url: "https://cook.example/recipe",
+    }),
+  ];
+  const { clusters, absorbable } = clusterStories(articles);
+  const grouped = clusters.filter((c) => c.articles.length >= 2);
+  assertExists(grouped.find((c) =>
+    c.articles.some((a) => a.id === "a1") && c.articles.some((a) => a.id === "a2")
+  ));
+  // a3 shares no entity/URL with a1/a2, so it must not be grouped with them.
+  const a3Group = clusters.find((c) =>
+    c.articles.some((a) => a.id === "a3")
+  );
+  assertExists(a3Group);
+  assertEquals(a3Group.articles.some((a) => a.id === "a1"), false);
+  assertEquals(a3Group.articles.some((a) => a.id === "a2"), false);
+});
+
+Deno.test("clusterHash is deterministic and stable", () => {
+  assertEquals(clusterHash("foo"), clusterHash("foo"));
+  assertEquals(clusterHash("foo") === clusterHash("bar"), false);
+});
+
+Deno.test("ageOutCitations drops citations older than retention, keeps core", () => {
+  const old = Date.now() - 40 * 24 * 3600 * 1000;
+  const story = storySample({
+    citations: [
+      ...storySample().citations,
+      {
+        url: "https://example.com/old",
+        title: "Old article",
+        source: "example.com",
+        publishedAt: new Date(old).toISOString(),
+        firstSeenAt: new Date(old).toISOString(),
+      },
+    ],
+  });
+  const aged = ageOutCitations(story, 30);
+  assertEquals(aged.citations.some((c) => c.url === "https://example.com/old"), false);
+  assertEquals(aged.citations.length >= 1, true);
+  assertEquals(aged.core.length, 1);
+});
+
+Deno.test("renderStories produces inline stories HTML section", () => {
+  const html = renderStories([storySample()], "Fused stories");
+  assertEquals(html.includes("<section class=\"stories\">"), true);
+  assertEquals(html.includes("Core claim one"), true);
+  assertEquals(html.includes("Fused stories"), true);
 });

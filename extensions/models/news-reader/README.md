@@ -43,6 +43,42 @@ are extracted, and your feedback adjusts per-keyword weights (+1 for interested,
 -1 for ignored). New articles are scored by summing the weights of their
 matching keywords.
 
+### Story fusion (LLM, optional)
+
+Beyond the plain article pipeline, the model can **fuse related articles into
+persistent stories** that survive the age-filter window:
+
+- **cluster** (`clusterArticles`) — deterministically groups filtered articles
+  into same-story clusters (no LLM, gated by `fusionMinClusterSize`).
+- **fuse** (`fuseStories`) — absorbs a cluster's articles into an existing
+  persistent story, keeping provenance per claim.
+- **seed** (`seedStories`) — creates a fresh `Story` object for clusters with no
+  existing story.
+- **regen** (`regenStories`) — throttled full re-fusion of each story from its
+  citations.
+- **render** (`renderStories`) — renders accumulated stories into an inline
+  `storiesHtml` fragment included in `news.html`.
+
+The LLM-dependent methods (`fuseStories`, `seedStories`, `regenStories`) are
+**disabled by default**: they no-op without calling the LLM when the model
+instance has no `llmModel` configured. To enable fusion, set the LLM config on
+the model instance `globalArguments` (e.g. `local-news` in
+`models/@svendowideit/news-reader/`):
+
+```yaml
+globalArguments:
+  llmBaseUrl: http://localhost:11434   # OpenAI-compatible server (Ollama)
+  llmModel: llama3                     # model tag; empty = fusion disabled
+  llmApiKey: ""                        # optional, for servers that require auth
+  llmTemperature: 0.1
+  fusionMinClusterSize: 2
+  citationRetentionDays: 30
+```
+
+There is **no workflow input** to toggle fusion — guards on workflow `inputs`
+are evaluated against schema defaults, not runtime `--input` bindings, so the
+model instance `globalArguments.llmModel` is the only switch.
+
 ## Feedback architecture
 
 Feedback flows through a decoupled queue to avoid requiring a running server
@@ -168,6 +204,11 @@ swamp model method run news-reader feedback --input articleId=def456 --input act
 | `filterByAge`    | Filter articles by age for HTML generation (skips `duplicate: true` articles) | `newsAge` (default: "3d", supports h/d/w/m suffixes) |
 | `generate`       | Generate HTML report from filtered articles, with cross-feed duplicate indicators | `topN`, `title`                                      |
 | `feedback`       | Record user interest/ignore for an article               | `articleId`, `action`, `source`, `title`, `keywords` |
+| `clusterArticles`| Group filtered articles into same-story clusters (no LLM) | `minClusterSize`, `entityMinShared`                  |
+| `fuseStories`    | Absorb clustered articles into existing stories (LLM)     | _(none)_                                             |
+| `seedStories`    | Seed fresh Story objects for new clusters (LLM)          | `minClusterSize`                                     |
+| `regenStories`   | Full LLM re-fusion of each story from its citations       | _(none)_                                             |
+| `renderStories`  | Render persistent stories into an inline `storiesHtml` fragment | _(none)_                                        |
 
 ## Output
 

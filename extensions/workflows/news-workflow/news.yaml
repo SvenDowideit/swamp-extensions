@@ -7,7 +7,12 @@ description: |
   upserts them into the catalog for the next run, finally rendering
   feeds.html (a duplicate-grouped catalog listing).
 
-  Loop: gather-feedback → dedupe (flag duplicate catalog feeds) → fetch → dedupe-articles (merge duplicate articles by URL) → filter by age (default: last 3 days) → generate HTML → discover new feeds → upsert into catalog → generate feeds.html listing
+  Loop: gather-feedback → dedupe (flag duplicate catalog feeds) → fetch → dedupe-articles (merge duplicate articles by URL) → filter by age (default: last 3 days) → cluster related articles → fuse into persistent stories → seed new stories → render stories inline → generate HTML → discover new feeds → upsert into catalog → generate feeds.html listing
+
+  Fusion steps are LLM-driven (cluster → fuse → seed → render) and opt-in:
+  they surface conflicts and deltas while letting story cores survive the
+  age-filter window. They run with allowFailure: true so the loop degrades to
+  the plain pre-fusion pipeline if the LLM endpoint is unavailable.
 
   Setup (one-time): add feeds to the catalog:
     swamp model create @svendowideit/feed-catalog feed-catalog
@@ -144,7 +149,7 @@ jobs:
       into preferences.
     task:
       type: model_method
-      modelIdOrName: news-reader
+      modelIdOrName: local-news
       methodName: gatherFeedback
       inputs:
         serverUrl: ${{ inputs.feedbackServerUrl }}
@@ -192,7 +197,7 @@ jobs:
       < duration("1h") }}
     task:
       type: model_method
-      modelIdOrName: news-reader
+      modelIdOrName: local-news
       methodName: fetch
       inputs:
         feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("feed-catalog",
@@ -218,7 +223,7 @@ jobs:
       cross-feed indicators.
     task:
       type: model_method
-      modelIdOrName: news-reader
+      modelIdOrName: local-news
       methodName: dedupeArticles
       inputs: {}
     dependsOn:
@@ -231,7 +236,7 @@ jobs:
     description: 'Filter articles by age (default: last 3 days).'
     task:
       type: model_method
-      modelIdOrName: news-reader
+      modelIdOrName: local-news
       methodName: filterByAge
       inputs:
         newsAge: ${{ inputs.newsAge }}
@@ -241,11 +246,69 @@ jobs:
         type: succeeded
     weight: 0
     allowFailure: false
-  - name: generate
-    description: Generate HTML report from filtered articles, ranked by preferences.
+  - name: cluster
+    description: Conservatively group filtered articles into same-story clusters (no LLM).
     task:
       type: model_method
-      modelIdOrName: news-reader
+      modelIdOrName: local-news
+      methodName: clusterArticles
+      inputs: {}
+    dependsOn:
+    - step: filter
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: true
+  - name: fuse
+    description: LLM-delta pass — absorb clustered articles into existing persistent stories.
+    task:
+      type: model_method
+      modelIdOrName: local-news
+      methodName: fuseStories
+      inputs: {}
+    dependsOn:
+    - step: cluster
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: true
+  - name: seed
+    description: LLM-seed persistent Story objects for fresh clusters with no existing story.
+    task:
+      type: model_method
+      modelIdOrName: local-news
+      methodName: seedStories
+      inputs: {}
+    dependsOn:
+    - step: fuse
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: skipped
+    weight: 0
+    allowFailure: true
+  - name: render
+    description: Render persistent stories to an inline storiesHtml fragment for the page.
+    task:
+      type: model_method
+      modelIdOrName: local-news
+      methodName: renderStories
+      inputs: {}
+    dependsOn:
+    - step: seed
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: skipped
+    weight: 0
+    allowFailure: true
+  - name: generate
+    description: Generate HTML report from filtered articles, ranked by preferences, with fused stories rendered inline.
+    task:
+      type: model_method
+      modelIdOrName: local-news
       methodName: generate
       inputs:
         topN: ${{ inputs.topN }}
@@ -257,6 +320,12 @@ jobs:
         conditions:
         - type: succeeded
         - type: skipped
+    - step: render
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: failed
     weight: 0
     allowFailure: false
   - name: generate-feeds-html
@@ -321,7 +390,7 @@ jobs:
       resource.
     task:
       type: model_method
-      modelIdOrName: news-reader
+      modelIdOrName: local-news
       methodName: gatherPages
       inputs:
         serverUrl: ${{ inputs.pagesServerUrl }}

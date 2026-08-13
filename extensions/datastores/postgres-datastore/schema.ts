@@ -566,10 +566,13 @@ function constraintHash(s: string): string {
  * Apply schema changes with gradual row migration.
  *
  * 1. Diffs old and new Zod schemas.
- * 2. For each change, generates and executes the appropriate ALTER TABLE.
- * 3. For new required columns: adds as nullable, backfills in batches, then
+ * 2. Drops system versioning via the adapter.
+ * 3. For each change, generates and executes the appropriate ALTER TABLE
+ *    on both the main table and the history table.
+ * 4. For new required columns: adds as nullable, backfills in batches, then
  *    sets NOT NULL.
- * 4. For type changes: uses a USING clause for casting.
+ * 5. For type changes: uses a USING clause for casting.
+ * 6. Re-enables system versioning via the adapter.
  *
  * @returns The number of rows backfilled during migration.
  */
@@ -579,120 +582,137 @@ export async function migrateSchema(
   tableName: string,
   oldZodSchema: z.ZodObject<any>,
   newZodSchema: z.ZodObject<any>,
+  versioningAdapter: VersioningAdapter,
   options?: { batchSize?: number; batchDelayMs?: number },
 ): Promise<number> {
   const batchSize = options?.batchSize ?? 1000;
   const batchDelayMs = options?.batchDelayMs ?? 0;
   const fqName = `${escIdent(schema)}.${escIdent(tableName)}`;
+  const fqHistory = `${escIdent(schema)}.${escIdent(tableName + "_history")}`;
   const changes = diffSchemas(oldZodSchema, newZodSchema);
   let rowsMigrated = 0;
 
-  for (const change of changes) {
-    switch (change.type) {
-      case "add_column": {
-        const col = escIdent(change.columnName);
-        const colType = change.newType!;
-        const isOpt = change.isOptional ?? true;
+  if (changes.length === 0) return 0;
 
-        if (isOpt) {
+  await versioningAdapter.dropVersioning(schema, tableName);
+
+  try {
+    for (const change of changes) {
+      switch (change.type) {
+        case "add_column": {
+          const col = escIdent(change.columnName);
+          const colType = change.newType!;
+          const isOpt = change.isOptional ?? true;
+
           await sql.unsafe(
             `ALTER TABLE ${fqName} ADD COLUMN ${col} ${colType}`,
           );
-        } else {
           await sql.unsafe(
-            `ALTER TABLE ${fqName} ADD COLUMN ${col} ${colType}`,
+            `ALTER TABLE ${fqHistory} ADD COLUMN ${col} ${colType}`,
           );
 
-          const newShape = getShape(newZodSchema);
-          const dv = getDefaultValue(newShape[change.columnName]);
-          if (dv !== undefined) {
-            let defaultExpr: string;
-            if (dv === null) {
-              defaultExpr = "NULL";
-            } else if (typeof dv === "string") {
-              defaultExpr = `'${escLiteral(dv)}'`;
-            } else if (typeof dv === "number" || typeof dv === "boolean") {
-              defaultExpr = String(dv);
-            } else {
-              defaultExpr = `'${escLiteral(String(dv))}'`;
-            }
+          if (!isOpt) {
+            const newShape = getShape(newZodSchema);
+            const dv = getDefaultValue(newShape[change.columnName]);
+            if (dv !== undefined) {
+              let defaultExpr: string;
+              if (dv === null) {
+                defaultExpr = "NULL";
+              } else if (typeof dv === "string") {
+                defaultExpr = `'${escLiteral(dv)}'`;
+              } else if (typeof dv === "number" || typeof dv === "boolean") {
+                defaultExpr = String(dv);
+              } else {
+                defaultExpr = `'${escLiteral(String(dv))}'`;
+              }
 
-            let batchCount = 0;
-            while (true) {
-              const result = await sql.unsafe(
-                `UPDATE ${fqName} SET ${col} = ${defaultExpr} WHERE id IN (SELECT id FROM ${fqName} WHERE ${col} IS NULL LIMIT ${batchSize})`,
-              );
-              batchCount = (result as any).count ?? 0;
-              rowsMigrated += batchCount;
-              if (batchCount < batchSize) break;
-              if (batchDelayMs > 0) {
-                await new Promise((r) => setTimeout(r, batchDelayMs));
+              let batchCount = 0;
+              while (true) {
+                const result = await sql.unsafe(
+                  `UPDATE ${fqName} SET ${col} = ${defaultExpr} WHERE id IN (SELECT id FROM ${fqName} WHERE ${col} IS NULL LIMIT ${batchSize})`,
+                );
+                batchCount = (result as any).count ?? 0;
+                rowsMigrated += batchCount;
+                if (batchCount < batchSize) break;
+                if (batchDelayMs > 0) {
+                  await new Promise((r) => setTimeout(r, batchDelayMs));
+                }
               }
             }
+
+            await sql.unsafe(
+              `ALTER TABLE ${fqName} ALTER COLUMN ${col} SET NOT NULL`,
+            );
           }
-
-          await sql.unsafe(
-            `ALTER TABLE ${fqName} ALTER COLUMN ${col} SET NOT NULL`,
-          );
+          break;
         }
-        break;
-      }
 
-      case "drop_column": {
-        const col = escIdent(change.columnName);
-        await sql.unsafe(`ALTER TABLE ${fqName} DROP COLUMN ${col}`);
-        break;
-      }
-
-      case "change_type": {
-        const col = escIdent(change.columnName);
-        const newType = change.newType!;
-        await sql.unsafe(
-          `ALTER TABLE ${fqName} ALTER COLUMN ${col} TYPE ${newType} USING ${col}::${newType}`,
-        );
-        break;
-      }
-
-      case "add_constraint": {
-        const cHash = constraintHash(
-          `${tableName}_${change.columnName}_${change.constraint}`,
-        );
-        const cName = escIdent(`ck_${tableName}_${change.columnName}_${cHash}`);
-        await sql.unsafe(
-          `ALTER TABLE ${fqName} ADD CONSTRAINT ${cName} CHECK (${change.constraint})`,
-        );
-        break;
-      }
-
-      case "drop_constraint": {
-        const cHash = constraintHash(
-          `${tableName}_${change.columnName}_${change.constraint}`,
-        );
-        const cName = escIdent(`ck_${tableName}_${change.columnName}_${cHash}`);
-        try {
-          await sql.unsafe(
-            `ALTER TABLE ${fqName} DROP CONSTRAINT ${cName}`,
-          );
-        } catch {
-          /* constraint may not exist */
+        case "drop_column": {
+          const col = escIdent(change.columnName);
+          await sql.unsafe(`ALTER TABLE ${fqName} DROP COLUMN ${col}`);
+          await sql.unsafe(`ALTER TABLE ${fqHistory} DROP COLUMN ${col}`);
+          break;
         }
-        break;
-      }
 
-      case "change_optionality": {
-        const col = escIdent(change.columnName);
-        if (change.wasOptional && !change.isOptional) {
+        case "change_type": {
+          const col = escIdent(change.columnName);
+          const newType = change.newType!;
           await sql.unsafe(
-            `ALTER TABLE ${fqName} ALTER COLUMN ${col} SET NOT NULL`,
+            `ALTER TABLE ${fqName} ALTER COLUMN ${col} TYPE ${newType} USING ${col}::${newType}`,
           );
-        } else if (!change.wasOptional && change.isOptional) {
           await sql.unsafe(
-            `ALTER TABLE ${fqName} ALTER COLUMN ${col} DROP NOT NULL`,
+            `ALTER TABLE ${fqHistory} ALTER COLUMN ${col} TYPE ${newType} USING ${col}::${newType}`,
           );
+          break;
         }
-        break;
+
+        case "add_constraint": {
+          const cHash = constraintHash(
+            `${tableName}_${change.columnName}_${change.constraint}`,
+          );
+          const cName = escIdent(
+            `ck_${tableName}_${change.columnName}_${cHash}`,
+          );
+          await sql.unsafe(
+            `ALTER TABLE ${fqName} ADD CONSTRAINT ${cName} CHECK (${change.constraint})`,
+          );
+          break;
+        }
+
+        case "drop_constraint": {
+          const cHash = constraintHash(
+            `${tableName}_${change.columnName}_${change.constraint}`,
+          );
+          const cName = escIdent(
+            `ck_${tableName}_${change.columnName}_${cHash}`,
+          );
+          try {
+            await sql.unsafe(
+              `ALTER TABLE ${fqName} DROP CONSTRAINT ${cName}`,
+            );
+          } catch {
+            /* constraint may not exist */
+          }
+          break;
+        }
+
+        case "change_optionality": {
+          const col = escIdent(change.columnName);
+          if (change.wasOptional && !change.isOptional) {
+            await sql.unsafe(
+              `ALTER TABLE ${fqName} ALTER COLUMN ${col} SET NOT NULL`,
+            );
+          } else if (!change.wasOptional && change.isOptional) {
+            await sql.unsafe(
+              `ALTER TABLE ${fqName} ALTER COLUMN ${col} DROP NOT NULL`,
+            );
+          }
+          break;
+        }
       }
     }
+  } finally {
+    await versioningAdapter.enableVersioning(schema, tableName);
   }
 
   return rowsMigrated;

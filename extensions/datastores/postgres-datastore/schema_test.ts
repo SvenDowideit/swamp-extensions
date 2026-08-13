@@ -52,11 +52,14 @@ function createMockSql() {
 
 /** Creates a mock VersioningAdapter that records enableVersioning calls. */
 function createMockVersioningAdapter() {
-  const calls: { schema: string; tableName: string }[] = [];
+  const calls: { method: string; schema: string; tableName: string }[] = [];
   return {
     calls,
     async enableVersioning(schema: string, tableName: string) {
-      calls.push({ schema, tableName });
+      calls.push({ method: "enableVersioning", schema, tableName });
+    },
+    async dropVersioning(schema: string, tableName: string) {
+      calls.push({ method: "dropVersioning", schema, tableName });
     },
   };
 }
@@ -622,6 +625,7 @@ Deno.test("createTable: calls enableVersioning on the adapter", async () => {
 
 Deno.test("migrateSchema: add nullable column", async () => {
   const mockSql = createMockSql();
+  const mockVA = createMockVersioningAdapter();
   const oldSchema = z.object({ a: z.string() });
   const newSchema = z.object({ a: z.string(), b: z.string().optional() });
 
@@ -631,17 +635,25 @@ Deno.test("migrateSchema: add nullable column", async () => {
     "test",
     oldSchema,
     newSchema,
+    mockVA as unknown as VersioningAdapter,
   );
 
   assertEquals(rows, 0);
-  assertEquals(mockSql.calls.length, 1);
+  // dropVersioning, ADD COLUMN (main), ADD COLUMN (history), enableVersioning
+  assertEquals(mockSql.calls.length, 2);
   assertEquals(mockSql.calls[0].query.includes("ALTER TABLE"), true);
   assertEquals(mockSql.calls[0].query.includes("ADD COLUMN"), true);
   assertEquals(mockSql.calls[0].query.includes('"b"'), true);
+  assertEquals(mockSql.calls[1].query.includes("_history"), true);
+  assertEquals(mockSql.calls[1].query.includes("ADD COLUMN"), true);
+  assertEquals(mockVA.calls.length, 2);
+  assertEquals(mockVA.calls[0].method, "dropVersioning");
+  assertEquals(mockVA.calls[1].method, "enableVersioning");
 });
 
 Deno.test("migrateSchema: add required column with default — ADD → backfill → SET NOT NULL", async () => {
   const mockSql = createMockSql();
+  const mockVA = createMockVersioningAdapter();
   // Queue a result for the UPDATE backfill
   mockSql.queueResult({ count: 0 });
 
@@ -657,19 +669,23 @@ Deno.test("migrateSchema: add required column with default — ADD → backfill 
     "test",
     oldSchema,
     newSchema,
+    mockVA as unknown as VersioningAdapter,
   );
 
   assertEquals(rows, 0);
-  // ADD COLUMN, UPDATE backfill, SET NOT NULL
-  assertEquals(mockSql.calls.length, 3);
+  // ADD COLUMN (main), ADD COLUMN (history), UPDATE backfill, SET NOT NULL
+  assertEquals(mockSql.calls.length, 4);
   assertEquals(mockSql.calls[0].query.includes("ADD COLUMN"), true);
-  assertEquals(mockSql.calls[1].query.includes("UPDATE"), true);
-  assertEquals(mockSql.calls[1].query.includes("default@example.com"), true);
-  assertEquals(mockSql.calls[2].query.includes("SET NOT NULL"), true);
+  assertEquals(mockSql.calls[1].query.includes("_history"), true);
+  assertEquals(mockSql.calls[1].query.includes("ADD COLUMN"), true);
+  assertEquals(mockSql.calls[2].query.includes("UPDATE"), true);
+  assertEquals(mockSql.calls[2].query.includes("default@example.com"), true);
+  assertEquals(mockSql.calls[3].query.includes("SET NOT NULL"), true);
 });
 
 Deno.test("migrateSchema: drop column", async () => {
   const mockSql = createMockSql();
+  const mockVA = createMockVersioningAdapter();
   const oldSchema = z.object({ a: z.string(), b: z.string() });
   const newSchema = z.object({ a: z.string() });
 
@@ -679,16 +695,20 @@ Deno.test("migrateSchema: drop column", async () => {
     "test",
     oldSchema,
     newSchema,
+    mockVA as unknown as VersioningAdapter,
   );
 
   assertEquals(rows, 0);
-  assertEquals(mockSql.calls.length, 1);
+  assertEquals(mockSql.calls.length, 2);
   assertEquals(mockSql.calls[0].query.includes("DROP COLUMN"), true);
   assertEquals(mockSql.calls[0].query.includes('"b"'), true);
+  assertEquals(mockSql.calls[1].query.includes("_history"), true);
+  assertEquals(mockSql.calls[1].query.includes("DROP COLUMN"), true);
 });
 
 Deno.test("migrateSchema: change type with USING clause", async () => {
   const mockSql = createMockSql();
+  const mockVA = createMockVersioningAdapter();
   const oldSchema = z.object({ a: z.string() });
   const newSchema = z.object({ a: z.number() });
 
@@ -698,19 +718,23 @@ Deno.test("migrateSchema: change type with USING clause", async () => {
     "test",
     oldSchema,
     newSchema,
+    mockVA as unknown as VersioningAdapter,
   );
 
   assertEquals(rows, 0);
-  assertEquals(mockSql.calls.length, 1);
+  assertEquals(mockSql.calls.length, 2);
   const q = mockSql.calls[0].query;
   assertEquals(q.includes("ALTER COLUMN"), true);
   assertEquals(q.includes("TYPE"), true);
   assertEquals(q.includes("USING"), true);
   assertEquals(q.includes("DOUBLE PRECISION"), true);
+  assertEquals(mockSql.calls[1].query.includes("_history"), true);
+  assertEquals(mockSql.calls[1].query.includes("ALTER COLUMN"), true);
 });
 
 Deno.test("migrateSchema: add constraint (email also changes type)", async () => {
   const mockSql = createMockSql();
+  const mockVA = createMockVersioningAdapter();
   const oldSchema = z.object({ a: z.string() });
   const newSchema = z.object({ a: z.string().email() });
 
@@ -720,19 +744,23 @@ Deno.test("migrateSchema: add constraint (email also changes type)", async () =>
     "test",
     oldSchema,
     newSchema,
+    mockVA as unknown as VersioningAdapter,
   );
 
   assertEquals(rows, 0);
-  // change_type + add_constraint = 2 calls
-  assertEquals(mockSql.calls.length, 2);
+  // change_type (main), change_type (history), add_constraint = 3 calls
+  assertEquals(mockSql.calls.length, 3);
   assertEquals(mockSql.calls[0].query.includes("ALTER COLUMN"), true);
   assertEquals(mockSql.calls[0].query.includes("TYPE"), true);
-  assertEquals(mockSql.calls[1].query.includes("ADD CONSTRAINT"), true);
-  assertEquals(mockSql.calls[1].query.includes("CHECK"), true);
+  assertEquals(mockSql.calls[1].query.includes("_history"), true);
+  assertEquals(mockSql.calls[1].query.includes("ALTER COLUMN"), true);
+  assertEquals(mockSql.calls[2].query.includes("ADD CONSTRAINT"), true);
+  assertEquals(mockSql.calls[2].query.includes("CHECK"), true);
 });
 
 Deno.test("migrateSchema: drop constraint (email also changes type back)", async () => {
   const mockSql = createMockSql();
+  const mockVA = createMockVersioningAdapter();
   const oldSchema = z.object({ a: z.string().email() });
   const newSchema = z.object({ a: z.string() });
 
@@ -742,18 +770,22 @@ Deno.test("migrateSchema: drop constraint (email also changes type back)", async
     "test",
     oldSchema,
     newSchema,
+    mockVA as unknown as VersioningAdapter,
   );
 
   assertEquals(rows, 0);
-  // change_type + drop_constraint = 2 calls
-  assertEquals(mockSql.calls.length, 2);
+  // change_type (main), change_type (history), drop_constraint = 3 calls
+  assertEquals(mockSql.calls.length, 3);
   assertEquals(mockSql.calls[0].query.includes("ALTER COLUMN"), true);
   assertEquals(mockSql.calls[0].query.includes("TYPE"), true);
-  assertEquals(mockSql.calls[1].query.includes("DROP CONSTRAINT"), true);
+  assertEquals(mockSql.calls[1].query.includes("_history"), true);
+  assertEquals(mockSql.calls[1].query.includes("ALTER COLUMN"), true);
+  assertEquals(mockSql.calls[2].query.includes("DROP CONSTRAINT"), true);
 });
 
 Deno.test("migrateSchema: change optionality — SET NOT NULL", async () => {
   const mockSql = createMockSql();
+  const mockVA = createMockVersioningAdapter();
   const oldSchema = z.object({ a: z.string().optional() });
   const newSchema = z.object({ a: z.string() });
 
@@ -763,6 +795,7 @@ Deno.test("migrateSchema: change optionality — SET NOT NULL", async () => {
     "test",
     oldSchema,
     newSchema,
+    mockVA as unknown as VersioningAdapter,
   );
 
   assertEquals(rows, 0);
@@ -772,6 +805,7 @@ Deno.test("migrateSchema: change optionality — SET NOT NULL", async () => {
 
 Deno.test("migrateSchema: change optionality — DROP NOT NULL", async () => {
   const mockSql = createMockSql();
+  const mockVA = createMockVersioningAdapter();
   const oldSchema = z.object({ a: z.string() });
   const newSchema = z.object({ a: z.string().optional() });
 
@@ -781,6 +815,7 @@ Deno.test("migrateSchema: change optionality — DROP NOT NULL", async () => {
     "test",
     oldSchema,
     newSchema,
+    mockVA as unknown as VersioningAdapter,
   );
 
   assertEquals(rows, 0);
@@ -790,8 +825,10 @@ Deno.test("migrateSchema: change optionality — DROP NOT NULL", async () => {
 
 Deno.test("migrateSchema: batch backfill — multiple batches", async () => {
   const mockSql = createMockSql();
-  // Queue results: ADD COLUMN (dummy), UPDATE batch 1, UPDATE batch 2
-  mockSql.queueResult([]); // ADD COLUMN returns []
+  const mockVA = createMockVersioningAdapter();
+  // Queue results: ADD COLUMN main, ADD COLUMN history, UPDATE batch 1, UPDATE batch 2
+  mockSql.queueResult([]); // ADD COLUMN main returns []
+  mockSql.queueResult([]); // ADD COLUMN history returns []
   mockSql.queueResult({ count: 2 }); // UPDATE batch 1: full batch
   mockSql.queueResult({ count: 1 }); // UPDATE batch 2: partial → loop exits
 
@@ -807,18 +844,21 @@ Deno.test("migrateSchema: batch backfill — multiple batches", async () => {
     "test",
     oldSchema,
     newSchema,
+    mockVA as unknown as VersioningAdapter,
     { batchSize: 2 },
   );
 
-  // ADD COLUMN, UPDATE (batch 1), UPDATE (batch 2), SET NOT NULL
-  assertEquals(mockSql.calls.length, 4);
+  // ADD COLUMN (main), ADD COLUMN (history), UPDATE (batch 1), UPDATE (batch 2), SET NOT NULL
+  assertEquals(mockSql.calls.length, 5);
   assertEquals(rows, 3); // 2 + 1
 });
 
 Deno.test("migrateSchema: returns correct row count", async () => {
   const mockSql = createMockSql();
-  // Queue results: ADD COLUMN (dummy), UPDATE backfill
-  mockSql.queueResult([]); // ADD COLUMN returns []
+  const mockVA = createMockVersioningAdapter();
+  // Queue results: ADD COLUMN main, ADD COLUMN history, UPDATE backfill
+  mockSql.queueResult([]); // ADD COLUMN main returns []
+  mockSql.queueResult([]); // ADD COLUMN history returns []
   mockSql.queueResult({ count: 5 }); // UPDATE returns 5 rows
 
   const oldSchema = z.object({ a: z.string() });
@@ -833,9 +873,29 @@ Deno.test("migrateSchema: returns correct row count", async () => {
     "test",
     oldSchema,
     newSchema,
+    mockVA as unknown as VersioningAdapter,
   );
 
   assertEquals(rows, 5);
+});
+
+Deno.test("migrateSchema: no changes — returns 0 without touching versioning", async () => {
+  const mockSql = createMockSql();
+  const mockVA = createMockVersioningAdapter();
+  const schema = z.object({ a: z.string() });
+
+  const rows = await migrateSchema(
+    mockSql as any,
+    "public",
+    "test",
+    schema,
+    schema,
+    mockVA as unknown as VersioningAdapter,
+  );
+
+  assertEquals(rows, 0);
+  assertEquals(mockSql.calls.length, 0);
+  assertEquals(mockVA.calls.length, 0);
 });
 
 // ===========================================================================

@@ -29,6 +29,9 @@ export interface VersioningAdapter {
   /** Create versioning infrastructure for a table using the periods extension. */
   enableVersioning(schema: string, tableName: string): Promise<void>;
 
+  /** Temporarily remove system versioning from a table (for schema migrations). */
+  dropVersioning(schema: string, tableName: string): Promise<void>;
+
   /** Record a new version after a method run writes data. Returns version UUID. */
   createVersion(
     schema: string,
@@ -129,6 +132,14 @@ export function createPeriodsAdapter(
       );
       await sql.unsafe(
         `SELECT periods.add_system_versioning('${escIdent(_schema)}.${
+          escIdent(tableName)
+        }')`,
+      );
+    },
+
+    async dropVersioning(_schema: string, tableName: string): Promise<void> {
+      await sql.unsafe(
+        `SELECT periods.drop_system_versioning('${escIdent(_schema)}.${
           escIdent(tableName)
         }')`,
       );

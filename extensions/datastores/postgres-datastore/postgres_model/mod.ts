@@ -642,6 +642,7 @@ export const model = {
             args.tableName,
             oldZodSchema,
             newZodSchema,
+            ctx.adapter,
           );
 
           await context.writeResource("table_metadata", args.tableName, {

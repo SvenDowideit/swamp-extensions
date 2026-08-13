@@ -148,6 +148,22 @@ Deno.test("enableVersioning — is idempotent (called twice on same table)", asy
 });
 
 // ===========================================================================
+// dropVersioning
+// ===========================================================================
+
+Deno.test("dropVersioning — calls periods.drop_system_versioning with correct table name", async () => {
+  const mock = createMockSql();
+  mock.queueResponse([]);
+
+  const adapter = makeAdapter(mock);
+  await adapter.dropVersioning(SCHEMA, TABLE);
+
+  const dropCall = mock.queries.find((q) => q.includes("drop_system_versioning"));
+  assertEquals(typeof dropCall, "string");
+  assertEquals(dropCall!.includes(`"${SCHEMA}"."${TABLE}"`), true);
+});
+
+// ===========================================================================
 // createVersion
 // ===========================================================================
 

@@ -132,6 +132,7 @@ function objectDescriptorToZod(
   }
 
   if (d.default !== undefined) {
+    // deno-lint-ignore no-explicit-any
     base = (base as any).default(d.default);
   }
   if (d.nullable) {
@@ -144,7 +145,7 @@ function objectDescriptorToZod(
   return base;
 }
 
-function jsonSchemaToZod(schema: Record<string, unknown>): z.ZodObject<any> {
+function jsonSchemaToZod(schema: Record<string, unknown>): z.ZodObject<z.ZodRawShape> {
   const shape: Record<string, z.ZodType> = {};
   for (const [key, raw] of Object.entries(schema)) {
     shape[key] = descriptorToZod(raw);
@@ -385,7 +386,7 @@ export const model = {
                 `INSERT INTO ${fqName} (${colNames}) VALUES ${valuePlaceholders}`,
                 flatValues as postgres.ParameterOrJSON<never>[],
               );
-              affectedRows = (result as any).count ?? args.data.length;
+              affectedRows = (result as { count: number }).count ?? args.data.length;
               break;
             }
             case "update": {
@@ -415,7 +416,7 @@ export const model = {
                   } = $${values.length}`,
                   values as postgres.ParameterOrJSON<never>[],
                 );
-                affectedRows += (result as any).count ?? 0;
+                affectedRows += (result as { count: number }).count ?? 0;
               }
               break;
             }
@@ -434,7 +435,7 @@ export const model = {
                 } IN (${placeholders})`,
                 ids as postgres.ParameterOrJSON<never>[],
               );
-              affectedRows = (result as any).count ?? 0;
+              affectedRows = (result as { count: number }).count ?? 0;
               break;
             }
           }
@@ -749,7 +750,7 @@ export const model = {
 
           const discoveredShape: Record<string, string> = {};
           if (result.discoveredSchema) {
-            const shape = (result.discoveredSchema as any).shape ?? {};
+            const shape = (result.discoveredSchema as z.ZodObject<z.ZodRawShape>).shape ?? {};
             for (const [key, zodType] of Object.entries(shape)) {
               discoveredShape[key] = zodToSqlType(zodType as z.ZodType);
             }

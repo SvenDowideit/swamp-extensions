@@ -24,6 +24,9 @@ function escLiteral(s: string): string {
 // Zod v4 introspection helpers
 // ---------------------------------------------------------------------------
 
+// deno-lint-ignore no-explicit-any
+type ZodInternal = { _def: any };
+
 interface ZodCheckDef {
   check: string;
   minimum?: number;
@@ -36,8 +39,10 @@ interface ZodCheckDef {
 }
 
 function getChecks(zodType: z.ZodType): ZodCheckDef[] {
+  // deno-lint-ignore no-explicit-any
   const def = (zodType as any)._def;
   if (!def || !Array.isArray(def.checks)) return [];
+  // deno-lint-ignore no-explicit-any
   return def.checks.map((c: any) => {
     if (c && typeof c === "object") {
       const kind = c.kind ?? c._zod?.def?.check;
@@ -71,6 +76,7 @@ function getChecks(zodType: z.ZodType): ZodCheckDef[] {
 function unwrap(zodType: z.ZodType): z.ZodType {
   let current = zodType;
   while (true) {
+    // deno-lint-ignore no-explicit-any
     const def = (current as any)._def;
     if (!def) break;
 
@@ -85,11 +91,11 @@ function unwrap(zodType: z.ZodType): z.ZodType {
       current instanceof z.ZodReadonly ||
       current instanceof z.ZodNonOptional
     ) {
-      current = def.innerType;
+      current = def.innerType as z.ZodType;
     } else if (current instanceof z.ZodPreprocess) {
-      current = def.schema;
+      current = def.schema as z.ZodType;
     } else if (current instanceof z.ZodPipe) {
-      current = def.in;
+      current = def.in as z.ZodType;
     } else {
       break;
     }
@@ -130,8 +136,8 @@ function getDefaultValue(zodType: z.ZodType): unknown {
   return undefined;
 }
 
-function getShape(obj: z.ZodObject<any>): Record<string, z.ZodType> {
-  return (obj as any).shape ?? {};
+function getShape(obj: z.ZodObject<z.ZodRawShape>): Record<string, z.ZodType> {
+  return (obj as unknown as { shape: Record<string, z.ZodType> }).shape ?? {};
 }
 
 // ---------------------------------------------------------------------------
@@ -146,7 +152,7 @@ function getShape(obj: z.ZodObject<any>): Record<string, z.ZodType> {
  */
 export function zodToSqlType(zodType: z.ZodType): string {
   const inner = unwrap(zodType);
-  const def = (inner as any)._def;
+  const def = (inner as unknown as ZodInternal)._def;
 
   if (inner instanceof z.ZodISODateTime) return "TIMESTAMPTZ";
   if (inner instanceof z.ZodISODate) return "DATE";
@@ -175,7 +181,7 @@ export function zodToSqlType(zodType: z.ZodType): string {
   if (inner instanceof z.ZodBoolean) return "BOOLEAN";
 
   if (inner instanceof z.ZodEnum) {
-    const entries: Record<string, string> = def.entries ?? {};
+    const entries: Record<string, string> = (def.entries ?? {}) as Record<string, string>;
     const values = Object.keys(entries);
     const maxLen = values.length > 0
       ? Math.max(...values.map((v) => v.length))
@@ -222,7 +228,7 @@ export function zodToSqlConstraints(
   columnName: string,
 ): string[] {
   const inner = unwrap(zodType);
-  const def = (inner as any)._def;
+  const def = (inner as unknown as ZodInternal)._def;
   const constraints: string[] = [];
   const col = escIdent(columnName);
 
@@ -330,8 +336,8 @@ export interface SchemaChange {
  * changes, and finally drops.
  */
 export function diffSchemas(
-  oldSchema: z.ZodObject<any>,
-  newSchema: z.ZodObject<any>,
+  oldSchema: z.ZodObject<z.ZodRawShape>,
+  newSchema: z.ZodObject<z.ZodRawShape>,
 ): SchemaChange[] {
   const oldShape = getShape(oldSchema);
   const newShape = getShape(newSchema);
@@ -450,7 +456,7 @@ export async function createTable(
   sql: postgres.Sql<Record<string, never>>,
   schema: string,
   tableName: string,
-  zodSchema: z.ZodObject<any>,
+  zodSchema: z.ZodObject<z.ZodRawShape>,
   versioningAdapter: VersioningAdapter,
 ): Promise<string> {
   const shape = getShape(zodSchema);
@@ -580,8 +586,8 @@ export async function migrateSchema(
   sql: postgres.Sql<Record<string, never>>,
   schema: string,
   tableName: string,
-  oldZodSchema: z.ZodObject<any>,
-  newZodSchema: z.ZodObject<any>,
+  oldZodSchema: z.ZodObject<z.ZodRawShape>,
+  newZodSchema: z.ZodObject<z.ZodRawShape>,
   versioningAdapter: VersioningAdapter,
   options?: { batchSize?: number; batchDelayMs?: number },
 ): Promise<number> {
@@ -631,7 +637,7 @@ export async function migrateSchema(
                 const result = await sql.unsafe(
                   `UPDATE ${fqName} SET ${col} = ${defaultExpr} WHERE id IN (SELECT id FROM ${fqName} WHERE ${col} IS NULL LIMIT ${batchSize})`,
                 );
-                batchCount = (result as any).count ?? 0;
+                batchCount = (result as { count: number }).count ?? 0;
                 rowsMigrated += batchCount;
                 if (batchCount < batchSize) break;
                 if (batchDelayMs > 0) {
@@ -730,13 +736,13 @@ export interface ImportTableOptions {
   modelType: string;
   mode: "readonly" | "readwrite";
   discoverSchema?: boolean;
-  explicitSchema?: z.ZodObject<any>;
+  explicitSchema?: z.ZodObject<z.ZodRawShape>;
 }
 
 /** Result of importing a table. */
 export interface ImportTableResult {
   modelType: string;
-  discoveredSchema?: z.ZodObject<any>;
+  discoveredSchema?: z.ZodObject<z.ZodRawShape>;
   mode: string;
 }
 
@@ -850,7 +856,7 @@ export async function importTable(
     );
   }
 
-  let discoveredSchema: z.ZodObject<any> | undefined;
+  let discoveredSchema: z.ZodObject<z.ZodRawShape> | undefined;
 
   if (options.discoverSchema) {
     const shape: Record<string, z.ZodType> = {};

@@ -253,7 +253,10 @@ jobs:
     dependsOn:
     - step: filter
       condition:
-        type: succeeded
+        type: or
+        conditions:
+        - type: succeeded
+        - type: skipped
     weight: 0
     allowFailure: false
   - name: generate-feeds-html
@@ -271,7 +274,10 @@ jobs:
     dependsOn:
     - step: filter
       condition:
-        type: succeeded
+        type: or
+        conditions:
+        - type: succeeded
+        - type: skipped
     weight: 0
     allowFailure: true
   - name: discover

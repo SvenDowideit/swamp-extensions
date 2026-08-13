@@ -145,7 +145,9 @@ function objectDescriptorToZod(
   return base;
 }
 
-function jsonSchemaToZod(schema: Record<string, unknown>): z.ZodObject<z.ZodRawShape> {
+function jsonSchemaToZod(
+  schema: Record<string, unknown>,
+): z.ZodObject<z.ZodRawShape> {
   const shape: Record<string, z.ZodType> = {};
   for (const [key, raw] of Object.entries(schema)) {
     shape[key] = descriptorToZod(raw);
@@ -386,7 +388,8 @@ export const model = {
                 `INSERT INTO ${fqName} (${colNames}) VALUES ${valuePlaceholders}`,
                 flatValues as postgres.ParameterOrJSON<never>[],
               );
-              affectedRows = (result as { count: number }).count ?? args.data.length;
+              affectedRows = (result as { count: number }).count ??
+                args.data.length;
               break;
             }
             case "update": {
@@ -750,7 +753,9 @@ export const model = {
 
           const discoveredShape: Record<string, string> = {};
           if (result.discoveredSchema) {
-            const shape = (result.discoveredSchema as z.ZodObject<z.ZodRawShape>).shape ?? {};
+            const shape =
+              (result.discoveredSchema as z.ZodObject<z.ZodRawShape>).shape ??
+                {};
             for (const [key, zodType] of Object.entries(shape)) {
               discoveredShape[key] = zodToSqlType(zodType as z.ZodType);
             }

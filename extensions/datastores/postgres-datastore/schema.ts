@@ -181,7 +181,10 @@ export function zodToSqlType(zodType: z.ZodType): string {
   if (inner instanceof z.ZodBoolean) return "BOOLEAN";
 
   if (inner instanceof z.ZodEnum) {
-    const entries: Record<string, string> = (def.entries ?? {}) as Record<string, string>;
+    const entries: Record<string, string> = (def.entries ?? {}) as Record<
+      string,
+      string
+    >;
     const values = Object.keys(entries);
     const maxLen = values.length > 0
       ? Math.max(...values.map((v) => v.length))

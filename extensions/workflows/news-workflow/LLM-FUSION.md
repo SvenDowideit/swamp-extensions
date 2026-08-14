@@ -316,6 +316,240 @@ As the story corpus grows (hundreds of stories after weeks of runs):
 
 ---
 
+## Architectural Changes
+
+### A. Separate fusion workflow
+
+Split the current monolithic workflow into two independent workflows that
+share data through the persistent `stories-current` resource:
+
+**Workflow 1 — `@svendowideit/news` (fast, every 4h)**
+
+```
+gather-feedback → dedupe → gather-feed-state → fetch → dedupe-articles
+  → filter → generate → generate-feeds-html → discover → upsert-feed
+```
+
+This is the existing pipeline minus the fusion chain. It fetches feeds,
+filters by age, scores by preferences, and generates the HTML page. No LLM
+calls. Runs on the current 4-hour schedule.
+
+**Workflow 2 — `@svendowideit/news-fusion` (slow, every 12-24h)**
+
+```
+cluster → fuse → seed → render
+```
+
+Reads `filtered-snapshot` and `stories-current` from the datastore (written
+by workflow 1), runs the full fusion chain, and writes back updated
+`stories-current` and `stories-html-current`. The next run of workflow 1
+picks up the updated stories HTML automatically via `generate` reading
+`stories-html-current`.
+
+**Benefits:**
+- The fast path (fetch + generate) never waits for LLM calls. A 4-hour run
+  that previously took 5-15 minutes (with fusion) now takes ~5 minutes.
+- Fusion can run at its own cadence — 12-hourly or daily — when enough new
+  articles have accumulated to make re-fusion worthwhile.
+- If the LLM server is down, the news page still updates on schedule.
+- Each workflow is simpler to debug and resume independently.
+
+**Implementation notes:**
+- Workflow 2 needs a `trigger.schedule` (e.g. `0 */12 * * *`) independent
+  of workflow 1.
+- Workflow 2's `cluster` step reads `filtered-snapshot` — this resource is
+  written by workflow 1's `filter` step. No direct dependency between
+  workflows; they communicate through the datastore.
+- If workflow 2 runs while workflow 1 is mid-execution, it reads the
+  previous run's `filtered-snapshot`. This is acceptable — fusion is
+  intentionally a batch process that lags slightly behind the fast path.
+- The `generate` step in workflow 1 already reads `stories-html-current`
+  (written by `renderStories` in workflow 2). If workflow 2 hasn't run yet,
+  `generate` falls back to showing the page without fused stories.
+
+### B. Batched LLM processing
+
+Instead of processing all clusters in a single monolithic `fuseStories` or
+`seedStories` call, process them in smaller batches across multiple workflow
+runs. This prevents any single run from blocking on hundreds of sequential
+LLM calls.
+
+**Design — cursor-based batching:**
+
+Add a `fusionCursor` resource that tracks which clusters have been
+processed. Each fusion run processes a fixed-size window (e.g. 20 clusters),
+then stops. The next scheduled run picks up where it left off.
+
+```
+fusionCursor: {
+  lastProcessedKey: string | null,   // cluster key of last fully processed cluster
+  processedCount: number,            // total clusters processed this cycle
+  cycleStartedAt: string,            // when this processing cycle began
+}
+```
+
+**`fuseStories` batched algorithm:**
+
+1. Read `clusters-current` and `stories-current`.
+2. Read `fusionCursor`. If `lastProcessedKey` is null, start from the
+   beginning. Otherwise, skip clusters until the one after
+   `lastProcessedKey`.
+3. Process up to `batchSize` (e.g. 20) clusters — only those that match
+   existing stories.
+4. Write updated `stories-current` and updated `fusionCursor`.
+5. If more clusters remain, the next scheduled run continues.
+
+**`seedStories` batched algorithm:**
+
+Same cursor approach, but for genuinely new clusters (those not matching
+any existing story). Process up to `batchSize` new clusters per run.
+
+**Benefits:**
+- A single fusion run takes ~2-5 minutes (20 clusters × 5-10s each with
+  parallel LLM calls) instead of 10+ minutes for 200+ clusters.
+- The LLM server (especially a local Ollama instance) isn't saturated by
+  hundreds of back-to-back requests.
+- If a run fails mid-batch, the cursor ensures it resumes from where it
+  left off — no duplicate LLM calls.
+- The cursor naturally handles the case where new articles arrive during a
+  processing cycle: new clusters are appended to the end and will be
+  processed when the cursor reaches them.
+
+**Cursor lifecycle:**
+- When the cursor reaches the end of the cluster list, reset
+  `lastProcessedKey` to null and bump `cycleStartedAt`. The next run starts
+  a fresh cycle.
+- A cycle typically completes in 2-3 runs (at 12-hour intervals, that's
+  24-36 hours). This is acceptable because fusion is a quality
+  improvement, not a real-time requirement.
+
+**Combined with separate workflow:**
+
+Workflow 2 (`@svendowideit/news-fusion`) runs every 12 hours and processes
+one batch per run:
+
+```
+cluster → fuse (batch of 20) → seed (batch of 20) → render
+```
+
+If the batch size is tuned so that a full cycle completes in 2-3 runs, the
+stories are fully up-to-date within 24-36 hours of new articles arriving.
+The fast-path news page (workflow 1) still shows scored articles immediately
+— fusion is a background enrichment.
+
+### C. Separate feed curation workflow
+
+The current workflow bundles feed catalog management (discovery, deduplication,
+state sync) into the same run as fetch → filter → generate. These are
+conceptually distinct concerns with different cadences and failure modes.
+
+**What "feed curation" includes:**
+
+| Step | What it does | Cadence need |
+|------|-------------|-------------|
+| `gather-feedback` | Poll feedback queue, import user preferences | Every run (feeds scoring) |
+| `dedupe` | Fetch each catalog feed, group by content identity, mark duplicates | Daily (feeds don't duplicate hourly) |
+| `gather-feed-state` | Apply enabled/disabled state from feedback server to catalog | Every run (user toggles) |
+| `discover` | Crawl article URLs for new RSS feeds | Daily (new feeds appear slowly) |
+| `upsert-feed` | Add discovered feeds to catalog | After discovery |
+| `gather-pages` | Poll pages queue for user-submitted URLs | Every run |
+| `analyze-pages` | Analyze queued pages for feed links | After gather-pages |
+| `upsert-page` | Add page-discovered feeds to catalog | After analysis |
+
+**Proposed split — three workflows:**
+
+**Workflow 1 — `@svendowideit/news` (fast, every 4h)**
+
+```
+gather-feedback → fetch → dedupe-articles → filter → generate → generate-feeds-html
+```
+
+The core news pipeline. Fetches feeds, filters by age, scores by preferences,
+generates the HTML page. `gather-feedback` stays here because it directly
+affects article scoring. `generate-feeds-html` stays because it renders the
+current catalog state for the feeds.html page.
+
+**Workflow 2 — `@svendowideit/news-fusion` (slow, every 12-24h)**
+
+```
+cluster → fuse (batch of 20) → seed (batch of 20) → render
+```
+
+LLM story fusion. Runs independently, reads `filtered-snapshot` from the
+datastore. See section B above.
+
+**Workflow 3 — `@svendowideit/news-curation` (daily)**
+
+```
+dedupe → gather-feed-state → discover → upsert-feed → gather-pages → analyze-pages → upsert-page
+```
+
+Feed catalog maintenance. Runs once daily — feed duplication detection,
+discovering new feeds from article URLs, processing user-submitted page URLs
+for feed discovery, and syncing enabled/disabled state from the feedback
+server.
+
+**Benefits of splitting out curation:**
+
+- **Faster news page updates.** The 4-hourly news workflow no longer waits
+  for feed deduplication (which fetches every catalog feed to compare
+  content), feed discovery (which crawls external sites), or page analysis.
+  The news page is generated in ~5 minutes instead of 10-15.
+
+- **Independent failure isolation.** If feed discovery hits a broken site or
+  the dedupe step times out on a slow feed, the news page still updates on
+  schedule. Conversely, if the news fetch fails, feed curation still runs
+  and keeps the catalog healthy.
+
+- **Appropriate cadences.** Feed deduplication and discovery don't need to
+  run every 4 hours — feeds don't duplicate or appear that quickly. Running
+  them daily saves network requests and CPU while producing the same result.
+
+- **Simpler debugging.** When the news page is stale, you know to check
+  workflow 1. When the catalog has duplicates, you check workflow 3. No
+  more tracing through a 20-step monolithic run to find which unrelated
+  step failed.
+
+- **`gather-feed-state` stays in curation** because it syncs catalog
+  enabled/disabled flags — a catalog management concern. The `fetch` step
+  in workflow 1 already reads the catalog's current state (enabled feeds
+  only) via `data.latest("feed-catalog", "current")`, so it automatically
+  picks up changes from the curation workflow.
+
+**Data flow between workflows:**
+
+```
+[news-curation, daily]          [news, every 4h]           [news-fusion, every 12h]
+       │                              │                            │
+       │ writes feed-catalog          │ reads feed-catalog         │
+       │   (enabled/disabled,         │   (enabled feeds)          │
+       │    new feeds, deduped)       │                            │
+       │                              │ writes feed-snapshot       │ reads feed-snapshot
+       │                              │ writes filtered-snapshot ──┤ reads filtered-snapshot
+       │                              │                            │ writes stories-current
+       │                              │ reads stories-html ────────┤ writes stories-html
+       │                              │                            │
+       ▼                              ▼                            ▼
+   feed-catalog                   news.html                    stories-current
+   (shared resource)              feeds.html                   stories-html-current
+```
+
+All three workflows communicate through swamp datastore resources — no
+direct workflow-to-workflow dependencies. Each reads what the others wrote
+on their last run.
+
+**Migration path:**
+
+1. Create `@svendowideit/news-curation` with the curation steps.
+2. Create `@svendowideit/news-fusion` with the fusion steps.
+3. Strip curation and fusion steps from `@svendowideit/news`, leaving only
+   the fast path.
+4. Set schedules: news every 4h, fusion every 12h, curation daily.
+5. The existing `stories-current` and `feed-catalog` data is already in the
+   datastore — no data migration needed.
+
+---
+
 ## Summary
 
 The fusion pipeline is architecturally sound — the separation of cheap

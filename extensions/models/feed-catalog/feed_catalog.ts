@@ -63,6 +63,17 @@ const DedupeArgsSchema = z.object({}).describe(
 
 type DedupeArgs = z.infer<typeof DedupeArgsSchema>;
 
+const DedupeCacheEntrySchema = z.object({
+  url: z.string(),
+  identity: z.string(),
+  score: z.number(),
+  lastCheckedAt: z.string(),
+});
+
+const DedupeCacheSchema = z.object({
+  entries: z.array(DedupeCacheEntrySchema),
+});
+
 const DedupeResultSchema = z.object({
   name: z.string(),
   groups: z.number(),
@@ -276,7 +287,9 @@ export function isFeedBody(contentType: string, body: string): boolean {
  * rel=self link when no items exist) and an expressiveness score used to pick
  * which duplicate is canonical.
  */
-export function feedIdentity(xml: string): { identity: string | null; score: number } {
+export function feedIdentity(
+  xml: string,
+): { identity: string | null; score: number } {
   const channel = extractChannel(xml);
   const isAtom = channel.includes("<entry") || channel.includes("<feed");
   const itemRegex = isAtom
@@ -606,7 +619,9 @@ h2 { margin-top: 30px; color: #333; }
 <body>
 <nav class="header"><a href="/">← News summary</a></nav>
 <h1>${escapeHtml(title)}</h1>
-<div class="meta">${feeds.length} feeds · ${canonical.length} canonical · ${dupMap.size} duplicate groups · ${invalidFeeds.length} invalid · generated <span class="generated-at" data-generated="${escapeHtml(generatedAt)}"></span></div>
+<div class="meta">${feeds.length} feeds · ${canonical.length} canonical · ${dupMap.size} duplicate groups · ${invalidFeeds.length} invalid · generated <span class="generated-at" data-generated="${
+    escapeHtml(generatedAt)
+  }"></span></div>
 ${
     invalidFeeds.length > 0
       ? `<div class="toggle"><button id="toggle-invalid" type="button">Show invalid feeds (${invalidFeeds.length})</button></div>`
@@ -812,6 +827,12 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 5,
     },
+    "dedupe-cache": {
+      description: "Cached feed identity data for incremental deduplication",
+      schema: DedupeCacheSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
   },
   files: {
     report: {
@@ -900,7 +921,16 @@ export const model = {
         const stalenessMs = (ga.dedupeStalenessDays ?? 7) * 24 * 3600 * 1000;
         const now = Date.now();
         const cacheEntries = (await context.readResource("dedupe-cache") as
-          | { entries: Array<{ url: string; identity: string; score: number; lastCheckedAt: string }> }
+          | {
+            entries: Array<
+              {
+                url: string;
+                identity: string;
+                score: number;
+                lastCheckedAt: string;
+              }
+            >;
+          }
           | null)?.entries ?? [];
         const cacheByUrl = new Map(cacheEntries.map((e) => [e.url, e]));
         let cacheHits = 0;
@@ -948,7 +978,12 @@ export const model = {
             if (!resp.ok) {
               errors.push({ url: feed.url, message: `HTTP ${resp.status}` });
               // Update cache timestamp even on error so we don't retry every run.
-              cacheByUrl.set(feed.url, { url: feed.url, identity: "", score: 0, lastCheckedAt: new Date().toISOString() });
+              cacheByUrl.set(feed.url, {
+                url: feed.url,
+                identity: "",
+                score: 0,
+                lastCheckedAt: new Date().toISOString(),
+              });
               processed++;
               continue;
             }
@@ -956,7 +991,12 @@ export const model = {
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             errors.push({ url: feed.url, message: msg });
-            cacheByUrl.set(feed.url, { url: feed.url, identity: "", score: 0, lastCheckedAt: new Date().toISOString() });
+            cacheByUrl.set(feed.url, {
+              url: feed.url,
+              identity: "",
+              score: 0,
+              lastCheckedAt: new Date().toISOString(),
+            });
             processed++;
             continue;
           }
@@ -966,7 +1006,12 @@ export const model = {
           if (!isFeedBody(contentType, xml)) {
             nonFeedUrls.push({ url: feed.url, contentType });
             nonFeedSet.add(feed.url);
-            cacheByUrl.set(feed.url, { url: feed.url, identity: "", score: 0, lastCheckedAt: new Date().toISOString() });
+            cacheByUrl.set(feed.url, {
+              url: feed.url,
+              identity: "",
+              score: 0,
+              lastCheckedAt: new Date().toISOString(),
+            });
             processed++;
             logger?.info(
               "Feed {url} is not a feed (HTML page or unknown content type); flagged for re-discovery",
@@ -976,12 +1021,22 @@ export const model = {
           }
           const { identity, score } = feedIdentity(xml);
           if (!identity) {
-            cacheByUrl.set(feed.url, { url: feed.url, identity: "", score: 0, lastCheckedAt: new Date().toISOString() });
+            cacheByUrl.set(feed.url, {
+              url: feed.url,
+              identity: "",
+              score: 0,
+              lastCheckedAt: new Date().toISOString(),
+            });
             processed++;
             continue; // no items/self-link → leave as-is
           }
           // Cache the successful identity lookup.
-          cacheByUrl.set(feed.url, { url: feed.url, identity, score, lastCheckedAt: new Date().toISOString() });
+          cacheByUrl.set(feed.url, {
+            url: feed.url,
+            identity,
+            score,
+            lastCheckedAt: new Date().toISOString(),
+          });
           const group = groups.get(identity) ?? [];
           group.push({ ...feed, score });
           groups.set(identity, group);
@@ -1005,7 +1060,10 @@ export const model = {
         await context.writeResource(
           "dedupe-cache",
           "dedupe-cache-current",
-          { entries: [...cacheByUrl.values()] } as unknown as Record<string, unknown>,
+          { entries: [...cacheByUrl.values()] } as unknown as Record<
+            string,
+            unknown
+          >,
         );
 
         // Within each group pick the most expressive feed as canonical; ties →

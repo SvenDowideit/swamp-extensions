@@ -29,12 +29,39 @@ These findings are incorporated into the plan below. Key issues found:
 
 ---
 
-## Phase 1 — Quick Wins (no architectural changes)
+## Status
 
-These are pure code changes to `news_reader.ts`. No workflow YAML changes, no
+| Phase | Item | Status | Tests |
+|-------|------|--------|-------|
+| 1.1 | Parallelize LLM calls | ✅ Done | `withConcurrency` is private — exercised indirectly via `seedStories`/`fuseStories` integration |
+| 1.2 | Skip unchanged clusters | ✅ Done | 5 tests for `shouldSkipCluster`, 7 for `computeClusterFingerprint` |
+| 1.3 | Cache entity extraction | ✅ Done | 1 test: `clusterStories caches entities on articles` |
+| 1.4 | Incremental dedupe-articles | ✅ Done | 7 tests for `dedupeArticlesIncremental` |
+| 1.5 | Incremental feed dedupe | ✅ Done | **No tests** — `dedupe-cache` resource logic is untested |
+| 2.1 | Fast news workflow | ⬜ Not started | — |
+| 2.2 | Fusion workflow | ⬜ Not started | — |
+| 2.3 | Curation workflow | ⬜ Not started | — |
+| 2.4 | Strip old workflow | ⬜ Not started | — |
+| 3.1 | Batched fuseStories | ⬜ Not started | — |
+| 3.2 | Batched seedStories | ⬜ Not started | — |
+| 3.3 | Incremental clustering | ⬜ Not started | — |
+| 4.1 | Cap story citations | ⬜ Not started | — |
+| 4.2 | regenStories workflow | ⬜ Not started | — |
+| 4.3 | Full fusion skip guard | ⬜ Not started | — |
+| 4.4 | Batch absorbable articles | ⬜ Not started | — |
+
+**Test coverage summary:** 184 test cases across 2 files (`news_reader_test.ts`: 138 tests, `feed_catalog_test.ts`: 46 tests). Key gap: `dedupe-cache` incremental feed dedupe logic in `feed_catalog.ts` has zero test coverage.
+
+**Testing requirement for all future phases:** Each new function, resource, or workflow change must include corresponding tests. When existing tests break due to refactoring, update them — don't delete them. As edge cases are discovered during implementation, add tests for them.
+
+---
+
+## Phase 1 — Quick Wins (no architectural changes) ✅ COMPLETE
+
+These are pure code changes to `news_reader.ts` and `feed_catalog.ts`. No workflow YAML changes, no
 new models, no data migration. Each is independently shippable.
 
-### 1.1 Parallelize LLM calls
+### 1.1 Parallelize LLM calls ✅
 
 **Impact:** 2-4× speedup on `fuseStories` and `seedStories` (revised down
 from 5-10× — Ollama with MLX models may serialize at the server level).
@@ -84,7 +111,7 @@ doesn't, the LLM server is serializing — try a different model or server.
 
 ---
 
-### 1.2 Skip `fuseStories` for unchanged clusters
+### 1.2 Skip `fuseStories` for unchanged clusters ✅
 
 **Impact:** Eliminates the single biggest source of wasted LLM calls. On a
 typical run, 80-90% of clusters have the same article IDs as the previous
@@ -142,7 +169,7 @@ Second run should show "Skipping unchanged cluster" for every cluster. Change
 
 ---
 
-### 1.3 Cache entity extraction
+### 1.3 Cache entity extraction ✅
 
 **Impact:** `extractEntities()` is called once per article in
 `clusterArticles` and again for every absorbable article in `fuseStories`.
@@ -181,7 +208,7 @@ identical output, just faster.
 
 ---
 
-### 1.4 Incremental `dedupe-articles`
+### 1.4 Incremental `dedupe-articles` ✅
 
 **Impact:** `dedupe-articles` currently takes 4m40s — the single slowest
 non-LLM step. It re-processes ALL articles in `feed-snapshot` every run,
@@ -218,7 +245,7 @@ only 50 new articles should take ~15s.
 
 ---
 
-## Phase 1.5 — Incremental Feed Deduplication
+## Phase 1.5 — Incremental Feed Deduplication ✅
 
 This is a code change to `feed_catalog.ts` (not `news_reader.ts`). It applies
 the same incremental pattern as 1.4 to the catalog's `dedupe` method, which

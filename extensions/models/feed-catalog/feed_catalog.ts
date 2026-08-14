@@ -18,6 +18,10 @@ const GlobalArgsSchema = z.object({
   catalogName: z.string().default("default").describe(
     "Catalog name (for multiple catalogs)",
   ),
+  /** Max age of a cached feed identity before re-fetching (days). */
+  dedupeStalenessDays: z.number().int().min(1).default(7).describe(
+    "Max days before a cached feed identity is re-fetched during dedupe. New feeds are always fetched.",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -884,12 +888,23 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: Array<{ name: string }> }> => {
         const logger = context.logger;
+        const ga = context.globalArgs as GlobalArgs;
         const catalogData = await context.readResource("current") as
           | FeedCatalog
           | null;
         if (!catalogData) {
           throw new Error("No feed catalog found. Add feeds first with 'add'.");
         }
+
+        // Incremental: reuse cached identities for feeds checked recently.
+        const stalenessMs = (ga.dedupeStalenessDays ?? 7) * 24 * 3600 * 1000;
+        const now = Date.now();
+        const cacheEntries = (await context.readResource("dedupe-cache") as
+          | { entries: Array<{ url: string; identity: string; score: number; lastCheckedAt: string }> }
+          | null)?.entries ?? [];
+        const cacheByUrl = new Map(cacheEntries.map((e) => [e.url, e]));
+        let cacheHits = 0;
+        let cacheMisses = 0;
 
         // Fetch each feed once, compute its identity + expressiveness score.
         const groups = new Map<string, Array<Feed & { score: number }>>();
@@ -906,6 +921,22 @@ export const model = {
             processed++;
             continue;
           }
+
+          // Check cache: if feed was checked recently, reuse its identity.
+          const cached = cacheByUrl.get(feed.url);
+          const isStale = !cached ||
+            (now - new Date(cached.lastCheckedAt).getTime()) > stalenessMs;
+
+          if (!isStale && cached.identity) {
+            const group = groups.get(cached.identity) ?? [];
+            group.push({ ...feed, score: cached.score });
+            groups.set(cached.identity, group);
+            processed++;
+            cacheHits++;
+            continue;
+          }
+
+          cacheMisses++;
           let xml: string;
           let contentType = "";
           try {
@@ -916,6 +947,8 @@ export const model = {
             contentType = resp.headers.get("content-type") ?? "";
             if (!resp.ok) {
               errors.push({ url: feed.url, message: `HTTP ${resp.status}` });
+              // Update cache timestamp even on error so we don't retry every run.
+              cacheByUrl.set(feed.url, { url: feed.url, identity: "", score: 0, lastCheckedAt: new Date().toISOString() });
               processed++;
               continue;
             }
@@ -923,6 +956,7 @@ export const model = {
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             errors.push({ url: feed.url, message: msg });
+            cacheByUrl.set(feed.url, { url: feed.url, identity: "", score: 0, lastCheckedAt: new Date().toISOString() });
             processed++;
             continue;
           }
@@ -932,6 +966,7 @@ export const model = {
           if (!isFeedBody(contentType, xml)) {
             nonFeedUrls.push({ url: feed.url, contentType });
             nonFeedSet.add(feed.url);
+            cacheByUrl.set(feed.url, { url: feed.url, identity: "", score: 0, lastCheckedAt: new Date().toISOString() });
             processed++;
             logger?.info(
               "Feed {url} is not a feed (HTML page or unknown content type); flagged for re-discovery",
@@ -941,27 +976,37 @@ export const model = {
           }
           const { identity, score } = feedIdentity(xml);
           if (!identity) {
+            cacheByUrl.set(feed.url, { url: feed.url, identity: "", score: 0, lastCheckedAt: new Date().toISOString() });
             processed++;
             continue; // no items/self-link → leave as-is
           }
+          // Cache the successful identity lookup.
+          cacheByUrl.set(feed.url, { url: feed.url, identity, score, lastCheckedAt: new Date().toISOString() });
           const group = groups.get(identity) ?? [];
           group.push({ ...feed, score });
           groups.set(identity, group);
           processed++;
 
           // Periodic progress so long dedupe runs report "x of y" as they go.
-          const now = Date.now();
+          const progressNow = Date.now();
           if (
             processed % 10 === 0 ||
-            now - lastProgressLog >= 10_000
+            progressNow - lastProgressLog >= 10_000
           ) {
-            lastProgressLog = now;
+            lastProgressLog = progressNow;
             logger?.info(
-              "Dedupe progress: {done} of {total} feeds",
-              { done: processed, total },
+              "Dedupe progress: {done} of {total} feeds ({hits} cached, {misses} fetched)",
+              { done: processed, total, hits: cacheHits, misses: cacheMisses },
             );
           }
         }
+
+        // Persist updated cache.
+        await context.writeResource(
+          "dedupe-cache",
+          "dedupe-cache-current",
+          { entries: [...cacheByUrl.values()] } as unknown as Record<string, unknown>,
+        );
 
         // Within each group pick the most expressive feed as canonical; ties →
         // the earliest-added feed wins, so the "second" duplicate is marked.
@@ -1030,7 +1075,7 @@ export const model = {
           },
         );
         logger?.info(
-          "Dedupe: {groups} groups, {dupGroups} with duplicates, {marked} marked, {errors} errors, {nonFeeds} non-feed",
+          "Dedupe: {groups} groups, {dupGroups} with duplicates, {marked} marked, {errors} errors, {nonFeeds} non-feed ({hits} cached, {misses} fetched)",
           {
             groups: groups.size,
             dupGroups: groupsWithDuplicates,
@@ -1038,6 +1083,8 @@ export const model = {
             invalid: markedInvalid,
             errors: errors.length,
             nonFeeds: nonFeedUrls.length,
+            hits: cacheHits,
+            misses: cacheMisses,
           },
         );
         return { dataHandles: [handle, resultHandle] };

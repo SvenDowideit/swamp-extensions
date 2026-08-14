@@ -40,6 +40,10 @@ const GlobalArgsSchema = z.object({
   citationRetentionDays: z.number().int().min(0).default(30).describe(
     "How long article citations live before aging out of a story. Core facts always survive.",
   ),
+  /** Max concurrent LLM requests for fusion steps (tune per model backend). */
+  llmConcurrency: z.number().int().min(1).max(20).default(3).describe(
+    "Max concurrent LLM requests for fusion steps. Start at 1 and increase if the server supports it.",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -236,6 +240,8 @@ export interface Article {
   duplicateSources?: string[];
   /** For primary articles: how many other feeds carry this same article. */
   duplicateCount?: number;
+  /** Cached entity extraction (populated by clusterArticles, reused by fuseStories). */
+  entities?: string[];
 }
 
 /** A snapshot of all fetched articles from all feeds. */
@@ -367,6 +373,8 @@ export interface StoryCluster {
   needsGate: boolean;
   /** Stable cluster hash for grouping. */
   key: string;
+  /** Fingerprint of article IDs + config for change detection. */
+  fingerprint?: string;
 }
 
 /** Output of an LLM fusion pass. */
@@ -853,6 +861,7 @@ export function clusterStories(
 
   for (const a of articles) {
     const entities = extractEntities(a.title, a.summary ?? "");
+    a.entities = entities;
     const canon = canonicalUrl(a.url);
     let matched = false;
 
@@ -879,6 +888,7 @@ export function clusterStories(
   for (const a of leftovers) {
     if (used.has(a.id)) continue;
     const entities = extractEntities(a.title, a.summary ?? "");
+    a.entities = entities;
     const canon = canonicalUrl(a.url);
     const day = dayKey(a.publishedAt);
 
@@ -889,6 +899,7 @@ export function clusterStories(
     for (const b of leftovers) {
       if (used.has(b.id)) continue;
       const bEntities = extractEntities(b.title, b.summary ?? "");
+      b.entities = bEntities;
       const bCanon = canonicalUrl(b.url);
       const bDay = dayKey(b.publishedAt);
       const shared = entities.filter((e) =>
@@ -945,6 +956,22 @@ export function clusterHash(input: string): string {
 // ---------------------------------------------------------------------------
 // LLM fusion (seed / delta / regen)
 // ---------------------------------------------------------------------------
+
+/** Run async tasks with a concurrency limit (index-based, thread-safe). */
+async function withConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+  let nextIndex = 0;
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const idx = nextIndex++;
+      await fn(items[idx], idx);
+    }
+  }
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+}
 
 /** Render a cluster's articles for the LLM seed prompt. */
 function articlesForPrompt(cluster: StoryCluster): string {
@@ -1896,6 +1923,15 @@ export const model = {
       lifetime: "7d",
       garbageCollection: 20,
     },
+    dedupedUrls: {
+      description: "Previously deduped article URLs for incremental dedupe",
+      schema: z.object({
+        urls: z.array(z.string()),
+        articles: z.array(z.unknown()),
+      }),
+      lifetime: "7d",
+      garbageCollection: 20,
+    },
   },
   files: {
     report: {
@@ -1935,7 +1971,7 @@ export const model = {
             articles: snapshotData.articles,
             errors: snapshotData.errors,
             nonFeedUrls:
-              (snapshotData as Record<string, unknown>).nonFeedUrls ?? [],
+              (snapshotData as unknown as Record<string, unknown>).nonFeedUrls ?? [],
           });
           handles.push(h);
           logger?.info("Cleaned {fixed} articles in snapshot", { fixed });
@@ -1959,7 +1995,7 @@ export const model = {
               articles: filteredData.articles,
               errors: filteredData.errors,
               nonFeedUrls:
-                (filteredData as Record<string, unknown>).nonFeedUrls ?? [],
+                (filteredData as unknown as Record<string, unknown>).nonFeedUrls ?? [],
               filteredAt: filteredData.filteredAt,
               ageFilter: filteredData.ageFilter,
             },
@@ -2110,7 +2146,7 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-    dedupeArticles: {
+     dedupeArticles: {
       description:
         "Group articles by URL, mark duplicates, and annotate primary articles with duplicate source info",
       arguments: DedupeArticlesArgsSchema,
@@ -2133,20 +2169,52 @@ export const model = {
         }
 
         const articles = snapshotData.articles;
-        const urlGroups = new Map<string, Article[]>();
 
-        for (const a of articles) {
+        // Incremental: only process new URLs, reuse previously deduped results.
+        const prevDeduped = (await context.readResource("dedupedUrls-current") as
+          | { urls: string[]; articles: Article[] }
+          | null);
+        const prevUrlSet = new Set(prevDeduped?.urls ?? []);
+        const prevArticles = prevDeduped?.articles ?? [];
+
+        const newArticles = articles.filter((a) => !prevUrlSet.has(a.url));
+        const existingDeduped = prevArticles.filter((a) =>
+          articles.some((cur) => cur.url === a.url)
+        );
+
+        if (newArticles.length === 0) {
+          logger?.info(
+            "No new article URLs — reusing {n} previously deduped articles",
+            { n: existingDeduped.length },
+          );
+          const handle = await context.writeResource(
+            "snapshot",
+            "feed-snapshot",
+            {
+              fetchedAt: snapshotData.fetchedAt,
+              articles: existingDeduped,
+              errors: snapshotData.errors,
+              nonFeedUrls:
+                (snapshotData as unknown as Record<string, unknown>).nonFeedUrls ?? [],
+            },
+          );
+          return { dataHandles: [handle] };
+        }
+
+        // Dedupe only the new articles.
+        const urlGroups = new Map<string, Article[]>();
+        for (const a of newArticles) {
           const existing = urlGroups.get(a.url) ?? [];
           existing.push(a);
           urlGroups.set(a.url, existing);
         }
 
         let duplicateCount = 0;
-        const deduped: Article[] = [];
+        const newDeduped: Article[] = [];
 
         for (const [_url, group] of urlGroups) {
           if (group.length === 1) {
-            deduped.push(group[0]);
+            newDeduped.push(group[0]);
             continue;
           }
 
@@ -2154,14 +2222,14 @@ export const model = {
           const primary = group[0];
           const dupSources = group.slice(1).map((a) => a.source);
 
-          deduped.push({
+          newDeduped.push({
             ...primary,
             duplicateSources: dupSources,
             duplicateCount: dupSources.length,
           });
 
           for (const dup of group.slice(1)) {
-            deduped.push({
+            newDeduped.push({
               ...dup,
               duplicate: true,
               duplicateOf: primary.id,
@@ -2170,13 +2238,27 @@ export const model = {
           }
         }
 
+        // Merge: keep previously deduped articles that still exist in the
+        // current snapshot, plus newly deduped articles.
+        const deduped = [...existingDeduped, ...newDeduped];
+
         logger?.info(
-          "Deduped {total} articles: {duplicates} duplicates across {groups} URL groups",
+          "Deduped {total} articles ({new} new, {reused} reused): {duplicates} duplicates across {groups} URL groups",
           {
-            total: articles.length,
+            total: deduped.length,
+            new: newArticles.length,
+            reused: existingDeduped.length,
             duplicates: duplicateCount,
             groups: urlGroups.size,
           },
+        );
+
+        // Persist the URL set + deduped articles for next run's incremental pass.
+        const allUrls = deduped.map((a) => a.url);
+        await context.writeResource(
+          "dedupedUrls",
+          "dedupedUrls-current",
+          { urls: allUrls, articles: deduped } as unknown as Record<string, unknown>,
         );
 
         const handle = await context.writeResource(
@@ -2187,7 +2269,7 @@ export const model = {
             articles: deduped,
             errors: snapshotData.errors,
             nonFeedUrls:
-              (snapshotData as Record<string, unknown>).nonFeedUrls ?? [],
+              (snapshotData as unknown as Record<string, unknown>).nonFeedUrls ?? [],
           },
         );
 
@@ -2244,7 +2326,7 @@ export const model = {
             articles: filteredArticles,
             errors: snapshotData.errors,
             nonFeedUrls:
-              (snapshotData as Record<string, unknown>).nonFeedUrls ?? [],
+              (snapshotData as unknown as Record<string, unknown>).nonFeedUrls ?? [],
             filteredAt: new Date().toISOString(),
             ageFilter: args.newsAge,
           },
@@ -2651,7 +2733,7 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-    clusterArticles: {
+     clusterArticles: {
       description:
         "Conservatively cluster filtered articles into same-story groups (no LLM). Requires a filtered-snapshot resource.",
       arguments: z.object({
@@ -2663,6 +2745,7 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: Array<{ name: string }> }> => {
         const logger = context.logger;
+        const ga = context.globalArgs as GlobalArgs;
         const snap = await context.readResource(args.snapshotName) as
           | { articles: Article[] }
           | null;
@@ -2677,6 +2760,12 @@ export const model = {
           storiesState?.stories ?? [],
           args.maxClusterSize,
         );
+        // Compute fingerprints for change detection (article IDs + LLM config).
+        const configFingerprint = `${ga.llmModel}:${ga.llmTemperature}`;
+        for (const c of clusters.clusters) {
+          const articleIds = c.articles.map((a) => a.id).sort();
+          c.fingerprint = await hashId(articleIds.join(",") + "|" + configFingerprint);
+        }
         const handle = await context.writeResource(
           "clusters",
           "clusters-current",
@@ -2697,7 +2786,7 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-    seedStories: {
+     seedStories: {
       description:
         "LLM-seed persistent Story objects from the current clusters resource.",
       arguments: z.object({
@@ -2734,9 +2823,24 @@ export const model = {
           | { stories: Story[] }
           | null;
         const existing = storiesState?.stories ?? [];
+        const existingKeys = new Set(existing.map((s) => s.id));
+        // Pre-compute which clusters need seeding (no LLM calls yet) to avoid
+        // race conditions where parallel seeds produce duplicate story keys.
+        const toSeed = clusters.filter((c) =>
+          c.articles.length >= args.minClusterSize &&
+          !existingKeys.has(c.key) &&
+          !existingKeys.has(clusterKey(c.topic, c.entities))
+        );
+        // Deduplicate by key within the batch.
+        const seenKeys = new Set<string>();
+        const uniqueToSeed = toSeed.filter((c) => {
+          if (seenKeys.has(c.key)) return false;
+          seenKeys.add(c.key);
+          return true;
+        });
         const newStories: Story[] = [];
-        for (const c of clusters) {
-          if (c.articles.length < args.minClusterSize) continue;
+        const concurrency = ga.llmConcurrency ?? 3;
+        await withConcurrency(uniqueToSeed, concurrency, async (c) => {
           try {
             const st = await seedStory(ga, c);
             newStories.push(st);
@@ -2751,7 +2855,7 @@ export const model = {
               error: msg,
             });
           }
-        }
+        });
         const merged = [...existing, ...newStories];
         const handle = await context.writeResource(
           "stories",
@@ -2761,7 +2865,7 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-    fuseStories: {
+     fuseStories: {
       description:
         "LLM-delta pass: absorb new cluster articles into existing stories and persist.",
       arguments: z.object({}),
@@ -2796,12 +2900,26 @@ export const model = {
         const existingById = new Map(stories.map((s) => [s.id, s]));
         const toUpdate: Story[] = [];
 
+        // Read previous clusters for fingerprint-based skip.
+        const prevClusters = (await context.readResource("clusters-previous") as
+          | { clusters: StoryCluster[] }
+          | null)?.clusters ?? [];
+        const prevByKey = new Map(prevClusters.map((c) => [c.key, c]));
+
         // Fresh clusters: fuse each into the matching existing story.
-        for (const c of clusters ?? []) {
+        const concurrency = ga.llmConcurrency ?? 3;
+        await withConcurrency(clusters, concurrency, async (c) => {
           const st = existingById.get(c.key) ?? existingById.get(
             clusterKey(c.topic, c.entities),
           );
-          if (!st) continue;
+          if (!st) return;
+          // Skip if cluster unchanged since last run (same articles + same config).
+          const prev = prevByKey.get(c.key);
+          if (prev && prev.fingerprint && c.fingerprint &&
+              prev.fingerprint === c.fingerprint) {
+            logger?.info("Skipping unchanged cluster '{topic}'", { topic: c.topic });
+            return;
+          }
           try {
             const updated = await fuseStory(ga, st, c.articles);
             toUpdate.push(updated);
@@ -2816,12 +2934,13 @@ export const model = {
               error: msg,
             });
           }
-        }
+        });
 
         // Absorbable articles already matched an existing story at cluster time;
         // re-match by entity overlap and fuse each one individually.
+        // Use cached entities from clusterArticles when available.
         for (const a of absorbable ?? []) {
-          const aEntities = extractEntities(a.title, a.summary ?? "");
+          const aEntities = a.entities ?? extractEntities(a.title, a.summary ?? "");
           let st: Story | undefined;
           for (const s of stories) {
             const sEntities = s.identity.entities.map((e) => e.name.toLowerCase());
@@ -2858,6 +2977,12 @@ export const model = {
           "stories",
           "stories-current",
           { stories: merged } as unknown as Record<string, unknown>,
+        );
+        // Persist clusters for next run's fingerprint comparison.
+        await context.writeResource(
+          "clusters",
+          "clusters-previous",
+          { clusters } as unknown as Record<string, unknown>,
         );
         return { dataHandles: [handle] };
       },

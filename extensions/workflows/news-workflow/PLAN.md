@@ -218,7 +218,88 @@ only 50 new articles should take ~15s.
 
 ---
 
-## Phase 2 — Structural Split (three workflows)
+## Phase 1.5 — Incremental Feed Deduplication
+
+This is a code change to `feed_catalog.ts` (not `news_reader.ts`). It applies
+the same incremental pattern as 1.4 to the catalog's `dedupe` method, which
+fetches every feed's XML to compute a content identity hash.
+
+### 1.5 Incremental `dedupe` (feed-catalog)
+
+**Impact:** The `dedupe` step in the curation workflow fetches every catalog
+feed to compute content identity hashes. With 50+ feeds, that's 50+ HTTP
+requests per run. After this change, only **new feeds** (not yet cached) and
+**stale feeds** (last checked > N days ago) are re-fetched. On a typical
+daily curation run with 0-2 new feeds, the step drops from minutes to
+seconds.
+
+**Effort:** ~40 lines in `feed_catalog.ts`. New `dedupe-cache` resource
+tracking `{ url, identity, score, lastCheckedAt }` per feed. New
+`dedupeStalenessDays` global argument.
+
+**Risk:** Low. A feed's content identity can change over time (publisher
+changes format, feed moves to new domain). The staleness threshold ensures
+all feeds are periodically re-checked. Default: 7 days — so every feed gets
+a fresh identity check weekly, but daily runs only re-check new additions.
+
+**Implementation sketch:**
+
+Add to `GlobalArgsSchema` in `feed_catalog.ts`:
+```typescript
+dedupeStalenessDays: z.number().int().min(1).default(7)
+```
+
+In the `dedupe` method:
+
+```typescript
+const ga = context.globalArgs;
+const stalenessMs = (ga.dedupeStalenessDays ?? 7) * 24 * 3600 * 1000;
+const now = Date.now();
+
+// Read previous cache: { url, identity, score, lastCheckedAt }[]
+const cache = (await context.readResource("dedupe-cache") as
+  | { entries: Array<{ url: string; identity: string; score: number; lastCheckedAt: string }> }
+  | null)?.entries ?? [];
+const cacheByUrl = new Map(cache.map(e => [e.url, e]));
+
+for (const feed of catalogData.feeds) {
+  if (feed.invalid === true) { processed++; continue; }
+
+  const cached = cacheByUrl.get(feed.url);
+  const isStale = cached
+    ? (now - new Date(cached.lastCheckedAt).getTime()) > stalenessMs
+    : true;
+
+  if (!isStale) {
+    // Reuse cached identity — no HTTP fetch needed.
+    const group = groups.get(cached.identity) ?? [];
+    group.push({ ...feed, score: cached.score });
+    groups.set(cached.identity, group);
+    processed++;
+    continue;
+  }
+
+  // Fetch and compute identity as before...
+  const { identity, score } = feedIdentity(xml);
+  // ... update cache entry
+  cacheByUrl.set(feed.url, { url: feed.url, identity, score, lastCheckedAt: new Date().toISOString() });
+}
+
+// Persist updated cache at end of method.
+await context.writeResource("dedupe-cache", "dedupe-cache-current",
+  { entries: [...cacheByUrl.values()] } as unknown as Record<string, unknown>);
+```
+
+**Verification:** Run dedupe twice with no new feeds. Second run should show
+all feeds reusing cached identities (no HTTP requests). Add a new feed, run
+again — only the new feed is fetched. Wait 7 days, run — all feeds are
+re-fetched.
+
+**Interaction with Phase 2:** After the curation workflow is split out
+(Phase 2.3), this optimisation makes the daily curation run nearly instant
+when no new feeds were added — just a cache lookup per feed.
+
+---
 
 This is the architectural foundation that enables all further cadence-based
 optimisations. It requires creating new workflow YAML files and editing the
@@ -509,6 +590,7 @@ Reduces LLM round-trips for the absorb phase.
 | 1.2 | Skip unchanged clusters | Eliminates 80-90% of LLM calls | ~40 lines | None |
 | 1.3 | Cache entity extraction | ~2× faster cluster+fuse | ~15 lines | None |
 | 1.4 | Incremental dedupe-articles | 4m40s → ~15s on typical run | ~30 lines | None |
+| 1.5 | Incremental feed dedupe | Minutes → seconds on daily run | ~40 lines | None |
 | 2.1 | Fast news workflow | News page in ~5min (was 10-15) | New workflow YAML | None |
 | 2.2 | Fusion workflow | LLM runs at own cadence | New workflow YAML | None |
 | 2.3 | Curation workflow | Catalog maint. doesn't block news | New workflow YAML | None |

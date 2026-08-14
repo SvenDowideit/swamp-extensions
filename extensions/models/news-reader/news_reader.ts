@@ -1232,6 +1232,118 @@ export function ageOutCitations(
   return { ...story, citations };
 }
 
+/**
+ * Compute a cluster fingerprint for change detection.
+ * Includes article IDs and LLM config so model/temperature changes trigger re-fusion.
+ */
+export async function computeClusterFingerprint(
+  cluster: StoryCluster,
+  llmModel: string,
+  llmTemperature: number,
+): Promise<string> {
+  const articleIds = cluster.articles.map((a) => a.id).sort();
+  const configFingerprint = `${llmModel}:${llmTemperature}`;
+  return await hashId(articleIds.join(",") + "|" + configFingerprint);
+}
+
+/**
+ * Check whether a cluster should be skipped (unchanged since last run).
+ */
+export function shouldSkipCluster(
+  cluster: StoryCluster,
+  prevByKey: Map<string, StoryCluster>,
+): boolean {
+  const prev = prevByKey.get(cluster.key);
+  return !!(prev && prev.fingerprint && cluster.fingerprint &&
+    prev.fingerprint === cluster.fingerprint);
+}
+
+/**
+ * Pre-compute which clusters need seeding (no LLM calls yet).
+ * Deduplicates by key to avoid race conditions with parallel seeds.
+ */
+export function selectClustersToSeed(
+  clusters: StoryCluster[],
+  existingStories: Story[],
+  minClusterSize: number,
+): StoryCluster[] {
+  const existingKeys = new Set(existingStories.map((s) => s.id));
+  const toSeed = clusters.filter((c) =>
+    c.articles.length >= minClusterSize &&
+    !existingKeys.has(c.key) &&
+    !existingKeys.has(clusterKey(c.topic, c.entities))
+  );
+  const seenKeys = new Set<string>();
+  return toSeed.filter((c) => {
+    if (seenKeys.has(c.key)) return false;
+    seenKeys.add(c.key);
+    return true;
+  });
+}
+
+/**
+ * Incremental dedupe: split articles into new (not previously seen) and
+ * existing (reuse previous dedupe result). Returns the merged deduped list.
+ */
+export function dedupeArticlesIncremental(
+  articles: Article[],
+  prevUrls: string[],
+  prevArticles: Article[],
+): { deduped: Article[]; newCount: number; reusedCount: number; duplicateCount: number } {
+  const prevUrlSet = new Set(prevUrls);
+  const newArticles = articles.filter((a) => !prevUrlSet.has(a.url));
+  const existingDeduped = prevArticles.filter((a) =>
+    articles.some((cur) => cur.url === a.url)
+  );
+
+  if (newArticles.length === 0) {
+    return { deduped: existingDeduped, newCount: 0, reusedCount: existingDeduped.length, duplicateCount: 0 };
+  }
+
+  const urlGroups = new Map<string, Article[]>();
+  for (const a of newArticles) {
+    const existing = urlGroups.get(a.url) ?? [];
+    existing.push(a);
+    urlGroups.set(a.url, existing);
+  }
+
+  let duplicateCount = 0;
+  const newDeduped: Article[] = [];
+
+  for (const [_url, group] of urlGroups) {
+    if (group.length === 1) {
+      newDeduped.push(group[0]);
+      continue;
+    }
+
+    group.sort((a, b) => a.source.localeCompare(b.source));
+    const primary = group[0];
+    const dupSources = group.slice(1).map((a) => a.source);
+
+    newDeduped.push({
+      ...primary,
+      duplicateSources: dupSources,
+      duplicateCount: dupSources.length,
+    });
+
+    for (const dup of group.slice(1)) {
+      newDeduped.push({
+        ...dup,
+        duplicate: true,
+        duplicateOf: primary.id,
+      });
+      duplicateCount++;
+    }
+  }
+
+  return {
+    deduped: [...existingDeduped, ...newDeduped],
+    newCount: newArticles.length,
+    reusedCount: existingDeduped.length,
+    duplicateCount,
+  };
+}
+
 /** Render a story to inline HTML for the news page. */
 export function renderStories(
   stories: Story[],
@@ -2761,10 +2873,8 @@ export const model = {
           args.maxClusterSize,
         );
         // Compute fingerprints for change detection (article IDs + LLM config).
-        const configFingerprint = `${ga.llmModel}:${ga.llmTemperature}`;
         for (const c of clusters.clusters) {
-          const articleIds = c.articles.map((a) => a.id).sort();
-          c.fingerprint = await hashId(articleIds.join(",") + "|" + configFingerprint);
+          c.fingerprint = await computeClusterFingerprint(c, ga.llmModel, ga.llmTemperature);
         }
         const handle = await context.writeResource(
           "clusters",
@@ -2823,21 +2933,7 @@ export const model = {
           | { stories: Story[] }
           | null;
         const existing = storiesState?.stories ?? [];
-        const existingKeys = new Set(existing.map((s) => s.id));
-        // Pre-compute which clusters need seeding (no LLM calls yet) to avoid
-        // race conditions where parallel seeds produce duplicate story keys.
-        const toSeed = clusters.filter((c) =>
-          c.articles.length >= args.minClusterSize &&
-          !existingKeys.has(c.key) &&
-          !existingKeys.has(clusterKey(c.topic, c.entities))
-        );
-        // Deduplicate by key within the batch.
-        const seenKeys = new Set<string>();
-        const uniqueToSeed = toSeed.filter((c) => {
-          if (seenKeys.has(c.key)) return false;
-          seenKeys.add(c.key);
-          return true;
-        });
+        const uniqueToSeed = selectClustersToSeed(clusters, existing, args.minClusterSize);
         const newStories: Story[] = [];
         const concurrency = ga.llmConcurrency ?? 3;
         await withConcurrency(uniqueToSeed, concurrency, async (c) => {

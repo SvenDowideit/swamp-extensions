@@ -199,7 +199,7 @@ export function extractFeedName(url: string): string {
 }
 
 /** Normalize a feed item id for duplicate comparison. */
-function normalizeId(id: string): string {
+export function normalizeId(id: string): string {
   const trimmed = id.trim();
   if (/^https?:\/\//i.test(trimmed)) {
     try {
@@ -214,7 +214,7 @@ function normalizeId(id: string): string {
 }
 
 /** Extract the channel/feed-level block (first <channel> or <feed>). */
-function extractChannel(xml: string): string {
+export function extractChannel(xml: string): string {
   const channel = xml.match(/<channel[\s>][\s\S]*?<\/channel>/i);
   if (channel) return channel[0];
   const feed = xml.match(/<feed[\s>][\s\S]*?<\/feed>/i);
@@ -232,7 +232,7 @@ function hasTag(text: string, re: RegExp): boolean {
  * catalog entries that resolved to HTML pages — the same detection the
  * news workflow's fetch step performs — so the two paths back each other up.
  */
-function isFeedBody(contentType: string, body: string): boolean {
+export function isFeedBody(contentType: string, body: string): boolean {
   const ct = contentType.toLowerCase();
   // 1. Content-type header: definite feed types win immediately.
   if (
@@ -276,7 +276,7 @@ function isFeedBody(contentType: string, body: string): boolean {
  * rel=self link when no items exist) and an expressiveness score used to pick
  * which duplicate is canonical.
  */
-function feedIdentity(xml: string): { identity: string | null; score: number } {
+export function feedIdentity(xml: string): { identity: string | null; score: number } {
   const channel = extractChannel(xml);
   const isAtom = channel.includes("<entry") || channel.includes("<feed");
   const itemRegex = isAtom

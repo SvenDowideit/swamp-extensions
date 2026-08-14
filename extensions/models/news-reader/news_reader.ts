@@ -554,7 +554,7 @@ type MethodContext = {
 // ---------------------------------------------------------------------------
 
 /** Hash a string to a 12-char hex ID. */
-async function hashId(input: string): Promise<string> {
+export async function hashId(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
   const hash = await crypto.subtle.digest("SHA-256", data);
   return [...new Uint8Array(hash)].slice(0, 6).map((b) =>
@@ -563,7 +563,7 @@ async function hashId(input: string): Promise<string> {
 }
 
 /** Strip HTML tags and CDATA from a string, returning plain text. */
-function stripHtml(html: string): string {
+export function stripHtml(html: string): string {
   return html
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
     .replace(/<[^>]*>/g, "")
@@ -578,7 +578,7 @@ function stripHtml(html: string): string {
 }
 
 /** Escape HTML special characters. */
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -1470,7 +1470,7 @@ export function parseFeed(xml: string, feedUrl: string): Article[] {
 }
 
 /** Detect whether a fetched body looks like an RSS/Atom/JSON feed. */
-function isFeedBody(contentType: string, body: string): boolean {
+export function isFeedBody(contentType: string, body: string): boolean {
   const ct = contentType.toLowerCase();
   // 1. Content-type header: definite feed types win immediately.
   if (
@@ -2280,97 +2280,31 @@ export const model = {
           );
         }
 
-        const articles = snapshotData.articles;
-
-        // Incremental: only process new URLs, reuse previously deduped results.
         const prevDeduped = (await context.readResource("dedupedUrls-current") as
           | { urls: string[]; articles: Article[] }
           | null);
-        const prevUrlSet = new Set(prevDeduped?.urls ?? []);
-        const prevArticles = prevDeduped?.articles ?? [];
-
-        const newArticles = articles.filter((a) => !prevUrlSet.has(a.url));
-        const existingDeduped = prevArticles.filter((a) =>
-          articles.some((cur) => cur.url === a.url)
+        const result = dedupeArticlesIncremental(
+          snapshotData.articles,
+          prevDeduped?.urls ?? [],
+          prevDeduped?.articles ?? [],
         );
 
-        if (newArticles.length === 0) {
-          logger?.info(
-            "No new article URLs — reusing {n} previously deduped articles",
-            { n: existingDeduped.length },
-          );
-          const handle = await context.writeResource(
-            "snapshot",
-            "feed-snapshot",
-            {
-              fetchedAt: snapshotData.fetchedAt,
-              articles: existingDeduped,
-              errors: snapshotData.errors,
-              nonFeedUrls:
-                (snapshotData as unknown as Record<string, unknown>).nonFeedUrls ?? [],
-            },
-          );
-          return { dataHandles: [handle] };
-        }
-
-        // Dedupe only the new articles.
-        const urlGroups = new Map<string, Article[]>();
-        for (const a of newArticles) {
-          const existing = urlGroups.get(a.url) ?? [];
-          existing.push(a);
-          urlGroups.set(a.url, existing);
-        }
-
-        let duplicateCount = 0;
-        const newDeduped: Article[] = [];
-
-        for (const [_url, group] of urlGroups) {
-          if (group.length === 1) {
-            newDeduped.push(group[0]);
-            continue;
-          }
-
-          group.sort((a, b) => a.source.localeCompare(b.source));
-          const primary = group[0];
-          const dupSources = group.slice(1).map((a) => a.source);
-
-          newDeduped.push({
-            ...primary,
-            duplicateSources: dupSources,
-            duplicateCount: dupSources.length,
-          });
-
-          for (const dup of group.slice(1)) {
-            newDeduped.push({
-              ...dup,
-              duplicate: true,
-              duplicateOf: primary.id,
-            });
-            duplicateCount++;
-          }
-        }
-
-        // Merge: keep previously deduped articles that still exist in the
-        // current snapshot, plus newly deduped articles.
-        const deduped = [...existingDeduped, ...newDeduped];
-
         logger?.info(
-          "Deduped {total} articles ({new} new, {reused} reused): {duplicates} duplicates across {groups} URL groups",
+          "Deduped {total} articles ({new} new, {reused} reused): {duplicates} duplicates",
           {
-            total: deduped.length,
-            new: newArticles.length,
-            reused: existingDeduped.length,
-            duplicates: duplicateCount,
-            groups: urlGroups.size,
+            total: result.deduped.length,
+            new: result.newCount,
+            reused: result.reusedCount,
+            duplicates: result.duplicateCount,
           },
         );
 
         // Persist the URL set + deduped articles for next run's incremental pass.
-        const allUrls = deduped.map((a) => a.url);
+        const allUrls = result.deduped.map((a) => a.url);
         await context.writeResource(
           "dedupedUrls",
           "dedupedUrls-current",
-          { urls: allUrls, articles: deduped } as unknown as Record<string, unknown>,
+          { urls: allUrls, articles: result.deduped } as unknown as Record<string, unknown>,
         );
 
         const handle = await context.writeResource(
@@ -2378,7 +2312,7 @@ export const model = {
           "feed-snapshot",
           {
             fetchedAt: snapshotData.fetchedAt,
-            articles: deduped,
+            articles: result.deduped,
             errors: snapshotData.errors,
             nonFeedUrls:
               (snapshotData as unknown as Record<string, unknown>).nonFeedUrls ?? [],

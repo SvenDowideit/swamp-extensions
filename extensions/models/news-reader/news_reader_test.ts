@@ -11,9 +11,13 @@ import {
   computeKeywordWeights,
   dayKey,
   dedupeArticlesIncremental,
+  escapeHtml,
   extractEntities,
+  extractJsonObject,
   extractKeywords,
   generateHtml,
+  hashId,
+  isFeedBody,
   parseFeed,
   parseNewsAge,
   type Preferences,
@@ -23,6 +27,7 @@ import {
   scoreArticle,
   selectClustersToSeed,
   shouldSkipCluster,
+  stripHtml,
 } from "./news_reader.ts";
 
 const sampleArticle = (overrides: Partial<Article> = {}): Article => ({
@@ -885,4 +890,568 @@ Deno.test("renderStories includes citation links", () => {
   const html = renderStories([storySample()]);
   assertEquals(html.includes("https://example.com/a1"), true);
   assertEquals(html.includes("Article one"), true);
+});
+
+// ---------------------------------------------------------------------------
+// hashId
+// ---------------------------------------------------------------------------
+
+Deno.test("hashId produces deterministic output", async () => {
+  const a = await hashId("hello");
+  const b = await hashId("hello");
+  assertEquals(a, b);
+});
+
+Deno.test("hashId produces different output for different input", async () => {
+  const a = await hashId("hello");
+  const b = await hashId("world");
+  assertEquals(a === b, false);
+});
+
+Deno.test("hashId handles empty string", async () => {
+  const h = await hashId("");
+  assertEquals(typeof h, "string");
+  assertEquals(h.length, 12);
+});
+
+Deno.test("hashId output is 12 hex chars", async () => {
+  const h = await hashId("test");
+  assertEquals(h.length, 12);
+  assertEquals(/^[0-9a-f]+$/.test(h), true);
+});
+
+// ---------------------------------------------------------------------------
+// stripHtml
+// ---------------------------------------------------------------------------
+
+Deno.test("stripHtml removes HTML tags", () => {
+  assertEquals(stripHtml("<p>Hello</p>"), "Hello");
+});
+
+Deno.test("stripHtml removes CDATA sections", () => {
+  assertEquals(stripHtml("<![CDATA[Hello world]]>"), "Hello world");
+});
+
+Deno.test("stripHtml decodes HTML entities", () => {
+  assertEquals(stripHtml("a&amp;b &lt; c &gt; d"), "a&b < c > d");
+});
+
+Deno.test("stripHtml decodes &nbsp; and &quot;", () => {
+  assertEquals(stripHtml("a&nbsp;b &quot;c&quot;"), "a b \"c\"");
+});
+
+Deno.test("stripHtml collapses whitespace", () => {
+  assertEquals(stripHtml("a   b\n\nc"), "a b c");
+});
+
+Deno.test("stripHtml handles empty string", () => {
+  assertEquals(stripHtml(""), "");
+});
+
+Deno.test("stripHtml handles nested tags", () => {
+  assertEquals(stripHtml("<div><p>text</p></div>"), "text");
+});
+
+// ---------------------------------------------------------------------------
+// escapeHtml
+// ---------------------------------------------------------------------------
+
+Deno.test("escapeHtml escapes ampersand", () => {
+  assertEquals(escapeHtml("a & b"), "a &amp; b");
+});
+
+Deno.test("escapeHtml escapes angle brackets", () => {
+  assertEquals(escapeHtml("<script>"), "&lt;script&gt;");
+});
+
+Deno.test("escapeHtml escapes double quotes", () => {
+  assertEquals(escapeHtml('"hello"'), "&quot;hello&quot;");
+});
+
+Deno.test("escapeHtml escapes single quotes", () => {
+  assertEquals(escapeHtml("it's"), "it&#39;s");
+});
+
+Deno.test("escapeHtml handles empty string", () => {
+  assertEquals(escapeHtml(""), "");
+});
+
+Deno.test("escapeHtml handles plain text unchanged", () => {
+  assertEquals(escapeHtml("Hello world"), "Hello world");
+});
+
+Deno.test("escapeHtml handles already-escaped text", () => {
+  assertEquals(escapeHtml("&amp;"), "&amp;amp;");
+});
+
+// ---------------------------------------------------------------------------
+// extractJsonObject
+// ---------------------------------------------------------------------------
+
+Deno.test("extractJsonObject parses plain JSON", () => {
+  const result = extractJsonObject<{ key: string }>('{"key":"value"}');
+  assertEquals(result.key, "value");
+});
+
+Deno.test("extractJsonObject strips markdown code fences", () => {
+  const result = extractJsonObject<{ key: string }>('```json\n{"key":"value"}\n```');
+  assertEquals(result.key, "value");
+});
+
+Deno.test("extractJsonObject strips markdown fences without language", () => {
+  const result = extractJsonObject<{ key: string }>('```\n{"key":"value"}\n```');
+  assertEquals(result.key, "value");
+});
+
+Deno.test("extractJsonObject extracts JSON from surrounding prose", () => {
+  const result = extractJsonObject<{ key: string }>('Here is the result: {"key":"value"} end.');
+  assertEquals(result.key, "value");
+});
+
+Deno.test("extractJsonObject handles nested objects", () => {
+  const result = extractJsonObject<{ outer: { inner: string } }>(
+    '{"outer":{"inner":"deep"}}',
+  );
+  assertEquals(result.outer.inner, "deep");
+});
+
+Deno.test("extractJsonObject throws on no JSON object", () => {
+  assertThrows(() => extractJsonObject("no json here"));
+});
+
+Deno.test("extractJsonObject throws on empty string", () => {
+  assertThrows(() => extractJsonObject(""));
+});
+
+Deno.test("extractJsonObject handles arrays in JSON", () => {
+  const result = extractJsonObject<{ items: string[] }>(
+    '{"items":["a","b","c"]}',
+  );
+  assertEquals(result.items.length, 3);
+});
+
+// ---------------------------------------------------------------------------
+// isFeedBody
+// ---------------------------------------------------------------------------
+
+Deno.test("isFeedBody detects RSS XML by content-type", () => {
+  assertEquals(isFeedBody("application/rss+xml", ""), true);
+});
+
+Deno.test("isFeedBody detects Atom XML by content-type", () => {
+  assertEquals(isFeedBody("application/atom+xml", ""), true);
+});
+
+Deno.test("isFeedBody detects text/xml by content-type", () => {
+  assertEquals(isFeedBody("text/xml", ""), true);
+});
+
+Deno.test("isFeedBody detects application/xml by content-type", () => {
+  assertEquals(isFeedBody("application/xml", ""), true);
+});
+
+Deno.test("isFeedBody detects JSON feed by content-type", () => {
+  assertEquals(isFeedBody("application/feed+json", ""), true);
+});
+
+Deno.test("isFeedBody rejects HTML by content-type", () => {
+  assertEquals(isFeedBody("text/html", ""), false);
+});
+
+Deno.test("isFeedBody rejects XHTML by content-type", () => {
+  assertEquals(isFeedBody("application/xhtml+xml", ""), false);
+});
+
+Deno.test("isFeedBody detects RSS by body content", () => {
+  assertEquals(isFeedBody("text/plain", '<?xml version="1.0"?><rss version="2.0"><channel>'), true);
+});
+
+Deno.test("isFeedBody detects Atom by body content", () => {
+  assertEquals(isFeedBody("text/plain", '<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom">'), true);
+});
+
+Deno.test("isFeedBody detects JSON feed by body content", () => {
+  assertEquals(isFeedBody("text/plain", '{"version":"https://jsonfeed.org/version/1.1","items":[]}'), true);
+});
+
+Deno.test("isFeedBody rejects HTML by body content", () => {
+  assertEquals(isFeedBody("text/plain", "<!doctype html><html><head>"), false);
+});
+
+Deno.test("isFeedBody rejects HTML with body tag", () => {
+  assertEquals(isFeedBody("text/plain", "<html><body>content</body></html>"), false);
+});
+
+Deno.test("isFeedBody rejects HTML with title tag", () => {
+  assertEquals(isFeedBody("text/plain", "<html><head><title>Page</title>"), false);
+});
+
+Deno.test("isFeedBody returns false for unknown content", () => {
+  assertEquals(isFeedBody("application/octet-stream", "binary data"), false);
+});
+
+Deno.test("isFeedBody handles empty body", () => {
+  // text/xml content-type alone is enough to identify a feed
+  assertEquals(isFeedBody("text/xml", ""), true);
+  // Unknown content-type with empty body is not a feed
+  assertEquals(isFeedBody("application/octet-stream", ""), false);
+});
+
+// ---------------------------------------------------------------------------
+// Edge cases for existing functions
+// ---------------------------------------------------------------------------
+
+Deno.test("parseNewsAge handles uppercase units", () => {
+  assertEquals(parseNewsAge("3D"), 3 * 24 * 60 * 60 * 1000);
+  assertEquals(parseNewsAge("2H"), 2 * 60 * 60 * 1000);
+});
+
+Deno.test("parseNewsAge rejects negative numbers", () => {
+  assertThrows(() => parseNewsAge("-3d"));
+});
+
+Deno.test("parseNewsAge rejects zero", () => {
+  // "0d" is actually valid — it parses to 0ms. The regex matches \d+.
+  // Test that it doesn't throw and returns 0.
+  assertEquals(parseNewsAge("0d"), 0);
+});
+
+Deno.test("extractKeywords handles empty input", () => {
+  assertEquals(extractKeywords("", "").length, 0);
+});
+
+Deno.test("extractKeywords handles only stopwords", () => {
+  const kw = extractKeywords("the and or but", "with for from");
+  assertEquals(kw.length, 0);
+});
+
+Deno.test("extractKeywords handles duplicate words", () => {
+  const kw = extractKeywords("quantum quantum quantum", "computing computing");
+  assertEquals(kw.includes("quantum"), true);
+  assertEquals(kw.includes("computing"), true);
+});
+
+Deno.test("extractEntities handles empty input", () => {
+  assertEquals(extractEntities("", "").length, 0);
+});
+
+Deno.test("extractEntities handles only stop-entity words", () => {
+  const entities = extractEntities("The And Or But", "With For From");
+  assertEquals(entities.length, 0);
+});
+
+Deno.test("canonicalUrl drops port from hostname", () => {
+  // URL.hostname does not include port
+  assertEquals(canonicalUrl("https://example.com:8080/path"), "example.com/path");
+});
+
+Deno.test("canonicalUrl handles IP address", () => {
+  assertEquals(canonicalUrl("http://192.168.1.1/path"), "192.168.1.1/path");
+});
+
+Deno.test("dayKey handles epoch date", () => {
+  assertEquals(dayKey("1970-01-01T00:00:00Z"), "1970-01-01");
+});
+
+Deno.test("clusterKey handles empty entities", () => {
+  const key = clusterKey("topic", []);
+  assertEquals(typeof key, "string");
+  assertEquals(key.length > 0, true);
+});
+
+Deno.test("clusterStories handles empty articles array", () => {
+  const { clusters, absorbable } = clusterStories([]);
+  assertEquals(clusters.length, 0);
+  assertEquals(absorbable.length, 0);
+});
+
+Deno.test("clusterStories handles single article", () => {
+  const { clusters } = clusterStories([sampleArticle()]);
+  assertEquals(clusters.length, 1);
+  assertEquals(clusters[0].articles.length, 1);
+});
+
+Deno.test("clusterStories respects maxClusterSize", () => {
+  const articles = Array.from({ length: 50 }, (_, i) =>
+    sampleArticle({
+      id: `a${i}`,
+      title: "Same OpenAI story",
+      summary: "OpenAI chip news",
+      url: `https://openai.example/${i}`,
+    })
+  );
+  const { clusters } = clusterStories(articles, [], 10);
+  for (const c of clusters) {
+    assertEquals(c.articles.length <= 10, true);
+  }
+});
+
+Deno.test("ageOutCitations handles all citations older than retention", () => {
+  const old = Date.now() - 40 * 24 * 3600 * 1000;
+  const story = storySample({
+    citations: [
+      {
+        url: "https://example.com/old1",
+        title: "Old 1",
+        source: "example.com",
+        publishedAt: new Date(old).toISOString(),
+        firstSeenAt: new Date(old).toISOString(),
+      },
+      {
+        url: "https://example.com/old2",
+        title: "Old 2",
+        source: "example.com",
+        publishedAt: new Date(old).toISOString(),
+        firstSeenAt: new Date(old).toISOString(),
+      },
+    ],
+  });
+  const aged = ageOutCitations(story, 30);
+  assertEquals(aged.citations.length, 0);
+  assertEquals(aged.core.length, 1);
+});
+
+Deno.test("ageOutCitations handles story with no citations", () => {
+  const story = storySample({ citations: [] });
+  const aged = ageOutCitations(story, 30);
+  assertEquals(aged.citations.length, 0);
+});
+
+Deno.test("renderStories handles story with no core claims", () => {
+  const story = storySample({ core: [] });
+  const html = renderStories([story]);
+  assertEquals(html.includes("<section class=\"stories\">"), true);
+});
+
+Deno.test("renderStories handles story with no citations", () => {
+  const story = storySample({ citations: [] });
+  const html = renderStories([story]);
+  assertEquals(html.includes("<section class=\"stories\">"), true);
+});
+
+Deno.test("renderStories handles very long topic text", () => {
+  const story = storySample({
+    identity: {
+      ...storySample().identity,
+      topic: "A".repeat(500),
+    },
+  });
+  const html = renderStories([story]);
+  assertEquals(html.includes("A".repeat(500)), true);
+});
+
+Deno.test("parseFeed handles empty XML", () => {
+  assertEquals(parseFeed("", "https://example.com/feed.xml").length, 0);
+});
+
+Deno.test("parseFeed handles RSS with no items", () => {
+  const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Empty</title></channel></rss>`;
+  assertEquals(parseFeed(xml, "https://example.com/feed.xml").length, 0);
+});
+
+Deno.test("parseFeed handles Atom with no entries", () => {
+  const xml = `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><title>Empty</title></feed>`;
+  assertEquals(parseFeed(xml, "https://example.com/atom.xml").length, 0);
+});
+
+Deno.test("parseFeed handles non-ASCII characters", () => {
+  const xml = `<?xml version="1.0"?>
+<rss version="2.0">
+<channel>
+<item>
+<title>Café résumé</title>
+<link>https://example.com/1</link>
+<description>Crème brûlée</description>
+</item>
+</channel>
+</rss>`;
+  const articles = parseFeed(xml, "https://example.com/feed.xml");
+  assertEquals(articles.length, 1);
+  assertEquals(articles[0].title, "Café résumé");
+});
+
+Deno.test("parseFeed handles missing pubDate", () => {
+  const xml = `<?xml version="1.0"?>
+<rss version="2.0">
+<channel>
+<item>
+<title>No date</title>
+<link>https://example.com/1</link>
+<description>No publication date</description>
+</item>
+</channel>
+</rss>`;
+  const articles = parseFeed(xml, "https://example.com/feed.xml");
+  assertEquals(articles.length, 1);
+  assertEquals(articles[0].publishedAt.length > 0, true);
+});
+
+Deno.test("computeKeywordWeights handles empty preferences", () => {
+  const prefs: Preferences = {
+    interested: [],
+    ignored: [],
+    keywordWeights: {},
+    seen: [],
+    read: [],
+  };
+  assertEquals(Object.keys(computeKeywordWeights(prefs)).length, 0);
+});
+
+Deno.test("computeKeywordWeights handles duplicate keywords across entries", () => {
+  const prefs: Preferences = {
+    interested: [
+      { articleId: "1", recordedAt: "", source: "", title: "", keywords: ["ai", "tech"] },
+      { articleId: "2", recordedAt: "", source: "", title: "", keywords: ["ai", "science"] },
+    ],
+    ignored: [
+      { articleId: "3", recordedAt: "", source: "", title: "", keywords: ["sports"] },
+    ],
+    keywordWeights: {},
+    seen: [],
+    read: [],
+  };
+  const weights = computeKeywordWeights(prefs);
+  assertEquals(weights.ai, 2);
+  assertEquals(weights.tech, 1);
+  assertEquals(weights.science, 1);
+  assertEquals(weights.sports, -1);
+});
+
+Deno.test("scoreArticle handles article with no keywords", () => {
+  const weights: Record<string, number> = { ai: 5 };
+  const article = sampleArticle({ keywords: [] });
+  const { score, reasons } = scoreArticle(article, weights);
+  assertEquals(score, 0);
+  assertEquals(reasons.length, 0);
+});
+
+Deno.test("scoreArticle handles keywords not in weights", () => {
+  const weights: Record<string, number> = { ai: 5 };
+  const article = sampleArticle({ keywords: ["cooking"] });
+  const { score } = scoreArticle(article, weights);
+  assertEquals(score, 0);
+});
+
+Deno.test("generateHtml handles empty articles array", () => {
+  const prefs: Preferences = {
+    interested: [],
+    ignored: [],
+    keywordWeights: {},
+    seen: [],
+    read: [],
+  };
+  const html = generateHtml([], prefs, "Test", "2026-07-17T00:00:00Z");
+  assertEquals(html.includes("<!DOCTYPE html>"), true);
+  assertEquals(html.includes("Test"), true);
+});
+
+Deno.test("generateHtml handles articles with no source", () => {
+  const articles = [{ ...sampleArticle({ source: "" }), score: 0, reasons: [] }];
+  const prefs: Preferences = {
+    interested: [],
+    ignored: [],
+    keywordWeights: {},
+    seen: [],
+    read: [],
+  };
+  const html = generateHtml(articles, prefs, "Test", "2026-07-17T00:00:00Z");
+  assertEquals(html.includes("<!DOCTYPE html>"), true);
+});
+
+Deno.test("generateHtml handles very long titles", () => {
+  const articles = [{
+    ...sampleArticle({ title: "A".repeat(500) }),
+    score: 0,
+    reasons: [],
+  }];
+  const prefs: Preferences = {
+    interested: [],
+    ignored: [],
+    keywordWeights: {},
+    seen: [],
+    read: [],
+  };
+  const html = generateHtml(articles, prefs, "Test", "2026-07-17T00:00:00Z");
+  assertEquals(html.includes("A".repeat(500)), true);
+});
+
+Deno.test("dedupeArticlesIncremental handles empty articles array", () => {
+  const result = dedupeArticlesIncremental([], [], []);
+  assertEquals(result.deduped.length, 0);
+  assertEquals(result.newCount, 0);
+  assertEquals(result.reusedCount, 0);
+});
+
+Deno.test("dedupeArticlesIncremental handles all new articles", () => {
+  const articles = [
+    sampleArticle({ id: "a1", url: "https://example.com/1" }),
+    sampleArticle({ id: "a2", url: "https://example.com/2" }),
+  ];
+  const result = dedupeArticlesIncremental(articles, [], []);
+  assertEquals(result.newCount, 2);
+  assertEquals(result.reusedCount, 0);
+  assertEquals(result.deduped.length, 2);
+});
+
+Deno.test("dedupeArticlesIncremental handles all reused articles", () => {
+  const articles = [
+    sampleArticle({ id: "a1", url: "https://example.com/1" }),
+  ];
+  const prevUrls = ["https://example.com/1"];
+  const prevArticles = [
+    sampleArticle({ id: "a1", url: "https://example.com/1" }),
+  ];
+  const result = dedupeArticlesIncremental(articles, prevUrls, prevArticles);
+  assertEquals(result.newCount, 0);
+  assertEquals(result.reusedCount, 1);
+});
+
+Deno.test("selectClustersToSeed handles minClusterSize of 1", () => {
+  const clusters: StoryCluster[] = [
+    clusterSample({
+      articles: [sampleArticle({ id: "a1" })],
+      key: clusterKey("Solo", [{ name: "Entity1", kind: "org" }]),
+    }),
+  ];
+  const toSeed = selectClustersToSeed(clusters, [], 1);
+  assertEquals(toSeed.length, 1);
+});
+
+Deno.test("selectClustersToSeed handles empty clusters array", () => {
+  assertEquals(selectClustersToSeed([], [], 2).length, 0);
+});
+
+Deno.test("selectClustersToSeed handles empty existing stories", () => {
+  const clusters: StoryCluster[] = [clusterSample()];
+  const toSeed = selectClustersToSeed(clusters, [], 2);
+  assertEquals(toSeed.length, 1);
+});
+
+Deno.test("shouldSkipCluster returns false when both fingerprints are empty", () => {
+  // Empty fingerprints are falsy — should NOT skip (no data to compare).
+  const c = clusterSample();
+  c.fingerprint = "";
+  const prev = clusterSample();
+  prev.fingerprint = "";
+  const prevByKey = new Map([[c.key, prev]]);
+  assertEquals(shouldSkipCluster(c, prevByKey), false);
+});
+
+Deno.test("computeClusterFingerprint handles single article", async () => {
+  const c = clusterSample({ articles: [sampleArticle({ id: "a1" })] });
+  const fp = await computeClusterFingerprint(c, "llama3", 0.1);
+  assertEquals(typeof fp, "string");
+  assertEquals(fp.length, 12);
+});
+
+Deno.test("computeClusterFingerprint handles temperature boundary 0", async () => {
+  const c = clusterSample();
+  const fp = await computeClusterFingerprint(c, "llama3", 0);
+  assertEquals(typeof fp, "string");
+});
+
+Deno.test("computeClusterFingerprint handles temperature boundary 2", async () => {
+  const c = clusterSample();
+  const fp = await computeClusterFingerprint(c, "llama3", 2);
+  assertEquals(typeof fp, "string");
 });

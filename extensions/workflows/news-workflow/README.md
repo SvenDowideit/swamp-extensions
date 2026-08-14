@@ -3,26 +3,80 @@
 A swamp workflow extension that orchestrates the full news feedback loop — from
 fetching RSS/Atom feeds to generating a personalized HTML news summary.
 
-## What it does
+## Architecture
+
+The system is split into three workflows running at different cadences:
+
+| Workflow | Schedule | Purpose |
+|---|---|---|
+| `news` | Every 4h | Fast path — fetch, filter, generate HTML. No LLM, no catalog maintenance. |
+| `news-fusion` | Every 12h | LLM story clustering — cluster, fuse, seed, render. Best-effort enrichment. |
+| `news-curation` | Daily 3am | Catalog maintenance — dedupe feeds, discover new feeds, analyze pages. |
+
+This split means the news page updates in ~5 minutes (was 10-15), the LLM server
+is only hit twice a day, and catalog maintenance doesn't block the news page.
+
+### Data flow
+
+```
+news-curation (daily)          news (every 4h)           news-fusion (every 12h)
+─────────────────────          ────────────────           ────────────────────────
+dedupe → gather-feed-state     gather-feedback            cluster → fuse → seed
+  → discover → upsert-feed       → fetch                    → render
+gather-pages → analyze-pages     → dedupe-articles
+  → upsert-page                  → filter
+                                   → generate
+                                   → generate-feeds-html
+```
+
+The `news` workflow reads the catalog directly from the datastore (no dependency
+on curation having just run). The `news-fusion` workflow reads `filtered-snapshot`
+from the datastore and writes `stories-current`/`stories-html-current` which the
+`news` workflow's `generate` step includes in the HTML page. Stories are
+eventually consistent — new articles appear immediately; fused stories appear on
+the next fusion run.
+
+## What each workflow does
+
+### `news` (fast path, every 4h)
 
 1. **Gather feedback** — polls the feedback queue server for 👍/👎 clicks from
    the HTML page, imports them into preferences.
-2. **Dedupe catalog feeds** — flags duplicate feeds in the catalog so they're
-   skipped during fetch.
-3. **Gather feed state** — applies enable/disable toggles from the feeds page.
-4. **Fetch** — downloads RSS/Atom feeds, parses articles, stores snapshot.
-5. **Dedupe articles** — groups articles by URL, marks duplicates, annotates
+2. **Fetch** — downloads RSS/Atom feeds from the catalog, parses articles, stores
+   snapshot.
+3. **Dedupe articles** — groups articles by URL, marks duplicates, annotates
    primary articles with cross-feed source info.
-6. **Filter by age** — keeps only articles within the configured time range
+4. **Filter by age** — keeps only articles within the configured time range
    (default: last 3 days), skipping duplicate-marked articles.
-7. **Generate HTML** — scores articles against learned keyword preferences,
-   writes a static HTML page with cross-feed duplicate indicators.
-8. **Generate feeds HTML** — renders a feeds.html catalog listing with per-feed
+5. **Generate HTML** — scores articles against learned keyword preferences,
+   writes a static HTML page with fused stories rendered inline.
+6. **Generate feeds HTML** — renders a feeds.html catalog listing with per-feed
    article counts, cross-feed sharing lines, and engagement-based sorting.
-9. **Discover new feeds** — crawls article domains to find new RSS/Atom feeds.
-10. **Upsert discovered feeds** — adds newly discovered feeds to the catalog.
-11. **Gather pages** — polls the pages queue for URLs to analyze.
-12. **Analyze pages** — discovers feeds from queued page URLs.
+
+### `news-fusion` (LLM, every 12h)
+
+1. **Cluster** — deterministically groups filtered articles into same-story
+   clusters (no LLM). Guarded: skips if `filtered-snapshot` doesn't exist yet.
+2. **Fuse** — LLM-delta pass: absorbs clustered articles into existing persistent
+   stories, keeping provenance per claim.
+3. **Seed** — LLM-seed: creates fresh `Story` objects for clusters with no
+   existing story.
+4. **Render** — renders accumulated stories into an inline `storiesHtml` fragment
+   included in `news.html`.
+
+All steps `allowFailure: true` — fusion is best-effort enrichment.
+
+### `news-curation` (daily 3am)
+
+1. **Dedupe** — fetches each catalog feed, groups by content identity, marks
+   duplicate feeds. Uses incremental caching (Phase 1.5).
+2. **Gather feed state** — applies enable/disable toggles from the feeds page.
+3. **Discover** — crawls article domains to find new RSS/Atom feeds.
+4. **Upsert feed** — adds newly discovered feeds to the catalog (forEach).
+5. **Gather pages** — polls the pages queue for URLs to analyze (independent
+   sub-chain).
+6. **Analyze pages** — discovers feeds from queued page URLs.
+7. **Upsert page** — adds discovered page feeds to the catalog (forEach).
 
 ## Installation
 
@@ -30,8 +84,8 @@ fetching RSS/Atom feeds to generating a personalized HTML news summary.
 swamp extension pull @svendowideit/news-workflow
 ```
 
-This pulls the workflow YAML and the feedback server scripts. The model
-extensions it depends on must be pulled separately:
+This pulls the three workflow YAML files and the feedback server scripts. The
+model extensions it depends on must be pulled separately:
 
 ```sh
 swamp extension pull @svendowideit/news-reader
@@ -40,10 +94,10 @@ swamp extension pull @svendowideit/feed-discovery
 swamp extension pull @svendowideit/feed-analysis
 ```
 
-Then create the model instances the workflow references:
+Then create the model instances the workflows reference:
 
 ```sh
-swamp model create @svendowideit/news-reader news-reader
+swamp model create @svendowideit/news-reader local-news
 swamp model create @svendowideit/feed-catalog feed-catalog
 swamp model create @svendowideit/feed-discovery feed-discovery
 swamp model create @svendowideit/feed-analysis feed-analysis
@@ -62,17 +116,23 @@ swamp model method run feed-catalog add --input url="https://feeds.bbci.co.uk/ne
 deno run --allow-net --allow-read --allow-write scripts/feedback-server.ts --html news.html --feeds feeds.html
 ```
 
-### Run the workflow
+### Run the workflows
 
 ```sh
-# Default: last 3 days, all catalog feeds
-swamp workflow run @svendowideit/news
+# Fast path — fetch, filter, generate HTML (no LLM)
+swamp workflow run news
 
 # Custom age range
-swamp workflow run @svendowideit/news --input newsAge=1w
+swamp workflow run news --input newsAge=1w
 
 # Override feeds
-swamp workflow run @svendowideit/news --input 'feeds:json=["https://feeds.bbci.co.uk/news/rss.xml"]'
+swamp workflow run news --input 'feeds:json=["https://feeds.bbci.co.uk/news/rss.xml"]'
+
+# Run fusion manually (LLM story clustering)
+swamp workflow run news-fusion
+
+# Run curation manually (catalog maintenance)
+swamp workflow run news-curation
 
 # View the results
 open http://localhost:8765           # news.html
@@ -81,10 +141,16 @@ open http://localhost:8765/feeds.html  # feeds listing
 
 ### Scheduled execution
 
-The workflow includes a `trigger.schedule: "0 */4 * * *"` — every 4 hours.
-When running `swamp serve`, the workflow fires automatically.
+All three workflows have `trigger.schedule` set. When running `swamp serve`,
+they fire automatically:
+
+- `news` — every 4 hours
+- `news-fusion` — every 12 hours
+- `news-curation` — daily at 3am
 
 ## Inputs
+
+### `news` workflow
 
 | Input | Type | Default | Description |
 |---|---|---|---|
@@ -92,6 +158,14 @@ When running `swamp serve`, the workflow fires automatically.
 | `newsAge` | `string` | `3d` | Time range (h/d/w/m) |
 | `topN` | `integer` | `0` | Articles in HTML report (0=all) |
 | `outputPath` | `string` | `news.html` | Output HTML file path |
+| `feedbackServerUrl` | `string` | `http://localhost:8765` | Feedback queue server URL |
+| `feedbackBatchSize` | `integer` | `100` | Feedback entries per batch |
+| `feedbackMaxBatches` | `integer` | `20` | Max batches per run |
+
+### `news-curation` workflow
+
+| Input | Type | Default | Description |
+|---|---|---|---|
 | `discoverNewFeeds` | `boolean` | `true` | Whether to discover new feeds |
 | `maxSitesToCrawl` | `integer` | `10` | Max domains to crawl for discovery |
 | `dryRun` | `boolean` | `false` | Discover but don't add to catalog |
@@ -107,16 +181,18 @@ When running `swamp serve`, the workflow fires automatically.
 | `probeCommonPaths` | `boolean` | `true` | Probe common feed paths |
 ## Story fusion (LLM)
 
-The workflow has an optional, LLM-driven fusion pass that turns short-lived
-filtered articles into **persistent story objects** that survive the age-filter
-window:
+Story fusion runs as a separate `news-fusion` workflow (every 12h). It turns
+short-lived filtered articles into **persistent story objects** that survive the
+age-filter window:
 
 1. **cluster** — `clusterArticles`: deterministically groups filtered articles
-   into same-story clusters (no LLM, gated by `fusionMinClusterSize`).
+   into same-story clusters (no LLM). Guarded: skips if no `filtered-snapshot`
+   exists yet.
 2. **fuse** — `fuseStories`: absorbs each cluster's articles into an existing
-   persistent story, keeping provenance per claim.
+   persistent story, keeping provenance per claim. Skips unchanged clusters
+   (Phase 1.2 fingerprint comparison).
 3. **seed** — `seedStories`: creates a fresh `Story` object for clusters with no
-   existing story.
+   existing story. Uses parallel LLM calls (Phase 1.1).
 4. **render** — `renderStories`: renders the accumulated stories into an inline
    `storiesHtml` fragment included in `news.html`.
 
@@ -137,6 +213,7 @@ instance `local-news` (`models/@svendowideit/news-reader/e2f17e65-f276-48b2-b381
 | `llmModel` | `""` | Model tag used by the fusion LLM calls. **Empty = fusion disabled**. Set a tag to enable. |
 | `llmApiKey` | — | API key for LLM servers that require auth (Ollama usually doesn't). |
 | `llmTemperature` | `0.1` | Sampling temperature (low = deterministic extraction). |
+| `llmConcurrency` | `3` | Max parallel LLM calls (Phase 1.1). Tune based on your LLM server. |
 | `fusionMinClusterSize` | `2` | Minimum cluster size before LLM fusion triggers. |
 | `citationRetentionDays` | `30` | How long article citations live before aging out; core facts always survive. |
 
@@ -153,10 +230,10 @@ globalArguments:
   llmModel: llama3
 ```
 
-Then just run the workflow — no special input needed:
+Then run the fusion workflow:
 
 ```sh
-swamp workflow run @svendowideit/news
+swamp workflow run news-fusion
 ```
 
 #### Enable a remote/proxied LLM with an API key
@@ -167,6 +244,7 @@ globalArguments:
   llmModel: gpt-4o-mini
   llmApiKey: sk-...            # your key
   llmTemperature: 0.1
+  llmConcurrency: 5
   fusionMinClusterSize: 2
   citationRetentionDays: 30
 ```

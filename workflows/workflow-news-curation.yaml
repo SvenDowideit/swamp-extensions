@@ -1,0 +1,201 @@
+id: 27ae2513-825f-4445-b325-97cbb40ed816
+name: news-curation
+description: |
+  Feed catalog maintenance — deduplicates feeds by content identity, gathers
+  feed enable/disable state from the feedback server, discovers new RSS feeds
+  from article URLs, and analyzes queued pages for feed discovery.
+
+  Runs daily at 3am. All steps allow failure — curation is best-effort
+  maintenance. The news workflow reads the catalog's current state directly
+  from the datastore.
+
+  Steps: dedupe → gather-feed-state → discover → upsert-feed
+         gather-pages → analyze-pages → upsert-page (independent sub-chain)
+tags: {}
+trigger:
+  schedule: 0 3 * * *
+  inputs:
+    discoverNewFeeds: true
+inputs:
+  properties:
+    discoverNewFeeds:
+      type: boolean
+      default: true
+      description: Whether to discover new feeds from article URLs.
+    maxSitesToCrawl:
+      type: integer
+      default: 10
+      description: Maximum new domains to crawl for feed discovery.
+    dryRun:
+      type: boolean
+      default: false
+      description: If true, discover feeds but don't add them to the catalog.
+    category:
+      type: string
+      default: discovered
+      description: Category tag for discovered feeds in the catalog.
+    feedbackServerUrl:
+      type: string
+      default: http://localhost:8765
+      description: URL of the feedback queue HTTP server.
+    feedbackBatchSize:
+      type: integer
+      default: 100
+      description: Number of feedback entries to process per batch.
+    feedbackMaxBatches:
+      type: integer
+      default: 20
+      description: Maximum number of batches to process in one run.
+    pagesServerUrl:
+      type: string
+      default: http://localhost:8765
+      description: URL of the pages queue HTTP server.
+    pagesBatchSize:
+      type: integer
+      default: 100
+      description: Number of queued pages to process per batch.
+    pagesMaxBatches:
+      type: integer
+      default: 20
+      description: Maximum number of batches to process in one run.
+    pagesCategory:
+      type: string
+      default: discovered
+      description: Category tag for queued pages when added to the catalog.
+    maxPagesPerRun:
+      type: integer
+      default: 50
+      description: Maximum number of gathered pages to analyze for feed discovery
+        per run.
+    probeCommonPaths:
+      type: boolean
+      default: true
+      description: When no feed link is advertised, probe common feed paths on the
+        page's site root.
+  required: []
+jobs:
+- name: main
+  description: Deduplicate catalog, gather feed state, discover new feeds, analyze pages.
+  steps:
+  - name: dedupe
+    description: Fetch each catalog feed, group by content identity, and mark duplicate
+      feeds so fetch skips them.
+    task:
+      type: model_method
+      modelIdOrName: feed-catalog
+      methodName: dedupe
+      inputs: {}
+    dependsOn: []
+    weight: 0
+    allowFailure: true
+  - name: gather-feed-state
+    description: Poll the feedback server's /api/feed endpoint, apply enabled/disabled
+      state to the catalog, and delete processed entries.
+    task:
+      type: model_method
+      modelIdOrName: feed-catalog
+      methodName: gatherFeedState
+      inputs:
+        serverUrl: ${{ inputs.feedbackServerUrl }}
+        batchSize: ${{ inputs.feedbackBatchSize }}
+        maxBatches: ${{ inputs.feedbackMaxBatches }}
+    dependsOn:
+    - step: dedupe
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: failed
+    weight: 0
+    allowFailure: true
+  - name: discover
+    description: Discover new RSS feeds from article URLs.
+    task:
+      type: model_method
+      modelIdOrName: feed-discovery
+      methodName: discover
+      inputs:
+        maxSitesToCrawl: ${{ inputs.maxSitesToCrawl }}
+        dryRun: ${{ inputs.dryRun }}
+    dependsOn:
+    - step: gather-feed-state
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: true
+  - name: upsert-feed[${{ self.feed.title }}]
+    description: Add each discovered feed to the feed-catalog.
+    forEach:
+      item: feed
+      in: ${{ data.latest("feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([])
+        }}
+    concurrency: 3
+    task:
+      type: model_method
+      modelIdOrName: feed-catalog
+      methodName: add
+      inputs:
+        url: ${{ self.feed.url }}
+        category: ${{ inputs.category }}
+        name: ${{ self.feed.title }}
+    dependsOn:
+    - step: discover
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: true
+  - name: gather-pages
+    description: Poll the pages queue server and collect queued page URLs into a data
+      resource.
+    task:
+      type: model_method
+      modelIdOrName: local-news
+      methodName: gatherPages
+      inputs:
+        serverUrl: ${{ inputs.pagesServerUrl }}
+        batchSize: ${{ inputs.pagesBatchSize }}
+        maxBatches: ${{ inputs.pagesMaxBatches }}
+        category: ${{ inputs.pagesCategory }}
+    dependsOn: []
+    weight: 0
+    allowFailure: true
+  - name: analyze-pages
+    description: Analyze each gathered page and discover RSS/Atom feeds, writing a
+      page-discovery-result resource.
+    task:
+      type: model_method
+      modelIdOrName: feed-analysis
+      methodName: analyzePages
+      inputs:
+        maxPagesPerRun: ${{ inputs.maxPagesPerRun }}
+        probeCommonPaths: ${{ inputs.probeCommonPaths }}
+    dependsOn:
+    - step: gather-pages
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: true
+  - name: upsert-page[${{ self.feed.title }}]
+    description: Add each discovered page feed to the feed-catalog.
+    forEach:
+      item: feed
+      in: ${{ data.latest("feed-analysis", "page-discovery-result").?attributes.?discoveredFeeds.orValue([])
+        }}
+    concurrency: 3
+    task:
+      type: model_method
+      modelIdOrName: feed-catalog
+      methodName: add
+      inputs:
+        url: ${{ self.feed.url }}
+        category: ${{ self.feed.category }}
+        name: ${{ self.feed.title }}
+    dependsOn:
+    - step: analyze-pages
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: true
+  dependsOn: []
+  weight: 0
+version: 1

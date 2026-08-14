@@ -1,0 +1,81 @@
+id: f5d98a8b-5f6e-45f9-a2f6-2938dbb16545
+name: news-fusion
+description: |
+  LLM-driven story fusion — clusters filtered articles into same-story groups,
+  fuses them into persistent stories via LLM delta passes, seeds new stories
+  for fresh clusters, and renders stories to an inline HTML fragment.
+
+  Runs every 12 hours. All steps allow failure — fusion is best-effort
+  enrichment. The news workflow reads the rendered stories HTML from the
+  datastore and includes it in the news page.
+
+  Steps: cluster → fuse → seed → render
+tags: {}
+trigger:
+  schedule: 0 */12 * * *
+inputs:
+  properties: {}
+  required: []
+jobs:
+- name: main
+  description: Cluster articles, fuse into stories, seed new stories, render HTML.
+  steps:
+  - name: cluster
+    description: Conservatively group filtered articles into same-story clusters (no LLM).
+    guard: ${{ data.latest("news-reader", "filtered-snapshot") == null }}
+    task:
+      type: model_method
+      modelIdOrName: local-news
+      methodName: clusterArticles
+      inputs: {}
+    dependsOn: []
+    weight: 0
+    allowFailure: true
+  - name: fuse
+    description: LLM-delta pass — absorb clustered articles into existing persistent stories.
+    task:
+      type: model_method
+      modelIdOrName: local-news
+      methodName: fuseStories
+      inputs: {}
+    dependsOn:
+    - step: cluster
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: true
+  - name: seed
+    description: LLM-seed persistent Story objects for fresh clusters with no existing story.
+    task:
+      type: model_method
+      modelIdOrName: local-news
+      methodName: seedStories
+      inputs: {}
+    dependsOn:
+    - step: fuse
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: skipped
+    weight: 0
+    allowFailure: true
+  - name: render
+    description: Render persistent stories to an inline storiesHtml fragment for the page.
+    task:
+      type: model_method
+      modelIdOrName: local-news
+      methodName: renderStories
+      inputs: {}
+    dependsOn:
+    - step: seed
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: skipped
+    weight: 0
+    allowFailure: true
+  dependsOn: []
+  weight: 0
+version: 1

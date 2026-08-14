@@ -38,10 +38,10 @@ These findings are incorporated into the plan below. Key issues found:
 | 1.3 | Cache entity extraction | ✅ Done | 1 test: `clusterStories caches entities on articles` |
 | 1.4 | Incremental dedupe-articles | ✅ Done | 7 tests for `dedupeArticlesIncremental` |
 | 1.5 | Incremental feed dedupe | ✅ Done | **No tests** — `dedupe-cache` resource logic is untested |
-| 2.1 | Fast news workflow | ⬜ Not started | — |
-| 2.2 | Fusion workflow | ⬜ Not started | — |
-| 2.3 | Curation workflow | ⬜ Not started | — |
-| 2.4 | Strip old workflow | ⬜ Not started | — |
+| 2.1 | Fast news workflow | ✅ Done | `workflows/workflow-news.yaml` — 6 steps, every 4h |
+| 2.2 | Fusion workflow | ✅ Done | `workflows/workflow-news-fusion.yaml` — 4 steps, every 12h |
+| 2.3 | Curation workflow | ✅ Done | `workflows/workflow-news-curation.yaml` — 7 steps, daily 3am |
+| 2.4 | Strip old workflow | ⬜ Not started | Keep monolithic `news.yaml` for one cycle to verify parity |
 | 3.1 | Batched fuseStories | ⬜ Not started | — |
 | 3.2 | Batched seedStories | ⬜ Not started | — |
 | 3.3 | Incremental clustering | ⬜ Not started | — |

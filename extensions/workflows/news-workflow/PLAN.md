@@ -6,6 +6,29 @@ system that's better than before.
 
 ---
 
+## Adversarial Review (pre-mortem)
+
+These findings are incorporated into the plan below. Key issues found:
+
+| # | Finding | Severity | Resolution |
+|---|---------|----------|------------|
+| 1 | `withConcurrency` using `queue.shift()` is not thread-safe — multiple workers can grab the same item | **Bug** | Use index-based atomic increment instead |
+| 2 | Ollama with MLX models (gemma4:e4b-mlx) may serialize concurrent requests server-side, reducing parallel speedup | **Over-estimate** | Lower expected speedup to 2-4×, add `llmConcurrency` config so user can tune |
+| 3 | Parallel `seedStories` has a race condition — two seeds could produce stories with the same key | **Bug** | Pre-compute which clusters need seeding before firing any LLM calls |
+| 4 | Entity cache via `(a as any)._entities` won't survive JSON serialization between `writeResource`/`readResource` | **Broken** | Add optional `entities?: string[]` to the `Article` type, populate in `clusterArticles`, serialize it |
+| 5 | Cluster fingerprint comparison needs the PREVIOUS run's clusters, but `fuseStories` reads the CURRENT run's `clusters-current` | **Missing data** | Write a `clusters-previous` resource at end of `fuseStories`, read it on next run |
+| 6 | Fingerprint should also factor in `llmModel` + `llmTemperature` — user changing model config should trigger re-fusion | **Missing check** | Include config hash in fingerprint |
+| 7 | `dedupe-articles` takes 4m40s and no optimisation addresses it | **Gap** | Added Phase 1.4: incremental dedupe |
+| 8 | `regenStories` processes ALL stories sequentially — could take hours with hundreds of stories | **Unbounded** | Added batching requirement to Phase 4.2 |
+| 9 | `regenStories` has no rollback — LLM hallucination corrupts all stories | **Data loss risk** | Write to `stories-regen` first, swap atomically after validation |
+| 10 | After split, `fetch` step's `dependsOn` references steps that moved to curation — needs updating | **Broken ref** | Documented in Phase 2.1 implementation notes |
+| 11 | Fusion workflow's `cluster` step fails if `filtered-snapshot` doesn't exist (news workflow hasn't run yet) | **Startup race** | Add guard on `cluster` step |
+| 12 | Cursor batching means stories are partially updated mid-cycle — HTML shows mix of fresh and stale | **UX note** | Acceptable (eventual consistency), documented |
+| 13 | New articles arriving mid-cycle overwrite `clusters-current`, invalidating cursor's `lastProcessedKey` | **Cursor invalidation** | Handle missing cluster keys gracefully (skip, don't crash) |
+| 14 | Citation capping drops seed articles — loses story origin context for `regenStory` | **Quality loss** | Always preserve seed article citations, cap the rest |
+
+---
+
 ## Phase 1 — Quick Wins (no architectural changes)
 
 These are pure code changes to `news_reader.ts`. No workflow YAML changes, no
@@ -13,42 +36,51 @@ new models, no data migration. Each is independently shippable.
 
 ### 1.1 Parallelize LLM calls
 
-**Impact:** 5-10× speedup on `fuseStories` and `seedStories`. Currently the
-`for...of` loops are sequential — each LLM call waits for the previous one.
-With a concurrency limit of 5, 200 clusters process in ~40 sequential slots
-instead of 200.
+**Impact:** 2-4× speedup on `fuseStories` and `seedStories` (revised down
+from 5-10× — Ollama with MLX models may serialize at the server level).
+Currently the `for...of` loops are sequential — each LLM call waits for the
+previous one. With a concurrency limit of 3-5, 200 clusters process in
+~50-70 sequential slots instead of 200.
 
-**Effort:** ~20 lines changed. Replace `for...of` with a concurrency-limited
-`Promise.all` helper.
+**Effort:** ~25 lines. Replace `for...of` with a concurrency-limited helper,
+add `llmConcurrency` to `GlobalArgsSchema`.
 
-**Risk:** Low. The LLM server (Ollama) handles concurrent requests natively.
-The only concern is memory if all prompts are built at once — mitigate by
-using a semaphore pattern that only fires N requests at a time.
+**Risk:** Medium. Ollama may queue or serialize concurrent requests depending
+on the model backend (MLX, CUDA, CPU). Start with concurrency 1 and tune up.
+Add `llmConcurrency` as a global argument so the user can adjust per model.
 
 **Implementation sketch:**
 
 ```typescript
+// Use index-based atomic increment — queue.shift() is not thread-safe
+// when multiple workers run concurrently.
 async function withConcurrency<T>(
   items: T[],
   concurrency: number,
-  fn: (item: T) => Promise<void>,
+  fn: (item: T, index: number) => Promise<void>,
 ): Promise<void> {
-  const queue = [...items];
+  let nextIndex = 0;
   async function worker(): Promise<void> {
-    while (queue.length > 0) {
-      const item = queue.shift()!;
-      await fn(item);
+    while (nextIndex < items.length) {
+      const idx = nextIndex++;
+      await fn(items[idx], idx);
     }
   }
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
 }
 ```
 
+Add to `GlobalArgsSchema`:
+```typescript
+llmConcurrency: z.number().int().min(1).max(20).default(3)
+```
+
 Apply to the cluster loop in `fuseStories` and the cluster loop in
 `seedStories`. The absorbable-article loop in `fuseStories` can also use it.
 
-**Verification:** Run the workflow. `fuse` step duration should drop from
-minutes to tens of seconds.
+**Verification:** Run the workflow with `llmConcurrency: 1` (baseline), then
+`llmConcurrency: 3`. `fuse` step duration should drop proportionally. If it
+doesn't, the LLM server is serializing — try a different model or server.
 
 ---
 
@@ -58,12 +90,12 @@ minutes to tens of seconds.
 typical run, 80-90% of clusters have the same article IDs as the previous
 run. Each skipped cluster saves one LLM call (~5-10s).
 
-**Effort:** ~30 lines. Store a fingerprint per cluster in `clusters-current`,
-compare on next run.
+**Effort:** ~40 lines. Store a fingerprint per cluster in `clusters-current`,
+compare against `clusters-previous` on next run. Include config hash so
+changing `llmModel` or `llmTemperature` triggers re-fusion.
 
-**Risk:** Low. The comparison is deterministic (sorted article ID list). If
-the fingerprint matches, the LLM would produce identical output — skipping
-is safe.
+**Risk:** Low. The comparison is deterministic. The config hash ensures
+model/temperature changes aren't silently ignored.
 
 **Implementation sketch:**
 
@@ -71,26 +103,42 @@ In `clusterArticles`, after building each cluster, compute a fingerprint:
 
 ```typescript
 const articleIds = cluster.articles.map(a => a.id).sort();
-const fingerprint = await hashId(articleIds.join(","));
+const configFingerprint = `${ga.llmModel}:${ga.llmTemperature}`;
+const fingerprint = await hashId(articleIds.join(",") + "|" + configFingerprint);
 cluster.fingerprint = fingerprint;
 ```
 
-In `fuseStories`, before calling `fuseStory()`, compare:
+In `fuseStories`, read `clusters-previous` (written at end of previous run)
+and compare:
 
 ```typescript
-const prevCluster = previousClusters?.find(c => c.key === cluster.key);
-if (prevCluster && prevCluster.fingerprint === cluster.fingerprint) {
-  logger?.info("Skipping unchanged cluster '{topic}'", { topic: cluster.topic });
-  continue;
+const prevClusters = (await context.readResource("clusters-previous") as
+  | { clusters: StoryCluster[] }
+  | null)?.clusters ?? [];
+const prevByKey = new Map(prevClusters.map(c => [c.key, c]));
+
+for (const c of clusters) {
+  const prev = prevByKey.get(c.key);
+  if (prev && prev.fingerprint === c.fingerprint) {
+    logger?.info("Skipping unchanged cluster '{topic}'", { topic: c.topic });
+    continue;
+  }
+  // ... fuse as normal
 }
 ```
 
-Requires adding `fingerprint?: string` to the `StoryCluster` type and
-storing it in `clusters-current`.
+At the end of `fuseStories`, write `clusters-previous` for the next run:
 
-**Verification:** Run the workflow twice with no new articles. Second run
-should show "Skipping unchanged cluster" for every cluster, and `fuse` step
-duration should be near-zero.
+```typescript
+await context.writeResource("clusters", "clusters-previous",
+  { clusters } as unknown as Record<string, unknown>);
+```
+
+Requires adding `fingerprint?: string` to the `StoryCluster` type.
+
+**Verification:** Run the workflow twice with no new articles and same config.
+Second run should show "Skipping unchanged cluster" for every cluster. Change
+`llmTemperature` and re-run — all clusters should be re-fused.
 
 ---
 
@@ -101,27 +149,72 @@ duration should be near-zero.
 With 892 articles, that's ~1,800 regex scans. Caching eliminates the second
 pass entirely.
 
-**Effort:** ~10 lines. Store extracted entities on the article object during
-`clusterArticles`, read them back in `fuseStories`.
+**Effort:** ~15 lines. Add optional `entities?: string[]` to the `Article`
+type. Populate in `clusterArticles`, serialize it through
+`writeResource`/`readResource`, read it back in `fuseStories`.
 
 **Risk:** None. Entities are deterministic for a given title+summary.
 
+**Important:** The original sketch used `(a as any)._entities` — this won't
+survive JSON serialization between `writeResource` and `readResource`. The
+entities must be a real field on the `Article` type.
+
 **Implementation sketch:**
 
-In `clusterArticles`, after extracting entities for an article, attach them:
-
+Add to the `Article` type:
 ```typescript
-(a as any)._entities = entities;
+entities?: string[];
 ```
 
-In `fuseStories` absorb phase, read them back instead of re-extracting:
-
+In `clusterArticles`, after extracting entities for an article, store them:
 ```typescript
-const aEntities = (a as any)._entities ?? extractEntities(a.title, a.summary ?? "");
+(a as Article & { entities: string[] }).entities = entities;
+```
+
+In `fuseStories` absorb phase, read them back:
+```typescript
+const aEntities = a.entities ?? extractEntities(a.title, a.summary ?? "");
 ```
 
 **Verification:** No behavioral change. `cluster` and `fuse` steps produce
 identical output, just faster.
+
+---
+
+### 1.4 Incremental `dedupe-articles`
+
+**Impact:** `dedupe-articles` currently takes 4m40s — the single slowest
+non-LLM step. It re-processes ALL articles in `feed-snapshot` every run,
+even though only ~50 new articles arrive per 4-hour cycle. Incremental
+dedupe makes it O(new_articles) instead of O(all_articles).
+
+**Effort:** ~30 lines. Track previously seen article URLs in a
+`deduped-urls` resource, only process new URLs.
+
+**Implementation sketch:**
+
+```typescript
+// Read previously deduped URLs
+const prevDeduped = (await context.readResource("deduped-urls") as
+  | { urls: string[] }
+  | null)?.urls ?? [];
+const prevUrlSet = new Set(prevDeduped);
+
+// Only process new URLs
+const newArticles = articles.filter(a => !prevUrlSet.has(a.url));
+const existingDeduped = articles.filter(a => prevUrlSet.has(a.url));
+
+// Dedupe only the new ones, then merge
+const deduped = [...dedupeNew(newArticles), ...existingDeduped];
+
+// Update the URL set
+const allUrls = deduped.map(a => a.url);
+await context.writeResource("deduped-urls", "deduped-urls-current",
+  { urls: allUrls } as unknown as Record<string, unknown>);
+```
+
+**Verification:** First run processes all articles (4m40s). Second run with
+only 50 new articles should take ~15s.
 
 ---
 
@@ -160,8 +253,16 @@ gather-feedback → fetch → dedupe-articles → filter → generate → genera
 **Implementation:**
 1. Copy the existing workflow YAML.
 2. Delete the fusion and curation steps.
-3. Remove the `trigger.schedule` (or keep at `0 */4 * * *`).
-4. Validate with `swamp workflow validate`.
+3. **Fix `fetch`'s `dependsOn`:** currently depends on `dedupe` and
+   `gather-feed-state` — both moved to curation. Change to depend on nothing
+   (or depend on `gather-feedback` succeeded). The `fetch` step reads the
+   catalog's current state via `data.latest("feed-catalog", "current")` —
+   it doesn't need dedupe/gather-feed-state to have run in the same
+   workflow invocation.
+4. **Fix `generate-feeds-html`'s `dependsOn`:** currently depends on
+   `filter` — keep this, it's still in the workflow.
+5. Set `trigger.schedule: 0 */4 * * *`.
+6. Validate with `swamp workflow validate`.
 
 ---
 
@@ -186,11 +287,23 @@ cluster → fuse → seed → render
    on `fuse` or(succeeded, skipped). `render` depends on `seed`
    or(succeeded, skipped).
 5. All steps `allowFailure: true` — fusion is best-effort enrichment.
-6. Validate.
+6. **Add guard on `cluster` step:** the news workflow might not have run
+   yet, so `filtered-snapshot` may not exist. Guard:
+   ```yaml
+   guard: ${{ data.latest("news-reader", "filtered-snapshot") == null }}
+   ```
+   This skips the entire fusion chain when there's no data to cluster.
+7. Validate.
 
 **Data flow:** Reads `filtered-snapshot` (written by news workflow's
 `filter` step). Writes `stories-current` and `stories-html-current` (read
 by news workflow's `generate` step).
+
+**UX note:** Stories are eventually consistent. After a news run produces
+new `filtered-snapshot`, it may take up to 12 hours before fusion processes
+it. The news page shows scored articles immediately; fused stories appear
+on the next fusion run. This is acceptable — fusion is enrichment, not a
+real-time requirement.
 
 ---
 
@@ -241,7 +354,7 @@ of 200+ clusters in 10+ minutes. The LLM server isn't saturated. Failed runs
 resume from where they left off.
 
 **Effort:** ~60 lines. New `fusionCursor` resource, cursor read/write logic
-in `fuseStories`, `batchSize` global argument.
+in `fuseStories`, `fusionBatchSize` global argument.
 
 **Implementation:**
 1. Add `fusionBatchSize: z.number().int().min(1).default(20)` to
@@ -252,8 +365,18 @@ in `fuseStories`, `batchSize` global argument.
 5. Write updated `fusionCursor` with new `lastProcessedKey`.
 6. If all clusters processed, reset cursor for next cycle.
 
+**Cursor invalidation handling:** If the news workflow runs and produces a
+new `filtered-snapshot` mid-cycle, the next fusion run will have a new
+`clusters-current` with different cluster keys. The cursor's
+`lastProcessedKey` may not exist in the new cluster list. Handle this
+gracefully: if `lastProcessedKey` is not found, start from the beginning
+of the new cluster list. This means some clusters may be re-processed, but
+no clusters are silently skipped.
+
 **Verification:** Run fusion workflow. First run processes clusters 1-20.
 Second run processes 21-40. After all clusters processed, cursor resets.
+Run news workflow to produce new articles, then run fusion — cursor resets
+and processes from the start of the new cluster list.
 
 ---
 
@@ -264,6 +387,12 @@ clusters, so this is less critical — but keeps the pattern consistent.
 
 **Effort:** ~30 lines. Same cursor pattern, separate cursor or shared cursor
 with a phase field.
+
+**Race condition fix:** Parallel `seedStories` calls could produce two
+stories with the same key if two clusters have the same topic+entities.
+Pre-compute which clusters need seeding (those whose key doesn't match any
+existing story) BEFORE firing any LLM calls. Then seed only those, with
+deduplication by key within the batch.
 
 ---
 
@@ -301,9 +430,21 @@ Lower urgency. These prevent degradation over time and handle edge cases.
 new citations per run would have 1,400 citations after a week of 4-hourly
 runs. Capping at 100 keeps prompts manageable and storage bounded.
 
-**Effort:** ~15 lines. Add `maxCitations: z.number().int().min(10).default(100)`
+**Effort:** ~20 lines. Add `maxCitations: z.number().int().min(10).default(100)`
 to `GlobalArgsSchema`. In `fuseStory()`, after appending new citations,
 slice to `maxCitations` (keep newest).
+
+**Preserve seed articles:** The seed articles (`story.identity.seedArticleIds`)
+are the story's origin — they should never be dropped. When capping, always
+keep citations whose article ID is in `seedArticleIds`, then fill the
+remaining slots with the newest non-seed citations.
+
+```typescript
+const seedIds = new Set(story.identity.seedArticleIds);
+const seedCitations = citations.filter(c => seedIds.has(/* article id */));
+const otherCitations = citations.filter(c => !seedIds.has(/* article id */));
+const capped = [...seedCitations, ...otherCitations.slice(-(maxCitations - seedCitations.length))];
+```
 
 ---
 
@@ -313,14 +454,27 @@ slice to `maxCitations` (keep newest).
 incremental delta passes. Without this, stories gradually accumulate
 near-duplicate claims and stale conflicts.
 
-**Effort:** New workflow YAML + schedule. The `regenStories` method already
-exists in the model.
+**Effort:** New workflow YAML + schedule + model changes. The `regenStories`
+method already exists but needs batching and atomic swap.
+
+**Critical issues with current `regenStories`:**
+1. **Unbounded runtime:** processes ALL stories sequentially. With 500
+   stories × 5s per LLM call = 40+ minutes. Must be batched.
+2. **No rollback:** writes directly to `stories-current`. If the LLM
+   hallucinates mid-run, all stories are corrupted with no way to revert.
 
 **Implementation:**
-1. `swamp workflow create news-regen --json`
-2. Single step: `regen` calling `local-news.regenStories`.
-3. `trigger.schedule: 0 2 * * 0` (weekly, Sunday 2am).
-4. `allowFailure: true`.
+1. Add `regenBatchSize: z.number().int().min(1).default(10)` to
+   `GlobalArgsSchema`.
+2. Add cursor-based batching to `regenStories` (same pattern as 3.1).
+3. **Atomic swap:** write regenerated stories to `stories-regen` resource
+   during processing. Only when ALL batches complete, atomically swap
+   `stories-regen` → `stories-current`. If a batch fails, the original
+   `stories-current` is untouched.
+4. `swamp workflow create news-regen --json`
+5. Single step: `regen` calling `local-news.regenStories`.
+6. `trigger.schedule: 0 2 * * 0` (weekly, Sunday 2am).
+7. `allowFailure: true`.
 
 ---
 
@@ -351,25 +505,27 @@ Reduces LLM round-trips for the absorb phase.
 
 | Phase | Item | Impact | Effort | Prerequisite |
 |-------|------|--------|--------|-------------|
-| 1.1 | Parallelize LLM calls | 5-10× faster fuse/seed | ~20 lines | None |
-| 1.2 | Skip unchanged clusters | Eliminates 80-90% of LLM calls | ~30 lines | None |
-| 1.3 | Cache entity extraction | ~2× faster cluster+fuse | ~10 lines | None |
+| 1.1 | Parallelize LLM calls | 2-4× faster fuse/seed | ~25 lines | None |
+| 1.2 | Skip unchanged clusters | Eliminates 80-90% of LLM calls | ~40 lines | None |
+| 1.3 | Cache entity extraction | ~2× faster cluster+fuse | ~15 lines | None |
+| 1.4 | Incremental dedupe-articles | 4m40s → ~15s on typical run | ~30 lines | None |
 | 2.1 | Fast news workflow | News page in ~5min (was 10-15) | New workflow YAML | None |
 | 2.2 | Fusion workflow | LLM runs at own cadence | New workflow YAML | None |
 | 2.3 | Curation workflow | Catalog maint. doesn't block news | New workflow YAML | None |
 | 3.1 | Batched fuseStories | 2min/run instead of 10min+ | ~60 lines TS | Phase 2.2 |
 | 3.2 | Batched seedStories | Consistent batching pattern | ~30 lines TS | Phase 2.2 |
 | 3.3 | Incremental clustering | ~18× faster clustering | ~40 lines TS | Phase 2.2 |
-| 4.1 | Cap story citations | Bounded memory growth | ~15 lines TS | None |
-| 4.2 | regenStories workflow | Periodic quality flush | New workflow YAML | None |
+| 4.1 | Cap story citations | Bounded memory, preserves seeds | ~20 lines TS | None |
+| 4.2 | regenStories workflow | Periodic quality flush, atomic swap | New workflow + ~40 lines TS | None |
 | 4.3 | Full fusion skip guard | Zero work when idle | ~20 lines TS | Phase 2.2 |
 | 4.4 | Batch absorbable articles | Fewer LLM round-trips | ~30 lines TS | None |
 
 ## Recommended Start
 
-**Do Phase 1 first** — it's ~60 lines of TypeScript, no workflow changes, and
-gives an immediate 5-10× speedup on the slowest step. You can ship it in one
-sitting and see the difference on the next workflow run.
+**Do Phase 1 first** — it's ~110 lines of TypeScript, no workflow changes, and
+gives immediate speedups on the three slowest steps (dedupe-articles: 4m40s →
+~15s, fuseStories: 80-90% fewer LLM calls, cluster: 2× faster). You can ship
+it in one sitting and see the difference on the next workflow run.
 
 **Then Phase 2** — the three-way split is the architectural foundation for
 everything else. It's mostly YAML editing. Once split, each workflow is

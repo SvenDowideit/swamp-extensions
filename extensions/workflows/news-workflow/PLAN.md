@@ -38,6 +38,7 @@ These findings are incorporated into the plan below. Key issues found:
 | 1.3 | Cache entity extraction | ✅ Done | 1 test: `clusterStories caches entities on articles` |
 | 1.4 | Incremental dedupe-articles | ✅ Done | 7 tests for `dedupeArticlesIncremental` |
 | 1.5 | Incremental feed dedupe | ✅ Done | **No tests** — `dedupe-cache` resource logic is untested |
+| 1.6 | ETag/If-Modified-Since caching | ✅ Done | 14 fetchFeed tests + 6 `mergeFeedFetchResult` tests |
 | 2.1 | Fast news workflow | ✅ Done | `workflows/workflow-news.yaml` — 6 steps, every 4h |
 | 2.2 | Fusion workflow | ✅ Done | `workflows/workflow-news-fusion.yaml` — 4 steps, every 12h |
 | 2.3 | Curation workflow | ✅ Done | `workflows/workflow-news-curation.yaml` — 7 steps, daily 3am |
@@ -327,6 +328,79 @@ re-fetched.
 when no new feeds were added — just a cache lookup per feed.
 
 ---
+
+### 1.6 ETag / If-Modified-Since caching for `fetch`
+
+**Impact:** The `fetch` step currently downloads and parses every feed's full
+XML body on every run where the 1-hour guard allows it. With 50 feeds where
+only ~5 publish new articles per hour, that's ~90% wasted network I/O and CPU.
+ETag/If-Modified-Since caching makes unchanged feeds return `HTTP 304 Not
+Modified` (empty body, no parsing), so only feeds with new content are
+downloaded and parsed.
+
+This is **complementary** to the 1-hour guard — the guard prevents unnecessary
+runs entirely; ETag caching makes necessary runs faster.
+
+**Effort:** ~50 lines. Add `feedCache` to `FeedSnapshotSchema`, pass cache
+headers to `fetchFeed`, handle 304 responses by reusing previous articles.
+
+**Risk:** Low. ETags are standard HTTP. Servers that don't support them return
+200 as normal — graceful degradation.
+
+**Implementation sketch:**
+
+Add to `FeedSnapshotSchema`:
+```typescript
+feedCache: z.record(z.string(), z.object({
+  etag: z.string().optional(),
+  lastModified: z.string().optional(),
+})).optional(),
+```
+
+In `fetchFeed`, accept optional cache headers and handle 304:
+```typescript
+async function fetchFeed(
+  url: string,
+  maxArticles: number,
+  cacheHeaders?: { etag?: string; lastModified?: string },
+): Promise<{
+  articles: Article[];
+  error?: string;
+  isFeed: boolean;
+  contentType: string;
+  notModified?: boolean;
+  newEtag?: string;
+  newLastModified?: string;
+}> {
+  const headers: Record<string, string> = {
+    "User-Agent": "swamp-news-reader/1.0",
+    "Accept": "application/rss+xml,application/atom+xml,...",
+  };
+  if (cacheHeaders?.etag) headers["If-None-Match"] = cacheHeaders.etag;
+  if (cacheHeaders?.lastModified) headers["If-Modified-Since"] = cacheHeaders.lastModified;
+
+  const resp = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+
+  if (resp.status === 304) {
+    return { articles: [], isFeed: true, contentType: "", notModified: true };
+  }
+  // ... rest as before, but also extract ETag/Last-Modified from response
+  const newEtag = resp.headers.get("etag") ?? undefined;
+  const newLastModified = resp.headers.get("last-modified") ?? undefined;
+  // ...
+}
+```
+
+In the `fetch` method, read previous snapshot's `feedCache`, pass to
+`fetchFeed`, update cache on 200, reuse previous articles on 304.
+
+**Verification:** Run fetch twice with no feed changes. Second run should show
+most feeds as 304 (not modified). Change a feed's content, run again — only
+that feed is downloaded.
+
+---
+
+## Phase 2 — Workflow Split ✅ COMPLETE
 
 This is the architectural foundation that enables all further cadence-based
 optimisations. It requires creating new workflow YAML files and editing the

@@ -15,9 +15,11 @@ import {
   extractEntities,
   extractJsonObject,
   extractKeywords,
+  fetchFeed,
   generateHtml,
   hashId,
   isFeedBody,
+  mergeFeedFetchResult,
   parseFeed,
   parseNewsAge,
   type Preferences,
@@ -1454,4 +1456,329 @@ Deno.test("computeClusterFingerprint handles temperature boundary 2", async () =
   const c = clusterSample();
   const fp = await computeClusterFingerprint(c, "llama3", 2);
   assertEquals(typeof fp, "string");
+});
+
+// ---------------------------------------------------------------------------
+// fetchFeed — ETag / If-Modified-Since caching (Phase 1.6)
+// ---------------------------------------------------------------------------
+
+const rssBody = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test Feed</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Article One</title>
+      <link>https://example.com/1</link>
+      <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
+      <description>First article</description>
+    </item>
+  </channel>
+</rss>`;
+
+function mockFetch(
+  status: number,
+  headers: Record<string, string> = {},
+  body: string = "",
+): typeof globalThis.fetch {
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = ((_url: string | URL | Request, _init?: RequestInit) => {
+    return Promise.resolve(new Response(status === 304 ? null : body, { status, headers }));
+  }) as typeof globalThis.fetch;
+  return origFetch;
+}
+
+function restoreFetch(orig: typeof globalThis.fetch) {
+  globalThis.fetch = orig;
+}
+
+Deno.test("fetchFeed returns articles for a valid RSS feed", async () => {
+  const orig = mockFetch(200, { "content-type": "application/rss+xml" }, rssBody);
+  try {
+    const result = await fetchFeed("https://example.com/feed.xml", 25);
+    assertEquals(result.isFeed, true);
+    assertEquals(result.articles.length, 1);
+    assertEquals(result.articles[0].title, "Article One");
+    assertEquals(result.notModified, undefined);
+  } finally {
+    restoreFetch(orig);
+  }
+});
+
+Deno.test("fetchFeed returns notModified=true for HTTP 304", async () => {
+  const orig = mockFetch(304, {}, "");
+  try {
+    const result = await fetchFeed("https://example.com/feed.xml", 25);
+    assertEquals(result.notModified, true);
+    assertEquals(result.isFeed, true);
+    assertEquals(result.articles.length, 0);
+  } finally {
+    restoreFetch(orig);
+  }
+});
+
+Deno.test("fetchFeed extracts ETag from 200 response", async () => {
+  const orig = mockFetch(200, {
+    "content-type": "application/rss+xml",
+    "etag": '"abc123"',
+  }, rssBody);
+  try {
+    const result = await fetchFeed("https://example.com/feed.xml", 25);
+    assertEquals(result.newEtag, '"abc123"');
+    assertEquals(result.notModified, undefined);
+  } finally {
+    restoreFetch(orig);
+  }
+});
+
+Deno.test("fetchFeed extracts Last-Modified from 200 response", async () => {
+  const orig = mockFetch(200, {
+    "content-type": "application/rss+xml",
+    "last-modified": "Mon, 01 Jan 2024 00:00:00 GMT",
+  }, rssBody);
+  try {
+    const result = await fetchFeed("https://example.com/feed.xml", 25);
+    assertEquals(result.newLastModified, "Mon, 01 Jan 2024 00:00:00 GMT");
+  } finally {
+    restoreFetch(orig);
+  }
+});
+
+Deno.test("fetchFeed sends If-None-Match when etag cache header provided", async () => {
+  let capturedHeaders: Record<string, string> = {};
+  const orig = globalThis.fetch;
+  globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+    capturedHeaders = (init?.headers as Record<string, string>) ?? {};
+    return Promise.resolve(new Response(rssBody, {
+      status: 200,
+      headers: { "content-type": "application/rss+xml" },
+    }));
+  }) as typeof globalThis.fetch;
+  try {
+    await fetchFeed("https://example.com/feed.xml", 25, { etag: '"abc123"' });
+    assertEquals(capturedHeaders["If-None-Match"], '"abc123"');
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+Deno.test("fetchFeed sends If-Modified-Since when lastModified cache header provided", async () => {
+  let capturedHeaders: Record<string, string> = {};
+  const orig = globalThis.fetch;
+  globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+    capturedHeaders = (init?.headers as Record<string, string>) ?? {};
+    return Promise.resolve(new Response(rssBody, {
+      status: 200,
+      headers: { "content-type": "application/rss+xml" },
+    }));
+  }) as typeof globalThis.fetch;
+  try {
+    await fetchFeed("https://example.com/feed.xml", 25, {
+      lastModified: "Mon, 01 Jan 2024 00:00:00 GMT",
+    });
+    assertEquals(
+      capturedHeaders["If-Modified-Since"],
+      "Mon, 01 Jan 2024 00:00:00 GMT",
+    );
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+Deno.test("fetchFeed sends both If-None-Match and If-Modified-Since when both provided", async () => {
+  let capturedHeaders: Record<string, string> = {};
+  const orig = globalThis.fetch;
+  globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+    capturedHeaders = (init?.headers as Record<string, string>) ?? {};
+    return Promise.resolve(new Response(rssBody, {
+      status: 200,
+      headers: { "content-type": "application/rss+xml" },
+    }));
+  }) as typeof globalThis.fetch;
+  try {
+    await fetchFeed("https://example.com/feed.xml", 25, {
+      etag: '"abc123"',
+      lastModified: "Mon, 01 Jan 2024 00:00:00 GMT",
+    });
+    assertEquals(capturedHeaders["If-None-Match"], '"abc123"');
+    assertEquals(
+      capturedHeaders["If-Modified-Since"],
+      "Mon, 01 Jan 2024 00:00:00 GMT",
+    );
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+Deno.test("fetchFeed returns error for non-ok non-304 response", async () => {
+  const orig = mockFetch(500, {}, "");
+  try {
+    const result = await fetchFeed("https://example.com/feed.xml", 25);
+    assertEquals(result.error, "HTTP 500");
+    assertEquals(result.isFeed, false);
+  } finally {
+    restoreFetch(orig);
+  }
+});
+
+Deno.test("fetchFeed returns isFeed=false for HTML response", async () => {
+  const orig = mockFetch(200, { "content-type": "text/html" }, "<html><body>hi</body></html>");
+  try {
+    const result = await fetchFeed("https://example.com/feed.xml", 25);
+    assertEquals(result.isFeed, false);
+    assertEquals(result.articles.length, 0);
+  } finally {
+    restoreFetch(orig);
+  }
+});
+
+Deno.test("fetchFeed handles network errors gracefully", async () => {
+  const orig = globalThis.fetch;
+  globalThis.fetch = (() => {
+    throw new Error("Network error");
+  }) as unknown as typeof globalThis.fetch;
+  try {
+    const result = await fetchFeed("https://example.com/feed.xml", 25);
+    assertEquals(result.error, "Network error");
+    assertEquals(result.isFeed, false);
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+Deno.test("fetchFeed does not send cache headers when none provided", async () => {
+  let capturedHeaders: Record<string, string> = {};
+  const orig = globalThis.fetch;
+  globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+    capturedHeaders = (init?.headers as Record<string, string>) ?? {};
+    return Promise.resolve(new Response(rssBody, {
+      status: 200,
+      headers: { "content-type": "application/rss+xml" },
+    }));
+  }) as typeof globalThis.fetch;
+  try {
+    await fetchFeed("https://example.com/feed.xml", 25);
+    assertEquals(capturedHeaders["If-None-Match"], undefined);
+    assertEquals(capturedHeaders["If-Modified-Since"], undefined);
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+Deno.test("mergeFeedFetchResult reuses prior articles on 304", () => {
+  const prev = {
+    prevFeedCache: { "https://example.com/feed.xml": { etag: "\"abc\"" } },
+    prevFeedArticleIds: { "https://example.com/feed.xml": ["id1", "id2"] },
+    prevArticlesById: new Map([
+      ["id1", sampleArticle({ id: "id1", title: "One" })],
+      ["id2", sampleArticle({ id: "id2", title: "Two" })],
+      ["id3", sampleArticle({ id: "id3", title: "Three" })],
+    ]),
+  };
+  const merged = mergeFeedFetchResult("https://example.com/feed.xml", {
+    articles: [],
+    isFeed: true,
+    contentType: "",
+    notModified: true,
+  }, prev);
+
+  assertEquals(merged.notModified, true);
+  assertEquals(merged.articles.map((a) => a.id), ["id1", "id2"]);
+  assertEquals(merged.feedCache, { etag: "\"abc\"" });
+  assertEquals(merged.feedArticleIds, ["id1", "id2"]);
+});
+
+Deno.test("mergeFeedFetchResult carries no articles when prior article missing on 304", () => {
+  const prev = {
+    prevFeedCache: {},
+    prevFeedArticleIds: { "https://example.com/feed.xml": ["missing"] },
+    prevArticlesById: new Map(),
+  };
+  const merged = mergeFeedFetchResult("https://example.com/feed.xml", {
+    articles: [],
+    isFeed: true,
+    contentType: "",
+    notModified: true,
+  }, prev);
+
+  assertEquals(merged.articles, []);
+  assertEquals(merged.feedArticleIds, ["missing"]);
+});
+
+Deno.test("mergeFeedFetchResult records error for failed feed", () => {
+  const prev = {
+    prevFeedCache: {},
+    prevFeedArticleIds: {},
+    prevArticlesById: new Map(),
+  };
+  const merged = mergeFeedFetchResult("https://example.com/feed.xml", {
+    articles: [],
+    isFeed: false,
+    contentType: "",
+    error: "HTTP 500",
+  }, prev);
+
+  assertEquals(merged.error, { url: "https://example.com/feed.xml", message: "HTTP 500" });
+  assertEquals(merged.articles, []);
+  assertEquals(merged.feedCache, undefined);
+});
+
+Deno.test("mergeFeedFetchResult records non-feed URL", () => {
+  const prev = {
+    prevFeedCache: {},
+    prevFeedArticleIds: {},
+    prevArticlesById: new Map(),
+  };
+  const merged = mergeFeedFetchResult("https://example.com/page", {
+    articles: [],
+    isFeed: false,
+    contentType: "text/html",
+  }, prev);
+
+  assertEquals(merged.nonFeedUrl, {
+    url: "https://example.com/page",
+    contentType: "text/html",
+  });
+  assertEquals(merged.articles, []);
+});
+
+Deno.test("mergeFeedFetchResult persists new ETag and article ids for 200 feed", () => {
+  const prev = {
+    prevFeedCache: {},
+    prevFeedArticleIds: {},
+    prevArticlesById: new Map(),
+  };
+  const merged = mergeFeedFetchResult("https://example.com/feed.xml", {
+    articles: [
+      sampleArticle({ id: "id1", url: "https://example.com/feed.xml/1" }),
+      sampleArticle({ id: "id2", url: "https://example.com/feed.xml/2" }),
+    ],
+    isFeed: true,
+    contentType: "application/rss+xml",
+    newEtag: "\"xyz\"",
+    newLastModified: "Wed, 01 Jan 2025 00:00:00 GMT",
+  }, prev);
+
+  assertEquals(merged.articles.map((a) => a.id), ["id1", "id2"]);
+  assertEquals(merged.feedCache, {
+    etag: "\"xyz\"",
+    lastModified: "Wed, 01 Jan 2025 00:00:00 GMT",
+  });
+  assertEquals(merged.feedArticleIds, ["id1", "id2"]);
+});
+
+Deno.test("mergeFeedFetchResult omits cache entry when no validators on 200 feed", () => {
+  const prev = {
+    prevFeedCache: {},
+    prevFeedArticleIds: {},
+    prevArticlesById: new Map(),
+  };
+  const merged = mergeFeedFetchResult("https://example.com/feed.xml", {
+    articles: [sampleArticle({ id: "id1", url: "https://example.com/feed.xml/1" })],
+    isFeed: true,
+    contentType: "application/rss+xml",
+  }, prev);
+
+  assertEquals(merged.articles.map((a) => a.id), ["id1"]);
+  assertEquals(merged.feedCache, undefined);
 });

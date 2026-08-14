@@ -252,6 +252,10 @@ export interface FeedSnapshot {
   articles: Article[];
   /** Feed URLs that failed to fetch. */
   errors: { url: string; message: string }[];
+  /** Per-feed ETag/Last-Modified cache carried across runs. */
+  feedCache?: Record<string, { etag?: string; lastModified?: string }>;
+  /** Per-feed article IDs already seen (for incremental reuse). */
+  feedArticleIds?: Record<string, string[]>;
 }
 
 /** User preference data accumulated from feedback. */
@@ -412,6 +416,11 @@ const FeedSnapshotSchema = z.object({
   nonFeedUrls: z.array(
     z.object({ url: z.string().url(), contentType: z.string() }),
   ),
+  feedCache: z.record(z.string(), z.object({
+    etag: z.string().optional(),
+    lastModified: z.string().optional(),
+  })).optional(),
+  feedArticleIds: z.record(z.string(), z.array(z.string())).optional(),
 });
 
 const FeedbackEntrySchema = z.object({
@@ -1510,24 +1519,42 @@ export function isFeedBody(contentType: string, body: string): boolean {
 }
 
 /** Fetch a single feed URL and parse articles. */
-async function fetchFeed(
+export async function fetchFeed(
   url: string,
   maxArticles: number,
+  cacheHeaders?: { etag?: string; lastModified?: string },
 ): Promise<{
   articles: Article[];
   error?: string;
   isFeed: boolean;
   contentType: string;
+  notModified?: boolean;
+  newEtag?: string;
+  newLastModified?: string;
 }> {
   try {
+    const headers: Record<string, string> = {
+      "User-Agent": "swamp-news-reader/1.0",
+      "Accept":
+        "application/rss+xml,application/atom+xml,application/feed+json,application/xml,text/xml,*/*",
+    };
+    if (cacheHeaders?.etag) headers["If-None-Match"] = cacheHeaders.etag;
+    if (cacheHeaders?.lastModified) headers["If-Modified-Since"] = cacheHeaders.lastModified;
+
     const resp = await fetch(url, {
-      headers: {
-        "User-Agent": "swamp-news-reader/1.0",
-        "Accept":
-          "application/rss+xml,application/atom+xml,application/feed+json,application/xml,text/xml,*/*",
-      },
+      headers,
       signal: AbortSignal.timeout(15000),
     });
+
+    if (resp.status === 304) {
+      return {
+        articles: [],
+        isFeed: true,
+        contentType: "",
+        notModified: true,
+      };
+    }
+
     if (!resp.ok) {
       return {
         articles: [],
@@ -1537,17 +1564,93 @@ async function fetchFeed(
       };
     }
     const contentType = resp.headers.get("content-type") ?? "";
+    const newEtag = resp.headers.get("etag") ?? undefined;
+    const newLastModified = resp.headers.get("last-modified") ?? undefined;
     const body = await resp.text();
     const isFeed = isFeedBody(contentType, body);
     const articles = isFeed ? parseFeed(body, url).slice(0, maxArticles) : [];
     for (const a of articles) {
       a.id = await hashId(a.url);
     }
-    return { articles, isFeed, contentType };
+    return { articles, isFeed, contentType, newEtag, newLastModified };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return { articles: [], error: msg, isFeed: false, contentType: "" };
   }
+}
+
+/** Shape returned by fetchFeed for a single feed (Phase 1.6 ETag caching). */
+export type FeedFetchResult = {
+  articles: Article[];
+  error?: string;
+  isFeed: boolean;
+  contentType: string;
+  notModified?: boolean;
+  newEtag?: string;
+  newLastModified?: string;
+};
+
+export type FeedCacheEntry = { etag?: string; lastModified?: string };
+
+/**
+ * Merge a single feed's fetch result into the snapshot accumulators (Phase 1.6).
+ * Pure helper so the 304-reuse + cache-persistence logic is unit-testable.
+ *
+ * - 304 (notModified): reuse previous cache headers and previous article IDs,
+ *   carrying the prior articles forward.
+ * - error / non-feed: no articles, no cache entry.
+ * - 200 feed: persist new ETag/Last-Modified, record new article IDs.
+ */
+export function mergeFeedFetchResult(
+  feedUrl: string,
+  result: FeedFetchResult,
+  prev: {
+    prevFeedCache: Record<string, FeedCacheEntry>;
+    prevFeedArticleIds: Record<string, string[]>;
+    prevArticlesById: Map<string, Article>;
+  },
+): {
+  articles: Article[];
+  error?: { url: string; message: string };
+  nonFeedUrl?: { url: string; contentType: string };
+  feedCache?: FeedCacheEntry;
+  feedArticleIds?: string[];
+  notModified?: boolean;
+} {
+  if (result.notModified) {
+    const prevIds = prev.prevFeedArticleIds[feedUrl] ?? [];
+    const articles: Article[] = [];
+    for (const id of prevIds) {
+      const prevArticle = prev.prevArticlesById.get(id);
+      if (prevArticle) articles.push(prevArticle);
+    }
+    const prevEntry = prev.prevFeedCache[feedUrl];
+    return {
+      articles,
+      feedCache: prevEntry && (prevEntry.etag || prevEntry.lastModified)
+        ? prevEntry
+        : undefined,
+      feedArticleIds: prevIds,
+      notModified: true,
+    };
+  }
+
+  if (result.error) {
+    return { articles: [], error: { url: feedUrl, message: result.error } };
+  }
+
+  if (!result.isFeed) {
+    return { articles: [], nonFeedUrl: { url: feedUrl, contentType: result.contentType } };
+  }
+
+  const feedCache: FeedCacheEntry = {};
+  if (result.newEtag) feedCache.etag = result.newEtag;
+  if (result.newLastModified) feedCache.lastModified = result.newLastModified;
+  return {
+    articles: result.articles,
+    feedCache: feedCache.etag || feedCache.lastModified ? feedCache : undefined,
+    feedArticleIds: result.articles.map((a) => a.id),
+  };
 }
 
 /** Normalize loaded preferences to ensure all fields exist (backward compat). */
@@ -2084,6 +2187,8 @@ export const model = {
             errors: snapshotData.errors,
             nonFeedUrls:
               (snapshotData as unknown as Record<string, unknown>).nonFeedUrls ?? [],
+            feedCache: snapshotData.feedCache ?? {},
+            feedArticleIds: snapshotData.feedArticleIds ?? {},
           });
           handles.push(h);
           logger?.info("Cleaned {fixed} articles in snapshot", { fixed });
@@ -2210,35 +2315,60 @@ export const model = {
         const allArticles: Article[] = [];
         const errors: { url: string; message: string }[] = [];
         const nonFeedUrls: { url: string; contentType: string }[] = [];
+        const newFeedCache: Record<string, { etag?: string; lastModified?: string }> = {};
+        const newFeedArticleIds: Record<string, string[]> = {};
+        let notModifiedCount = 0;
+
+        const prevSnapshot = (await context.readResource("feed-snapshot") as
+          | { articles: Article[]; feedCache?: Record<string, { etag?: string; lastModified?: string }>; feedArticleIds?: Record<string, string[]> }
+          | null);
+        const prevArticlesById = new Map(
+          (prevSnapshot?.articles ?? []).map((a) => [a.id, a]),
+        );
+        const prevFeedCache = prevSnapshot?.feedCache ?? {};
+        const prevFeedArticleIds = prevSnapshot?.feedArticleIds ?? {};
 
         for (const feedUrl of feedUrls) {
           logger?.info("Fetching {url}", { url: feedUrl });
-          const result = await fetchFeed(feedUrl, args.maxArticlesPerFeed);
-          if (result.error) {
-            errors.push({ url: feedUrl, message: result.error });
+          const cacheHeaders = prevFeedCache[feedUrl];
+          const result = await fetchFeed(feedUrl, args.maxArticlesPerFeed, cacheHeaders);
+          const merged = mergeFeedFetchResult(feedUrl, result, {
+            prevFeedCache,
+            prevFeedArticleIds,
+            prevArticlesById,
+          });
+
+          allArticles.push(...merged.articles);
+          if (merged.feedCache) newFeedCache[feedUrl] = merged.feedCache;
+          if (merged.feedArticleIds) newFeedArticleIds[feedUrl] = merged.feedArticleIds;
+          if (merged.notModified) {
+            notModifiedCount++;
+            logger?.info("Not modified (304): {url}", { url: feedUrl });
+          } else if (merged.error) {
+            errors.push(merged.error);
             logger?.info("Failed: {url} — {error}", {
               url: feedUrl,
-              error: result.error,
+              error: merged.error.message,
             });
-          } else if (!result.isFeed) {
-            nonFeedUrls.push({ url: feedUrl, contentType: result.contentType });
+          } else if (merged.nonFeedUrl) {
+            nonFeedUrls.push(merged.nonFeedUrl);
             logger?.info("Not a feed (HTML page or unknown): {url}", {
               url: feedUrl,
-              contentType: result.contentType,
+              contentType: merged.nonFeedUrl.contentType,
             });
           } else {
-            allArticles.push(...result.articles);
             logger?.info("Got {n} articles from {url}", {
-              n: result.articles.length,
+              n: merged.articles.length,
               url: feedUrl,
             });
           }
         }
 
         logger?.info(
-          "Fetched {total} articles total, {errors} errors, {nonFeeds} non-feed URLs",
+          "Fetched {total} articles total ({notModified} feeds not modified), {errors} errors, {nonFeeds} non-feed URLs",
           {
             total: allArticles.length,
+            notModified: notModifiedCount,
             errors: errors.length,
             nonFeeds: nonFeedUrls.length,
           },
@@ -2252,6 +2382,8 @@ export const model = {
             articles: allArticles,
             errors,
             nonFeedUrls,
+            feedCache: newFeedCache,
+            feedArticleIds: newFeedArticleIds,
           },
         );
 
@@ -2316,6 +2448,8 @@ export const model = {
             errors: snapshotData.errors,
             nonFeedUrls:
               (snapshotData as unknown as Record<string, unknown>).nonFeedUrls ?? [],
+            feedCache: snapshotData.feedCache ?? {},
+            feedArticleIds: snapshotData.feedArticleIds ?? {},
           },
         );
 

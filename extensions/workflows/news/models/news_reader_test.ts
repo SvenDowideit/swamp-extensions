@@ -1994,9 +1994,9 @@ Deno.test("setup validates provided config values and reports fusion state", asy
   assertEquals(joined.includes("llama3"), true);
 });
 
-Deno.test("setup throws on invalid config values", async () => {
+Deno.test("setup throws on invalid config values", () => {
   const logs: Array<{ msg: string; props: Record<string, unknown> }> = [];
-  await assertRejects(
+  assertThrows(
     () => model.methods.setup.execute({ llmBaseUrl: "not-a-url" }, setupCtx(logs)),
     Error,
   );

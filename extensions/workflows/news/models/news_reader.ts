@@ -1454,11 +1454,11 @@ const CITATION_CARD_STYLE = `
 `;
 
 /** Render one compact article card (a fused article) with read/seen counts and 👍/👎 feedback. */
-async function renderCitationCard(
+function renderCitationCard(
   id: string,
   c: ArticleRef,
   prefs: Preferences,
-): Promise<string> {
+): string {
   const seenSet = new Set(prefs.seen ?? []);
   const readSet = new Set(prefs.read ?? []);
   const isSeen = seenSet.has(id);
@@ -2684,7 +2684,7 @@ export const model = {
           "Max parallel LLM requests.",
         ),
       }),
-      execute: async (
+      execute: (
         args: Record<string, unknown>,
         context: MethodContext,
       ): Promise<{ dataHandles: Array<{ name: string }> }> => {
@@ -2746,7 +2746,7 @@ export const model = {
             "To enable LLM story fusion, pass --input llmModel=<tag> (e.g. llama3) and llmBaseUrl=<url>.",
             {},
           );
-          return { dataHandles: [] };
+          return Promise.resolve({ dataHandles: [] });
         }
 
         // Validate provided values against the globalArguments schema.
@@ -2791,7 +2791,7 @@ export const model = {
           "To persist these values, set them in the model instance globalArguments (swamp model update @svendowideit/news-reader local-news).",
           {},
         );
-        return { dataHandles: [] };
+        return Promise.resolve({ dataHandles: [] });
       },
     },
     cleanupCdata: {

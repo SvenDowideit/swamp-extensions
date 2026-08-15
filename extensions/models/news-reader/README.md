@@ -57,7 +57,11 @@ persistent stories** that survive the age-filter window:
 - **regen** (`regenStories`) — throttled full re-fusion of each story from its
   citations.
 - **render** (`renderStories`) — renders accumulated stories into an inline
-  `storiesHtml` fragment included in `news.html`.
+  `storiesHtml` fragment included in `news.html`, and — when `outputPath` is
+  given — writes a standalone full `stories.html` page (same shell as
+  `news.html`/`feeds.html`) with story cards, citation boxes showing read/seen
+  counts and 👍/👎 feedback, and the article-title display with a site
+  watermark.
 
 The LLM-dependent methods (`fuseStories`, `seedStories`, `regenStories`) are
 **disabled by default**: they no-op without calling the LLM when the model
@@ -208,7 +212,7 @@ swamp model method run news-reader feedback --input articleId=def456 --input act
 | `fuseStories`    | Absorb clustered articles into existing stories (LLM)     | _(none)_                                             |
 | `seedStories`    | Seed fresh Story objects for new clusters (LLM)          | `minClusterSize`                                     |
 | `regenStories`   | Full LLM re-fusion of each story from its citations       | _(none)_                                             |
-| `renderStories`  | Render persistent stories into an inline `storiesHtml` fragment | _(none)_                                        |
+| `renderStories`  | Render persistent stories into an inline `storiesHtml` fragment (and optionally a standalone `stories.html` page) | `outputPath` (optional) |
 
 ## Output
 
@@ -223,6 +227,19 @@ The `generate` method writes a static HTML file as a swamp data artifact
   with a tooltip listing the other feed sources.
 - **Keyboard shortcuts** — `j`/`k` to navigate between articles
 - **Age filter info** — shows the time range of news being displayed
+
+The `renderStories` method writes a standalone `stories.html` page (when
+`outputPath` is set) as a `report` file artifact. Stories are shown newest-first,
+each with a story card (topic, status badge, core claims, conflicts, citation
+links). Every citation renders as an `.article`-style box with a favicon
+watermark, the article title as a link, 📖/👁 read/seen indicators, and 👍/👎
+feedback buttons. The page uses the same shell, shared script, and add-url input
+as `news.html`, so the existing keyboard shortcuts and toggles work there too.
+It can be run standalone without the full news workflow:
+
+```bash
+swamp model method run local-news renderStories --input '{"outputPath":"stories.html"}'
+```
 
 The `fetch` method stores articles as a structured JSON resource (`snapshot`
 spec) with all parsed metadata. Feed objects marked `duplicate: true` or

@@ -289,12 +289,13 @@ jobs:
     weight: 0
     allowFailure: true
   - name: render
-    description: Render persistent stories to an inline storiesHtml fragment for the page.
+    description: Render persistent stories to an inline storiesHtml fragment and a standalone stories.html page.
     task:
       type: model_method
       modelIdOrName: local-news
       methodName: renderStories
-      inputs: {}
+      inputs:
+        outputPath: stories.html
     dependsOn:
     - step: seed
       condition:

@@ -24,6 +24,7 @@ import {
   parseNewsAge,
   type Preferences,
   renderStories,
+  renderStoriesPage,
   type Story,
   type StoryCluster,
   scoreArticle,
@@ -78,6 +79,14 @@ const storySample = (overrides: Partial<Story> = {}): Story => ({
   lastUpdatedAt: "2026-08-10T00:00:00Z",
   lastRegenAt: "2026-08-10T00:00:00Z",
   ...overrides,
+});
+
+const emptyPrefs = (): Preferences => ({
+  interested: [],
+  ignored: [],
+  seen: [],
+  read: [],
+  keywordWeights: {},
 });
 
 const clusterSample = (overrides: Partial<StoryCluster> = {}): StoryCluster => ({
@@ -845,18 +854,18 @@ Deno.test("ageOutCitations returns unchanged story when retentionDays is 0", () 
   assertEquals(aged.citations.length, story.citations.length);
 });
 
-Deno.test("renderStories produces inline stories HTML section", () => {
-  const html = renderStories([storySample()], "Fused stories");
+Deno.test("renderStories produces inline stories HTML section", async () => {
+  const html = await renderStories([storySample()], emptyPrefs(), "Fused stories");
   assertEquals(html.includes("<section class=\"stories\">"), true);
   assertEquals(html.includes("Core claim one"), true);
   assertEquals(html.includes("Fused stories"), true);
 });
 
-Deno.test("renderStories returns empty string for empty stories", () => {
-  assertEquals(renderStories([]), "");
+Deno.test("renderStories returns empty string for empty stories", async () => {
+  assertEquals(await renderStories([], emptyPrefs()), "");
 });
 
-Deno.test("renderStories includes conflict section when conflicts exist", () => {
+Deno.test("renderStories includes conflict section when conflicts exist", async () => {
   const story = storySample({
     conflicts: [{
       claimA: {
@@ -876,20 +885,148 @@ Deno.test("renderStories includes conflict section when conflicts exist", () => 
       note: "discrepancy between sources",
     }],
   });
-  const html = renderStories([story]);
+  const html = await renderStories([story], emptyPrefs());
   assertEquals(html.includes("Conflicts"), true);
   assertEquals(html.includes("Death toll is 50"), true);
   assertEquals(html.includes("Death toll is 100"), true);
 });
 
-Deno.test("renderStories includes status badge", () => {
+Deno.test("renderStories includes status badge", async () => {
   const story = storySample({ status: "confirmed" });
-  const html = renderStories([story]);
+  const html = await renderStories([story], emptyPrefs());
   assertEquals(html.includes("confirmed"), true);
 });
 
-Deno.test("renderStories includes citation links", () => {
-  const html = renderStories([storySample()]);
+Deno.test("renderStoriesPage produces a full standalone HTML page", async () => {
+  const story = storySample({
+    citations: [{
+      url: "https://example.com/a1",
+      title: "Article one",
+      source: "example.com",
+      publishedAt: "2026-08-10T00:00:00Z",
+      firstSeenAt: "2026-08-10T00:00:00Z",
+    }],
+  });
+  const prefs: Preferences = {
+    interested: [],
+    ignored: [],
+    seen: [],
+    read: [],
+    keywordWeights: {},
+  };
+  const html = await renderStoriesPage(
+    [story],
+    prefs,
+    "Fused stories",
+    "2026-08-15T00:00:00Z",
+  );
+  assertEquals(html.includes("<!DOCTYPE html>"), true);
+  assertEquals(html.includes("</html>"), true);
+  assertEquals(html.includes("Fused stories"), true);
+  assertEquals(html.includes("Article one"), true);
+  assertEquals(html.includes("data-article-id"), true);
+});
+
+Deno.test("renderStoriesPage sorts stories newest first by createdAt", async () => {
+  const older = storySample({
+    createdAt: "2026-08-10T00:00:00Z",
+    identity: { topic: "Old topic", entities: [], seedArticleIds: ["a1"] },
+  });
+  const newer = storySample({
+    createdAt: "2026-08-12T00:00:00Z",
+    identity: { topic: "New topic", entities: [], seedArticleIds: ["a2"] },
+  });
+  const prefs: Preferences = {
+    interested: [],
+    ignored: [],
+    seen: [],
+    read: [],
+    keywordWeights: {},
+  };
+  const html = await renderStoriesPage(
+    [older, newer],
+    prefs,
+    "Fused stories",
+    "2026-08-15T00:00:00Z",
+  );
+  assertEquals(html.indexOf("New topic") < html.indexOf("Old topic"), true);
+});
+
+Deno.test("renderStoriesPage marks read citations with read-badge", async () => {
+  const story = storySample({
+    citations: [{
+      url: "https://example.com/a1",
+      title: "Article one",
+      source: "example.com",
+      publishedAt: "2026-08-10T00:00:00Z",
+      firstSeenAt: "2026-08-10T00:00:00Z",
+    }],
+  });
+  const readId = await hashId("https://example.com/a1");
+  const prefs: Preferences = {
+    interested: [],
+    ignored: [],
+    seen: [readId],
+    read: [readId],
+    keywordWeights: {},
+  };
+  const html = await renderStoriesPage(
+    [story],
+    prefs,
+    "Fused stories",
+    "2026-08-15T00:00:00Z",
+  );
+  assertEquals(html.includes("read-badge"), true);
+  assertEquals(html.includes("citation-box read"), true);
+  assertEquals(html.includes("read hidden"), false);
+});
+
+Deno.test("renderStoriesPage renders one compact article card per fused article", async () => {
+  const story = storySample({
+    citations: [
+      {
+        url: "https://example.com/a1",
+        title: "Article one",
+        source: "example.com",
+        publishedAt: "2026-08-10T00:00:00Z",
+        firstSeenAt: "2026-08-10T00:00:00Z",
+      },
+      {
+        url: "https://example.com/a2",
+        title: "Article two",
+        source: "example.com",
+        publishedAt: "2026-08-11T00:00:00Z",
+        firstSeenAt: "2026-08-11T00:00:00Z",
+      },
+    ],
+  });
+  const prefs: Preferences = {
+    interested: [],
+    ignored: [],
+    seen: [],
+    read: [],
+    keywordWeights: {},
+  };
+  const html = await renderStoriesPage(
+    [story],
+    prefs,
+    "Fused stories",
+    "2026-08-15T00:00:00Z",
+  );
+  // one compact article card per fused article
+  assertEquals(html.match(/class="article citation-box/g)?.length, 2);
+  // compact card styling overrides full-size article styling
+  assertEquals(html.includes(".citation-box { margin-bottom: 6px; padding: 8px 10px; }"), true);
+  // each card carries its own 👍/👎 feedback actions
+  assertEquals(html.includes("sendFeedback('interested',{"), true);
+  assertEquals(html.includes("sendFeedback('ignored',{"), true);
+  assertEquals(html.includes("Article one"), true);
+  assertEquals(html.includes("Article two"), true);
+});
+
+
+Deno.test("renderStories includes citation links", async () => {
+  const html = await renderStories([storySample()], emptyPrefs());
   assertEquals(html.includes("https://example.com/a1"), true);
   assertEquals(html.includes("Article one"), true);
 });
@@ -935,9 +1072,8 @@ Deno.test("stripHtml removes CDATA sections", () => {
 });
 
 Deno.test("stripHtml decodes HTML entities", () => {
-  assertEquals(stripHtml("a&amp;b &lt; c &gt; d"), "a&b < c > d");
+  assertEquals(stripHtml("&lt;;div&gt;; &amp;; &quot;;&quot;;"), "<div> & \"\"");
 });
-
 Deno.test("stripHtml decodes &nbsp; and &quot;", () => {
   assertEquals(stripHtml("a&nbsp;b &quot;c&quot;"), "a b \"c\"");
 });
@@ -952,6 +1088,19 @@ Deno.test("stripHtml handles empty string", () => {
 
 Deno.test("stripHtml handles nested tags", () => {
   assertEquals(stripHtml("<div><p>text</p></div>"), "text");
+});
+
+Deno.test("stripHtml decodes apostrophe entity forms", () => {
+  assertEquals(stripHtml("military&#039;s"), "military's");
+  assertEquals(stripHtml("&apos;;mark all as read&apos;; app"), "'mark all as read' app");
+  assertEquals(stripHtml("&#39;"), "'");
+  assertEquals(stripHtml("&#x27;"), "'");
+});
+
+Deno.test("stripHtml decodes double-escaped entities", () => {
+  assertEquals(stripHtml("military&#039;s"), "military's");
+  assertEquals(stripHtml("&apos;app"), "'app");
+  assertEquals(stripHtml("&amp;"), "&");
 });
 
 // ---------------------------------------------------------------------------
@@ -1219,26 +1368,26 @@ Deno.test("ageOutCitations handles story with no citations", () => {
   assertEquals(aged.citations.length, 0);
 });
 
-Deno.test("renderStories handles story with no core claims", () => {
+Deno.test("renderStories handles story with no core claims", async () => {
   const story = storySample({ core: [] });
-  const html = renderStories([story]);
+  const html = await renderStories([story], emptyPrefs());
   assertEquals(html.includes("<section class=\"stories\">"), true);
 });
 
-Deno.test("renderStories handles story with no citations", () => {
+Deno.test("renderStories handles story with no citations", async () => {
   const story = storySample({ citations: [] });
-  const html = renderStories([story]);
+  const html = await renderStories([story], emptyPrefs());
   assertEquals(html.includes("<section class=\"stories\">"), true);
 });
 
-Deno.test("renderStories handles very long topic text", () => {
+Deno.test("renderStories handles very long topic text", async () => {
   const story = storySample({
     identity: {
       ...storySample().identity,
       topic: "A".repeat(500),
     },
   });
-  const html = renderStories([story]);
+  const html = await renderStories([story], emptyPrefs());
   assertEquals(html.includes("A".repeat(500)), true);
 });
 

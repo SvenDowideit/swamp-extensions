@@ -571,19 +571,32 @@ export async function hashId(input: string): Promise<string> {
   ).join("");
 }
 
+/** Decode common HTML entities (named, numeric, hex, and double-escaped forms). */
+export function decodeEntities(s: string): string {
+  let prev: string;
+  let cur = s;
+  do {
+    prev = cur;
+    cur = cur
+      .replace(/<|&#60;|&#x3C;|&#x3c;/g, "<")
+      .replace(/>|&#62;|&#x3E;|&#x3e;/g, ">")
+      .replace(/"|&#34;|&#x22;/g, '"')
+      .replace(/'|&#39;|&#039;|&#x27;/g, "'")
+      .replace(/&nbsp;|&#160;|&#xA0;|&#xa0;/g, " ")
+      .replace(/&|&#38;|&#x26;/g, "&");
+  } while (cur !== prev);
+  return cur;
+}
+
 /** Strip HTML tags and CDATA from a string, returning plain text. */
 export function stripHtml(html: string): string {
-  return html
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
+  return decodeEntities(
+    html
+      .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+      .replace(/<[^>]*>/g, "")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 /** Escape HTML special characters. */
@@ -1353,13 +1366,77 @@ export function dedupeArticlesIncremental(
   };
 }
 
-/** Render a story to inline HTML for the news page. */
-export function renderStories(
+/** Compact CSS shared by the inline stories fragment and the standalone stories page. */
+const CITATION_CARD_STYLE = `
+.citations { margin-top: 10px; }
+.citation-box { margin-bottom: 6px; padding: 8px 10px; }
+.citation-box::before { width: 56px; height: 56px; background-size: 56px; top: 2px; left: 2px; }
+.citation-box h3 { margin: 0 0 2px 0; font-size: 0.95em; }
+.citation-box h3 a { color: #1a5276; text-decoration: none; }
+.citation-box h3 a:hover { text-decoration: underline; }
+.citation-box .article-actions { font-size: 0.85em; }
+.citation-box .article-actions a { margin-left: 6px; }
+.citation-box .article-indicators { font-size: 0.75em; margin-left: 6px; }
+.citation-box .source { font-size: 0.8em; }
+`;
+
+/** Render one compact article card (a fused article) with read/seen counts and 👍/👎 feedback. */
+async function renderCitationCard(
+  id: string,
+  c: ArticleRef,
+  prefs: Preferences,
+): Promise<string> {
+  const seenSet = new Set(prefs.seen ?? []);
+  const readSet = new Set(prefs.read ?? []);
+  const isSeen = seenSet.has(id);
+  const isRead = readSet.has(id);
+  const stateClass = isRead ? " read" : isSeen ? " seen" : "";
+  const domain = (() => {
+    try {
+      return new URL(c.url).hostname;
+    } catch {
+      return c.source;
+    }
+  })();
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${
+    encodeURIComponent(domain)
+  }&sz=64`;
+  const articleJson = JSON.stringify({
+    articleId: id,
+    source: c.source,
+    title: (c.title || c.url).slice(0, 200),
+    keywords: [],
+  });
+  const indicators = (isSeen || isRead)
+    ? `<span class="article-indicators">${
+        isRead
+          ? `<span class="read-badge" title="read">📖 ${prefs.read.length} 👁 ${prefs.seen.length}</span>`
+          : ""
+      }${
+        isSeen && !isRead
+          ? `<span class="seen-badge" title="seen">👁 ${prefs.seen.length}</span>`
+          : ""
+      }</span>`
+    : "";
+  return `<div class="article citation-box${stateClass}" tabindex="0" data-article-id="${escapeHtml(id)}" style="--watermark: url('${faviconUrl}')">
+<h3><a href="${escapeHtml(c.url)}" target="_blank" data-article-id="${escapeHtml(id)}">${escapeHtml(c.title || c.url)}</a>${indicators}
+<span class="article-actions">
+<a onclick="sendFeedback('interested',${articleJson},event)" title="👍 interested">👍</a>
+<a onclick="sendFeedback('ignored',${articleJson},event)" title="👎 ignore">👎</a>
+</span></h3>
+<span class="source">${escapeHtml(c.source)} · <span class="pubdate" data-date="${escapeHtml(c.publishedAt)}"></span></span>
+</div>`;
+}
+
+/** Render stories as inline HTML for the news page, with one compact card per fused article. */
+export async function renderStories(
   stories: Story[],
+  prefs: Preferences,
   title = "Fused stories",
-): string {
+): Promise<string> {
   if (stories.length === 0) return "";
   const parts: string[] = [
+    `<style>${CITATION_CARD_STYLE}</style>`,
     `<section class="stories"><h2>${escapeHtml(title)}</h2>`,
   ];
   for (const st of stories) {
@@ -1383,14 +1460,88 @@ export function renderStories(
     parts.push(`</ul>`);
     parts.push(`<div class="citations">`);
     for (const c of st.citations) {
-      parts.push(
-        `<a href="${escapeHtml(c.url)}" target="_blank" rel="noopener">${escapeHtml(c.title || c.url)}</a> `,
-      );
+      const id = await hashId(c.url);
+      parts.push(await renderCitationCard(id, c, prefs));
     }
     parts.push(`</div>`);
     parts.push(`</div>`);
   }
   parts.push(`</section>`);
+  return parts.join("\n");
+}
+
+/** Render persistent stories as a standalone full HTML page (same shell as the news page). */
+export async function renderStoriesPage(
+  stories: Story[],
+  prefs: Preferences,
+  title = "Fused stories",
+  generatedAt: string,
+): Promise<string> {
+  const sorted = [...stories].sort((a, b) => {
+    const byCreated = b.createdAt.localeCompare(a.createdAt);
+    if (byCreated !== 0) return byCreated;
+    return b.lastUpdatedAt.localeCompare(a.lastUpdatedAt);
+  });
+
+  const metaText = `${sorted.length} fused stories · ${
+    sorted.reduce((n, s) => n + s.citations.length, 0)
+  } citations · ${prefs.interested.length} interested, ${prefs.ignored.length} ignored`;
+
+  const extraStyles = `
+.stories { margin-top: 20px; }
+.story { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: white; }
+.story-status { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 0.75em; background: #e8e0f0; color: #6c4a9e; }
+.conflicts { background: #fff3cd; border: 1px solid #ffe8a0; border-radius: 6px; padding: 10px 12px; margin: 10px 0; font-size: 0.9em; }
+.claims { margin: 10px 0; padding-left: 20px; }
+.claims li { margin-bottom: 4px; }
+.src-count { color: #666; font-size: 0.8em; }
+` + CITATION_CARD_STYLE;
+
+  const parts: string[] = [
+    pageShell(title, metaText, generatedAt, extraStyles),
+    `<div class="add-url">
+<input id="add-url-input" type="url" placeholder="https://example.com/feed-or-page" autocomplete="off">
+<button id="add-url-btn" onclick="submitUrl()">Add</button>
+<span id="add-status" class="add-status"></span>
+</div>`,
+    `<div class="toggle-bar">
+<button class="toggle-btn" id="toggle-read" onclick="toggleRead()">📖 Read (${prefs.read.length})</button>
+<button class="toggle-btn" id="toggle-seen" onclick="toggleSeen()">👁 Seen (${prefs.seen.length})</button>
+</div>`,
+    `<section class="stories"><h2>${escapeHtml(title)}</h2>`,
+  ];
+
+  for (const st of sorted) {
+    parts.push(`<div class="story">`);
+    parts.push(
+      `<h3>${escapeHtml(st.identity.topic)} <span class="story-status">${escapeHtml(st.status)}</span></h3>`,
+    );
+    if (st.conflicts.length > 0) {
+      parts.push(`<div class="conflicts"><b>Conflicts:</b>`);
+      for (const c of st.conflicts) {
+        parts.push(
+          `<p class="conflict"><span class="claimA">${escapeHtml(c.claimA.text)}</span> ⚠ <span class="claimB">${escapeHtml(c.claimB.text)}</span> <em>${escapeHtml(c.note)}</em></p>`,
+        );
+      }
+      parts.push(`</div>`);
+    }
+    parts.push(`<ul class="claims">`);
+    for (const c of st.core) {
+      parts.push(
+        `<li>${escapeHtml(c.text)} <span class="src-count">(${c.sources.length} src)</span></li>`,
+      );
+    }
+    parts.push(`</ul>`);
+    parts.push(`<div class="citations">`);
+    for (const c of st.citations) {
+      const id = await hashId(c.url);
+      parts.push(await renderCitationCard(id, c, prefs));
+    }
+    parts.push(`</div>`);
+    parts.push(`</div>`);
+  }
+  parts.push(`</section>`);
+  parts.push(pageScript());
   return parts.join("\n");
 }
 
@@ -1712,6 +1863,249 @@ export function scoreArticle(
 // HTML generation
 // ---------------------------------------------------------------------------
 
+const PAGE_STYLE = `
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #fafafa; color: #222; }
+.header a { color: #1a5276; text-decoration: none; font-size: 0.9em; }
+.header a:hover { text-decoration: underline; }
+h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+.meta { color: #666; font-size: 0.9em; margin-bottom: 20px; }
+.article { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: white; transition: border-color 0.2s; position: relative; }
+.article::before { content: ''; position: absolute; top: 4px; left: 4px; width: 128px; height: 128px; background-image: var(--watermark); background-size: 128px; background-repeat: no-repeat; opacity: 0.1; pointer-events: none; }
+.article:hover { border-color: #4a90d9; }
+.article.seen { border-left: 3px solid #ffc107; }
+.article.read { border-left: 3px solid #28a745; opacity: 0.85; }
+.article.hidden { display: none; }
+.toggle-bar { margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.toggle-btn { padding: 4px 12px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; font-size: 0.85em; }
+.toggle-btn:hover { border-color: #4a90d9; }
+.toggle-btn.active { background: #4a90d9; color: white; border-color: #4a90d9; }
+.article h3 { margin: 0 0 8px 0; }
+.article h3 a { color: #1a5276; text-decoration: none; }
+.article h3 a:hover { text-decoration: underline; }
+.article-actions { float: right; }
+.article-actions a { color: #888; text-decoration: none; cursor: pointer; margin-left: 8px; font-size: 0.85em; }
+.article-actions a:hover { color: #4a90d9; }
+.article-indicators { display: inline-block; margin-left: 8px; font-size: 0.8em; }
+.article-indicators .seen-badge { color: #ffc107; }
+.article-indicators .read-badge { color: #28a745; }
+.dup-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 0.75em; background: #e8e0f0; color: #6c4a9e; cursor: help; }
+.source { color: #888; font-size: 0.85em; }
+.score { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; }
+.score-high { background: #d4edda; color: #155724; }
+.score-mid { background: #fff3cd; color: #856404; }
+.score-low { background: #f8d7da; color: #721c24; }
+.score-zero { background: #e2e3e5; color: #6c757d; }
+.summary { color: #555; margin-top: 8px; font-size: 0.95em; line-height: 1.5; }
+.keyword { display: inline-block; background: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; margin-right: 4px; }
+
+.stats { background: #e8f0fe; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+.add-url { display: flex; gap: 8px; align-items: center; margin-bottom: 20px; }
+.add-url input { flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95em; }
+.add-url button { padding: 6px 14px; border: 1px solid #4a90d9; border-radius: 4px; background: #4a90d9; color: white; cursor: pointer; font-size: 0.95em; }
+.add-url button:hover { background: #3577b8; }
+.add-status { font-size: 0.85em; color: #666; min-width: 120px; margin-left: 8px; }
+.add-status.ok { color: #28a745; }
+.add-status.err { color: #d9534f; }
+`;
+
+function pageShell(
+  title: string,
+  metaText: string,
+  generatedAt: string,
+  extraStyles = "",
+): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(title)}</title>
+` + `<style>${PAGE_STYLE}${extraStyles}</style>` + `
+</head>
+<body>
+<nav class="header"><a href="/feeds.html">Feeds catalog →</a></nav>
+<h1>${escapeHtml(title)}</h1>
+<div class="meta">${metaText} · generated <span class="generated-at" data-generated="${escapeHtml(generatedAt)}"></span></div>
+<div class="add-url">
+<input id="add-url-input" type="url" placeholder="https://example.com/feed-or-page" autocomplete="off">
+<button id="add-url-btn" onclick="submitUrl()">Add</button>
+<span id="add-status" class="add-status"></span>
+</div>`;
+}
+
+function pageScript(): string {
+  return `
+<script>
+const FEEDBACK_URL = '/api/feedback';
+
+async function sendFeedback(action, article, event) {
+  const el = event.target;
+  el.textContent = '…';
+  try {
+    const res = await fetch(FEEDBACK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...article, action })
+    });
+    if (res.ok) {
+      el.textContent = '✓';
+      setTimeout(() => el.textContent = action === 'interested' ? '👍' : '👎', 2000);
+    } else {
+      el.textContent = '✗';
+      setTimeout(() => el.textContent = action === 'interested' ? '👍' : '👎', 2000);
+    }
+  } catch {
+    el.textContent = '✗';
+    setTimeout(() => el.textContent = action === 'interested' ? '👍' : '👎', 2000);
+  }
+}
+
+async function sendSeen(articleId) {
+  try {
+    await fetch(FEEDBACK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ articleId, action: 'seen' })
+    });
+  } catch {}
+}
+
+async function sendRead(articleId) {
+  try {
+    await fetch(FEEDBACK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ articleId, action: 'read' })
+    });
+  } catch {}
+}
+
+const seenSent = new Set();
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.getAttribute('data-article-id');
+      if (id && !seenSent.has(id)) {
+        seenSent.add(id);
+        sendSeen(id);
+      }
+    }
+  });
+}, { threshold: 0.3 });
+
+document.querySelectorAll('.article').forEach(el => observer.observe(el));
+
+document.querySelectorAll('.article h3 a[data-article-id]').forEach(link => {
+  link.addEventListener('mousedown', () => {
+    const id = link.getAttribute('data-article-id');
+    if (id) sendRead(id);
+  });
+});
+
+function toggleRead() {
+  const btn = document.getElementById('toggle-read');
+  const show = btn.classList.toggle('active');
+  document.querySelectorAll('.article.read').forEach(el => {
+    el.classList.toggle('hidden', !show);
+  });
+}
+
+function toggleSeen() {
+  const btn = document.getElementById('toggle-seen');
+  const show = btn.classList.toggle('active');
+  document.querySelectorAll('.article.seen:not(.read)').forEach(el => {
+    el.classList.toggle('hidden', !show);
+  });
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const articles = document.querySelectorAll('.article');
+  let current = document.activeElement;
+  let idx = current ? Array.from(articles).indexOf(current) : -1;
+  if (e.key === 'j') { idx = Math.min(idx + 1, articles.length - 1); articles[idx]?.focus(); }
+  if (e.key === 'k') { idx = Math.max(idx - 1, 0); articles[idx]?.focus(); }
+});
+
+document.querySelectorAll('.pubdate').forEach(el => {
+  const dateStr = el.getAttribute('data-date');
+  if (dateStr) {
+    try {
+      const date = new Date(dateStr);
+      const formatted = date.toLocaleString('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      el.textContent = formatted;
+    } catch (err) {
+      el.textContent = dateStr;
+    }
+  }
+});
+
+document.querySelectorAll('.generated-at').forEach(el => {
+  const dateStr = el.getAttribute('data-generated');
+  if (dateStr) {
+    try {
+      const date = new Date(dateStr);
+      const formatted = date.toLocaleString('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      el.textContent = formatted;
+    } catch (err) {
+      el.textContent = dateStr;
+    }
+  }
+});
+
+const PAGES_URL = '/api/pages';
+const addInput = document.getElementById('add-url-input');
+const addStatus = document.getElementById('add-status');
+
+async function submitUrl() {
+  const url = addInput.value.trim();
+  if (!url) return;
+  const btn = document.getElementById('add-url-btn');
+  btn.textContent = '…';
+  addStatus.textContent = '';
+  addStatus.className = 'add-status';
+  try {
+    const res = await fetch(PAGES_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    if (res.ok) {
+      addStatus.textContent = '✓ submitted';
+      addStatus.className = 'add-status ok';
+      addInput.value = '';
+    } else {
+      addStatus.textContent = '✗ failed';
+      addStatus.className = 'add-status err';
+    }
+  } catch {
+    addStatus.textContent = '✗ failed';
+    addStatus.className = 'add-status err';
+  }
+  btn.textContent = 'Add';
+}
+
+addInput.addEventListener('input', () => {
+  addStatus.textContent = '';
+  addStatus.className = 'add-status';
+});
+</script>
+</body>
+</html>`;
+}
+
 /** Generate a static HTML page from scored articles. */
 export function generateHtml(
   articles: ScoredArticle[],
@@ -1848,7 +2242,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 
     const isSeen = seenSet.has(a.id);
     const isRead = readSet.has(a.id);
-    const stateClass = isRead ? " read hidden" : isSeen ? " seen hidden" : "";
+  const stateClass = isRead ? " read hidden" : isSeen ? " seen hidden" : "";
     const seenCount = prefs.seen.length;
     const readCount = prefs.read.length;
     const indicators = (isSeen || isRead)
@@ -3201,10 +3595,14 @@ export const model = {
     },
     renderStories: {
       description:
-        "Render persistent stories to an inline HTML fragment resource (storiesHtml).",
-      arguments: z.object({}),
+        "Render persistent stories to an inline HTML fragment resource (storiesHtml) and optionally a standalone stories.html page.",
+      arguments: z.object({
+        outputPath: z.string().optional().describe(
+          "If set, also write the full standalone stories page to this local file path (e.g., stories.html)",
+        ),
+      }).describe("Arguments for the renderStories method"),
       execute: async (
-        _args: Record<string, never>,
+        args: { outputPath?: string },
         context: MethodContext,
       ): Promise<{ dataHandles: Array<{ name: string }> }> => {
         const logger = context.logger;
@@ -3212,11 +3610,15 @@ export const model = {
         const storiesState = await context.readResource("stories-current") as
           | { stories: Story[] }
           | null;
+        const prefsData = await context.readResource("prefs-current") as
+          | Record<string, unknown>
+          | null;
+        const prefs = normalizePrefs(prefsData);
         const stories = storiesState?.stories ?? [];
         const aged = stories.map((s) =>
           ageOutCitations(s, ga.citationRetentionDays)
         );
-        const html = renderStories(aged, "Fused stories");
+        const html = await renderStories(aged, prefs, "Fused stories");
         const handle = await context.writeResource(
           "storiesHtml",
           "stories-html-current",
@@ -3225,6 +3627,19 @@ export const model = {
         logger?.info("Rendered {n} fused stories to storiesHtml", {
           n: aged.length,
         });
+        if (args.outputPath) {
+          const generatedAt = new Date().toISOString();
+          const page = await renderStoriesPage(
+            aged,
+            prefs,
+            "Fused stories",
+            generatedAt,
+          );
+          await Deno.writeTextFile(args.outputPath, page);
+          logger?.info("Full stories page also written to {path}", {
+            path: args.outputPath,
+          });
+        }
         return { dataHandles: [handle] };
       },
     },

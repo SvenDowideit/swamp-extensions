@@ -24,6 +24,7 @@
  *   DELETE /api/pages?ids=ULID1,ULID2  — batch delete
  *   GET  /  — serve the HTML page (if --html provided)
  *   GET  /feeds.html  — serve the feeds listing (if --feeds provided)
+ *   GET  /stories.html  — serve the stories page (if --stories provided)
  */
 
 function generateId(): string {
@@ -35,6 +36,7 @@ function generateId(): string {
 const PORT = parseInt(Deno.env.get("FEEDBACK_PORT") ?? "8765");
 const HTML_PATH = Deno.env.get("FEEDBACK_HTML_PATH") ?? "";
 const FEEDS_PATH = Deno.env.get("FEEDBACK_FEEDS_PATH") ?? "";
+const STORIES_PATH = Deno.env.get("FEEDBACK_STORIES_PATH") ?? "";
 const QUEUE_DIR = Deno.env.get("FEEDBACK_QUEUE_DIR") ?? "";
 const PAGES_DIR = Deno.env.get("FEEDBACK_PAGES_DIR") ?? "";
 const FEED_STATE_DIR = Deno.env.get("FEEDBACK_FEED_STATE_DIR") ?? "";
@@ -43,6 +45,7 @@ function parseArgs(): {
   port: number;
   htmlPath: string;
   feedsPath: string;
+  storiesPath: string;
   queueDir: string;
   pagesDir: string;
   feedStateDir: string;
@@ -50,6 +53,7 @@ function parseArgs(): {
   let port = PORT;
   let htmlPath = HTML_PATH;
   let feedsPath = FEEDS_PATH;
+  let storiesPath = STORIES_PATH;
   let queueDir = QUEUE_DIR;
   let pagesDir = PAGES_DIR;
   let feedStateDir = FEED_STATE_DIR;
@@ -61,6 +65,8 @@ function parseArgs(): {
       htmlPath = args[++i];
     } else if (args[i] === "--feeds" && i + 1 < args.length) {
       feedsPath = args[++i];
+    } else if (args[i] === "--stories" && i + 1 < args.length) {
+      storiesPath = args[++i];
     } else if (args[i] === "--queue-dir" && i + 1 < args.length) {
       queueDir = args[++i];
     } else if (args[i] === "--pages-dir" && i + 1 < args.length) {
@@ -78,7 +84,7 @@ function parseArgs(): {
   if (!feedStateDir) {
     feedStateDir = `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/feed-state`;
   }
-  return { port, htmlPath, feedsPath, queueDir, pagesDir, feedStateDir };
+  return { port, htmlPath, feedsPath, storiesPath, queueDir, pagesDir, feedStateDir };
 }
 
 interface FeedbackEntry {
@@ -186,6 +192,7 @@ async function handleRequest(
   req: Request,
   htmlPath: string,
   feedsPath: string,
+  storiesPath: string,
   queueDir: string,
   pagesDir: string,
   feedStateDir: string,
@@ -213,6 +220,29 @@ async function handleRequest(
       });
     } catch {
       return new Response("Feeds file not found", {
+        status: 404,
+        headers: corsHeaders(),
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/stories.html") {
+    if (!storiesPath) {
+      return new Response("No stories page configured. Use --stories flag.", {
+        status: 404,
+        headers: corsHeaders(),
+      });
+    }
+    try {
+      const html = await Deno.readTextFile(storiesPath);
+      return new Response(html, {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          ...corsHeaders(),
+        },
+      });
+    } catch {
+      return new Response("Stories file not found", {
         status: 404,
         headers: corsHeaders(),
       });
@@ -467,7 +497,7 @@ async function handleRequest(
   return new Response("Not found", { status: 404, headers: corsHeaders() });
 }
 
-const { port, htmlPath, feedsPath, queueDir, pagesDir, feedStateDir } =
+const { port, htmlPath, feedsPath, storiesPath, queueDir, pagesDir, feedStateDir } =
   parseArgs();
 
 await ensureQueueDir(queueDir);
@@ -477,7 +507,15 @@ await ensureQueueDir(feedStateDir);
 Deno.serve(
   { port },
   (req) =>
-    handleRequest(req, htmlPath, feedsPath, queueDir, pagesDir, feedStateDir),
+    handleRequest(
+      req,
+      htmlPath,
+      feedsPath,
+      storiesPath,
+      queueDir,
+      pagesDir,
+      feedStateDir,
+    ),
 );
 
 console.error(`Feedback server listening on http://localhost:${port}`);
@@ -489,4 +527,7 @@ if (htmlPath) {
 }
 if (feedsPath) {
   console.error(`Serving feeds HTML from: ${feedsPath} (at /feeds.html)`);
+}
+if (storiesPath) {
+  console.error(`Serving stories HTML from: ${storiesPath} (at /stories.html)`);
 }

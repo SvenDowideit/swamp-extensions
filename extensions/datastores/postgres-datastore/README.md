@@ -71,6 +71,8 @@ companion `_history` table with every previous version of every row.
   auto-installs it on first use if the PostgreSQL user has `CREATE EXTENSION`
   privileges.
 
+>> Note: `apt install postgresql-18-periods` pretty much should do the trick, as postgresql-18 is a pre-req.
+
 ```sql
 -- Manual install if auto-install is not available:
 CREATE EXTENSION IF NOT EXISTS periods;

@@ -62,7 +62,8 @@ the next fusion run.
 3. **Seed** — LLM-seed: creates fresh `Story` objects for clusters with no
    existing story.
 4. **Render** — renders accumulated stories into an inline `storiesHtml` fragment
-   included in `news.html`.
+   included in `news.html`, and writes a standalone full `stories.html` page
+   (default `outputPath`), so fused stories are viewable on their own.
 
 All steps `allowFailure: true` — fusion is best-effort enrichment.
 
@@ -194,7 +195,8 @@ age-filter window:
 3. **seed** — `seedStories`: creates a fresh `Story` object for clusters with no
    existing story. Uses parallel LLM calls (Phase 1.1).
 4. **render** — `renderStories`: renders the accumulated stories into an inline
-   `storiesHtml` fragment included in `news.html`.
+   `storiesHtml` fragment included in `news.html`, and writes a standalone
+   `stories.html` page so fused stories are viewable on their own.
 
 `fuse`, `seed`, and `regen` call the LLM and are **disabled by default**: they
 no-op (skip the LLM call) when the model instance has no `llmModel` configured.
@@ -278,10 +280,11 @@ decoupled queue between the HTML page and the workflow:
 - **`DELETE /api/feed`** — remove processed feed state entries
 - **`GET /`** — serve the generated news.html
 - **`GET /feeds.html`** — serve the feeds catalog listing
+- **`GET /stories.html`** — serve the standalone fused-stories page
 
 ```sh
 deno run --allow-net --allow-read --allow-write scripts/feedback-server.ts \
-  --html news.html --feeds feeds.html
+  --html news.html --feeds feeds.html --stories stories.html
 ```
 
 ## License

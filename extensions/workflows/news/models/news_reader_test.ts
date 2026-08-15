@@ -1,8 +1,14 @@
-import { assertEquals, assertExists, assertThrows } from "jsr:@std/assert@1";
+import {
+  assertEquals,
+  assertExists,
+  assertRejects,
+  assertThrows,
+} from "jsr:@std/assert@1";
 
 import {
   ageOutCitations,
   type Article,
+  model,
   canonicalUrl,
   clusterHash,
   clusterKey,
@@ -1930,4 +1936,70 @@ Deno.test("mergeFeedFetchResult omits cache entry when no validators on 200 feed
 
   assertEquals(merged.articles.map((a) => a.id), ["id1"]);
   assertEquals(merged.feedCache, undefined);
+});
+
+// ---------------------------------------------------------------------------
+// setup method
+// ---------------------------------------------------------------------------
+
+const baseGlobalArgs = {
+  llmBaseUrl: "http://localhost:11434",
+  llmModel: "",
+  llmApiKey: "",
+  llmTemperature: 0.1,
+  fusionMinClusterSize: 2,
+  citationRetentionDays: 30,
+  llmConcurrency: 3,
+};
+
+const render = (msg: string, props?: Record<string, unknown>): string =>
+  msg.replace(/\{(\w+)\}/g, (_, key: string) => String(props?.[key] ?? ""));
+
+const setupCtx = (logs: Array<{ msg: string; props: Record<string, unknown> }>) =>
+  ({
+    logger: {
+      info: (msg: string, props?: Record<string, unknown>) =>
+        logs.push({ msg: render(msg, props), props: props ?? {} }),
+      warning: (msg: string, props?: Record<string, unknown>) =>
+        logs.push({ msg: render(msg, props), props: props ?? {} }),
+    },
+    globalArgs: baseGlobalArgs,
+  }) as unknown as Parameters<typeof model.methods.setup.execute>[1];
+
+Deno.test("setup lists config params when run with no inputs", async () => {
+  const logs: Array<{ msg: string; props: Record<string, unknown> }> = [];
+  const res = await model.methods.setup.execute({}, setupCtx(logs));
+
+  assertEquals(res.dataHandles, []);
+  const joined = logs.map((l) => l.msg).join("\n");
+  assertEquals(joined.includes("llmBaseUrl"), true);
+  assertEquals(joined.includes("llmModel"), true);
+  assertEquals(joined.includes("llmTemperature"), true);
+  assertEquals(joined.includes("fusionMinClusterSize"), true);
+  assertEquals(joined.includes("llmConcurrency"), true);
+  assertEquals(joined.includes("current=2"), true);
+});
+
+Deno.test("setup validates provided config values and reports fusion state", async () => {
+  const logs: Array<{ msg: string; props: Record<string, unknown> }> = [];
+  const res = await model.methods.setup.execute(
+    { llmModel: "llama3", llmBaseUrl: "http://localhost:11434" },
+    setupCtx(logs),
+  );
+
+  assertEquals(res.dataHandles, []);
+  const joined = logs.map((l) => l.msg).join("\n");
+  assertEquals(joined.includes("Validated config values OK"), true);
+  assertEquals(joined.includes("Fusion enabled"), true);
+  assertEquals(joined.includes("llama3"), true);
+});
+
+Deno.test("setup throws on invalid config values", async () => {
+  const logs: Array<{ msg: string; props: Record<string, unknown> }> = [];
+  await assertRejects(
+    () => model.methods.setup.execute({ llmBaseUrl: "not-a-url" }, setupCtx(logs)),
+    Error,
+  );
+  const joined = logs.map((l) => l.msg).join("\n");
+  assertEquals(joined.includes("setup:"), true);
 });

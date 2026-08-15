@@ -416,10 +416,13 @@ const FeedSnapshotSchema = z.object({
   nonFeedUrls: z.array(
     z.object({ url: z.string().url(), contentType: z.string() }),
   ),
-  feedCache: z.record(z.string(), z.object({
-    etag: z.string().optional(),
-    lastModified: z.string().optional(),
-  })).optional(),
+  feedCache: z.record(
+    z.string(),
+    z.object({
+      etag: z.string().optional(),
+      lastModified: z.string().optional(),
+    }),
+  ).optional(),
   feedArticleIds: z.record(z.string(), z.array(z.string())).optional(),
 });
 
@@ -538,10 +541,10 @@ const ClustersStateSchema = z.object({
 
 type MethodContext = {
   globalArgs: GlobalArgs;
-    logger?: {
-      info: (msg: string, props?: Record<string, unknown>) => void;
-      warning: (msg: string, props?: Record<string, unknown>) => void;
-    };
+  logger?: {
+    info: (msg: string, props?: Record<string, unknown>) => void;
+    warning: (msg: string, props?: Record<string, unknown>) => void;
+  };
   writeResource: (
     specName: string,
     name: string,
@@ -747,9 +750,7 @@ export async function chatCompletion(
     messages,
     temperature: args.llmTemperature,
     stream: false,
-    ...(opts?.json
-      ? { response_format: { type: "json_object" } }
-      : {}),
+    ...(opts?.json ? { response_format: { type: "json_object" } } : {}),
   };
 
   let resp: Response;
@@ -770,11 +771,15 @@ export async function chatCompletion(
   if (!resp.ok) {
     const errText = await resp.text().catch(() => "");
     throw new Error(
-      `LLM request failed (${resp.status} ${resp.statusText}): ${errText.slice(0, 300)}`,
+      `LLM request failed (${resp.status} ${resp.statusText}): ${
+        errText.slice(0, 300)
+      }`,
     );
   }
 
-  const data = await resp.json() as { choices?: { message?: { content?: string } }[] };
+  const data = await resp.json() as {
+    choices?: { message?: { content?: string } }[];
+  };
   const content = data.choices?.[0]?.message?.content;
   if (typeof content !== "string" || content.length === 0) {
     throw new Error(
@@ -810,11 +815,53 @@ export function extractJsonObject<T = Record<string, unknown>>(
 // ---------------------------------------------------------------------------
 
 const STOP_ENTITIES = new Set([
-  "the", "a", "an", "and", "or", "but", "of", "in", "on", "for", "with",
-  "by", "from", "at", "to", "is", "are", "was", "were", "has", "had",
-  "have", "will", "would", "could", "should", "may", "might", "can",
-  "this", "that", "these", "those", "it", "they", "them", "their", "who",
-  "what", "when", "where", "which", "why", "how", "not", "no", "yes",
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "but",
+  "of",
+  "in",
+  "on",
+  "for",
+  "with",
+  "by",
+  "from",
+  "at",
+  "to",
+  "is",
+  "are",
+  "was",
+  "were",
+  "has",
+  "had",
+  "have",
+  "will",
+  "would",
+  "could",
+  "should",
+  "may",
+  "might",
+  "can",
+  "this",
+  "that",
+  "these",
+  "those",
+  "it",
+  "they",
+  "them",
+  "their",
+  "who",
+  "what",
+  "when",
+  "where",
+  "which",
+  "why",
+  "how",
+  "not",
+  "no",
+  "yes",
 ]);
 
 /** Heuristic entity candidates from title + summary (proper nouns / key terms). */
@@ -924,13 +971,12 @@ export function clusterStories(
       b.entities = bEntities;
       const bCanon = canonicalUrl(b.url);
       const bDay = dayKey(b.publishedAt);
-      const shared = entities.filter((e) =>
-        bEntities.includes(e)
-      ).length;
+      const shared = entities.filter((e) => bEntities.includes(e)).length;
       const urlMatch = canon === bCanon;
       const sameDay = day !== "" && bDay !== "" && day === bDay;
       const nearDay = day !== "" && bDay !== "" &&
-        Math.abs(new Date(day).getTime() - new Date(bDay).getTime()) <= 48 * 3600 * 1000;
+        Math.abs(new Date(day).getTime() - new Date(bDay).getTime()) <=
+          48 * 3600 * 1000;
 
       if (shared >= 2 || (shared >= 1 && sameDay) || urlMatch) {
         group.push(b);
@@ -999,7 +1045,9 @@ async function withConcurrency<T>(
 function articlesForPrompt(cluster: StoryCluster): string {
   return cluster.articles.map((a, i) => {
     const src = a.source || canonicalUrl(a.url);
-    return `[${i + 1}] ${a.title} (${src}, ${a.publishedAt || "no date"})\n${a.summary ?? ""}`;
+    return `[${i + 1}] ${a.title} (${src}, ${a.publishedAt || "no date"})\n${
+      a.summary ?? ""
+    }`;
   }).join("\n");
 }
 
@@ -1063,8 +1111,13 @@ ${articlesForPrompt(cluster)}`;
   }));
 
   return {
-    id: cluster.key || clusterHash(topic + "::" + entities.map((e) => e.name).join(",")),
-    identity: { topic, entities, seedArticleIds: cluster.articles.map((a) => a.id) },
+    id: cluster.key ||
+      clusterHash(topic + "::" + entities.map((e) => e.name).join(",")),
+    identity: {
+      topic,
+      entities,
+      seedArticleIds: cluster.articles.map((a) => a.id),
+    },
     core: claims,
     updates: claims,
     conflicts: [],
@@ -1099,9 +1152,13 @@ New articles on the same story follow. Extract:
 Be conservative. Return ONLY JSON, no prose.
 
 New articles:
-${newArticles.map((a, i) =>
-    `[${i + 1}] ${a.title} (${a.source || canonicalUrl(a.url)}, ${a.publishedAt || "no date"})\n${a.summary ?? ""}`
-  ).join("\n")}`;
+${
+    newArticles.map((a, i) =>
+      `[${i + 1}] ${a.title} (${a.source || canonicalUrl(a.url)}, ${
+        a.publishedAt || "no date"
+      })\n${a.summary ?? ""}`
+    ).join("\n")
+  }`;
 
   const raw = await chatCompletion(args, [
     { role: "system", content: "You output strictly valid JSON. No markdown." },
@@ -1170,7 +1227,8 @@ export async function regenStory(
   story: Story,
 ): Promise<Story> {
   const existing = story.core.map((c) => c.text).join("\n- ");
-  const prompt = `You are a meticulous news fusion engine. Given these established
+  const prompt =
+    `You are a meticulous news fusion engine. Given these established
 claims and their cited articles, reconcile to:
 1. "coreClaims": array of the strongest consolidated claim strings.
 2. "conflicts": array of {claimA, claimB, note} for any unresolved contradictions.
@@ -1180,9 +1238,13 @@ Established claims:
 - ${existing}
 
 Cited articles:
-${story.citations.map((c, i) =>
-    `[${i + 1}] ${c.title} (${c.source || canonicalUrl(c.url)}, ${c.publishedAt || "no date"})`
-  ).join("\n")}
+${
+      story.citations.map((c, i) =>
+        `[${i + 1}] ${c.title} (${c.source || canonicalUrl(c.url)}, ${
+          c.publishedAt || "no date"
+        })`
+      ).join("\n")
+    }
 
 Return ONLY JSON, no prose.`;
 
@@ -1199,15 +1261,16 @@ Return ONLY JSON, no prose.`;
 
   const now = new Date().toISOString();
   const allUrls = story.citations.map((c) => c.url);
-  const core: Claim[] = (parsed.coreClaims ?? story.core.map((c) => c.text)).map(
-    (text) => ({
-      text,
-      sources: allUrls,
-      status: "confirmed",
-      isDelta: false,
-      addedAt: story.lastUpdatedAt,
-    }),
-  );
+  const core: Claim[] = (parsed.coreClaims ?? story.core.map((c) => c.text))
+    .map(
+      (text) => ({
+        text,
+        sources: allUrls,
+        status: "confirmed",
+        isDelta: false,
+        addedAt: story.lastUpdatedAt,
+      }),
+    );
 
   const parsedConflicts = parsed.conflicts ?? [];
   const conflicts: Conflict[] = [
@@ -1311,7 +1374,12 @@ export function dedupeArticlesIncremental(
   articles: Article[],
   prevUrls: string[],
   prevArticles: Article[],
-): { deduped: Article[]; newCount: number; reusedCount: number; duplicateCount: number } {
+): {
+  deduped: Article[];
+  newCount: number;
+  reusedCount: number;
+  duplicateCount: number;
+} {
   const prevUrlSet = new Set(prevUrls);
   const newArticles = articles.filter((a) => !prevUrlSet.has(a.url));
   const existingDeduped = prevArticles.filter((a) =>
@@ -1319,7 +1387,12 @@ export function dedupeArticlesIncremental(
   );
 
   if (newArticles.length === 0) {
-    return { deduped: existingDeduped, newCount: 0, reusedCount: existingDeduped.length, duplicateCount: 0 };
+    return {
+      deduped: existingDeduped,
+      newCount: 0,
+      reusedCount: existingDeduped.length,
+      duplicateCount: 0,
+    };
   }
 
   const urlGroups = new Map<string, Article[]>();
@@ -1409,22 +1482,30 @@ async function renderCitationCard(
   });
   const indicators = (isSeen || isRead)
     ? `<span class="article-indicators">${
-        isRead
-          ? `<span class="read-badge" title="read">📖 ${prefs.read.length} 👁 ${prefs.seen.length}</span>`
-          : ""
-      }${
-        isSeen && !isRead
-          ? `<span class="seen-badge" title="seen">👁 ${prefs.seen.length}</span>`
-          : ""
-      }</span>`
+      isRead
+        ? `<span class="read-badge" title="read">📖 ${prefs.read.length} 👁 ${prefs.seen.length}</span>`
+        : ""
+    }${
+      isSeen && !isRead
+        ? `<span class="seen-badge" title="seen">👁 ${prefs.seen.length}</span>`
+        : ""
+    }</span>`
     : "";
-  return `<div class="article citation-box${stateClass}" tabindex="0" data-article-id="${escapeHtml(id)}" style="--watermark: url('${faviconUrl}')">
-<h3><a href="${escapeHtml(c.url)}" target="_blank" data-article-id="${escapeHtml(id)}">${escapeHtml(c.title || c.url)}</a>${indicators}
+  return `<div class="article citation-box${stateClass}" tabindex="0" data-article-id="${
+    escapeHtml(id)
+  }" style="--watermark: url('${faviconUrl}')">
+<h3><a href="${escapeHtml(c.url)}" target="_blank" data-article-id="${
+    escapeHtml(id)
+  }">${escapeHtml(c.title || c.url)}</a>${indicators}
 <span class="article-actions">
 <a onclick="sendFeedback('interested',${articleJson},event)" title="👍 interested">👍</a>
 <a onclick="sendFeedback('ignored',${articleJson},event)" title="👎 ignore">👎</a>
 </span></h3>
-<span class="source">${escapeHtml(c.source)} · <span class="pubdate" data-date="${escapeHtml(c.publishedAt)}"></span></span>
+<span class="source">${
+    escapeHtml(c.source)
+  } · <span class="pubdate" data-date="${
+    escapeHtml(c.publishedAt)
+  }"></span></span>
 </div>`;
 }
 
@@ -1442,20 +1523,30 @@ export async function renderStories(
   for (const st of stories) {
     parts.push(`<div class="story">`);
     parts.push(
-      `<h3>${escapeHtml(st.identity.topic)} <span class="story-status">${escapeHtml(st.status)}</span></h3>`,
+      `<h3>${escapeHtml(st.identity.topic)} <span class="story-status">${
+        escapeHtml(st.status)
+      }</span></h3>`,
     );
     if (st.conflicts.length > 0) {
       parts.push(`<div class="conflicts"><b>Conflicts:</b>`);
       for (const c of st.conflicts) {
         parts.push(
-          `<p class="conflict"><span class="claimA">${escapeHtml(c.claimA.text)}</span> ⚠ <span class="claimB">${escapeHtml(c.claimB.text)}</span> <em>${escapeHtml(c.note)}</em></p>`,
+          `<p class="conflict"><span class="claimA">${
+            escapeHtml(c.claimA.text)
+          }</span> ⚠ <span class="claimB">${
+            escapeHtml(c.claimB.text)
+          }</span> <em>${escapeHtml(c.note)}</em></p>`,
         );
       }
       parts.push(`</div>`);
     }
     parts.push(`<ul class="claims">`);
     for (const c of st.core) {
-      parts.push(`<li>${escapeHtml(c.text)} <span class="src-count">(${c.sources.length} src)</span></li>`);
+      parts.push(
+        `<li>${
+          escapeHtml(c.text)
+        } <span class="src-count">(${c.sources.length} src)</span></li>`,
+      );
     }
     parts.push(`</ul>`);
     parts.push(`<div class="citations">`);
@@ -1514,13 +1605,19 @@ export async function renderStoriesPage(
   for (const st of sorted) {
     parts.push(`<div class="story">`);
     parts.push(
-      `<h3>${escapeHtml(st.identity.topic)} <span class="story-status">${escapeHtml(st.status)}</span></h3>`,
+      `<h3>${escapeHtml(st.identity.topic)} <span class="story-status">${
+        escapeHtml(st.status)
+      }</span></h3>`,
     );
     if (st.conflicts.length > 0) {
       parts.push(`<div class="conflicts"><b>Conflicts:</b>`);
       for (const c of st.conflicts) {
         parts.push(
-          `<p class="conflict"><span class="claimA">${escapeHtml(c.claimA.text)}</span> ⚠ <span class="claimB">${escapeHtml(c.claimB.text)}</span> <em>${escapeHtml(c.note)}</em></p>`,
+          `<p class="conflict"><span class="claimA">${
+            escapeHtml(c.claimA.text)
+          }</span> ⚠ <span class="claimB">${
+            escapeHtml(c.claimB.text)
+          }</span> <em>${escapeHtml(c.note)}</em></p>`,
         );
       }
       parts.push(`</div>`);
@@ -1528,7 +1625,9 @@ export async function renderStoriesPage(
     parts.push(`<ul class="claims">`);
     for (const c of st.core) {
       parts.push(
-        `<li>${escapeHtml(c.text)} <span class="src-count">(${c.sources.length} src)</span></li>`,
+        `<li>${
+          escapeHtml(c.text)
+        } <span class="src-count">(${c.sources.length} src)</span></li>`,
       );
     }
     parts.push(`</ul>`);
@@ -1544,8 +1643,6 @@ export async function renderStoriesPage(
   parts.push(pageScript());
   return parts.join("\n");
 }
-
-
 
 /** Extract the first occurrence of an XML tag's text content. */
 function extractTag(xml: string, tag: string): string | null {
@@ -1690,7 +1787,9 @@ export async function fetchFeed(
         "application/rss+xml,application/atom+xml,application/feed+json,application/xml,text/xml,*/*",
     };
     if (cacheHeaders?.etag) headers["If-None-Match"] = cacheHeaders.etag;
-    if (cacheHeaders?.lastModified) headers["If-Modified-Since"] = cacheHeaders.lastModified;
+    if (cacheHeaders?.lastModified) {
+      headers["If-Modified-Since"] = cacheHeaders.lastModified;
+    }
 
     const resp = await fetch(url, {
       headers,
@@ -1791,7 +1890,10 @@ export function mergeFeedFetchResult(
   }
 
   if (!result.isFeed) {
-    return { articles: [], nonFeedUrl: { url: feedUrl, contentType: result.contentType } };
+    return {
+      articles: [],
+      nonFeedUrl: { url: feedUrl, contentType: result.contentType },
+    };
   }
 
   const feedCache: FeedCacheEntry = {};
@@ -1925,7 +2027,9 @@ function pageShell(
 <body>
 <nav class="header"><a href="/feeds.html">Feeds catalog →</a></nav>
 <h1>${escapeHtml(title)}</h1>
-<div class="meta">${metaText} · generated <span class="generated-at" data-generated="${escapeHtml(generatedAt)}"></span></div>
+<div class="meta">${metaText} · generated <span class="generated-at" data-generated="${
+    escapeHtml(generatedAt)
+  }"></span></div>
 <div class="add-url">
 <input id="add-url-input" type="url" placeholder="https://example.com/feed-or-page" autocomplete="off">
 <button id="add-url-btn" onclick="submitUrl()">Add</button>
@@ -2182,7 +2286,9 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 <body>
 <nav class="header"><a href="/feeds.html">Feeds catalog →</a></nav>
 <h1>${escapeHtml(title)}</h1>
-<div class="meta">${metaText} · generated <span class="generated-at" data-generated="${escapeHtml(generatedAt)}"></span></div>
+<div class="meta">${metaText} · generated <span class="generated-at" data-generated="${
+    escapeHtml(generatedAt)
+  }"></span></div>
 <div class="add-url">
 <input id="add-url-input" type="url" placeholder="https://example.com/feed-or-page" autocomplete="off">
 <button id="add-url-btn" onclick="submitUrl()">Add</button>
@@ -2242,7 +2348,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 
     const isSeen = seenSet.has(a.id);
     const isRead = readSet.has(a.id);
-  const stateClass = isRead ? " read hidden" : isSeen ? " seen hidden" : "";
+    const stateClass = isRead ? " read hidden" : isSeen ? " seen hidden" : "";
     const seenCount = prefs.seen.length;
     const readCount = prefs.read.length;
     const indicators = (isSeen || isRead)
@@ -2515,7 +2621,8 @@ export const model = {
       garbageCollection: 20,
     },
     stories: {
-      description: "Persistent fused story objects (survive age-filter windows)",
+      description:
+        "Persistent fused story objects (survive age-filter windows)",
       schema: StoriesStateSchema,
       lifetime: "infinite",
       garbageCollection: 5,
@@ -2551,6 +2658,142 @@ export const model = {
     },
   },
   methods: {
+    setup: {
+      description:
+        "Interactive configuration helper. Run with no inputs to list the model's config params (name, kind, default, current value); pass inputs to validate them and get feedback. Re-runnable to change config values.",
+      arguments: z.object({
+        llmBaseUrl: z.string().url().optional().describe(
+          "Base URL of an OpenAI-compatible LLM server (e.g. http://localhost:11434)",
+        ),
+        llmModel: z.string().optional().describe(
+          "LLM model tag for story fusion. Empty = fusion disabled; set a tag to enable.",
+        ),
+        llmApiKey: z.string().optional().describe(
+          "Optional API key for LLM servers that require authentication.",
+        ),
+        llmTemperature: z.number().min(0).max(2).optional().describe(
+          "Sampling temperature (0..2). Low values keep extraction deterministic.",
+        ),
+        fusionMinClusterSize: z.number().int().min(1).optional().describe(
+          "Minimum cluster size to trigger LLM fusion.",
+        ),
+        citationRetentionDays: z.number().int().min(0).optional().describe(
+          "How long article citations live before aging out.",
+        ),
+        llmConcurrency: z.number().int().min(1).max(20).optional().describe(
+          "Max parallel LLM requests.",
+        ),
+      }),
+      execute: async (
+        args: Record<string, unknown>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        const logger = context.logger;
+        const ga = context.globalArgs as GlobalArgs;
+
+        // Build the config surface from the model's globalArguments schema.
+        const specs: Array<{
+          name: string;
+          kind: string;
+          default: string;
+          current: string;
+          description: string;
+        }> = [];
+        for (const [key, schema] of Object.entries(GlobalArgsSchema.shape)) {
+          const outerDef = (schema as z.ZodTypeAny)._def as unknown as Record<
+            string,
+            unknown
+          >;
+          const defaultValue = "defaultValue" in outerDef
+            ? outerDef.defaultValue
+            : undefined;
+          const description = typeof outerDef.description === "string"
+            ? outerDef.description
+            : "";
+          const innerDef =
+            outerDef.typeName === "ZodDefault" && outerDef.innerType
+              ? ((outerDef.innerType as z.ZodTypeAny)._def as unknown as Record<
+                string,
+                unknown
+              >)
+              : outerDef;
+          const kind = innerDef.typeName === "ZodNumber" ? "number" : "string";
+          const current = ga[key as keyof GlobalArgs];
+          specs.push({
+            name: key,
+            kind,
+            default: String(defaultValue),
+            current: String(current),
+            description,
+          });
+        }
+
+        if (Object.keys(args).length === 0) {
+          logger?.info("@svendowideit/news setup — config params", {});
+          for (const s of specs) {
+            logger?.info(
+              "{name} [{kind}] default={default} current={current} — {description}",
+              {
+                name: s.name,
+                kind: s.kind,
+                default: s.default,
+                current: s.current,
+                description: s.description,
+              },
+            );
+          }
+          logger?.info(
+            "To enable LLM story fusion, pass --input llmModel=<tag> (e.g. llama3) and llmBaseUrl=<url>.",
+            {},
+          );
+          return { dataHandles: [] };
+        }
+
+        // Validate provided values against the globalArguments schema.
+        const issues: string[] = [];
+        for (const [key, value] of Object.entries(args)) {
+          if (value === undefined || value === null) continue;
+          const field =
+            GlobalArgsSchema.shape[key as keyof typeof GlobalArgsSchema.shape];
+          const res = field.safeParse(value);
+          if (!res.success) {
+            issues.push(
+              `${key}: ${res.error.issues.map((i) => i.message).join("; ")}`,
+            );
+          }
+        }
+
+        if (issues.length > 0) {
+          for (const issue of issues) {
+            logger?.warning("setup: {issue}", { issue });
+          }
+          throw new Error(
+            `setup: ${issues.length} invalid config value(s): ${
+              issues.join(", ")
+            }`,
+          );
+        }
+
+        const merged = { ...ga, ...args } as GlobalArgs;
+        logger?.info("Validated config values OK.", {});
+        if (merged.llmModel && merged.llmModel.length > 0) {
+          logger?.info(
+            "Fusion enabled — llmModel={model}, llmBaseUrl={base}",
+            { model: merged.llmModel, base: merged.llmBaseUrl },
+          );
+        } else {
+          logger?.info(
+            "Fusion disabled (llmModel empty). Pass --input llmModel=<tag> to enable.",
+            {},
+          );
+        }
+        logger?.info(
+          "To persist these values, set them in the model instance globalArguments (swamp model update @svendowideit/news-reader local-news).",
+          {},
+        );
+        return { dataHandles: [] };
+      },
+    },
     cleanupCdata: {
       description:
         "Strip CDATA wrappers from existing keywords in snapshots and preferences. Run once to clean up data from before the CDATA-stripping fix.",
@@ -2579,8 +2822,8 @@ export const model = {
             fetchedAt: snapshotData.fetchedAt,
             articles: snapshotData.articles,
             errors: snapshotData.errors,
-            nonFeedUrls:
-              (snapshotData as unknown as Record<string, unknown>).nonFeedUrls ?? [],
+            nonFeedUrls: (snapshotData as unknown as Record<string, unknown>)
+              .nonFeedUrls ?? [],
             feedCache: snapshotData.feedCache ?? {},
             feedArticleIds: snapshotData.feedArticleIds ?? {},
           });
@@ -2605,8 +2848,8 @@ export const model = {
               fetchedAt: filteredData.fetchedAt,
               articles: filteredData.articles,
               errors: filteredData.errors,
-              nonFeedUrls:
-                (filteredData as unknown as Record<string, unknown>).nonFeedUrls ?? [],
+              nonFeedUrls: (filteredData as unknown as Record<string, unknown>)
+                .nonFeedUrls ?? [],
               filteredAt: filteredData.filteredAt,
               ageFilter: filteredData.ageFilter,
             },
@@ -2709,13 +2952,23 @@ export const model = {
         const allArticles: Article[] = [];
         const errors: { url: string; message: string }[] = [];
         const nonFeedUrls: { url: string; contentType: string }[] = [];
-        const newFeedCache: Record<string, { etag?: string; lastModified?: string }> = {};
+        const newFeedCache: Record<
+          string,
+          { etag?: string; lastModified?: string }
+        > = {};
         const newFeedArticleIds: Record<string, string[]> = {};
         let notModifiedCount = 0;
 
-        const prevSnapshot = (await context.readResource("feed-snapshot") as
-          | { articles: Article[]; feedCache?: Record<string, { etag?: string; lastModified?: string }>; feedArticleIds?: Record<string, string[]> }
-          | null);
+        const prevSnapshot = await context.readResource("feed-snapshot") as
+          | {
+            articles: Article[];
+            feedCache?: Record<
+              string,
+              { etag?: string; lastModified?: string }
+            >;
+            feedArticleIds?: Record<string, string[]>;
+          }
+          | null;
         const prevArticlesById = new Map(
           (prevSnapshot?.articles ?? []).map((a) => [a.id, a]),
         );
@@ -2725,7 +2978,11 @@ export const model = {
         for (const feedUrl of feedUrls) {
           logger?.info("Fetching {url}", { url: feedUrl });
           const cacheHeaders = prevFeedCache[feedUrl];
-          const result = await fetchFeed(feedUrl, args.maxArticlesPerFeed, cacheHeaders);
+          const result = await fetchFeed(
+            feedUrl,
+            args.maxArticlesPerFeed,
+            cacheHeaders,
+          );
           const merged = mergeFeedFetchResult(feedUrl, result, {
             prevFeedCache,
             prevFeedArticleIds,
@@ -2734,7 +2991,9 @@ export const model = {
 
           allArticles.push(...merged.articles);
           if (merged.feedCache) newFeedCache[feedUrl] = merged.feedCache;
-          if (merged.feedArticleIds) newFeedArticleIds[feedUrl] = merged.feedArticleIds;
+          if (merged.feedArticleIds) {
+            newFeedArticleIds[feedUrl] = merged.feedArticleIds;
+          }
           if (merged.notModified) {
             notModifiedCount++;
             logger?.info("Not modified (304): {url}", { url: feedUrl });
@@ -2784,7 +3043,7 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-     dedupeArticles: {
+    dedupeArticles: {
       description:
         "Group articles by URL, mark duplicates, and annotate primary articles with duplicate source info",
       arguments: DedupeArticlesArgsSchema,
@@ -2806,9 +3065,9 @@ export const model = {
           );
         }
 
-        const prevDeduped = (await context.readResource("dedupedUrls-current") as
+        const prevDeduped = await context.readResource("dedupedUrls-current") as
           | { urls: string[]; articles: Article[] }
-          | null);
+          | null;
         const result = dedupeArticlesIncremental(
           snapshotData.articles,
           prevDeduped?.urls ?? [],
@@ -2830,7 +3089,10 @@ export const model = {
         await context.writeResource(
           "dedupedUrls",
           "dedupedUrls-current",
-          { urls: allUrls, articles: result.deduped } as unknown as Record<string, unknown>,
+          { urls: allUrls, articles: result.deduped } as unknown as Record<
+            string,
+            unknown
+          >,
         );
 
         const handle = await context.writeResource(
@@ -2840,8 +3102,8 @@ export const model = {
             fetchedAt: snapshotData.fetchedAt,
             articles: result.deduped,
             errors: snapshotData.errors,
-            nonFeedUrls:
-              (snapshotData as unknown as Record<string, unknown>).nonFeedUrls ?? [],
+            nonFeedUrls: (snapshotData as unknown as Record<string, unknown>)
+              .nonFeedUrls ?? [],
             feedCache: snapshotData.feedCache ?? {},
             feedArticleIds: snapshotData.feedArticleIds ?? {},
           },
@@ -2899,8 +3161,8 @@ export const model = {
             fetchedAt: new Date().toISOString(),
             articles: filteredArticles,
             errors: snapshotData.errors,
-            nonFeedUrls:
-              (snapshotData as unknown as Record<string, unknown>).nonFeedUrls ?? [],
+            nonFeedUrls: (snapshotData as unknown as Record<string, unknown>)
+              .nonFeedUrls ?? [],
             filteredAt: new Date().toISOString(),
             ageFilter: args.newsAge,
           },
@@ -2971,7 +3233,9 @@ export const model = {
           count: top.length,
         });
 
-        const storiesState = await context.readResource("stories-html-current") as
+        const storiesState = await context.readResource(
+          "stories-html-current",
+        ) as
           | { html: string }
           | null;
         const html = generateHtml(
@@ -3307,7 +3571,7 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-     clusterArticles: {
+    clusterArticles: {
       description:
         "Conservatively cluster filtered articles into same-story groups (no LLM). Requires a filtered-snapshot resource.",
       arguments: z.object({
@@ -3336,7 +3600,11 @@ export const model = {
         );
         // Compute fingerprints for change detection (article IDs + LLM config).
         for (const c of clusters.clusters) {
-          c.fingerprint = await computeClusterFingerprint(c, ga.llmModel, ga.llmTemperature);
+          c.fingerprint = await computeClusterFingerprint(
+            c,
+            ga.llmModel,
+            ga.llmTemperature,
+          );
         }
         const handle = await context.writeResource(
           "clusters",
@@ -3358,7 +3626,7 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-     seedStories: {
+    seedStories: {
       description:
         "LLM-seed persistent Story objects from the current clusters resource.",
       arguments: z.object({
@@ -3380,7 +3648,10 @@ export const model = {
           const handle = await context.writeResource(
             "stories",
             "stories-current",
-            { stories: storiesState?.stories ?? [] } as unknown as Record<string, unknown>,
+            { stories: storiesState?.stories ?? [] } as unknown as Record<
+              string,
+              unknown
+            >,
           );
           return { dataHandles: [handle] };
         }
@@ -3395,7 +3666,11 @@ export const model = {
           | { stories: Story[] }
           | null;
         const existing = storiesState?.stories ?? [];
-        const uniqueToSeed = selectClustersToSeed(clusters, existing, args.minClusterSize);
+        const uniqueToSeed = selectClustersToSeed(
+          clusters,
+          existing,
+          args.minClusterSize,
+        );
         const newStories: Story[] = [];
         const concurrency = ga.llmConcurrency ?? 3;
         await withConcurrency(uniqueToSeed, concurrency, async (c) => {
@@ -3423,7 +3698,7 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
-     fuseStories: {
+    fuseStories: {
       description:
         "LLM-delta pass: absorb new cluster articles into existing stories and persist.",
       arguments: z.object({}),
@@ -3443,7 +3718,10 @@ export const model = {
           const handle = await context.writeResource(
             "stories",
             "stories-current",
-            { stories: storiesState?.stories ?? [] } as unknown as Record<string, unknown>,
+            { stories: storiesState?.stories ?? [] } as unknown as Record<
+              string,
+              unknown
+            >,
           );
           return { dataHandles: [handle] };
         }
@@ -3473,9 +3751,13 @@ export const model = {
           if (!st) return;
           // Skip if cluster unchanged since last run (same articles + same config).
           const prev = prevByKey.get(c.key);
-          if (prev && prev.fingerprint && c.fingerprint &&
-              prev.fingerprint === c.fingerprint) {
-            logger?.info("Skipping unchanged cluster '{topic}'", { topic: c.topic });
+          if (
+            prev && prev.fingerprint && c.fingerprint &&
+            prev.fingerprint === c.fingerprint
+          ) {
+            logger?.info("Skipping unchanged cluster '{topic}'", {
+              topic: c.topic,
+            });
             return;
           }
           try {
@@ -3498,10 +3780,13 @@ export const model = {
         // re-match by entity overlap and fuse each one individually.
         // Use cached entities from clusterArticles when available.
         for (const a of absorbable ?? []) {
-          const aEntities = a.entities ?? extractEntities(a.title, a.summary ?? "");
+          const aEntities = a.entities ??
+            extractEntities(a.title, a.summary ?? "");
           let st: Story | undefined;
           for (const s of stories) {
-            const sEntities = s.identity.entities.map((e) => e.name.toLowerCase());
+            const sEntities = s.identity.entities.map((e) =>
+              e.name.toLowerCase()
+            );
             const shared = aEntities.filter((e) =>
               sEntities.includes(e.toLowerCase())
             ).length;
@@ -3565,7 +3850,10 @@ export const model = {
           const handle = await context.writeResource(
             "stories",
             "stories-current",
-            { stories: storiesState?.stories ?? [] } as unknown as Record<string, unknown>,
+            { stories: storiesState?.stories ?? [] } as unknown as Record<
+              string,
+              unknown
+            >,
           );
           return { dataHandles: [handle] };
         }

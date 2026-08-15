@@ -1,0 +1,48 @@
+manifestVersion: 1
+name: "@svendowideit/news"
+version: "2026.08.08.3"
+description: >
+  The full news stack — feed discovery, catalog management, preference-aware
+  fetching, LLM story fusion, and static HTML rendering. Ships four model
+  extensions (feed-discovery, feed-catalog, news-reader, feed-analysis), one
+  report extension (news_html_report), the four news workflows (news, news-fusion,
+  news-curation, news-full), and the decoupled feedback server that closes the
+  👍/👎 loop between the generated HTML page and the workflows.
+
+  Install: swamp extension pull @svendowideit/news, then
+  swamp model create @svendowideit/news-reader local-news (plus feed-catalog,
+  feed-discovery, feed-analysis instances).
+  Setup: swamp model method run local-news setup (set llmModel + llmBaseUrl to
+  enable LLM fusion).
+  Run: swamp workflow run news | news-fusion | news-curation | "@svendowideit/news".
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - models/news_reader.ts
+  - models/feed_catalog.ts
+  - models/feed_discovery.ts
+  - models/feed_analysis.ts
+
+reports:
+  - models/news_html_report.ts
+
+workflows:
+  - workflows/news.yaml
+  - workflows/news-fusion.yaml
+  - workflows/news-curation.yaml
+  - workflows/news-full.yaml
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - scripts/feedback-server.ts
+  - scripts/README.md
+  - docs/news-fusing.md
+  - docs/PLAN.md
+  - docs/LLM-FUSION.md
+
+platforms: []

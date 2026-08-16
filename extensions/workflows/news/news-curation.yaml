@@ -1,5 +1,5 @@
 id: 27ae2513-825f-4445-b325-97cbb40ed816
-name: news-curation
+name: "@svendowideit/news-curation"
 description: |
   Feed catalog maintenance — deduplicates feeds by content identity, gathers
   feed enable/disable state from the feedback server, discovers new RSS feeds
@@ -82,7 +82,7 @@ jobs:
       feeds so fetch skips them.
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelIdOrName: news-feed-catalog
       methodName: dedupe
       inputs: {}
     dependsOn: []
@@ -93,7 +93,7 @@ jobs:
       state to the catalog, and delete processed entries.
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelIdOrName: news-feed-catalog
       methodName: gatherFeedState
       inputs:
         serverUrl: ${{ inputs.feedbackServerUrl }}
@@ -112,7 +112,7 @@ jobs:
     description: Discover new RSS feeds from article URLs.
     task:
       type: model_method
-      modelIdOrName: feed-discovery
+      modelIdOrName: news-feed-discovery
       methodName: discover
       inputs:
         maxSitesToCrawl: ${{ inputs.maxSitesToCrawl }}
@@ -124,15 +124,15 @@ jobs:
     weight: 0
     allowFailure: true
   - name: upsert-feed[${{ self.feed.title }}]
-    description: Add each discovered feed to the feed-catalog.
+    description: Add each discovered feed to the news-feed-catalog.
     forEach:
       item: feed
-      in: ${{ data.latest("feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([])
+      in: ${{ data.latest("news-feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([])
         }}
     concurrency: 3
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelIdOrName: news-feed-catalog
       methodName: add
       inputs:
         url: ${{ self.feed.url }}
@@ -164,7 +164,7 @@ jobs:
       page-discovery-result resource.
     task:
       type: model_method
-      modelIdOrName: feed-analysis
+      modelIdOrName: news-feed-analysis
       methodName: analyzePages
       inputs:
         maxPagesPerRun: ${{ inputs.maxPagesPerRun }}
@@ -176,15 +176,15 @@ jobs:
     weight: 0
     allowFailure: true
   - name: upsert-page[${{ self.feed.title }}]
-    description: Add each discovered page feed to the feed-catalog.
+    description: Add each discovered page feed to the news-feed-catalog.
     forEach:
       item: feed
-      in: ${{ data.latest("feed-analysis", "page-discovery-result").?attributes.?discoveredFeeds.orValue([])
+      in: ${{ data.latest("news-feed-analysis", "page-discovery-result").?attributes.?discoveredFeeds.orValue([])
         }}
     concurrency: 3
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelIdOrName: news-feed-catalog
       methodName: add
       inputs:
         url: ${{ self.feed.url }}

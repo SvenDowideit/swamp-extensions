@@ -805,7 +805,7 @@ const CategoriesListSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const model = {
-  type: "@svendowideit/feed-catalog",
+  type: "@svendowideit/news-feed-catalog",
   version: "2026.08.06.1784424438",
   globalArguments: GlobalArgsSchema,
   resources: {
@@ -971,7 +971,7 @@ export const model = {
           let contentType = "";
           try {
             const resp = await fetch(feed.url, {
-              headers: { "User-Agent": "swamp-feed-catalog/1.0" },
+              headers: { "User-Agent": "swamp-news-feed-catalog/1.0" },
               signal: AbortSignal.timeout(15000),
             });
             contentType = resp.headers.get("content-type") ?? "";
@@ -1001,7 +1001,7 @@ export const model = {
             continue;
           }
           // Flag catalog entries that resolved to HTML pages instead of feeds —
-          // same detection as the news workflow's fetch step, so feed-discovery
+          // same detection as the news workflow's fetch step, so news-feed-discovery
           // can re-crawl the domain even when only this workflow ran.
           if (!isFeedBody(contentType, xml)) {
             nonFeedUrls.push({ url: feed.url, contentType });

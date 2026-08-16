@@ -95,12 +95,12 @@ const FeedInputSchema = z.object({
   duplicateOf: z.string().optional(),
   invalid: z.boolean().optional(),
   enabled: z.boolean().optional(),
-}).describe("A feed from the feed-catalog");
+}).describe("A feed from the news-feed-catalog");
 
 const FetchArgsSchema = z.object({
   feeds: z.array(z.union([z.string().url(), FeedInputSchema])).default([])
     .describe(
-      "RSS/Atom feed URLs to fetch — either string URLs or feed objects from feed-catalog",
+      "RSS/Atom feed URLs to fetch — either string URLs or feed objects from news-feed-catalog",
     ),
   maxArticlesPerFeed: z.number().int().min(1).max(100).default(25).describe(
     "Maximum articles to keep per feed (default 25)",
@@ -2905,7 +2905,7 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
-        // Normalize feeds: accept string URLs or feed objects from feed-catalog.
+        // Normalize feeds: accept string URLs or feed objects from news-feed-catalog.
         // Skip feeds marked as duplicates, invalid, or disabled.
         const skipped: string[] = [];
         const feedUrls: string[] = args.feeds.reduce<string[]>((acc, f) => {
@@ -2933,11 +2933,11 @@ export const model = {
           throw new Error(
             "No feed URLs provided. Either:\n" +
               "  1. Pass feeds directly: --input 'feeds:json=[\"https://...\"]'\n" +
-              "  2. Add feeds to the feed-catalog model first, then run without --input feeds\n\n" +
+              "  2. Add feeds to the news-feed-catalog model first, then run without --input feeds\n\n" +
               "Usage:\n" +
-              "  swamp workflow run news --input 'feeds:json=[\"https://feeds.bbci.co.uk/news/technology/rss.xml\"]'\n\n" +
+              "  swamp workflow run @svendowideit/news-fetch --input 'feeds:json=[\"https://feeds.bbci.co.uk/news/technology/rss.xml\"]'\n\n" +
               "Inputs:\n" +
-              "  feeds            string[] or feed objects  RSS/Atom feed URLs (or feed-catalog entries)\n" +
+              "  feeds            string[] or feed objects  RSS/Atom feed URLs (or news-feed-catalog entries)\n" +
               "  maxArticlesPerFeed integer default: 25  Max articles per feed",
           );
         }

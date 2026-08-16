@@ -3,7 +3,7 @@
  * fetches each page, discovers RSS/Atom feeds (via <link rel="alternate"> tags,
  * anchor links to feed paths, direct feed responses, or common feed paths), and
  * writes a `page-discovery-result` resource listing the discovered feeds so the
- * news workflow's upsert-page step can add them to the feed-catalog.
+ * news workflow's upsert-page step can add them to the news-feed-catalog.
  *
  * The news-reader's `pages-current` data resource has shape:
  *   { pages: [{ url, name, category }], gatheredAt }
@@ -170,7 +170,7 @@ export async function fetchContent(
   try {
     const resp = await fetch(url, {
       headers: {
-        "User-Agent": "swamp-feed-analysis/1.0",
+        "User-Agent": "swamp-news-feed-analysis/1.0",
         "Accept":
           "text/html,application/xhtml+xml,application/xml,application/rss+xml,application/atom+xml,application/feed+json,*/*",
       },
@@ -309,7 +309,7 @@ async function readCrossModelData(
 // ---------------------------------------------------------------------------
 
 export const model = {
-  type: "@svendowideit/feed-analysis",
+  type: "@svendowideit/news-feed-analysis",
   version: "2026.08.03.1",
   globalArguments: GlobalArgsSchema,
   resources: {

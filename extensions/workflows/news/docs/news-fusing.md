@@ -116,7 +116,7 @@ interface Conflict {
 ```
 fetch
   ↓
-dedup (URL-level, existing feed-catalog logic)
+dedup (URL-level, existing news-feed-catalog logic)
   ↓
 cluster by story identity        ← cheap: entities + canonical URL + date
   ↓
@@ -172,7 +172,7 @@ CITATIONS: [A] [B] [C] [D] [E]
 
 - `filterArticlesByAge` (news_reader.ts:47): change so it drops **citations** by
   retention, never core facts. Story objects bypass the window entirely.
-- `duplicate` / `duplicateOf` / `duplicateCount` (feed-catalog.ts): keep as the
+- `duplicate` / `duplicateOf` / `duplicateCount` (news-feed-catalog.ts): keep as the
   URL-level pre-dedup feeding the clusterer; fusion adds *claim-level* dedup on top.
 - `feed-snapshot` / `filteredSnapshot` resources (news_reader.ts:1094): these already
   retain raw articles — the source for regeneration and provenance.

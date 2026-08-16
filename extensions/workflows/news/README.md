@@ -2,7 +2,7 @@
 
 The full news stack — feed discovery, catalog management, preference-aware
 fetching, LLM story fusion, and static HTML rendering. Ships four model
-extensions (`feed-discovery`, `feed-catalog`, `news-reader`, `feed-analysis`),
+extensions (`news-feed-discovery`, `news-feed-catalog`, `news-reader`, `news-feed-analysis`),
 one report extension (`news_html_report`), the four news workflows (`news`,
 `news-fusion`, `news-curation`, `news-full`), and the decoupled feedback server
 that closes the 👍/👎 loop between the generated HTML page and the workflows.
@@ -17,9 +17,9 @@ Then create the model instances the workflows reference:
 
 ```sh
 swamp model create @svendowideit/news-reader local-news
-swamp model create @svendowideit/feed-catalog feed-catalog
-swamp model create @svendowideit/feed-discovery feed-discovery
-swamp model create @svendowideit/feed-analysis feed-analysis
+swamp model create @svendowideit/news-feed-catalog news-feed-catalog
+swamp model create @svendowideit/news-feed-discovery news-feed-discovery
+swamp model create @svendowideit/news-feed-analysis news-feed-analysis
 ```
 
 ## Setup
@@ -52,16 +52,16 @@ The stack ships four workflows. Run them with `swamp workflow run <name>`:
 
 ```sh
 # Fast path — feedback, fetch, dedupe, filter, generate HTML (every 4h)
-swamp workflow run news
+swamp workflow run @svendowideit/news-fetch
 
 # LLM story fusion — cluster, fuse, seed, render stories (every 12h)
-swamp workflow run news-fusion
+swamp workflow run @svendowideit/news-fusion
 
 # Catalog maintenance — dedupe, feed state, discovery, page analysis (daily 3am)
-swamp workflow run news-curation
+swamp workflow run @svendowideit/news-curation
 
 # Full loop — discovery → catalog → fetch → filter → fuse → render in one run
-swamp workflow run "@svendowideit/news"
+swamp workflow run @svendowideit/news-full
 ```
 
 Optional inputs for the fast path / full loop: `feeds` (array of feed URLs,
@@ -79,9 +79,9 @@ swamp workflow run news --input topN=50
 | Type | Purpose |
 |---|---|
 | `@svendowideit/news-reader` | Fetches RSS/Atom feeds, learns user preferences, generates a static HTML news summary page ranked by predicted interest. |
-| `@svendowideit/feed-catalog` | Manages the curated list of RSS/Atom feeds. |
-| `@svendowideit/feed-discovery` | Discovers new RSS/Atom feeds by crawling domains from the news-reader's article URLs and upserting them into the catalog. |
-| `@svendowideit/feed-analysis` | Analyzes pages gathered by the news-reader, discovers RSS/Atom feeds in each page, and writes a page-discovery-result resource for catalog upsert. |
+| `@svendowideit/news-feed-catalog` | Manages the curated list of RSS/Atom feeds. |
+| `@svendowideit/news-feed-discovery` | Discovers new RSS/Atom feeds by crawling domains from the news-reader's article URLs and upserting them into the catalog. |
+| `@svendowideit/news-feed-analysis` | Analyzes pages gathered by the news-reader, discovers RSS/Atom feeds in each page, and writes a page-discovery-result resource for catalog upsert. |
 | `@svendowideit/news-html-report` | Report extension that renders the HTML page from the news-reader's snapshot. |
 
 ## Workflows

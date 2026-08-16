@@ -1,7 +1,7 @@
 /**
  * Feed discovery — reads article URLs from the news-reader's snapshot, finds
  * RSS/Atom feeds for domains not yet known, and upserts discovered feeds into
- * the feed-catalog.
+ * the news-feed-catalog.
  *
  * Improvements over the original:
  *  - A persistent crawl ledger (`crawlLedger` resource) records every domain
@@ -26,7 +26,7 @@ const GlobalArgsSchema = z.object({
     "Model ID of the news-reader instance to read snapshots from (empty = find any)",
   ),
   feedCatalogModelId: z.string().default("").describe(
-    "Model ID of the feed-catalog instance to upsert into (empty = find any)",
+    "Model ID of the news-feed-catalog instance to upsert into (empty = find any)",
   ),
 }).strict();
 
@@ -202,7 +202,7 @@ export async function fetchContent(
   try {
     const resp = await fetch(url, {
       headers: {
-        "User-Agent": "swamp-feed-discovery/1.0",
+        "User-Agent": "swamp-news-feed-discovery/1.0",
         "Accept":
           "text/html,application/xhtml+xml,application/xml,application/rss+xml,application/atom+xml,application/feed+json,*/*",
       },
@@ -382,7 +382,7 @@ async function readCrossModelData(
 // ---------------------------------------------------------------------------
 
 export const model = {
-  type: "@svendowideit/feed-discovery",
+  type: "@svendowideit/news-feed-discovery",
   version: "2026.08.03.1",
   globalArguments: GlobalArgsSchema,
   resources: {
@@ -455,14 +455,14 @@ export const model = {
           : [];
 
         // 1b. Also collect catalog entries flagged as non-feeds by the
-        //     feed-catalog's dedupe step — it performs the same HTML-page
+        //     news-feed-catalog's dedupe step — it performs the same HTML-page
         //     detection as the news fetch step, so the two paths back each
         //     other up even when only one workflow ran.
         let dedupeNonFeedUrls: string[] = [];
         try {
           const dedupeResult = await readCrossModelData(
             context,
-            "@svendowideit/feed-catalog",
+            "@svendowideit/news-feed-catalog",
             context.globalArgs.feedCatalogModelId,
             "dedupe-result",
           );
@@ -479,7 +479,7 @@ export const model = {
         const allNonFeedUrls = [...nonFeedUrls, ...dedupeNonFeedUrls];
         if (articleUrls.length === 0 && allNonFeedUrls.length === 0) {
           throw new Error(
-            "No articles or non-feed URLs in news-reader snapshot or feed-catalog dedupe result. Run the news workflow's fetch step first.",
+            "No articles or non-feed URLs in news-reader snapshot or news-feed-catalog dedupe result. Run the news workflow's fetch step first.",
           );
         }
 
@@ -493,7 +493,7 @@ export const model = {
         // 2b. Domains that must be crawled: catalog entries that turned out to
         //     be HTML pages. These are force-included so we re-discover the real
         //     feed for the domain. Sources: the news-reader snapshot AND the
-        //     feed-catalog dedupe result (backup detection path).
+        //     news-feed-catalog dedupe result (backup detection path).
         const forcedDomains = new Map<string, number>();
         for (const url of allNonFeedUrls) {
           const d = extractDomain(url);

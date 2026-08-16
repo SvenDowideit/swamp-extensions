@@ -323,7 +323,7 @@ As the story corpus grows (hundreds of stories after weeks of runs):
 Split the current monolithic workflow into two independent workflows that
 share data through the persistent `stories-current` resource:
 
-**Workflow 1 — `@svendowideit/news` (fast, every 4h)**
+**Workflow 1 — `@svendowideit/news-fetch` (fast, every 4h)**
 
 ```
 gather-feedback → dedupe → gather-feed-state → fetch → dedupe-articles
@@ -458,7 +458,7 @@ conceptually distinct concerns with different cadences and failure modes.
 
 **Proposed split — three workflows:**
 
-**Workflow 1 — `@svendowideit/news` (fast, every 4h)**
+**Workflow 1 — `@svendowideit/news-fetch` (fast, every 4h)**
 
 ```
 gather-feedback → fetch → dedupe-articles → filter → generate → generate-feeds-html
@@ -513,7 +513,7 @@ server.
 - **`gather-feed-state` stays in curation** because it syncs catalog
   enabled/disabled flags — a catalog management concern. The `fetch` step
   in workflow 1 already reads the catalog's current state (enabled feeds
-  only) via `data.latest("feed-catalog", "current")`, so it automatically
+  only) via `data.latest("news-feed-catalog", "current")`, so it automatically
   picks up changes from the curation workflow.
 
 **Data flow between workflows:**
@@ -521,7 +521,7 @@ server.
 ```
 [news-curation, daily]          [news, every 4h]           [news-fusion, every 12h]
        │                              │                            │
-       │ writes feed-catalog          │ reads feed-catalog         │
+       │ writes news-feed-catalog          │ reads news-feed-catalog         │
        │   (enabled/disabled,         │   (enabled feeds)          │
        │    new feeds, deduped)       │                            │
        │                              │ writes feed-snapshot       │ reads feed-snapshot
@@ -530,7 +530,7 @@ server.
        │                              │ reads stories-html ────────┤ writes stories-html
        │                              │                            │
        ▼                              ▼                            ▼
-   feed-catalog                   news.html                    stories-current
+   news-feed-catalog                   news.html                    stories-current
    (shared resource)              feeds.html                   stories-html-current
 ```
 
@@ -542,10 +542,10 @@ on their last run.
 
 1. Create `@svendowideit/news-curation` with the curation steps.
 2. Create `@svendowideit/news-fusion` with the fusion steps.
-3. Strip curation and fusion steps from `@svendowideit/news`, leaving only
+3. Strip curation and fusion steps from `@svendowideit/news-fetch`, leaving only
    the fast path.
 4. Set schedules: news every 4h, fusion every 12h, curation daily.
-5. The existing `stories-current` and `feed-catalog` data is already in the
+5. The existing `stories-current` and `news-feed-catalog` data is already in the
    datastore — no data migration needed.
 
 ---

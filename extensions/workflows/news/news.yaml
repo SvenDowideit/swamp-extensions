@@ -1,13 +1,13 @@
 id: 22d55bc4-a25e-48af-a0ba-6c2cef52f761
-name: news
+name: "@svendowideit/news-fetch"
 description: |
   Fast-path news workflow — gathers feedback, fetches feeds from the catalog,
   deduplicates articles, filters by age, and generates the HTML report.
   Runs every 4 hours. No LLM calls, no catalog maintenance, no feed discovery.
 
-  Fusion (LLM story clustering) runs separately via the news-fusion workflow.
+  Fusion (LLM story clustering) runs separately via the @svendowideit/news-fusion workflow.
   Curation (feed dedupe, discovery, page analysis) runs separately via the
-  news-curation workflow.
+  @svendowideit/news-curation workflow.
 
   Loop: gather-feedback → fetch → dedupe-articles → filter → generate → generate-feeds-html
 tags: {}
@@ -99,7 +99,7 @@ jobs:
     weight: 0
     allowFailure: true
   - name: fetch
-    description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided).
+    description: Fetch RSS feeds from the news-feed-catalog (or from --input feeds if provided).
     guard: ${{ data.latest("news-reader", "feed-snapshot") != null && timestamp(run.startedAt)
       - timestamp(data.latest("news-reader", "feed-snapshot").attributes.fetchedAt)
       < duration("1h") }}
@@ -108,7 +108,7 @@ jobs:
       modelIdOrName: local-news
       methodName: fetch
       inputs:
-        feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("feed-catalog",
+        feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("news-feed-catalog",
           "current").?attributes.?feeds.orValue([]) }}'
     dependsOn:
     - step: gather-feedback
@@ -173,7 +173,7 @@ jobs:
       cross-link back to the news summary.
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelIdOrName: news-feed-catalog
       methodName: generateFeedsHtml
       inputs:
         outputPath: feeds.html

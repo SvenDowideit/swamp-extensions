@@ -1,5 +1,5 @@
 id: f04794eb-33d9-443f-a582-3f12699c54e1
-name: "@svendowideit/news"
+name: "@svendowideit/news-full"
 description: |
   Full news feedback loop — gathers feedback from the queue server, fetches
   feeds from the catalog, generates an HTML summary ranked by your
@@ -15,12 +15,12 @@ description: |
   the plain pre-fusion pipeline if the LLM endpoint is unavailable.
 
   Setup (one-time): add feeds to the catalog:
-    swamp model create @svendowideit/feed-catalog feed-catalog
-    swamp model method run feed-catalog add --input url="https://hnrss.org/frontpage" --input category=tech
-    swamp model method run feed-catalog add --input url="https://feeds.bbci.co.uk/news/rss.xml" --input category=news
+    swamp model create @svendowideit/news-feed-catalog news-feed-catalog
+    swamp model method run news-feed-catalog add --input url="https://hnrss.org/frontpage" --input category=tech
+    swamp model method run news-feed-catalog add --input url="https://feeds.bbci.co.uk/news/rss.xml" --input category=news
 
   Run the workflow (fetches catalog feeds, generates news.html and feeds.html):
-    swamp workflow run news
+    swamp workflow run @svendowideit/news-fetch
 
   Then view the results (served by scripts/feedback-server.ts):
     open http://localhost:8765            # news.html
@@ -163,7 +163,7 @@ jobs:
       feeds so fetch skips them.
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelIdOrName: news-feed-catalog
       methodName: dedupe
       inputs: {}
     dependsOn: []
@@ -174,7 +174,7 @@ jobs:
       state to the catalog, and delete processed entries.
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelIdOrName: news-feed-catalog
       methodName: gatherFeedState
       inputs:
         serverUrl: ${{ inputs.feedbackServerUrl }}
@@ -190,7 +190,7 @@ jobs:
     weight: 0
     allowFailure: true
   - name: fetch
-    description: Fetch RSS feeds from the feed-catalog (or from --input feeds if provided),
+    description: Fetch RSS feeds from the news-feed-catalog (or from --input feeds if provided),
       skipping feeds marked duplicate by the dedupe step.
     guard: ${{ data.latest("news-reader", "feed-snapshot") != null && timestamp(run.startedAt)
       - timestamp(data.latest("news-reader", "feed-snapshot").attributes.fetchedAt)
@@ -200,7 +200,7 @@ jobs:
       modelIdOrName: local-news
       methodName: fetch
       inputs:
-        feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("feed-catalog",
+        feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("news-feed-catalog",
           "current").?attributes.?feeds.orValue([]) }}'
     dependsOn:
     - step: dedupe
@@ -335,7 +335,7 @@ jobs:
       cross-link back to the news summary.
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelIdOrName: news-feed-catalog
       methodName: generateFeedsHtml
       inputs:
         outputPath: feeds.html
@@ -354,7 +354,7 @@ jobs:
     description: Discover new RSS feeds from article URLs.
     task:
       type: model_method
-      modelIdOrName: feed-discovery
+      modelIdOrName: news-feed-discovery
       methodName: discover
       inputs:
         maxSitesToCrawl: ${{ inputs.maxSitesToCrawl }}
@@ -366,15 +366,15 @@ jobs:
     weight: 0
     allowFailure: true
   - name: upsert-feed #[${{ self.feed.title }}]
-    description: Add each discovered feed to the feed-catalog.
+    description: Add each discovered feed to the news-feed-catalog.
     forEach:
       item: feed
-      in: ${{ data.latest("feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([])
+      in: ${{ data.latest("news-feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([])
         }}
     concurrency: 3
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelIdOrName: news-feed-catalog
       methodName: add
       inputs:
         url: ${{ self.feed.url }}
@@ -406,7 +406,7 @@ jobs:
       page-discovery-result resource.
     task:
       type: model_method
-      modelIdOrName: feed-analysis
+      modelIdOrName: news-feed-analysis
       methodName: analyzePages
       inputs:
         maxPagesPerRun: ${{ inputs.maxPagesPerRun }}
@@ -418,15 +418,15 @@ jobs:
     weight: 0
     allowFailure: true
   - name: upsert-page[${{ self.feed.title }}]
-    description: Add each discovered page feed to the feed-catalog.
+    description: Add each discovered page feed to the news-feed-catalog.
     forEach:
       item: feed
-      in: ${{ data.latest("feed-analysis", "page-discovery-result").?attributes.?discoveredFeeds.orValue([])
+      in: ${{ data.latest("news-feed-analysis", "page-discovery-result").?attributes.?discoveredFeeds.orValue([])
         }}
     concurrency: 3
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelIdOrName: news-feed-catalog
       methodName: add
       inputs:
         url: ${{ self.feed.url }}

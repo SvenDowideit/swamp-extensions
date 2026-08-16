@@ -252,7 +252,7 @@ This is a code change to `feed_catalog.ts` (not `news_reader.ts`). It applies
 the same incremental pattern as 1.4 to the catalog's `dedupe` method, which
 fetches every feed's XML to compute a content identity hash.
 
-### 1.5 Incremental `dedupe` (feed-catalog)
+### 1.5 Incremental `dedupe` (news-feed-catalog)
 
 **Impact:** The `dedupe` step in the curation workflow fetches every catalog
 feed to compute content identity hashes. With 50+ feeds, that's 50+ HTTP
@@ -406,7 +406,7 @@ This is the architectural foundation that enables all further cadence-based
 optimisations. It requires creating new workflow YAML files and editing the
 existing one.
 
-### 2.1 Create `@svendowideit/news` (fast path, every 4h)
+### 2.1 Create `@svendowideit/news-fetch` (fast path, every 4h)
 
 **Impact:** The news page updates in ~5 minutes instead of 10-15. No LLM
 calls, no catalog maintenance, no feed discovery. Just fetch → filter →
@@ -438,7 +438,7 @@ gather-feedback → fetch → dedupe-articles → filter → generate → genera
 3. **Fix `fetch`'s `dependsOn`:** currently depends on `dedupe` and
    `gather-feed-state` — both moved to curation. Change to depend on nothing
    (or depend on `gather-feedback` succeeded). The `fetch` step reads the
-   catalog's current state via `data.latest("feed-catalog", "current")` —
+   catalog's current state via `data.latest("news-feed-catalog", "current")` —
    it doesn't need dedupe/gather-feed-state to have run in the same
    workflow invocation.
 4. **Fix `generate-feeds-html`'s `dependsOn`:** currently depends on
@@ -504,9 +504,9 @@ dedupe → gather-feed-state → discover → upsert-feed → gather-pages → a
 **Implementation:**
 1. `swamp workflow create news-curation --json`
 2. Add all curation steps. `dedupe` and `gather-feed-state` target
-   `feed-catalog`. `discover` targets `feed-discovery`. `upsert-feed` and
-   `upsert-page` target `feed-catalog` (with forEach). `gather-pages`
-   targets `local-news`. `analyze-pages` targets `feed-analysis`.
+   `news-feed-catalog`. `discover` targets `news-feed-discovery`. `upsert-feed` and
+   `upsert-page` target `news-feed-catalog` (with forEach). `gather-pages`
+   targets `local-news`. `analyze-pages` targets `news-feed-analysis`.
 3. Set `trigger.schedule: 0 3 * * *` (daily at 3am).
 4. Dependencies: `gather-feed-state` depends on `dedupe` or(succeeded,
    failed). `discover` depends on `gather-feed-state` succeeded. `upsert-feed`

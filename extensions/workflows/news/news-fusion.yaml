@@ -1,5 +1,5 @@
 id: f5d98a8b-5f6e-45f9-a2f6-2938dbb16545
-name: news-fusion
+name: "@svendowideit/news-fusion"
 description: |
   LLM-driven story fusion — clusters filtered articles into same-story groups,
   fuses them into persistent stories via LLM delta passes, seeds new stories

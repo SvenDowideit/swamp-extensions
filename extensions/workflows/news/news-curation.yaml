@@ -82,7 +82,7 @@ jobs:
       feeds so fetch skips them.
     task:
       type: model_method
-      modelIdOrName: news-feed-catalog
+      modelIdOrName: feed-catalog
       methodName: dedupe
       inputs: {}
     dependsOn: []
@@ -93,7 +93,7 @@ jobs:
       state to the catalog, and delete processed entries.
     task:
       type: model_method
-      modelIdOrName: news-feed-catalog
+      modelIdOrName: feed-catalog
       methodName: gatherFeedState
       inputs:
         serverUrl: ${{ inputs.feedbackServerUrl }}
@@ -112,7 +112,7 @@ jobs:
     description: Discover new RSS feeds from article URLs.
     task:
       type: model_method
-      modelIdOrName: news-feed-discovery
+      modelIdOrName: feed-discovery
       methodName: discover
       inputs:
         maxSitesToCrawl: ${{ inputs.maxSitesToCrawl }}
@@ -127,12 +127,12 @@ jobs:
     description: Add each discovered feed to the news-feed-catalog.
     forEach:
       item: feed
-      in: ${{ data.latest("news-feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([])
+      in: ${{ data.latest("feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([])
         }}
     concurrency: 3
     task:
       type: model_method
-      modelIdOrName: news-feed-catalog
+      modelIdOrName: feed-catalog
       methodName: add
       inputs:
         url: ${{ self.feed.url }}
@@ -164,7 +164,7 @@ jobs:
       page-discovery-result resource.
     task:
       type: model_method
-      modelIdOrName: news-feed-analysis
+      modelIdOrName: feed-analysis
       methodName: analyzePages
       inputs:
         maxPagesPerRun: ${{ inputs.maxPagesPerRun }}
@@ -179,12 +179,12 @@ jobs:
     description: Add each discovered page feed to the news-feed-catalog.
     forEach:
       item: feed
-      in: ${{ data.latest("news-feed-analysis", "page-discovery-result").?attributes.?discoveredFeeds.orValue([])
+      in: ${{ data.latest("feed-analysis", "page-discovery-result").?attributes.?discoveredFeeds.orValue([])
         }}
     concurrency: 3
     task:
       type: model_method
-      modelIdOrName: news-feed-catalog
+      modelIdOrName: feed-catalog
       methodName: add
       inputs:
         url: ${{ self.feed.url }}

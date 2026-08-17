@@ -163,7 +163,7 @@ jobs:
       feeds so fetch skips them.
     task:
       type: model_method
-      modelIdOrName: news-feed-catalog
+      modelIdOrName: feed-catalog
       methodName: dedupe
       inputs: {}
     dependsOn: []
@@ -174,7 +174,7 @@ jobs:
       state to the catalog, and delete processed entries.
     task:
       type: model_method
-      modelIdOrName: news-feed-catalog
+      modelIdOrName: feed-catalog
       methodName: gatherFeedState
       inputs:
         serverUrl: ${{ inputs.feedbackServerUrl }}
@@ -192,15 +192,15 @@ jobs:
   - name: fetch
     description: Fetch RSS feeds from the news-feed-catalog (or from --input feeds if provided),
       skipping feeds marked duplicate by the dedupe step.
-    guard: ${{ data.latest("news-reader", "feed-snapshot") != null && timestamp(run.startedAt)
-      - timestamp(data.latest("news-reader", "feed-snapshot").attributes.fetchedAt)
+    guard: ${{ data.latest("local-news", "feed-snapshot") != null && timestamp(run.startedAt)
+      - timestamp(data.latest("local-news", "feed-snapshot").attributes.fetchedAt)
       < duration("1h") }}
     task:
       type: model_method
       modelIdOrName: local-news
       methodName: fetch
       inputs:
-        feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("news-feed-catalog",
+        feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("feed-catalog",
           "current").?attributes.?feeds.orValue([]) }}'
     dependsOn:
     - step: dedupe
@@ -335,12 +335,12 @@ jobs:
       cross-link back to the news summary.
     task:
       type: model_method
-      modelIdOrName: news-feed-catalog
+      modelIdOrName: feed-catalog
       methodName: generateFeedsHtml
       inputs:
         outputPath: feeds.html
-        prefs: ${{ data.latest("news-reader", "prefs-current").?attributes.orValue({}) }}
-        snapshot: ${{ data.latest("news-reader", "feed-snapshot").?attributes.orValue({}) }}
+        prefs: ${{ data.latest("local-news", "prefs-current").?attributes.orValue({}) }}
+        snapshot: ${{ data.latest("local-news", "feed-snapshot").?attributes.orValue({}) }}
     dependsOn:
     - step: filter
       condition:
@@ -354,7 +354,7 @@ jobs:
     description: Discover new RSS feeds from article URLs.
     task:
       type: model_method
-      modelIdOrName: news-feed-discovery
+      modelIdOrName: feed-discovery
       methodName: discover
       inputs:
         maxSitesToCrawl: ${{ inputs.maxSitesToCrawl }}
@@ -369,12 +369,12 @@ jobs:
     description: Add each discovered feed to the news-feed-catalog.
     forEach:
       item: feed
-      in: ${{ data.latest("news-feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([])
+      in: ${{ data.latest("feed-discovery", "discovery-result").?attributes.?discoveredFeeds.orValue([])
         }}
     concurrency: 3
     task:
       type: model_method
-      modelIdOrName: news-feed-catalog
+      modelIdOrName: feed-catalog
       methodName: add
       inputs:
         url: ${{ self.feed.url }}
@@ -406,7 +406,7 @@ jobs:
       page-discovery-result resource.
     task:
       type: model_method
-      modelIdOrName: news-feed-analysis
+      modelIdOrName: feed-analysis
       methodName: analyzePages
       inputs:
         maxPagesPerRun: ${{ inputs.maxPagesPerRun }}
@@ -421,12 +421,12 @@ jobs:
     description: Add each discovered page feed to the news-feed-catalog.
     forEach:
       item: feed
-      in: ${{ data.latest("news-feed-analysis", "page-discovery-result").?attributes.?discoveredFeeds.orValue([])
+      in: ${{ data.latest("feed-analysis", "page-discovery-result").?attributes.?discoveredFeeds.orValue([])
         }}
     concurrency: 3
     task:
       type: model_method
-      modelIdOrName: news-feed-catalog
+      modelIdOrName: feed-catalog
       methodName: add
       inputs:
         url: ${{ self.feed.url }}

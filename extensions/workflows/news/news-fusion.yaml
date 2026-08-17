@@ -22,7 +22,7 @@ jobs:
   steps:
   - name: cluster
     description: Conservatively group filtered articles into same-story clusters (no LLM).
-    guard: ${{ data.latest("news-reader", "filtered-snapshot") == null }}
+    guard: ${{ data.latest("local-news", "filtered-snapshot") == null }}
     task:
       type: model_method
       modelIdOrName: local-news

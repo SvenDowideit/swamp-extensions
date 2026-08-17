@@ -25,6 +25,8 @@ import {
   generateHtml,
   hashId,
   isFeedBody,
+  formatGlobalArgsYaml,
+  levenshtein,
   mergeFeedFetchResult,
   parseFeed,
   parseNewsAge,
@@ -37,6 +39,7 @@ import {
   selectClustersToSeed,
   shouldSkipCluster,
   stripHtml,
+  suggestModelSpelling,
 } from "./news_reader.ts";
 
 const sampleArticle = (overrides: Partial<Article> = {}): Article => ({
@@ -709,6 +712,65 @@ Deno.test("shouldSkipCluster returns false when fingerprint is missing", () => {
   prev.fingerprint = "abc";
   const prevByKey = new Map([[c.key, prev]]);
   assertEquals(shouldSkipCluster(c, prevByKey), false);
+});
+
+// ---------------------------------------------------------------------------
+// LLM probe helpers (setup live-testing)
+// ---------------------------------------------------------------------------
+
+Deno.test("levenshtein computes edit distance", () => {
+  assertEquals(levenshtein("kitten", "sitting"), 3);
+  assertEquals(levenshtein("", "abc"), 3);
+  assertEquals(levenshtein("abc", "abc"), 0);
+});
+
+Deno.test("suggestModelSpelling returns closest model tag", () => {
+  const available = ["llama3.1:8b", "qwen2.5:7b", "mistral"];
+  assertEquals(suggestModelSpelling("llama3", available), "llama3.1:8b");
+  assertEquals(suggestModelSpelling("qwen2.5", available), "qwen2.5:7b");
+});
+
+Deno.test("suggestModelSpelling returns undefined when nothing is close", () => {
+  const available = ["llama3.1:8b", "qwen2.5:7b"];
+  assertEquals(suggestModelSpelling("gpt-4o", available), undefined);
+});
+
+Deno.test("suggestModelSpelling returns undefined for empty model or list", () => {
+  assertEquals(suggestModelSpelling("", ["llama3"]), undefined);
+  assertEquals(suggestModelSpelling("llama3", []), undefined);
+});
+
+Deno.test("formatGlobalArgsYaml emits a copy-paste globalArguments block", () => {
+  const yaml = formatGlobalArgsYaml({
+    llmBaseUrl: "http://localhost:11434",
+    llmModel: "llama3",
+    llmApiKey: "sk-secret",
+    llmTemperature: 0.1,
+    fusionMinClusterSize: 2,
+    citationRetentionDays: 30,
+    llmConcurrency: 3,
+  });
+  assertEquals(yaml.includes("globalArguments:"), true);
+  assertEquals(yaml.includes('llmBaseUrl: "http://localhost:11434"'), true);
+  assertEquals(yaml.includes('llmModel: "llama3"'), true);
+  assertEquals(yaml.includes("llmTemperature: 0.1"), true);
+  assertEquals(yaml.includes("fusionMinClusterSize: 2"), true);
+  assertEquals(yaml.includes("sk-secret"), false);
+  assertEquals(yaml.includes("REDACTED"), true);
+});
+
+Deno.test("formatGlobalArgsYaml omits empty values", () => {
+  const yaml = formatGlobalArgsYaml({
+    llmBaseUrl: "http://localhost:11434",
+    llmModel: "",
+    llmApiKey: "",
+    llmTemperature: 0.1,
+    fusionMinClusterSize: 2,
+    citationRetentionDays: 30,
+    llmConcurrency: 3,
+  });
+  assertEquals(yaml.includes("llmModel"), false);
+  assertEquals(yaml.includes("llmApiKey"), false);
 });
 
 // ---------------------------------------------------------------------------
@@ -1994,9 +2056,9 @@ Deno.test("setup validates provided config values and reports fusion state", asy
   assertEquals(joined.includes("llama3"), true);
 });
 
-Deno.test("setup throws on invalid config values", () => {
+Deno.test("setup throws on invalid config values", async () => {
   const logs: Array<{ msg: string; props: Record<string, unknown> }> = [];
-  assertThrows(
+  await assertRejects(
     () => model.methods.setup.execute({ llmBaseUrl: "not-a-url" }, setupCtx(logs)),
     Error,
   );

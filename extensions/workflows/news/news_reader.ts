@@ -545,6 +545,10 @@ type MethodContext = {
     info: (msg: string, props?: Record<string, unknown>) => void;
     warning: (msg: string, props?: Record<string, unknown>) => void;
   };
+  repoDir?: string;
+  modelType?: string | { raw: string; normalized: string };
+  modelId?: string;
+  definition?: { id: string; name: string; version: string; tags: Record<string, string> };
   writeResource: (
     specName: string,
     name: string,
@@ -808,6 +812,406 @@ export function extractJsonObject<T = Record<string, unknown>>(
   }
   const json = text.slice(start, end + 1);
   return JSON.parse(json) as T;
+}
+
+// ---------------------------------------------------------------------------
+// LLM connectivity probing (used by the `setup` method to test settings live)
+// ---------------------------------------------------------------------------
+
+/** A single connectivity check with an optional remediation hint. */
+export interface LlmProbeCheck {
+  name: string;
+  status: "pass" | "warn" | "fail";
+  detail: string;
+  remediation?: string;
+}
+
+/** Structured result of probing an LLM server with a candidate model tag. */
+export interface LlmProbeResult {
+  baseUrl: string;
+  model: string;
+  checks: LlmProbeCheck[];
+  availableModels: string[];
+  suggestedModel?: string;
+  ok: boolean;
+}
+
+/** Common LLM server ports, probed when the configured port is refused. */
+const COMMON_LLM_PORTS = [
+  11434, // Ollama
+  1234, // LM Studio
+  8080, // llama.cpp / text-generation-webui
+  8000, // vLLM / LM Studio (older)
+  5000, // text-generation-webui (older)
+  5001, // KoboldCpp
+];
+
+/** Levenshtein edit distance for spelling suggestions. */
+export function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp: number[] = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = dp[j];
+      dp[j] = Math.min(
+        dp[j] + 1,
+        dp[j - 1] + 1,
+        prev + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+      prev = tmp;
+    }
+  }
+  return dp[n];
+}
+
+/** Suggest the closest model tag from a list of available models. */
+export function suggestModelSpelling(
+  model: string,
+  available: string[],
+  maxDistance = 3,
+): string | undefined {
+  if (!model || available.length === 0) return undefined;
+  const target = model.toLowerCase();
+  let best: string | undefined;
+  let bestDist = Infinity;
+  for (const cand of available) {
+    const c = cand.toLowerCase();
+    // Prefer a match on the base name (before any `:tag`).
+    const base = c.split(":")[0];
+    const dist = Math.min(
+      levenshtein(target, c),
+      levenshtein(target, base),
+    );
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = cand;
+    }
+  }
+  return bestDist <= maxDistance ? best : undefined;
+}
+
+/**
+ * Probe an OpenAI-compatible LLM server end-to-end: URL/scheme, DNS, TCP port,
+ * model list (Ollama `/api/tags` and OpenAI `/v1/models`), model spelling, auth,
+ * and a tiny completion. Returns a structured result with remediation hints.
+ */
+export async function probeLlm(
+  baseUrl: string,
+  model: string,
+  apiKey?: string,
+): Promise<LlmProbeResult> {
+  const checks: LlmProbeCheck[] = [];
+  const availableModels: string[] = [];
+  let suggestedModel: string | undefined;
+
+  // 1. URL parse + scheme.
+  let parsed: URL;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    return {
+      baseUrl,
+      model,
+      checks: [{
+        name: "url",
+        status: "fail",
+        detail: `"${baseUrl}" is not a valid URL`,
+        remediation:
+          "Include the scheme, e.g. http://localhost:11434 (not localhost:11434).",
+      }],
+      availableModels,
+      ok: false,
+    };
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    checks.push({
+      name: "url",
+      status: "fail",
+      detail: `unsupported scheme "${parsed.protocol}"`,
+      remediation: "Use http:// or https://.",
+    });
+    return { baseUrl, model, checks, availableModels, ok: false };
+  }
+  checks.push({
+    name: "url",
+    status: "pass",
+    detail: `parsed ${parsed.protocol}//${parsed.host}`,
+  });
+
+  const host = parsed.hostname;
+  const port = parsed.port
+    ? Number(parsed.port)
+    : parsed.protocol === "https:"
+    ? 443
+    : 80;
+
+  // 2. DNS resolution.
+  try {
+    await Deno.resolveDns(host, "A");
+    checks.push({ name: "dns", status: "pass", detail: `resolved ${host}` });
+  } catch {
+    checks.push({
+      name: "dns",
+      status: "fail",
+      detail: `hostname "${host}" does not resolve`,
+      remediation:
+        "Check the hostname spelling. Note that .local/.home mDNS names only resolve on the local subnet.",
+    });
+    return { baseUrl, model, checks, availableModels, ok: false };
+  }
+
+  // 3. TCP connect to the configured port.
+  try {
+    const conn = await Deno.connect({ hostname: host, port });
+    conn.close();
+    checks.push({
+      name: "port",
+      status: "pass",
+      detail: `connected to ${host}:${port}`,
+    });
+  } catch {
+    // Probe common ports to suggest the right one.
+    const openPorts: number[] = [];
+    for (const p of COMMON_LLM_PORTS) {
+      if (p === port) continue;
+      try {
+        const c = await Deno.connect({ hostname: host, port: p });
+        c.close();
+        openPorts.push(p);
+      } catch {
+        // ignore
+      }
+    }
+    const remediation = openPorts.length > 0
+      ? `port ${port} refused; ${
+        openPorts.join(", ")
+      } is open — try http://${host}:${openPorts[0]}`
+      : `port ${port} refused and no common LLM port is open on ${host} — is the server running?`;
+    checks.push({
+      name: "port",
+      status: "fail",
+      detail: `could not connect to ${host}:${port}`,
+      remediation,
+    });
+    return { baseUrl, model, checks, availableModels, ok: false };
+  }
+
+  // 4. Model list — try Ollama then OpenAI surfaces.
+  const headers: Record<string, string> = {};
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+  let listSource = "";
+  try {
+    const ollama = await fetch(`${baseUrl.replace(/\/+$/, "")}/api/tags`, {
+      headers,
+      signal: AbortSignal.timeout(5000),
+    });
+    if (ollama.ok) {
+      const data = await ollama.json() as {
+        models?: { name: string }[];
+      };
+      for (const m of data.models ?? []) availableModels.push(m.name);
+      listSource = "ollama";
+    }
+  } catch {
+    // ignore
+  }
+
+  if (availableModels.length === 0) {
+    try {
+      const openai = await fetch(`${baseUrl.replace(/\/+$/, "")}/v1/models`, {
+        headers,
+        signal: AbortSignal.timeout(5000),
+      });
+      if (openai.ok) {
+        const data = await openai.json() as {
+          data?: { id: string }[];
+        };
+        for (const m of data.data ?? []) availableModels.push(m.id);
+        listSource = "openai";
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (availableModels.length > 0) {
+    checks.push({
+      name: "model-list",
+      status: "pass",
+      detail: `${availableModels.length} models via ${listSource}`,
+    });
+  } else {
+    checks.push({
+      name: "model-list",
+      status: "warn",
+      detail: "server reachable but no model list returned",
+      remediation:
+        "The server may not expose /api/tags (Ollama) or /v1/models (OpenAI). Verify the endpoint.",
+    });
+  }
+
+  // 5. Model spelling suggestion.
+  if (model && availableModels.length > 0) {
+    const exact = availableModels.some((m) =>
+      m.toLowerCase() === model.toLowerCase()
+    );
+    if (!exact) {
+      suggestedModel = suggestModelSpelling(model, availableModels);
+      checks.push({
+        name: "model",
+        status: suggestedModel ? "warn" : "fail",
+        detail: `model "${model}" not in the server's model list`,
+        remediation: suggestedModel
+          ? `Did you mean "${suggestedModel}"?`
+          : `Available models: ${availableModels.slice(0, 10).join(", ")}`,
+      });
+    } else {
+      checks.push({
+        name: "model",
+        status: "pass",
+        detail: `model "${model}" is available`,
+      });
+    }
+  }
+
+  // 6. Auth check (only when a key is set).
+  if (apiKey) {
+    try {
+      const authResp = await fetch(
+        `${baseUrl.replace(/\/+$/, "")}/v1/models`,
+        { headers, signal: AbortSignal.timeout(5000) },
+      );
+      if (authResp.status === 401 || authResp.status === 403) {
+        checks.push({
+          name: "auth",
+          status: "fail",
+          detail: `HTTP ${authResp.status} with the provided key`,
+          remediation:
+            "The key was rejected. If this is Ollama, it does not need a key — remove llmApiKey.",
+        });
+      } else {
+        checks.push({
+          name: "auth",
+          status: "pass",
+          detail: `key accepted (HTTP ${authResp.status})`,
+        });
+      }
+    } catch {
+      checks.push({
+        name: "auth",
+        status: "warn",
+        detail: "could not verify the key",
+      });
+    }
+  }
+
+  // 7. Tiny end-to-end completion.
+  if (model) {
+    try {
+      const started = Date.now();
+      const content = await chatCompletion(
+        {
+          llmBaseUrl: baseUrl,
+          llmModel: model,
+          llmApiKey: apiKey,
+          llmTemperature: 0,
+          fusionMinClusterSize: 2,
+          citationRetentionDays: 30,
+          llmConcurrency: 1,
+        },
+        [
+          { role: "system", content: "Reply with the single word OK." },
+          { role: "user", content: "OK" },
+        ],
+      );
+      const ms = Date.now() - started;
+      checks.push({
+        name: "completion",
+        status: "pass",
+        detail: `model responded in ${ms}ms`,
+        remediation: ms > 10000
+          ? "Completion was slow — the model may be cold-loading; consider a smaller model."
+          : undefined,
+      });
+      if (!content.trim()) {
+        checks.push({
+          name: "completion",
+          status: "warn",
+          detail: "model returned empty content",
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      checks.push({
+        name: "completion",
+        status: "fail",
+        detail: msg,
+        remediation:
+          "The model may not be pulled yet (e.g. `ollama pull <model>`), or the endpoint path is wrong.",
+      });
+    }
+  }
+
+  const ok = checks.every((c) => c.status !== "fail");
+  return { baseUrl, model, checks, availableModels, suggestedModel, ok };
+}
+
+/**
+ * Format global arguments as a copy-paste YAML `globalArguments:` block for the
+ * model definition file. The API key is redacted — the user must fill it in
+ * themselves (or leave it empty for keyless servers like Ollama).
+ */
+export function formatGlobalArgsYaml(
+  args: GlobalArgs,
+  redactApiKey = true,
+): string {
+  const lines: string[] = ["globalArguments:"];
+  for (const [key, value] of Object.entries(args)) {
+    if (value === undefined || value === null || value === "") continue;
+    if (key === "llmApiKey" && redactApiKey) {
+      lines.push(`  ${key}: "***REDACTED — paste your key here***"`);
+      continue;
+    }
+    if (typeof value === "number") {
+      lines.push(`  ${key}: ${value}`);
+    } else {
+      lines.push(`  ${key}: "${String(value).replace(/"/g, '\\"')}"`);
+    }
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Format only the global arguments that differ from the current persisted
+ * values, as a copy-paste YAML `globalArguments:` block. Used by `setup` to
+ * show the exact keys to change (and nothing else). The API key is redacted.
+ */
+export function formatGlobalArgsDiffYaml(
+  current: GlobalArgs,
+  next: GlobalArgs,
+): string {
+  const lines: string[] = ["globalArguments:"];
+  for (const [key, value] of Object.entries(next)) {
+    if (value === undefined || value === null || value === "") continue;
+    const cur = (current as Record<string, unknown>)[key];
+    if (cur === value) continue;
+    if (key === "llmApiKey") {
+      lines.push(`  ${key}: "***REDACTED — paste your key here***"`);
+      continue;
+    }
+    if (typeof value === "number") {
+      lines.push(`  ${key}: ${value}`);
+    } else {
+      lines.push(`  ${key}: "${String(value).replace(/"/g, '\\"')}"`);
+    }
+  }
+  return lines.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -2660,7 +3064,7 @@ export const model = {
   methods: {
     setup: {
       description:
-        "Interactive configuration helper. Run with no inputs to list the model's config params (name, kind, default, current value); pass inputs to validate them and get feedback. Re-runnable to change config values.",
+        "Interactive configuration helper. Run with no inputs to list the model's config params (name, kind, default, current value); pass inputs to validate them, test the LLM settings live, and print the exact `swamp model edit` command to persist only the changed values. NOTE: setup does NOT persist values itself.",
       arguments: z.object({
         llmBaseUrl: z.string().url().optional().describe(
           "Base URL of an OpenAI-compatible LLM server (e.g. http://localhost:11434)",
@@ -2684,7 +3088,7 @@ export const model = {
           "Max parallel LLM requests.",
         ),
       }),
-      execute: (
+      execute: async (
         args: Record<string, unknown>,
         context: MethodContext,
       ): Promise<{ dataHandles: Array<{ name: string }> }> => {
@@ -2692,6 +3096,7 @@ export const model = {
         const ga = context.globalArgs as GlobalArgs;
 
         // Build the config surface from the model's globalArguments schema.
+        // Redact the API key so it never appears in logs.
         const specs: Array<{
           name: string;
           kind: string;
@@ -2718,12 +3123,15 @@ export const model = {
               >)
               : outerDef;
           const kind = innerDef.typeName === "ZodNumber" ? "number" : "string";
-          const current = ga[key as keyof GlobalArgs];
+          const raw = ga[key as keyof GlobalArgs];
+          const current = key === "llmApiKey" && raw
+            ? "***redacted***"
+            : String(raw);
           specs.push({
             name: key,
             kind,
             default: String(defaultValue),
-            current: String(current),
+            current,
             description,
           });
         }
@@ -2746,7 +3154,11 @@ export const model = {
             "To enable LLM story fusion, pass --input llmModel=<tag> (e.g. llama3) and llmBaseUrl=<url>.",
             {},
           );
-          return Promise.resolve({ dataHandles: [] });
+          logger?.info(
+            "Settings are tested live whenever a model is configured. To persist values, use `swamp model edit <name>`.",
+            {},
+          );
+          return { dataHandles: [] };
         }
 
         // Validate provided values against the globalArguments schema.
@@ -2787,11 +3199,78 @@ export const model = {
             {},
           );
         }
+
+        // Live test phase — probe the LLM server with the merged settings and
+        // report remediation hints. Runs whenever a model is configured, so the
+        // user learns immediately whether the inputs actually work.
+        if (merged.llmModel) {
+          logger?.info(
+            "Testing LLM settings live against {base} (model {model})…",
+            { base: merged.llmBaseUrl, model: merged.llmModel },
+          );
+          const result = await probeLlm(
+            merged.llmBaseUrl,
+            merged.llmModel,
+            merged.llmApiKey,
+          );
+          for (const check of result.checks) {
+            const level = check.status === "fail"
+              ? "warning"
+              : check.status === "warn"
+              ? "warning"
+              : "info";
+            const msg = `[${check.status}] ${check.name}: ${check.detail}`;
+            if (check.remediation) {
+              logger?.[level]?.(
+                "{msg} — remediation: {remediation}",
+                { msg, remediation: check.remediation },
+              );
+            } else {
+              logger?.[level]?.(msg, {});
+            }
+          }
+          if (result.suggestedModel) {
+            logger?.warning(
+              "Suggested model spelling: {suggested} (you passed {model})",
+              { suggested: result.suggestedModel, model: merged.llmModel },
+            );
+          }
+          if (result.ok) {
+            logger?.info(
+              "LLM settings verified — the server is reachable and the model responds.",
+              {},
+            );
+          } else {
+            logger?.warning(
+              "LLM settings have problems — see the checks above for remediation.",
+              {},
+            );
+          }
+        }
+
+        // Print the exact command to persist the changed values. Only the keys
+        // that differ from the current globalArgs are emitted.
+        const defName = context.definition?.name ?? "<name>";
+
+        const diffYaml = formatGlobalArgsDiffYaml(ga, merged);
+        if (diffYaml === "globalArguments:") {
+          logger?.info(
+            "No changes needed — the current globalArguments already match these values.",
+            {},
+          );
+          return { dataHandles: [] };
+        }
+
         logger?.info(
-          "To persist these values, set them in the model instance globalArguments (swamp model update @svendowideit/news-reader local-news).",
+          "To persist these values, run `swamp model edit {name}` and set:",
+          { name: defName },
+        );
+        logger?.info("{yaml}", { yaml: diffYaml });
+        logger?.info(
+          "setup does not write globalArguments itself.",
           {},
         );
-        return Promise.resolve({ dataHandles: [] });
+        return { dataHandles: [] };
       },
     },
     cleanupCdata: {

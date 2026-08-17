@@ -548,7 +548,12 @@ type MethodContext = {
   repoDir?: string;
   modelType?: string | { raw: string; normalized: string };
   modelId?: string;
-  definition?: { id: string; name: string; version: string; tags: Record<string, string> };
+  definition?: {
+    id: string;
+    name: string;
+    version: string;
+    tags: Record<string, string>;
+  };
   writeResource: (
     specName: string,
     name: string,

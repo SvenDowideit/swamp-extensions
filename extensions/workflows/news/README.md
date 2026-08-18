@@ -44,7 +44,18 @@ swamp model update @svendowideit/news-reader local-news --global-args '{"llmMode
 
 Configurable params: `llmBaseUrl`, `llmModel` (empty = fusion off),
 `llmApiKey`, `llmTemperature` (0..2), `fusionMinClusterSize` (int ≥ 1),
-`citationRetentionDays` (int ≥ 0), `llmConcurrency` (1..20).
+`citationRetentionDays` (int ≥ 0), `llmConcurrency` (1..20),
+`maxFusions` (int ≥ 1, default 25), `llmTimeoutSec` (1..600s, default 120),
+`llmFailureThreshold` (int ≥ 1, default 3).
+
+The last three bound how long a failing LLM server can stall a fusion step:
+`maxFusions` caps the total LLM calls per step, `llmTimeoutSec` is the per-call
+timeout, and `llmFailureThreshold` is how many *server-side* failures (outage,
+no-response, HTTP 5xx) a step tolerates before it stops early — client-side
+errors (4xx, bad JSON) are not counted. When a step stops early, whatever
+stories were already written are kept as-is and the workflow moves on to the
+next step (e.g. `fuse → seed → render`). Set `llmFailureThreshold=1` to fail
+fast on the first server error, and `maxFusions=5` for a tighter cap.
 
 ## Run the workflows
 

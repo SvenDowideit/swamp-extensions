@@ -10,6 +10,8 @@ import {
   type Article,
   model,
   canonicalUrl,
+  chatCompletion,
+  CircuitBreaker,
   clusterHash,
   clusterKey,
   clusterStories,
@@ -25,8 +27,10 @@ import {
   generateHtml,
   hashId,
   isFeedBody,
+  isLlmServerError,
   formatGlobalArgsYaml,
   levenshtein,
+  LlmError,
   mergeFeedFetchResult,
   parseFeed,
   parseNewsAge,
@@ -40,6 +44,7 @@ import {
   shouldSkipCluster,
   stripHtml,
   suggestModelSpelling,
+  withConcurrency,
 } from "./news_reader.ts";
 
 const sampleArticle = (overrides: Partial<Article> = {}): Article => ({
@@ -749,6 +754,9 @@ Deno.test("formatGlobalArgsYaml emits a copy-paste globalArguments block", () =>
     fusionMinClusterSize: 2,
     citationRetentionDays: 30,
     llmConcurrency: 3,
+    maxFusions: 25,
+    llmTimeoutSec: 120,
+    llmFailureThreshold: 3,
   });
   assertEquals(yaml.includes("globalArguments:"), true);
   assertEquals(yaml.includes('llmBaseUrl: "http://localhost:11434"'), true);
@@ -768,6 +776,9 @@ Deno.test("formatGlobalArgsYaml omits empty values", () => {
     fusionMinClusterSize: 2,
     citationRetentionDays: 30,
     llmConcurrency: 3,
+    maxFusions: 25,
+    llmTimeoutSec: 120,
+    llmFailureThreshold: 3,
   });
   assertEquals(yaml.includes("llmModel"), false);
   assertEquals(yaml.includes("llmApiKey"), false);
@@ -2012,6 +2023,9 @@ const baseGlobalArgs = {
   fusionMinClusterSize: 2,
   citationRetentionDays: 30,
   llmConcurrency: 3,
+  maxFusions: 25,
+  llmTimeoutSec: 120,
+  llmFailureThreshold: 3,
 };
 
 const render = (msg: string, props?: Record<string, unknown>): string =>
@@ -2064,4 +2078,119 @@ Deno.test("setup throws on invalid config values", async () => {
   );
   const joined = logs.map((l) => l.msg).join("\n");
   assertEquals(joined.includes("setup:"), true);
+});
+
+// ---------------------------------------------------------------------------
+// LLM error classification + circuit breaker
+// ---------------------------------------------------------------------------
+
+Deno.test("LlmError carries serverError flag", () => {
+  const serverErr = new LlmError("unreachable", true);
+  const clientErr = new LlmError("bad model", false);
+  assertEquals(serverErr.serverError, true);
+  assertEquals(clientErr.serverError, false);
+});
+
+Deno.test("isLlmServerError distinguishes server vs client failures", () => {
+  assertEquals(isLlmServerError(new LlmError("x", true)), true);
+  assertEquals(isLlmServerError(new LlmError("x", false)), false);
+  assertEquals(isLlmServerError(new Error("x")), false);
+  assertEquals(isLlmServerError("string"), false);
+});
+
+Deno.test("CircuitBreaker trips after threshold server-side failures only", () => {
+  const b = new CircuitBreaker(3);
+  b.recordFailure(new LlmError("server", true));
+  b.recordFailure(new LlmError("server", true));
+  b.recordFailure(new LlmError("server", true));
+  assertEquals(b.shouldStop(), true);
+});
+
+Deno.test("CircuitBreaker ignores client-side failures", () => {
+  const b = new CircuitBreaker(3);
+  b.recordFailure(new LlmError("client", false));
+  b.recordFailure(new LlmError("client", false));
+  assertEquals(b.shouldStop(), false);
+});
+
+Deno.test("CircuitBreaker resets on success", () => {
+  const b = new CircuitBreaker(3);
+  b.recordFailure(new LlmError("server", true));
+  b.recordFailure(new LlmError("server", true));
+  b.recordSuccess();
+  b.recordFailure(new LlmError("server", true));
+  assertEquals(b.shouldStop(), false);
+});
+
+Deno.test("CircuitBreaker clamps invalid threshold to 1", () => {
+  const b = new CircuitBreaker(0);
+  b.recordFailure(new LlmError("server", true));
+  assertEquals(b.shouldStop(), true);
+});
+
+// ---------------------------------------------------------------------------
+// withConcurrency + breaker early-stop
+// ---------------------------------------------------------------------------
+
+Deno.test("withConcurrency stops early when breaker trips", async () => {
+  const ran: number[] = [];
+  const breaker = new CircuitBreaker(2);
+  const serverErr = new LlmError("server", true);
+  // Concurrency 1 makes the execution fully deterministic — items are
+  // processed in order and the breaker state at entry is well-defined.
+  await withConcurrency([1, 2, 3, 4, 5, 6], 1, async (i) => {
+    if (breaker.shouldStop()) return;
+    ran.push(i);
+    if (ran.length <= 2) {
+      breaker.recordFailure(serverErr);
+    }
+  });
+  // Threshold 2 means at most 2 items complete before the breaker trips.
+  assertEquals(ran.length, 2);
+});
+
+Deno.test("withConcurrency runs all items when no failure", async () => {
+  const ran: number[] = [];
+  await withConcurrency([1, 2, 3, 4, 5, 6], 3, async (i) => {
+    ran.push(i);
+  });
+  assertEquals(ran.length, 6);
+});
+
+Deno.test("withConcurrency runs all items when no failure", async () => {
+  const ran: number[] = [];
+  await withConcurrency([1, 2, 3, 4, 5, 6], 3, async (i) => {
+    ran.push(i);
+  });
+  assertEquals(ran.length, 6);
+});
+
+// ---------------------------------------------------------------------------
+// chatCompletion error type
+// ---------------------------------------------------------------------------
+
+Deno.test("chatCompletion throws LlmError(server) on fetch failure", async () => {
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    throw new TypeError("fetch failed");
+  }) as typeof fetch;
+  try {
+    await assertRejects(
+      () => chatCompletion({
+        llmBaseUrl: "http://127.0.0.1:1",
+        llmModel: "x",
+        llmApiKey: "",
+        llmTemperature: 0,
+        fusionMinClusterSize: 2,
+        citationRetentionDays: 30,
+        llmConcurrency: 1,
+        maxFusions: 1,
+        llmTimeoutSec: 1,
+        llmFailureThreshold: 1,
+      }, [{ role: "user", content: "hi" }]),
+      LlmError,
+    );
+  } finally {
+    globalThis.fetch = origFetch;
+  }
 });

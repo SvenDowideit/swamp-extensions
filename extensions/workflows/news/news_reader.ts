@@ -44,6 +44,18 @@ const GlobalArgsSchema = z.object({
   llmConcurrency: z.number().int().min(1).max(20).default(3).describe(
     "Max concurrent LLM requests for fusion steps. Start at 1 and increase if the server supports it.",
   ),
+  /** Hard cap on LLM calls per fusion step; the step stops after this many and the workflow moves on. */
+  maxFusions: z.number().int().min(1).default(25).describe(
+    "Hard cap on the number of LLM fusion calls made within a single fusion step (fuseStories / seedStories / regenStories). Once reached, the remaining clusters are skipped and persisted as-is.",
+  ),
+  /** Per-call timeout in seconds for LLM chat/completions requests (default 120s). */
+  llmTimeoutSec: z.number().int().min(1).max(600).default(120).describe(
+    "Per-call timeout (seconds) for LLM chat/completions requests. Lower values surface server outages faster.",
+  ),
+  /** Number of server-side LLM failures before the current step halts and the workflow moves on. */
+  llmFailureThreshold: z.number().int().min(1).default(3).describe(
+    "Server-side LLM failures (outage / timeout / HTTP 5xx) tolerated in a step before the step halts. 1 = fail fast on the first server error. Client-side errors are not counted.",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -735,6 +747,47 @@ export function extractKeywords(
 // LLM helpers (OpenAI-compatible chat/completions)
 // ---------------------------------------------------------------------------
 
+/**
+ * An LLM-call failure, classified as server-side vs client-side.
+ *
+ * Server-side failures (connection refused / timeout / HTTP 5xx) indicate a
+ * transient outage of the LLM backend. Callers should stop retrying in the
+ * same step so the workflow can continue on to the next step. Client-side
+ * failures (invalid model tag, malformed response) suggest misconfiguration
+ * and are not useful to keep retrying.
+ */
+export class LlmError extends Error {
+  /** True when the failure is likely a server outage / transient network issue. */
+  readonly serverError: boolean;
+  constructor(message: string, serverError: boolean) {
+    super(message);
+    this.name = "LlmError";
+    this.serverError = serverError;
+  }
+}
+
+/** A lightweight per-method circuit breaker for LLM calls. */
+export class CircuitBreaker {
+  private failures = 0;
+  private readonly threshold: number;
+  constructor(threshold: number) {
+    this.threshold = Number.isFinite(threshold) && threshold >= 1
+      ? Math.floor(threshold)
+      : 1;
+  }
+  recordSuccess(): void { this.failures = 0; }
+  recordFailure(err: unknown): void {
+    if (isLlmServerError(err)) this.failures += 1;
+  }
+  shouldStop(): boolean { return this.failures >= this.threshold; }
+  tripCount(): number { return this.failures; }
+}
+
+/** True when the error is an LlmError caused by a server-side failure. */
+export function isLlmServerError(err: unknown): boolean {
+  return err instanceof LlmError && err.serverError;
+}
+
 /** A chat message for an OpenAI-compatible endpoint. */
 type ChatMessage = { role: "system" | "user"; content: string };
 
@@ -762,27 +815,30 @@ export async function chatCompletion(
     ...(opts?.json ? { response_format: { type: "json_object" } } : {}),
   };
 
+  const timeoutMs = Math.max(1, Number(args.llmTimeoutSec) || 120) * 1000;
   let resp: Response;
   try {
     resp = await fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(120000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(
+    throw new LlmError(
       `LLM server unreachable at ${url}: ${msg}. Check llmBaseUrl / llmModel global args.`,
+      true,
     );
   }
 
   if (!resp.ok) {
     const errText = await resp.text().catch(() => "");
-    throw new Error(
+    throw new LlmError(
       `LLM request failed (${resp.status} ${resp.statusText}): ${
         errText.slice(0, 300)
       }`,
+      resp.status >= 500,
     );
   }
 
@@ -791,8 +847,9 @@ export async function chatCompletion(
   };
   const content = data.choices?.[0]?.message?.content;
   if (typeof content !== "string" || content.length === 0) {
-    throw new Error(
+    throw new LlmError(
       `LLM returned no content: ${JSON.stringify(data).slice(0, 300)}`,
+      false,
     );
   }
   return content;
@@ -1129,6 +1186,9 @@ export async function probeLlm(
           fusionMinClusterSize: 2,
           citationRetentionDays: 30,
           llmConcurrency: 1,
+          maxFusions: 1,
+          llmTimeoutSec: 30,
+          llmFailureThreshold: 1,
         },
         [
           { role: "system", content: "Reply with the single word OK." },
@@ -1435,7 +1495,7 @@ export function clusterHash(input: string): string {
 // ---------------------------------------------------------------------------
 
 /** Run async tasks with a concurrency limit (index-based, thread-safe). */
-async function withConcurrency<T>(
+export async function withConcurrency<T>(
   items: T[],
   concurrency: number,
   fn: (item: T, index: number) => Promise<void>,
@@ -3092,6 +3152,15 @@ export const model = {
         llmConcurrency: z.number().int().min(1).max(20).optional().describe(
           "Max parallel LLM requests.",
         ),
+        maxFusions: z.number().int().min(1).optional().describe(
+          "Hard cap on LLM fusion calls per step before the step stops and the workflow continues.",
+        ),
+        llmTimeoutSec: z.number().int().min(1).max(600).optional().describe(
+          "Per-call LLM request timeout in seconds.",
+        ),
+        llmFailureThreshold: z.number().int().min(1).optional().describe(
+          "Server-side LLM failures tolerated in a step before the step halts.",
+        ),
       }),
       execute: async (
         args: Record<string, unknown>,
@@ -4157,22 +4226,57 @@ export const model = {
         );
         const newStories: Story[] = [];
         const concurrency = ga.llmConcurrency ?? 3;
+        const breaker = new CircuitBreaker(ga.llmFailureThreshold ?? 3);
+        let calls = 0;
+        let hardCapped = false;
         await withConcurrency(uniqueToSeed, concurrency, async (c) => {
+          if (breaker.shouldStop()) return;
+          if (calls >= (ga.maxFusions ?? 25)) {
+            if (!hardCapped) {
+              hardCapped = true;
+              logger?.warning(
+                "maxFusions={n} reached in seedStories — remaining {r} clusters skipped",
+                { n: ga.maxFusions, r: uniqueToSeed.length - calls },
+              );
+            }
+            return;
+          }
+          calls += 1;
           try {
             const st = await seedStory(ga, c);
+            breaker.recordSuccess();
             newStories.push(st);
             logger?.info("Seeded story '{topic}' ({id})", {
               topic: st.identity.topic,
               id: st.id,
             });
           } catch (err) {
+            breaker.recordFailure(err);
             const msg = err instanceof Error ? err.message : String(err);
-            logger?.warning("Seed failed for '{topic}': {error}", {
-              topic: c.topic,
-              error: msg,
-            });
+            if (isLlmServerError(err)) {
+              logger?.warning(
+                "Seed failed for '{topic}' due to server error ({error}); breaker {b}/{t}",
+                {
+                  topic: c.topic,
+                  error: msg,
+                  b: breaker.tripCount(),
+                  t: ga.llmFailureThreshold ?? 3,
+                },
+              );
+            } else {
+              logger?.warning("Seed failed for '{topic}': {error}", {
+                topic: c.topic,
+                error: msg,
+              });
+            }
           }
         });
+        if (breaker.shouldStop()) {
+          logger?.warning(
+            "seedStories aborted early: LLM server errors hit the {t} failure threshold — continuing with {n} seeded stories",
+            { t: ga.llmFailureThreshold ?? 3, n: newStories.length },
+          );
+        }
         const merged = [...existing, ...newStories];
         const handle = await context.writeResource(
           "stories",
@@ -4226,6 +4330,30 @@ export const model = {
           | null)?.clusters ?? [];
         const prevByKey = new Map(prevClusters.map((c) => [c.key, c]));
 
+        // Error budget shared by the fresh-cluster pass and the absorbable
+        // pass: one circuit breaker (server-side failures) and one hard cap on
+        // total LLM calls. Either trip stops the remaining work so the step
+        // can finish and the workflow can continue on to the next step.
+        const breaker = new CircuitBreaker(ga.llmFailureThreshold ?? 3);
+        const maxFusions = ga.maxFusions ?? 25;
+        let calls = 0;
+        let hardCapped = false;
+        const callGated = () => {
+          if (breaker.shouldStop()) return { stop: true as const };
+          if (calls >= maxFusions) {
+            if (!hardCapped) {
+              hardCapped = true;
+              logger?.warning(
+                "maxFusions={n} reached in fuseStories — remaining work skipped",
+                { n: maxFusions },
+              );
+            }
+            return { stop: true as const };
+          }
+          calls += 1;
+          return { stop: false as const };
+        };
+
         // Fresh clusters: fuse each into the matching existing story.
         const concurrency = ga.llmConcurrency ?? 3;
         await withConcurrency(clusters, concurrency, async (c) => {
@@ -4244,19 +4372,34 @@ export const model = {
             });
             return;
           }
+          if (callGated().stop) return;
           try {
             const updated = await fuseStory(ga, st, c.articles);
+            breaker.recordSuccess();
             toUpdate.push(updated);
             logger?.info("Fused {n} articles into story '{topic}'", {
               n: c.articles.length,
               topic: st.identity.topic,
             });
           } catch (err) {
+            breaker.recordFailure(err);
             const msg = err instanceof Error ? err.message : String(err);
-            logger?.warning("Fuse failed for '{topic}': {error}", {
-              topic: c.topic,
-              error: msg,
-            });
+            if (isLlmServerError(err)) {
+              logger?.warning(
+                "Fuse failed for '{topic}' due to server error ({error}); breaker {b}/{t}",
+                {
+                  topic: c.topic,
+                  error: msg,
+                  b: breaker.tripCount(),
+                  t: ga.llmFailureThreshold ?? 3,
+                },
+              );
+            } else {
+              logger?.warning("Fuse failed for '{topic}': {error}", {
+                topic: c.topic,
+                error: msg,
+              });
+            }
           }
         });
 
@@ -4280,20 +4423,41 @@ export const model = {
             }
           }
           if (!st) continue;
+          if (callGated().stop) continue;
           try {
             const updated = await fuseStory(ga, st, [a]);
+            breaker.recordSuccess();
             toUpdate.push(updated);
             logger?.info("Absorbed article '{title}' into story '{topic}'", {
               title: a.title,
               topic: st.identity.topic,
             });
           } catch (err) {
+            breaker.recordFailure(err);
             const msg = err instanceof Error ? err.message : String(err);
-            logger?.warning("Absorb failed for '{topic}': {error}", {
-              topic: st.identity.topic,
-              error: msg,
-            });
+            if (isLlmServerError(err)) {
+              logger?.warning(
+                "Absorb failed for '{topic}' due to server error ({error}); breaker {b}/{t}",
+                {
+                  topic: st.identity.topic,
+                  error: msg,
+                  b: breaker.tripCount(),
+                  t: ga.llmFailureThreshold ?? 3,
+                },
+              );
+            } else {
+              logger?.warning("Absorb failed for '{topic}': {error}", {
+                topic: st.identity.topic,
+                error: msg,
+              });
+            }
           }
+        }
+        if (breaker.shouldStop()) {
+          logger?.warning(
+            "fuseStories aborted early: LLM server errors hit the {t} failure threshold — continuing with {n} updated stories",
+            { t: ga.llmFailureThreshold ?? 3, n: toUpdate.length },
+          );
         }
 
         const merged = stories.map((s) => {
@@ -4346,16 +4510,41 @@ export const model = {
           | null;
         const stories = storiesState?.stories ?? [];
         const updated: Story[] = [];
+        const breaker = new CircuitBreaker(ga.llmFailureThreshold ?? 3);
+        const maxFusions = ga.maxFusions ?? 25;
+        let calls = 0;
         for (const st of stories) {
+          if (breaker.shouldStop() || calls >= maxFusions) break;
+          calls += 1;
           try {
             updated.push(await regenStory(ga, st));
+            breaker.recordSuccess();
           } catch (err) {
+            breaker.recordFailure(err);
             const msg = err instanceof Error ? err.message : String(err);
-            logger?.warning("Regen failed for '{topic}': {error}", {
-              topic: st.identity.topic,
-              error: msg,
-            });
+            if (isLlmServerError(err)) {
+              logger?.warning(
+                "Regen failed for '{topic}' due to server error ({error}); breaker {b}/{t}",
+                {
+                  topic: st.identity.topic,
+                  error: msg,
+                  b: breaker.tripCount(),
+                  t: ga.llmFailureThreshold ?? 3,
+                },
+              );
+            } else {
+              logger?.warning("Regen failed for '{topic}': {error}", {
+                topic: st.identity.topic,
+                error: msg,
+              });
+            }
           }
+        }
+        if (breaker.shouldStop()) {
+          logger?.warning(
+            "regenStories aborted early: LLM server errors hit the {t} failure threshold — continuing with {n} regenerated stories",
+            { t: ga.llmFailureThreshold ?? 3, n: updated.length },
+          );
         }
         const handle = await context.writeResource(
           "stories",

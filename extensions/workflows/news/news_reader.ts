@@ -775,12 +775,18 @@ export class CircuitBreaker {
       ? Math.floor(threshold)
       : 1;
   }
-  recordSuccess(): void { this.failures = 0; }
+  recordSuccess(): void {
+    this.failures = 0;
+  }
   recordFailure(err: unknown): void {
     if (isLlmServerError(err)) this.failures += 1;
   }
-  shouldStop(): boolean { return this.failures >= this.threshold; }
-  tripCount(): number { return this.failures; }
+  shouldStop(): boolean {
+    return this.failures >= this.threshold;
+  }
+  tripCount(): number {
+    return this.failures;
+  }
 }
 
 /** True when the error is an LlmError caused by a server-side failure. */

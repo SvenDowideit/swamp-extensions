@@ -85,6 +85,55 @@ swamp workflow run news --input feeds:json='["https://hnrss.org/frontpage"]'
 swamp workflow run news --input topN=50
 ```
 
+## Run on a schedule
+
+Each workflow YAML ships with a built-in `trigger.schedule` (cron) plus
+`trigger.inputs` defaults, so no per-user trigger setup is required:
+
+| Workflow                     | Schedule | Trigger inputs            |
+|------------------------------|----------|---------------------------|
+| `@svendowideit/news-fetch`   | every 4h  | `discoverNewFeeds: false` |
+| `@svendowideit/news-fusion`  | every 12h | —                         |
+| `@svendowideit/news-curation`| daily 3am | `discoverNewFeeds: true`  |
+| `@svendowideit/news-full`    | every 4h  | `discoverNewFeeds: true`  |
+
+Start the scheduler to register all four:
+
+```sh
+swamp serve          # runs scheduled triggers; live-reloads trigger changes
+```
+
+Notes:
+
+- Schedules use standard 5-field cron (optional 6th = seconds field).
+- If `serve` was down at a scheduled time, missed runs are NOT caught up —
+  the next natural cron tick fires. Use `swamp serve --no-schedule` to
+  disable scheduled runs (e.g. keep serve for the feedback server only).
+- If one run is still in flight on a later tick, the later run is skipped
+  with a warning (no overlap / queue build-up).
+
+### Overriding the built-in schedule
+
+The built-in trigger lives in the workflow YAML; to change it for your
+machine, write a repo-local override (persisted to `serve.yaml`) with:
+
+```sh
+swamp workflow trigger set @svendowideit/news-fetch     --schedule "0 */6 * * *"
+swamp workflow trigger set @svendowideit/news-fusion    --schedule "0 5,17 * * *"
+swamp workflow trigger set @svendowideit/news-curation  --schedule "0 4 * * *"
+```
+
+Inspect and remove overrides the same way:
+
+```sh
+swamp workflow trigger get   @svendowideit/news-fusion    # built-in + local override
+swamp workflow trigger remove @svendowideit/news-fusion   # fall back to the YAML default
+```
+
+Override precedence at fire time: `trigger.inputs` from the workflow YAML >
+schema defaults. `swamp workflow trigger set` replaces the whole override map
+(per workflow), so it's best for adjusting cadence rather than per-run inputs.
+
 ## Models
 
 | Type | Purpose |

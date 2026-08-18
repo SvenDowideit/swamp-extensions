@@ -42,3 +42,10 @@ schema of the CLI (commands, options, arguments) intended for agent
 consumption, run `swamp help [<command>...]` — e.g. `swamp help` returns
 the full tree, and `swamp help model method run` scopes to a subtree.
 <!-- END swamp managed section -->
+
+## Tooling
+
+- **Deno is bundled by swamp.** A Deno binary ships at `~/.swamp/deno/deno`.
+  ALWAYS use that to run `deno test` / `deno check` / `deno bundle` — never
+  install a separate Deno (e.g. via `curl ... | sh`). Verify with
+  `~/.swamp/deno/deno --version`.

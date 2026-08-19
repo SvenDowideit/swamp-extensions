@@ -25,7 +25,8 @@ jobs:
     guard: ${{ data.latest("local-news", "filtered-snapshot") == null }}
     task:
       type: model_method
-      modelIdOrName: local-news
+      modelType: "@svendowideit/news-reader"
+      modelName: local-news
       methodName: clusterArticles
       inputs: {}
     dependsOn: []
@@ -35,7 +36,8 @@ jobs:
     description: LLM-delta pass — absorb clustered articles into existing persistent stories.
     task:
       type: model_method
-      modelIdOrName: local-news
+      modelType: "@svendowideit/news-reader"
+      modelName: local-news
       methodName: fuseStories
       inputs: {}
     dependsOn:
@@ -48,7 +50,8 @@ jobs:
     description: LLM-seed persistent Story objects for fresh clusters with no existing story.
     task:
       type: model_method
-      modelIdOrName: local-news
+      modelType: "@svendowideit/news-reader"
+      modelName: local-news
       methodName: seedStories
       inputs: {}
     dependsOn:
@@ -64,7 +67,8 @@ jobs:
     description: Render persistent stories to an inline storiesHtml fragment and a standalone stories.html page.
     task:
       type: model_method
-      modelIdOrName: local-news
+      modelType: "@svendowideit/news-reader"
+      modelName: local-news
       methodName: renderStories
     dependsOn:
     - step: seed

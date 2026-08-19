@@ -9,9 +9,9 @@ description: >
   news-curation, news-full), and the decoupled feedback server that closes the
   👍/👎 loop between the generated HTML page and the workflows.
 
-  Install: swamp extension pull @svendowideit/news, then
-  swamp model create @svendowideit/news-reader local-news (plus news-feed-catalog,
-  news-feed-discovery, news-feed-analysis instances).
+  Install: swamp extension pull @svendowideit/news. Model instances
+  (local-news, feed-catalog, feed-discovery, feed-analysis) are auto-registered
+  by the workflows on first run — no manual swamp model create needed.
   Setup: swamp model method run local-news setup (set llmModel + llmBaseUrl to
   enable LLM fusion).
   Run: swamp workflow run @svendowideit/news-fetch | @svendowideit/news-fusion | @svendowideit/news-curation | @svendowideit/news-full.

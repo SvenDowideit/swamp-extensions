@@ -13,14 +13,12 @@ that closes the 👍/👎 loop between the generated HTML page and the workflows
 swamp extension pull @svendowideit/news
 ```
 
-Then create the model instances the workflows reference:
-
-```sh
-swamp model create @svendowideit/news-reader local-news
-swamp model create @svendowideit/news-feed-catalog news-feed-catalog
-swamp model create @svendowideit/news-feed-discovery news-feed-discovery
-swamp model create @svendowideit/news-feed-analysis news-feed-analysis
-```
+That's it. The workflows use direct type execution (`modelType` + `modelName`),
+so swamp auto-registers the four model instances (`local-news`, `feed-catalog`,
+`news-feed-discovery`, `feed-analysis`) on the first workflow run — no manual
+`swamp model create` needed. Triggers come with the workflows (see
+[Run on a schedule](#run-on-a-schedule)), so `swamp serve` wires everything up
+on its own.
 
 ## Setup
 

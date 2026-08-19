@@ -82,7 +82,8 @@ jobs:
       feeds so fetch skips them.
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelType: "@svendowideit/news-feed-catalog"
+      modelName: feed-catalog
       methodName: dedupe
       inputs: {}
     dependsOn: []
@@ -93,7 +94,8 @@ jobs:
       state to the catalog, and delete processed entries.
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelType: "@svendowideit/news-feed-catalog"
+      modelName: feed-catalog
       methodName: gatherFeedState
       inputs:
         serverUrl: ${{ inputs.feedbackServerUrl }}
@@ -112,7 +114,8 @@ jobs:
     description: Discover new RSS feeds from article URLs.
     task:
       type: model_method
-      modelIdOrName: feed-discovery
+      modelType: "@svendowideit/news-feed-discovery"
+      modelName: feed-discovery
       methodName: discover
       inputs:
         maxSitesToCrawl: ${{ inputs.maxSitesToCrawl }}
@@ -132,7 +135,8 @@ jobs:
     concurrency: 3
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelType: "@svendowideit/news-feed-catalog"
+      modelName: feed-catalog
       methodName: add
       inputs:
         url: ${{ self.feed.url }}
@@ -149,7 +153,8 @@ jobs:
       resource.
     task:
       type: model_method
-      modelIdOrName: local-news
+      modelType: "@svendowideit/news-reader"
+      modelName: local-news
       methodName: gatherPages
       inputs:
         serverUrl: ${{ inputs.pagesServerUrl }}
@@ -164,7 +169,8 @@ jobs:
       page-discovery-result resource.
     task:
       type: model_method
-      modelIdOrName: feed-analysis
+      modelType: "@svendowideit/news-feed-analysis"
+      modelName: feed-analysis
       methodName: analyzePages
       inputs:
         maxPagesPerRun: ${{ inputs.maxPagesPerRun }}
@@ -184,7 +190,8 @@ jobs:
     concurrency: 3
     task:
       type: model_method
-      modelIdOrName: feed-catalog
+      modelType: "@svendowideit/news-feed-catalog"
+      modelName: feed-catalog
       methodName: add
       inputs:
         url: ${{ self.feed.url }}

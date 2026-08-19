@@ -634,7 +634,9 @@ export function homeDir(): string {
  * exists before the file is written. The server-side feedback server reads
  * from the same default, so the two stay consistent.
  */
-export async function resolveNewsPagePath(outputPath?: string): Promise<string> {
+export async function resolveNewsPagePath(
+  outputPath?: string,
+): Promise<string> {
   const target = outputPath || `${homeDir()}/.swamp/news-pages/news.html`;
   const dir = target.slice(0, target.lastIndexOf("/"));
   if (dir) {

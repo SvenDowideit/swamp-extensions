@@ -34,11 +34,13 @@ function generateId(): string {
 }
 
 const PORT = parseInt(Deno.env.get("FEEDBACK_PORT") ?? "8765");
-const NEWS_PAGES_DIR =
-  `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/news-pages`;
-const HTML_PATH = Deno.env.get("FEEDBACK_HTML_PATH") ?? `${NEWS_PAGES_DIR}/news.html`;
-const FEEDS_PATH = Deno.env.get("FEEDBACK_FEEDS_PATH") ?? `${NEWS_PAGES_DIR}/feeds.html`;
-const STORIES_PATH = Deno.env.get("FEEDBACK_STORIES_PATH") ?? `${NEWS_PAGES_DIR}/stories.html`;
+const NEWS_PAGES_DIR = `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/news-pages`;
+const HTML_PATH = Deno.env.get("FEEDBACK_HTML_PATH") ??
+  `${NEWS_PAGES_DIR}/news.html`;
+const FEEDS_PATH = Deno.env.get("FEEDBACK_FEEDS_PATH") ??
+  `${NEWS_PAGES_DIR}/feeds.html`;
+const STORIES_PATH = Deno.env.get("FEEDBACK_STORIES_PATH") ??
+  `${NEWS_PAGES_DIR}/stories.html`;
 const QUEUE_DIR = Deno.env.get("FEEDBACK_QUEUE_DIR") ?? "";
 const PAGES_DIR = Deno.env.get("FEEDBACK_PAGES_DIR") ?? "";
 const FEED_STATE_DIR = Deno.env.get("FEEDBACK_FEED_STATE_DIR") ?? "";

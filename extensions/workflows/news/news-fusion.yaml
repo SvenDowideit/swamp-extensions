@@ -66,8 +66,6 @@ jobs:
       type: model_method
       modelIdOrName: local-news
       methodName: renderStories
-      inputs:
-        outputPath: stories.html
     dependsOn:
     - step: seed
       condition:

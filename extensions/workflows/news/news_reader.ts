@@ -128,9 +128,12 @@ const GenerateArgsSchema = z.object({
   title: z.string().default("News Summary").describe(
     "Title for the HTML report page",
   ),
-  outputPath: z.string().optional().describe(
-    "If set, also write the HTML to this local file path (e.g., news.html)",
-  ),
+  outputPath: z
+    .string()
+    .optional()
+    .describe(
+      "If set, also write the HTML to this local file path. Defaults to `~/.swamp/news-pages/news.html` when omitted.",
+    ),
 }).describe("Arguments for the generate method");
 
 type GenerateArgs = z.infer<typeof GenerateArgsSchema>;
@@ -612,7 +615,34 @@ export function decodeEntities(s: string): string {
   return cur;
 }
 
-/** Strip HTML tags and CDATA from a string, returning plain text. */
+/**
+ * Home directory at runtime. Read lazily (not at module top-level) so the
+ * module can be imported under `deno test` where `Deno.env` may be
+ * unpermitted; falls back to `/tmp` in that case.
+ */
+export function homeDir(): string {
+  try {
+    return Deno.env.get("HOME") || "/tmp";
+  } catch {
+    return "/tmp";
+  }
+}
+
+/**
+ * Resolves an optional HTML output path to a canonical destination, defaulting
+ * to `~/.swamp/news-pages/news.html`, and ensures the output directory
+ * exists before the file is written. The server-side feedback server reads
+ * from the same default, so the two stay consistent.
+ */
+export async function resolveNewsPagePath(outputPath?: string): Promise<string> {
+  const target = outputPath || `${homeDir()}/.swamp/news-pages/news.html`;
+  const dir = target.slice(0, target.lastIndexOf("/"));
+  if (dir) {
+    await Deno.mkdir(dir, { recursive: true });
+  }
+  return target;
+}
+
 export function stripHtml(html: string): string {
   return decodeEntities(
     html
@@ -3813,12 +3843,9 @@ export const model = {
           size: html.length,
         });
 
-        if (args.outputPath) {
-          await Deno.writeTextFile(args.outputPath, html);
-          logger?.info("HTML also written to {path}", {
-            path: args.outputPath,
-          });
-        }
+        const outPath = await resolveNewsPagePath(args.outputPath);
+        await Deno.writeTextFile(outPath, html);
+        logger?.info("HTML report written to {path}", { path: outPath });
 
         return { dataHandles: [handle] };
       },
@@ -4564,9 +4591,12 @@ export const model = {
       description:
         "Render persistent stories to an inline HTML fragment resource (storiesHtml) and optionally a standalone stories.html page.",
       arguments: z.object({
-        outputPath: z.string().optional().describe(
-          "If set, also write the full standalone stories page to this local file path (e.g., stories.html)",
-        ),
+        outputPath: z
+          .string()
+          .optional()
+          .describe(
+            "If set, write the standalone stories page to this local file path. Defaults to `~/.swamp/news-pages/stories.html` when omitted.",
+          ),
       }).describe("Arguments for the renderStories method"),
       execute: async (
         args: { outputPath?: string },
@@ -4594,19 +4624,21 @@ export const model = {
         logger?.info("Rendered {n} fused stories to storiesHtml", {
           n: aged.length,
         });
-        if (args.outputPath) {
-          const generatedAt = new Date().toISOString();
-          const page = await renderStoriesPage(
-            aged,
-            prefs,
-            "Fused stories",
-            generatedAt,
-          );
-          await Deno.writeTextFile(args.outputPath, page);
-          logger?.info("Full stories page also written to {path}", {
-            path: args.outputPath,
-          });
+        const generatedAt = new Date().toISOString();
+        const outPath = args.outputPath ||
+          `${homeDir()}/.swamp/news-pages/stories.html`;
+        const dir = outPath.slice(0, outPath.lastIndexOf("/"));
+        if (dir) {
+          await Deno.mkdir(dir, { recursive: true });
         }
+        const page = await renderStoriesPage(
+          aged,
+          prefs,
+          "Fused stories",
+          generatedAt,
+        );
+        await Deno.writeTextFile(outPath, page);
+        logger?.info("Full stories page written to {path}", { path: outPath });
         return { dataHandles: [handle] };
       },
     },

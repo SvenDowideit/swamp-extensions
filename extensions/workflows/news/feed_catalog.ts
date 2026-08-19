@@ -93,10 +93,21 @@ type ListCategoriesArgs = z.infer<typeof ListCategoriesArgsSchema>;
 
 const idOrNum = z.union([z.string(), z.number()]);
 
+const newsHomeDir = (): string => {
+  try {
+    return Deno.env.get("HOME") || "/tmp";
+  } catch {
+    return "/tmp";
+  }
+};
+
 const GenerateFeedsHtmlArgsSchema = z.object({
-  outputPath: z.string().default("feeds.html").describe(
-    "Local file path to write the generated HTML page (default: feeds.html)",
-  ),
+  outputPath: z
+    .string()
+    .default("")
+    .describe(
+      "Local file path to write the generated HTML page. Defaults to `~/.swamp/news-pages/feeds.html` when empty.",
+    ),
   title: z.string().default("Feed Catalog").describe("Page title"),
   prefs: z.object({
     interested: z.array(
@@ -1174,13 +1185,19 @@ export const model = {
           args.snapshot,
         );
 
+        const outPath = args.outputPath ||
+          `${newsHomeDir()}/.swamp/news-pages/feeds.html`;
+        const dir = outPath.slice(0, outPath.lastIndexOf("/"));
+        if (dir) {
+          await Deno.mkdir(dir, { recursive: true });
+        }
         const writer = await context.createFileWriter("report", "feeds-page");
         const handle = await writer.writeText(html);
-        await Deno.writeTextFile(args.outputPath, html);
+        await Deno.writeTextFile(outPath, html);
 
         logger?.info(
           "Wrote feeds HTML to {path} ({bytes} bytes) and file artifact",
-          { path: args.outputPath, bytes: html.length },
+          { path: outPath, bytes: html.length },
         );
 
         return { dataHandles: [handle] };

@@ -132,9 +132,9 @@ inputs:
         page's site root.
     outputPath:
       type: string
-      default: news.html
-      description: If set, write the generated HTML to this local file path (e.g.,
-        news.html).
+      default: ""
+      description: If set, write the generated HTML to this local file path.
+        Defaults to `~/.swamp/news-pages/news.html` when empty.
   required: []
 reports:
   require:
@@ -294,8 +294,6 @@ jobs:
       type: model_method
       modelIdOrName: local-news
       methodName: renderStories
-      inputs:
-        outputPath: stories.html
     dependsOn:
     - step: seed
       condition:
@@ -338,7 +336,6 @@ jobs:
       modelIdOrName: feed-catalog
       methodName: generateFeedsHtml
       inputs:
-        outputPath: feeds.html
         prefs: ${{ data.latest("local-news", "prefs-current").?attributes.orValue({}) }}
         snapshot: ${{ data.latest("local-news", "feed-snapshot").?attributes.orValue({}) }}
     dependsOn:

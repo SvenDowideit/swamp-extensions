@@ -85,6 +85,23 @@ swamp workflow run news --input feeds:json='["https://hnrss.org/frontpage"]'
 swamp workflow run news --input topN=50
 ```
 
+### Where the generated HTML goes
+
+All three generated HTML pages land in a single user-global directory so they
+survive repo moves and `swamp serve`'s working-directory changes:
+
+| Page           | Path                             |
+|----------------|----------------------------------|
+| News summary   | `~/.swamp/news-pages/news.html`   |
+| Feeds catalog  | `~/.swamp/news-pages/feeds.html`  |
+| Fused stories  | `~/.swamp/news-pages/stories.html`|
+
+The directory is created on demand. To override (e.g. for a per-project output
+location), pass `outputPath` — or run `swamp model method run local-news
+generate --input outputPath=/abs/path/to/news.html`; `feed-catalog
+generateFeedsHtml` and `local-news renderStories` take the same `outputPath`
+argument.
+
 ## Run on a schedule
 
 Each workflow YAML ships with a built-in `trigger.schedule` (cron) plus
@@ -210,9 +227,13 @@ from the workflow (see `docs/news-fusing.md`):
 | `GET /feeds.html` | Serve the feeds catalog listing. |
 | `GET /stories.html` | Serve the standalone fused-stories page. |
 
+The server reads the HTML pages from the same `~/.swamp/news-pages/`
+default the workflows write to, so no path flags are needed:
+
 ```sh
-deno run --allow-net --allow-read --allow-write scripts/feedback-server.ts \
-  --html news.html --feeds feeds.html --stories stories.html
+# from the extension directory (or pass explicit --html/--feeds/--stories paths
+# to serve pages from elsewhere)
+deno run --allow-net --allow-read scripts/feedback-server.ts
 ```
 
 ## Design notes

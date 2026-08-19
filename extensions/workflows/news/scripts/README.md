@@ -88,21 +88,21 @@ after import, the next run will safely re-process the same entry.
 ```sh
 # Start the server (serves HTML page at / and feedback API at /api/feedback)
 # If `deno` is not on your PATH, swamp installs it at ~/.swamp/deno/deno
-deno run --allow-net --allow-read --allow-write scripts/feedback-server.ts --html news.html
+deno run --allow-net --allow-read --allow-write --allow-env scripts/feedback-server.ts --html news.html
 
 # Start with HTML page and feeds listing served at / and /feeds.html
-deno run --allow-net --allow-read --allow-write scripts/feedback-server.ts \
+deno run --allow-net --allow-read --allow-write --allow-env scripts/feedback-server.ts \
   --html news.html --feeds feeds.html
 
 # Custom port and queue directories
-deno run --allow-net --allow-read --allow-write scripts/feedback-server.ts \
+deno run --allow-net --allow-read --allow-write --allow-env scripts/feedback-server.ts \
   --port 9999 --html news.html --feeds feeds.html \
   --queue-dir /tmp/my-feedback-queue --pages-dir /tmp/my-pages-queue
 
 # Or via environment variables
 FEEDBACK_PORT=9999 FEEDBACK_HTML_PATH=news.html FEEDBACK_FEEDS_PATH=feeds.html \
   FEEDBACK_QUEUE_DIR=/tmp/queue FEEDBACK_PAGES_DIR=/tmp/pages \
-  deno run --allow-net --allow-read --allow-write scripts/feedback-server.ts
+  deno run --allow-net --allow-read --allow-write --allow-env scripts/feedback-server.ts
 ```
 
 ### Permissions

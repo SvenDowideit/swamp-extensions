@@ -233,7 +233,7 @@ default the workflows write to, so no path flags are needed:
 ```sh
 # from the extension directory (or pass explicit --html/--feeds/--stories paths
 # to serve pages from elsewhere)
-deno run --allow-net --allow-read scripts/feedback-server.ts
+deno run --allow-net --allow-read --allow-write --allow-env scripts/feedback-server.ts
 ```
 
 ## Design notes

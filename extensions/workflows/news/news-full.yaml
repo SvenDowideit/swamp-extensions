@@ -28,7 +28,7 @@ description: |
 
 tags: {}
 trigger:
-  schedule: 0 */4 * * *
+  #schedule: 0 */4 * * *
   inputs:
     feeds: []
     discoverNewFeeds: true

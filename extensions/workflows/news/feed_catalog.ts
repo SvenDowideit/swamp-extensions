@@ -819,6 +819,14 @@ export const model = {
   type: "@svendowideit/news-feed-catalog",
   version: "2026.08.06.1784424438",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.08.06.1784424438",
+      description:
+        "Baseline version for @svendowideit/news-feed-catalog, no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     catalog: {
       description: "Feed catalog (list of RSS/Atom feeds with categories)",

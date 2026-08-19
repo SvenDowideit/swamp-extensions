@@ -312,6 +312,14 @@ export const model = {
   type: "@svendowideit/news-feed-analysis",
   version: "2026.08.03.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.08.03.1",
+      description:
+        "Baseline version for @svendowideit/news-feed-analysis, no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     pageDiscovery: {
       description: "Result of the most recent page-analysis run",

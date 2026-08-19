@@ -385,6 +385,14 @@ export const model = {
   type: "@svendowideit/news-feed-discovery",
   version: "2026.08.03.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.08.03.1",
+      description:
+        "Baseline version for @svendowideit/news-feed-discovery, no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     discovery: {
       description: "Result of the most recent feed discovery run",

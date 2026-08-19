@@ -3102,6 +3102,14 @@ export const model = {
   type: "@svendowideit/news-reader",
   version: "2026.08.08.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.08.08.1",
+      description:
+        "Baseline version for @svendowideit/news-reader, no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     snapshot: {
       description: "Latest fetched feed snapshot",

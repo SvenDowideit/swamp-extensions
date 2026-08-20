@@ -12,8 +12,8 @@ description: >
   Install: swamp extension pull @svendowideit/news. Model instances
   (local-news, feed-catalog, feed-discovery, feed-analysis) are auto-registered
   by the workflows on first run — no manual swamp model create needed.
-  Setup: swamp model method run local-news setup (set llmModel + llmBaseUrl to
-  enable LLM fusion).
+  Setup: swamp model @svendowideit/news-reader method run setup local-news
+  (set llmModel + llmBaseUrl to enable LLM fusion).
   Run: swamp workflow run @svendowideit/news-fetch | @svendowideit/news-fusion | @svendowideit/news-curation | @svendowideit/news-full.
 
 repository: https://github.com/svendowideit/swamp-extensions

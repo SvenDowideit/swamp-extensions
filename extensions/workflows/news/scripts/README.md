@@ -161,9 +161,9 @@ Same file-per-entry layout as feedback, in the pages directory (default:
 
 ### Workflow integration
 
-The `news` workflow (`workflows/workflow-f04794eb-33d9-443f-a582-3f12699c54e1.yaml`)
-adds two steps (plus the `dedupe` step — see the news-feed-catalog README — which
-runs before `fetch` to flag duplicate catalog feeds so they're skipped):
+The `news-full` workflow (`news-full.yaml`) adds two steps (plus the `dedupe`
+step — see the news-feed-catalog README — which runs before `fetch` to flag
+duplicate catalog feeds so they're skipped):
 
 - `gather-pages` — calls the news-reader `gatherPages` method, which polls
   `GET /api/pages?limit=N`, collects `{ url, name, category }` entries into the

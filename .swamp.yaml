@@ -1,11 +1,11 @@
-swampVersion: 20260806.001601.0
+swampVersion: 20260818.022435.0
 initializedAt: "2026-07-17T02:11:06.886Z"
 repoId: e46f92ff-737f-41b7-9d52-c141bb67a79c
 tools:
   - opencode
 gitignoreManaged: true
-upgradedAt: "2026-08-06T11:31:28.090Z"
+upgradedAt: "2026-08-20T04:38:04.200Z"
 vault:
   type: "@svendowideit/systemd-creds"
   config:
-    credstoreDir: "~/.config/credstore"  # optional, this is the default
+    credstoreDir: ~/.config/credstore

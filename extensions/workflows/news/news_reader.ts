@@ -25,7 +25,7 @@ const GlobalArgsSchema = z.object({
     "LLM model tag used for story fusion (Ollama model, e.g. llama3, mistral, qwen2.5).",
   ),
   /** API key for LLM servers that require auth (Ollama usually does not). */
-  llmApiKey: z.string().optional().describe(
+  llmApiKey: z.string().optional().meta({ sensitive: true }).describe(
     "Optional API key for LLM servers that require authentication. Ollama typically does not need one.",
   ),
   /** Sampling temperature for fusion LLM calls (low = deterministic). */
@@ -605,12 +605,12 @@ export function decodeEntities(s: string): string {
   do {
     prev = cur;
     cur = cur
-      .replace(/<|&#60;|&#x3C;|&#x3c;/g, "<")
-      .replace(/>|&#62;|&#x3E;|&#x3e;/g, ">")
-      .replace(/"|&#34;|&#x22;/g, '"')
-      .replace(/'|&#39;|&#039;|&#x27;/g, "'")
+      .replace(/&lt;|&#60;|&#x3C;|&#x3c;/g, "<")
+      .replace(/&gt;|&#62;|&#x3E;|&#x3e;/g, ">")
+      .replace(/&quot;|&#34;|&#x22;/g, '"')
+      .replace(/&apos;|&#39;|&#039;|&#x27;/g, "'")
       .replace(/&nbsp;|&#160;|&#xA0;|&#xa0;/g, " ")
-      .replace(/&|&#38;|&#x26;/g, "&");
+      .replace(/&amp;|&#38;|&#x26;/g, "&");
   } while (cur !== prev);
   return cur;
 }
@@ -2005,8 +2005,12 @@ function renderCitationCard(
     escapeHtml(id)
   }">${escapeHtml(c.title || c.url)}</a>${indicators}
 <span class="article-actions">
-<a onclick="sendFeedback('interested',${escapeHtml(articleJson)},event)" title="👍 interested">👍</a>
-<a onclick="sendFeedback('ignored',${escapeHtml(articleJson)},event)" title="👎 ignore">👎</a>
+<a onclick="sendFeedback('interested',${
+    escapeHtml(articleJson)
+  },event)" title="👍 interested">👍</a>
+<a onclick="sendFeedback('ignored',${
+    escapeHtml(articleJson)
+  },event)" title="👎 ignore">👎</a>
 </span></h3>
 <span class="source">${
     escapeHtml(c.source)
@@ -2894,8 +2898,12 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
         escapeHtml(a.id)
       }">${escapeHtml(a.title)}</a>${indicators}${dupBadge}
 <span class="article-actions">
-<a onclick="sendFeedback('interested',${escapeHtml(articleJson)},event)" title="👍 interested">👍</a>
-<a onclick="sendFeedback('ignored',${escapeHtml(articleJson)},event)" title="👎 ignore">👎</a>
+<a onclick="sendFeedback('interested',${
+        escapeHtml(articleJson)
+      },event)" title="👍 interested">👍</a>
+<a onclick="sendFeedback('ignored',${
+        escapeHtml(articleJson)
+      },event)" title="👎 ignore">👎</a>
 </span></h3>
 <span class="source">${
         escapeHtml(a.source)
@@ -3183,7 +3191,7 @@ export const model = {
         llmModel: z.string().optional().describe(
           "LLM model tag for story fusion. Empty = fusion disabled; set a tag to enable.",
         ),
-        llmApiKey: z.string().optional().describe(
+        llmApiKey: z.string().optional().meta({ sensitive: true }).describe(
           "Optional API key for LLM servers that require authentication.",
         ),
         llmTemperature: z.number().min(0).max(2).optional().describe(

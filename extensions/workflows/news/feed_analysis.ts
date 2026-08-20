@@ -26,7 +26,9 @@ type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
 const PageEntryInputSchema = z.object({
   url: z.string().describe("Page or feed URL to analyze"),
-  name: z.string().default("").optional().describe("Optional human-readable page name"),
+  name: z.string().default("").optional().describe(
+    "Optional human-readable page name",
+  ),
   category: z.string().default("").optional().describe("Optional category tag"),
 });
 

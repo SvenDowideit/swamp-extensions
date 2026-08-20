@@ -1154,7 +1154,7 @@ Deno.test("stripHtml removes CDATA sections", () => {
 });
 
 Deno.test("stripHtml decodes HTML entities", () => {
-  assertEquals(stripHtml("&lt;;div&gt;; &amp;; &quot;;&quot;;"), "<div> & \"\"");
+  assertEquals(stripHtml("&lt;div&gt; &amp; &quot;&quot;"), "<div> & \"\"");
 });
 Deno.test("stripHtml decodes &nbsp; and &quot;", () => {
   assertEquals(stripHtml("a&nbsp;b &quot;c&quot;"), "a b \"c\"");
@@ -1174,7 +1174,7 @@ Deno.test("stripHtml handles nested tags", () => {
 
 Deno.test("stripHtml decodes apostrophe entity forms", () => {
   assertEquals(stripHtml("military&#039;s"), "military's");
-  assertEquals(stripHtml("&apos;;mark all as read&apos;; app"), "'mark all as read' app");
+  assertEquals(stripHtml("&apos;mark all as read&apos; app"), "'mark all as read' app");
   assertEquals(stripHtml("&#39;"), "'");
   assertEquals(stripHtml("&#x27;"), "'");
 });

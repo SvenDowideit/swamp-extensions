@@ -489,7 +489,9 @@ export const model = {
               )
               .map((a: { url: string }) => a.url);
           }
-          if (nonFeedUrls.length === 0 && Array.isArray(snapshot?.nonFeedUrls)) {
+          if (
+            nonFeedUrls.length === 0 && Array.isArray(snapshot?.nonFeedUrls)
+          ) {
             nonFeedUrls = snapshot!.nonFeedUrls
               .filter(
                 (n: unknown) =>

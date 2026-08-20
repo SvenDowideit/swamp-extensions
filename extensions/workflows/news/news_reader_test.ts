@@ -224,9 +224,12 @@ Deno.test("generateHtml escapes HTML in article titles", () => {
   // The escaped title appears in the visible HTML (inside <h3><a>).
   assertEquals(html.includes("&lt;script&gt;alert"), true);
   assertEquals(html.includes("&#39;xss&#39;"), true);
-  // The raw title appears in the JSON blob (articleJson), which is fine —
-  // it's inside a JSON.stringify and not rendered as HTML.
-  assertEquals(html.includes("\"title\":\"<script>alert"), true);
+  // The title inside the inline JSON blob (articleJson) must be entity-escaped
+  // so its raw double quotes don't break out of the onclick attribute value.
+  // Both the JSON's own quotes and the title chars are escaped.
+  assertEquals(html.includes("&quot;title&quot;:&quot;&lt;script&gt;alert"), true);
+  // No raw double-quoted JSON survives un-escaped in the document.
+  assertEquals(html.includes("\"title\":\"<script>"), false);
 });
 
 Deno.test("generateHtml includes interest profile when keywords exist", () => {

@@ -2005,8 +2005,8 @@ function renderCitationCard(
     escapeHtml(id)
   }">${escapeHtml(c.title || c.url)}</a>${indicators}
 <span class="article-actions">
-<a onclick="sendFeedback('interested',${articleJson},event)" title="👍 interested">👍</a>
-<a onclick="sendFeedback('ignored',${articleJson},event)" title="👎 ignore">👎</a>
+<a onclick="sendFeedback('interested',${escapeHtml(articleJson)},event)" title="👍 interested">👍</a>
+<a onclick="sendFeedback('ignored',${escapeHtml(articleJson)},event)" title="👎 ignore">👎</a>
 </span></h3>
 <span class="source">${
     escapeHtml(c.source)
@@ -2894,8 +2894,8 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
         escapeHtml(a.id)
       }">${escapeHtml(a.title)}</a>${indicators}${dupBadge}
 <span class="article-actions">
-<a onclick="sendFeedback('interested',${articleJson},event)" title="👍 interested">👍</a>
-<a onclick="sendFeedback('ignored',${articleJson},event)" title="👎 ignore">👎</a>
+<a onclick="sendFeedback('interested',${escapeHtml(articleJson)},event)" title="👍 interested">👍</a>
+<a onclick="sendFeedback('ignored',${escapeHtml(articleJson)},event)" title="👎 ignore">👎</a>
 </span></h3>
 <span class="source">${
         escapeHtml(a.source)

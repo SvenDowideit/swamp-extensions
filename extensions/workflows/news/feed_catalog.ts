@@ -376,17 +376,30 @@ function escapeHtml(s: string): string {
  * the duplicates that point back to it (canonical first, duplicates indented
  * underneath).
  */
+/** A single article in the news-reader snapshot, with dedup annotations. */
+type SnapshotArticle = {
+  id: string | number;
+  source: string;
+  duplicate?: boolean;
+  duplicateOf?: string;
+  duplicateSources?: string[];
+  duplicateCount?: number;
+};
+
+/** A preference entry (interested/ignored) keyed by article id + source. */
+type PrefsEntry = { articleId: string | number; source: string };
+
 export function generateFeedsHtml(
   feeds: Feed[],
   title: string,
   generatedAt: string,
   prefs?: {
-    interested?: { articleId: string; source: string }[];
-    ignored?: { articleId: string; source: string }[];
-    seen?: string[];
-    read?: string[];
+    interested?: PrefsEntry[];
+    ignored?: PrefsEntry[];
+    seen?: (string | number)[];
+    read?: (string | number)[];
   },
-  snapshot?: { articles?: { id: string; source: string }[] },
+  snapshot?: { articles?: SnapshotArticle[] },
 ): string {
   const canonical = feeds.filter((f) => !f.duplicate && f.invalid !== true);
   const invalidFeeds = feeds.filter((f) => f.invalid === true);
@@ -418,7 +431,7 @@ export function generateFeedsHtml(
 
   const getSrc = (a: { source?: string }) => (a.source ?? "").toLowerCase();
 
-  const articleById = new Map<string, typeof articles[number]>();
+  const articleById = new Map<string | number, SnapshotArticle>();
   for (const a of articles) articleById.set(a.id, a);
 
   const incr = (
@@ -437,13 +450,9 @@ export function generateFeedsHtml(
 
   for (const a of articles) {
     const src = getSrc(a);
-    const dupSources = (a as Record<string, unknown>).duplicateSources as
-      | string[]
-      | undefined;
-    const isDup = (a as Record<string, unknown>).duplicate === true;
-    const dupOf = (a as Record<string, unknown>).duplicateOf as
-      | string
-      | undefined;
+    const dupSources = a.duplicateSources;
+    const isDup = a.duplicate === true;
+    const dupOf = a.duplicateOf;
 
     if (dupSources && dupSources.length > 0) {
       for (const other of dupSources) {
@@ -497,8 +506,8 @@ export function generateFeedsHtml(
       if (getSrc(a) !== src) continue;
       if (seenSet.has(a.id)) seen++;
       if (readSet.has(a.id)) read++;
-      if ((a as Record<string, unknown>).duplicate === true) dedupedFromCount++;
-      if ((a as Record<string, unknown>).duplicateCount > 0) dedupedToCount++;
+      if (a.duplicate === true) dedupedFromCount++;
+      if ((a.duplicateCount ?? 0) > 0) dedupedToCount++;
     }
     let interestedCount = 0;
     let ignoredCount = 0;

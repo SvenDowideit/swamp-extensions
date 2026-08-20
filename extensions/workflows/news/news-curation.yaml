@@ -77,6 +77,18 @@ jobs:
 - name: main
   description: Deduplicate catalog, gather feed state, discover new feeds, analyze pages.
   steps:
+  - name: seed
+    description: Ensure the catalog has at least one feed (adds the default swamp-club
+      feed when empty) so a fresh install has something to fetch.
+    task:
+      type: model_method
+      modelType: "@svendowideit/news-feed-catalog"
+      modelName: feed-catalog
+      methodName: seed
+      inputs: {}
+    dependsOn: []
+    weight: 0
+    allowFailure: true
   - name: dedupe
     description: Fetch each catalog feed, group by content identity, and mark duplicate
       feeds so fetch skips them.
@@ -86,7 +98,13 @@ jobs:
       modelName: feed-catalog
       methodName: dedupe
       inputs: {}
-    dependsOn: []
+    dependsOn:
+    - step: seed
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: failed
     weight: 0
     allowFailure: true
   - name: gather-feed-state
@@ -120,6 +138,8 @@ jobs:
       inputs:
         maxSitesToCrawl: ${{ inputs.maxSitesToCrawl }}
         dryRun: ${{ inputs.dryRun }}
+        articleUrls: ${{ data.latest("local-news", "feed-snapshot").?attributes.?articles.orValue([]) }}
+        nonFeedUrls: ${{ data.latest("local-news", "feed-snapshot").?attributes.?nonFeedUrls.orValue([]) }}
     dependsOn:
     - step: gather-feed-state
       condition:

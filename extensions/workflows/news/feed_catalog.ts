@@ -919,6 +919,68 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
+    seed: {
+      description:
+        "Ensure the catalog has at least one feed. If the catalog is empty (or missing), add the default swamp-club feed so the news stack has something to fetch on a fresh install. No-op when the catalog already has feeds.",
+      arguments: z.object({
+        url: z.string().url().default("https://swamp-club.com/feed.xml")
+          .describe(
+            "Feed URL to add when the catalog is empty",
+          ),
+        category: z.string().default("swamp").describe(
+          "Category tag for the seeded feed",
+        ),
+      }),
+      execute: async (
+        args: { url: string; category: string },
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const logger = context.logger;
+        const catalogName = context.globalArgs.catalogName;
+
+        let catalogData = await context.readResource("current") as
+          | FeedCatalog
+          | null;
+        if (!catalogData || catalogData.name !== catalogName) {
+          catalogData = { name: catalogName, feeds: [], totalCount: 0 };
+        }
+
+        if (catalogData.feeds.length > 0) {
+          logger?.info(
+            "Catalog already has {count} feeds — seed is a no-op",
+            { count: catalogData.feeds.length },
+          );
+          const handle = await context.writeResource("catalog", "current", {
+            name: catalogData.name,
+            feeds: catalogData.feeds,
+            totalCount: catalogData.totalCount,
+          });
+          return { dataHandles: [handle] };
+        }
+
+        const newFeed: Feed = {
+          url: new URL(args.url).href.replace(/\/$/, ""),
+          name: extractFeedName(args.url),
+          category: args.category,
+          addedAt: new Date().toISOString(),
+        };
+        catalogData.feeds.push(newFeed);
+        catalogData.totalCount = 1;
+
+        logger?.info("Seeded catalog with default feed {name} ({url})", {
+          name: newFeed.name,
+          url: newFeed.url,
+        });
+
+        const handle = await context.writeResource("catalog", "current", {
+          name: catalogData.name,
+          feeds: catalogData.feeds,
+          totalCount: catalogData.totalCount,
+        });
+
+        return { dataHandles: [handle] };
+      },
+    },
     dedupe: {
       description:
         "Fetch each catalog feed, group duplicates by content identity, and mark the less expressive (or second) feed as a duplicate.",

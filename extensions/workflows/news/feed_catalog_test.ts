@@ -8,6 +8,7 @@ import {
   feedIdentity,
   generateFeedsHtml,
   isFeedBody,
+  model,
   normalizeId,
 } from "./feed_catalog.ts";
 
@@ -399,4 +400,61 @@ Deno.test("generateFeedsHtml includes deduped-to cross-reference", () => {
   };
   const html = generateFeedsHtml(feeds, "Test", "2026-08-14T00:00:00Z", undefined, snapshot);
   assertEquals(html.includes("deduped to"), true);
+});
+
+// ---------------------------------------------------------------------------
+// seed method
+// ---------------------------------------------------------------------------
+
+const seedCtx = (stored: Record<string, unknown> | null) => {
+  const writes: Array<{ spec: string; name: string; data: Record<string, unknown> }> = [];
+  return {
+    ctx: {
+      globalArgs: { catalogName: "default" },
+      logger: { info: () => {} },
+      readResource: async () => stored,
+      writeResource: async (
+        spec: string,
+        name: string,
+        data: Record<string, unknown>,
+      ) => {
+        writes.push({ spec, name, data });
+        return { name };
+      },
+    } as unknown as Parameters<typeof model.methods.seed.execute>[1],
+    writes,
+  };
+};
+
+Deno.test("seed adds default feed when catalog is empty", async () => {
+  const { ctx, writes } = seedCtx(null);
+  await model.methods.seed.execute(
+    { url: "https://swamp-club.com/feed.xml", category: "swamp" },
+    ctx,
+  );
+
+  assertEquals(writes.length, 1);
+  const data = writes[0].data as { feeds: Feed[]; totalCount: number };
+  assertEquals(data.feeds.length, 1);
+  assertEquals(data.feeds[0].url, "https://swamp-club.com/feed.xml");
+  assertEquals(data.feeds[0].category, "swamp");
+  assertEquals(data.totalCount, 1);
+});
+
+Deno.test("seed is a no-op when catalog already has feeds", async () => {
+  const existing = {
+    name: "default",
+    feeds: [{ url: "https://a.com/feed", name: "a.com", category: "x", addedAt: "2026-08-14T00:00:00Z" }],
+    totalCount: 1,
+  };
+  const { ctx, writes } = seedCtx(existing);
+  await model.methods.seed.execute(
+    { url: "https://swamp-club.com/feed.xml", category: "swamp" },
+    ctx,
+  );
+
+  const data = writes[0].data as { feeds: Feed[]; totalCount: number };
+  assertEquals(data.feeds.length, 1);
+  assertEquals(data.feeds[0].url, "https://a.com/feed");
+  assertEquals(data.totalCount, 1);
 });

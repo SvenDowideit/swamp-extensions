@@ -3,8 +3,9 @@
 The full news stack — feed discovery, catalog management, preference-aware
 fetching, LLM story fusion, and static HTML rendering. Ships four model
 extensions (`news-feed-discovery`, `news-feed-catalog`, `news-reader`, `news-feed-analysis`),
-one report extension (`news_html_report`), the four news workflows (`news`,
-`news-fusion`, `news-curation`, `news-full`), and the decoupled feedback server
+one report extension (`news_html_report`), the four news workflows
+(`news-fetch`, `news-fusion`, `news-curation`, `news-full`), and the decoupled
+feedback server
 that closes the 👍/👎 loop between the generated HTML page and the workflows.
 
 ## Install (new users)
@@ -15,10 +16,28 @@ swamp extension pull @svendowideit/news
 
 That's it. The workflows use direct type execution (`modelType` + `modelName`),
 so swamp auto-registers the four model instances (`local-news`, `feed-catalog`,
-`news-feed-discovery`, `feed-analysis`) on the first workflow run — no manual
+`feed-discovery`, `feed-analysis`) on the first workflow run — no manual
 `swamp model create` needed. Triggers come with the workflows (see
 [Run on a schedule](#run-on-a-schedule)), so `swamp serve` wires everything up
 on its own.
+
+Add your first feeds before the first run (the catalog starts empty, and the
+fetch step skips cleanly until it has something to fetch):
+
+```sh
+swamp model @svendowideit/news-feed-catalog method run add feed-catalog --input url="https://hnrss.org/frontpage" --input category=tech
+swamp model @svendowideit/news-feed-catalog method run add feed-catalog --input url="https://feeds.bbci.co.uk/news/rss.xml" --input category=news
+```
+
+If you don't add any feeds, the workflows seed the catalog with the default
+swamp-club feed (`https://swamp-club.com/feed.xml`) on their first run, so the
+stack always has something to fetch.
+
+Or pass feeds directly to a run without touching the catalog:
+
+```sh
+swamp workflow run @svendowideit/news-fetch --input 'feeds:json=["https://hnrss.org/frontpage"]'
+```
 
 ## Setup
 
@@ -28,13 +47,13 @@ config and validates any values you pass:
 
 ```sh
 # List current config params (name, kind, default, current)
-swamp model method run local-news setup
+swamp model @svendowideit/news-reader method run setup local-news
 
 # Enable LLM story fusion (Ollama default, or any OpenAI-compatible server)
-swamp model method run local-news setup --input llmModel=llama3 --input llmBaseUrl=http://localhost:11434
+swamp model @svendowideit/news-reader method run setup local-news --input llmModel=llama3 --input llmBaseUrl=http://localhost:11434
 
 # Tune fusion behavior
-swamp model method run local-news setup --input llmTemperature=0.1 --input fusionMinClusterSize=2
+swamp model @svendowideit/news-reader method run setup local-news --input llmTemperature=0.1 --input fusionMinClusterSize=2
 
 # Persist your choices in the instance's globalArguments
 swamp model update @svendowideit/news-reader local-news --global-args '{"llmModel":"llama3","llmBaseUrl":"http://localhost:11434"}'
@@ -79,8 +98,8 @@ overrides the catalog), `action` (`fetch_generate` | `feedback`), `topN`
 feedback fields `articleId`, `feedbackAction`, `source`, `title`.
 
 ```sh
-swamp workflow run news --input feeds:json='["https://hnrss.org/frontpage"]'
-swamp workflow run news --input topN=50
+swamp workflow run @svendowideit/news-fetch --input feeds:json='["https://hnrss.org/frontpage"]'
+swamp workflow run @svendowideit/news-fetch --input topN=50
 ```
 
 ### Where the generated HTML goes
@@ -95,10 +114,10 @@ survive repo moves and `swamp serve`'s working-directory changes:
 | Fused stories  | `~/.swamp/news-pages/stories.html`|
 
 The directory is created on demand. To override (e.g. for a per-project output
-location), pass `outputPath` — or run `swamp model method run local-news
-generate --input outputPath=/abs/path/to/news.html`; `feed-catalog
-generateFeedsHtml` and `local-news renderStories` take the same `outputPath`
-argument.
+location), pass `outputPath` — or run `swamp model @svendowideit/news-reader
+method run generate local-news --input outputPath=/abs/path/to/news.html`;
+`feed-catalog generateFeedsHtml` and `local-news renderStories` take the same
+`outputPath` argument.
 
 ## Run on a schedule
 
@@ -110,7 +129,13 @@ Each workflow YAML ships with a built-in `trigger.schedule` (cron) plus
 | `@svendowideit/news-fetch`   | every 4h  | `discoverNewFeeds: false` |
 | `@svendowideit/news-fusion`  | every 12h | —                         |
 | `@svendowideit/news-curation`| daily 3am | `discoverNewFeeds: true`  |
-| `@svendowideit/news-full`    | every 4h  | `discoverNewFeeds: true`  |
+| `@svendowideit/news-full`    | disabled  | —                         |
+
+`@svendowideit/news-full` ships with its schedule commented out — it's the
+manual "run everything once" entry point, not a recurring job. The three
+scheduled workflows (`news-fetch`, `news-fusion`, `news-curation`) cover the
+same ground on their own cadences. To enable it, uncomment the `schedule:` line
+in `news-full.yaml` (or set an override with `swamp workflow trigger set`).
 
 Start the scheduler to register all four:
 
@@ -161,7 +186,7 @@ schema defaults. `swamp workflow trigger set` replaces the whole override map
 
 ## Workflows
 
-### `news` (fast path, every 4h)
+### `news-fetch` (fast path, every 4h)
 
 1. **Gather feedback** — polls the feedback queue server for 👍/👎 clicks from
    the HTML page, imports them into preferences.
@@ -201,7 +226,7 @@ upserts them into the catalog.
 
 ### `news-full` (combined loop)
 
-The combined `@svendowideit/news` workflow — the full discovery → catalog →
+The combined `@svendowideit/news-full` workflow — the full discovery → catalog →
 fetch → filter → fuse → render loop in one run. This is the entry point most
 users run.
 

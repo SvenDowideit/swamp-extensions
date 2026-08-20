@@ -16,8 +16,8 @@ description: |
 
   Setup (one-time): add feeds to the catalog (the instance is auto-created by
   the workflow on first run; add a few feeds to get started):
-    swamp model method run feed-catalog add --input url="https://hnrss.org/frontpage" --input category=tech
-    swamp model method run feed-catalog add --input url="https://feeds.bbci.co.uk/news/rss.xml" --input category=news
+    swamp model @svendowideit/news-feed-catalog method run add feed-catalog --input url="https://hnrss.org/frontpage" --input category=tech
+    swamp model @svendowideit/news-feed-catalog method run add feed-catalog --input url="https://feeds.bbci.co.uk/news/rss.xml" --input category=news
 
   Run the workflow (fetches catalog feeds, generates news.html and feeds.html):
     swamp workflow run @svendowideit/news-fetch
@@ -159,6 +159,18 @@ jobs:
     dependsOn: []
     weight: 0
     allowFailure: true
+  - name: seed-catalog
+    description: Ensure the catalog has at least one feed (adds the default swamp-club
+      feed when empty) so a fresh install has something to fetch.
+    task:
+      type: model_method
+      modelType: "@svendowideit/news-feed-catalog"
+      modelName: feed-catalog
+      methodName: seed
+      inputs: {}
+    dependsOn: []
+    weight: 0
+    allowFailure: true
   - name: dedupe
     description: Fetch each catalog feed, group by content identity, and mark duplicate
       feeds so fetch skips them.
@@ -168,7 +180,13 @@ jobs:
       modelName: feed-catalog
       methodName: dedupe
       inputs: {}
-    dependsOn: []
+    dependsOn:
+    - step: seed-catalog
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: failed
     weight: 0
     allowFailure: true
   - name: gather-feed-state
@@ -195,9 +213,13 @@ jobs:
   - name: fetch
     description: Fetch RSS feeds from the news-feed-catalog (or from --input feeds if provided),
       skipping feeds marked duplicate by the dedupe step.
-    guard: ${{ data.latest("local-news", "feed-snapshot") != null && timestamp(run.startedAt)
+    guard: >-
+      ${{ (data.latest("local-news", "feed-snapshot") != null
+      && timestamp(run.startedAt)
       - timestamp(data.latest("local-news", "feed-snapshot").attributes.fetchedAt)
-      < duration("1h") }}
+      < duration("1h"))
+      || (inputs.feeds.size() == 0
+      && data.latest("feed-catalog", "current").?attributes.?feeds.orValue([]).size() == 0) }}
     task:
       type: model_method
       modelType: "@svendowideit/news-reader"
@@ -315,6 +337,9 @@ jobs:
     allowFailure: true
   - name: generate
     description: Generate HTML report from filtered articles, ranked by preferences, with fused stories rendered inline.
+    guard: >-
+      ${{ data.latest("local-news", "filtered-snapshot") == null
+      && data.latest("local-news", "feed-snapshot") == null }}
     task:
       type: model_method
       modelType: "@svendowideit/news-reader"

@@ -99,11 +99,27 @@ jobs:
     dependsOn: []
     weight: 0
     allowFailure: true
+  - name: seed
+    description: Ensure the catalog has at least one feed (adds the default swamp-club
+      feed when empty) so a fresh install has something to fetch.
+    task:
+      type: model_method
+      modelType: "@svendowideit/news-feed-catalog"
+      modelName: feed-catalog
+      methodName: seed
+      inputs: {}
+    dependsOn: []
+    weight: 0
+    allowFailure: true
   - name: fetch
     description: Fetch RSS feeds from the news-feed-catalog (or from --input feeds if provided).
-    guard: ${{ data.latest("local-news", "feed-snapshot") != null && timestamp(run.startedAt)
+    guard: >-
+      ${{ (data.latest("local-news", "feed-snapshot") != null
+      && timestamp(run.startedAt)
       - timestamp(data.latest("local-news", "feed-snapshot").attributes.fetchedAt)
-      < duration("1h") }}
+      < duration("1h"))
+      || (inputs.feeds.size() == 0
+      && data.latest("feed-catalog", "current").?attributes.?feeds.orValue([]).size() == 0) }}
     task:
       type: model_method
       modelType: "@svendowideit/news-reader"
@@ -114,6 +130,12 @@ jobs:
           "current").?attributes.?feeds.orValue([]) }}'
     dependsOn:
     - step: gather-feedback
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: failed
+    - step: seed
       condition:
         type: or
         conditions:
@@ -155,6 +177,9 @@ jobs:
   - name: generate
     description: Generate HTML report from filtered articles, ranked by preferences,
       with fused stories rendered inline (from fusion workflow).
+    guard: >-
+      ${{ data.latest("local-news", "filtered-snapshot") == null
+      && data.latest("local-news", "feed-snapshot") == null }}
     task:
       type: model_method
       modelType: "@svendowideit/news-reader"

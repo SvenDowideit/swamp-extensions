@@ -45,7 +45,34 @@ const DiscoverArgsSchema = z.object({
   reCrawlAfterDays: z.number().int().min(0).max(365).default(7).describe(
     "Domains crawled within this many days are skipped unless their feed is still unknown (default 7)",
   ),
+  articleUrls: z.array(z.unknown()).optional().describe(
+    "Article URLs to crawl for new feeds (strings or {url} objects). When " +
+      "empty/absent, falls back to reading the newsReaderModelId globalArg " +
+      "cross-model snapshot.",
+  ),
+  nonFeedUrls: z.array(z.unknown()).optional().describe(
+    "URLs known to be HTML pages (not feeds) to crawl (strings or {url} " +
+      "objects). When empty/absent, falls back to the cross-model snapshot / " +
+      "catalog dedupe read.",
+  ),
 }).describe("Arguments for the discover method");
+
+export function toUrlList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item === "string" && item.length > 0) {
+      out.push(item);
+    } else if (
+      typeof item === "object" && item !== null &&
+      typeof (item as { url?: unknown }).url === "string" &&
+      (item as { url: string }).url.length > 0
+    ) {
+      out.push((item as { url: string }).url);
+    }
+  }
+  return out;
+}
 
 type DiscoverArgs = z.infer<typeof DiscoverArgsSchema>;
 
@@ -439,28 +466,39 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
 
-        // 1. Read the news-reader snapshot to collect article URLs and any
-        //    catalog entries that resolved to HTML pages instead of feeds.
-        const snapshot = await readCrossModelData(
-          context,
-          "@svendowideit/news-reader",
-          context.globalArgs.newsReaderModelId,
-          "feed-snapshot",
-        );
-        const articleUrls: string[] = Array.isArray(snapshot?.articles)
-          ? snapshot!.articles.filter(
-            (a: unknown) =>
-              typeof a === "object" && a !== null &&
-              typeof (a as { url?: unknown }).url === "string",
-          ).map((a: { url: string }) => a.url)
-          : [];
-        const nonFeedUrls: string[] = Array.isArray(snapshot?.nonFeedUrls)
-          ? snapshot!.nonFeedUrls.filter(
-            (n: unknown) =>
-              typeof n === "object" && n !== null &&
-              typeof (n as { url?: unknown }).url === "string",
-          ).map((n: { url: string }) => n.url)
-          : [];
+        // 1. Collect article URLs and any catalog entries that resolved to
+        //    HTML pages instead of feeds. Prefer explicit method inputs (passed
+        //    by the workflow) and fall back to a UUID cross-model read so
+        //    existing setups keep working.
+        let articleUrls: string[] = toUrlList(args.articleUrls);
+        let nonFeedUrls: string[] = toUrlList(args.nonFeedUrls);
+
+        if (articleUrls.length === 0 || nonFeedUrls.length === 0) {
+          const snapshot = await readCrossModelData(
+            context,
+            "@svendowideit/news-reader",
+            context.globalArgs.newsReaderModelId,
+            "feed-snapshot",
+          );
+          if (articleUrls.length === 0 && Array.isArray(snapshot?.articles)) {
+            articleUrls = snapshot!.articles
+              .filter(
+                (a: unknown) =>
+                  typeof a === "object" && a !== null &&
+                  typeof (a as { url?: unknown }).url === "string",
+              )
+              .map((a: { url: string }) => a.url);
+          }
+          if (nonFeedUrls.length === 0 && Array.isArray(snapshot?.nonFeedUrls)) {
+            nonFeedUrls = snapshot!.nonFeedUrls
+              .filter(
+                (n: unknown) =>
+                  typeof n === "object" && n !== null &&
+                  typeof (n as { url?: unknown }).url === "string",
+              )
+              .map((n: { url: string }) => n.url);
+          }
+        }
 
         // 1b. Also collect catalog entries flagged as non-feeds by the
         //     news-feed-catalog's dedupe step — it performs the same HTML-page

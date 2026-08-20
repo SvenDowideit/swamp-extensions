@@ -5,6 +5,7 @@ import {
   extractDomain,
   extractFeedLinks,
   isFeedContent,
+  normalizePages,
   siteRoot,
 } from "./feed_analysis.ts";
 
@@ -186,4 +187,40 @@ Deno.test("extractFeedLinks finds multiple feed links", () => {
 </head></html>`;
   const feeds = extractFeedLinks(html, "https://example.com");
   assertEquals(feeds.length, 2);
+});
+
+// ---------------------------------------------------------------------------
+// normalizePages
+// ---------------------------------------------------------------------------
+
+Deno.test("normalizePages extracts {url,name,category} objects", () => {
+  assertEquals(normalizePages([
+    { url: "https://a.com", name: "A", category: "tech" },
+  ]), [{ url: "https://a.com", name: "A", category: "tech" }]);
+});
+
+Deno.test("normalizePages coerces plain string URL entries", () => {
+  assertEquals(normalizePages(["https://a.com"]), [
+    { url: "https://a.com", name: "", category: "" },
+  ]);
+});
+
+Deno.test("normalizePages tolerates missing name/category", () => {
+  assertEquals(
+    normalizePages([{ url: "https://a.com" }, { url: "https://b.com", name: "B" }]),
+    [
+      { url: "https://a.com", name: "", category: "" },
+      { url: "https://b.com", name: "B", category: "" },
+    ],
+  );
+});
+
+Deno.test("normalizePages drops entries without a usable url", () => {
+  assertEquals(normalizePages([{}, { name: "no-url" }, ""]), []);
+});
+
+Deno.test("normalizePages handles non-array and null input", () => {
+  assertEquals(normalizePages(undefined), []);
+  assertEquals(normalizePages(null), []);
+  assertEquals(normalizePages("not-an-array"), []);
 });

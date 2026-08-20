@@ -175,6 +175,7 @@ jobs:
       inputs:
         maxPagesPerRun: ${{ inputs.maxPagesPerRun }}
         probeCommonPaths: ${{ inputs.probeCommonPaths }}
+        pages: ${{ data.latest("local-news", "pages-current").?attributes.?pages.orValue([]) }}
     dependsOn:
     - step: gather-pages
       condition:

@@ -24,6 +24,12 @@ const GlobalArgsSchema = z.object({
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
+const PageEntryInputSchema = z.object({
+  url: z.string().describe("Page or feed URL to analyze"),
+  name: z.string().default("").optional().describe("Optional human-readable page name"),
+  category: z.string().default("").optional().describe("Optional category tag"),
+});
+
 const AnalyzePagesArgsSchema = z.object({
   maxPagesPerRun: z.number().int().min(1).max(500).default(50).describe(
     "Maximum pages to analyze this run (default 50)",
@@ -31,9 +37,44 @@ const AnalyzePagesArgsSchema = z.object({
   probeCommonPaths: z.boolean().default(true).describe(
     "Probe common feed paths on pages that advertise no feed link (default true)",
   ),
+  pages: z.array(PageEntryInputSchema).optional().describe(
+    "Page entries gathered by the news-reader's gatherPages method. When " +
+      "provided, these are analyzed directly. When empty/absent, falls back to " +
+      "reading the newsReaderModelId globalArg cross-model data.",
+  ),
 }).describe("Arguments for the analyzePages method");
 
 type AnalyzePagesArgs = z.infer<typeof AnalyzePagesArgsSchema>;
+
+interface PageEntry {
+  url: string;
+  name: string;
+  category: string;
+}
+
+export function normalizePages(value: unknown): PageEntry[] {
+  if (!Array.isArray(value)) return [];
+  const out: PageEntry[] = [];
+  for (const raw of value) {
+    let url = "",
+      name = "",
+      category = "";
+    if (typeof raw === "string") {
+      url = raw;
+    } else if (
+      typeof raw === "object" && raw !== null
+    ) {
+      const p = raw as Record<string, unknown>;
+      if (typeof p.url === "string") url = p.url;
+      if (typeof p.name === "string") name = p.name;
+      if (typeof p.category === "string") category = p.category;
+    }
+    if (url.trim()) {
+      out.push({ url: url.trim(), name, category });
+    }
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -339,16 +380,26 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
 
-        const pagesData = await readCrossModelData(
-          context,
-          "@svendowideit/news-reader",
-          context.globalArgs.newsReaderModelId,
-          "pages-current",
-        );
+        // Prefer explicit method inputs (passed by the workflow), falling back
+        // to a UUID cross-model read so existing setups keep working. The
+        // gathered {url,name,category[]} shape is the same either way.
+        let pageArray: unknown = [];
+        const inputPages = args.pages;
+        if (!Array.isArray(inputPages) || inputPages.length === 0) {
+          const pagesData = await readCrossModelData(
+            context,
+            "@svendowideit/news-reader",
+            context.globalArgs.newsReaderModelId,
+            "pages-current",
+          );
+          if (Array.isArray(pagesData?.pages)) {
+            pageArray = pagesData!.pages;
+          }
+        } else {
+          pageArray = inputPages;
+        }
 
-        const pages: unknown[] = Array.isArray(pagesData?.pages)
-          ? pagesData!.pages
-          : [];
+        const pages: unknown[] = normalizePages(pageArray);
 
         const discovered: DiscoveredFeed[] = [];
         const seenUrls = new Set<string>();

@@ -6,6 +6,7 @@ import {
   extractFeedLinks,
   isFeedContent,
   siteRoot,
+  toUrlList,
 } from "./feed_discovery.ts";
 
 // ---------------------------------------------------------------------------
@@ -184,4 +185,41 @@ Deno.test("extractFeedLinks finds multiple feed links", () => {
 </head></html>`;
   const feeds = extractFeedLinks(html, "https://example.com");
   assertEquals(feeds.length, 2);
+});
+
+// ---------------------------------------------------------------------------
+// toUrlList
+// ---------------------------------------------------------------------------
+
+Deno.test("toUrlList passes through plain string URLs", () => {
+  assertEquals(
+    toUrlList(["https://a.com", "https://b.com"]),
+    ["https://a.com", "https://b.com"],
+  );
+});
+
+Deno.test("toUrlList extracts url from {url} objects", () => {
+  assertEquals(
+    toUrlList([{ url: "https://a.com", x: 1 }, { url: "https://b.com" }]),
+    ["https://a.com", "https://b.com"],
+  );
+});
+
+Deno.test("toUrlList mixes strings and objects", () => {
+  assertEquals(
+    toUrlList(["https://a.com", { url: "https://b.com" }]),
+    ["https://a.com", "https://b.com"],
+  );
+});
+
+Deno.test("toUrlList drops empty strings and missing/empty url", () => {
+  assertEquals(toUrlList(["https://a.com", "", { url: "" }, {}]), [
+    "https://a.com",
+  ]);
+});
+
+Deno.test("toUrlList handles non-array and null input", () => {
+  assertEquals(toUrlList(undefined), []);
+  assertEquals(toUrlList(null), []);
+  assertEquals(toUrlList("not-an-array"), []);
 });

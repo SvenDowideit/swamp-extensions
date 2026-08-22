@@ -3,6 +3,7 @@ import { assertEquals, assertExists, assertThrows } from "jsr:@std/assert@1";
 import {
   type Feed,
   type FeedCounts,
+  engagementScore,
   extractChannel,
   extractFeedName,
   feedIdentity,
@@ -349,6 +350,39 @@ Deno.test("generateFeedsHtml includes article counts when prefs and snapshot pro
   assertEquals(html.includes("seen 2"), true);
   assertEquals(html.includes("read 1"), true);
   assertEquals(html.includes("interested 1"), true);
+});
+
+Deno.test("engagementScore mixes clicked count into interested and penalizes ignored", () => {
+  const counts: FeedCounts = {
+    seen: 5,
+    read: 2,
+    interested: 1,
+    ignored: 1,
+    dedupedFrom: 0,
+    dedupedTo: 0,
+  };
+  // 1*3 + 2*2 - 1*3 = 4
+  assertEquals(engagementScore(counts), 4);
+});
+
+Deno.test("generateFeedsHtml renders a score pill on the feed card", () => {
+  const feeds: Feed[] = [sampleFeed()];
+  const prefs = {
+    interested: [{ articleId: "a1", source: "example.com" }],
+    ignored: [],
+    seen: ["a1", "a2"],
+    read: ["a1"],
+  };
+  const snapshot = {
+    articles: [
+      { id: "a1", source: "example.com" },
+      { id: "a2", source: "example.com" },
+    ],
+  };
+  const html = generateFeedsHtml(feeds, "Test", "2026-08-14T00:00:00Z", prefs, snapshot);
+  // interested 1, read 1 -> engagement = 1*3 + 1*2 - 0 = 5 -> score-high with ★
+  assertEquals(html.includes("score-high"), true);
+  assertEquals(html.includes("★ 5"), true);
 });
 
 Deno.test("generateFeedsHtml includes orphan duplicates section", () => {

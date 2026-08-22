@@ -359,6 +359,28 @@ export function feedIdentity(
   return { identity, score };
 }
 
+/**
+ * Feed engagement score used to rank feeds within a category.
+ * Mixes the clicked-article count (read) into the interest signal:
+ * interested * 3 + read * 2 - ignored * 3.
+ */
+export function engagementScore(counts: FeedCounts): number {
+  return counts.interested * 3 + counts.read * 2 - counts.ignored * 3;
+}
+
+/** Render a score pill (★/↑/↓/·) for a numeric engagement score. */
+function scorePill(score: number): string {
+  const cls = score > 2
+    ? "score-high"
+    : score > 0
+    ? "score-mid"
+    : score < 0
+    ? "score-low"
+    : "score-zero";
+  const label = score > 2 ? "★" : score > 0 ? "↑" : score < 0 ? "↓" : "·";
+  return `<span class="score ${cls}">${label} ${score}</span>`;
+}
+
 /** Escape HTML special characters for safe interpolation. */
 function escapeHtml(s: string): string {
   const map: Record<string, string> = {
@@ -527,10 +549,6 @@ export function generateFeedsHtml(
     };
   };
 
-  const engagementScore = (counts: FeedCounts): number =>
-    counts.interested * 3 + counts.read * 2 + counts.seen * 1 -
-    counts.ignored * 2;
-
   const card = (f: Feed, badge: string, counts?: FeedCounts): string => {
     const name = escapeHtml(f.name);
     const url = escapeHtml(f.url);
@@ -587,9 +605,10 @@ export function generateFeedsHtml(
       : `\n<button class="feed-toggle" data-url="${url}" data-enabled="${enabled}">${
         enabled ? "Disable" : "Enable"
       }</button>`;
+    const pill = counts ? ` ${scorePill(engagementScore(counts))}` : "";
     return [
       `<div class="feed${cls}">`,
-      `<h3>${name}<span class="badge">${badge}</span></h3>`,
+      `<h3>${name}<span class="badge">${badge}</span>${pill}</h3>`,
       `<div class="url"><a href="${url}">${url}</a></div>`,
       `<div class="added">added ${added}</div>${reason}${countsHtml}${sharedLine}${toLine}${fromLine}${toggleHtml}`,
       `</div>`,
@@ -616,6 +635,11 @@ h2 { margin-top: 30px; color: #333; }
 .feed .added { color: #888; font-size: 0.8em; margin-top: 6px; }
 .feed .counts { color: #555; font-size: 0.85em; margin-top: 6px; }
 .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 0.75em; background: #eee; color: #444; margin-left: 8px; font-weight: normal; }
+.score { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; margin-left: 8px; }
+.score-high { background: #d4edda; color: #155724; }
+.score-mid { background: #fff3cd; color: #856404; }
+.score-low { background: #f8d7da; color: #721c24; }
+.score-zero { background: #e2e3e5; color: #6c757d; }
 .badge.dup { background: #ffc107; color: #222; }
 .badge.invalid { background: #e53935; color: white; }
 .feed.dup { border-left: 3px solid #ffc107; margin-left: 26px; }

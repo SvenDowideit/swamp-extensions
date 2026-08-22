@@ -16,6 +16,7 @@ import {
   clusterKey,
   clusterStories,
   computeClusterFingerprint,
+  computeFeedScores,
   computeKeywordWeights,
   dayKey,
   dedupeArticlesIncremental,
@@ -167,6 +168,70 @@ Deno.test("scoreArticle returns zero score for articles with no matching keyword
   assertEquals(reasons.length, 0);
 });
 
+Deno.test("computeFeedScores mixes interested, read, and ignored per source", () => {
+  const prefs: Preferences = {
+    interested: [
+      {
+        articleId: "a1",
+        recordedAt: "2026-07-17T00:00:00Z",
+        source: "example.com",
+        title: "t",
+        keywords: [],
+      },
+    ],
+    ignored: [
+      {
+        articleId: "a2",
+        recordedAt: "2026-07-17T00:00:00Z",
+        source: "example.com",
+        title: "t",
+        keywords: [],
+      },
+    ],
+    seen: [],
+    read: ["a1", "a3"],
+    keywordWeights: {},
+  };
+  const articles = [
+    sampleArticle({ id: "a1", source: "example.com" }),
+    sampleArticle({ id: "a3", source: "example.com" }),
+  ];
+  const scores = computeFeedScores(prefs, articles);
+  // interested 1*3 + read 2*2 - ignored 1*3 = 3 + 4 - 3 = 4
+  assertEquals(scores["example.com"], 4);
+});
+
+Deno.test("generateHtml renders feed score pill and keyword score pill", () => {
+  const articles = [
+    { ...sampleArticle(), score: 3, reasons: ["ai (+2)"] },
+  ];
+  const prefs: Preferences = {
+    interested: [
+      {
+        articleId: "abc123",
+        recordedAt: "2026-07-17T00:00:00Z",
+        source: "example.com",
+        title: "Test article",
+        keywords: ["ai"],
+      },
+    ],
+    ignored: [],
+    keywordWeights: { ai: 2 },
+    seen: [],
+    read: ["abc123"],
+  };
+  const html = generateHtml(
+    articles,
+    prefs,
+    "Test News",
+    "2026-07-17T00:00:00Z",
+  );
+  // feed score: interested 1*3 + read 1*2 = 5 -> ★ 5
+  assertEquals(html.includes("★ 5"), true);
+  // keyword score: a.score 3 + read 2 = 5 -> ★ 5
+  assertEquals(html.includes("★ 5"), true);
+});
+
 // ---------------------------------------------------------------------------
 // HTML generation
 // ---------------------------------------------------------------------------
@@ -185,8 +250,24 @@ Deno.test("generateHtml produces valid HTML with article titles", () => {
     },
   ];
   const prefs: Preferences = {
-    interested: [],
-    ignored: [],
+    interested: [
+      {
+        articleId: "abc123",
+        recordedAt: "2026-07-17T00:00:00Z",
+        source: "example.com",
+        title: "Test article",
+        keywords: ["ai"],
+      },
+    ],
+    ignored: [
+      {
+        articleId: "def456",
+        recordedAt: "2026-07-17T00:00:00Z",
+        source: "example.com",
+        title: "Another article",
+        keywords: ["sports"],
+      },
+    ],
     keywordWeights: { ai: 2, technology: 1 },
     seen: [],
     read: [],

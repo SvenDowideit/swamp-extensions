@@ -307,6 +307,8 @@ export interface ScoredArticle extends Article {
   score: number;
   /** Why this score was assigned (which keywords matched). */
   reasons: string[];
+  /** Per-feed engagement score (interested*3 + read*2 - ignored*3). */
+  feedScore?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -2472,6 +2474,57 @@ export function scoreArticle(
   return { score, reasons };
 }
 
+/**
+ * Compute per-feed engagement scores keyed by source (lowercased hostname).
+ * Mirrors the feed catalog's ranking: interested * 3 + read * 2 - ignored * 3.
+ */
+export function computeFeedScores(
+  prefs: Preferences,
+  articles: Article[],
+): Record<string, number> {
+  const interested = prefs.interested ?? [];
+  const ignored = prefs.ignored ?? [];
+  const readSet = new Set(prefs.read ?? []);
+
+  const counts = new Map<
+    string,
+    { interested: number; read: number; ignored: number }
+  >();
+  const get = (src: string) => {
+    const k = (src ?? "").toLowerCase();
+    let c = counts.get(k);
+    if (!c) {
+      c = { interested: 0, read: 0, ignored: 0 };
+      counts.set(k, c);
+    }
+    return c;
+  };
+  for (const e of interested) get(e.source).interested++;
+  for (const e of ignored) get(e.source).ignored++;
+  for (const a of articles) {
+    if (readSet.has(a.id)) get(a.source).read++;
+  }
+
+  const scores: Record<string, number> = {};
+  for (const [src, c] of counts) {
+    scores[src] = c.interested * 3 + c.read * 2 - c.ignored * 3;
+  }
+  return scores;
+}
+
+/** Render a score pill (★/↑/↓/·) for a numeric score. */
+function scorePill(score: number): string {
+  const cls = score > 2
+    ? "score-high"
+    : score > 0
+    ? "score-mid"
+    : score < 0
+    ? "score-low"
+    : "score-zero";
+  const label = score > 2 ? "★" : score > 0 ? "↑" : score < 0 ? "↓" : "·";
+  return `<span class="score ${cls}">${label} ${score}</span>`;
+}
+
 // ---------------------------------------------------------------------------
 // HTML generation
 // ---------------------------------------------------------------------------
@@ -2734,6 +2787,7 @@ export function generateHtml(
   const sections: string[] = [];
   const seenSet = new Set(prefs.seen ?? []);
   const readSet = new Set(prefs.read ?? []);
+  const feedScores = computeFeedScores(prefs, articles);
 
   let metaText = `${articles.length} articles from ${
     new Set(articles.map((a) => a.source)).size
@@ -2836,18 +2890,23 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
   sections.push("<div id='articles'>");
 
   for (const a of top) {
-    const scoreClass = a.score > 2
+    const isSeen = seenSet.has(a.id);
+    const isRead = readSet.has(a.id);
+    const feedScore = a.feedScore ??
+      feedScores[(a.source ?? "").toLowerCase()] ?? 0;
+    const keywordScore = a.score + (isRead ? 2 : 0);
+    const scoreClass = keywordScore > 2
       ? "score-high"
-      : a.score > 0
+      : keywordScore > 0
       ? "score-mid"
-      : a.score < 0
+      : keywordScore < 0
       ? "score-low"
       : "score-zero";
-    const scoreLabel = a.score > 2
+    const scoreLabel = keywordScore > 2
       ? "★"
-      : a.score > 0
+      : keywordScore > 0
       ? "↑"
-      : a.score < 0
+      : keywordScore < 0
       ? "↓"
       : "·";
     const articleJson = JSON.stringify({
@@ -2857,8 +2916,6 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
       keywords: a.keywords,
     });
 
-    const isSeen = seenSet.has(a.id);
-    const isRead = readSet.has(a.id);
     const stateClass = isRead ? " read hidden" : isSeen ? " seen hidden" : "";
     const seenCount = prefs.seen.length;
     const readCount = prefs.read.length;
@@ -2905,8 +2962,8 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
         escapeHtml(articleJson)
       },event)" title="👎 ignore">👎</a>
 </span></h3>
-<span class="source">${
-        escapeHtml(a.source)
+<span class="source">${escapeHtml(a.source)} ${
+        scorePill(feedScore)
       } · <span class="pubdate" data-date="${
         escapeHtml(a.publishedAt)
       }"></span>${
@@ -2916,7 +2973,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
           ).join("")
           : ""
       }</span>
-<span class="score ${scoreClass}">${scoreLabel} ${a.score}</span>
+<span class="score ${scoreClass}">${scoreLabel} ${keywordScore}</span>
 <div class="summary">${escapeHtml(a.summary.slice(0, 200))}${
         a.summary.length > 200 ? "…" : ""
       }</div>`,
@@ -3824,13 +3881,20 @@ export const model = {
           },
         );
 
+        const feedScores = computeFeedScores(prefs, snapshotData.articles);
         const scored: ScoredArticle[] = snapshotData.articles.map((a) => {
           const { score, reasons } = scoreArticle(a, prefs.keywordWeights);
-          return { ...a, score, reasons };
+          return {
+            ...a,
+            score,
+            reasons,
+            feedScore: feedScores[(a.source ?? "").toLowerCase()] ?? 0,
+          };
         });
 
         scored.sort((a, b) =>
-          b.score - a.score || b.publishedAt.localeCompare(a.publishedAt)
+          (b.feedScore ?? 0) + b.score - ((a.feedScore ?? 0) + a.score) ||
+          b.publishedAt.localeCompare(a.publishedAt)
         );
 
         const top = args.topN > 0 ? scored.slice(0, args.topN) : scored;

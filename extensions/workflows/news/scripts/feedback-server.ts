@@ -25,6 +25,7 @@
  *   GET  /  — serve the HTML page (if --html provided)
  *   GET  /feeds.html  — serve the feeds listing (if --feeds provided)
  *   GET  /stories.html  — serve the stories page (if --stories provided)
+ *   GET  /news-mobile.html  — serve the mobile/tablet news page (if --mobile-html provided)
  */
 
 function generateId(): string {
@@ -41,6 +42,8 @@ const FEEDS_PATH = Deno.env.get("FEEDBACK_FEEDS_PATH") ??
   `${NEWS_PAGES_DIR}/feeds.html`;
 const STORIES_PATH = Deno.env.get("FEEDBACK_STORIES_PATH") ??
   `${NEWS_PAGES_DIR}/stories.html`;
+const MOBILE_HTML_PATH = Deno.env.get("FEEDBACK_MOBILE_HTML_PATH") ??
+  `${NEWS_PAGES_DIR}/news-mobile.html`;
 const QUEUE_DIR = Deno.env.get("FEEDBACK_QUEUE_DIR") ?? "";
 const PAGES_DIR = Deno.env.get("FEEDBACK_PAGES_DIR") ?? "";
 const FEED_STATE_DIR = Deno.env.get("FEEDBACK_FEED_STATE_DIR") ?? "";
@@ -50,6 +53,7 @@ function parseArgs(): {
   htmlPath: string;
   feedsPath: string;
   storiesPath: string;
+  mobileHtmlPath: string;
   queueDir: string;
   pagesDir: string;
   feedStateDir: string;
@@ -58,6 +62,7 @@ function parseArgs(): {
   let htmlPath = HTML_PATH;
   let feedsPath = FEEDS_PATH;
   let storiesPath = STORIES_PATH;
+  let mobileHtmlPath = MOBILE_HTML_PATH;
   let queueDir = QUEUE_DIR;
   let pagesDir = PAGES_DIR;
   let feedStateDir = FEED_STATE_DIR;
@@ -71,6 +76,8 @@ function parseArgs(): {
       feedsPath = args[++i];
     } else if (args[i] === "--stories" && i + 1 < args.length) {
       storiesPath = args[++i];
+    } else if (args[i] === "--mobile-html" && i + 1 < args.length) {
+      mobileHtmlPath = args[++i];
     } else if (args[i] === "--queue-dir" && i + 1 < args.length) {
       queueDir = args[++i];
     } else if (args[i] === "--pages-dir" && i + 1 < args.length) {
@@ -93,6 +100,7 @@ function parseArgs(): {
     htmlPath,
     feedsPath,
     storiesPath,
+    mobileHtmlPath,
     queueDir,
     pagesDir,
     feedStateDir,
@@ -205,6 +213,7 @@ async function handleRequest(
   htmlPath: string,
   feedsPath: string,
   storiesPath: string,
+  mobileHtmlPath: string,
   queueDir: string,
   pagesDir: string,
   feedStateDir: string,
@@ -255,6 +264,32 @@ async function handleRequest(
       });
     } catch {
       return new Response("Stories file not found", {
+        status: 404,
+        headers: corsHeaders(),
+      });
+    }
+  }
+
+  if (req.method === "GET" && url.pathname === "/news-mobile.html") {
+    if (!mobileHtmlPath) {
+      return new Response(
+        "No mobile HTML page configured. Use --mobile-html flag.",
+        {
+          status: 404,
+          headers: corsHeaders(),
+        },
+      );
+    }
+    try {
+      const html = await Deno.readTextFile(mobileHtmlPath);
+      return new Response(html, {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          ...corsHeaders(),
+        },
+      });
+    } catch {
+      return new Response("Mobile HTML file not found", {
         status: 404,
         headers: corsHeaders(),
       });
@@ -514,6 +549,7 @@ const {
   htmlPath,
   feedsPath,
   storiesPath,
+  mobileHtmlPath,
   queueDir,
   pagesDir,
   feedStateDir,
@@ -531,6 +567,7 @@ Deno.serve(
       htmlPath,
       feedsPath,
       storiesPath,
+      mobileHtmlPath,
       queueDir,
       pagesDir,
       feedStateDir,
@@ -549,4 +586,9 @@ if (feedsPath) {
 }
 if (storiesPath) {
   console.error(`Serving stories HTML from: ${storiesPath} (at /stories.html)`);
+}
+if (mobileHtmlPath) {
+  console.error(
+    `Serving mobile HTML from: ${mobileHtmlPath} (at /news-mobile.html)`,
+  );
 }

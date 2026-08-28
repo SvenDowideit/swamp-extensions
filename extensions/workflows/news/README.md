@@ -110,14 +110,16 @@ survive repo moves and `swamp serve`'s working-directory changes:
 | Page           | Path                             |
 |----------------|----------------------------------|
 | News summary   | `~/.swamp/news-pages/news.html`   |
+| Mobile summary | `~/.swamp/news-pages/news-mobile.html` |
 | Feeds catalog  | `~/.swamp/news-pages/feeds.html`  |
 | Fused stories  | `~/.swamp/news-pages/stories.html`|
 
 The directory is created on demand. To override (e.g. for a per-project output
 location), pass `outputPath` — or run `swamp model @svendowideit/news-reader
 method run generate local-news --input outputPath=/abs/path/to/news.html`;
-`feed-catalog generateFeedsHtml` and `local-news renderStories` take the same
-`outputPath` argument.
+`generateMobile` writes the mobile page (defaults to `news-mobile.html`, override
+with `outputPath`); `feed-catalog generateFeedsHtml` and `local-news
+renderStories` take the same `outputPath` argument.
 
 ## Run on a schedule
 
@@ -249,6 +251,7 @@ from the workflow (see `docs/news-fusing.md`):
 | `GET /` | Serve the generated `news.html`. |
 | `GET /feeds.html` | Serve the feeds catalog listing. |
 | `GET /stories.html` | Serve the standalone fused-stories page. |
+| `GET /news-mobile.html` | Serve the mobile/tablet swipe news page. |
 
 The server reads the HTML pages from the same `~/.swamp/news-pages/`
 default the workflows write to, so no path flags are needed:

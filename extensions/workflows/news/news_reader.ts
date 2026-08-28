@@ -138,6 +138,23 @@ const GenerateArgsSchema = z.object({
 
 type GenerateArgs = z.infer<typeof GenerateArgsSchema>;
 
+const GenerateMobileArgsSchema = z.object({
+  topN: z.number().int().min(0).max(500).default(0).describe(
+    "Number of articles to include in the mobile HTML report (0 = all articles, default 0)",
+  ),
+  title: z.string().default("News").describe(
+    "Title for the mobile HTML report page",
+  ),
+  outputPath: z
+    .string()
+    .optional()
+    .describe(
+      "If set, also write the mobile HTML to this local file path. Defaults to `~/.swamp/news-pages/news-mobile.html` when omitted.",
+    ),
+}).describe("Arguments for the generateMobile method");
+
+type GenerateMobileArgs = z.infer<typeof GenerateMobileArgsSchema>;
+
 const DedupeArticlesArgsSchema = z.object({}).describe(
   "Group articles by URL, mark duplicates, and annotate primary articles with duplicate source info",
 );
@@ -640,6 +657,23 @@ export async function resolveNewsPagePath(
   outputPath?: string,
 ): Promise<string> {
   const target = outputPath || `${homeDir()}/.swamp/news-pages/news.html`;
+  const dir = target.slice(0, target.lastIndexOf("/"));
+  if (dir) {
+    await Deno.mkdir(dir, { recursive: true });
+  }
+  return target;
+}
+
+/**
+ * Resolves an optional mobile HTML output path to a canonical destination,
+ * defaulting to `~/.swamp/news-pages/news-mobile.html`. Ensures the output
+ * directory exists before the file is written.
+ */
+export async function resolveMobileNewsPagePath(
+  outputPath?: string,
+): Promise<string> {
+  const target = outputPath ||
+    `${homeDir()}/.swamp/news-pages/news-mobile.html`;
   const dir = target.slice(0, target.lastIndexOf("/"));
   if (dir) {
     await Deno.mkdir(dir, { recursive: true });
@@ -2525,6 +2559,34 @@ function scorePill(score: number): string {
   return `<span class="score ${cls}">${label} ${score}</span>`;
 }
 
+/**
+ * Scores a set of articles against learned preferences and sorts them by
+ * interest (feed score + keyword score, newest first as a tiebreak).
+ * Returns the scored array already ranked for HTML generation.
+ */
+export function scoreAndSortArticles(
+  articles: Article[],
+  prefs: Preferences,
+): ScoredArticle[] {
+  const feedScores = computeFeedScores(prefs, articles);
+  const scored: ScoredArticle[] = articles.map((a) => {
+    const { score, reasons } = scoreArticle(a, prefs.keywordWeights);
+    return {
+      ...a,
+      score,
+      reasons,
+      feedScore: feedScores[(a.source ?? "").toLowerCase()] ?? 0,
+    };
+  });
+
+  scored.sort((a, b) =>
+    (b.feedScore ?? 0) + b.score - ((a.feedScore ?? 0) + a.score) ||
+    b.publishedAt.localeCompare(a.publishedAt)
+  );
+
+  return scored;
+}
+
 // ---------------------------------------------------------------------------
 // HTML generation
 // ---------------------------------------------------------------------------
@@ -3158,7 +3220,304 @@ addInput.addEventListener('input', () => {
   return sections.join("\n");
 }
 
+/**
+ * Generates a swipe-driven, phone/e-ink-optimised news summary page.
+ *
+ * The page paginates the ranked articles into pages of PER_PAGE (3..8),
+ * navigates with a left/right swipe gesture on any article box, and opens an
+ * article in an embedded iframe by sliding the article list to a thin icon
+ * column and replacing the freed space with a reader iframe. Each article's
+ * URL is carried on its element as a `data-url` attribute so the reader can
+ * be opened purely client-side from the static HTML.
+ */
+export function generateMobileHtml(
+  articles: ScoredArticle[],
+  prefs: Preferences,
+  title: string,
+  generatedAt: string,
+  ageFilter?: string,
+): string {
+  const seenSet = new Set(prefs.seen ?? []);
+  const readSet = new Set(prefs.read ?? []);
+  const top = articles;
+  const domainCache = new Map<string, string>();
+  const domainOf = (a: ScoredArticle): string => {
+    let d = domainCache.get(a.id);
+    if (!d) {
+      d = a.source.includes(".")
+        ? a.source
+        : (() => {
+          try {
+            return new URL(a.url).hostname;
+          } catch {
+            return a.source;
+          }
+        })();
+      domainCache.set(a.id, d);
+    }
+    return d;
+  };
+
+  const total = top.length;
+  const pageCount = Math.max(1, Math.ceil(total / PER_PAGE));
+
+  let metaText = `${total} articles from ${
+    new Set(top.map((a) => a.source)).size
+  } sources · ${prefs.interested.length} interested, ${prefs.ignored.length} ignored`;
+  if (ageFilter && ageFilter !== "") {
+    metaText += ` · Filtering last ${escapeHtml(ageFilter)}`;
+  }
+
+  const pages: string[] = [];
+  for (let p = 0; p < pageCount; p++) {
+    const slice = top.slice(p * PER_PAGE, (p + 1) * PER_PAGE);
+    pages.push(`<div class="page">${slice.map((a, j) =>
+      mobileCard(a, p * PER_PAGE + j, domainOf(a), seenSet, readSet)
+    ).join("\n")}</div>`);
+  }
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>${escapeHtml(title)}</title>
+${MOBILE_PAGE_STYLE}
+</head>
+<body>
+<header class="page-bar" id="page-bar"><span class="page-label" id="page-label">1 / ${pageCount}</span><span class="page-total">${total} articles</span><button id="list-close" onclick="closeReader()">✕</button></header>
+<div class="main">
+<div id="list">
+${pages.join("\n")}
+</div>
+<div id="reader"><div class="reader-head"><button id="reader-close" onclick="closeReader()">✕</button></div><iframe id="reader-frame" title="Article reader"></iframe></div>
+</div>
+<script>
+const PAGE_SIZE = ${PER_PAGE};
+const TOTAL = ${total};
+let page = 0;
+let totalPages = Math.max(1, Math.ceil(TOTAL / PAGE_SIZE));
+let activeId = null;
+const list = document.getElementById('list');
+const cards = Array.from(document.querySelectorAll('.article'));
+const FEEDBACK_URL = '/api/feedback';
+
+async function sendSeen(articleId) {
+  try {
+    await fetch(FEEDBACK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ articleId, action:'seen' }) });
+  } catch {}
+}
+
+async function sendRead(articleId) {
+  try {
+    await fetch(FEEDBACK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ articleId, action:'read' }) });
+  } catch {}
+}
+
+function updatePageBar() {
+  const first = page * PAGE_SIZE + 1;
+  const last = Math.min((page + 1) * PAGE_SIZE, TOTAL);
+  document.getElementById('page-label').textContent =
+    (TOTAL === 0 ? '0 / 0' : (first + '–' + last)) + ' / ' + TOTAL;
+}
+
+function goToPage(p) {
+  if (p < 0 || p >= totalPages) return;
+  page = p;
+  list.style.transform = 'translateX(' + (-page * 100) + '%)';
+  updatePageBar();
+}
+
+function goNext() { if (page < totalPages - 1) goToPage(page + 1); }
+function goPrev() { if (page > 0) goToPage(page - 1); }
+
+function openArticle(id) {
+  activeId = id;
+  document.body.classList.add('reading');
+  const iframe = document.getElementById('reader-frame');
+  const url = document.querySelector('.article[data-article-id="' + id + '"]').getAttribute('data-url');
+  iframe.src = url;
+  sendRead(id);
+}
+
+function closeReader() {
+  if (!document.body.classList.contains('reading')) return;
+  document.body.classList.remove('reading');
+  const iframe = document.getElementById('reader-frame');
+  iframe.src = 'about:blank';
+  activeId = null;
+}
+
+function goBack() {
+  if (document.body.classList.contains('reading')) closeReader();
+  else history.back();
+}
+
+list.addEventListener('click', (e) => {
+  const card = e.target.closest('.article');
+  if (!card) return;
+  openArticle(card.getAttribute('data-article-id'));
+});
+
+let touchStart = null;
+let touchX = null;
+list.addEventListener('touchstart', (e) => {
+  touchX = e.touches[0].clientX;
+  touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+}, { passive: true });
+list.addEventListener('touchmove', (e) => {
+  if (!touchStart) return;
+  const dx = e.touches[0].clientX - touchStart.x;
+  const dy = e.touches[0].clientY - touchStart.y;
+  if (Math.abs(dx) > Math.abs(dy)) e.preventDefault();
+}, { passive: false });
+list.addEventListener('touchend', (e) => {
+  if (touchX === null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(dx) > 40) dx < 0 ? goNext() : goPrev();
+  touchX = null;
+  touchStart = null;
+});
+
+list.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  const startX = e.clientX;
+  const onMouseMove = (ev) => {
+    const dx = ev.clientX - startX;
+    if (Math.abs(dx) > 60) {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      dx < 0 ? goNext() : goPrev();
+    }
+  };
+  const onMouseUp = () => {
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+  };
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'IFRAME') return;
+  if (e.key === 'ArrowLeft') goPrev();
+  else if (e.key === 'ArrowRight') goNext();
+  else if (e.key === 'Escape') closeReader();
+});
+
+document.querySelectorAll('.article').forEach(el => {
+  const id = el.getAttribute('data-article-id');
+  if (id) sendSeen(id);
+});
+updatePageBar();
+</script>
+</body>
+</html>`;
+}
+
 // ---------------------------------------------------------------------------
+// Mobile HTML generation
+// ---------------------------------------------------------------------------
+
+/** Article boxes per page in the mobile/tablet UI (3..8). */
+const PER_PAGE = 5;
+
+const MOBILE_PAGE_STYLE = `
+<style>
+:root { --ink:#222; --mut:#888; --line:#e0e0e0; --card:#fff; --bg:#fafafa; --acc:#4a90d9; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--ink); }
+body { height:100vh; height:100dvh; overflow:hidden; display:flex; flex-direction:column; }
+
+.page-bar { display:flex; align-items:center; gap:10px; padding:6px 14px; color:var(--mut); font-size:0.8em; border-bottom:1px solid var(--line); background:#fff; flex:0 0 auto; }
+.page-label { flex:1; }
+.page-total { font-size:0.85em; }
+#list-close { display:none; border:none; background:none; font-size:1.2em; cursor:pointer; color:#999; }
+
+.main { flex:1 1 auto; position:relative; overflow:hidden; display:flex; }
+
+#list { flex:1 1 auto; position:relative; overflow:hidden; display:flex; }
+#list .page { flex:0 0 100%; height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px; display:flex; flex-direction:column; gap:12px; }
+#list { transform:translateX(0); transition:transform 0.3s ease; }
+
+.article { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; cursor:pointer; flex:0 0 auto; }
+.article.seen { border-left:3px solid #ffc107; }
+.article.read { border-left:3px solid #28a745; opacity:0.85; }
+.article h3 { margin:0 0 6px 0; font-size:1.05em; line-height:1.3; }
+.card-title { color:#1a5276; }
+.source { color:var(--mut); font-size:0.8em; }
+.summary { color:#555; margin-top:8px; font-size:0.9em; line-height:1.5; }
+.score { display:inline-block; padding:1px 6px; border-radius:12px; font-size:0.75em; font-weight:bold; }
+.score-high { background:#d4edda; color:#155724; }
+.score-mid { background:#fff3cd; color:#856404; }
+.score-low { background:#f8d7da; color:#721c24; }
+.score-zero { background:#e2e3e5; color:#6c757d; }
+.dup-badge { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:10px; font-size:0.75em; background:#e8e0f0; color:#6c4a9e; }
+.card-icon { width:20px; height:20px; background-size:contain; background-repeat:no-repeat; margin-bottom:4px; opacity:0.6; }
+
+#reader { flex:0 0 0px; width:0; overflow:hidden; background:#fff; display:flex; flex-direction:column; transition:flex-basis 0.3s ease; }
+.reader-head { display:flex; justify-content:flex-end; padding:4px; background:#fff; border-bottom:1px solid var(--line); }
+#reader-close { border:none; background:none; font-size:1.2em; cursor:pointer; color:#999; padding:2px 8px; }
+#reader-frame { flex:1; width:100%; border:none; background:#fff; }
+
+body.reading #reader { flex:1 1 auto; width:auto; }
+body.reading #list { flex:0 0 56px; width:56px; }
+body.reading #list .page { padding:6px; gap:6px; }
+body.reading #list .article .card-title,
+body.reading #list .article .source,
+body.reading #list .article .summary,
+body.reading #list .article .dup-badge { display:none; }
+body.reading #list .article { padding:6px; font-size:0; text-align:center; }
+body.reading #list-close { display:inline-block; }
+</style>`;
+
+function mobileCard(
+  a: ScoredArticle,
+  index: number,
+  domain: string,
+  seenSet: Set<string>,
+  readSet: Set<string>,
+): string {
+  const faviconUrl =
+    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+  const isSeen = seenSet.has(a.id);
+  const isRead = readSet.has(a.id);
+  const keywordScore = a.score + (isRead ? 2 : 0);
+  const scoreClass = keywordScore > 2
+    ? "score-high"
+    : keywordScore > 0
+    ? "score-mid"
+    : keywordScore < 0
+    ? "score-low"
+    : "score-zero";
+  const scoreLabel = keywordScore > 2
+    ? "★"
+    : keywordScore > 0
+    ? "↑"
+    : keywordScore < 0
+    ? "↓"
+    : "·";
+  const stateClass = isRead ? " read" : isSeen ? " seen" : "";
+
+  const dupBadge = (a.duplicateSources && a.duplicateSources.length > 0)
+    ? `<span class="dup-badge" title="Also from: ${
+      a.duplicateSources.map((s) => escapeHtml(s)).join(", ")
+    }">↗ ${a.duplicateCount} feed${a.duplicateCount === 1 ? "" : "s"}</span>`
+    : "";
+
+  return `<div class="article${stateClass}" data-index="${index}" data-url="${
+    escapeHtml(a.url)
+  }" data-article-id="${escapeHtml(a.id)}">
+<div class="card-icon" style="background-image:url('${faviconUrl}')"></div>
+<h3><span class="card-title">${escapeHtml(a.title)}</span>${dupBadge}</h3>
+<span class="source">${escapeHtml(domain)} · ${scorePill(a.feedScore ?? 0)} · <span class="score ${scoreClass}">${scoreLabel} ${keywordScore}</span></span>
+<div class="summary">${escapeHtml(a.summary.slice(0, 200))}${
+    a.summary.length > 200 ? "…" : ""
+  }</div>
+</div>`;
+}
+
 // Model definition
 // ---------------------------------------------------------------------------
 
@@ -3881,22 +4240,10 @@ export const model = {
           },
         );
 
-        const feedScores = computeFeedScores(prefs, snapshotData.articles);
-        const scored: ScoredArticle[] = snapshotData.articles.map((a) => {
-          const { score, reasons } = scoreArticle(a, prefs.keywordWeights);
-          return {
-            ...a,
-            score,
-            reasons,
-            feedScore: feedScores[(a.source ?? "").toLowerCase()] ?? 0,
-          };
-        });
-
-        scored.sort((a, b) =>
-          (b.feedScore ?? 0) + b.score - ((a.feedScore ?? 0) + a.score) ||
-          b.publishedAt.localeCompare(a.publishedAt)
+        const scored = scoreAndSortArticles(
+          snapshotData.articles,
+          prefs,
         );
-
         const top = args.topN > 0 ? scored.slice(0, args.topN) : scored;
         const generatedAt = new Date().toISOString();
 
@@ -3928,6 +4275,65 @@ export const model = {
         const outPath = await resolveNewsPagePath(args.outputPath);
         await Deno.writeTextFile(outPath, html);
         logger?.info("HTML report written to {path}", { path: outPath });
+
+        return { dataHandles: [handle] };
+      },
+    },
+    generateMobile: {
+      description:
+        "Generate the mobile/tablet-optimised news summary page (swipe pagination + in-page article reader iframe) from the latest articles, ranked by interest. Writes to `~/.swamp/news-pages/news-mobile.html` by default.",
+      arguments: GenerateMobileArgsSchema,
+      execute: async (
+        args: GenerateMobileArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const logger = context.logger;
+
+        let snapshotData = await context.readResource("filtered-snapshot") as
+          | (FeedSnapshot & { filteredAt: string; ageFilter: string })
+          | null;
+
+        if (!snapshotData) {
+          snapshotData = await context.readResource("feed-snapshot") as
+            | (FeedSnapshot & { filteredAt: string; ageFilter: string })
+            | null;
+          if (
+            !snapshotData || !snapshotData.articles ||
+            snapshotData.articles.length === 0
+          ) {
+            throw new Error(
+              "No articles found — run the 'fetch' method first with some feed URLs",
+            );
+          }
+        }
+
+        const prefsData = await context.readResource("prefs-current") as
+          | Record<string, unknown>
+          | null;
+        const prefs = normalizePrefs(prefsData);
+
+        const scored = scoreAndSortArticles(snapshotData.articles, prefs);
+        const top = args.topN > 0 ? scored.slice(0, args.topN) : scored;
+        const generatedAt = new Date().toISOString();
+
+        logger?.info("Generating mobile HTML with {count} articles", {
+          count: top.length,
+        });
+
+        const html = generateMobileHtml(
+          top,
+          prefs,
+          args.title,
+          generatedAt,
+          snapshotData.filteredAt ? snapshotData.ageFilter : undefined,
+        );
+
+        const writer = context.createFileWriter("report", "news-page");
+        const handle = await writer.writeText(html);
+
+        const outPath = await resolveMobileNewsPagePath(args.outputPath);
+        await Deno.writeTextFile(outPath, html);
+        logger?.info("Mobile HTML report written to {path}", { path: outPath });
 
         return { dataHandles: [handle] };
       },

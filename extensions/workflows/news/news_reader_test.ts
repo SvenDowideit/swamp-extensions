@@ -26,6 +26,7 @@ import {
   extractKeywords,
   fetchFeed,
   generateHtml,
+  generateMobileHtml,
   hashId,
   isFeedBody,
   isLlmServerError,
@@ -1687,6 +1688,78 @@ Deno.test("generateHtml handles very long titles", () => {
   };
   const html = generateHtml(articles, prefs, "Test", "2026-07-17T00:00:00Z");
   assertEquals(html.includes("A".repeat(500)), true);
+});
+
+Deno.test("generateMobileHtml produces a swipe-paginated mobile page", () => {
+  const articles = Array.from({ length: 13 }, (_, i) => ({
+    ...sampleArticle({
+      id: `id${i}`,
+      title: `Article ${i}`,
+      url: `https://example.com/${i}`,
+    }),
+    score: 1,
+    reasons: ["tech (+1)"],
+  }));
+  const prefs: Preferences = {
+    interested: [],
+    ignored: [],
+    keywordWeights: { tech: 1 },
+    seen: [],
+    read: [],
+  };
+  const html = generateMobileHtml(
+    articles,
+    prefs,
+    "Test Mobile",
+    "2026-07-17T00:00:00Z",
+  );
+  assertEquals(html.includes("<!DOCTYPE html>"), true);
+  // reader iframe + swipe controls are present
+  assertEquals(html.includes("reader-frame"), true);
+  assertEquals(html.includes("touchstart"), true);
+  // each article carries its url for the iframe reader
+  assertEquals(html.includes("data-url=\"https://example.com/3\""), true);
+  // 13 articles / 5 per page -> page count label
+  assertEquals(html.includes("13 articles"), true);
+});
+
+Deno.test("generateMobileHtml marks read articles and embeds data-url", () => {
+  const articles = [{
+    ...sampleArticle({ id: "read1", url: "https://example.com/read" }),
+    score: 0,
+    reasons: [],
+  }];
+  const prefs: Preferences = {
+    interested: [],
+    ignored: [],
+    keywordWeights: {},
+    seen: [],
+    read: ["read1"],
+  };
+  const html = generateMobileHtml(
+    articles,
+    prefs,
+    "Test",
+    "2026-07-17T00:00:00Z",
+  );
+  assertEquals(html.includes("class=\"article read\""), true);
+  assertEquals(
+    html.includes("data-url=\"https://example.com/read\""),
+    true,
+  );
+});
+
+Deno.test("generateMobileHtml handles empty articles array", () => {
+  const prefs: Preferences = {
+    interested: [],
+    ignored: [],
+    keywordWeights: {},
+    seen: [],
+    read: [],
+  };
+  const html = generateMobileHtml([], prefs, "Test", "2026-07-17T00:00:00Z");
+  assertEquals(html.includes("<!DOCTYPE html>"), true);
+  assertEquals(html.includes("0 / 0"), true);
 });
 
 Deno.test("dedupeArticlesIncremental handles empty articles array", () => {

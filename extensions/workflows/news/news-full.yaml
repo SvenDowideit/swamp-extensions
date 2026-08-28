@@ -135,6 +135,11 @@ inputs:
       default: ""
       description: If set, write the generated HTML to this local file path.
         Defaults to `~/.swamp/news-pages/news.html` when empty.
+    outputPathMobile:
+      type: string
+      default: ""
+      description: If set, write the generated mobile HTML to this local file path.
+        Defaults to `~/.swamp/news-pages/news-mobile.html` when empty.
   required: []
 reports:
   require:
@@ -348,6 +353,34 @@ jobs:
       inputs:
         topN: ${{ inputs.topN }}
         outputPath: ${{ inputs.outputPath }}
+    dependsOn:
+    - step: filter
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: skipped
+    - step: render
+      condition:
+        type: or
+        conditions:
+        - type: succeeded
+        - type: failed
+    weight: 0
+    allowFailure: false
+  - name: generate-mobile
+    description: Generate the swipe-driven mobile/tablet news page (news-mobile.html).
+    guard: >-
+      ${{ data.latest("local-news", "filtered-snapshot") == null
+      && data.latest("local-news", "feed-snapshot") == null }}
+    task:
+      type: model_method
+      modelType: "@svendowideit/news-reader"
+      modelName: local-news
+      methodName: generateMobile
+      inputs:
+        topN: ${{ inputs.topN }}
+        outputPath: ${{ inputs.outputPathMobile }}
     dependsOn:
     - step: filter
       condition:

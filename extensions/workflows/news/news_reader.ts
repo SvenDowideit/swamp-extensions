@@ -3450,6 +3450,18 @@ function goBack() {
   else history.back();
 }
 
+// When the article fallback navigates away (window.location = url), this page is
+// saved in the browser's bfcache with body.reading still set. On back-navigation
+// the page is restored collapsed, showing a thin icon column + stale iframe.
+// Reset the reading state so the full-width article list is restored.
+window.addEventListener('pageshow', (e) => {
+  if (!e.persisted) return;
+  document.body.classList.remove('reading');
+  const iframe = document.getElementById('reader-frame');
+  iframe.removeAttribute('src');
+  renderPage();
+});
+
 list.addEventListener('click', (e) => {
   const card = e.target.closest('.article');
   if (!card) return;

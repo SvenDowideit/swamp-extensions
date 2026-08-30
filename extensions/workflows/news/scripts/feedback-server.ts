@@ -26,6 +26,8 @@
  *   GET  /feeds.html  — serve the feeds listing (if --feeds provided)
  *   GET  /stories.html  — serve the stories page (if --stories provided)
  *   GET  /news-mobile.html  — serve the mobile/tablet news page (if --mobile-html provided)
+ *   GET  /api/frame-check?url=...  — probe a URL's response headers to see if it
+ *        can be embedded in an iframe (X-Frame-Options / CSP frame-ancestors).
  */
 
 function generateId(): string {
@@ -537,6 +539,68 @@ async function handleRequest(
       return jsonResponse(
         { error: "Provide ?id= or ?ids= query parameter" },
         400,
+      );
+    }
+  }
+
+  if (url.pathname === "/api/frame-check") {
+    if (req.method !== "GET") {
+      return jsonResponse({ error: "Method not allowed" }, 405);
+    }
+    const target = url.searchParams.get("url") ?? "";
+    if (!target) {
+      return jsonResponse({ error: "url query parameter is required" }, 400);
+    }
+    // Only allow http(s) targets to avoid SSRF into local services.
+    let parsed: URL;
+    try {
+      parsed = new URL(target);
+    } catch {
+      return jsonResponse({ error: "Invalid URL" }, 400);
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return jsonResponse({ error: "Only http(s) URLs are allowed" }, 400);
+    }
+
+    try {
+      const res = await fetch(target, {
+        method: "GET",
+        redirect: "follow",
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml",
+        },
+      });
+      const xfo = res.headers.get("x-frame-options");
+      const csp = res.headers.get("content-security-policy");
+      let blocked = false;
+      let reason = "";
+      if (xfo) {
+        blocked = true;
+        reason = `X-Frame-Options: ${xfo}`;
+      }
+      if (csp && /frame-ancestors/i.test(csp)) {
+        blocked = true;
+        reason = reason ? `${reason}; CSP frame-ancestors` : "CSP frame-ancestors";
+      }
+      return jsonResponse({
+        url: target,
+        status: res.status,
+        blocked,
+        reason,
+        xFrameOptions: xfo ?? null,
+        contentSecurityPolicy: csp ?? null,
+      });
+    } catch (err) {
+      return jsonResponse(
+        {
+          url: target,
+          blocked: false,
+          reason: "probe_failed",
+          error: err instanceof Error ? err.message : "fetch failed",
+        },
+        200,
       );
     }
   }

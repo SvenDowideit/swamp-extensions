@@ -3385,19 +3385,33 @@ function openArticle(id) {
     window.location = url;
   };
 
+  // Probe the target's response headers server-side. This is the only reliable
+  // way to detect X-Frame-Options / CSP frame-ancestors, which browsers enforce
+  // silently (the iframe may still fire 'load' with an empty document).
+  fetch('/api/frame-check?url=' + encodeURIComponent(url))
+    .then(r => r.json())
+    .then(data => {
+      if (redirected) return;
+      if (data && data.blocked) {
+        failOpen();
+        return;
+      }
+      // Not blocked (or probe failed) — load the frame and fall back on timeout.
+      iframe.src = url;
+      sendRead(id);
+    })
+    .catch(() => {
+      // Probe failed; fall back to the timeout heuristic.
+      iframe.src = url;
+      sendRead(id);
+    });
+
   const onError = () => failOpen();
-  // A successful embed fires the load event. Sites that refuse to be framed
-  // cancel the navigation, so load never fires and the timeout below redirects.
-  // (For a healthy cross-origin frame, load firing is the reliable success
-  // signal -- contentDocument stays inaccessible regardless.)
   const onLoad = () => { clearTimeout(failTimer); };
 
   let failTimer = setTimeout(failOpen, FRAME_TIMEOUT_MS);
   iframe.addEventListener('error', onError);
   iframe.addEventListener('load', onLoad);
-
-  iframe.src = url;
-  sendRead(id);
 }
 
 function closeReader() {

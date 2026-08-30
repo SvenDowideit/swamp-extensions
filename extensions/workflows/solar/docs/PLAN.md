@@ -11,17 +11,33 @@ Location: **Stafford Heights, Brisbane, QLD** (approx. lat `-27.41`, lon `153.01
 
 ## 1. Objective
 
-Every day (nightly), produce an hourly plan for the next 24 hours:
+Every day (nightly), produce an hourly plan for the next 24 hours that answers
+one practical question: **when should I plug the EV in, at what charge rate, and
+when should I unplug it?**
 
-1. **Solar forecast** — expected PV output (W / Wh) per hour.
-2. **Consumption forecast** — expected home load (W / Wh) per hour.
-3. **Net position** — `solar − consumption` per hour.
-4. **Routing decision** — for each hour, where energy flows:
-   - surplus → charge **home battery** → charge **EV** (up to 60%) → **export** remainder
-   - deficit → discharge **battery** → discharge **EV** (down to 30% floor) → draw **grid**
+The plan is driven by these goals, in priority order:
 
-The EV SoC band (30–60%) is a hard constraint; export-minimisation is the
-objective function.
+1. **Never charge the EV from the grid or the home battery** — the EV should
+   only ever charge from *surplus solar* that would otherwise be exported.
+2. **Maximise home-battery charge** most days — the house battery is the
+   priority sink for surplus solar, ahead of the EV.
+3. **Keep the EV topped up to at least 30%** (tunable) — a hard floor so the car
+   is always usable.
+4. **Minimise grid export** — a secondary goal; only export when the battery is
+   full and the EV is at its charge ceiling (or unplugged).
+
+The EV charge rate is a **discrete control**: `0 A`, `6 A`, `8 A`, or `16 A`
+(set by the user, not continuously variable). The plan therefore outputs, per
+hour, a **charge-rate setting** (0/6/8/16 A) plus a **plug/unplug** signal.
+
+### Outputs (per hour, next 24h)
+
+1. **Solar forecast** — expected PV output (W / Wh).
+2. **Consumption forecast** — expected home load (W / Wh).
+3. **Net position** — `solar − consumption`.
+4. **EV charge plan** — plug/unplug + charge rate (0/6/8/16 A) per hour.
+5. **Battery plan** — charge/discharge/idle per hour.
+6. **Export/import** — expected grid flow per hour.
 
 ---
 
@@ -224,9 +240,9 @@ bom-weather.forecast ────────┘
 
 ### 3.5 Report
 
-`@svendowideit/energy-recommendation` — hourly table + verdict (charge EV /
-charge battery / export / draw grid), surfacing the 30–60% EV constraint and
-export-minimisation logic.
+`@svendowideit/energy-recommendation` — hourly table + verdict (plug/unplug EV,
+charge rate 0/6/8/16 A, charge battery / export / draw grid), surfacing the EV
+SoC floor and export-minimisation logic.
 
 ### 3.6 Configurability (reusable by others)
 
@@ -245,7 +261,10 @@ hard-coded:
 | `SILO_EMAIL` | vault | — | SILO `username` param |
 | HA entity IDs | home-assistant global args | — | consumption, battery SoC, EV SoC sensors |
 | battery/EV capacity (kWh) | energy-predictor global args | — | Routing constraints |
-| EV SoC band (30–60%) | energy-predictor global args | `30` / `60` | Configurable floor/ceiling |
+| `evSocFloor` | energy-predictor global args | `30` | EV hard floor (tunable) |
+| `evSocCeiling` | energy-predictor global args | `100` | EV charge ceiling (tunable) |
+| `evChargeRates` | energy-predictor global args | `[0,6,8,16]` A | Discrete charge-rate settings |
+| `evSupplyVoltage` | energy-predictor global args | `240` V | Converts amps → kW |
 
 **Principle:** secrets → vault; site-specific physical/entity config → model
 global arguments; per-run overrides → workflow inputs. Nothing about Stafford
@@ -262,8 +281,8 @@ guides the user to fill gaps. It is the first thing a new user runs.
 1. **Secrets status** — for each vault key (`HA_TOKEN`, `HA_BASE_URL`,
    `SILO_EMAIL`): set or unset (never prints the value, only presence).
 2. **Config values** — current lat/lon, declination, azimuth, kWp, HA entity
-   IDs, battery/EV capacities, EV SoC band — with which are at defaults vs.
-   explicitly set.
+   IDs, battery/EV capacities, EV SoC floor/ceiling, EV charge rates — with which
+   are at defaults vs. explicitly set.
 3. **Readiness verdict** — a checklist of what's missing before the workflow
    can run (e.g. "HA_TOKEN unset", "kwp not configured").
 
@@ -306,11 +325,72 @@ forecast.solar `watts` curve (already weather-aware) as the PV output.
 
 `net[h] = solar[h] − consumption[h]` per hour.
 
-### 4.4 Routing (greedy, export-minimising)
+### 4.4 Routing decision (EV charge plan)
 
-- **Surplus** (`net > 0`): charge home battery → charge EV (≤ 60%) → export.
-- **Deficit** (`net < 0`): discharge battery → discharge EV (≥ 30%) → grid.
-- EV SoC band 30–60% enforced as hard constraints.
+The routing decision is a **discrete optimisation** over the EV charge rate
+(`0/6/8/16 A`) and plug state, not a continuous energy-flow allocation. The
+predictor simulates the next 24h hour-by-hour and emits a per-hour plan.
+
+**Inputs (state + config):**
+
+- Current EV SoC, home-battery SoC, battery capacity (kWh), EV capacity (kWh).
+- EV charge rates in kW: `0 A`, `6 A`, `8 A`, `16 A` (converted from amps ×
+  supply voltage; configurable).
+- EV SoC floor (default 30%, tunable) and ceiling (default 100%, tunable).
+- Home-battery charge/discharge power limits.
+
+**Priority order (hard constraints first):**
+
+1. **EV never charges from grid or home battery.** The EV only draws power when
+   there is *surplus solar* (`net > 0`) that would otherwise be exported. If
+   `net ≤ 0`, the EV charge rate is `0 A` (or unplugged).
+2. **Home battery is the priority sink.** Surplus solar charges the home battery
+   first; only *after* the battery is full (or charging at its limit) does
+   surplus flow to the EV.
+3. **EV SoC floor (30%, tunable).** If the EV is below the floor and no surplus
+   solar is forecast within a look-ahead window, the plan flags a
+   "charge-from-grid required" warning (a deliberate exception the user must
+   approve — it violates goal 1 but preserves goal 3).
+4. **Minimise export.** Export only when the battery is full *and* the EV is at
+   its ceiling or unplugged.
+
+**Per-hour decision logic (greedy simulation):**
+
+```
+for each hour h:
+  net = solar[h] - consumption[h]
+  if net > 0:                       # surplus
+    charge home battery (up to its limit)
+    if battery full and EV plugged and EV < ceiling:
+        charge EV at the highest rate ≤ surplus (from {0,6,8,16}A)
+    if still surplus: export
+  else:                             # deficit
+    discharge home battery to cover load
+    EV charge rate = 0 A            # never from grid/battery
+    if battery empty: import from grid
+```
+
+**EV plug/unplug signal:** the plan also emits *when to plug in* and *when to
+unplug*. The EV is only "available to charge" when plugged in; the plan
+recommends plugging in during surplus windows and unplugging otherwise (or
+leaving it plugged with rate `0 A`, depending on the charger's behaviour).
+
+**Charge-rate selection:** among the discrete rates, pick the highest rate that
+does not exceed the available surplus (so the EV charges as fast as possible
+from solar without drawing from grid/battery). When surplus is small, this may
+mean `6 A` or `8 A` rather than `16 A`.
+
+**Tunable parameters (all configurable, see §3.6):**
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `evSocFloor` | 30% | Hard floor — EV must stay above this |
+| `evSocCeiling` | 100% | Stop charging the EV at this SoC |
+| `evChargeRates` | `[0, 6, 8, 16]` A | Discrete charge-rate settings |
+| `evSupplyVoltage` | 240 V | Converts amps → kW |
+| `batteryCapacity` | — | Home battery capacity (kWh) |
+| `evCapacity` | — | EV battery capacity (kWh) |
+| `lookAheadHours` | 24 | Window for the "charge-from-grid required" warning |
 
 ---
 

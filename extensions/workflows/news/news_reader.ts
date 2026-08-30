@@ -3514,10 +3514,15 @@ list.addEventListener('click', (e) => {
   if (!card) return;
   const url = card.getAttribute('data-url');
   const host = hostOf(url);
-  // Known-blocked hosts are plain links: let the anchor navigate directly
-  // (no iframe collapse UI). Otherwise augment to the in-app iframe reader.
+  // Known-blocked hosts are plain links: navigate directly (no iframe collapse
+  // UI). If the click was on the title anchor, let its default navigation
+  // proceed; otherwise navigate explicitly so the whole box behaves like the
+  // link.
   if (host && blockedHosts.has(host)) {
-    return; // let the <a href> default navigation proceed
+    if (e.target.closest('a')) return; // let the <a href> default proceed
+    e.preventDefault();
+    window.location = url;
+    return;
   }
   e.preventDefault();
   openArticle(card.getAttribute('data-article-id'));

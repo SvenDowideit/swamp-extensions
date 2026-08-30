@@ -3372,6 +3372,43 @@ function toggleRead() {
 
 const FRAME_TIMEOUT_MS = 6000;
 
+// Sites known to refuse iframe embedding, persisted so we don't re-probe them.
+// Stored as JSON array of hostnames in localStorage.
+const BLOCKED_STORE_KEY = 'news-mobile-blocked-hosts';
+const MAX_BLOCKED = 500;
+
+// In-memory cache of hosts known to refuse framing. Keep it and localStorage
+// in sync so an article opened in the same session (or via bfcache restore)
+// hits the cached path immediately, without re-probing.
+const blockedHosts = (() => {
+  try {
+    const raw = localStorage.getItem(BLOCKED_STORE_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+})();
+
+function saveBlockedHost(hostname) {
+  if (!hostname) return;
+  blockedHosts.add(hostname);
+  if (blockedHosts.size > MAX_BLOCKED) {
+    // Keep the most recently added set to avoid unbounded growth.
+    const arr = Array.from(blockedHosts);
+    blockedHosts.clear();
+    arr.slice(-MAX_BLOCKED).forEach(h => blockedHosts.add(h));
+  }
+  try {
+    localStorage.setItem(BLOCKED_STORE_KEY, JSON.stringify(Array.from(blockedHosts)));
+  } catch {}
+}
+
+function hostOf(url) {
+  try { return new URL(url).hostname; } catch { return ''; }
+}
+
 // Client-side block detection is unreliable for cross-origin frames:
 //   - X-Frame-Options   -> Firefox shows a same-origin error page we can read.
 //   - CSP frame-ancestors -> the frame is blank and opaque (contentDocument is
@@ -3394,16 +3431,26 @@ function openArticle(id) {
   document.body.classList.add('reading');
   const iframe = document.getElementById('reader-frame');
   const url = document.querySelector('.article[data-article-id="' + id + '"]').getAttribute('data-url');
+  const host = hostOf(url);
   let redirected = false;
+  let failTimer = null;
   console.log('[reader] openArticle', id, url);
 
   const failOpen = (reason) => {
     if (redirected) return;
     redirected = true;
-    clearTimeout(failTimer);
+    if (failTimer) clearTimeout(failTimer);
+    if (host) saveBlockedHost(host);
     console.log('[reader] frame-blocked, redirecting because', reason);
     window.location = url;
   };
+
+  // If we already know this host blocks framing, skip straight to the fallback.
+  if (host && blockedHosts.has(host)) {
+    console.log('[reader] cached blocked host, using fallback directly', host);
+    failOpen('cached blocked host');
+    return;
+  }
 
   // Probe response headers server-side. This is the reliable detector for both
   // X-Frame-Options and CSP frame-ancestors.
@@ -3430,7 +3477,7 @@ function openArticle(id) {
 
   const onError = (e) => { console.log('[reader] iframe error event', e); failOpen('iframe error'); };
 
-  let failTimer = setTimeout(() => failOpen('timeout'), FRAME_TIMEOUT_MS);
+  failTimer = setTimeout(() => failOpen('timeout'), FRAME_TIMEOUT_MS);
   iframe.addEventListener('error', onError);
   iframe.addEventListener('load', onLoad);
 

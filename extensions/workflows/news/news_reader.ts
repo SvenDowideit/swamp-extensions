@@ -3268,13 +3268,9 @@ export function generateMobileHtml(
     metaText += ` · Filtering last ${escapeHtml(ageFilter)}`;
   }
 
-  const pages: string[] = [];
-  for (let p = 0; p < pageCount; p++) {
-    const slice = top.slice(p * PER_PAGE, (p + 1) * PER_PAGE);
-    pages.push(`<div class="page">${slice.map((a, j) =>
-      mobileCard(a, p * PER_PAGE + j, domainOf(a), seenSet, readSet)
-    ).join("\n")}</div>`);
-  }
+  const cards = top.map((a, i) =>
+    mobileCard(a, i, domainOf(a), seenSet, readSet)
+  ).join("\n");
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -3285,10 +3281,10 @@ export function generateMobileHtml(
 ${MOBILE_PAGE_STYLE}
 </head>
 <body>
-<header class="page-bar" id="page-bar"><span class="page-label" id="page-label">1 / ${pageCount}</span><span class="page-total">${total} articles</span><button id="list-close" onclick="closeReader()">✕</button></header>
+<header class="page-bar" id="page-bar"><span class="page-label" id="page-label">1 / ${pageCount}</span><span class="page-meta">${metaText} · generated <span class="generated-at" data-generated="${escapeHtml(generatedAt)}"></span></span><span class="toggle-box"><button class="toggle-btn" id="toggle-seen" onclick="toggleSeen()">👁<span id="seen-count"></span></button><button class="toggle-btn" id="toggle-read" onclick="toggleRead()">📖<span id="read-count"></span></button></span><button id="list-close" onclick="closeReader()">✕</button></header>
 <div class="main">
 <div id="list">
-${pages.join("\n")}
+${cards}
 </div>
 <div id="reader"><div class="reader-head"><button id="reader-close" onclick="closeReader()">✕</button></div><iframe id="reader-frame" title="Article reader"></iframe></div>
 </div>
@@ -3297,10 +3293,28 @@ const PAGE_SIZE = ${PER_PAGE};
 const TOTAL = ${total};
 let page = 0;
 let totalPages = Math.max(1, Math.ceil(TOTAL / PAGE_SIZE));
-let activeId = null;
 const list = document.getElementById('list');
-const cards = Array.from(document.querySelectorAll('.article'));
+const allCards = Array.from(document.querySelectorAll('.article'));
 const FEEDBACK_URL = '/api/feedback';
+
+function visibleCards() {
+  return allCards.filter(c => !c.classList.contains('hidden'));
+}
+
+// Show only the visible cards belonging to the current page; hide the rest.
+function renderPage() {
+  const vis = visibleCards();
+  totalPages = Math.max(1, Math.ceil(vis.length / PAGE_SIZE));
+  if (page >= totalPages) page = totalPages - 1;
+  const start = page * PAGE_SIZE;
+  const end = Math.min(start + PAGE_SIZE, vis.length);
+  allCards.forEach(c => {
+    const idx = vis.indexOf(c);
+    c.style.display = (idx >= start && idx < end) ? '' : 'none';
+  });
+  list.style.transform = 'translateX(0)';
+  updatePageBar();
+}
 
 async function sendSeen(articleId) {
   try {
@@ -3315,27 +3329,73 @@ async function sendRead(articleId) {
 }
 
 function updatePageBar() {
-  const first = page * PAGE_SIZE + 1;
-  const last = Math.min((page + 1) * PAGE_SIZE, TOTAL);
+  const vis = visibleCards();
+  const first = vis.length === 0 ? 0 : page * PAGE_SIZE + 1;
+  const last = Math.min((page + 1) * PAGE_SIZE, vis.length);
   document.getElementById('page-label').textContent =
-    (TOTAL === 0 ? '0 / 0' : (first + '–' + last)) + ' / ' + TOTAL;
+    (vis.length === 0 ? '0 / 0' : (first + '–' + last)) + ' / ' + vis.length;
 }
 
 function goToPage(p) {
   if (p < 0 || p >= totalPages) return;
   page = p;
-  list.style.transform = 'translateX(' + (-page * 100) + '%)';
-  updatePageBar();
+  renderPage();
 }
 
 function goNext() { if (page < totalPages - 1) goToPage(page + 1); }
 function goPrev() { if (page > 0) goToPage(page - 1); }
 
+document.getElementById('seen-count').textContent =
+  ' ' + allCards.filter(c => c.classList.contains('seen')).length;
+document.getElementById('read-count').textContent =
+  ' ' + allCards.filter(c => c.classList.contains('read')).length;
+
+function toggleSeen() {
+  const btn = document.getElementById('toggle-seen');
+  const show = btn.classList.toggle('active');
+  allCards.forEach(el => {
+    if (el.classList.contains('seen')) el.classList.toggle('hidden', !show);
+  });
+  page = 0;
+  renderPage();
+}
+
+function toggleRead() {
+  const btn = document.getElementById('toggle-read');
+  const show = btn.classList.toggle('active');
+  allCards.forEach(el => {
+    if (el.classList.contains('read')) el.classList.toggle('hidden', !show);
+  });
+  page = 0;
+  renderPage();
+}
+
+const FRAME_TIMEOUT_MS = 6000;
+
 function openArticle(id) {
-  activeId = id;
   document.body.classList.add('reading');
   const iframe = document.getElementById('reader-frame');
   const url = document.querySelector('.article[data-article-id="' + id + '"]').getAttribute('data-url');
+  let redirected = false;
+
+  const failOpen = () => {
+    if (redirected) return;
+    redirected = true;
+    clearTimeout(failTimer);
+    window.location = url;
+  };
+
+  const onError = () => failOpen();
+  // A successful embed fires the load event. Sites that refuse to be framed
+  // cancel the navigation, so load never fires and the timeout below redirects.
+  // (For a healthy cross-origin frame, load firing is the reliable success
+  // signal -- contentDocument stays inaccessible regardless.)
+  const onLoad = () => { clearTimeout(failTimer); };
+
+  let failTimer = setTimeout(failOpen, FRAME_TIMEOUT_MS);
+  iframe.addEventListener('error', onError);
+  iframe.addEventListener('load', onLoad);
+
   iframe.src = url;
   sendRead(id);
 }
@@ -3344,8 +3404,7 @@ function closeReader() {
   if (!document.body.classList.contains('reading')) return;
   document.body.classList.remove('reading');
   const iframe = document.getElementById('reader-frame');
-  iframe.src = 'about:blank';
-  activeId = null;
+  iframe.removeAttribute('src');
 }
 
 function goBack() {
@@ -3409,6 +3468,22 @@ document.querySelectorAll('.article').forEach(el => {
   const id = el.getAttribute('data-article-id');
   if (id) sendSeen(id);
 });
+
+document.querySelectorAll('.generated-at').forEach(el => {
+  const dateStr = el.getAttribute('data-generated');
+  if (dateStr) {
+    try {
+      const date = new Date(dateStr);
+      el.textContent = date.toLocaleString('en-GB', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } catch (err) {
+      el.textContent = dateStr;
+    }
+  }
+});
+
 updatePageBar();
 </script>
 </body>
@@ -3431,17 +3506,20 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 body { height:100vh; height:100dvh; overflow:hidden; display:flex; flex-direction:column; }
 
 .page-bar { display:flex; align-items:center; gap:10px; padding:6px 14px; color:var(--mut); font-size:0.8em; border-bottom:1px solid var(--line); background:#fff; flex:0 0 auto; }
-.page-label { flex:1; }
-.page-total { font-size:0.85em; }
+.page-label { flex:0 0 auto; }
+.page-meta { flex:1 1 auto; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.toggle-box { flex:0 0 auto; display:flex; gap:4px; }
+.toggle-btn { padding:2px 8px; border:1px solid var(--line); border-radius:4px; background:#fff; cursor:pointer; font-size:0.8em; color:var(--ink); }
+.toggle-btn.active { background:var(--acc); color:#fff; border-color:var(--acc); }
+.toggle-btn .count { font-weight:600; }
 #list-close { display:none; border:none; background:none; font-size:1.2em; cursor:pointer; color:#999; }
 
 .main { flex:1 1 auto; position:relative; overflow:hidden; display:flex; }
 
-#list { flex:1 1 auto; position:relative; overflow:hidden; display:flex; }
-#list .page { flex:0 0 100%; height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px; display:flex; flex-direction:column; gap:12px; }
-#list { transform:translateX(0); transition:transform 0.3s ease; }
+#list { flex:1 1 auto; position:relative; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px; display:flex; flex-direction:column; gap:12px; }
 
 .article { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; cursor:pointer; flex:0 0 auto; }
+.article.hidden { display:none; }
 .article.seen { border-left:3px solid #ffc107; }
 .article.read { border-left:3px solid #28a745; opacity:0.85; }
 .article h3 { margin:0 0 6px 0; font-size:1.05em; line-height:1.3; }
@@ -3462,8 +3540,7 @@ body { height:100vh; height:100dvh; overflow:hidden; display:flex; flex-directio
 #reader-frame { flex:1; width:100%; border:none; background:#fff; }
 
 body.reading #reader { flex:1 1 auto; width:auto; }
-body.reading #list { flex:0 0 56px; width:56px; }
-body.reading #list .page { padding:6px; gap:6px; }
+body.reading #list { flex:0 0 56px; width:56px; padding:6px; gap:6px; }
 body.reading #list .article .card-title,
 body.reading #list .article .source,
 body.reading #list .article .summary,
@@ -3498,7 +3575,7 @@ function mobileCard(
     : keywordScore < 0
     ? "↓"
     : "·";
-  const stateClass = isRead ? " read" : isSeen ? " seen" : "";
+  const stateClass = isRead ? " read hidden" : isSeen ? " seen hidden" : "";
 
   const dupBadge = (a.duplicateSources && a.duplicateSources.length > 0)
     ? `<span class="dup-badge" title="Also from: ${

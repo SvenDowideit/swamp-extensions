@@ -1742,11 +1742,33 @@ Deno.test("generateMobileHtml marks read articles and embeds data-url", () => {
     "Test",
     "2026-07-17T00:00:00Z",
   );
-  assertEquals(html.includes("class=\"article read\""), true);
+  assertEquals(html.includes("class=\"article read hidden\""), true);
   assertEquals(
     html.includes("data-url=\"https://example.com/read\""),
     true,
   );
+});
+
+Deno.test("generateMobileHtml hides seen articles by default", () => {
+  const articles = [{
+    ...sampleArticle({ id: "seen1", url: "https://example.com/seen" }),
+    score: 0,
+    reasons: [],
+  }];
+  const prefs: Preferences = {
+    interested: [],
+    ignored: [],
+    keywordWeights: {},
+    seen: ["seen1"],
+    read: [],
+  };
+  const html = generateMobileHtml(
+    articles,
+    prefs,
+    "Test",
+    "2026-07-17T00:00:00Z",
+  );
+  assertEquals(html.includes("class=\"article seen hidden\""), true);
 });
 
 Deno.test("generateMobileHtml handles empty articles array", () => {

@@ -3512,6 +3512,14 @@ window.addEventListener('pageshow', (e) => {
 list.addEventListener('click', (e) => {
   const card = e.target.closest('.article');
   if (!card) return;
+  const url = card.getAttribute('data-url');
+  const host = hostOf(url);
+  // Known-blocked hosts are plain links: let the anchor navigate directly
+  // (no iframe collapse UI). Otherwise augment to the in-app iframe reader.
+  if (host && blockedHosts.has(host)) {
+    return; // let the <a href> default navigation proceed
+  }
+  e.preventDefault();
   openArticle(card.getAttribute('data-article-id'));
 });
 
@@ -3684,7 +3692,7 @@ function mobileCard(
     escapeHtml(a.url)
   }" data-article-id="${escapeHtml(a.id)}">
 <div class="card-icon" style="background-image:url('${faviconUrl}')"></div>
-<h3><span class="card-title">${escapeHtml(a.title)}</span>${dupBadge}</h3>
+<h3><a class="card-title" href="${escapeHtml(a.url)}">${escapeHtml(a.title)}</a>${dupBadge}</h3>
 <span class="source">${escapeHtml(domain)} · ${scorePill(a.feedScore ?? 0)} · <span class="score ${scoreClass}">${scoreLabel} ${keywordScore}</span></span>
 <div class="summary">${escapeHtml(a.summary.slice(0, 200))}${
     a.summary.length > 200 ? "…" : ""

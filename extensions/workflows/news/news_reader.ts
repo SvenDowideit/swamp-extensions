@@ -3269,7 +3269,7 @@ export function generateMobileHtml(
   }
 
   const cards = top.map((a, i) =>
-    mobileCard(a, i, domainOf(a), seenSet, readSet)
+    mobileCard(a, i, domainOf(a), seenSet, readSet, prefs)
   ).join("\n");
 
   return `<!DOCTYPE html>
@@ -3326,6 +3326,28 @@ async function sendRead(articleId) {
   try {
     await fetch(FEEDBACK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ articleId, action:'read' }) });
   } catch {}
+}
+
+async function sendFeedback(action, article, event) {
+  const el = event.target;
+  el.textContent = '…';
+  try {
+    const res = await fetch(FEEDBACK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...article, action })
+    });
+    if (res.ok) {
+      el.textContent = '✓';
+      setTimeout(() => el.textContent = action === 'interested' ? '👍' : '👎', 2000);
+    } else {
+      el.textContent = '✗';
+      setTimeout(() => el.textContent = action === 'interested' ? '👍' : '👎', 2000);
+    }
+  } catch {
+    el.textContent = '✗';
+    setTimeout(() => el.textContent = action === 'interested' ? '👍' : '👎', 2000);
+  }
 }
 
 function updatePageBar() {
@@ -3594,6 +3616,21 @@ document.querySelectorAll('.generated-at').forEach(el => {
   }
 });
 
+document.querySelectorAll('.pubdate').forEach(el => {
+  const dateStr = el.getAttribute('data-date');
+  if (dateStr) {
+    try {
+      const date = new Date(dateStr);
+      el.textContent = date.toLocaleString('en-GB', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } catch (err) {
+      el.textContent = dateStr;
+    }
+  }
+});
+
 updatePageBar();
 </script>
 </body>
@@ -3628,21 +3665,29 @@ body { height:100vh; height:100dvh; overflow:hidden; display:flex; flex-directio
 
 #list { flex:1 1 auto; position:relative; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px; display:flex; flex-direction:column; gap:12px; }
 
-.article { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; cursor:pointer; flex:0 0 auto; }
+.article { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; cursor:pointer; flex:0 0 auto; position:relative; }
+.article::before { content:''; position:absolute; top:4px; left:4px; width:128px; height:128px; background-image:var(--watermark); background-size:128px; background-repeat:no-repeat; opacity:0.1; pointer-events:none; }
 .article.hidden { display:none; }
 .article.seen { border-left:3px solid #ffc107; }
 .article.read { border-left:3px solid #28a745; opacity:0.85; }
-.article h3 { margin:0 0 6px 0; font-size:1.05em; line-height:1.3; }
-.card-title { color:#1a5276; }
-.source { color:var(--mut); font-size:0.8em; }
-.summary { color:#555; margin-top:8px; font-size:0.9em; line-height:1.5; }
-.score { display:inline-block; padding:1px 6px; border-radius:12px; font-size:0.75em; font-weight:bold; }
+.article h3 { margin:0 0 8px 0; font-size:1.05em; line-height:1.3; }
+.article h3 a { color:#1a5276; text-decoration:none; }
+.article h3 a:hover { text-decoration:underline; }
+.article-actions { float:right; }
+.article-actions a { color:#888; text-decoration:none; cursor:pointer; margin-left:8px; font-size:0.85em; }
+.article-actions a:hover { color:#4a90d9; }
+.article-indicators { display:inline-block; margin-left:8px; font-size:0.8em; }
+.article-indicators .seen-badge { color:#ffc107; }
+.article-indicators .read-badge { color:#28a745; }
+.source { color:var(--mut); font-size:0.85em; }
+.keyword { display:inline-block; background:#e8f0fe; color:#1a73e8; padding:2px 6px; border-radius:4px; font-size:0.85em; margin-right:4px; }
+.summary { color:#555; margin-top:8px; font-size:0.95em; line-height:1.5; }
+.score { display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.8em; font-weight:bold; }
 .score-high { background:#d4edda; color:#155724; }
 .score-mid { background:#fff3cd; color:#856404; }
 .score-low { background:#f8d7da; color:#721c24; }
 .score-zero { background:#e2e3e5; color:#6c757d; }
-.dup-badge { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:10px; font-size:0.75em; background:#e8e0f0; color:#6c4a9e; }
-.card-icon { width:20px; height:20px; background-size:contain; background-repeat:no-repeat; margin-bottom:4px; opacity:0.6; }
+.dup-badge { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:10px; font-size:0.75em; background:#e8e0f0; color:#6c4a9e; cursor:help; }
 
 #reader { flex:0 0 0px; width:0; overflow:hidden; background:#fff; display:flex; flex-direction:column; transition:flex-basis 0.3s ease; }
 .reader-head { display:flex; justify-content:flex-end; padding:4px; background:#fff; border-bottom:1px solid var(--line); }
@@ -3651,10 +3696,13 @@ body { height:100vh; height:100dvh; overflow:hidden; display:flex; flex-directio
 
 body.reading #reader { flex:1 1 auto; width:auto; }
 body.reading #list { flex:0 0 56px; width:56px; padding:6px; gap:6px; }
-body.reading #list .article .card-title,
+body.reading #list .article h3 a,
 body.reading #list .article .source,
 body.reading #list .article .summary,
-body.reading #list .article .dup-badge { display:none; }
+body.reading #list .article .dup-badge,
+body.reading #list .article .article-actions,
+body.reading #list .article .article-indicators,
+body.reading #list .article .score { display:none; }
 body.reading #list .article { padding:6px; font-size:0; text-align:center; }
 body.reading #list-close { display:inline-block; }
 </style>`;
@@ -3665,6 +3713,7 @@ function mobileCard(
   domain: string,
   seenSet: Set<string>,
   readSet: Set<string>,
+  prefs: Preferences,
 ): string {
   const faviconUrl =
     `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
@@ -3687,6 +3736,27 @@ function mobileCard(
     : "·";
   const stateClass = isRead ? " read hidden" : isSeen ? " seen hidden" : "";
 
+  const articleJson = JSON.stringify({
+    articleId: a.id,
+    source: a.source,
+    title: a.title.slice(0, 200),
+    keywords: a.keywords,
+  });
+
+  const seenCount = prefs.seen.length;
+  const readCount = prefs.read.length;
+  const indicators = (isSeen || isRead)
+    ? `<span class="article-indicators">${
+      isRead
+        ? `<span class="read-badge" title="read">📖 ${readCount} 👁 ${seenCount}</span>`
+        : ""
+    }${
+      isSeen && !isRead
+        ? `<span class="seen-badge" title="seen">👁 ${seenCount}</span>`
+        : ""
+    }</span>`
+    : "";
+
   const dupBadge = (a.duplicateSources && a.duplicateSources.length > 0)
     ? `<span class="dup-badge" title="Also from: ${
       a.duplicateSources.map((s) => escapeHtml(s)).join(", ")
@@ -3695,10 +3765,28 @@ function mobileCard(
 
   return `<div class="article${stateClass}" data-index="${index}" data-url="${
     escapeHtml(a.url)
-  }" data-article-id="${escapeHtml(a.id)}">
-<div class="card-icon" style="background-image:url('${faviconUrl}')"></div>
-<h3><a class="card-title" href="${escapeHtml(a.url)}">${escapeHtml(a.title)}</a>${dupBadge}</h3>
-<span class="source">${escapeHtml(domain)} · ${scorePill(a.feedScore ?? 0)} · <span class="score ${scoreClass}">${scoreLabel} ${keywordScore}</span></span>
+  }" data-article-id="${escapeHtml(a.id)}" style="--watermark: url('${faviconUrl}')">
+<h3><a href="${escapeHtml(a.url)}" data-article-id="${escapeHtml(a.id)}">${
+    escapeHtml(a.title)
+  }</a>${indicators}${dupBadge}
+<span class="article-actions">
+<a onclick="sendFeedback('interested',${
+    escapeHtml(articleJson)
+  },event)" title="👍 interested">👍</a>
+<a onclick="sendFeedback('ignored',${
+    escapeHtml(articleJson)
+  },event)" title="👎 ignore">👎</a>
+</span></h3>
+<span class="source">${escapeHtml(a.source)} ${scorePill(a.feedScore ?? 0)} · <span class="pubdate" data-date="${
+    escapeHtml(a.publishedAt)
+  }"></span>${
+    a.keywords.length > 0
+      ? " · " + a.keywords.slice(0, 6).map((kw) =>
+        `<span class="keyword">${escapeHtml(kw)}</span>`
+      ).join("")
+      : ""
+  }</span>
+<span class="score ${scoreClass}">${scoreLabel} ${keywordScore}</span>
 <div class="summary">${escapeHtml(a.summary.slice(0, 200))}${
     a.summary.length > 200 ? "…" : ""
   }</div>

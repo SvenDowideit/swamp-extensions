@@ -580,9 +580,11 @@ async function handleRequest(
       try {
         const buf = await res.arrayBuffer();
         const head = new TextDecoder().decode(buf.slice(0, 65536));
-        const meta = /<meta[^>]+http-equiv=["']?content-security-policy["']?[^>]+content=["']([^"']+)["']/i
-          .exec(head) ?? /<meta[^>]+content=["']([^"']+frame-ancestors[^"']+)["'][^>]*http-equiv=["']?content-security-policy["']?/i
-          .exec(head);
+        const meta =
+          /<meta[^>]+http-equiv=["']?content-security-policy["']?[^>]+content=["']([^"']+)["']/i
+            .exec(head) ??
+            /<meta[^>]+content=["']([^"']+frame-ancestors[^"']+)["'][^>]*http-equiv=["']?content-security-policy["']?/i
+              .exec(head);
         if (meta) bodyMetaCsp = meta[1];
       } catch {
         // body read failed; fall back to header-only detection
@@ -597,10 +599,14 @@ async function handleRequest(
       const allCsp = [csp, bodyMetaCsp].filter(Boolean).join("; ");
       if (csp && /frame-ancestors/i.test(csp)) {
         blocked = true;
-        reason = reason ? `${reason}; CSP frame-ancestors` : "CSP frame-ancestors";
+        reason = reason
+          ? `${reason}; CSP frame-ancestors`
+          : "CSP frame-ancestors";
       } else if (bodyMetaCsp && /frame-ancestors/i.test(bodyMetaCsp)) {
         blocked = true;
-        reason = reason ? `${reason}; meta CSP frame-ancestors` : "meta CSP frame-ancestors";
+        reason = reason
+          ? `${reason}; meta CSP frame-ancestors`
+          : "meta CSP frame-ancestors";
       }
       return jsonResponse({
         url: target,

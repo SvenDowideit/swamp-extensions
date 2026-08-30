@@ -3244,15 +3244,13 @@ export function generateMobileHtml(
   const domainOf = (a: ScoredArticle): string => {
     let d = domainCache.get(a.id);
     if (!d) {
-      d = a.source.includes(".")
-        ? a.source
-        : (() => {
-          try {
-            return new URL(a.url).hostname;
-          } catch {
-            return a.source;
-          }
-        })();
+      d = a.source.includes(".") ? a.source : (() => {
+        try {
+          return new URL(a.url).hostname;
+        } catch {
+          return a.source;
+        }
+      })();
       domainCache.set(a.id, d);
     }
     return d;
@@ -3281,7 +3279,9 @@ export function generateMobileHtml(
 ${MOBILE_PAGE_STYLE}
 </head>
 <body>
-<header class="page-bar" id="page-bar"><span class="page-label" id="page-label">1 / ${pageCount}</span><span class="page-meta">${metaText} · generated <span class="generated-at" data-generated="${escapeHtml(generatedAt)}"></span></span><span class="toggle-box"><button class="toggle-btn" id="toggle-seen" onclick="toggleSeen()">👁<span id="seen-count"></span></button><button class="toggle-btn" id="toggle-read" onclick="toggleRead()">📖<span id="read-count"></span></button></span><button id="list-close" onclick="closeReader()">✕</button></header>
+<header class="page-bar" id="page-bar"><span class="page-label" id="page-label">1 / ${pageCount}</span><span class="page-meta">${metaText} · generated <span class="generated-at" data-generated="${
+    escapeHtml(generatedAt)
+  }"></span></span><span class="toggle-box"><button class="toggle-btn" id="toggle-seen" onclick="toggleSeen()">👁<span id="seen-count"></span></button><button class="toggle-btn" id="toggle-read" onclick="toggleRead()">📖<span id="read-count"></span></button></span><button id="list-close" onclick="closeReader()">✕</button></header>
 <div class="main">
 <div id="list">
 ${cards}
@@ -3715,8 +3715,9 @@ function mobileCard(
   readSet: Set<string>,
   prefs: Preferences,
 ): string {
-  const faviconUrl =
-    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${
+    encodeURIComponent(domain)
+  }&sz=64`;
   const isSeen = seenSet.has(a.id);
   const isRead = readSet.has(a.id);
   const keywordScore = a.score + (isRead ? 2 : 0);
@@ -3765,7 +3766,9 @@ function mobileCard(
 
   return `<div class="article${stateClass}" data-index="${index}" data-url="${
     escapeHtml(a.url)
-  }" data-article-id="${escapeHtml(a.id)}" style="--watermark: url('${faviconUrl}')">
+  }" data-article-id="${
+    escapeHtml(a.id)
+  }" style="--watermark: url('${faviconUrl}')">
 <h3><a href="${escapeHtml(a.url)}" data-article-id="${escapeHtml(a.id)}">${
     escapeHtml(a.title)
   }</a>${indicators}${dupBadge}
@@ -3777,9 +3780,9 @@ function mobileCard(
     escapeHtml(articleJson)
   },event)" title="👎 ignore">👎</a>
 </span></h3>
-<span class="source">${escapeHtml(a.source)} ${scorePill(a.feedScore ?? 0)} · <span class="pubdate" data-date="${
-    escapeHtml(a.publishedAt)
-  }"></span>${
+<span class="source">${escapeHtml(a.source)} ${
+    scorePill(a.feedScore ?? 0)
+  } · <span class="pubdate" data-date="${escapeHtml(a.publishedAt)}"></span>${
     a.keywords.length > 0
       ? " · " + a.keywords.slice(0, 6).map((kw) =>
         `<span class="keyword">${escapeHtml(kw)}</span>`

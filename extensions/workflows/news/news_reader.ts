@@ -3372,46 +3372,70 @@ function toggleRead() {
 
 const FRAME_TIMEOUT_MS = 6000;
 
+// Client-side block detection is unreliable for cross-origin frames:
+//   - X-Frame-Options   -> Firefox shows a same-origin error page we can read.
+//   - CSP frame-ancestors -> the frame is blank and opaque (contentDocument is
+//     null, indistinguishable from a healthy cross-origin embed).
+// So the primary detector is a server-side header probe (/api/frame-check),
+// which inspects the real response headers. We keep the onLoad content-scan as
+// a secondary fallback for the X-Frame-Options case.
+function frameIsBlocked(iframe) {
+  try {
+    const doc = iframe.contentDocument;
+    if (!doc) return false; // opaque = healthy cross-origin embed (or CSP blank)
+    const text = (doc.body && doc.body.innerText) || '';
+    return /will not allow|refused to connect|denied|frame|embed|X-Frame|not display/i.test(text);
+  } catch {
+    return false;
+  }
+}
+
 function openArticle(id) {
   document.body.classList.add('reading');
   const iframe = document.getElementById('reader-frame');
   const url = document.querySelector('.article[data-article-id="' + id + '"]').getAttribute('data-url');
   let redirected = false;
+  console.log('[reader] openArticle', id, url);
 
-  const failOpen = () => {
+  const failOpen = (reason) => {
     if (redirected) return;
     redirected = true;
     clearTimeout(failTimer);
+    console.log('[reader] frame-blocked, redirecting because', reason);
     window.location = url;
   };
 
-  // Probe the target's response headers server-side. This is the only reliable
-  // way to detect X-Frame-Options / CSP frame-ancestors, which browsers enforce
-  // silently (the iframe may still fire 'load' with an empty document).
+  // Probe response headers server-side. This is the reliable detector for both
+  // X-Frame-Options and CSP frame-ancestors.
   fetch('/api/frame-check?url=' + encodeURIComponent(url))
-    .then(r => r.json())
-    .then(data => {
-      if (redirected) return;
-      if (data && data.blocked) {
-        failOpen();
-        return;
-      }
-      // Not blocked (or probe failed) — load the frame and fall back on timeout.
-      iframe.src = url;
-      sendRead(id);
+    .then(r => {
+      console.log('[reader] frame-check status', r.status);
+      return r.json();
     })
-    .catch(() => {
-      // Probe failed; fall back to the timeout heuristic.
-      iframe.src = url;
-      sendRead(id);
+    .then(data => {
+      console.log('[reader] frame-check result', data);
+      if (data && data.blocked) { failOpen(data.reason); return; }
+    })
+    .catch(err => {
+      console.log('[reader] frame-check probe failed (falling back to frame scan)', err);
     });
 
-  const onError = () => failOpen();
-  const onLoad = () => { clearTimeout(failTimer); };
+  const onLoad = () => {
+    if (frameIsBlocked(iframe)) {
+      failOpen('frame-scan detected block page');
+      return;
+    }
+    clearTimeout(failTimer);
+  };
 
-  let failTimer = setTimeout(failOpen, FRAME_TIMEOUT_MS);
+  const onError = (e) => { console.log('[reader] iframe error event', e); failOpen('iframe error'); };
+
+  let failTimer = setTimeout(() => failOpen('timeout'), FRAME_TIMEOUT_MS);
   iframe.addEventListener('error', onError);
   iframe.addEventListener('load', onLoad);
+
+  iframe.src = url;
+  sendRead(id);
 }
 
 function closeReader() {

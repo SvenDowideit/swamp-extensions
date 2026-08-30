@@ -574,15 +574,33 @@ async function handleRequest(
       });
       const xfo = res.headers.get("x-frame-options");
       const csp = res.headers.get("content-security-policy");
+      let bodyMetaCsp: string | null = null;
+      // Also scan the first chunk of HTML for a CSP delivered via a meta tag
+      // (frame-ancestors in a <meta http-equiv="Content-Security-Policy">).
+      try {
+        const buf = await res.arrayBuffer();
+        const head = new TextDecoder().decode(buf.slice(0, 65536));
+        const meta = /<meta[^>]+http-equiv=["']?content-security-policy["']?[^>]+content=["']([^"']+)["']/i
+          .exec(head) ?? /<meta[^>]+content=["']([^"']+frame-ancestors[^"']+)["'][^>]*http-equiv=["']?content-security-policy["']?/i
+          .exec(head);
+        if (meta) bodyMetaCsp = meta[1];
+      } catch {
+        // body read failed; fall back to header-only detection
+      }
+
       let blocked = false;
       let reason = "";
       if (xfo) {
         blocked = true;
         reason = `X-Frame-Options: ${xfo}`;
       }
+      const allCsp = [csp, bodyMetaCsp].filter(Boolean).join("; ");
       if (csp && /frame-ancestors/i.test(csp)) {
         blocked = true;
         reason = reason ? `${reason}; CSP frame-ancestors` : "CSP frame-ancestors";
+      } else if (bodyMetaCsp && /frame-ancestors/i.test(bodyMetaCsp)) {
+        blocked = true;
+        reason = reason ? `${reason}; meta CSP frame-ancestors` : "meta CSP frame-ancestors";
       }
       return jsonResponse({
         url: target,
@@ -590,7 +608,7 @@ async function handleRequest(
         blocked,
         reason,
         xFrameOptions: xfo ?? null,
-        contentSecurityPolicy: csp ?? null,
+        contentSecurityPolicy: allCsp || null,
       });
     } catch (err) {
       return jsonResponse(

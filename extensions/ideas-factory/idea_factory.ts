@@ -173,7 +173,7 @@ const TodosSchema = z.object({
 const ActionSchema = z.object({
   id: z.string(),
   step: z.enum(["cluster", "merge", "refine", "plan", "implement"]),
-  actor: z.enum(["llm", "manual"]),
+  actor: z.enum(["llm", "manual", "agent"]),
   inputIds: z.array(z.string()),
   outputId: z.string().nullable(),
   reasoning: z.string(),
@@ -1990,6 +1990,89 @@ export const model = {
       },
     },
 
+    recordImplementation: {
+      description:
+        "Record an agent's implementation of a plan phase back to the factory: files written, test result, and a summary. Lets the user iterate on what exists via the board.",
+      arguments: z.object({
+        ideaId: z.string(),
+        phase: z.string(),
+        files: z.array(z.string()).optional(),
+        testCommand: z.string().optional(),
+        testPassed: z.boolean().optional(),
+        testOutput: z.string().optional(),
+        summary: z.string().optional(),
+      }),
+      execute: async (
+        args: {
+          ideaId: string;
+          phase: string;
+          files?: string[];
+          testCommand?: string;
+          testPassed?: boolean;
+          testOutput?: string;
+          summary?: string;
+        },
+        context: MethodContext,
+      ) => {
+        const s = await readState(context);
+        const now = new Date().toISOString();
+        const idea = s.ideas.find((i) => i.id === args.ideaId);
+        if (!idea) return { dataHandles: [], error: "idea not found" };
+        const plan = s.plans.find((p) =>
+          p.ideaId === idea.id && p.status !== "superseded"
+        );
+        if (!plan) return { dataHandles: [], error: "no active plan for idea" };
+
+        // Record the test result (verification).
+        if (args.testCommand) {
+          s.verifications.push({
+            id: genId(),
+            ideaId: idea.id,
+            planId: plan.id,
+            phase: args.phase,
+            command: args.testCommand,
+            exitCode: args.testPassed ? 0 : 1,
+            passed: args.testPassed ?? false,
+            output: args.testOutput ?? "",
+            createdAt: now,
+          });
+        }
+
+        // Record the implement action.
+        const fileList = args.files?.length
+          ? ` (${args.files.length} file(s): ${args.files.join(", ")})`
+          : "";
+        s.actions.push({
+          id: genId(),
+          step: "implement",
+          actor: "agent",
+          inputIds: [idea.id],
+          outputId: plan.id,
+          reasoning: (args.summary ?? `implemented ${args.phase}`) + fileList,
+          userPrompt: null,
+          llmResponse: null,
+          before: null,
+          status: "applied",
+          appliedAt: now,
+          revertedAt: null,
+        });
+
+        // Mark the phase's tasks verified if the tests passed.
+        if (args.testPassed) {
+          for (const t of plan.tasks) {
+            if (t.phase === args.phase) t.status = "verified";
+          }
+        }
+
+        await writeState(context, s);
+        context.logger?.info(
+          "Recorded implementation of {phase} for idea {id} (tests {passed})",
+          { phase: args.phase, id: idea.id, passed: args.testPassed ?? "n/a" },
+        );
+        return { dataHandles: [], recorded: true };
+      },
+    },
+
     renderBoard: {
       description:
         "Render a static kanban HTML page over the inbox, ideas, and todos. Writes to outputDir/kanban.html (default ~/.swamp/idea-factory/kanban.html).",
@@ -2020,6 +2103,9 @@ export const model = {
         const plans = ((await context.readResource("plans")) as
           | { plans: Plan[] }
           | null)?.plans ?? [];
+        const verifications = ((await context.readResource("verifications")) as
+          | { verifications: Verification[] }
+          | null)?.verifications ?? [];
 
         const html = renderKanban(
           {
@@ -2030,6 +2116,7 @@ export const model = {
             actions,
             questions,
             plans,
+            verifications,
           },
           new Date().toISOString(),
         );
@@ -2065,6 +2152,7 @@ type BoardData = {
   actions: Action[];
   questions: Question[];
   plans: Plan[];
+  verifications: Verification[];
 };
 
 function esc(s: string): string {
@@ -2191,9 +2279,20 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
             idea?.title ?? p.ideaId
           }" ` +
           `(ideaId=${p.ideaId}).`;
+        const verifs = d.verifications.filter((v) =>
+          v.ideaId === p.ideaId && v.phase === g.name
+        );
+        const latest = verifs[verifs.length - 1];
+        const verifHtml = latest
+          ? `<div class="verification ${
+            latest.passed ? "passed" : "failed"
+          }">tests: ${latest.passed ? "passed" : "failed"} (${
+            esc(latest.command)
+          })</div>`
+          : "";
         return `<div class="phase"><div class="phase-head">${
           esc(g.name)
-        } <span class="phase-count">${g.tasks.length} task(s)</span></div>${tasks}<details class="feedback"><summary>feedback</summary><form action="/api/plan-feedback" method="post"><input type="hidden" name="ideaId" value="${
+        } <span class="phase-count">${g.tasks.length} task(s)</span></div>${tasks}${verifHtml}<details class="feedback"><summary>feedback</summary><form action="/api/plan-feedback" method="post"><input type="hidden" name="ideaId" value="${
           esc(p.ideaId)
         }"><input type="hidden" name="phase" value="${
           esc(g.name)
@@ -2293,6 +2392,9 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   .handoff summary { cursor:pointer; font-size:11px; color:var(--muted); }
   .handoff-prompt { width:100%; min-height:56px; font:inherit; font-size:11px; margin-top:4px; padding:4px; border:1px solid var(--line); border-radius:4px; background:#fafafa; }
   .copy { font-size:11px; margin-top:4px; }
+  .verification { font-size:11px; margin-top:4px; padding:2px 6px; border-radius:4px; }
+  .verification.passed { background:#ecfdf5; color:#065f46; }
+  .verification.failed { background:#fef2f2; color:#991b1b; }
   .target { font-size:11px; color:var(--muted); margin-top:6px; }
   .target-label { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
   .target-control { margin-top:6px; }

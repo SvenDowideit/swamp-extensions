@@ -67,9 +67,26 @@ For each phase in order (`MVP`, then `Iteration 1`, `Iteration 2`, …):
 5. **Commit** on the current branch (`git add -A && git commit`), one commit per
    phase, so each iteration is reviewable and revertible.
 
-### 4. Record the outcome
+### 4. Record the outcome back to the factory
 
-Report back:
+After each phase, record what you did back to the idea factory so the user can
+see it on the board and iterate on what exists:
+
+```bash
+swamp model method run ideas-factory recordImplementation \
+  --input ideaId=<idea-id> \
+  --input phase=<phase-name> \
+  --input 'files:json=["path/a.ts","path/b.ts"]' \
+  --input testCommand="deno test" \
+  --input testPassed=true \
+  --input 'summary=implemented the MVP: add/remove proxy via the admin API'
+```
+
+This records an `implement` action (with the files + summary) and a
+`verification` (test result), and marks the phase's tasks `verified` when the
+tests pass. The board then shows the test result per phase.
+
+Also report back to the user:
 
 - What was implemented (files written, per phase).
 - Test results (pass/fail per acceptance criterion).

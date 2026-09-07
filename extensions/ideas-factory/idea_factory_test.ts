@@ -194,6 +194,7 @@ Deno.test("renderKanban produces a page with the three columns", () => {
       actions: [],
       questions: [],
       plans: [],
+      verifications: [],
     },
     new Date().toISOString(),
   );
@@ -228,6 +229,7 @@ Deno.test("Phase 0: every captured thought stays in the Thoughts column", () => 
       actions: [],
       questions: [],
       plans: [],
+      verifications: [],
     },
     new Date().toISOString(),
   );
@@ -253,6 +255,7 @@ Deno.test("a captured thought with no classification shows as unclassified", () 
       actions: [],
       questions: [],
       plans: [],
+      verifications: [],
     },
     new Date().toISOString(),
   );
@@ -293,6 +296,7 @@ Deno.test("an idea card shows its action (what the LLM did) and a revert control
       }],
       questions: [],
       plans: [],
+      verifications: [],
     },
     now,
   );
@@ -322,6 +326,7 @@ Deno.test("a pending LLM question is shown with an answer form", () => {
         dismissedAt: null,
       }],
       plans: [],
+      verifications: [],
     },
     now,
   );
@@ -359,6 +364,7 @@ Deno.test("an idea-scoped question is shown inside its idea card", () => {
         dismissedAt: null,
       }],
       plans: [],
+      verifications: [],
     },
     now,
   );
@@ -398,6 +404,7 @@ Deno.test("an answered question shows both the question and its answer", () => {
         dismissedAt: null,
       }],
       plans: [],
+      verifications: [],
     },
     now,
   );
@@ -441,6 +448,7 @@ Deno.test("an unanswered question shows a dismiss button; a dismissed one is hid
         },
       ],
       plans: [],
+      verifications: [],
     },
     now,
   );
@@ -470,6 +478,7 @@ Deno.test("an abandoned idea is not shown in the Ideas column", () => {
       actions: [],
       questions: [],
       plans: [],
+      verifications: [],
     },
     now,
   );
@@ -516,6 +525,7 @@ Deno.test("a plan card shows tasks, acceptance criteria, constraints, and unknow
         createdAt: now,
         updatedAt: now,
       }],
+      verifications: [],
     },
     now,
   );
@@ -579,6 +589,7 @@ Deno.test("plan tasks are grouped by phase with a collapsed feedback control", (
         createdAt: now,
         updatedAt: now,
       }],
+      verifications: [],
     },
     now,
   );
@@ -588,6 +599,64 @@ Deno.test("plan tasks are grouped by phase with a collapsed feedback control", (
   assertEquals(html.includes("phase-head"), true);
   assertEquals(html.includes("/api/plan-feedback"), true);
   assertEquals(html.includes("<summary>feedback</summary>"), true);
+});
+
+Deno.test("a plan phase shows its verification (test result)", () => {
+  const now = new Date().toISOString();
+  const html = renderKanban(
+    {
+      thoughts: [],
+      classifications: [],
+      ideas: [{
+        id: "i1",
+        title: "caddy extension",
+        body: "a caddy extension",
+        target: null,
+        status: "captured",
+        sourceThoughtIds: [],
+        createdAt: now,
+        updatedAt: now,
+      }],
+      todos: [],
+      actions: [],
+      questions: [],
+      plans: [{
+        id: "p1",
+        ideaId: "i1",
+        tasks: [{
+          id: "t1",
+          title: "mvp task",
+          description: "d",
+          acceptanceCriteria: ["ac"],
+          testStrategy: "unit",
+          dependencies: [],
+          effort: "small",
+          phase: "MVP",
+          status: "verified",
+        }],
+        constraints: [],
+        assumptions: [],
+        unknowns: [],
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      }],
+      verifications: [{
+        id: "v1",
+        ideaId: "i1",
+        planId: "p1",
+        phase: "MVP",
+        command: "deno test",
+        exitCode: 0,
+        passed: true,
+        output: "ok",
+        createdAt: now,
+      }],
+    },
+    now,
+  );
+  assertEquals(html.includes("tests: passed"), true);
+  assertEquals(html.includes("deno test"), true);
 });
 
 Deno.test("an idea shows its target and a target control", () => {
@@ -613,6 +682,7 @@ Deno.test("an idea shows its target and a target control", () => {
       actions: [],
       questions: [],
       plans: [],
+      verifications: [],
     },
     now,
   );

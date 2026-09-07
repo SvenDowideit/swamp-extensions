@@ -3,19 +3,24 @@ import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
   addRouteToConfig,
   baseConfig,
+  buildCurlArgs,
   buildRoute,
   caddyArch,
   deriveHostname,
   expandHome,
   findRouteByHost,
   listProxyServices,
+  parseAdminAddr,
   parseCaddyVersion,
   parseUpstream,
   removeRouteFromConfig,
+  renderAdminConfig,
   renderDomainConflictError,
   renderMinimalConfig,
   renderServiceUnit,
   renderSettingsGuidance,
+  validateBaseDomain,
+  validateEmail,
 } from "./caddy.ts";
 
 Deno.test("expandHome expands a leading ~ to the home directory", () => {
@@ -242,4 +247,80 @@ Deno.test("listProxyServices extracts services from config", () => {
   assertEquals(services[0].serviceName, "foo");
   assertEquals(services[0].hostname, "foo.example.com");
   assertEquals(services[0].upstream, "127.0.0.1:8080");
+});
+
+// ---------------------------------------------------------------------------
+// Iteration 2: admin API address + vault config helpers
+// ---------------------------------------------------------------------------
+
+Deno.test("parseAdminAddr distinguishes http from unix socket", () => {
+  assertEquals(parseAdminAddr("localhost:2019"), { kind: "http" });
+  assertEquals(parseAdminAddr("unix//run/user/1000/caddy.sock"), {
+    kind: "unix",
+    socketPath: "/run/user/1000/caddy.sock",
+  });
+});
+
+Deno.test("renderAdminConfig returns the listen address", () => {
+  assertEquals(renderAdminConfig("localhost:2019"), {
+    listen: "localhost:2019",
+  });
+  assertEquals(renderAdminConfig("unix//run/user/1000/caddy.sock"), {
+    listen: "unix//run/user/1000/caddy.sock",
+  });
+});
+
+Deno.test("validateBaseDomain accepts bare domains and rejects junk", () => {
+  validateBaseDomain("example.com"); // no throw
+  validateBaseDomain("sub.example.co.uk"); // no throw
+
+  for (const bad of ["", "https://example.com", "example.com/path", "no dot"]) {
+    let threw = false;
+    try {
+      validateBaseDomain(bad);
+    } catch {
+      threw = true;
+    }
+    assertEquals(threw, true, `expected '${bad}' to be rejected`);
+  }
+});
+
+Deno.test("validateEmail accepts valid emails and rejects junk", () => {
+  validateEmail("admin@example.com"); // no throw
+
+  for (const bad of ["", "not-an-email", "a@b", "a b@c.com"]) {
+    let threw = false;
+    try {
+      validateEmail(bad);
+    } catch {
+      threw = true;
+    }
+    assertEquals(threw, true, `expected '${bad}' to be rejected`);
+  }
+});
+
+Deno.test("buildCurlArgs builds a unix-socket request with status capture", () => {
+  const args = buildCurlArgs(
+    "/run/user/1000/caddy.sock",
+    "GET",
+    "/config/",
+  );
+  assertEquals(args[0], "--unix-socket");
+  assertEquals(args[1], "/run/user/1000/caddy.sock");
+  assertStringIncludes(args.join(" "), "-w");
+  assertStringIncludes(args.join(" "), "%{http_code}");
+  assertStringIncludes(args.join(" "), "http://localhost/config/");
+});
+
+Deno.test("buildCurlArgs includes body and bearer token when provided", () => {
+  const args = buildCurlArgs(
+    "/run/user/1000/caddy.sock",
+    "POST",
+    "/config/",
+    { apps: {} },
+    "secret-token",
+  );
+  const joined = args.join(" ");
+  assertStringIncludes(joined, "--data-binary");
+  assertStringIncludes(joined, "Authorization: Bearer secret-token");
 });

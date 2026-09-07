@@ -36,6 +36,22 @@ Iteration 1 adds live reverse-proxy management via the Caddy admin API:
 3. **`startBackendService` / `stopBackendService` / `restartBackendService`** —
    manage backend systemd user services by name via `systemctl --user`.
 
+## What it does (Iteration 2)
+
+Iteration 2 adds Vault integration, admin API protection, and config storage:
+
+1. **`storeConfig`** — validates and writes the base domain, ACME email, and
+   admin API token to the swamp Vault (via `swamp vault put`).
+2. **`syncConfig`** — snapshots the effective config into a swamp resource.
+3. **`getConfig`** — reads the stored config back from the swamp resource.
+4. **Admin API protection** — the admin endpoint can be bound to a permissioned
+   Unix socket by setting `adminApiAddr: unix//path/to/socket`; the client talks
+   over it (Caddy's recommended protection).
+
+Secrets are read from the Vault by setting global arguments to
+`${{ vault.get(<vault>, <key>) }}` expressions (resolved by swamp before the
+method runs) — e.g. `--global-arg 'adminApiToken=${{ vault.get(caddy-secrets, caddy-admin-token) }}'`.
+
 ## Installation
 
 ```sh
@@ -60,6 +76,12 @@ swamp model method run my-caddy removeProxyService \
   --input serviceName=my-app
 swamp model method run my-caddy restartBackendService \
   --input serviceName=my-app
+
+# Iteration 2 — Vault + config
+swamp model method run my-caddy storeConfig \
+  --input baseDomain=example.com --input letsEncryptEmail=admin@example.com
+swamp model method run my-caddy syncConfig
+swamp model method run my-caddy getConfig
 ```
 
 ## Configuration (global arguments)
@@ -68,8 +90,9 @@ swamp model method run my-caddy restartBackendService \
 | ------------------- | -------------------------- | ---------------------------------------- |
 | `caddyBinPath`      | `~/.local/bin/caddy`       | Where the Caddy binary is installed      |
 | `caddyVersion`      | *(latest)*                 | Caddy version to install (e.g. `v2.8.4`) |
-| `adminApiAddr`      | `localhost:2019`           | Caddy admin API listen address          |
+| `adminApiAddr`      | `localhost:2019`           | Caddy admin API listen address (or `unix//path`) |
 | `adminApiToken`     | *(unset)*                  | Optional admin API token (Bearer header) |
+| `vaultName`         | *(unset)*                  | Vault used by `storeConfig` to write secrets |
 | `configPath`        | `~/.config/caddy/Caddyfile` | Caddy config file the service runs     |
 | `serviceName`       | `caddy`                    | systemd user service name               |
 | `baseDomain`        | *(unset)*                  | Base domain for derived hostnames       |

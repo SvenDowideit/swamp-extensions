@@ -23,6 +23,14 @@
  *   - `startBackendService` / `stopBackendService` / `restartBackendService`
  *                          — manage backend systemd user services by name.
  *
+ * Iteration 2 methods:
+ *   - `storeConfig` — validate and write base domain, ACME email, and admin
+ *                     API token to the swamp Vault (helper for setup).
+ *   - `syncConfig`  — snapshot the effective config into a swamp resource.
+ *   - `getConfig`   — read the stored config back from the swamp resource.
+ *   - Admin API protection: the admin endpoint can be bound to a permissioned
+ *     Unix socket (`adminApiAddr: unix//path`); the client talks over it.
+ *
  * Linux-only: it shells out to `systemctl --user` and manages a systemd user
  * service. Pure helpers (unit rendering, path expansion, version parsing,
  * guidance rendering) are exported for unit testing.
@@ -62,6 +70,9 @@ const GlobalArgsSchema = z.object({
   ),
   adminApiToken: z.string().optional().describe(
     "Optional admin API token (sent as a Bearer header when set)",
+  ),
+  vaultName: z.string().optional().describe(
+    "Vault name used by storeConfig to write secrets (e.g. caddy-secrets)",
   ),
 }).strict();
 
@@ -114,6 +125,23 @@ const BackendServiceArgsSchema = z.object({
   ),
 });
 
+const StoreConfigArgsSchema = z.object({
+  baseDomain: z.string().optional().describe(
+    "Base domain to store in the Vault (e.g. example.com)",
+  ),
+  letsEncryptEmail: z.string().optional().describe(
+    "Let's Encrypt / ACME email to store in the Vault",
+  ),
+  adminApiToken: z.string().optional().describe(
+    "Admin API token to store in the Vault",
+  ),
+  vaultName: z.string().optional().describe(
+    "Override the Vault name (defaults to global vaultName)",
+  ),
+});
+
+const SyncConfigArgsSchema = z.object({});
+
 // ---------------------------------------------------------------------------
 // Resource output schemas
 // ---------------------------------------------------------------------------
@@ -151,6 +179,15 @@ const ProxyServiceSchema = z.object({
 const ProxyServicesOutputSchema = z.object({
   services: z.array(ProxyServiceSchema),
   updatedAt: z.string(),
+});
+
+const ConfigOutputSchema = z.object({
+  baseDomain: z.string(),
+  letsEncryptEmail: z.string(),
+  adminApiAddr: z.string(),
+  adminApiTokenSet: z.boolean(),
+  vaultName: z.string(),
+  syncedAt: z.string(),
 });
 
 // ---------------------------------------------------------------------------
@@ -482,6 +519,80 @@ export function listProxyServices(
 }
 
 // ---------------------------------------------------------------------------
+// Admin API address + vault config pure helpers (exported for unit testing)
+// ---------------------------------------------------------------------------
+
+/** Parse an admin API address into an HTTP or Unix-socket endpoint. */
+export function parseAdminAddr(
+  addr: string,
+): { kind: "http" | "unix"; socketPath?: string } {
+  if (addr.startsWith("unix/")) {
+    return { kind: "unix", socketPath: addr.slice("unix/".length) };
+  }
+  return { kind: "http" };
+}
+
+/** Render the Caddy `admin` config object for a given listen address. */
+export function renderAdminConfig(adminApiAddr: string): { listen: string } {
+  return { listen: adminApiAddr };
+}
+
+/** Validate a base domain (bare hostname, no scheme/path). Throws if invalid. */
+export function validateBaseDomain(domain: string): void {
+  if (!domain) throw new Error("base domain is required");
+  if (domain.includes("://") || domain.includes("/") || /\s/.test(domain)) {
+    throw new Error(
+      `Invalid base domain '${domain}': expected a bare domain like example.com`,
+    );
+  }
+  if (!/^[a-z0-9.-]+$/i.test(domain) || !domain.includes(".")) {
+    throw new Error(
+      `Invalid base domain '${domain}': expected a bare domain like example.com`,
+    );
+  }
+}
+
+/** Validate an email address. Throws if invalid. */
+export function validateEmail(email: string): void {
+  if (!email) throw new Error("email is required");
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    throw new Error(`Invalid email '${email}'`);
+  }
+}
+
+/** Build curl arguments for a request over a Unix socket. */
+export function buildCurlArgs(
+  socketPath: string,
+  method: string,
+  path: string,
+  body?: unknown,
+  token?: string,
+): string[] {
+  const args = [
+    "--unix-socket",
+    socketPath,
+    "-sS",
+    "-w",
+    "\n%{http_code}",
+    "-X",
+    method,
+    `http://localhost${path}`,
+  ];
+  if (body !== undefined) {
+    args.push(
+      "-H",
+      "Content-Type: application/json",
+      "--data-binary",
+      JSON.stringify(body),
+    );
+  }
+  if (token) {
+    args.push("-H", `Authorization: Bearer ${token}`);
+  }
+  return args;
+}
+
+// ---------------------------------------------------------------------------
 // Command helpers
 // ---------------------------------------------------------------------------
 
@@ -599,33 +710,68 @@ async function writeUnitFile(
 }
 
 async function checkAdminApi(adminApiAddr: string): Promise<boolean> {
-  const url = `http://${adminApiAddr}/config/`;
   try {
-    const resp = await fetch(url);
-    return resp.ok;
+    const resp = await adminApiRequest(adminApiAddr, "GET", "/config/");
+    return resp.status >= 200 && resp.status < 300;
   } catch {
     return false;
   }
 }
 
-/** Issue a request against the Caddy admin API (JSON). */
+/** A normalized admin API response (status + body text). */
+type AdminResponse = { status: number; body: string };
+
+/** Issue a request against the Caddy admin API (JSON), over HTTP or a Unix socket. */
 async function adminApiRequest(
   adminApiAddr: string,
   method: string,
   path: string,
   body?: unknown,
   token?: string,
-): Promise<Response> {
+): Promise<AdminResponse> {
+  const addr = parseAdminAddr(adminApiAddr);
+  if (addr.kind === "unix") {
+    return await adminApiRequestUnix(
+      addr.socketPath ?? "",
+      method,
+      path,
+      body,
+      token,
+    );
+  }
   const url = `http://${adminApiAddr}${path}`;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  return await fetch(url, {
+  const resp = await fetch(url, {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  return { status: resp.status, body: await resp.text() };
+}
+
+/** Issue a request against the admin API over a Unix socket via curl. */
+async function adminApiRequestUnix(
+  socketPath: string,
+  method: string,
+  path: string,
+  body?: unknown,
+  token?: string,
+): Promise<AdminResponse> {
+  const args = buildCurlArgs(socketPath, method, path, body, token);
+  const result = await runCmd("curl", args);
+  if (result.code !== 0) {
+    throw new Error(
+      `curl failed (${result.code}): ${result.stderr || result.stdout}`,
+    );
+  }
+  const lines = result.stdout.split("\n");
+  const statusLine = lines[lines.length - 1].trim();
+  const status = Number.parseInt(statusLine, 10);
+  const bodyText = lines.slice(0, -1).join("\n");
+  return { status: Number.isNaN(status) ? 200 : status, body: bodyText };
 }
 
 /** Read the current Caddy JSON config (base config when none is set). */
@@ -641,12 +787,17 @@ async function readConfig(
     token,
   );
   if (resp.status === 404) return baseConfig();
-  if (!resp.ok) {
+  if (resp.status < 200 || resp.status >= 300) {
     throw new Error(
-      `Failed to read Caddy config (${resp.status}): ${await resp.text()}`,
+      `Failed to read Caddy config (${resp.status}): ${resp.body}`,
     );
   }
-  const body = await resp.json();
+  let body: unknown;
+  try {
+    body = JSON.parse(resp.body);
+  } catch {
+    return baseConfig();
+  }
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return baseConfig();
   }
@@ -666,9 +817,35 @@ async function writeConfig(
     config,
     token,
   );
-  if (!resp.ok) {
+  if (resp.status < 200 || resp.status >= 300) {
     throw new Error(
-      `Failed to apply Caddy config (${resp.status}): ${await resp.text()}`,
+      `Failed to apply Caddy config (${resp.status}): ${resp.body}`,
+    );
+  }
+}
+
+/** Write a secret to the swamp Vault via `swamp vault put` (value on stdin). */
+async function vaultPut(
+  vaultName: string,
+  key: string,
+  value: string,
+): Promise<void> {
+  const proc = new Deno.Command("swamp", {
+    args: ["vault", "put", vaultName, key, "--json"],
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "piped",
+  });
+  const child = proc.spawn();
+  const writer = child.stdin.getWriter();
+  await writer.write(new TextEncoder().encode(value));
+  await writer.close();
+  const out = await child.output();
+  if (out.code !== 0) {
+    throw new Error(
+      `swamp vault put ${vaultName} ${key} failed (${out.code}): ${
+        new TextDecoder().decode(out.stderr)
+      }`,
     );
   }
 }
@@ -711,7 +888,7 @@ type MethodContext = {
 
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.09.07.2",
+  version: "2026.09.07.3",
   globalArguments: GlobalArgsSchema,
   resources: {
     install: {
@@ -735,6 +912,12 @@ export const model = {
     proxyServices: {
       description: "Current reverse-proxy services managed by Caddy",
       schema: ProxyServicesOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    config: {
+      description: "Effective Caddy configuration snapshot",
+      schema: ConfigOutputSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -1055,6 +1238,113 @@ export const model = {
           serviceName: args.serviceName,
         });
         return { dataHandles: [] };
+      },
+    },
+
+    storeConfig: {
+      description:
+        "Validate and write base domain, ACME email, and admin API token to the Vault",
+      arguments: StoreConfigArgsSchema,
+      execute: async (
+        args: z.infer<typeof StoreConfigArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const vaultName = args.vaultName ?? g.vaultName;
+        if (!vaultName) {
+          throw new Error(
+            "vaultName is required — set it as a global argument or pass it to storeConfig",
+          );
+        }
+
+        const stored: string[] = [];
+        if (args.baseDomain !== undefined) {
+          validateBaseDomain(args.baseDomain);
+          await vaultPut(vaultName, "caddy-base-domain", args.baseDomain);
+          stored.push("baseDomain");
+        }
+        if (args.letsEncryptEmail !== undefined) {
+          validateEmail(args.letsEncryptEmail);
+          await vaultPut(
+            vaultName,
+            "caddy-letsencrypt-email",
+            args.letsEncryptEmail,
+          );
+          stored.push("letsEncryptEmail");
+        }
+        if (args.adminApiToken !== undefined) {
+          if (args.adminApiToken.length < 8) {
+            throw new Error("admin API token must be at least 8 characters");
+          }
+          await vaultPut(vaultName, "caddy-admin-token", args.adminApiToken);
+          stored.push("adminApiToken");
+        }
+        if (stored.length === 0) {
+          throw new Error(
+            "Nothing to store — pass baseDomain, letsEncryptEmail, and/or adminApiToken",
+          );
+        }
+
+        context.logger?.info(
+          "Stored {keys} in Vault {vaultName}",
+          { keys: stored.join(", "), vaultName },
+        );
+
+        const handle = await context.writeResource("config", "current", {
+          baseDomain: args.baseDomain ?? g.baseDomain ?? "",
+          letsEncryptEmail: args.letsEncryptEmail ?? g.letsEncryptEmail ?? "",
+          adminApiAddr: g.adminApiAddr,
+          adminApiTokenSet: args.adminApiToken !== undefined ||
+            g.adminApiToken !== undefined,
+          vaultName,
+          syncedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    syncConfig: {
+      description: "Snapshot the effective config into a swamp resource",
+      arguments: SyncConfigArgsSchema,
+      execute: async (
+        _args: z.infer<typeof SyncConfigArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const handle = await context.writeResource("config", "current", {
+          baseDomain: g.baseDomain ?? "",
+          letsEncryptEmail: g.letsEncryptEmail ?? "",
+          adminApiAddr: g.adminApiAddr,
+          adminApiTokenSet: g.adminApiToken !== undefined,
+          vaultName: g.vaultName ?? "",
+          syncedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    getConfig: {
+      description: "Read the stored config back from the swamp resource",
+      arguments: SyncConfigArgsSchema,
+      execute: async (
+        _args: z.infer<typeof SyncConfigArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const stored = await context.readResource("config");
+        if (!stored) {
+          throw new Error(
+            "No stored config — run syncConfig (or storeConfig) first",
+          );
+        }
+        const handle = await context.writeResource("config", "current", {
+          baseDomain: (stored.baseDomain as string) ?? "",
+          letsEncryptEmail: (stored.letsEncryptEmail as string) ?? "",
+          adminApiAddr: (stored.adminApiAddr as string) ?? "",
+          adminApiTokenSet: (stored.adminApiTokenSet as boolean) ?? false,
+          vaultName: (stored.vaultName as string) ?? "",
+          syncedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
       },
     },
   },

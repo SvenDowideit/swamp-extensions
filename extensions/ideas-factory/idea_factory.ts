@@ -107,10 +107,27 @@ const ClassificationsSchema = z.object({
   classifiedAt: z.iso.datetime(),
 });
 
+// ---------------------------------------------------------------------------
+// Phase 3: target (where an idea's implementation lands)
+// ---------------------------------------------------------------------------
+
+const TargetSchema = z.object({
+  type: z.enum(["directory", "git-repo", "new-project"]),
+  path: z.string().optional().describe("Local directory path (type=directory)"),
+  url: z.string().optional().describe("Git URL (type=git-repo)"),
+  language: z.string().optional().describe(
+    "Language for a new project (type=new-project)",
+  ),
+  structure: z.string().optional().describe(
+    "Structural choices for a new project: module layout, build tool, test runner",
+  ),
+});
+
 const IdeaSchema = z.object({
   id: z.string(),
   title: z.string(),
   body: z.string(),
+  target: TargetSchema.nullable().default(null),
   status: z.enum([
     "captured",
     "researching",
@@ -235,6 +252,7 @@ const PlansSchema = z.object({
 type Thought = z.infer<typeof ThoughtSchema>;
 type Classification = z.infer<typeof ClassificationSchema>;
 type Idea = z.infer<typeof IdeaSchema>;
+type Target = z.infer<typeof TargetSchema>;
 type Todo = z.infer<typeof TodoSchema>;
 type Action = z.infer<typeof ActionSchema>;
 type Question = z.infer<typeof QuestionSchema>;
@@ -954,6 +972,7 @@ export const model = {
             id: genId(),
             title: g.title,
             body: g.body,
+            target: null,
             status: "captured",
             sourceThoughtIds: g.thoughtIds,
             createdAt: now,
@@ -1074,6 +1093,7 @@ export const model = {
             id: genId(),
             title: toTitle(thought.raw),
             body: mergedBody ?? thought.raw,
+            target: null,
             status: "captured",
             sourceThoughtIds: [thought.id],
             createdAt: now,
@@ -1633,6 +1653,44 @@ export const model = {
       },
     },
 
+    setTarget: {
+      description:
+        "Link an idea to a target: a directory, a git repo URL, or a new project (with language + structure).",
+      arguments: z.object({
+        ideaId: z.string(),
+        type: z.enum(["directory", "git-repo", "new-project"]),
+        path: z.string().optional(),
+        url: z.string().optional(),
+        language: z.string().optional(),
+        structure: z.string().optional(),
+      }),
+      execute: async (
+        args: {
+          ideaId: string;
+          type: "directory" | "git-repo" | "new-project";
+          path?: string;
+          url?: string;
+          language?: string;
+          structure?: string;
+        },
+        context: MethodContext,
+      ) => {
+        const s = await readState(context);
+        const idea = s.ideas.find((i) => i.id === args.ideaId);
+        if (!idea) return { dataHandles: [], error: "idea not found" };
+        idea.target = {
+          type: args.type,
+          path: args.path,
+          url: args.url,
+          language: args.language,
+          structure: args.structure,
+        };
+        idea.updatedAt = new Date().toISOString();
+        await writeState(context, s);
+        return { dataHandles: [], target: idea.target };
+      },
+    },
+
     renderBoard: {
       description:
         "Render a static kanban HTML page over the inbox, ideas, and todos. Writes to outputDir/kanban.html (default ~/.swamp/idea-factory/kanban.html).",
@@ -1779,6 +1837,17 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
         qs.map(questionHtml).join("")
       }</div>`
       : "";
+    const targetHtml = i.target
+      ? `<div class="target"><span class="target-label">target</span> ${
+        esc(i.target.type)
+      }${i.target.path ? ` · ${esc(i.target.path)}` : ""}${
+        i.target.url ? ` · ${esc(i.target.url)}` : ""
+      }${i.target.language ? ` · ${esc(i.target.language)}` : ""}</div>`
+      : "";
+    const targetControl =
+      `<details class="target-control"><summary>target</summary><form action="/api/set-target" method="post"><input type="hidden" name="ideaId" value="${
+        esc(i.id)
+      }"><select name="type"><option value="directory">directory</option><option value="git-repo">git repo</option><option value="new-project">new project</option></select><input type="text" name="path" placeholder="path (directory)"><input type="text" name="url" placeholder="url (git-repo)"><input type="text" name="language" placeholder="language (new-project)"><input type="text" name="structure" placeholder="structure (new-project)"><button type="submit">set</button></form></details>`;
     return `<div class="card idea-card"><div class="card-title">${
       esc(i.title)
     }</div><div class="card-meta">${
@@ -1787,7 +1856,7 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
       esc(i.body)
     }</div>${
       actHtml ? `<div class="actions">${actHtml}</div>` : ""
-    }${qHtml}<form class="inline" action="/api/plan" method="post"><input type="hidden" name="ideaId" value="${
+    }${qHtml}${targetHtml}${targetControl}<form class="inline" action="/api/plan" method="post"><input type="hidden" name="ideaId" value="${
       esc(i.id)
     }"><input type="text" name="userPrompt" placeholder="Optional planning instruction…"><button type="submit">plan</button></form><form class="inline" action="/api/modify" method="post"><input type="hidden" name="actionId" value="${
       esc(acts[0]?.id ?? "")
@@ -1913,6 +1982,12 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   .feedback { margin-top:6px; }
   .feedback summary { cursor:pointer; font-size:11px; color:var(--muted); }
   .feedback textarea { width:100%; min-height:48px; font:inherit; font-size:12px; margin-top:4px; padding:4px; border:1px solid var(--line); border-radius:4px; }
+  .target { font-size:11px; color:var(--muted); margin-top:6px; }
+  .target-label { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  .target-control { margin-top:6px; }
+  .target-control summary { cursor:pointer; font-size:11px; color:var(--muted); }
+  .target-control form { display:flex; flex-direction:column; gap:4px; margin-top:4px; }
+  .target-control input, .target-control select { font:inherit; font-size:12px; padding:3px; border:1px solid var(--line); border-radius:4px; }
   .plan-extra { font-size:11px; color:var(--muted); margin-top:4px; }
   .plan-extra.unknown { color:#b45309; }
   .questions-inline { margin-top:8px; border-top:1px dashed var(--line); padding-top:6px; }

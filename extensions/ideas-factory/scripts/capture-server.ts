@@ -224,6 +224,23 @@ async function handler(req: Request): Promise<Response> {
     return respond(req, true);
   }
 
+  if (url.pathname === "/api/set-target") {
+    if (!body.ideaId || !body.type) {
+      return json(400, { ok: false, error: "ideaId and type required" });
+    }
+    const r = await runMethod("setTarget", {
+      ideaId: body.ideaId,
+      type: body.type,
+      ...(body.path ? { path: body.path } : {}),
+      ...(body.url ? { url: body.url } : {}),
+      ...(body.language ? { language: body.language } : {}),
+      ...(body.structure ? { structure: body.structure } : {}),
+    });
+    if (!r.ok) return respond(req, false, { error: r.output });
+    await renderBoard();
+    return respond(req, true);
+  }
+
   return json(404, { ok: false, error: "not found" });
 }
 

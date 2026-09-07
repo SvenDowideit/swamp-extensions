@@ -167,6 +167,7 @@ Deno.test("renderKanban produces a page with the three columns", () => {
         title: "a tool",
         body: "build a tool",
         status: "captured",
+        target: null,
         sourceThoughtIds: ["t1"],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -252,6 +253,7 @@ Deno.test("an idea card shows its action (what the LLM did) and a revert control
         title: "caddy extension",
         body: "a caddy extension",
         status: "captured",
+        target: null,
         sourceThoughtIds: ["t1", "t2"],
         createdAt: now,
         updatedAt: now,
@@ -320,6 +322,7 @@ Deno.test("an idea-scoped question is shown inside its idea card", () => {
         title: "caddy extension",
         body: "a caddy extension",
         status: "captured",
+        target: null,
         sourceThoughtIds: [],
         createdAt: now,
         updatedAt: now,
@@ -358,6 +361,7 @@ Deno.test("an answered question shows both the question and its answer", () => {
         title: "caddy extension",
         body: "a caddy extension",
         status: "captured",
+        target: null,
         sourceThoughtIds: [],
         createdAt: now,
         updatedAt: now,
@@ -439,6 +443,7 @@ Deno.test("an abandoned idea is not shown in the Ideas column", () => {
         title: "abandoned idea",
         body: "x",
         status: "abandoned",
+        target: null,
         sourceThoughtIds: [],
         createdAt: now,
         updatedAt: now,
@@ -464,6 +469,7 @@ Deno.test("a plan card shows tasks, acceptance criteria, constraints, and unknow
         title: "caddy extension",
         body: "a caddy extension",
         status: "captured",
+        target: null,
         sourceThoughtIds: [],
         createdAt: now,
         updatedAt: now,
@@ -513,6 +519,7 @@ Deno.test("plan tasks are grouped by phase with a collapsed feedback control", (
         title: "caddy extension",
         body: "a caddy extension",
         status: "captured",
+        target: null,
         sourceThoughtIds: [],
         createdAt: now,
         updatedAt: now,
@@ -563,4 +570,35 @@ Deno.test("plan tasks are grouped by phase with a collapsed feedback control", (
   assertEquals(html.includes("phase-head"), true);
   assertEquals(html.includes("/api/plan-feedback"), true);
   assertEquals(html.includes("<summary>feedback</summary>"), true);
+});
+
+Deno.test("an idea shows its target and a target control", () => {
+  const now = new Date().toISOString();
+  const html = renderKanban(
+    {
+      thoughts: [],
+      classifications: [],
+      ideas: [{
+        id: "i1",
+        title: "caddy extension",
+        body: "a caddy extension",
+        target: {
+          type: "directory",
+          path: "/home/sven/src/swamp-project",
+        },
+        status: "captured",
+        sourceThoughtIds: [],
+        createdAt: now,
+        updatedAt: now,
+      }],
+      todos: [],
+      actions: [],
+      questions: [],
+      plans: [],
+    },
+    now,
+  );
+  assertEquals(html.includes("/home/sven/src/swamp-project"), true);
+  assertEquals(html.includes("directory"), true);
+  assertEquals(html.includes("/api/set-target"), true);
 });

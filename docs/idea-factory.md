@@ -382,6 +382,7 @@ secret retrieval" tasks reflecting the user's answers).
   - `new-project` — a fresh project, with explicit `language` + structural choices
     (module layout, build tool, test runner).
   Stored on the plan (e.g. `target: { type, path|url, language?, structure? }`).
+  The target is set **both** from the idea card (UI) and via CLI (`setTarget`).
 - **Language matching:** for an existing codebase, detect the language/tooling
   from the repo (e.g. `go.mod` → Go, `package.json` → Node, `deno.json` → Deno,
   `Cargo.toml` → Rust, …) and match it. For a new project, the plan carries the
@@ -389,6 +390,8 @@ secret retrieval" tasks reflecting the user's answers).
 - **`implementPlan`** (LLM, `allowFailure`) → `artifacts`: iteratively write
   **code, docs, and tests** for each task into the target — MVP phase first, then
   each iteration — so the user can review a working slice before the next.
+  Writes go **directly into the target using git** (a branch + commit per
+  iteration, so the work is reviewable and revertible).
 - **`runTests`** (deterministic) → `verification`: run the target's test suite
   (matching the detected language/tooling), record pass/fail per acceptance
   criterion.

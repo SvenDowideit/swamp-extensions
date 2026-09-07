@@ -25,6 +25,7 @@ merge → refine) of the "idea factory" design in `docs/idea-factory.md`.
 | `dismissQuestion` | `questions`      | 1 (manual) |
 | `planIdea`        | `plans`, `actions`, `questions` | 2 (LLM) |
 | `planFeedback`    | `inbox`, `classification`, `ideas`, `actions` | 2 (LLM) |
+| `setTarget`       | `ideas`          | 3 (manual) |
 | `renderBoard`     | `board` (file)   | 0     |
 
 Resources: `inbox`, `classification`, `ideas`, `todos`, `actions`, `questions`,

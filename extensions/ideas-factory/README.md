@@ -1,4 +1,4 @@
-# @svendowideit/idea-factory
+# @svendowideit/ideas-factory
 
 A swamp model type that captures raw thoughts, classifies them, and routes them
 into common ideas or todos — **everything stored in swamp model data resources**.
@@ -9,7 +9,7 @@ classifier and a kanban board renderer.
 
 ## Model type
 
-`@svendowideit/idea-factory` — one type, many methods, all data in resources:
+`@svendowideit/ideas-factory` — one type, many methods, all data in resources:
 
 | Method            | Writes to        | Deterministic |
 | ----------------- | ---------------- | ------------- |
@@ -27,16 +27,16 @@ Classification kinds: `new-idea`, `refinement`, `minor-rethink`,
 
 ```bash
 # Capture a thought
-swamp model method run idea-factory ingestThought --input 'raw=build a caching layer'
+swamp model method run ideas-factory ingestThought --input 'raw=build a caching layer'
 
 # Classify + route + render the board
-swamp workflow run idea-factory
+swamp workflow run ideas-factory
 
 # View data
-swamp data get idea-factory ideas --json | jq .content.ideas
+swamp data get ideas-factory ideas --json | jq .content.ideas
 ```
 
-The `idea-factory` workflow chains `classifyThought → routeThought → renderBoard`
+The `ideas-factory` workflow chains `classifyThought → routeThought → renderBoard`
 with idempotent guards (a `routed` flag prevents re-routing).
 
 ## Web UI

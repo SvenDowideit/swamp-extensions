@@ -1,5 +1,5 @@
 /**
- * Report extension for @svendowideit/idea-factory — formats the classify/route
+ * Report extension for @svendowideit/ideas-factory — formats the classify/route
  * output as a short human summary printed after the method runs.
  *
  * @module
@@ -33,7 +33,7 @@ type MethodReportContext = {
 
 /** Report definition for the idea-factory summary. */
 export const report = {
-  name: "@svendowideit/idea-factory-summary",
+  name: "@svendowideit/ideas-factory-summary",
   description: "Summarise the idea-factory classify/route run",
   scope: "method",
   labels: ["idea-factory", "summary"],
@@ -95,9 +95,11 @@ async function classificationSummary(
     "| Kind | Count |",
     "| ---- | ----- |",
   ];
-  for (const [kind, count] of [...byKind.entries()].sort(
-    (a, b) => b[1] - a[1],
-  )) {
+  for (
+    const [kind, count] of [...byKind.entries()].sort(
+      (a, b) => b[1] - a[1],
+    )
+  ) {
     lines.push(`| ${kind} | ${count} |`);
   }
   return lines.join("\n");

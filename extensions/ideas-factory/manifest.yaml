@@ -1,0 +1,36 @@
+manifestVersion: 1
+name: "@svendowideit/ideas-factory"
+version: "2026.09.07.1"
+description: >
+  Idea factory — capture thoughts, classify them, route new-idea / todo thoughts
+  into common ideas and todos, and render a kanban board. Everything is stored
+  in swamp model data resources (inbox, classification, ideas, todos). Phase 0:
+  deterministic keyword classification + a web capture front end.
+
+  Install: swamp extension pull @svendowideit/ideas-factory.
+  The idea-factory model instance is auto-registered on first run of the
+  ideas-factory workflow — no manual swamp model create needed.
+  Run: swamp workflow run @svendowideit/ideas-factory
+  UI: ~/.swamp/deno/deno run --allow-net --allow-read --allow-write --allow-env --allow-run scripts/capture-server.ts
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - idea_factory.ts
+
+reports:
+  - idea_factory_report.ts
+
+workflows:
+  - ideas-factory.yaml
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - idea_factory_test.ts
+  - scripts/capture-server.ts
+
+platforms: []

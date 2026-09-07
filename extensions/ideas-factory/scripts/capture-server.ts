@@ -3,7 +3,7 @@
  * accepts new thoughts via POST /api/capture.
  *
  * The capture endpoint enqueues the thought by invoking the swamp model method
- * `ingestThought`, then runs the `idea-factory` workflow (classify -> route ->
+ * `ingestThought`, then runs the `ideas-factory` workflow (classify -> route ->
  * render) so the board reflects the new thought.
  *
  * Usage:
@@ -18,14 +18,7 @@ import { z } from "npm:zod@4";
 
 const PORT = parseInt(Deno.env.get("IDEA_FACTORY_PORT") ?? "8877");
 const BOARD_PATH = Deno.env.get("IDEA_FACTORY_BOARD") ??
-  `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/idea-factory/kanban.html`;
-
-const CaptureBodySchema = z.object({
-  raw: z.string().min(1),
-  source: z.string().optional(),
-});
-
-const encoder = new TextEncoder();
+  `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/ideas-factory/kanban.html`;
 
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
@@ -34,8 +27,14 @@ function json(status: number, body: Record<string, unknown>) {
   });
 }
 
-async function runSwamp(args: string[]): Promise<{ ok: boolean; output: string }> {
-  const cmd = new Deno.Command("swamp", { args, stdout: "piped", stderr: "piped" });
+async function runSwamp(
+  args: string[],
+): Promise<{ ok: boolean; output: string }> {
+  const cmd = new Deno.Command("swamp", {
+    args,
+    stdout: "piped",
+    stderr: "piped",
+  });
   const { code, stdout, stderr } = await cmd.output();
   const out = new TextDecoder().decode(stdout);
   const err = new TextDecoder().decode(stderr);
@@ -45,13 +44,16 @@ async function runSwamp(args: string[]): Promise<{ ok: boolean; output: string }
 async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
 
-  if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+  if (
+    req.method === "GET" &&
+    (url.pathname === "/" || url.pathname === "/index.html")
+  ) {
     try {
       const html = await Deno.readTextFile(BOARD_PATH);
       return new Response(html, { headers: { "content-type": "text/html" } });
     } catch {
       return new Response(
-        "<h1>Idea Factory board not generated yet</h1><p>Run: swamp workflow run idea-factory</p>",
+        "<h1>Idea Factory board not generated yet</h1><p>Run: swamp workflow run ideas-factory</p>",
         { headers: { "content-type": "text/html" }, status: 200 },
       );
     }
@@ -82,7 +84,7 @@ async function handler(req: Request): Promise<Response> {
       "model",
       "method",
       "run",
-      "idea-factory",
+      "ideas-factory",
       "ingestThought",
       "--input",
       `raw=${raw}`,
@@ -93,8 +95,15 @@ async function handler(req: Request): Promise<Response> {
       return json(500, { ok: false, error: ingest.output });
     }
 
-    // Classify, route, and re-render the board.
-    await runSwamp(["workflow", "run", "idea-factory", "--skip-reports"]);
+    // Classify, route, and re-render the board to the same path we serve.
+    await runSwamp([
+      "workflow",
+      "run",
+      "@svendowideit/ideas-factory",
+      "--input",
+      `boardPath=${BOARD_PATH}`,
+      "--skip-reports",
+    ]);
 
     return json(200, { ok: true });
   }

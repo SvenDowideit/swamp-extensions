@@ -53,9 +53,28 @@ Deno.test("inferTodoList maps a household chore to household", () => {
 Deno.test("renderKanban produces a page with the three columns", () => {
   const html = renderKanban(
     {
-      thoughts: [{ id: "t1", raw: "build a tool", source: "text", capturedAt: new Date().toISOString(), status: "classified" }],
-      classifications: [{ thoughtId: "t1", kind: "new-idea", confidence: 0.8, reasoning: "k", classifiedAt: new Date().toISOString(), routed: false }],
-      ideas: [{ id: "i1", title: "a tool", body: "build a tool", status: "captured", createdAt: new Date().toISOString() }],
+      thoughts: [{
+        id: "t1",
+        raw: "build a tool",
+        source: "text",
+        capturedAt: new Date().toISOString(),
+        status: "classified",
+      }],
+      classifications: [{
+        thoughtId: "t1",
+        kind: "new-idea",
+        confidence: 0.8,
+        reasoning: "k",
+        classifiedAt: new Date().toISOString(),
+        routed: false,
+      }],
+      ideas: [{
+        id: "i1",
+        title: "a tool",
+        body: "build a tool",
+        status: "captured",
+        createdAt: new Date().toISOString(),
+      }],
       todos: [],
     },
     new Date().toISOString(),

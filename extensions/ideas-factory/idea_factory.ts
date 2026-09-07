@@ -1,7 +1,7 @@
 /**
  * Idea factory — capture, classify, and route thoughts (Phase 0).
  *
- * A single model type (`@svendowideit/idea-factory`) whose methods each write a
+ * A single model type (`@svendowideit/ideas-factory`) whose methods each write a
  * named data resource, mirroring the news stack's "one model, many methods"
  * pattern. All data lives in swamp model data resources:
  *
@@ -185,29 +185,47 @@ export function toTitle(raw: string, maxLen = 60): string {
 /** Keyword -> weight table per classification kind. */
 const KIND_KEYWORDS: Record<ClassificationKind, [RegExp, number][]> = {
   "new-idea": [
-    [/\b(build|make|create|design|idea|feature|refactor|rewrite|project|app|tool|system|service|module)\b/i, 2],
+    [
+      /\b(build|make|create|design|idea|feature|refactor|rewrite|project|app|tool|system|service|module)\b/i,
+      2,
+    ],
     [/\b(should|could|would|could|worth|experiment|prototype|poc)\b/i, 1],
     [/\b(test|tests|testing|unit|integration|ci|deploy|pipeline)\b/i, 1],
   ],
   refinement: [
-    [/\b(add|improve|extend|update|change|tweak|adjust|modify|instead|better)\b/i, 2],
+    [
+      /\b(add|improve|extend|update|change|tweak|adjust|modify|instead|better)\b/i,
+      2,
+    ],
     [/\b(then|also|optionally|we could|we should)\b/i, 1],
   ],
   "minor-rethink": [
     [/\b(what if|consider|reconsider|instead of|swap|replace)\b/i, 2],
   ],
   "major-rethink": [
-    [/\b(rethink|rethink\b|scrap|abandon|start over|fundamentally|completely rewrite)\b/i, 3],
+    [
+      /\b(rethink|rethink\b|scrap|abandon|start over|fundamentally|completely rewrite)\b/i,
+      3,
+    ],
   ],
   duplicate: [
     [/\b(same as|already|as discussed|like we talked|ditto|again)\b/i, 2],
   ],
   todo: [
-    [/\b(buy|call|email|remember|remind|todo|to-do|need to|should do|must|don't forget|pick up|fix|install|send|pay|book|schedule|make appointment)\b/i, 2],
-    [/\b(shopping|groceries|milk|dentist|doctor|haircut|submit|file|wash|clean)\b/i, 2],
+    [
+      /\b(buy|call|email|remember|remind|todo|to-do|need to|should do|must|don't forget|pick up|fix|install|send|pay|book|schedule|make appointment)\b/i,
+      2,
+    ],
+    [
+      /\b(shopping|groceries|milk|dentist|doctor|haircut|submit|file|wash|clean)\b/i,
+      2,
+    ],
   ],
   note: [
-    [/\b(note|note that|fyi|for reference|context|interesting|read|article|book)\b/i, 2],
+    [
+      /\b(note|note that|fyi|for reference|context|interesting|read|article|book)\b/i,
+      2,
+    ],
   ],
   noise: [
     [/^(hi|hello|ok|okay|thanks|thanks|test|testing 123|asdf|xyz)$/i, 3],
@@ -226,10 +244,12 @@ export function classifyByKeywords(raw: string): Classification {
   let bestScore = 0;
 
   // Todo & note detection should outvote generic idea words when they appear.
-  for (const [kind, rules] of Object.entries(KIND_KEYWORDS) as [
-    ClassificationKind,
-    [RegExp, number][],
-  ][]) {
+  for (
+    const [kind, rules] of Object.entries(KIND_KEYWORDS) as [
+      ClassificationKind,
+      [RegExp, number][],
+    ][]
+  ) {
     let score = 0;
     for (const [re, weight] of rules) {
       const m = text.match(re);
@@ -265,10 +285,15 @@ export function classifyByKeywords(raw: string): Classification {
 export function inferTodoList(raw: string): Todo["list"] {
   const t = raw.toLowerCase();
   if (/(grocer|milk|food|buy|shop)/.test(t)) return "shopping";
-  if (/(dentist|doctor|appointment|schedule|call .*bank|renter|barber|haircut)/.test(t)) {
+  if (
+    /(dentist|doctor|appointment|schedule|call .*bank|renter|barber|haircut)/
+      .test(t)
+  ) {
     return "appointments";
   }
-  if (/(house|clean|wash|garden|dish|laundry|repair)/.test(t)) return "household";
+  if (/(house|clean|wash|garden|dish|laundry|repair)/.test(t)) {
+    return "household";
+  }
   if (/(code|build|test|pr|deploy|feature|merge)/.test(t)) return "ideas";
   if (/(pick up|drop|post|errand)/.test(t)) return "errands";
   return "custom";
@@ -279,7 +304,7 @@ export function inferTodoList(raw: string): Todo["list"] {
 // ---------------------------------------------------------------------------
 
 export const model = {
-  type: "@svendowideit/idea-factory",
+  type: "@svendowideit/ideas-factory",
   version: "2026.09.07.1",
   globalArguments: GlobalArgsSchema,
   resources: {
@@ -361,7 +386,9 @@ export const model = {
           | { thoughts: Thought[] }
           | null;
         const thoughts = inbox?.thoughts ?? [];
-        const unclassified = thoughts.filter((t) => t.status === "unclassified");
+        const unclassified = thoughts.filter((t) =>
+          t.status === "unclassified"
+        );
         if (unclassified.length === 0) {
           context.logger?.info("No unclassified thoughts to classify");
           return { dataHandles: [], classified: 0 };
@@ -532,7 +559,7 @@ export const model = {
       },
     },
   },
-  reports: ["@svendowideit/idea-factory-summary"],
+  reports: ["@svendowideit/ideas-factory-summary"],
 };
 
 // ---------------------------------------------------------------------------
@@ -561,31 +588,39 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   const classified = (id: string) => kindFor(id, d.classifications);
 
   const thoughtCards = d.thoughts.map((t) =>
-    `<div class="card thoughts-card"><div class="card-title">${esc(
-      toTitle(t.raw),
-    )}</div><div class="card-meta">${esc(classified(t.id))}${
+    `<div class="card thoughts-card"><div class="card-title">${
+      esc(
+        toTitle(t.raw),
+      )
+    }</div><div class="card-meta">${esc(classified(t.id))}${
       t.status === "unclassified" ? " · unclassified" : ""
     }</div><div class="card-body">${esc(t.raw)}</div></div>`
   ).join("\n");
 
   const ideaCards = d.ideas.map((i) =>
-    `<div class="card idea-card"><div class="card-title">${esc(
-      i.title,
-    )}</div><div class="card-meta">${esc(i.status)}</div><div class="card-body">${
-      esc(i.body)
-    }</div></div>`
+    `<div class="card idea-card"><div class="card-title">${
+      esc(
+        i.title,
+      )
+    }</div><div class="card-meta">${
+      esc(i.status)
+    }</div><div class="card-body">${esc(i.body)}</div></div>`
   ).join("\n");
 
   const todoCards = d.todos.map((t) =>
-    `<div class="card todo-card"><div class="card-title">${esc(
-      t.title,
-    )}</div><div class="card-meta">${esc(t.list)} · ${esc(t.status)}</div></div>`
+    `<div class="card todo-card"><div class="card-title">${
+      esc(
+        t.title,
+      )
+    }</div><div class="card-meta">${esc(t.list)} · ${esc(t.status)}</div></div>`
   ).join("\n");
 
-  const col = (name: string, cards: string, extra = "") =>
+  const col = (name: string, cards: string) =>
     `<div class="column"><div class="column-head">${name} <span class="count">${
       cards ? cards.split("\n").filter(Boolean).length : 0
-    }</span></div><div class="column-body">${cards || "<div class='empty'>—</div>"}</div></div>`;
+    }</span></div><div class="column-body">${
+      cards || "<div class='empty'>—</div>"
+    }</div></div>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -620,7 +655,9 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
 <body>
 <header>
   <h1>🗂️ Idea Factory</h1>
-  <span class="generated">generated <span data-generated="${esc(generatedAt)}"></span></span>
+  <span class="generated">generated <span data-generated="${
+    esc(generatedAt)
+  }"></span></span>
 </header>
 <section class="capture">
   <form action="/api/capture" method="post">

@@ -1,0 +1,63 @@
+id: 520b093e-c8b3-4c0c-857f-bf8369491007
+name: "@svendowideit/ideas-factory"
+description: |
+  Idea factory loop — classify unclassified thoughts, route new-idea / todo
+  thoughts into ideas and todos, then re-render the kanban board. Deterministic
+  in Phase 0 (keyword classification, no LLM). The ideas-factory model instance
+  is auto-registered on first run. The board is written to boardPath when set,
+  otherwise to ~/.swamp/idea-factory/kanban.html.
+tags: {}
+inputs:
+  properties:
+    boardPath:
+      type: string
+      default: ""
+      description: >
+        Optional absolute path for the kanban board HTML (e.g. /srv/idea-factory/kanban.html).
+        Leave empty to write to ~/.swamp/idea-factory/kanban.html.
+  required: []
+jobs:
+  - name: main
+    description: Classify, route, and render.
+    steps:
+      - name: classify
+        description: Classify any unclassified thoughts in the inbox.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ideas-factory"
+          modelName: ideas-factory
+          methodName: classifyThought
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: route
+        description: Route classified thoughts into ideas and todos.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ideas-factory"
+          modelName: ideas-factory
+          methodName: routeThought
+        dependsOn:
+          - step: classify
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: render
+        description: Re-render the kanban board HTML.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ideas-factory"
+          modelName: ideas-factory
+          methodName: renderBoard
+          inputs:
+            path: ${{ inputs.boardPath }}
+        dependsOn:
+          - step: route
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

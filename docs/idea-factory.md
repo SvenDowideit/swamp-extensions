@@ -296,12 +296,31 @@ Verified against the definition of done:
 
 **Phase 1 — Common ideas & iteration.**
 - `clusterThoughts` (LLM) → `ideas`: group related thoughts into *common ideas*,
-  propose duplicates. 
-- `createIdea` / `mergeIntoIdea`: materialize a common idea or fold a thought
-  into an existing one (dedupe).
-- `refineIdea`: a new thought updates an existing idea's body (iterate).
+  propose duplicates.
+- `mergeIntoIdea` (LLM): fold a thought into an existing idea (dedupe).
+- `refineIdea` (LLM): a new thought updates an existing idea's body (iterate).
+- **Manual control:** each step has a `mode: manual` path (explicit inputs), plus
+  `revertAction` (undo, restore prior state) and `modifyAction` (edit the result).
+- **Prompt injection:** every LLM step accepts an optional `userPrompt` appended
+  to the LLM's context.
+- **LLM asks questions:** the LLM is instructed to ask clarifying questions when
+  ambiguous; questions are stored and surfaced on the board, and `answerQuestion`
+  records the user's reply.
+- **Transparency:** every step writes an `actions` entry (step, actor, reasoning,
+  userPrompt, llmResponse, status) shown on the board.
 - **Done:** several thoughts become one common idea, or refine an existing one;
   lineage recorded.
+
+**Status: ✅ COMPLETE (verified).** Implemented in `@svendowideit/ideas-factory`
+(`clusterThoughts`, `mergeIntoIdea`, `refineIdea`, `revertAction`, `modifyAction`,
+`answerQuestion`; `actions` + `questions` resources; board shows ideas with their
+actions + revert/modify controls + a cluster prompt bar). Verified end-to-end:
+LLM clustered the two Caddy thoughts into one common idea (and recorded the
+action); prompt injection, revert (idea → `abandoned`), and modify (body rewrite)
+all confirmed. LLM config is `llmBaseUrl`/`llmModel` global args (default
+`deepseek-v4-flash:cloud`). Note: LLM clustering is non-deterministic — a later
+run split the Caddy thoughts into two ideas, which is exactly what the manual
+merge + prompt-injection controls are for.
 
 **Phase 2 — Plan (where appropriate).**
 - `planIdea` (LLM) → `plans`: decompose a planable idea into tasks, each with

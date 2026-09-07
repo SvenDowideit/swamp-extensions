@@ -28,13 +28,19 @@ import { z } from "npm:zod@4";
 
 const GlobalArgsSchema = z.object({
   llmBaseUrl: z.string().url().optional().describe(
-    "OpenAI-compatible base URL for optional LLM classification (Phase 1; unused in Phase 0)",
+    "OpenAI-compatible base URL for the LLM (default http://localhost:11434)",
   ),
   llmModel: z.string().optional().describe(
-    "Model name for optional LLM classification",
+    "Model name for the LLM (default deepseek-v4-flash:cloud)",
   ),
   llmApiKey: z.string().optional().describe(
     "Optional API key for the LLM (omit for local Ollama)",
+  ),
+  llmTemperature: z.number().min(0).max(2).optional().describe(
+    "LLM sampling temperature (default 0.1)",
+  ),
+  llmTimeoutSec: z.number().int().min(1).max(600).optional().describe(
+    "Per-call LLM timeout in seconds (default 120)",
   ),
   outputDir: z.string().optional().describe(
     "Directory where the kanban board HTML is written (default ~/.swamp/idea-factory)",
@@ -50,9 +56,7 @@ const IngestArgsSchema = z.object({
   ).describe("Capture source"),
 });
 
-const ClassifyArgsSchema = z.object({}).strict();
-
-const RouteArgsSchema = z.object({}).strict();
+const ClassifyArgsSchema = z.object({});
 
 const RenderBoardArgsSchema = z.object({
   path: z.string().optional().describe("Explicit output path override"),
@@ -112,7 +116,9 @@ const IdeaSchema = z.object({
     "implemented",
     "abandoned",
   ]),
+  sourceThoughtIds: z.array(z.string()).default([]),
   createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
 });
 
 const IdeasSchema = z.object({
@@ -140,6 +146,43 @@ const TodosSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Phase 1: actions (the audit trail of what the LLM / user did) and questions
+// ---------------------------------------------------------------------------
+
+const ActionSchema = z.object({
+  id: z.string(),
+  step: z.enum(["cluster", "merge", "refine"]),
+  actor: z.enum(["llm", "manual"]),
+  inputIds: z.array(z.string()),
+  outputId: z.string().nullable(),
+  reasoning: z.string(),
+  userPrompt: z.string().nullable(),
+  llmResponse: z.string().nullable(),
+  before: z.unknown().nullable(),
+  status: z.enum(["applied", "reverted", "modified"]),
+  appliedAt: z.iso.datetime(),
+  revertedAt: z.iso.datetime().nullable(),
+});
+
+const ActionsSchema = z.object({
+  actions: z.array(ActionSchema),
+});
+
+const QuestionSchema = z.object({
+  id: z.string(),
+  actionId: z.string().nullable(),
+  text: z.string(),
+  about: z.string(),
+  askedAt: z.iso.datetime(),
+  answer: z.string().nullable(),
+  answeredAt: z.iso.datetime().nullable(),
+});
+
+const QuestionsSchema = z.object({
+  questions: z.array(QuestionSchema),
+});
+
+// ---------------------------------------------------------------------------
 // Shared context type
 // ---------------------------------------------------------------------------
 
@@ -147,6 +190,8 @@ type Thought = z.infer<typeof ThoughtSchema>;
 type Classification = z.infer<typeof ClassificationSchema>;
 type Idea = z.infer<typeof IdeaSchema>;
 type Todo = z.infer<typeof TodoSchema>;
+type Action = z.infer<typeof ActionSchema>;
+type Question = z.infer<typeof QuestionSchema>;
 
 type MethodContext = {
   globalArgs: GlobalArgs;
@@ -319,6 +364,187 @@ export function resolveBoardPath(
 }
 
 // ---------------------------------------------------------------------------
+// LLM helpers (OpenAI-compatible /v1/chat/completions, works with Ollama)
+// ---------------------------------------------------------------------------
+
+type ChatMessage = { role: "system" | "user"; content: string };
+
+/** Resolve LLM config from global args, applying defaults. */
+export function llmConfig(globalArgs: GlobalArgs) {
+  return {
+    baseUrl: (globalArgs.llmBaseUrl ?? "http://localhost:11434").replace(
+      /\/+$/,
+      "",
+    ),
+    model: globalArgs.llmModel ?? "deepseek-v4-flash:cloud",
+    apiKey: globalArgs.llmApiKey,
+    temperature: globalArgs.llmTemperature ?? 0.1,
+    timeoutSec: globalArgs.llmTimeoutSec ?? 120,
+  };
+}
+
+/**
+ * Call an OpenAI-compatible /v1/chat/completions endpoint. Returns the assistant
+ * message content, or null when the LLM is unavailable (so callers can degrade
+ * gracefully rather than throw).
+ */
+export async function chatCompletion(
+  globalArgs: GlobalArgs,
+  messages: ChatMessage[],
+  opts?: { json?: boolean },
+): Promise<string | null> {
+  const cfg = llmConfig(globalArgs);
+  const url = `${cfg.baseUrl}/v1/chat/completions`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (cfg.apiKey) headers.Authorization = `Bearer ${cfg.apiKey}`;
+  const body = {
+    model: cfg.model,
+    messages,
+    temperature: cfg.temperature,
+    stream: false,
+    ...(opts?.json ? { response_format: { type: "json_object" } } : {}),
+  };
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(cfg.timeoutSec * 1000),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json() as {
+      choices?: { message?: { content?: string } }[];
+    };
+    return data.choices?.[0]?.message?.content ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Parse a JSON object out of an LLM response, tolerating markdown fences. */
+export function parseLlmJson<T>(text: string): T | null {
+  const cleaned = text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    // Fall back to the first {...} block.
+    const m = cleaned.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    try {
+      return JSON.parse(m[0]) as T;
+    } catch {
+      return null;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 1 state helpers + LLM prompts
+// ---------------------------------------------------------------------------
+
+type FactoryState = {
+  thoughts: Thought[];
+  classifications: Classification[];
+  ideas: Idea[];
+  actions: Action[];
+  questions: Question[];
+};
+
+async function readState(context: MethodContext): Promise<FactoryState> {
+  const inbox = (await context.readResource("inbox")) as
+    | { thoughts: Thought[] }
+    | null;
+  const classification = (await context.readResource("classification")) as
+    | { classifications: Classification[] }
+    | null;
+  const ideas = (await context.readResource("ideas")) as
+    | { ideas: Idea[] }
+    | null;
+  const actions = (await context.readResource("actions")) as
+    | { actions: Action[] }
+    | null;
+  const questions = (await context.readResource("questions")) as
+    | { questions: Question[] }
+    | null;
+  return {
+    thoughts: inbox?.thoughts ?? [],
+    classifications: classification?.classifications ?? [],
+    ideas: ideas?.ideas ?? [],
+    actions: actions?.actions ?? [],
+    questions: questions?.questions ?? [],
+  };
+}
+
+async function writeState(
+  context: MethodContext,
+  s: FactoryState,
+): Promise<void> {
+  await context.writeResource("inbox", "inbox", { thoughts: s.thoughts });
+  await context.writeResource("classification", "classification", {
+    classifications: s.classifications,
+    classifiedAt: new Date().toISOString(),
+  });
+  await context.writeResource("ideas", "ideas", { ideas: s.ideas });
+  await context.writeResource("actions", "actions", { actions: s.actions });
+  await context.writeResource("questions", "questions", {
+    questions: s.questions,
+  });
+}
+
+const CLUSTER_SYSTEM =
+  `You are an idea-clustering assistant. Group related thoughts into common ideas. ` +
+  `Be conservative: only merge thoughts that are clearly the same idea. ` +
+  `If you are unsure whether two thoughts belong together, or what a thought means, ` +
+  `ask a clarifying question instead of guessing — prefer asking over guessing. ` +
+  `Return JSON: {"ideas":[{"title":"...","body":"...","thoughtIds":["..."]}],"questions":[{"text":"...","about":"..."}]}.`;
+
+const MERGE_SYSTEM =
+  `You are an idea-merging assistant. Given a thought and existing ideas, decide which ` +
+  `idea it belongs to (or whether it is a new idea), and merge it in. ` +
+  `If ambiguous, ask a clarifying question instead of guessing. ` +
+  `Return JSON: {"ideaId":"<existing id or null for new>","body":"<merged body>","questions":[{"text":"...","about":"..."}]}.`;
+
+const REFINE_SYSTEM =
+  `You are an idea-refinement assistant. Given a thought and an idea, refine the idea's ` +
+  `body to incorporate the thought. If ambiguous, ask a clarifying question instead of guessing. ` +
+  `Return JSON: {"body":"<refined body>","questions":[{"text":"...","about":"..."}]}.`;
+
+function buildClusterPrompt(thoughts: Thought[], userPrompt?: string): string {
+  const lines = thoughts.map((t) => `- [${t.id}] ${t.raw}`).join("\n");
+  return `Thoughts:\n${lines || "(none)"}\n\n${
+    userPrompt ? `User instruction: ${userPrompt}\n\n` : ""
+  }Group these into common ideas.`;
+}
+
+function buildMergePrompt(
+  thought: Thought,
+  ideas: Idea[],
+  userPrompt?: string,
+): string {
+  const lines = ideas.map((i) => `- [${i.id}] ${i.title}: ${i.body}`).join(
+    "\n",
+  );
+  return `Thought: ${thought.raw}\n\nExisting ideas:\n${lines || "(none)"}\n\n${
+    userPrompt ? `User instruction: ${userPrompt}\n\n` : ""
+  }Which idea does this thought belong to?`;
+}
+
+function buildRefinePrompt(
+  thought: Thought,
+  idea: Idea,
+  userPrompt?: string,
+): string {
+  return `Thought: ${thought.raw}\n\nIdea [${idea.id}] ${idea.title}:\n${idea.body}\n\n${
+    userPrompt ? `User instruction: ${userPrompt}\n\n` : ""
+  }Refine the idea to incorporate the thought.`;
+}
+
+// ---------------------------------------------------------------------------
 // Model definition
 // ---------------------------------------------------------------------------
 
@@ -340,18 +566,26 @@ export const model = {
       garbageCollection: 5,
     },
     ideas: {
-      // PHASE 1 (not populated in Phase 0): the clustering step that turns
-      // related thoughts into common ideas does not exist yet, so no thought is
-      // routed here. Kept as empty scaffolding.
       description: "Common ideas produced from thoughts (Phase 1)",
       schema: IdeasSchema,
       lifetime: "infinite",
       garbageCollection: 5,
     },
     todos: {
-      // PHASE 1 (not populated in Phase 0). Kept as empty scaffolding.
       description: "Action items produced from thoughts (Phase 1)",
       schema: TodosSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    actions: {
+      description: "Audit trail of cluster/merge/refine steps (LLM and manual)",
+      schema: ActionsSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    questions: {
+      description: "Clarifying questions the LLM asked, and their answers",
+      schema: QuestionsSchema,
       lifetime: "infinite",
       garbageCollection: 5,
     },
@@ -451,91 +685,411 @@ export const model = {
       },
     },
 
-    routeThought: {
+    // -----------------------------------------------------------------------
+    // Phase 1: cluster / merge / refine (LLM + manual), revert, modify, answer
+    // -----------------------------------------------------------------------
+
+    clusterThoughts: {
       description:
-        "Route classified thoughts: new-idea -> common idea, todo -> todo. Other kinds park for later.",
-      arguments: RouteArgsSchema,
+        "Group related thoughts into common ideas. LLM mode (default) asks the LLM to cluster; manual mode applies explicit groups. Records an action for each idea.",
+      arguments: z.object({
+        userPrompt: z.string().optional().describe(
+          "Extra instruction given to the LLM alongside the thoughts",
+        ),
+        mode: z.enum(["llm", "manual"]).default("llm"),
+        groups: z.array(z.object({
+          title: z.string(),
+          body: z.string(),
+          thoughtIds: z.array(z.string()),
+        })).optional().describe("Explicit groups (manual mode)"),
+      }),
       execute: async (
-        _args: z.infer<typeof RouteArgsSchema>,
+        args: {
+          userPrompt?: string;
+          mode: "llm" | "manual";
+          groups?: { title: string; body: string; thoughtIds: string[] }[];
+        },
         context: MethodContext,
       ) => {
-        const inbox = (await context.readResource("inbox")) as
-          | { thoughts: Thought[] }
-          | null;
-        const thoughts = inbox?.thoughts ?? [];
-        const classifications = ((await context.readResource(
-          "classification",
-        )) as { classifications: Classification[] } | null)
-          ?.classifications ?? [];
-
-        const ideasState = (await context.readResource("ideas")) as
-          | { ideas: Idea[] }
-          | null;
-        const ideas = ideasState?.ideas ?? [];
-        const todosState = (await context.readResource("todos")) as
-          | { todos: Todo[] }
-          | null;
-        const todos = todosState?.todos ?? [];
-
+        const s = await readState(context);
         const now = new Date().toISOString();
-        let createdIdeas = 0;
-        let createdTodos = 0;
-        let parked = 0;
+        const clusteredIds = new Set(
+          s.ideas.flatMap((i) => i.sourceThoughtIds),
+        );
+        const open = s.thoughts.filter((t) => !clusteredIds.has(t.id));
 
-        for (const c of classifications) {
-          if (c.routed) continue;
-          const thought = thoughts.find((t) => t.id === c.thoughtId);
-          if (!thought || thought.status !== "classified") {
-            c.routed = true; // unreachable target — don't revisit
-            parked++;
-            continue;
-          }
+        let groups: { title: string; body: string; thoughtIds: string[] }[] =
+          [];
+        let llmResponse: string | null = null;
+        let questions: { text: string; about: string }[] = [];
 
-          if (c.kind === "new-idea") {
-            ideas.push({
-              id: genId(),
-              title: toTitle(thought.raw),
-              body: thought.raw,
-              status: "captured",
-              createdAt: now,
-            });
-            createdIdeas++;
-            c.routed = true;
-          } else if (c.kind === "todo") {
-            todos.push({
-              id: genId(),
-              title: toTitle(thought.raw),
-              list: inferTodoList(thought.raw),
-              status: "open",
-              createdAt: now,
-            });
-            createdTodos++;
-            c.routed = true;
-          } else {
-            // refinement / minor-rethink / major-rethink / duplicate / note / noise:
-            // no Phase 0 routing target yet — they park in the classification resource.
-            c.routed = true;
-            parked++;
+        if (args.mode === "manual") {
+          groups = args.groups ?? [];
+        } else {
+          const prompt = buildClusterPrompt(open, args.userPrompt);
+          const raw = await chatCompletion(context.globalArgs, [
+            { role: "system", content: CLUSTER_SYSTEM },
+            { role: "user", content: prompt },
+          ], { json: true });
+          llmResponse = raw;
+          if (raw) {
+            const parsed = parseLlmJson<{
+              ideas?: { title: string; body: string; thoughtIds: string[] }[];
+              questions?: { text: string; about: string }[];
+            }>(raw);
+            groups = parsed?.ideas ?? [];
+            questions = parsed?.questions ?? [];
           }
         }
 
-        await context.writeResource("ideas", "ideas", { ideas });
-        await context.writeResource("todos", "todos", { todos });
-        await context.writeResource("classification", "classification", {
-          classifications,
-          classifiedAt: now,
-        });
+        const created: string[] = [];
+        for (const g of groups) {
+          const idea: Idea = {
+            id: genId(),
+            title: g.title,
+            body: g.body,
+            status: "captured",
+            sourceThoughtIds: g.thoughtIds,
+            createdAt: now,
+            updatedAt: now,
+          };
+          s.ideas.push(idea);
+          created.push(idea.id);
+          s.actions.push({
+            id: genId(),
+            step: "cluster",
+            actor: args.mode === "manual" ? "manual" : "llm",
+            inputIds: g.thoughtIds,
+            outputId: idea.id,
+            reasoning: args.mode === "manual"
+              ? "manual cluster"
+              : "LLM cluster",
+            userPrompt: args.userPrompt ?? null,
+            llmResponse,
+            before: null,
+            status: "applied",
+            appliedAt: now,
+            revertedAt: null,
+          });
+        }
+        for (const q of questions) {
+          s.questions.push({
+            id: genId(),
+            actionId: null,
+            text: q.text,
+            about: q.about,
+            askedAt: now,
+            answer: null,
+            answeredAt: null,
+          });
+        }
 
-        context.logger?.info(
-          "Routed {ideas} new ideas, {todos} todos ({parked} parked)",
-          { ideas: createdIdeas, todos: createdTodos, parked },
-        );
+        await writeState(context, s);
+        context.logger?.info("Clustered {n} ideas, {q} questions", {
+          n: created.length,
+          q: questions.length,
+        });
         return {
           dataHandles: [],
-          createdIdeas,
-          createdTodos,
-          parked,
+          createdIdeas: created.length,
+          questions: questions.length,
         };
+      },
+    },
+
+    mergeIntoIdea: {
+      description:
+        "Fold a thought into an existing idea (or create a new one). LLM mode decides the target; manual mode uses the given ideaId/body.",
+      arguments: z.object({
+        thoughtId: z.string(),
+        ideaId: z.string().optional(),
+        body: z.string().optional(),
+        userPrompt: z.string().optional(),
+        mode: z.enum(["llm", "manual"]).default("llm"),
+      }),
+      execute: async (
+        args: {
+          thoughtId: string;
+          ideaId?: string;
+          body?: string;
+          userPrompt?: string;
+          mode: "llm" | "manual";
+        },
+        context: MethodContext,
+      ) => {
+        const s = await readState(context);
+        const now = new Date().toISOString();
+        const thought = s.thoughts.find((t) => t.id === args.thoughtId);
+        if (!thought) return { dataHandles: [], error: "thought not found" };
+
+        let targetId = args.ideaId ?? null;
+        let mergedBody = args.body ?? null;
+        let llmResponse: string | null = null;
+        let questions: { text: string; about: string }[] = [];
+
+        if (args.mode === "llm") {
+          const raw = await chatCompletion(context.globalArgs, [
+            { role: "system", content: MERGE_SYSTEM },
+            {
+              role: "user",
+              content: buildMergePrompt(thought, s.ideas, args.userPrompt),
+            },
+          ], { json: true });
+          llmResponse = raw;
+          if (raw) {
+            const parsed = parseLlmJson<{
+              ideaId?: string | null;
+              title?: string;
+              body?: string;
+              questions?: { text: string; about: string }[];
+            }>(raw);
+            targetId = parsed?.ideaId ?? null;
+            mergedBody = parsed?.body ?? null;
+            questions = parsed?.questions ?? [];
+          }
+        }
+
+        let idea: Idea | undefined = targetId
+          ? s.ideas.find((i) => i.id === targetId)
+          : undefined;
+        const before = idea
+          ? {
+            ideaId: idea.id,
+            body: idea.body,
+            sourceThoughtIds: [...idea.sourceThoughtIds],
+          }
+          : null;
+
+        if (!idea) {
+          idea = {
+            id: genId(),
+            title: toTitle(thought.raw),
+            body: mergedBody ?? thought.raw,
+            status: "captured",
+            sourceThoughtIds: [thought.id],
+            createdAt: now,
+            updatedAt: now,
+          };
+          s.ideas.push(idea);
+        } else {
+          if (mergedBody) idea.body = mergedBody;
+          if (!idea.sourceThoughtIds.includes(thought.id)) {
+            idea.sourceThoughtIds.push(thought.id);
+          }
+          idea.updatedAt = now;
+        }
+
+        s.actions.push({
+          id: genId(),
+          step: "merge",
+          actor: args.mode === "manual" ? "manual" : "llm",
+          inputIds: [thought.id],
+          outputId: idea.id,
+          reasoning: args.mode === "manual" ? "manual merge" : "LLM merge",
+          userPrompt: args.userPrompt ?? null,
+          llmResponse,
+          before,
+          status: "applied",
+          appliedAt: now,
+          revertedAt: null,
+        });
+        for (const q of questions) {
+          s.questions.push({
+            id: genId(),
+            actionId: null,
+            text: q.text,
+            about: q.about,
+            askedAt: now,
+            answer: null,
+            answeredAt: null,
+          });
+        }
+
+        await writeState(context, s);
+        return {
+          dataHandles: [],
+          ideaId: idea.id,
+          questions: questions.length,
+        };
+      },
+    },
+
+    refineIdea: {
+      description:
+        "Update an idea's body from a thought. LLM mode refines; manual mode uses the given body.",
+      arguments: z.object({
+        thoughtId: z.string(),
+        ideaId: z.string(),
+        body: z.string().optional(),
+        userPrompt: z.string().optional(),
+        mode: z.enum(["llm", "manual"]).default("llm"),
+      }),
+      execute: async (
+        args: {
+          thoughtId: string;
+          ideaId: string;
+          body?: string;
+          userPrompt?: string;
+          mode: "llm" | "manual";
+        },
+        context: MethodContext,
+      ) => {
+        const s = await readState(context);
+        const now = new Date().toISOString();
+        const thought = s.thoughts.find((t) => t.id === args.thoughtId);
+        const idea = s.ideas.find((i) => i.id === args.ideaId);
+        if (!thought || !idea) {
+          return { dataHandles: [], error: "thought or idea not found" };
+        }
+
+        let refinedBody = args.body ?? null;
+        let llmResponse: string | null = null;
+        let questions: { text: string; about: string }[] = [];
+
+        if (args.mode === "llm") {
+          const raw = await chatCompletion(context.globalArgs, [
+            { role: "system", content: REFINE_SYSTEM },
+            {
+              role: "user",
+              content: buildRefinePrompt(thought, idea, args.userPrompt),
+            },
+          ], { json: true });
+          llmResponse = raw;
+          if (raw) {
+            const parsed = parseLlmJson<{
+              body?: string;
+              questions?: { text: string; about: string }[];
+            }>(raw);
+            refinedBody = parsed?.body ?? null;
+            questions = parsed?.questions ?? [];
+          }
+        }
+
+        const before = { ideaId: idea.id, body: idea.body };
+        if (refinedBody) {
+          idea.body = refinedBody;
+          idea.updatedAt = now;
+        }
+        if (!idea.sourceThoughtIds.includes(thought.id)) {
+          idea.sourceThoughtIds.push(thought.id);
+        }
+
+        s.actions.push({
+          id: genId(),
+          step: "refine",
+          actor: args.mode === "manual" ? "manual" : "llm",
+          inputIds: [thought.id],
+          outputId: idea.id,
+          reasoning: args.mode === "manual" ? "manual refine" : "LLM refine",
+          userPrompt: args.userPrompt ?? null,
+          llmResponse,
+          before,
+          status: "applied",
+          appliedAt: now,
+          revertedAt: null,
+        });
+        for (const q of questions) {
+          s.questions.push({
+            id: genId(),
+            actionId: null,
+            text: q.text,
+            about: q.about,
+            askedAt: now,
+            answer: null,
+            answeredAt: null,
+          });
+        }
+
+        await writeState(context, s);
+        return {
+          dataHandles: [],
+          ideaId: idea.id,
+          questions: questions.length,
+        };
+      },
+    },
+
+    revertAction: {
+      description:
+        "Revert a cluster/merge/refine action, restoring the prior state.",
+      arguments: z.object({ actionId: z.string() }),
+      execute: async (
+        args: { actionId: string },
+        context: MethodContext,
+      ) => {
+        const s = await readState(context);
+        const action = s.actions.find((a) => a.id === args.actionId);
+        if (!action || action.status !== "applied") {
+          return { dataHandles: [], error: "action not found or not applied" };
+        }
+        const now = new Date().toISOString();
+
+        if (action.step === "cluster") {
+          const idea = s.ideas.find((i) => i.id === action.outputId);
+          if (idea) idea.status = "abandoned";
+        } else if (action.before) {
+          const b = action.before as {
+            ideaId: string;
+            body: string;
+            sourceThoughtIds?: string[];
+          };
+          const idea = s.ideas.find((i) => i.id === b.ideaId);
+          if (idea) {
+            idea.body = b.body;
+            if (b.sourceThoughtIds) idea.sourceThoughtIds = b.sourceThoughtIds;
+            idea.updatedAt = now;
+          }
+        }
+
+        action.status = "reverted";
+        action.revertedAt = now;
+        await writeState(context, s);
+        return { dataHandles: [], reverted: action.id };
+      },
+    },
+
+    modifyAction: {
+      description:
+        "Modify the result of an action (e.g. rewrite the idea body).",
+      arguments: z.object({
+        actionId: z.string(),
+        title: z.string().optional(),
+        body: z.string().optional(),
+      }),
+      execute: async (
+        args: { actionId: string; title?: string; body?: string },
+        context: MethodContext,
+      ) => {
+        const s = await readState(context);
+        const action = s.actions.find((a) => a.id === args.actionId);
+        if (!action || !action.outputId) {
+          return { dataHandles: [], error: "action not found" };
+        }
+        const idea = s.ideas.find((i) => i.id === action.outputId);
+        if (!idea) return { dataHandles: [], error: "idea not found" };
+        if (args.title) idea.title = args.title;
+        if (args.body) idea.body = args.body;
+        idea.updatedAt = new Date().toISOString();
+        action.status = "modified";
+        await writeState(context, s);
+        return { dataHandles: [], modified: idea.id };
+      },
+    },
+
+    answerQuestion: {
+      description: "Record the user's answer to an LLM question.",
+      arguments: z.object({ questionId: z.string(), answer: z.string() }),
+      execute: async (
+        args: { questionId: string; answer: string },
+        context: MethodContext,
+      ) => {
+        const s = await readState(context);
+        const q = s.questions.find((x) => x.id === args.questionId);
+        if (!q) return { dataHandles: [], error: "question not found" };
+        q.answer = args.answer;
+        q.answeredAt = new Date().toISOString();
+        await writeState(context, s);
+        return { dataHandles: [], answered: q.id };
       },
     },
 
@@ -560,9 +1114,22 @@ export const model = {
         const todos = ((await context.readResource("todos")) as
           | { todos: Todo[] }
           | null)?.todos ?? [];
+        const actions = ((await context.readResource("actions")) as
+          | { actions: Action[] }
+          | null)?.actions ?? [];
+        const questions = ((await context.readResource("questions")) as
+          | { questions: Question[] }
+          | null)?.questions ?? [];
 
         const html = renderKanban(
-          { thoughts: inbox, classifications, ideas, todos },
+          {
+            thoughts: inbox,
+            classifications,
+            ideas,
+            todos,
+            actions,
+            questions,
+          },
           new Date().toISOString(),
         );
 
@@ -594,6 +1161,8 @@ type BoardData = {
   classifications: Classification[];
   ideas: Idea[];
   todos: Todo[];
+  actions: Action[];
+  questions: Question[];
 };
 
 function esc(s: string): string {
@@ -601,43 +1170,63 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Render a minimal kanban page. Columns: Thoughts, Ideas, Todos. */
+/** Render a kanban page: Thoughts, Ideas, Todos, plus actions and questions. */
 export function renderKanban(d: BoardData, generatedAt: string): string {
   const classFor = (id: string) =>
     d.classifications.find((x) => x.thoughtId === id) ?? null;
 
-  // Phase 0: Thoughts column shows EVERY captured thought, with its
-  // classification. Nothing is routed into a "processed" stage yet — turning
-  // thoughts into ideas/todos is Phase 1+. Only the classification (the result
-  // of capture -> classify) is shown here.
   const thoughtCards = d.thoughts.map((t) => {
     const c = classFor(t.id);
-    const meta = c ? `${c.kind} · ${(c.confidence * 100).toFixed(0)}%` : "unclassified";
+    const meta = c
+      ? `${c.kind} · ${(c.confidence * 100).toFixed(0)}%`
+      : "unclassified";
     return `<div class="card thoughts-card"><div class="card-title">${
-      esc(
-        toTitle(t.raw),
-      )
+      esc(toTitle(t.raw))
     }</div><div class="card-meta">${esc(meta)}</div><div class="card-body">${
       esc(t.raw)
     }</div></div>`;
   }).join("\n");
 
-  const ideaCards = d.ideas.map((i) =>
-    `<div class="card idea-card"><div class="card-title">${
-      esc(
-        i.title,
-      )
+  const ideaCards = d.ideas.map((i) => {
+    const acts = d.actions.filter((a) => a.outputId === i.id);
+    const actHtml = acts.map((a) =>
+      `<div class="action ${esc(a.status)}"><span class="act-step">${
+        esc(a.step)
+      }</span> · <span class="act-actor">${esc(a.actor)}</span>${
+        a.reasoning ? ` — ${esc(a.reasoning)}` : ""
+      } <span class="act-status">${esc(a.status)}</span>${
+        a.status === "applied"
+          ? `<form class="inline" action="/api/revert" method="post"><input type="hidden" name="actionId" value="${
+            esc(a.id)
+          }"><button type="submit">revert</button></form>`
+          : ""
+      }</div>`
+    ).join("");
+    return `<div class="card idea-card"><div class="card-title">${
+      esc(i.title)
     }</div><div class="card-meta">${
       esc(i.status)
-    }</div><div class="card-body">${esc(i.body)}</div></div>`
-  ).join("\n");
+    } · ${i.sourceThoughtIds.length} thought(s)</div><div class="card-body">${
+      esc(i.body)
+    }</div>${
+      actHtml ? `<div class="actions">${actHtml}</div>` : ""
+    }<form class="inline" action="/api/modify" method="post"><input type="hidden" name="actionId" value="${
+      esc(acts[0]?.id ?? "")
+    }"><input type="text" name="body" placeholder="Edit idea body…"><button type="submit">modify</button></form></div>`;
+  }).join("\n");
 
   const todoCards = d.todos.map((t) =>
     `<div class="card todo-card"><div class="card-title">${
-      esc(
-        t.title,
-      )
+      esc(t.title)
     }</div><div class="card-meta">${esc(t.list)} · ${esc(t.status)}</div></div>`
+  ).join("\n");
+
+  const questionCards = d.questions.filter((q) => !q.answer).map((q) =>
+    `<div class="card question-card"><div class="card-body">${
+      esc(q.text)
+    }</div><form class="inline" action="/api/answer" method="post"><input type="hidden" name="questionId" value="${
+      esc(q.id)
+    }"><input type="text" name="answer" placeholder="Answer…"><button type="submit">answer</button></form></div>`
   ).join("\n");
 
   const col = (name: string, cards: string) =>
@@ -660,10 +1249,10 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   header { padding:16px 20px; background:#fff; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; }
   header h1 { font-size:18px; margin:0; }
   header .generated { font-size:12px; color:var(--muted); }
-  .capture { padding:16px 20px; background:#fff; border-bottom:1px solid var(--line); }
-  .capture form { display:flex; gap:8px; }
-  .capture input[type=text] { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
-  .capture button { padding:10px 16px; border:0; border-radius:8px; background:#18181b; color:#fff; font-size:14px; cursor:pointer; }
+  .capture, .process { padding:12px 20px; background:#fff; border-bottom:1px solid var(--line); }
+  .capture form, .process form { display:flex; gap:8px; }
+  .capture input[type=text], .process input[type=text] { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  .capture button, .process button { padding:10px 16px; border:0; border-radius:8px; background:#18181b; color:#fff; font-size:14px; cursor:pointer; }
   .board { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; padding:20px; align-items:start; }
   @media (max-width:900px){ .board{ grid-template-columns:1fr; } }
   .column { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
@@ -675,6 +1264,17 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   .card-meta { font-size:11px; color:var(--muted); text-transform:capitalize; margin-bottom:4px; }
   .card-body { font-size:13px; color:#3f3f46; }
   .empty { color:var(--muted); font-size:12px; padding:8px; }
+  .actions { margin-top:8px; border-top:1px solid var(--line); padding-top:6px; }
+  .action { font-size:11px; color:var(--muted); margin-bottom:4px; }
+  .action .act-step { font-weight:600; color:#18181b; }
+  .action .act-status { text-transform:uppercase; font-size:10px; }
+  .action.reverted .act-status { color:#b91c1c; }
+  .action.modified .act-status { color:#b45309; }
+  .inline { display:flex; gap:6px; margin-top:6px; }
+  .inline input[type=text] { flex:1; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:12px; }
+  .inline button { padding:6px 10px; border:0; border-radius:6px; background:#e4e4e7; color:#18181b; font-size:12px; cursor:pointer; }
+  .questions { padding:0 20px 20px; }
+  .questions h2 { font-size:14px; margin:12px 0 8px; }
 </style>
 </head>
 <body>
@@ -690,11 +1290,22 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
     <button type="submit">Capture</button>
   </form>
 </section>
+<section class="process">
+  <form action="/api/cluster" method="post">
+    <input type="text" name="userPrompt" placeholder="Optional instruction for the LLM (e.g. 'prefer merging over forking')…">
+    <button type="submit">Cluster thoughts → ideas</button>
+  </form>
+</section>
 <main class="board">
   ${col("Thoughts", thoughtCards)}
   ${col("Ideas", ideaCards)}
   ${col("Todos", todoCards)}
 </main>
+${
+    questionCards
+      ? `<section class="questions"><h2>Questions from the LLM</h2>${questionCards}</section>`
+      : ""
+  }
 <script>document.querySelectorAll('[data-generated]').forEach(function(el){var d=new Date(el.getAttribute('data-generated'));el.textContent=d.toLocaleString('en-GB');});</script>
 </body>
 </html>`;

@@ -61,7 +61,10 @@ Deno.test("resolveBoardPath falls back to default when path is empty/blank", () 
 });
 
 Deno.test("resolveBoardPath uses a provided path as-is", () => {
-  const r = resolveBoardPath("/srv/idea-factory/kanban.html", "/opt/ideas/boards");
+  const r = resolveBoardPath(
+    "/srv/idea-factory/kanban.html",
+    "/opt/ideas/boards",
+  );
   assertEquals(r.outPath, "/srv/idea-factory/kanban.html");
   assertEquals(r.outputDir, "/srv/idea-factory");
 });
@@ -89,9 +92,13 @@ Deno.test("renderKanban produces a page with the three columns", () => {
         title: "a tool",
         body: "build a tool",
         status: "captured",
+        sourceThoughtIds: ["t1"],
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       }],
       todos: [],
+      actions: [],
+      questions: [],
     },
     new Date().toISOString(),
   );
@@ -123,6 +130,8 @@ Deno.test("Phase 0: every captured thought stays in the Thoughts column", () => 
       }],
       ideas: [],
       todos: [],
+      actions: [],
+      questions: [],
     },
     new Date().toISOString(),
   );
@@ -145,9 +154,75 @@ Deno.test("a captured thought with no classification shows as unclassified", () 
       classifications: [],
       ideas: [],
       todos: [],
+      actions: [],
+      questions: [],
     },
     new Date().toISOString(),
   );
   assertEquals(html.includes("thoughts-card"), true);
   assertEquals(html.includes("unclassified"), true);
+});
+
+Deno.test("an idea card shows its action (what the LLM did) and a revert control", () => {
+  const now = new Date().toISOString();
+  const html = renderKanban(
+    {
+      thoughts: [],
+      classifications: [],
+      ideas: [{
+        id: "i1",
+        title: "caddy extension",
+        body: "a caddy extension",
+        status: "captured",
+        sourceThoughtIds: ["t1", "t2"],
+        createdAt: now,
+        updatedAt: now,
+      }],
+      todos: [],
+      actions: [{
+        id: "a1",
+        step: "cluster",
+        actor: "llm",
+        inputIds: ["t1", "t2"],
+        outputId: "i1",
+        reasoning: "both are about caddy",
+        userPrompt: null,
+        llmResponse: "{}",
+        before: null,
+        status: "applied",
+        appliedAt: now,
+        revertedAt: null,
+      }],
+      questions: [],
+    },
+    now,
+  );
+  assertEquals(html.includes("cluster"), true);
+  assertEquals(html.includes("both are about caddy"), true);
+  assertEquals(html.includes("/api/revert"), true);
+});
+
+Deno.test("a pending LLM question is shown with an answer form", () => {
+  const now = new Date().toISOString();
+  const html = renderKanban(
+    {
+      thoughts: [],
+      classifications: [],
+      ideas: [],
+      todos: [],
+      actions: [],
+      questions: [{
+        id: "q1",
+        actionId: null,
+        text: "do you mean the caddy proxy or the systemd service?",
+        about: "cluster",
+        askedAt: now,
+        answer: null,
+        answeredAt: null,
+      }],
+    },
+    now,
+  );
+  assertEquals(html.includes("do you mean the caddy proxy"), true);
+  assertEquals(html.includes("/api/answer"), true);
 });

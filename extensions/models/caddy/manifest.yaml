@@ -1,0 +1,26 @@
+manifestVersion: 1
+name: "@svendowideit/caddy"
+version: "2026.09.07.1"
+description: >
+  Caddy reverse-proxy and service management for a Linux host with systemd.
+  Installs the Caddy binary (optionally with DNS-provider plugins via xcaddy),
+  creates and manages a systemd user service, and drives Caddy's admin API for
+  live configuration. MVP: install Caddy, create/start the systemd user
+  service, and print minimal Let's Encrypt settings guidance.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - caddy.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - caddy_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64

@@ -288,11 +288,17 @@ Verified against the definition of done:
   classifier; kinds `new-idea`/`refinement`/`minor-rethink`/`major-rethink`/
   `duplicate`/`todo`/`note`/`noise`).
 - Seen in the kanban **Thoughts** column, still a thought (classified, with kind
-  + confidence); **Ideas/Todos columns empty** — no routing in Phase 0.
+  + confidence); **Ideas column empty** — no idea routing in Phase 0.
 - Data lives in swamp model resources (`inbox`, `classification`); `ideas`/`todos`
   are empty Phase 1 scaffolding.
 - 14 unit tests pass; `deno check` and `deno lint` clean; workflow validates and
   runs idempotently.
+
+> **Todo branch (added after Phase 0).** The simple, deterministic todo path is
+> now implemented: `routeTodos` routes a `todo`-classified thought into the
+> `todos` resource with the right list (shopping/household/appointments/…), shown
+> in the Todos column. The todo's lifecycle lives outside the factory. This is
+> the "classify → route to list → done" branch, not a later phase.
 
 **Phase 1 — Common ideas & iteration.**
 - `clusterThoughts` (LLM) → `ideas`: group related thoughts into *common ideas*,

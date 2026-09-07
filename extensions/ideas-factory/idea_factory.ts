@@ -138,6 +138,7 @@ const TodoSchema = z.object({
     "custom",
   ]),
   status: z.enum(["open", "in-progress", "done", "cancelled", "deferred"]),
+  sourceThoughtId: z.string(),
   createdAt: z.iso.datetime(),
 });
 
@@ -451,6 +452,7 @@ type FactoryState = {
   thoughts: Thought[];
   classifications: Classification[];
   ideas: Idea[];
+  todos: Todo[];
   actions: Action[];
   questions: Question[];
 };
@@ -465,6 +467,9 @@ async function readState(context: MethodContext): Promise<FactoryState> {
   const ideas = (await context.readResource("ideas")) as
     | { ideas: Idea[] }
     | null;
+  const todos = (await context.readResource("todos")) as
+    | { todos: Todo[] }
+    | null;
   const actions = (await context.readResource("actions")) as
     | { actions: Action[] }
     | null;
@@ -475,6 +480,7 @@ async function readState(context: MethodContext): Promise<FactoryState> {
     thoughts: inbox?.thoughts ?? [],
     classifications: classification?.classifications ?? [],
     ideas: ideas?.ideas ?? [],
+    todos: todos?.todos ?? [],
     actions: actions?.actions ?? [],
     questions: questions?.questions ?? [],
   };
@@ -490,6 +496,7 @@ async function writeState(
     classifiedAt: new Date().toISOString(),
   });
   await context.writeResource("ideas", "ideas", { ideas: s.ideas });
+  await context.writeResource("todos", "todos", { todos: s.todos });
   await context.writeResource("actions", "actions", { actions: s.actions });
   await context.writeResource("questions", "questions", {
     questions: s.questions,
@@ -685,6 +692,38 @@ export const model = {
       },
     },
 
+    routeTodos: {
+      description:
+        "Route todo-classified thoughts into the todos resource with the right list (deterministic; the todo lifecycle lives outside the factory).",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ) => {
+        const s = await readState(context);
+        const now = new Date().toISOString();
+        let created = 0;
+        for (const c of s.classifications) {
+          if (c.kind !== "todo" || c.routed) continue;
+          const thought = s.thoughts.find((t) => t.id === c.thoughtId);
+          if (!thought) continue;
+          s.todos.push({
+            id: genId(),
+            title: toTitle(thought.raw),
+            list: inferTodoList(thought.raw),
+            status: "open",
+            sourceThoughtId: thought.id,
+            createdAt: now,
+          });
+          c.routed = true;
+          created++;
+        }
+        await writeState(context, s);
+        context.logger?.info("Routed {n} todos", { n: created });
+        return { dataHandles: [], createdTodos: created };
+      },
+    },
+
     // -----------------------------------------------------------------------
     // Phase 1: cluster / merge / refine (LLM + manual), revert, modify, answer
     // -----------------------------------------------------------------------
@@ -716,7 +755,20 @@ export const model = {
         const clusteredIds = new Set(
           s.ideas.flatMap((i) => i.sourceThoughtIds),
         );
-        const open = s.thoughts.filter((t) => !clusteredIds.has(t.id));
+        // Only cluster software-idea thoughts. Todo thoughts go to the todo
+        // list (routeTodos); note/noise park in the Thoughts column.
+        const ideaKinds = new Set([
+          "new-idea",
+          "refinement",
+          "minor-rethink",
+          "major-rethink",
+          "duplicate",
+        ]);
+        const open = s.thoughts.filter((t) => {
+          if (clusteredIds.has(t.id)) return false;
+          const c = s.classifications.find((x) => x.thoughtId === t.id);
+          return !c || ideaKinds.has(c.kind);
+        });
 
         let groups: { title: string; body: string; thoughtIds: string[] }[] =
           [];
@@ -1187,7 +1239,7 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
     }</div></div>`;
   }).join("\n");
 
-  const ideaCards = d.ideas.map((i) => {
+  const ideaCards = d.ideas.filter((i) => i.status !== "abandoned").map((i) => {
     const acts = d.actions.filter((a) => a.outputId === i.id);
     const actHtml = acts.map((a) =>
       `<div class="action ${esc(a.status)}"><span class="act-step">${

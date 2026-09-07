@@ -226,3 +226,27 @@ Deno.test("a pending LLM question is shown with an answer form", () => {
   assertEquals(html.includes("do you mean the caddy proxy"), true);
   assertEquals(html.includes("/api/answer"), true);
 });
+
+Deno.test("an abandoned idea is not shown in the Ideas column", () => {
+  const now = new Date().toISOString();
+  const html = renderKanban(
+    {
+      thoughts: [],
+      classifications: [],
+      ideas: [{
+        id: "i1",
+        title: "abandoned idea",
+        body: "x",
+        status: "abandoned",
+        sourceThoughtIds: [],
+        createdAt: now,
+        updatedAt: now,
+      }],
+      todos: [],
+      actions: [],
+      questions: [],
+    },
+    now,
+  );
+  assertEquals(html.includes("abandoned idea"), false);
+});

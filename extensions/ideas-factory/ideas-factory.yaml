@@ -31,6 +31,19 @@ jobs:
         dependsOn: []
         weight: 0
         allowFailure: false
+      - name: route-todos
+        description: Route todo-classified thoughts into the todos list (deterministic).
+        task:
+          type: model_method
+          modelType: "@svendowideit/ideas-factory"
+          modelName: ideas-factory
+          methodName: routeTodos
+        dependsOn:
+          - step: classify
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
       - name: cluster
         description: Group related thoughts into common ideas (LLM).
         task:
@@ -39,7 +52,7 @@ jobs:
           modelName: ideas-factory
           methodName: clusterThoughts
         dependsOn:
-          - step: classify
+          - step: route-todos
             condition:
               type: succeeded
         weight: 0

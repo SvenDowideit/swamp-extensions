@@ -15,6 +15,7 @@ merge → refine) of the "idea factory" design in `docs/idea-factory.md`.
 | ----------------- | ---------------- | ----- |
 | `ingestThought`   | `inbox`          | 0     |
 | `classifyThought` | `classification` | 0     |
+| `routeTodos`      | `todos`          | 0 (deterministic) |
 | `clusterThoughts` | `ideas`, `actions`, `questions` | 1 (LLM) |
 | `mergeIntoIdea`   | `ideas`, `actions`, `questions` | 1 (LLM) |
 | `refineIdea`      | `ideas`, `actions`, `questions` | 1 (LLM) |
@@ -23,7 +24,12 @@ merge → refine) of the "idea factory" design in `docs/idea-factory.md`.
 | `answerQuestion`  | `questions`      | 1 (manual) |
 | `renderBoard`     | `board` (file)   | 0     |
 
-Resources: `inbox`, `classification`, `ideas`, `actions`, `questions`, `todos`.
+Resources: `inbox`, `classification`, `ideas`, `todos`, `actions`, `questions`.
+
+The **todo branch** is a simple, deterministic path: a thought classified as
+`todo` is routed by `routeTodos` into the `todos` resource with the right list
+(shopping / household / appointments / errands / work / ideas / custom). The
+todo's *lifecycle* (completion, recurrence, reminders) lives outside the factory.
 
 Classification kinds: `new-idea`, `refinement`, `minor-rethink`,
 `major-rethink`, `duplicate`, `todo`, `note`, `noise`.
@@ -60,8 +66,8 @@ swamp model method run ideas-factory modifyAction --input actionId=<id> --input 
 swamp model method run ideas-factory answerQuestion --input questionId=<id> --input answer='...'
 ```
 
-The `ideas-factory` workflow runs `classifyThought → clusterThoughts →
-renderBoard`. Merge/refine are on-demand (via the UI or CLI).
+The `ideas-factory` workflow runs `classifyThought → routeTodos →
+clusterThoughts → renderBoard`. Merge/refine are on-demand (via the UI or CLI).
 
 ## Web UI
 

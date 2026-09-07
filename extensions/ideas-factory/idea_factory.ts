@@ -172,7 +172,7 @@ const TodosSchema = z.object({
 
 const ActionSchema = z.object({
   id: z.string(),
-  step: z.enum(["cluster", "merge", "refine", "plan"]),
+  step: z.enum(["cluster", "merge", "refine", "plan", "implement"]),
   actor: z.enum(["llm", "manual"]),
   inputIds: z.array(z.string()),
   outputId: z.string().nullable(),
@@ -246,6 +246,26 @@ const PlansSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Phase 3: verification (test results per implementation run)
+// ---------------------------------------------------------------------------
+
+const VerificationSchema = z.object({
+  id: z.string(),
+  ideaId: z.string(),
+  planId: z.string(),
+  phase: z.string(),
+  command: z.string(),
+  exitCode: z.number(),
+  passed: z.boolean(),
+  output: z.string(),
+  createdAt: z.iso.datetime(),
+});
+
+const VerificationsSchema = z.object({
+  verifications: z.array(VerificationSchema),
+});
+
+// ---------------------------------------------------------------------------
 // Shared context type
 // ---------------------------------------------------------------------------
 
@@ -258,9 +278,11 @@ type Action = z.infer<typeof ActionSchema>;
 type Question = z.infer<typeof QuestionSchema>;
 type Plan = z.infer<typeof PlanSchema>;
 type PlanTask = z.infer<typeof PlanTaskSchema>;
+type Verification = z.infer<typeof VerificationSchema>;
 
 type MethodContext = {
   globalArgs: GlobalArgs;
+  repoDir: string;
   logger?: { info: (msg: string, props?: Record<string, unknown>) => void };
   writeResource: (
     specName: string,
@@ -521,6 +543,7 @@ type FactoryState = {
   actions: Action[];
   questions: Question[];
   plans: Plan[];
+  verifications: Verification[];
 };
 
 async function readState(context: MethodContext): Promise<FactoryState> {
@@ -545,6 +568,9 @@ async function readState(context: MethodContext): Promise<FactoryState> {
   const plans = (await context.readResource("plans")) as
     | { plans: Plan[] }
     | null;
+  const verifications = (await context.readResource("verifications")) as
+    | { verifications: Verification[] }
+    | null;
   return {
     thoughts: inbox?.thoughts ?? [],
     classifications: classification?.classifications ?? [],
@@ -553,6 +579,7 @@ async function readState(context: MethodContext): Promise<FactoryState> {
     actions: actions?.actions ?? [],
     questions: questions?.questions ?? [],
     plans: plans?.plans ?? [],
+    verifications: verifications?.verifications ?? [],
   };
 }
 
@@ -572,6 +599,9 @@ async function writeState(
     questions: s.questions,
   });
   await context.writeResource("plans", "plans", { plans: s.plans });
+  await context.writeResource("verifications", "verifications", {
+    verifications: s.verifications,
+  });
 }
 
 const CLUSTER_SYSTEM =
@@ -712,6 +742,111 @@ export function mvpViolation(
 }
 
 // ---------------------------------------------------------------------------
+// Phase 3 helpers: target resolution, language detection, shell execution
+// ---------------------------------------------------------------------------
+
+/** Resolve an idea's target to a concrete directory path. */
+export function resolveTargetDir(
+  target: Target | null,
+  repoDir: string,
+): { dir: string; error?: string } {
+  if (!target) return { dir: "", error: "no target set on the idea" };
+  if (target.type === "directory") {
+    if (!target.path) return { dir: "", error: "directory target has no path" };
+    return { dir: target.path };
+  }
+  if (target.type === "git-repo") {
+    if (!target.url) return { dir: "", error: "git-repo target has no url" };
+    // Clone into a sibling dir named after the repo (first cut: current branch).
+    const name = target.url.split("/").pop()?.replace(/\.git$/, "") ?? "repo";
+    return { dir: `${repoDir}/${name}` };
+  }
+  // new-project: create under the repo dir.
+  return { dir: `${repoDir}/new-project` };
+}
+
+/** Detect the language/tooling of a directory from its marker files. */
+export function detectLanguage(dir: string): {
+  language: string;
+  testCommand: string;
+} {
+  const markers: Array<[string, string, string]> = [
+    ["go.mod", "go", "go test ./..."],
+    ["Cargo.toml", "rust", "cargo test"],
+    ["deno.json", "deno", "deno test"],
+    ["deno.jsonc", "deno", "deno test"],
+    ["package.json", "node", "npm test"],
+    ["pyproject.toml", "python", "pytest"],
+    ["requirements.txt", "python", "pytest"],
+  ];
+  for (const [file, language, testCommand] of markers) {
+    try {
+      if (Deno.statSync(`${dir}/${file}`).isFile) {
+        return { language, testCommand };
+      }
+    } catch {
+      // marker not present
+    }
+  }
+  return { language: "unknown", testCommand: "" };
+}
+
+/** Run a shell command and return its output + exit code. */
+async function runCommand(
+  cmd: string,
+  args: string[],
+  cwd: string,
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  const command = new Deno.Command(cmd, {
+    args,
+    cwd,
+    stdout: "piped",
+    stderr: "piped",
+    // Keep toolchain caches writable (the sandbox makes ~/.cache read-only).
+    env: {
+      ...Deno.env.toObject(),
+      GOCACHE: Deno.env.get("GOCACHE") ?? "/tmp/gocache",
+      DENO_DIR: Deno.env.get("DENO_DIR") ?? "/tmp/deno-dir",
+    },
+  });
+  const { code, stdout, stderr } = await command.output();
+  return {
+    exitCode: code,
+    stdout: new TextDecoder().decode(stdout),
+    stderr: new TextDecoder().decode(stderr),
+  };
+}
+
+const IMPLEMENT_SYSTEM =
+  `You are a software implementation assistant. Given an idea and a set of tasks, ` +
+  `write the code, docs, and tests to implement them in the target language. ` +
+  `Return JSON: {"files":[{"path":"relative/path","content":"..."}],"testCommand":"..."}. ` +
+  `Write complete, runnable files. Match the existing codebase's language and ` +
+  `conventions. Keep the implementation minimal — implement exactly the tasks given, ` +
+  `no more.`;
+
+function buildImplementPrompt(
+  idea: Idea,
+  tasks: PlanTask[],
+  language: string,
+  existingFiles: string[],
+): string {
+  const taskLines = tasks.map((t) =>
+    `- ${t.title}: ${t.description} (acceptance: ${
+      t.acceptanceCriteria.join("; ")
+    })`
+  ).join("\n");
+  const fileLines = existingFiles.length
+    ? existingFiles.join("\n")
+    : "(empty — new project)";
+  return `Idea: ${idea.title}\n${idea.body}\n\n` +
+    `Language: ${language}\n\n` +
+    `Existing files:\n${fileLines}\n\n` +
+    `Tasks to implement:\n${taskLines}\n\n` +
+    `Write the code, docs, and tests for these tasks.`;
+}
+
+// ---------------------------------------------------------------------------
 // Model definition
 // ---------------------------------------------------------------------------
 
@@ -760,6 +895,12 @@ export const model = {
       description:
         "Task breakdowns with acceptance criteria + test strategy (Phase 2)",
       schema: PlansSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    verifications: {
+      description: "Test results per implementation run (Phase 3)",
+      schema: VerificationsSchema,
       lifetime: "infinite",
       garbageCollection: 5,
     },
@@ -1691,6 +1832,141 @@ export const model = {
       },
     },
 
+    implementPlan: {
+      description:
+        "Implement a plan phase: the LLM writes code + docs + tests into the target, then run the tests and commit (current branch).",
+      arguments: z.object({
+        ideaId: z.string(),
+        phase: z.string().optional().describe(
+          "Which plan phase to implement (default 'MVP')",
+        ),
+      }),
+      execute: async (
+        args: { ideaId: string; phase?: string },
+        context: MethodContext,
+      ) => {
+        const s = await readState(context);
+        const now = new Date().toISOString();
+        const idea = s.ideas.find((i) => i.id === args.ideaId);
+        if (!idea) return { dataHandles: [], error: "idea not found" };
+        const plan = s.plans.find((p) =>
+          p.ideaId === idea.id && p.status !== "superseded"
+        );
+        if (!plan) return { dataHandles: [], error: "no active plan for idea" };
+
+        const phase = args.phase ?? "MVP";
+        const tasks = plan.tasks.filter((t) => t.phase === phase);
+        if (tasks.length === 0) {
+          return { dataHandles: [], error: `no tasks in phase '${phase}'` };
+        }
+
+        const { dir, error } = resolveTargetDir(idea.target, context.repoDir);
+        if (error) return { dataHandles: [], error };
+
+        const { language, testCommand } = detectLanguage(dir);
+
+        // List existing files for the LLM's context.
+        let existingFiles: string[] = [];
+        try {
+          const listing = await runCommand("git", ["ls-files"], dir);
+          existingFiles = listing.stdout.split("\n").filter(Boolean).slice(
+            0,
+            200,
+          );
+        } catch {
+          existingFiles = [];
+        }
+
+        // Ask the LLM to generate the files.
+        const raw = await chatCompletion(context.globalArgs, [
+          { role: "system", content: IMPLEMENT_SYSTEM },
+          {
+            role: "user",
+            content: buildImplementPrompt(idea, tasks, language, existingFiles),
+          },
+        ], { json: true });
+
+        const parsed = raw
+          ? parseLlmJson<{
+            files?: { path: string; content: string }[];
+            testCommand?: string;
+          }>(raw)
+          : null;
+        const files = parsed?.files ?? [];
+        const cmd = parsed?.testCommand ?? testCommand;
+
+        // Write the files into the target.
+        const written: string[] = [];
+        for (const f of files) {
+          const full = `${dir}/${f.path}`;
+          const parent = full.substring(0, full.lastIndexOf("/"));
+          await Deno.mkdir(parent, { recursive: true });
+          await Deno.writeTextFile(full, f.content);
+          written.push(f.path);
+        }
+
+        // Run the tests.
+        let verification: Verification | null = null;
+        if (cmd) {
+          const [bin, ...rest] = cmd.split(" ");
+          const result = await runCommand(bin, rest, dir);
+          verification = {
+            id: genId(),
+            ideaId: idea.id,
+            planId: plan.id,
+            phase,
+            command: cmd,
+            exitCode: result.exitCode,
+            passed: result.exitCode === 0,
+            output: (result.stdout + result.stderr).slice(0, 4000),
+            createdAt: now,
+          };
+          s.verifications.push(verification);
+        }
+
+        // Commit (current branch).
+        let commit: string | null = null;
+        if (written.length > 0) {
+          await runCommand("git", ["add", "-A"], dir);
+          const msg = `idea-factory: implement ${phase} for "${idea.title}"`;
+          const r = await runCommand("git", ["commit", "-m", msg], dir);
+          commit = r.exitCode === 0 ? msg : null;
+        }
+
+        s.actions.push({
+          id: genId(),
+          step: "implement",
+          actor: "llm",
+          inputIds: [idea.id],
+          outputId: plan.id,
+          reasoning: `implemented ${written.length} file(s) in ${phase}`,
+          userPrompt: null,
+          llmResponse: raw,
+          before: null,
+          status: "applied",
+          appliedAt: now,
+          revertedAt: null,
+        });
+
+        await writeState(context, s);
+        context.logger?.info(
+          "Implemented {phase} for idea {id}: {files} files, tests {passed}",
+          {
+            phase,
+            id: idea.id,
+            files: written.length,
+            passed: verification?.passed ?? "n/a",
+          },
+        );
+        return {
+          dataHandles: [],
+          files: written,
+          testPassed: verification?.passed ?? null,
+          committed: commit !== null,
+        };
+      },
+    },
+
     renderBoard: {
       description:
         "Render a static kanban HTML page over the inbox, ideas, and todos. Writes to outputDir/kanban.html (default ~/.swamp/idea-factory/kanban.html).",
@@ -1888,7 +2164,11 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
         ).join("");
         return `<div class="phase"><div class="phase-head">${
           esc(g.name)
-        } <span class="phase-count">${g.tasks.length} task(s)</span></div>${tasks}<details class="feedback"><summary>feedback</summary><form action="/api/plan-feedback" method="post"><input type="hidden" name="ideaId" value="${
+        } <span class="phase-count">${g.tasks.length} task(s)</span><form class="inline implement" action="/api/implement" method="post"><input type="hidden" name="ideaId" value="${
+          esc(p.ideaId)
+        }"><input type="hidden" name="phase" value="${
+          esc(g.name)
+        }"><button type="submit">implement</button></form></div>${tasks}<details class="feedback"><summary>feedback</summary><form action="/api/plan-feedback" method="post"><input type="hidden" name="ideaId" value="${
           esc(p.ideaId)
         }"><input type="hidden" name="phase" value="${
           esc(g.name)
@@ -1977,8 +2257,9 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   .task-meta { color:var(--muted); font-weight:400; font-size:10px; text-transform:capitalize; }
   .criteria { margin:4px 0 0 16px; padding:0; font-size:11px; color:#3f3f46; }
   .phase { margin-top:8px; }
-  .phase-head { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#52525b; border-bottom:1px solid var(--line); padding-bottom:2px; }
+  .phase-head { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#52525b; border-bottom:1px solid var(--line); padding-bottom:2px; display:flex; align-items:center; justify-content:space-between; gap:6px; }
   .phase-count { font-weight:400; color:var(--muted); text-transform:none; }
+  .implement button { font-size:10px; padding:1px 6px; }
   .feedback { margin-top:6px; }
   .feedback summary { cursor:pointer; font-size:11px; color:var(--muted); }
   .feedback textarea { width:100%; min-height:48px; font:inherit; font-size:12px; margin-top:4px; padding:4px; border:1px solid var(--line); border-radius:4px; }

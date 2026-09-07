@@ -6,6 +6,7 @@ import {
   mvpViolation,
   renderKanban,
   resolveBoardPath,
+  resolveTargetDir,
   toTitle,
 } from "./idea_factory.ts";
 
@@ -85,6 +86,23 @@ Deno.test("mvpViolation flags infrastructure/configurability in the MVP", () => 
     },
   ];
   assertEquals(mvpViolation(later, 5), null);
+});
+
+Deno.test("resolveTargetDir resolves directory, git-repo, and new-project targets", () => {
+  assertEquals(
+    resolveTargetDir({ type: "directory", path: "/tmp/foo" }, "/repo").dir,
+    "/tmp/foo",
+  );
+  assertEquals(
+    resolveTargetDir({ type: "git-repo", url: "https://x/y/repo.git" }, "/repo")
+      .dir,
+    "/repo/repo",
+  );
+  assertEquals(
+    resolveTargetDir({ type: "new-project" }, "/repo").dir,
+    "/repo/new-project",
+  );
+  assertEquals(resolveTargetDir(null, "/repo").error !== undefined, true);
 });
 
 Deno.test("classifier routes a software idea to new-idea", () => {

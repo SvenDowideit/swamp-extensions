@@ -241,6 +241,17 @@ async function handler(req: Request): Promise<Response> {
     return respond(req, true);
   }
 
+  if (url.pathname === "/api/implement") {
+    if (!body.ideaId) return json(400, { ok: false, error: "ideaId required" });
+    const r = await runMethod("implementPlan", {
+      ideaId: body.ideaId,
+      ...(body.phase ? { phase: body.phase } : {}),
+    });
+    if (!r.ok) return respond(req, false, { error: r.output });
+    await renderBoard();
+    return respond(req, true);
+  }
+
   return json(404, { ok: false, error: "not found" });
 }
 

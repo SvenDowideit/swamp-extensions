@@ -349,6 +349,10 @@ merge + prompt-injection controls are for.
   `planIdea`/`clusterThoughts`/`mergeIntoIdea`/`refineIdea`), so answers actually
   shape the next plan. Answering a question also marks the idea's plan `stale`
   (reversion guard extended to answers), so the user is prompted to re-plan.
+- **Plan feedback:** each phase of a plan has a collapsed (expandable) feedback
+  control. `planFeedback` captures the feedback as a thought (routed back to the
+  Thoughts column — the "previous stage"), refines the idea body with it, and
+  marks the plan `stale`, so re-planning incorporates the feedback.
 - **Done:** a planable idea has a task breakdown with testable criteria.
 
 **Status: ✅ COMPLETE (verified).** Implemented in `@svendowideit/ideas-factory`

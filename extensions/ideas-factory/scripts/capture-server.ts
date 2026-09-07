@@ -17,6 +17,7 @@
  *   POST /api/modify     — {actionId, body?} ; modify an idea's body
  *   POST /api/answer     — {questionId, answer} ; answer an LLM question
  *   POST /api/plan       — {ideaId, userPrompt?} ; plan an idea (Phase 2)
+ *   POST /api/plan-feedback — {ideaId, phase?, feedback} ; refine an idea from plan feedback
  */
 const PORT = parseInt(Deno.env.get("IDEA_FACTORY_PORT") ?? "8877");
 const BOARD_PATH = Deno.env.get("IDEA_FACTORY_BOARD") ??
@@ -191,6 +192,20 @@ async function handler(req: Request): Promise<Response> {
     const r = await runMethod("planIdea", {
       ideaId: body.ideaId,
       ...(body.userPrompt ? { userPrompt: body.userPrompt } : {}),
+    });
+    if (!r.ok) return respond(req, false, { error: r.output });
+    await renderBoard();
+    return respond(req, true);
+  }
+
+  if (url.pathname === "/api/plan-feedback") {
+    if (!body.ideaId || !body.feedback) {
+      return json(400, { ok: false, error: "ideaId and feedback required" });
+    }
+    const r = await runMethod("planFeedback", {
+      ideaId: body.ideaId,
+      feedback: body.feedback,
+      ...(body.phase ? { phase: body.phase } : {}),
     });
     if (!r.ok) return respond(req, false, { error: r.output });
     await renderBoard();

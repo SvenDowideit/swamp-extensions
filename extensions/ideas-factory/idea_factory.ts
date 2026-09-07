@@ -1445,6 +1445,104 @@ export const model = {
       },
     },
 
+    planFeedback: {
+      description:
+        "Capture feedback on a plan phase as a thought, refine the idea with it, and mark the plan stale so re-planning incorporates the feedback.",
+      arguments: z.object({
+        ideaId: z.string(),
+        phase: z.string().optional(),
+        feedback: z.string(),
+      }),
+      execute: async (
+        args: { ideaId: string; phase?: string; feedback: string },
+        context: MethodContext,
+      ) => {
+        const s = await readState(context);
+        const now = new Date().toISOString();
+        const idea = s.ideas.find((i) => i.id === args.ideaId);
+        if (!idea) return { dataHandles: [], error: "idea not found" };
+
+        // 1. Capture the feedback as a thought (the "previous stage").
+        const raw = args.phase
+          ? `[plan feedback · ${args.phase}] ${args.feedback}`
+          : `[plan feedback] ${args.feedback}`;
+        const thought: Thought = {
+          id: genId(),
+          raw,
+          source: "plan-feedback",
+          capturedAt: now,
+          status: "classified",
+        };
+        s.thoughts.push(thought);
+        s.classifications.push({
+          thoughtId: thought.id,
+          kind: "refinement",
+          confidence: 1.0,
+          reasoning: "plan feedback",
+          classifiedAt: now,
+          routed: false,
+        });
+
+        // 2. Refine the idea body with the feedback (LLM), so the next plan
+        //    reflects it. If the LLM fails, the thought is still recorded and
+        //    the plan is still marked stale.
+        const before = { ideaId: idea.id, body: idea.body };
+        let refinedBody: string | null = null;
+        let llmResponse: string | null = null;
+        try {
+          const rawResp = await chatCompletion(context.globalArgs, [
+            { role: "system", content: REFINE_SYSTEM },
+            {
+              role: "user",
+              content: buildRefinePrompt(thought, idea) +
+                buildAnswerContext(s.questions, idea.id),
+            },
+          ], { json: true });
+          llmResponse = rawResp;
+          if (rawResp) {
+            const parsed = parseLlmJson<{ body?: string }>(rawResp);
+            refinedBody = parsed?.body ?? null;
+          }
+        } catch {
+          // leave refinedBody null; fall through to record + stale
+        }
+        if (refinedBody) {
+          idea.body = refinedBody;
+          idea.updatedAt = now;
+        }
+        if (!idea.sourceThoughtIds.includes(thought.id)) {
+          idea.sourceThoughtIds.push(thought.id);
+        }
+        markPlansStale(s, idea.id);
+
+        s.actions.push({
+          id: genId(),
+          step: "refine",
+          actor: "llm",
+          inputIds: [thought.id],
+          outputId: idea.id,
+          reasoning: `plan feedback${args.phase ? ` on ${args.phase}` : ""}`,
+          userPrompt: null,
+          llmResponse,
+          before,
+          status: "applied",
+          appliedAt: now,
+          revertedAt: null,
+        });
+
+        await writeState(context, s);
+        context.logger?.info(
+          "Recorded plan feedback for idea {id} (phase {phase})",
+          { id: idea.id, phase: args.phase ?? "(all)" },
+        );
+        return {
+          dataHandles: [],
+          thoughtId: thought.id,
+          refined: !!refinedBody,
+        };
+      },
+    },
+
     renderBoard: {
       description:
         "Render a static kanban HTML page over the inbox, ideas, and todos. Writes to outputDir/kanban.html (default ~/.swamp/idea-factory/kanban.html).",
@@ -1600,15 +1698,34 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   const planCards = d.plans.filter((p) => p.status !== "superseded").map(
     (p) => {
       const idea = d.ideas.find((i) => i.id === p.ideaId);
-      const tasks = p.tasks.map((t) =>
-        `<div class="task"><div class="task-title">${
-          esc(t.title)
-        } <span class="task-meta">${esc(t.phase)} · ${esc(t.testStrategy)} · ${
-          esc(t.effort)
-        }</span></div><ul class="criteria">${
-          t.acceptanceCriteria.map((c) => `<li>${esc(c)}</li>`).join("")
-        }</ul></div>`
-      ).join("");
+      // Group tasks by phase, preserving first-appearance order.
+      const phases: { name: string; tasks: PlanTask[] }[] = [];
+      for (const t of p.tasks) {
+        let g = phases.find((x) => x.name === t.phase);
+        if (!g) {
+          g = { name: t.phase, tasks: [] };
+          phases.push(g);
+        }
+        g.tasks.push(t);
+      }
+      const phaseHtml = phases.map((g) => {
+        const tasks = g.tasks.map((t) =>
+          `<div class="task"><div class="task-title">${
+            esc(t.title)
+          } <span class="task-meta">${esc(t.testStrategy)} · ${
+            esc(t.effort)
+          }</span></div><ul class="criteria">${
+            t.acceptanceCriteria.map((c) => `<li>${esc(c)}</li>`).join("")
+          }</ul></div>`
+        ).join("");
+        return `<div class="phase"><div class="phase-head">${
+          esc(g.name)
+        } <span class="phase-count">${g.tasks.length} task(s)</span></div>${tasks}<details class="feedback"><summary>feedback</summary><form action="/api/plan-feedback" method="post"><input type="hidden" name="ideaId" value="${
+          esc(p.ideaId)
+        }"><input type="hidden" name="phase" value="${
+          esc(g.name)
+        }"><textarea name="feedback" placeholder="Feedback on this phase…"></textarea><button type="submit">submit</button></form></details></div>`;
+      }).join("");
       const extras = [
         p.constraints.length
           ? `<div class="plan-extra"><b>constraints:</b> ${
@@ -1630,7 +1747,7 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
         esc(idea?.title ?? p.ideaId)
       }</div><div class="card-meta">plan · ${
         esc(p.status)
-      } · ${p.tasks.length} task(s)</div>${tasks}${extras}</div>`;
+      } · ${p.tasks.length} task(s)</div>${phaseHtml}${extras}</div>`;
     },
   ).join("\n");
 
@@ -1691,6 +1808,12 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   .task-title { font-weight:600; font-size:12px; }
   .task-meta { color:var(--muted); font-weight:400; font-size:10px; text-transform:capitalize; }
   .criteria { margin:4px 0 0 16px; padding:0; font-size:11px; color:#3f3f46; }
+  .phase { margin-top:8px; }
+  .phase-head { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#52525b; border-bottom:1px solid var(--line); padding-bottom:2px; }
+  .phase-count { font-weight:400; color:var(--muted); text-transform:none; }
+  .feedback { margin-top:6px; }
+  .feedback summary { cursor:pointer; font-size:11px; color:var(--muted); }
+  .feedback textarea { width:100%; min-height:48px; font:inherit; font-size:12px; margin-top:4px; padding:4px; border:1px solid var(--line); border-radius:4px; }
   .plan-extra { font-size:11px; color:var(--muted); margin-top:4px; }
   .plan-extra.unknown { color:#b45309; }
   .questions-inline { margin-top:8px; border-top:1px dashed var(--line); padding-top:6px; }

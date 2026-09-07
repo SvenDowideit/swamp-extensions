@@ -422,3 +422,66 @@ Deno.test("a plan card shows tasks, acceptance criteria, constraints, and unknow
   assertEquals(html.includes("which domains to proxy"), true);
   assertEquals(html.includes("/api/plan"), true);
 });
+
+Deno.test("plan tasks are grouped by phase with a collapsed feedback control", () => {
+  const now = new Date().toISOString();
+  const html = renderKanban(
+    {
+      thoughts: [],
+      classifications: [],
+      ideas: [{
+        id: "i1",
+        title: "caddy extension",
+        body: "a caddy extension",
+        status: "captured",
+        sourceThoughtIds: [],
+        createdAt: now,
+        updatedAt: now,
+      }],
+      todos: [],
+      actions: [],
+      questions: [],
+      plans: [{
+        id: "p1",
+        ideaId: "i1",
+        tasks: [
+          {
+            id: "t1",
+            title: "mvp task",
+            description: "d",
+            acceptanceCriteria: ["ac"],
+            testStrategy: "unit",
+            dependencies: [],
+            effort: "small",
+            phase: "MVP",
+            status: "ready",
+          },
+          {
+            id: "t2",
+            title: "generalize task",
+            description: "d",
+            acceptanceCriteria: ["ac"],
+            testStrategy: "unit",
+            dependencies: [],
+            effort: "small",
+            phase: "Iteration 1",
+            status: "ready",
+          },
+        ],
+        constraints: [],
+        assumptions: [],
+        unknowns: [],
+        status: "draft",
+        createdAt: now,
+        updatedAt: now,
+      }],
+    },
+    now,
+  );
+  // Phase heads group the tasks, and each phase has a collapsed feedback control.
+  assertEquals(html.includes("MVP"), true);
+  assertEquals(html.includes("Iteration 1"), true);
+  assertEquals(html.includes("phase-head"), true);
+  assertEquals(html.includes("/api/plan-feedback"), true);
+  assertEquals(html.includes("<summary>feedback</summary>"), true);
+});

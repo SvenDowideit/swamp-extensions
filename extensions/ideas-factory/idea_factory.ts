@@ -340,13 +340,17 @@ export const model = {
       garbageCollection: 5,
     },
     ideas: {
-      description: "Common ideas created from new-idea thoughts",
+      // PHASE 1 (not populated in Phase 0): the clustering step that turns
+      // related thoughts into common ideas does not exist yet, so no thought is
+      // routed here. Kept as empty scaffolding.
+      description: "Common ideas produced from thoughts (Phase 1)",
       schema: IdeasSchema,
       lifetime: "infinite",
       garbageCollection: 5,
     },
     todos: {
-      description: "Action items created from todo thoughts",
+      // PHASE 1 (not populated in Phase 0). Kept as empty scaffolding.
+      description: "Action items produced from thoughts (Phase 1)",
       schema: TodosSchema,
       lifetime: "infinite",
       garbageCollection: 5,
@@ -602,21 +606,13 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   const classFor = (id: string) =>
     d.classifications.find((x) => x.thoughtId === id) ?? null;
 
-  // Thoughts column shows thoughts that haven't yet become an idea or todo:
-  // unclassified, in-flight (classified but not routed), or parked kinds.
-  const openThoughts = d.thoughts.filter((t) => {
+  // Phase 0: Thoughts column shows EVERY captured thought, with its
+  // classification. Nothing is routed into a "processed" stage yet — turning
+  // thoughts into ideas/todos is Phase 1+. Only the classification (the result
+  // of capture -> classify) is shown here.
+  const thoughtCards = d.thoughts.map((t) => {
     const c = classFor(t.id);
-    if (!c || !c.routed) return true;
-    return c.kind !== "new-idea" && c.kind !== "todo";
-  });
-
-  const thoughtCards = openThoughts.map((t) => {
-    const c = classFor(t.id);
-    const meta = !c
-      ? "unclassified"
-      : c.routed
-      ? `${c.kind} · parked`
-      : c.kind;
+    const meta = c ? `${c.kind} · ${(c.confidence * 100).toFixed(0)}%` : "unclassified";
     return `<div class="card thoughts-card"><div class="card-title">${
       esc(
         toTitle(t.raw),

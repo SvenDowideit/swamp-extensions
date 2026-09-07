@@ -101,7 +101,9 @@ Deno.test("renderKanban produces a page with the three columns", () => {
   assertObjectMatch({ ok: html.includes("a tool") }, { ok: true });
 });
 
-Deno.test("a routed new-idea thought leaves the Thoughts column", () => {
+Deno.test("Phase 0: every captured thought stays in the Thoughts column", () => {
+  // The classify step runs but routing does not, so no idea is created and the
+  // thought remains a thought.
   const html = renderKanban(
     {
       thoughts: [{
@@ -117,47 +119,35 @@ Deno.test("a routed new-idea thought leaves the Thoughts column", () => {
         confidence: 0.9,
         reasoning: "k",
         classifiedAt: new Date().toISOString(),
-        routed: true,
-      }],
-      ideas: [{
-        id: "i1",
-        title: "a tool",
-        body: "build a tool",
-        status: "captured",
-        createdAt: new Date().toISOString(),
-      }],
-      todos: [],
-    },
-    new Date().toISOString(),
-  );
-  // No Thoughts-card for the routed thought; it appears only as the idea card.
-  assertEquals(html.includes("thoughts-card"), false);
-  assertEquals(html.includes("idea-card"), true);
-});
-
-Deno.test("a parked thought stays visible in Thoughts as parked", () => {
-  const html = renderKanban(
-    {
-      thoughts: [{
-        id: "t1",
-        raw: "note about something",
-        source: "text",
-        capturedAt: new Date().toISOString(),
-        status: "classified",
-      }],
-      classifications: [{
-        thoughtId: "t1",
-        kind: "note",
-        confidence: 0.8,
-        reasoning: "k",
-        classifiedAt: new Date().toISOString(),
-        routed: true,
+        routed: false,
       }],
       ideas: [],
       todos: [],
     },
     new Date().toISOString(),
   );
+  // The thought stays a Thoughts card and no idea card is produced in Phase 0.
   assertEquals(html.includes("thoughts-card"), true);
-  assertEquals(html.includes("note · parked"), true);
+  assertEquals(html.includes("idea-card"), false);
+  assertEquals(html.includes("new-idea ·"), true);
+});
+
+Deno.test("a captured thought with no classification shows as unclassified", () => {
+  const html = renderKanban(
+    {
+      thoughts: [{
+        id: "t1",
+        raw: "a raw unclassified thought",
+        source: "text",
+        capturedAt: new Date().toISOString(),
+        status: "unclassified",
+      }],
+      classifications: [],
+      ideas: [],
+      todos: [],
+    },
+    new Date().toISOString(),
+  );
+  assertEquals(html.includes("thoughts-card"), true);
+  assertEquals(html.includes("unclassified"), true);
 });

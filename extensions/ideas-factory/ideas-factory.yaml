@@ -1,11 +1,13 @@
 id: 520b093e-c8b3-4c0c-857f-bf8369491007
 name: "@svendowideit/ideas-factory"
 description: |
-  Idea factory loop — classify unclassified thoughts, route new-idea / todo
-  thoughts into ideas and todos, then re-render the kanban board. Deterministic
-  in Phase 0 (keyword classification, no LLM). The ideas-factory model instance
-  is auto-registered on first run. The board is written to boardPath when set,
-  otherwise to ~/.swamp/idea-factory/kanban.html.
+  Idea factory — Phase 0: capture and classify thoughts. A captured thought is
+  classified (deterministic keyword matching in Phase 0, no LLM) and remains in
+  the kanban Thoughts column. Ideas/Todos are NOT created in Phase 0 — turning
+  classified thoughts into common ideas (clustering, routing, refinement) is
+  Phase 1 and later. The board is written to boardPath when set, otherwise to
+  ~/.swamp/idea-factory/kanban.html. The ideas-factory model instance is
+  auto-registered on first run.
 tags: {}
 inputs:
   properties:
@@ -18,29 +20,16 @@ inputs:
   required: []
 jobs:
   - name: main
-    description: Classify, route, and render.
+    description: Classify and render the kanban board.
     steps:
       - name: classify
-        description: Classify any unclassified thoughts in the inbox.
+        description: Classify any unclassified thoughts in the inbox. Thoughts stay in the inbox.
         task:
           type: model_method
           modelType: "@svendowideit/ideas-factory"
           modelName: ideas-factory
           methodName: classifyThought
         dependsOn: []
-        weight: 0
-        allowFailure: false
-      - name: route
-        description: Route classified thoughts into ideas and todos.
-        task:
-          type: model_method
-          modelType: "@svendowideit/ideas-factory"
-          modelName: ideas-factory
-          methodName: routeThought
-        dependsOn:
-          - step: classify
-            condition:
-              type: succeeded
         weight: 0
         allowFailure: false
       - name: render
@@ -53,11 +42,11 @@ jobs:
           inputs:
             path: ${{ inputs.boardPath }}
         dependsOn:
-          - step: route
+          - step: classify
             condition:
               type: succeeded
         weight: 0
         allowFailure: false
     dependsOn: []
     weight: 0
-version: 1
+version: 2

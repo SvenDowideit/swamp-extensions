@@ -2185,13 +2185,21 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
             t.acceptanceCriteria.map((c) => `<li>${esc(c)}</li>`).join("")
           }</ul></div>`
         ).join("");
+        const handoffPrompt =
+          `Load the skill extensions/ideas-factory/skills/implement-idea.md and ` +
+          `implement the "${g.name}" phase of idea "${
+            idea?.title ?? p.ideaId
+          }" ` +
+          `(ideaId=${p.ideaId}).`;
         return `<div class="phase"><div class="phase-head">${
           esc(g.name)
         } <span class="phase-count">${g.tasks.length} task(s)</span></div>${tasks}<details class="feedback"><summary>feedback</summary><form action="/api/plan-feedback" method="post"><input type="hidden" name="ideaId" value="${
           esc(p.ideaId)
         }"><input type="hidden" name="phase" value="${
           esc(g.name)
-        }"><textarea name="feedback" placeholder="Feedback on this phase…"></textarea><button type="submit">submit</button></form></details></div>`;
+        }"><textarea name="feedback" placeholder="Feedback on this phase…"></textarea><button type="submit">submit</button></form></details><details class="handoff"><summary>hand off to agent</summary><textarea readonly class="handoff-prompt">${
+          esc(handoffPrompt)
+        }</textarea><button type="button" class="copy" data-copy>copy</button></details></div>`;
       }).join("");
       const extras = [
         p.constraints.length
@@ -2281,6 +2289,10 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   .feedback { margin-top:6px; }
   .feedback summary { cursor:pointer; font-size:11px; color:var(--muted); }
   .feedback textarea { width:100%; min-height:48px; font:inherit; font-size:12px; margin-top:4px; padding:4px; border:1px solid var(--line); border-radius:4px; }
+  .handoff { margin-top:6px; }
+  .handoff summary { cursor:pointer; font-size:11px; color:var(--muted); }
+  .handoff-prompt { width:100%; min-height:56px; font:inherit; font-size:11px; margin-top:4px; padding:4px; border:1px solid var(--line); border-radius:4px; background:#fafafa; }
+  .copy { font-size:11px; margin-top:4px; }
   .target { font-size:11px; color:var(--muted); margin-top:6px; }
   .target-label { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
   .target-control { margin-top:6px; }
@@ -2329,13 +2341,22 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
 </main>
 <script>
 document.querySelectorAll('[data-generated]').forEach(function(el){var d=new Date(el.getAttribute('data-generated'));el.textContent=d.toLocaleString('en-GB');});
-// Show a "working…" indicator on long-running actions (implement/plan/cluster).
+// Show a "working…" indicator on long-running actions (plan/cluster).
 document.querySelectorAll('form').forEach(function(f){
   f.addEventListener('submit', function(){
     var b = f.querySelector('button[type="submit"]');
-    if (b && (f.action.indexOf('/api/implement') >= 0 || f.action.indexOf('/api/plan') >= 0 || f.action.indexOf('/api/cluster') >= 0)) {
+    if (b && (f.action.indexOf('/api/plan') >= 0 || f.action.indexOf('/api/cluster') >= 0)) {
       b.disabled = true;
       b.textContent = 'working…';
+    }
+  });
+});
+// Copy the hand-off prompt to the clipboard.
+document.querySelectorAll('button[data-copy]').forEach(function(b){
+  b.addEventListener('click', function(){
+    var ta = b.previousElementSibling;
+    if (ta && ta.value) {
+      navigator.clipboard.writeText(ta.value).then(function(){ b.textContent = 'copied'; setTimeout(function(){ b.textContent = 'copy'; }, 1500); });
     }
   });
 });

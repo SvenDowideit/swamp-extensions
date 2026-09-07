@@ -337,6 +337,11 @@ merge + prompt-injection controls are for.
   simplify, defer generalization), then `Iteration 1`, `Iteration 2`, … iteratively
   generalize into reusable components. General-purpose components are *not* built
   before the minimal working system.
+- **MVP controls (enforced, not just prompted):** the planner first identifies the
+  *core intent*, caps the MVP at `maxMvpTasks` (default 5), and a validation/retry
+  loop re-prompts if the MVP is over-built — too many tasks, or infrastructure/
+  configurability (config/auth/persistence/abstraction/plugin/…) creeping in. The
+  plan must still cover *all* functionality across the later iterations.
 - **Constraint discovery:** the plan records `constraints`, `assumptions`, and
   `unknowns` — the LLM is asked to surface what is unclear, and to ask clarifying
   questions rather than guess.

@@ -45,6 +45,9 @@ const GlobalArgsSchema = z.object({
   outputDir: z.string().optional().describe(
     "Directory where the kanban board HTML is written (default ~/.swamp/idea-factory)",
   ),
+  maxMvpTasks: z.number().int().min(1).max(20).optional().describe(
+    "Maximum number of tasks allowed in the MVP phase (default 5); the planner retries if the MVP exceeds this",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -604,18 +607,29 @@ function buildRefinePrompt(
 const PLAN_SYSTEM =
   `You are a software-factory planning assistant. Given an idea, produce a testable, ` +
   `MVP-first phased implementation plan. ` +
-  `Phase 1 ("MVP") is the smallest end-to-end working system that lets the user try ` +
-  `out the idea and its UX as quickly as possible: hardcode or simplify where you can, ` +
-  `and defer generalization. Later phases iteratively generalize the MVP into reusable ` +
-  `components. Do NOT build general-purpose components before the minimal working system. ` +
+  `First identify the CORE INTENT of the idea: the single most important user-visible ` +
+  `outcome the user wants to see working. ` +
+  `Phase 1 ("MVP") must be the smallest end-to-end slice that demonstrates ONLY the core ` +
+  `intent — something the user can run and review immediately. Hardcode or simplify ` +
+  `everything else. ` +
+  `STRICTLY EXCLUDE from the MVP: configuration systems, authentication, persistence, ` +
+  `abstraction layers, plugins, frameworks, and any generalization — defer ALL of these ` +
+  `to later iterations unless one is strictly required for the core flow to work at all. ` +
+  `The MVP must be at most {maxMvpTasks} tasks. If you cannot fit the core intent in that ` +
+  `many tasks, cut scope, not the cap. ` +
+  `Later phases ("Iteration 1", "Iteration 2", ...) iteratively add the remaining ` +
+  `functionality and generalize into reusable components. ` +
+  `IMPORTANT: the plan MUST cover ALL functionality described in the idea — the MVP ` +
+  `covers only the core intent, and the later iterations cover everything else. Do not ` +
+  `omit any functionality; just sequence it after the MVP. ` +
   `For each task give: title, description, acceptanceCriteria (specific, observable, ` +
   `testable statements), testStrategy (one of unit|integration|property|golden|contract|manual), ` +
   `dependencies (task titles it depends on), effort (small|medium|large), and phase ` +
-  `("MVP" for the first working slice, then "Iteration 1", "Iteration 2", ... for ` +
-  `generalization). Also identify: constraints (dependencies, limits, risks), assumptions ` +
-  `(things you are assuming), and unknowns (things that are unclear and would improve the ` +
-  `plan if resolved). If the idea is under-specified, ask clarifying questions instead of ` +
-  `guessing — prefer asking over guessing, because a better-specified idea yields a better plan. ` +
+  `("MVP" for the first working slice, then "Iteration 1", "Iteration 2", ...). ` +
+  `Also identify: constraints (dependencies, limits, risks), assumptions (things you are ` +
+  `assuming), and unknowns (things that are unclear and would improve the plan if resolved). ` +
+  `If the idea is under-specified, ask clarifying questions instead of guessing — prefer ` +
+  `asking over guessing, because a better-specified idea yields a better plan. ` +
   `Return JSON: {"tasks":[{"title":"...","description":"...","acceptanceCriteria":["..."],"testStrategy":"unit","dependencies":["..."],"effort":"medium","phase":"MVP"}],"constraints":["..."],"assumptions":["..."],"unknowns":["..."],"questions":[{"text":"...","about":"..."}]}.`;
 
 function buildPlanPrompt(idea: Idea, userPrompt?: string): string {
@@ -651,6 +665,32 @@ function markPlansStale(s: FactoryState, ideaId: string): void {
       p.updatedAt = new Date().toISOString();
     }
   }
+}
+
+/**
+ * Detect an over-built MVP: too many tasks, or tasks that look like
+ * infrastructure/configurability rather than the core intent. Returns a
+ * human-readable reason, or null if the MVP is acceptable.
+ */
+export function mvpViolation(
+  tasks: { title: string; description: string; phase?: string }[],
+  maxMvpTasks: number,
+): string | null {
+  const mvp = tasks.filter((t) => (t.phase ?? "MVP") === "MVP");
+  if (mvp.length > maxMvpTasks) {
+    return `too large (${mvp.length} tasks, cap is ${maxMvpTasks})`;
+  }
+  const infra =
+    /config|auth|persist|database|storage|schema|migration|abstraction|plugin|framework|generaliz|reusable|extensible|cli|sdk|library/i;
+  const offenders = mvp.filter((t) =>
+    infra.test(`${t.title} ${t.description}`)
+  );
+  if (offenders.length > 0) {
+    return `includes infrastructure/configurability (${
+      offenders.map((t) => t.title).join(", ")
+    })`;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1356,32 +1396,60 @@ export const model = {
             status: "ready",
           }));
         } else {
-          const raw = await chatCompletion(context.globalArgs, [
-            { role: "system", content: PLAN_SYSTEM },
-            {
-              role: "user",
-              content: buildPlanPrompt(idea, args.userPrompt) +
-                buildAnswerContext(s.questions, idea.id),
-            },
+          const maxMvpTasks = context.globalArgs.maxMvpTasks ?? 5;
+          const system = PLAN_SYSTEM.replace(
+            "{maxMvpTasks}",
+            String(maxMvpTasks),
+          );
+          const userContent = buildPlanPrompt(idea, args.userPrompt) +
+            buildAnswerContext(s.questions, idea.id);
+
+          type ParsedPlan = {
+            tasks?: {
+              title: string;
+              description: string;
+              acceptanceCriteria?: string[];
+              testStrategy?: PlanTask["testStrategy"];
+              dependencies?: string[];
+              effort?: PlanTask["effort"];
+              phase?: string;
+            }[];
+            constraints?: string[];
+            assumptions?: string[];
+            unknowns?: string[];
+            questions?: { text: string; about: string }[];
+          };
+
+          let raw = await chatCompletion(context.globalArgs, [
+            { role: "system", content: system },
+            { role: "user", content: userContent },
           ], { json: true });
           llmResponse = raw;
-          if (raw) {
-            const parsed = parseLlmJson<{
-              tasks?: {
-                title: string;
-                description: string;
-                acceptanceCriteria?: string[];
-                testStrategy?: PlanTask["testStrategy"];
-                dependencies?: string[];
-                effort?: PlanTask["effort"];
-                phase?: string;
-              }[];
-              constraints?: string[];
-              assumptions?: string[];
-              unknowns?: string[];
-              questions?: { text: string; about: string }[];
-            }>(raw);
-            tasks = (parsed?.tasks ?? []).map((t) => ({
+          let parsed: ParsedPlan | null = raw
+            ? parseLlmJson<ParsedPlan>(raw)
+            : null;
+
+          // Control: if the MVP is over-built (too many tasks or infrastructure
+          // creep), re-prompt once with a corrective instruction.
+          const violation = parsed
+            ? mvpViolation(parsed.tasks ?? [], maxMvpTasks)
+            : null;
+          if (violation) {
+            const corrective =
+              `Your MVP phase was ${violation}. Re-plan with a strictly minimal ` +
+              `MVP: only the core intent, at most ${maxMvpTasks} tasks, and no ` +
+              `infrastructure/configurability — defer those to later iterations. ` +
+              `Still cover ALL the idea's functionality across the later iterations.`;
+            raw = await chatCompletion(context.globalArgs, [
+              { role: "system", content: system },
+              { role: "user", content: userContent + "\n\n" + corrective },
+            ], { json: true });
+            llmResponse = raw;
+            parsed = raw ? parseLlmJson<ParsedPlan>(raw) : null;
+          }
+
+          if (parsed) {
+            tasks = (parsed.tasks ?? []).map((t) => ({
               id: genId(),
               title: t.title,
               description: t.description,
@@ -1392,10 +1460,10 @@ export const model = {
               phase: t.phase ?? "MVP",
               status: "ready",
             }));
-            constraints = parsed?.constraints ?? [];
-            assumptions = parsed?.assumptions ?? [];
-            unknowns = parsed?.unknowns ?? [];
-            questions = parsed?.questions ?? [];
+            constraints = parsed.constraints ?? [];
+            assumptions = parsed.assumptions ?? [];
+            unknowns = parsed.unknowns ?? [];
+            questions = parsed.questions ?? [];
           }
         }
 

@@ -3,6 +3,7 @@ import {
   buildAnswerContext,
   classifyByKeywords,
   inferTodoList,
+  mvpViolation,
   renderKanban,
   resolveBoardPath,
   toTitle,
@@ -54,6 +55,36 @@ Deno.test("buildAnswerContext returns empty when nothing is answered", () => {
     dismissedAt: null,
   }];
   assertEquals(buildAnswerContext(questions, "i1"), "");
+});
+
+Deno.test("mvpViolation flags an over-sized MVP", () => {
+  const tasks = Array.from({ length: 6 }, (_, i) => ({
+    title: `task ${i}`,
+    description: "d",
+    phase: "MVP",
+  }));
+  assertEquals(mvpViolation(tasks, 5), "too large (6 tasks, cap is 5)");
+  assertEquals(mvpViolation(tasks.slice(0, 5), 5), null);
+});
+
+Deno.test("mvpViolation flags infrastructure/configurability in the MVP", () => {
+  const tasks = [
+    { title: "build the core flow", description: "d", phase: "MVP" },
+    { title: "add a configuration system", description: "d", phase: "MVP" },
+  ];
+  const v = mvpViolation(tasks, 5);
+  assertEquals(v !== null, true);
+  assertEquals(v!.includes("configuration system"), true);
+  // The same task in a later iteration is fine.
+  const later = [
+    { title: "build the core flow", description: "d", phase: "MVP" },
+    {
+      title: "add a configuration system",
+      description: "d",
+      phase: "Iteration 1",
+    },
+  ];
+  assertEquals(mvpViolation(later, 5), null);
 });
 
 Deno.test("classifier routes a software idea to new-idea", () => {

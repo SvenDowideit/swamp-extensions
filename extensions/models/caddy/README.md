@@ -22,6 +22,20 @@ The MVP covers the initial setup and lifecycle of Caddy itself:
    Let's Encrypt TLS-configured Caddy: base domain, ACME email, and admin API
    token.
 
+## What it does (Iteration 1)
+
+Iteration 1 adds live reverse-proxy management via the Caddy admin API:
+
+1. **`addProxyService`** — takes a service name + `host:port`, derives a
+   hostname (`<service-name>.<base-domain>`), and adds a reverse-proxy route via
+   the admin API (`POST /config/`) — live, no restart. Returns a descriptive
+   error if the domain is already in use.
+2. **`removeProxyService`** — stops the associated backend systemd service and
+   removes the Caddy route for the derived domain. Errors if the domain is not
+   found.
+3. **`startBackendService` / `stopBackendService` / `restartBackendService`** —
+   manage backend systemd user services by name via `systemctl --user`.
+
 ## Installation
 
 ```sh
@@ -38,6 +52,14 @@ swamp model method run my-caddy installCaddy
 swamp model method run my-caddy createService
 swamp model method run my-caddy startService
 swamp model method run my-caddy settingsGuidance
+
+# Iteration 1 — live proxy management
+swamp model method run my-caddy addProxyService \
+  --input serviceName=my-app --input upstream=127.0.0.1:8080
+swamp model method run my-caddy removeProxyService \
+  --input serviceName=my-app
+swamp model method run my-caddy restartBackendService \
+  --input serviceName=my-app
 ```
 
 ## Configuration (global arguments)
@@ -47,6 +69,7 @@ swamp model method run my-caddy settingsGuidance
 | `caddyBinPath`      | `~/.local/bin/caddy`       | Where the Caddy binary is installed      |
 | `caddyVersion`      | *(latest)*                 | Caddy version to install (e.g. `v2.8.4`) |
 | `adminApiAddr`      | `localhost:2019`           | Caddy admin API listen address          |
+| `adminApiToken`     | *(unset)*                  | Optional admin API token (Bearer header) |
 | `configPath`        | `~/.config/caddy/Caddyfile` | Caddy config file the service runs     |
 | `serviceName`       | `caddy`                    | systemd user service name               |
 | `baseDomain`        | *(unset)*                  | Base domain for derived hostnames       |

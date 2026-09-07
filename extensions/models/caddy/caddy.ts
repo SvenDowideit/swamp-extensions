@@ -14,6 +14,15 @@
  *                         Let's Encrypt TLS-configured Caddy (base domain,
  *                         ACME email, admin API token).
  *
+ * Iteration 1 methods:
+ *   - `addProxyService`    — derive a hostname from a service name + base
+ *                            domain and add a reverse-proxy route via the
+ *                            admin API (live, no restart).
+ *   - `removeProxyService` — stop the backend systemd service and remove the
+ *                            Caddy route for the derived domain.
+ *   - `startBackendService` / `stopBackendService` / `restartBackendService`
+ *                          — manage backend systemd user services by name.
+ *
  * Linux-only: it shells out to `systemctl --user` and manages a systemd user
  * service. Pure helpers (unit rendering, path expansion, version parsing,
  * guidance rendering) are exported for unit testing.
@@ -51,6 +60,9 @@ const GlobalArgsSchema = z.object({
   plugins: z.array(z.string()).default([]).describe(
     "Caddy plugins to build in via xcaddy (e.g. github.com/caddy-dns/cloudflare)",
   ),
+  adminApiToken: z.string().optional().describe(
+    "Optional admin API token (sent as a Bearer header when set)",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -74,6 +86,33 @@ const ServiceArgsSchema = z.object({
 });
 
 const GuidanceArgsSchema = z.object({});
+
+const AddProxyArgsSchema = z.object({
+  serviceName: z.string().min(1).describe(
+    "Service name; hostname is derived as <service-name>.<base-domain>",
+  ),
+  upstream: z.string().min(1).describe(
+    "Backend host:port to proxy to (e.g. 127.0.0.1:8080 or https://127.0.0.1:8443)",
+  ),
+  baseDomain: z.string().optional().describe(
+    "Override the base domain (defaults to global baseDomain)",
+  ),
+});
+
+const RemoveProxyArgsSchema = z.object({
+  serviceName: z.string().min(1).describe(
+    "Service name whose route and systemd service to remove",
+  ),
+  baseDomain: z.string().optional().describe(
+    "Override the base domain (defaults to global baseDomain)",
+  ),
+});
+
+const BackendServiceArgsSchema = z.object({
+  serviceName: z.string().min(1).describe(
+    "systemd user service name to act on",
+  ),
+});
 
 // ---------------------------------------------------------------------------
 // Resource output schemas
@@ -101,6 +140,17 @@ const GuidanceOutputSchema = z.object({
   baseDomain: z.string(),
   letsEncryptEmail: z.string(),
   adminApiAddr: z.string(),
+});
+
+const ProxyServiceSchema = z.object({
+  serviceName: z.string(),
+  hostname: z.string(),
+  upstream: z.string(),
+});
+
+const ProxyServicesOutputSchema = z.object({
+  services: z.array(ProxyServiceSchema),
+  updatedAt: z.string(),
 });
 
 // ---------------------------------------------------------------------------
@@ -197,6 +247,238 @@ export function renderSettingsGuidance(opts: {
     "Provide these via the model's global arguments or the swamp Vault.",
     "See the README for the exact keys and helper methods.",
   ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Proxy config pure helpers (exported for unit testing)
+// ---------------------------------------------------------------------------
+
+/** A Caddy reverse-proxy route (loosely typed to match Caddy's JSON config). */
+export type CaddyRoute = Record<string, unknown>;
+
+/** A Caddy JSON config document (loosely typed). */
+export type CaddyConfig = Record<string, unknown>;
+
+/** Derive a hostname from a service name and base domain. */
+export function deriveHostname(
+  serviceName: string,
+  baseDomain: string,
+): string {
+  const sanitized = serviceName
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!sanitized) {
+    throw new Error(
+      `Invalid service name '${serviceName}': no valid hostname characters`,
+    );
+  }
+  if (!baseDomain) {
+    throw new Error("baseDomain is required to derive a hostname");
+  }
+  return `${sanitized}.${baseDomain}`;
+}
+
+/** Parse and validate an upstream `host:port` (or `scheme://host:port`). */
+export function parseUpstream(
+  upstream: string,
+): { dial: string; https: boolean } {
+  const withScheme = upstream.includes("://") ? upstream : `http://${upstream}`;
+  let url: URL;
+  try {
+    url = new URL(withScheme);
+  } catch {
+    throw new Error(
+      `Invalid upstream '${upstream}': expected host:port or scheme://host:port`,
+    );
+  }
+  if (!url.hostname) {
+    throw new Error(`Invalid upstream '${upstream}': missing host`);
+  }
+  const port = url.port || (url.protocol === "https:" ? "443" : "80");
+  return { dial: `${url.hostname}:${port}`, https: url.protocol === "https:" };
+}
+
+/** Build a Caddy reverse-proxy route for a hostname + upstream. */
+export function buildRoute(
+  hostname: string,
+  upstream: { dial: string; https: boolean },
+): CaddyRoute {
+  const handle: Record<string, unknown> = {
+    handler: "reverse_proxy",
+    upstreams: [{ dial: upstream.dial }],
+  };
+  if (upstream.https) {
+    handle.transport = { protocol: "http", tls: {} };
+  }
+  return {
+    match: [{ host: [hostname] }],
+    handle: [handle],
+    terminal: true,
+  };
+}
+
+/** The base Caddy JSON config with an empty route table. */
+export function baseConfig(): CaddyConfig {
+  return {
+    apps: {
+      http: {
+        servers: {
+          srv0: {
+            listen: [":443", ":80"],
+            routes: [],
+          },
+        },
+      },
+    },
+  };
+}
+
+/** Read the routes array from a config (empty if absent). */
+function getRoutes(config: CaddyConfig): CaddyRoute[] {
+  const servers = (config.apps as Record<string, unknown> | undefined)?.http as
+    | Record<string, unknown>
+    | undefined;
+  const srv0 = (servers?.servers as Record<string, unknown> | undefined)
+    ?.srv0 as
+      | Record<string, unknown>
+      | undefined;
+  const routes = srv0?.routes;
+  return Array.isArray(routes) ? (routes as CaddyRoute[]) : [];
+}
+
+/** Write the routes array back into a config, ensuring the structure exists. */
+function setRoutes(config: CaddyConfig, routes: CaddyRoute[]): void {
+  const apps = (config.apps ??= {}) as Record<string, unknown>;
+  const http = (apps.http ??= {}) as Record<string, unknown>;
+  const servers = (http.servers ??= {}) as Record<string, unknown>;
+  const srv0 = (servers.srv0 ??= { listen: [":443", ":80"] }) as Record<
+    string,
+    unknown
+  >;
+  srv0.routes = routes;
+}
+
+/** Find a route matching a hostname, returning it and its index. */
+export function findRouteByHost(
+  config: CaddyConfig,
+  hostname: string,
+): { route: CaddyRoute; index: number } | null {
+  const routes = getRoutes(config);
+  for (let i = 0; i < routes.length; i++) {
+    const match = routes[i].match;
+    if (Array.isArray(match)) {
+      for (const m of match) {
+        const hosts = (m as Record<string, unknown>).host;
+        if (Array.isArray(hosts) && hosts.includes(hostname)) {
+          return { route: routes[i], index: i };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/** Render a descriptive domain-conflict error with resolution guidance. */
+export function renderDomainConflictError(
+  hostname: string,
+  existingRoute: CaddyRoute,
+): string {
+  return [
+    `Domain '${hostname}' is already in use.`,
+    `Existing route: ${JSON.stringify(existingRoute)}`,
+    "",
+    "To resolve:",
+    `  1. Remove the conflicting service first (removeProxyService for the`,
+    `     service that owns '${hostname}').`,
+    "  2. Or choose a different service name / base domain.",
+  ].join("\n");
+}
+
+/** Extract the first hostname a route matches on (or null). */
+function routeHostname(route: CaddyRoute): string | null {
+  const match = route.match;
+  if (!Array.isArray(match)) return null;
+  for (const m of match) {
+    const hosts = (m as Record<string, unknown>).host;
+    if (Array.isArray(hosts) && typeof hosts[0] === "string") {
+      return hosts[0] as string;
+    }
+  }
+  return null;
+}
+
+/** Add a route to a config, throwing a descriptive error on host conflict. */
+export function addRouteToConfig(
+  config: CaddyConfig,
+  route: CaddyRoute,
+): CaddyConfig {
+  const hostname = routeHostname(route);
+  if (!hostname) {
+    throw new Error("Route has no host match; cannot add it");
+  }
+  const existing = findRouteByHost(config, hostname);
+  if (existing) {
+    throw new Error(renderDomainConflictError(hostname, existing.route));
+  }
+  const next = structuredClone(config);
+  const routes = getRoutes(next);
+  routes.push(route);
+  setRoutes(next, routes);
+  return next;
+}
+
+/** Remove a route for a hostname, throwing if it is not found. */
+export function removeRouteFromConfig(
+  config: CaddyConfig,
+  hostname: string,
+): CaddyConfig {
+  const existing = findRouteByHost(config, hostname);
+  if (!existing) {
+    throw new Error(`No route found for domain '${hostname}'`);
+  }
+  const next = structuredClone(config);
+  const routes = getRoutes(next);
+  routes.splice(existing.index, 1);
+  setRoutes(next, routes);
+  return next;
+}
+
+/** Extract the list of proxy services (name/hostname/upstream) from a config. */
+export function listProxyServices(
+  config: CaddyConfig,
+  baseDomain: string,
+): Array<{ serviceName: string; hostname: string; upstream: string }> {
+  const services: Array<
+    { serviceName: string; hostname: string; upstream: string }
+  > = [];
+  for (const route of getRoutes(config)) {
+    const match = route.match;
+    if (!Array.isArray(match)) continue;
+    for (const m of match) {
+      const hosts = (m as Record<string, unknown>).host;
+      if (!Array.isArray(hosts)) continue;
+      for (const host of hosts) {
+        if (typeof host !== "string") continue;
+        const suffix = `.${baseDomain}`;
+        const serviceName = host.endsWith(suffix)
+          ? host.slice(0, -suffix.length)
+          : host;
+        const handle = route.handle;
+        const upstream = Array.isArray(handle) && handle.length > 0
+          ? ((handle[0] as Record<string, unknown>).upstreams as
+            | Array<Record<string, unknown>>
+            | undefined)?.[0]?.dial as string | undefined
+          : undefined;
+        services.push({
+          serviceName,
+          hostname: host,
+          upstream: upstream ?? "",
+        });
+      }
+    }
+  }
+  return services;
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +608,86 @@ async function checkAdminApi(adminApiAddr: string): Promise<boolean> {
   }
 }
 
+/** Issue a request against the Caddy admin API (JSON). */
+async function adminApiRequest(
+  adminApiAddr: string,
+  method: string,
+  path: string,
+  body?: unknown,
+  token?: string,
+): Promise<Response> {
+  const url = `http://${adminApiAddr}${path}`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return await fetch(url, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+/** Read the current Caddy JSON config (base config when none is set). */
+async function readConfig(
+  adminApiAddr: string,
+  token?: string,
+): Promise<CaddyConfig> {
+  const resp = await adminApiRequest(
+    adminApiAddr,
+    "GET",
+    "/config/",
+    undefined,
+    token,
+  );
+  if (resp.status === 404) return baseConfig();
+  if (!resp.ok) {
+    throw new Error(
+      `Failed to read Caddy config (${resp.status}): ${await resp.text()}`,
+    );
+  }
+  const body = await resp.json();
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return baseConfig();
+  }
+  return body as CaddyConfig;
+}
+
+/** Replace the Caddy JSON config via the admin API. */
+async function writeConfig(
+  adminApiAddr: string,
+  config: CaddyConfig,
+  token?: string,
+): Promise<void> {
+  const resp = await adminApiRequest(
+    adminApiAddr,
+    "POST",
+    "/config/",
+    config,
+    token,
+  );
+  if (!resp.ok) {
+    throw new Error(
+      `Failed to apply Caddy config (${resp.status}): ${await resp.text()}`,
+    );
+  }
+}
+
+/** Run a start/stop/restart action on a backend systemd user service. */
+async function backendServiceAction(
+  action: "start" | "stop" | "restart",
+  serviceName: string,
+): Promise<void> {
+  const result = await systemctl([action, serviceName]);
+  if (result.code !== 0) {
+    throw new Error(
+      `systemctl --user ${action} ${serviceName} failed (${result.code}): ${
+        result.stderr || result.stdout
+      }`,
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Model
 // ---------------------------------------------------------------------------
@@ -341,11 +703,15 @@ type MethodContext = {
     name: string,
     data: Record<string, unknown>,
   ) => Promise<{ name: string }>;
+  readResource: (
+    instanceName: string,
+    version?: number,
+  ) => Promise<Record<string, unknown> | null>;
 };
 
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.09.07.1",
+  version: "2026.09.07.2",
   globalArguments: GlobalArgsSchema,
   resources: {
     install: {
@@ -363,6 +729,12 @@ export const model = {
     guidance: {
       description: "Minimal Let's Encrypt settings guidance",
       schema: GuidanceOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    proxyServices: {
+      description: "Current reverse-proxy services managed by Caddy",
+      schema: ProxyServicesOutputSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -553,6 +925,136 @@ export const model = {
           adminApiAddr: g.adminApiAddr,
         });
         return { dataHandles: [handle] };
+      },
+    },
+
+    addProxyService: {
+      description:
+        "Add a reverse-proxy route for a service via the Caddy admin API (live, no restart)",
+      arguments: AddProxyArgsSchema,
+      execute: async (
+        args: z.infer<typeof AddProxyArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const baseDomain = args.baseDomain ?? g.baseDomain;
+        if (!baseDomain) {
+          throw new Error(
+            "baseDomain is required — set it as a global argument or pass it to addProxyService",
+          );
+        }
+        const hostname = deriveHostname(args.serviceName, baseDomain);
+        const upstream = parseUpstream(args.upstream);
+        const route = buildRoute(hostname, upstream);
+
+        const config = await readConfig(g.adminApiAddr, g.adminApiToken);
+        const next = addRouteToConfig(config, route); // throws on domain conflict
+        await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+
+        const services = listProxyServices(next, baseDomain);
+        context.logger?.info(
+          "Added proxy service {serviceName} -> {hostname} -> {upstream}",
+          { serviceName: args.serviceName, hostname, upstream: upstream.dial },
+        );
+
+        const handle = await context.writeResource("proxyServices", "current", {
+          services,
+          updatedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    removeProxyService: {
+      description:
+        "Stop the backend systemd service and remove its Caddy route via the admin API",
+      arguments: RemoveProxyArgsSchema,
+      execute: async (
+        args: z.infer<typeof RemoveProxyArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const baseDomain = args.baseDomain ?? g.baseDomain;
+        if (!baseDomain) {
+          throw new Error(
+            "baseDomain is required — set it as a global argument or pass it to removeProxyService",
+          );
+        }
+        const hostname = deriveHostname(args.serviceName, baseDomain);
+
+        // Stop the associated backend systemd service (best-effort: a backend
+        // may not have a unit, or may already be stopped).
+        const stop = await systemctl(["stop", args.serviceName]);
+        if (stop.code !== 0) {
+          context.logger?.info(
+            "systemd service {serviceName} not running (or not found): {detail}",
+            {
+              serviceName: args.serviceName,
+              detail: stop.stderr || stop.stdout,
+            },
+          );
+        }
+
+        const config = await readConfig(g.adminApiAddr, g.adminApiToken);
+        const next = removeRouteFromConfig(config, hostname); // throws if not found
+        await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+
+        const services = listProxyServices(next, baseDomain);
+        context.logger?.info(
+          "Removed proxy service {serviceName} ({hostname})",
+          { serviceName: args.serviceName, hostname },
+        );
+
+        const handle = await context.writeResource("proxyServices", "current", {
+          services,
+          updatedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    startBackendService: {
+      description: "Start a backend systemd user service by name",
+      arguments: BackendServiceArgsSchema,
+      execute: async (
+        args: z.infer<typeof BackendServiceArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [] }> => {
+        await backendServiceAction("start", args.serviceName);
+        context.logger?.info("Started backend service {serviceName}", {
+          serviceName: args.serviceName,
+        });
+        return { dataHandles: [] };
+      },
+    },
+
+    stopBackendService: {
+      description: "Stop a backend systemd user service by name",
+      arguments: BackendServiceArgsSchema,
+      execute: async (
+        args: z.infer<typeof BackendServiceArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [] }> => {
+        await backendServiceAction("stop", args.serviceName);
+        context.logger?.info("Stopped backend service {serviceName}", {
+          serviceName: args.serviceName,
+        });
+        return { dataHandles: [] };
+      },
+    },
+
+    restartBackendService: {
+      description: "Restart a backend systemd user service by name",
+      arguments: BackendServiceArgsSchema,
+      execute: async (
+        args: z.infer<typeof BackendServiceArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [] }> => {
+        await backendServiceAction("restart", args.serviceName);
+        context.logger?.info("Restarted backend service {serviceName}", {
+          serviceName: args.serviceName,
+        });
+        return { dataHandles: [] };
       },
     },
   },

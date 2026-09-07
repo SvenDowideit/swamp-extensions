@@ -279,6 +279,21 @@ so progress is verifiable.
   thought. Ideas/Todos columns are present but empty — that is the correct,
   honest Phase 0 state (nothing processed).
 
+**Status: ✅ COMPLETE (verified).** Implemented as the `@svendowideit/ideas-factory`
+extension (model type + `ideas-factory` workflow + kanban board + capture server).
+Verified against the definition of done:
+
+- Captured through the web UI — form POST → 303 redirect → board refreshes.
+- Classified into a swamp resource — `classification` (deterministic keyword
+  classifier; kinds `new-idea`/`refinement`/`minor-rethink`/`major-rethink`/
+  `duplicate`/`todo`/`note`/`noise`).
+- Seen in the kanban **Thoughts** column, still a thought (classified, with kind
+  + confidence); **Ideas/Todos columns empty** — no routing in Phase 0.
+- Data lives in swamp model resources (`inbox`, `classification`); `ideas`/`todos`
+  are empty Phase 1 scaffolding.
+- 14 unit tests pass; `deno check` and `deno lint` clean; workflow validates and
+  runs idempotently.
+
 **Phase 1 — Common ideas & iteration.**
 - `clusterThoughts` (LLM) → `ideas`: group related thoughts into *common ideas*,
   propose duplicates. 

@@ -218,6 +218,7 @@ Deno.test("a pending LLM question is shown with an answer form", () => {
       questions: [{
         id: "q1",
         actionId: null,
+        ideaId: null,
         text: "do you mean the caddy proxy or the systemd service?",
         about: "cluster",
         askedAt: now,
@@ -230,6 +231,43 @@ Deno.test("a pending LLM question is shown with an answer form", () => {
   );
   assertEquals(html.includes("do you mean the caddy proxy"), true);
   assertEquals(html.includes("/api/answer"), true);
+});
+
+Deno.test("an idea-scoped question is shown inside its idea card", () => {
+  const now = new Date().toISOString();
+  const html = renderKanban(
+    {
+      thoughts: [],
+      classifications: [],
+      ideas: [{
+        id: "i1",
+        title: "caddy extension",
+        body: "a caddy extension",
+        status: "captured",
+        sourceThoughtIds: [],
+        createdAt: now,
+        updatedAt: now,
+      }],
+      todos: [],
+      actions: [],
+      questions: [{
+        id: "q1",
+        actionId: null,
+        ideaId: "i1",
+        text: "what should the admin API expose?",
+        about: "plan",
+        askedAt: now,
+        answer: null,
+        answeredAt: null,
+      }],
+      plans: [],
+    },
+    now,
+  );
+  // The question text appears, and it is rendered inside the idea card
+  // (questions-inline), not as a cluster question in the Thoughts column.
+  assertEquals(html.includes("what should the admin API expose?"), true);
+  assertEquals(html.includes("questions-inline"), true);
 });
 
 Deno.test("an abandoned idea is not shown in the Ideas column", () => {

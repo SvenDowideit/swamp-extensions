@@ -172,6 +172,7 @@ const ActionsSchema = z.object({
 const QuestionSchema = z.object({
   id: z.string(),
   actionId: z.string().nullable(),
+  ideaId: z.string().nullable(),
   text: z.string(),
   about: z.string(),
   askedAt: z.iso.datetime(),
@@ -916,6 +917,7 @@ export const model = {
           s.questions.push({
             id: genId(),
             actionId: null,
+            ideaId: null,
             text: q.text,
             about: q.about,
             askedAt: now,
@@ -1038,6 +1040,7 @@ export const model = {
           s.questions.push({
             id: genId(),
             actionId: null,
+            ideaId: idea.id,
             text: q.text,
             about: q.about,
             askedAt: now,
@@ -1134,6 +1137,7 @@ export const model = {
           s.questions.push({
             id: genId(),
             actionId: null,
+            ideaId: idea.id,
             text: q.text,
             about: q.about,
             askedAt: now,
@@ -1373,6 +1377,7 @@ export const model = {
           s.questions.push({
             id: genId(),
             actionId: null,
+            ideaId: idea.id,
             text: q.text,
             about: q.about,
             askedAt: now,
@@ -1488,6 +1493,17 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   const classFor = (id: string) =>
     d.classifications.find((x) => x.thoughtId === id) ?? null;
 
+  const questionHtml = (q: Question) =>
+    `<div class="question"><div class="question-text">${
+      esc(q.text)
+    }</div><form class="inline" action="/api/answer" method="post"><input type="hidden" name="questionId" value="${
+      esc(q.id)
+    }"><input type="text" name="answer" placeholder="Answer…"><button type="submit">answer</button></form></div>`;
+
+  // Cluster questions (no specific idea yet) live in the Thoughts column.
+  const clusterQuestions = d.questions.filter((q) => !q.answer && !q.ideaId)
+    .map(questionHtml).join("");
+
   const thoughtCards = d.thoughts.map((t) => {
     const c = classFor(t.id);
     const meta = c
@@ -1515,6 +1531,12 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
           : ""
       }</div>`
     ).join("");
+    const qs = d.questions.filter((q) => !q.answer && q.ideaId === i.id);
+    const qHtml = qs.length
+      ? `<div class="questions-inline"><div class="questions-label">questions</div>${
+        qs.map(questionHtml).join("")
+      }</div>`
+      : "";
     return `<div class="card idea-card"><div class="card-title">${
       esc(i.title)
     }</div><div class="card-meta">${
@@ -1523,7 +1545,7 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
       esc(i.body)
     }</div>${
       actHtml ? `<div class="actions">${actHtml}</div>` : ""
-    }<form class="inline" action="/api/plan" method="post"><input type="hidden" name="ideaId" value="${
+    }${qHtml}<form class="inline" action="/api/plan" method="post"><input type="hidden" name="ideaId" value="${
       esc(i.id)
     }"><input type="text" name="userPrompt" placeholder="Optional planning instruction…"><button type="submit">plan</button></form><form class="inline" action="/api/modify" method="post"><input type="hidden" name="actionId" value="${
       esc(acts[0]?.id ?? "")
@@ -1571,14 +1593,6 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
     `<div class="card todo-card"><div class="card-title">${
       esc(t.title)
     }</div><div class="card-meta">${esc(t.list)} · ${esc(t.status)}</div></div>`
-  ).join("\n");
-
-  const questionCards = d.questions.filter((q) => !q.answer).map((q) =>
-    `<div class="card question-card"><div class="card-body">${
-      esc(q.text)
-    }</div><form class="inline" action="/api/answer" method="post"><input type="hidden" name="questionId" value="${
-      esc(q.id)
-    }"><input type="text" name="answer" placeholder="Answer…"><button type="submit">answer</button></form></div>`
   ).join("\n");
 
   const col = (name: string, cards: string) =>
@@ -1634,6 +1648,10 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   .criteria { margin:4px 0 0 16px; padding:0; font-size:11px; color:#3f3f46; }
   .plan-extra { font-size:11px; color:var(--muted); margin-top:4px; }
   .plan-extra.unknown { color:#b45309; }
+  .questions-inline { margin-top:8px; border-top:1px dashed var(--line); padding-top:6px; }
+  .questions-label { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:4px; }
+  .question { background:#fef3c7; border:1px solid #fde68a; border-radius:6px; padding:6px 8px; margin:4px 0; }
+  .question-text { font-size:12px; color:#78350f; margin-bottom:4px; }
 </style>
 </head>
 <body>
@@ -1656,16 +1674,11 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   </form>
 </section>
 <main class="board">
-  ${col("Thoughts", thoughtCards)}
+  ${col("Thoughts", clusterQuestions + thoughtCards)}
   ${col("Ideas", ideaCards)}
   ${col("Plans", planCards)}
   ${col("Todos", todoCards)}
 </main>
-${
-    questionCards
-      ? `<section class="questions"><h2>Questions from the LLM</h2>${questionCards}</section>`
-      : ""
-  }
 <script>document.querySelectorAll('[data-generated]').forEach(function(el){var d=new Date(el.getAttribute('data-generated'));el.textContent=d.toLocaleString('en-GB');});</script>
 </body>
 </html>`;

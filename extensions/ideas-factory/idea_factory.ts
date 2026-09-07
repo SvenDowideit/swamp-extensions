@@ -2001,6 +2001,9 @@ export const model = {
         testPassed: z.boolean().optional(),
         testOutput: z.string().optional(),
         summary: z.string().optional(),
+        boardPath: z.string().optional().describe(
+          "Path to re-render the board to after recording (so the user sees the update)",
+        ),
       }),
       execute: async (
         args: {
@@ -2011,6 +2014,7 @@ export const model = {
           testPassed?: boolean;
           testOutput?: string;
           summary?: string;
+          boardPath?: string;
         },
         context: MethodContext,
       ) => {
@@ -2069,6 +2073,27 @@ export const model = {
           "Recorded implementation of {phase} for idea {id} (tests {passed})",
           { phase: args.phase, id: idea.id, passed: args.testPassed ?? "n/a" },
         );
+
+        // Re-render the board so the user sees the update immediately.
+        if (args.boardPath) {
+          const html = renderKanban(
+            {
+              thoughts: s.thoughts,
+              classifications: s.classifications,
+              ideas: s.ideas,
+              todos: s.todos,
+              actions: s.actions,
+              questions: s.questions,
+              plans: s.plans,
+              verifications: s.verifications,
+            },
+            new Date().toISOString(),
+          );
+          const { outputDir, outPath } = resolveBoardPath(args.boardPath, "");
+          await Deno.mkdir(outputDir, { recursive: true });
+          await Deno.writeTextFile(outPath, html);
+        }
+
         return { dataHandles: [], recorded: true };
       },
     },

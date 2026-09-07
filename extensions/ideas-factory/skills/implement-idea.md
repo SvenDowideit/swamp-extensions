@@ -66,25 +66,27 @@ For each phase in order (`MVP`, then `Iteration 1`, `Iteration 2`, …):
 4. **Fix any failures** — iterate until the tests pass (or record what's blocked).
 5. **Commit** on the current branch (`git add -A && git commit`), one commit per
    phase, so each iteration is reviewable and revertible.
+6. **Record the phase back to the factory** (REQUIRED — do not skip). This is
+   what updates the board so the user can see and iterate on what exists:
 
-### 4. Record the outcome back to the factory
+   ```bash
+   swamp model method run ideas-factory recordImplementation \
+     --input ideaId=<idea-id> \
+     --input phase=<phase-name> \
+     --input 'files:json=["path/a.ts","path/b.ts"]' \
+     --input testCommand="deno test" \
+     --input testPassed=true \
+     --input 'summary=implemented the MVP: add/remove proxy via the admin API' \
+     --input boardPath=<board-path>
+   ```
 
-After each phase, record what you did back to the idea factory so the user can
-see it on the board and iterate on what exists:
+   `boardPath` is the path the board is served from (e.g.
+   `explorer/idea-factory/kanban.html`); passing it re-renders the board so the
+   update is visible immediately. This records an `implement` action (files +
+   summary) and a `verification` (test result), and marks the phase's tasks
+   `verified` when the tests pass.
 
-```bash
-swamp model method run ideas-factory recordImplementation \
-  --input ideaId=<idea-id> \
-  --input phase=<phase-name> \
-  --input 'files:json=["path/a.ts","path/b.ts"]' \
-  --input testCommand="deno test" \
-  --input testPassed=true \
-  --input 'summary=implemented the MVP: add/remove proxy via the admin API'
-```
-
-This records an `implement` action (with the files + summary) and a
-`verification` (test result), and marks the phase's tasks `verified` when the
-tests pass. The board then shows the test result per phase.
+### 4. Report back to the user
 
 Also report back to the user:
 

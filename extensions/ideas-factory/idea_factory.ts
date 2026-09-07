@@ -2332,7 +2332,19 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   ${col("Plans", planCards)}
   ${col("Todos", todoCards)}
 </main>
-<script>document.querySelectorAll('[data-generated]').forEach(function(el){var d=new Date(el.getAttribute('data-generated'));el.textContent=d.toLocaleString('en-GB');});</script>
+<script>
+document.querySelectorAll('[data-generated]').forEach(function(el){var d=new Date(el.getAttribute('data-generated'));el.textContent=d.toLocaleString('en-GB');});
+// Show a "working…" indicator on long-running actions (implement/plan/cluster).
+document.querySelectorAll('form').forEach(function(f){
+  f.addEventListener('submit', function(){
+    var b = f.querySelector('button[type="submit"]');
+    if (b && (f.action.indexOf('/api/implement') >= 0 || f.action.indexOf('/api/plan') >= 0 || f.action.indexOf('/api/cluster') >= 0)) {
+      b.disabled = true;
+      b.textContent = 'working…';
+    }
+  });
+});
+</script>
 </body>
 </html>`;
 }

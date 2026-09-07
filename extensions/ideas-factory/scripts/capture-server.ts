@@ -92,10 +92,12 @@ function respond(
   extra: Record<string, unknown> = {},
 ) {
   const contentType = (req.headers.get("content-type") ?? "").toLowerCase();
-  if (contentType.includes("application/x-www-form-urlencoded")) {
-    return new Response(null, { status: 303, headers: { location: "/" } });
+  // Only explicit JSON callers get JSON; everything else (form posts) redirects
+  // back to the board so the user sees the result, not a raw JSON blob.
+  if (contentType.includes("json")) {
+    return json(ok ? 200 : 500, { ok, ...extra });
   }
-  return json(ok ? 200 : 500, { ok, ...extra });
+  return new Response(null, { status: 303, headers: { location: "/" } });
 }
 
 async function handler(req: Request): Promise<Response> {

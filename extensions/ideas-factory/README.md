@@ -22,9 +22,11 @@ merge → refine) of the "idea factory" design in `docs/idea-factory.md`.
 | `revertAction`    | `ideas`, `actions` | 1 (manual) |
 | `modifyAction`    | `ideas`, `actions` | 1 (manual) |
 | `answerQuestion`  | `questions`      | 1 (manual) |
+| `planIdea`        | `plans`, `actions`, `questions` | 2 (LLM) |
 | `renderBoard`     | `board` (file)   | 0     |
 
-Resources: `inbox`, `classification`, `ideas`, `todos`, `actions`, `questions`.
+Resources: `inbox`, `classification`, `ideas`, `todos`, `actions`, `questions`,
+`plans`.
 
 The **todo branch** is a simple, deterministic path: a thought classified as
 `todo` is routed by `routeTodos` into the `todos` resource with the right list
@@ -64,10 +66,15 @@ swamp model method run ideas-factory mergeIntoIdea --input thoughtId=<id> --inpu
 swamp model method run ideas-factory revertAction --input actionId=<id>
 swamp model method run ideas-factory modifyAction --input actionId=<id> --input body='...'
 swamp model method run ideas-factory answerQuestion --input questionId=<id> --input answer='...'
+
+# Plan an idea (Phase 2): tasks + acceptance criteria + test strategy + constraints
+swamp model method run ideas-factory planIdea --input ideaId=<id>
+swamp model method run ideas-factory planIdea --input ideaId=<id> --input 'userPrompt=prefer small, independently-testable tasks'
 ```
 
 The `ideas-factory` workflow runs `classifyThought → routeTodos →
-clusterThoughts → renderBoard`. Merge/refine are on-demand (via the UI or CLI).
+clusterThoughts → renderBoard`. Merge/refine/plan are on-demand (via the UI or
+CLI).
 
 ## Web UI
 
@@ -94,7 +101,7 @@ server serves it and exposes the actions:
 ~/.swamp/deno/deno test idea_factory_test.ts
 ```
 
-## Next (Phase 2)
+## Next (Phase 3)
 
-Plan: `planIdea` decomposes a planable idea into tasks with acceptance criteria
-and a test strategy.
+Action the plan: `implementPlan` writes docs + tests for each task, `runTests`
+verifies them, and `fixFailures` iterates on failures.

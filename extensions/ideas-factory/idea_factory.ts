@@ -152,7 +152,7 @@ const TodosSchema = z.object({
 
 const ActionSchema = z.object({
   id: z.string(),
-  step: z.enum(["cluster", "merge", "refine"]),
+  step: z.enum(["cluster", "merge", "refine", "plan"]),
   actor: z.enum(["llm", "manual"]),
   inputIds: z.array(z.string()),
   outputId: z.string().nullable(),
@@ -184,6 +184,45 @@ const QuestionsSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Phase 2: plans (task breakdown with acceptance criteria + test strategy)
+// ---------------------------------------------------------------------------
+
+const PlanTaskSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string(),
+  acceptanceCriteria: z.array(z.string()),
+  testStrategy: z.enum([
+    "unit",
+    "integration",
+    "property",
+    "golden",
+    "contract",
+    "manual",
+  ]),
+  dependencies: z.array(z.string()).default([]),
+  effort: z.enum(["small", "medium", "large"]).default("medium"),
+  status: z.enum(["ready", "in-progress", "verified", "unverified", "blocked"])
+    .default("ready"),
+});
+
+const PlanSchema = z.object({
+  id: z.string(),
+  ideaId: z.string(),
+  tasks: z.array(PlanTaskSchema),
+  constraints: z.array(z.string()).default([]),
+  assumptions: z.array(z.string()).default([]),
+  unknowns: z.array(z.string()).default([]),
+  status: z.enum(["draft", "active", "stale", "superseded"]).default("active"),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+const PlansSchema = z.object({
+  plans: z.array(PlanSchema),
+});
+
+// ---------------------------------------------------------------------------
 // Shared context type
 // ---------------------------------------------------------------------------
 
@@ -193,6 +232,8 @@ type Idea = z.infer<typeof IdeaSchema>;
 type Todo = z.infer<typeof TodoSchema>;
 type Action = z.infer<typeof ActionSchema>;
 type Question = z.infer<typeof QuestionSchema>;
+type Plan = z.infer<typeof PlanSchema>;
+type PlanTask = z.infer<typeof PlanTaskSchema>;
 
 type MethodContext = {
   globalArgs: GlobalArgs;
@@ -455,6 +496,7 @@ type FactoryState = {
   todos: Todo[];
   actions: Action[];
   questions: Question[];
+  plans: Plan[];
 };
 
 async function readState(context: MethodContext): Promise<FactoryState> {
@@ -476,6 +518,9 @@ async function readState(context: MethodContext): Promise<FactoryState> {
   const questions = (await context.readResource("questions")) as
     | { questions: Question[] }
     | null;
+  const plans = (await context.readResource("plans")) as
+    | { plans: Plan[] }
+    | null;
   return {
     thoughts: inbox?.thoughts ?? [],
     classifications: classification?.classifications ?? [],
@@ -483,6 +528,7 @@ async function readState(context: MethodContext): Promise<FactoryState> {
     todos: todos?.todos ?? [],
     actions: actions?.actions ?? [],
     questions: questions?.questions ?? [],
+    plans: plans?.plans ?? [],
   };
 }
 
@@ -501,6 +547,7 @@ async function writeState(
   await context.writeResource("questions", "questions", {
     questions: s.questions,
   });
+  await context.writeResource("plans", "plans", { plans: s.plans });
 }
 
 const CLUSTER_SYSTEM =
@@ -551,6 +598,36 @@ function buildRefinePrompt(
   }Refine the idea to incorporate the thought.`;
 }
 
+const PLAN_SYSTEM =
+  `You are a software-factory planning assistant. Given an idea, produce a testable ` +
+  `implementation plan. Decompose the idea into concrete tasks. For each task give: ` +
+  `title, description, acceptanceCriteria (specific, observable, testable statements), ` +
+  `testStrategy (one of unit|integration|property|golden|contract|manual), dependencies ` +
+  `(task titles it depends on), and effort (small|medium|large). Also identify: ` +
+  `constraints (dependencies, limits, risks), assumptions (things you are assuming), and ` +
+  `unknowns (things that are unclear and would improve the plan if resolved). ` +
+  `If the idea is under-specified, ask clarifying questions instead of guessing — ` +
+  `prefer asking over guessing, because a better-specified idea yields a better plan. ` +
+  `Return JSON: {"tasks":[{"title":"...","description":"...","acceptanceCriteria":["..."],"testStrategy":"unit","dependencies":["..."],"effort":"medium"}],"constraints":["..."],"assumptions":["..."],"unknowns":["..."],"questions":[{"text":"...","about":"..."}]}.`;
+
+function buildPlanPrompt(idea: Idea, userPrompt?: string): string {
+  return `Idea [${idea.id}] ${idea.title}:\n${idea.body}\n\n${
+    userPrompt ? `User instruction: ${userPrompt}\n\n` : ""
+  }Produce a testable implementation plan for this idea.`;
+}
+
+/** Mark any non-superseded plan for an idea as stale (reversion guard). */
+function markPlansStale(s: FactoryState, ideaId: string): void {
+  for (const p of s.plans) {
+    if (
+      p.ideaId === ideaId && (p.status === "active" || p.status === "draft")
+    ) {
+      p.status = "stale";
+      p.updatedAt = new Date().toISOString();
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Model definition
 // ---------------------------------------------------------------------------
@@ -593,6 +670,13 @@ export const model = {
     questions: {
       description: "Clarifying questions the LLM asked, and their answers",
       schema: QuestionsSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    plans: {
+      description:
+        "Task breakdowns with acceptance criteria + test strategy (Phase 2)",
+      schema: PlansSchema,
       lifetime: "infinite",
       garbageCollection: 5,
     },
@@ -770,6 +854,10 @@ export const model = {
           return !c || ideaKinds.has(c.kind);
         });
 
+        if (open.length === 0) {
+          return { dataHandles: [], clustered: 0, skipped: "no open thoughts" };
+        }
+
         let groups: { title: string; body: string; thoughtIds: string[] }[] =
           [];
         let llmResponse: string | null = null;
@@ -930,6 +1018,7 @@ export const model = {
           }
           idea.updatedAt = now;
         }
+        markPlansStale(s, idea.id);
 
         s.actions.push({
           id: genId(),
@@ -1025,6 +1114,7 @@ export const model = {
         if (!idea.sourceThoughtIds.includes(thought.id)) {
           idea.sourceThoughtIds.push(thought.id);
         }
+        markPlansStale(s, idea.id);
 
         s.actions.push({
           id: genId(),
@@ -1145,6 +1235,172 @@ export const model = {
       },
     },
 
+    planIdea: {
+      description:
+        "Produce a testable implementation plan for an idea: tasks with acceptance criteria + test strategy, plus constraints/assumptions/unknowns. LLM mode (default) or manual mode (explicit tasks). Records an action and any clarifying questions.",
+      arguments: z.object({
+        ideaId: z.string(),
+        userPrompt: z.string().optional(),
+        mode: z.enum(["llm", "manual"]).default("llm"),
+        tasks: z.array(z.object({
+          title: z.string(),
+          description: z.string(),
+          acceptanceCriteria: z.array(z.string()),
+          testStrategy: z.enum([
+            "unit",
+            "integration",
+            "property",
+            "golden",
+            "contract",
+            "manual",
+          ]),
+          dependencies: z.array(z.string()).optional(),
+          effort: z.enum(["small", "medium", "large"]).optional(),
+        })).optional(),
+      }),
+      execute: async (
+        args: {
+          ideaId: string;
+          userPrompt?: string;
+          mode: "llm" | "manual";
+          tasks?: {
+            title: string;
+            description: string;
+            acceptanceCriteria: string[];
+            testStrategy: PlanTask["testStrategy"];
+            dependencies?: string[];
+            effort?: PlanTask["effort"];
+          }[];
+        },
+        context: MethodContext,
+      ) => {
+        const s = await readState(context);
+        const now = new Date().toISOString();
+        const idea = s.ideas.find((i) => i.id === args.ideaId);
+        if (!idea) return { dataHandles: [], error: "idea not found" };
+
+        let tasks: PlanTask[] = [];
+        let constraints: string[] = [];
+        let assumptions: string[] = [];
+        let unknowns: string[] = [];
+        let llmResponse: string | null = null;
+        let questions: { text: string; about: string }[] = [];
+
+        if (args.mode === "manual") {
+          tasks = (args.tasks ?? []).map((t) => ({
+            id: genId(),
+            title: t.title,
+            description: t.description,
+            acceptanceCriteria: t.acceptanceCriteria,
+            testStrategy: t.testStrategy,
+            dependencies: t.dependencies ?? [],
+            effort: t.effort ?? "medium",
+            status: "ready",
+          }));
+        } else {
+          const raw = await chatCompletion(context.globalArgs, [
+            { role: "system", content: PLAN_SYSTEM },
+            { role: "user", content: buildPlanPrompt(idea, args.userPrompt) },
+          ], { json: true });
+          llmResponse = raw;
+          if (raw) {
+            const parsed = parseLlmJson<{
+              tasks?: {
+                title: string;
+                description: string;
+                acceptanceCriteria?: string[];
+                testStrategy?: PlanTask["testStrategy"];
+                dependencies?: string[];
+                effort?: PlanTask["effort"];
+              }[];
+              constraints?: string[];
+              assumptions?: string[];
+              unknowns?: string[];
+              questions?: { text: string; about: string }[];
+            }>(raw);
+            tasks = (parsed?.tasks ?? []).map((t) => ({
+              id: genId(),
+              title: t.title,
+              description: t.description,
+              acceptanceCriteria: t.acceptanceCriteria ?? [],
+              testStrategy: t.testStrategy ?? "manual",
+              dependencies: t.dependencies ?? [],
+              effort: t.effort ?? "medium",
+              status: "ready",
+            }));
+            constraints = parsed?.constraints ?? [];
+            assumptions = parsed?.assumptions ?? [];
+            unknowns = parsed?.unknowns ?? [];
+            questions = parsed?.questions ?? [];
+          }
+        }
+
+        // Re-planning supersedes any prior plan for this idea.
+        for (const p of s.plans) {
+          if (p.ideaId === idea.id && p.status !== "superseded") {
+            p.status = "superseded";
+          }
+        }
+
+        const plan: Plan = {
+          id: genId(),
+          ideaId: idea.id,
+          tasks,
+          constraints,
+          assumptions,
+          unknowns,
+          status: unknowns.length > 0 ? "draft" : "active",
+          createdAt: now,
+          updatedAt: now,
+        };
+        s.plans.push(plan);
+
+        s.actions.push({
+          id: genId(),
+          step: "plan",
+          actor: args.mode === "manual" ? "manual" : "llm",
+          inputIds: [idea.id],
+          outputId: plan.id,
+          reasoning: args.mode === "manual" ? "manual plan" : "LLM plan",
+          userPrompt: args.userPrompt ?? null,
+          llmResponse,
+          before: null,
+          status: "applied",
+          appliedAt: now,
+          revertedAt: null,
+        });
+        for (const q of questions) {
+          s.questions.push({
+            id: genId(),
+            actionId: null,
+            text: q.text,
+            about: q.about,
+            askedAt: now,
+            answer: null,
+            answeredAt: null,
+          });
+        }
+
+        await writeState(context, s);
+        context.logger?.info(
+          "Planned idea {id}: {tasks} tasks, {unknowns} unknowns, {questions} questions",
+          {
+            id: idea.id,
+            tasks: tasks.length,
+            unknowns: unknowns.length,
+            questions: questions.length,
+          },
+        );
+        return {
+          dataHandles: [],
+          planId: plan.id,
+          tasks: tasks.length,
+          unknowns: unknowns.length,
+          questions: questions.length,
+        };
+      },
+    },
+
     renderBoard: {
       description:
         "Render a static kanban HTML page over the inbox, ideas, and todos. Writes to outputDir/kanban.html (default ~/.swamp/idea-factory/kanban.html).",
@@ -1172,6 +1428,9 @@ export const model = {
         const questions = ((await context.readResource("questions")) as
           | { questions: Question[] }
           | null)?.questions ?? [];
+        const plans = ((await context.readResource("plans")) as
+          | { plans: Plan[] }
+          | null)?.plans ?? [];
 
         const html = renderKanban(
           {
@@ -1181,6 +1440,7 @@ export const model = {
             todos,
             actions,
             questions,
+            plans,
           },
           new Date().toISOString(),
         );
@@ -1215,6 +1475,7 @@ type BoardData = {
   todos: Todo[];
   actions: Action[];
   questions: Question[];
+  plans: Plan[];
 };
 
 function esc(s: string): string {
@@ -1262,10 +1523,49 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
       esc(i.body)
     }</div>${
       actHtml ? `<div class="actions">${actHtml}</div>` : ""
-    }<form class="inline" action="/api/modify" method="post"><input type="hidden" name="actionId" value="${
+    }<form class="inline" action="/api/plan" method="post"><input type="hidden" name="ideaId" value="${
+      esc(i.id)
+    }"><input type="text" name="userPrompt" placeholder="Optional planning instruction…"><button type="submit">plan</button></form><form class="inline" action="/api/modify" method="post"><input type="hidden" name="actionId" value="${
       esc(acts[0]?.id ?? "")
     }"><input type="text" name="body" placeholder="Edit idea body…"><button type="submit">modify</button></form></div>`;
   }).join("\n");
+
+  const planCards = d.plans.filter((p) => p.status !== "superseded").map(
+    (p) => {
+      const idea = d.ideas.find((i) => i.id === p.ideaId);
+      const tasks = p.tasks.map((t) =>
+        `<div class="task"><div class="task-title">${
+          esc(t.title)
+        } <span class="task-meta">${esc(t.testStrategy)} · ${
+          esc(t.effort)
+        }</span></div><ul class="criteria">${
+          t.acceptanceCriteria.map((c) => `<li>${esc(c)}</li>`).join("")
+        }</ul></div>`
+      ).join("");
+      const extras = [
+        p.constraints.length
+          ? `<div class="plan-extra"><b>constraints:</b> ${
+            esc(p.constraints.join("; "))
+          }</div>`
+          : "",
+        p.assumptions.length
+          ? `<div class="plan-extra"><b>assumptions:</b> ${
+            esc(p.assumptions.join("; "))
+          }</div>`
+          : "",
+        p.unknowns.length
+          ? `<div class="plan-extra unknown"><b>unknowns:</b> ${
+            esc(p.unknowns.join("; "))
+          }</div>`
+          : "",
+      ].join("");
+      return `<div class="card plan-card"><div class="card-title">${
+        esc(idea?.title ?? p.ideaId)
+      }</div><div class="card-meta">plan · ${
+        esc(p.status)
+      } · ${p.tasks.length} task(s)</div>${tasks}${extras}</div>`;
+    },
+  ).join("\n");
 
   const todoCards = d.todos.map((t) =>
     `<div class="card todo-card"><div class="card-title">${
@@ -1305,8 +1605,9 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   .capture form, .process form { display:flex; gap:8px; }
   .capture input[type=text], .process input[type=text] { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
   .capture button, .process button { padding:10px 16px; border:0; border-radius:8px; background:#18181b; color:#fff; font-size:14px; cursor:pointer; }
-  .board { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; padding:20px; align-items:start; }
-  @media (max-width:900px){ .board{ grid-template-columns:1fr; } }
+  .board { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; padding:20px; align-items:start; }
+  @media (max-width:1100px){ .board{ grid-template-columns:repeat(2, 1fr); } }
+  @media (max-width:700px){ .board{ grid-template-columns:1fr; } }
   .column { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   .column-head { padding:10px 14px; font-weight:600; font-size:13px; border-bottom:1px solid var(--line); background:#fafafa; display:flex; justify-content:space-between; }
   .count { color:var(--muted); font-weight:400; }
@@ -1327,6 +1628,12 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   .inline button { padding:6px 10px; border:0; border-radius:6px; background:#e4e4e7; color:#18181b; font-size:12px; cursor:pointer; }
   .questions { padding:0 20px 20px; }
   .questions h2 { font-size:14px; margin:12px 0 8px; }
+  .task { border-top:1px solid var(--line); padding-top:6px; margin-top:6px; }
+  .task-title { font-weight:600; font-size:12px; }
+  .task-meta { color:var(--muted); font-weight:400; font-size:10px; text-transform:capitalize; }
+  .criteria { margin:4px 0 0 16px; padding:0; font-size:11px; color:#3f3f46; }
+  .plan-extra { font-size:11px; color:var(--muted); margin-top:4px; }
+  .plan-extra.unknown { color:#b45309; }
 </style>
 </head>
 <body>
@@ -1351,6 +1658,7 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
 <main class="board">
   ${col("Thoughts", thoughtCards)}
   ${col("Ideas", ideaCards)}
+  ${col("Plans", planCards)}
   ${col("Todos", todoCards)}
 </main>
 ${

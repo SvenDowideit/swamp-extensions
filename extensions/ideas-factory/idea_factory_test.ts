@@ -99,6 +99,7 @@ Deno.test("renderKanban produces a page with the three columns", () => {
       todos: [],
       actions: [],
       questions: [],
+      plans: [],
     },
     new Date().toISOString(),
   );
@@ -132,6 +133,7 @@ Deno.test("Phase 0: every captured thought stays in the Thoughts column", () => 
       todos: [],
       actions: [],
       questions: [],
+      plans: [],
     },
     new Date().toISOString(),
   );
@@ -156,6 +158,7 @@ Deno.test("a captured thought with no classification shows as unclassified", () 
       todos: [],
       actions: [],
       questions: [],
+      plans: [],
     },
     new Date().toISOString(),
   );
@@ -194,6 +197,7 @@ Deno.test("an idea card shows its action (what the LLM did) and a revert control
         revertedAt: null,
       }],
       questions: [],
+      plans: [],
     },
     now,
   );
@@ -220,6 +224,7 @@ Deno.test("a pending LLM question is shown with an answer form", () => {
         answer: null,
         answeredAt: null,
       }],
+      plans: [],
     },
     now,
   );
@@ -245,8 +250,57 @@ Deno.test("an abandoned idea is not shown in the Ideas column", () => {
       todos: [],
       actions: [],
       questions: [],
+      plans: [],
     },
     now,
   );
   assertEquals(html.includes("abandoned idea"), false);
+});
+
+Deno.test("a plan card shows tasks, acceptance criteria, constraints, and unknowns", () => {
+  const now = new Date().toISOString();
+  const html = renderKanban(
+    {
+      thoughts: [],
+      classifications: [],
+      ideas: [{
+        id: "i1",
+        title: "caddy extension",
+        body: "a caddy extension",
+        status: "captured",
+        sourceThoughtIds: [],
+        createdAt: now,
+        updatedAt: now,
+      }],
+      todos: [],
+      actions: [],
+      questions: [],
+      plans: [{
+        id: "p1",
+        ideaId: "i1",
+        tasks: [{
+          id: "t1",
+          title: "detect the systemd service",
+          description: "check for a caddy systemd service",
+          acceptanceCriteria: ["returns true when the service exists"],
+          testStrategy: "unit",
+          dependencies: [],
+          effort: "small",
+          status: "ready",
+        }],
+        constraints: ["requires systemd"],
+        assumptions: ["caddy is installed"],
+        unknowns: ["which domains to proxy"],
+        status: "draft",
+        createdAt: now,
+        updatedAt: now,
+      }],
+    },
+    now,
+  );
+  assertEquals(html.includes("detect the systemd service"), true);
+  assertEquals(html.includes("returns true when the service exists"), true);
+  assertEquals(html.includes("requires systemd"), true);
+  assertEquals(html.includes("which domains to proxy"), true);
+  assertEquals(html.includes("/api/plan"), true);
 });

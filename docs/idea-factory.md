@@ -332,8 +332,23 @@ merge + prompt-injection controls are for.
 - `planIdea` (LLM) → `plans`: decompose a planable idea into tasks, each with
   `acceptanceCriteria` + `testStrategy`. A gate decides *which* ideas get a plan
   (effort `medium`+ or high value); trivial ideas skip to `recordOutcome`.
+- **Constraint discovery:** the plan records `constraints`, `assumptions`, and
+  `unknowns` — the LLM is asked to surface what is unclear, and to ask clarifying
+  questions rather than guess.
+- **Refinement loop:** the plan is `draft` while unknowns remain; the LLM's
+  questions are surfaced on the board, and the user can answer them or add
+  thoughts that refine the idea — which then yields a better, more detailed plan.
 - Reversion guard: a refinement of a planned idea sets its plan `stale` → re-plan.
 - **Done:** a planable idea has a task breakdown with testable criteria.
+
+**Status: ✅ COMPLETE (verified).** Implemented in `@svendowideit/ideas-factory`
+(`planIdea` with LLM + manual modes; `plans` resource; `plan` action step; board
+Plans column + a "plan" button on each idea card + `/api/plan`). Verified
+end-to-end: planning the Caddy idea produced 7 tasks (each with acceptance
+criteria + test strategy + effort), 5 constraints/assumptions/unknowns, and 5
+clarifying questions; the plan was `draft` (unknowns present). Refining the idea
+marked the plan `stale`; re-planning superseded it and produced a *more detailed*
+plan (10 tasks, 4 unknowns) — the refinement loop working as intended.
 
 **Phase 3 — Action the plan (docs + tests).**
 - `implementPlan` (LLM, `allowFailure`) → `artifacts`: for each task, write

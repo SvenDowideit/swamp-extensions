@@ -597,24 +597,34 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function kindFor(thoughtId: string, classifications: Classification[]) {
-  const c = classifications.find((x) => x.thoughtId === thoughtId);
-  return c?.kind ?? "unclassified";
-}
-
 /** Render a minimal kanban page. Columns: Thoughts, Ideas, Todos. */
 export function renderKanban(d: BoardData, generatedAt: string): string {
-  const classified = (id: string) => kindFor(id, d.classifications);
+  const classFor = (id: string) =>
+    d.classifications.find((x) => x.thoughtId === id) ?? null;
 
-  const thoughtCards = d.thoughts.map((t) =>
-    `<div class="card thoughts-card"><div class="card-title">${
+  // Thoughts column shows thoughts that haven't yet become an idea or todo:
+  // unclassified, in-flight (classified but not routed), or parked kinds.
+  const openThoughts = d.thoughts.filter((t) => {
+    const c = classFor(t.id);
+    if (!c || !c.routed) return true;
+    return c.kind !== "new-idea" && c.kind !== "todo";
+  });
+
+  const thoughtCards = openThoughts.map((t) => {
+    const c = classFor(t.id);
+    const meta = !c
+      ? "unclassified"
+      : c.routed
+      ? `${c.kind} · parked`
+      : c.kind;
+    return `<div class="card thoughts-card"><div class="card-title">${
       esc(
         toTitle(t.raw),
       )
-    }</div><div class="card-meta">${esc(classified(t.id))}${
-      t.status === "unclassified" ? " · unclassified" : ""
-    }</div><div class="card-body">${esc(t.raw)}</div></div>`
-  ).join("\n");
+    }</div><div class="card-meta">${esc(meta)}</div><div class="card-body">${
+      esc(t.raw)
+    }</div></div>`;
+  }).join("\n");
 
   const ideaCards = d.ideas.map((i) =>
     `<div class="card idea-card"><div class="card-title">${

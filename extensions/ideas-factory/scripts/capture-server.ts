@@ -105,6 +105,16 @@ async function handler(req: Request): Promise<Response> {
       "--skip-reports",
     ]);
 
+    // A browser form POST should land back on the freshly-rendered board, not a
+    // JSON blob. Detect the HTML form's content type and redirect to /.
+    const contentType = (req.headers.get("content-type") ?? "").toLowerCase();
+    if (contentType.includes("application/x-www-form-urlencoded")) {
+      return new Response(null, {
+        status: 303,
+        headers: { location: "/" },
+      });
+    }
+    // Programmatic/API callers get JSON.
     return json(200, { ok: true });
   }
 

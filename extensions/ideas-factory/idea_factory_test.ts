@@ -100,3 +100,64 @@ Deno.test("renderKanban produces a page with the three columns", () => {
   assertObjectMatch({ ok: html.includes("Todos") }, { ok: true });
   assertObjectMatch({ ok: html.includes("a tool") }, { ok: true });
 });
+
+Deno.test("a routed new-idea thought leaves the Thoughts column", () => {
+  const html = renderKanban(
+    {
+      thoughts: [{
+        id: "t1",
+        raw: "build a tool",
+        source: "text",
+        capturedAt: new Date().toISOString(),
+        status: "classified",
+      }],
+      classifications: [{
+        thoughtId: "t1",
+        kind: "new-idea",
+        confidence: 0.9,
+        reasoning: "k",
+        classifiedAt: new Date().toISOString(),
+        routed: true,
+      }],
+      ideas: [{
+        id: "i1",
+        title: "a tool",
+        body: "build a tool",
+        status: "captured",
+        createdAt: new Date().toISOString(),
+      }],
+      todos: [],
+    },
+    new Date().toISOString(),
+  );
+  // No Thoughts-card for the routed thought; it appears only as the idea card.
+  assertEquals(html.includes("thoughts-card"), false);
+  assertEquals(html.includes("idea-card"), true);
+});
+
+Deno.test("a parked thought stays visible in Thoughts as parked", () => {
+  const html = renderKanban(
+    {
+      thoughts: [{
+        id: "t1",
+        raw: "note about something",
+        source: "text",
+        capturedAt: new Date().toISOString(),
+        status: "classified",
+      }],
+      classifications: [{
+        thoughtId: "t1",
+        kind: "note",
+        confidence: 0.8,
+        reasoning: "k",
+        classifiedAt: new Date().toISOString(),
+        routed: true,
+      }],
+      ideas: [],
+      todos: [],
+    },
+    new Date().toISOString(),
+  );
+  assertEquals(html.includes("thoughts-card"), true);
+  assertEquals(html.includes("note · parked"), true);
+});

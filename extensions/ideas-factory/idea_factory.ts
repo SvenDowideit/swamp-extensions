@@ -299,6 +299,25 @@ export function inferTodoList(raw: string): Todo["list"] {
   return "custom";
 }
 
+/**
+ * Resolve where the kanban board should be written. An empty/blank `path`
+ * (e.g. a workflow input left at its default `""`) falls back to
+ * `defaultOutputDir/kanban.html`; a provided `path` is used as-is (its parent
+ * becomes the output dir).
+ */
+export function resolveBoardPath(
+  path: string | undefined,
+  defaultOutputDir: string,
+): { outputDir: string; outPath: string } {
+  const hasPath = typeof path === "string" && path.trim() !== "";
+  if (hasPath) {
+    const dir = path!.split("/").slice(0, -1).join("/") || defaultOutputDir;
+    return { outputDir: dir, outPath: path! };
+  }
+  const base = defaultOutputDir.replace(/\/+$/, "");
+  return { outputDir: base, outPath: `${base}/kanban.html` };
+}
+
 // ---------------------------------------------------------------------------
 // Model definition
 // ---------------------------------------------------------------------------
@@ -546,11 +565,11 @@ export const model = {
         const writer = await context.createFileWriter("board", "kanban");
         await writer.writeText(html);
 
-        const outputDir = args.path
-          ? args.path.split("/").slice(0, -1).join("/")
-          : context.globalArgs.outputDir ??
-            `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/idea-factory`;
-        const outPath = args.path ?? `${outputDir}/kanban.html`;
+        const { outputDir, outPath } = resolveBoardPath(
+          args.path,
+          context.globalArgs.outputDir ||
+            `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/ideas-factory`,
+        );
         await Deno.mkdir(outputDir, { recursive: true });
         await Deno.writeTextFile(outPath, html);
         context.logger?.info("Board written to {path}", { path: outPath });

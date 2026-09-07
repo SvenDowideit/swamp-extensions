@@ -3,6 +3,7 @@ import {
   classifyByKeywords,
   inferTodoList,
   renderKanban,
+  resolveBoardPath,
   toTitle,
 } from "./idea_factory.ts";
 
@@ -48,6 +49,21 @@ Deno.test("inferTodoList maps a coding chore to the ideas list", () => {
 
 Deno.test("inferTodoList maps a household chore to household", () => {
   assertEquals(inferTodoList("remember to clean the garage"), "household");
+});
+
+Deno.test("resolveBoardPath falls back to default when path is empty/blank", () => {
+  const r = resolveBoardPath("", "/opt/ideas/boards");
+  assertEquals(r.outputDir, "/opt/ideas/boards");
+  assertEquals(r.outPath, "/opt/ideas/boards/kanban.html");
+
+  const blank = resolveBoardPath("   ", "/opt/ideas/boards");
+  assertEquals(blank.outPath, "/opt/ideas/boards/kanban.html");
+});
+
+Deno.test("resolveBoardPath uses a provided path as-is", () => {
+  const r = resolveBoardPath("/srv/idea-factory/kanban.html", "/opt/ideas/boards");
+  assertEquals(r.outPath, "/srv/idea-factory/kanban.html");
+  assertEquals(r.outputDir, "/srv/idea-factory");
 });
 
 Deno.test("renderKanban produces a page with the three columns", () => {

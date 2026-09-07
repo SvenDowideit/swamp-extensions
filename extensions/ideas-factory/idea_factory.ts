@@ -1675,6 +1675,15 @@ export const model = {
           }
         }
 
+        // Fallback: if the LLM produced no new tasks (it failed or returned
+        // empty), carry forward the current plan's un-implemented tasks so
+        // re-planning never drops remaining work.
+        if (tasks.length === 0 && currentPlan) {
+          tasks = currentPlan.tasks
+            .filter((t) => t.status !== "verified" && t.status !== "in-progress")
+            .map((t) => ({ ...t, status: "ready" as const }));
+        }
+
         // Re-planning supersedes any prior plan for this idea.
         for (const p of s.plans) {
           if (p.ideaId === idea.id && p.status !== "superseded") {

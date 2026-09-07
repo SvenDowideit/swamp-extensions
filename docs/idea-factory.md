@@ -194,7 +194,7 @@ giving us CEL wiring for free and a single lock (fine for a personal factory).
     mergeIntoIdea        →  "ideas"          (fold a thought into an idea)     [A]
     refineIdea           →  "ideas"          (new thought updates idea body)   [A]
     planIdea             →  "plans"          (tasks + acceptance criteria)     [A]
-    implementPlan        →  "artifacts"      (docs + tests + files written)    [A]
+    implementPlan        →  "artifacts"      (code + docs + tests written)     [A]
     runTests             →  "verification"   (pass/fail per criterion)         [D]
     recordOutcome        →  "outcomes"       (what worked / what didn't)       [A]
     surfaceInsights      →  "insights"       (cross-idea patterns)             [A]
@@ -375,15 +375,27 @@ feedback verified: answering a question marked the plan `stale`, and re-planning
 incorporated the answers (the plan gained "Caddy admin API client" and "Vault
 secret retrieval" tasks reflecting the user's answers).
 
-**Phase 3 — Action the plan (docs + tests).**
-- `implementPlan` (LLM, `allowFailure`) → `artifacts`: for each task, write
-  markdown docs and test files into the repo.
-- `runTests` (deterministic) → `verification`: run the repo's test suite
-  (`deno test` etc.), record pass/fail per acceptance criterion.
-- `fixFailures` (LLM, `allowFailure`): iterate on failing tests.
-- **Done:** a plan is actioned as docs + tests in the repo, and `verification`
-  shows per-criterion results. Human approval (`manual_approval`) only on
-  "mark implemented" (irreversible).
+**Phase 3 — Action the plan (code + docs + tests, iteratively).**
+- **Target linkage:** a plan is linked to a *target* — where the work lands:
+  - `directory` — an existing repo path (e.g. `/home/sven/src/swamp-project`).
+  - `git-repo` — a git URL to clone/checkout.
+  - `new-project` — a fresh project, with explicit `language` + structural choices
+    (module layout, build tool, test runner).
+  Stored on the plan (e.g. `target: { type, path|url, language?, structure? }`).
+- **Language matching:** for an existing codebase, detect the language/tooling
+  from the repo (e.g. `go.mod` → Go, `package.json` → Node, `deno.json` → Deno,
+  `Cargo.toml` → Rust, …) and match it. For a new project, the plan carries the
+  language + structure.
+- **`implementPlan`** (LLM, `allowFailure`) → `artifacts`: iteratively write
+  **code, docs, and tests** for each task into the target — MVP phase first, then
+  each iteration — so the user can review a working slice before the next.
+- **`runTests`** (deterministic) → `verification`: run the target's test suite
+  (matching the detected language/tooling), record pass/fail per acceptance
+  criterion.
+- **`fixFailures`** (LLM, `allowFailure`): iterate on failing tests.
+- **Done:** a plan is actioned as code + docs + tests in the target, `verification`
+  shows per-criterion results, and human approval (`manual_approval`) gates the
+  irreversible "mark implemented".
 
 **Phase 4 — Feedback loops (make it a loop).**
 - `recordOutcome` → `outcomes`: what worked / what didn't, per idea.
@@ -399,7 +411,7 @@ secret retrieval" tasks reflecting the user's answers).
 ### Definition of done (the initial factory)
 
 Capture a random thought → LLM classify → cluster into a common idea → iterate
-(refine) → plan where appropriate → action the plan (docs + tests) → `runTests`
+(refine) → plan where appropriate → action the plan (code + docs + tests) → `runTests`
 verifies → record the outcome → insights feed back — all with data in swamp
 model resources, one workflow, idempotent guards, and a cron trigger. The whole
 pipeline is visible and capturable through the kanban web UI.

@@ -24,6 +24,7 @@ Deno.test("buildAnswerContext includes only answered questions for the idea", ()
     askedAt: now,
     answer,
     answeredAt: answer ? now : null,
+    dismissedAt: null,
   });
   const questions = [
     q("q1", "i1", "answer one"),
@@ -50,6 +51,7 @@ Deno.test("buildAnswerContext returns empty when nothing is answered", () => {
     askedAt: now,
     answer: null,
     answeredAt: null,
+    dismissedAt: null,
   }];
   assertEquals(buildAnswerContext(questions, "i1"), "");
 });
@@ -266,6 +268,7 @@ Deno.test("a pending LLM question is shown with an answer form", () => {
         askedAt: now,
         answer: null,
         answeredAt: null,
+        dismissedAt: null,
       }],
       plans: [],
     },
@@ -301,6 +304,7 @@ Deno.test("an idea-scoped question is shown inside its idea card", () => {
         askedAt: now,
         answer: null,
         answeredAt: null,
+        dismissedAt: null,
       }],
       plans: [],
     },
@@ -338,6 +342,7 @@ Deno.test("an answered question shows both the question and its answer", () => {
         askedAt: now,
         answer: "a REST API over Caddy's admin API",
         answeredAt: now,
+        dismissedAt: null,
       }],
       plans: [],
     },
@@ -347,6 +352,49 @@ Deno.test("an answered question shows both the question and its answer", () => {
   assertEquals(html.includes("what should the admin API expose?"), true);
   assertEquals(html.includes("a REST API over Caddy's admin API"), true);
   assertEquals(html.includes("question-answer"), true);
+});
+
+Deno.test("an unanswered question shows a dismiss button; a dismissed one is hidden", () => {
+  const now = new Date().toISOString();
+  const html = renderKanban(
+    {
+      thoughts: [],
+      classifications: [],
+      ideas: [],
+      todos: [],
+      actions: [],
+      questions: [
+        {
+          id: "q1",
+          actionId: null,
+          ideaId: null,
+          text: "an unhelpful question",
+          about: "cluster",
+          askedAt: now,
+          answer: null,
+          answeredAt: null,
+          dismissedAt: null,
+        },
+        {
+          id: "q2",
+          actionId: null,
+          ideaId: null,
+          text: "a dismissed question",
+          about: "cluster",
+          askedAt: now,
+          answer: null,
+          answeredAt: null,
+          dismissedAt: now,
+        },
+      ],
+      plans: [],
+    },
+    now,
+  );
+  // The unanswered question shows a dismiss control; the dismissed one is hidden.
+  assertEquals(html.includes("an unhelpful question"), true);
+  assertEquals(html.includes("/api/dismiss-question"), true);
+  assertEquals(html.includes("a dismissed question"), false);
 });
 
 Deno.test("an abandoned idea is not shown in the Ideas column", () => {

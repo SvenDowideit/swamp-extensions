@@ -187,6 +187,18 @@ async function handler(req: Request): Promise<Response> {
     return respond(req, true);
   }
 
+  if (url.pathname === "/api/dismiss-question") {
+    if (!body.questionId) {
+      return json(400, { ok: false, error: "questionId required" });
+    }
+    const r = await runMethod("dismissQuestion", {
+      questionId: body.questionId,
+    });
+    if (!r.ok) return respond(req, false, { error: r.output });
+    await renderBoard();
+    return respond(req, true);
+  }
+
   if (url.pathname === "/api/plan") {
     if (!body.ideaId) return json(400, { ok: false, error: "ideaId required" });
     const r = await runMethod("planIdea", {

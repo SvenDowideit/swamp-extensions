@@ -22,6 +22,7 @@ merge → refine) of the "idea factory" design in `docs/idea-factory.md`.
 | `revertAction`    | `ideas`, `actions` | 1 (manual) |
 | `modifyAction`    | `ideas`, `actions` | 1 (manual) |
 | `answerQuestion`  | `questions`      | 1 (manual) |
+| `dismissQuestion` | `questions`      | 1 (manual) |
 | `planIdea`        | `plans`, `actions`, `questions` | 2 (LLM) |
 | `planFeedback`    | `inbox`, `classification`, `ideas`, `actions` | 2 (LLM) |
 | `renderBoard`     | `board` (file)   | 0     |

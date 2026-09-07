@@ -353,6 +353,9 @@ merge + prompt-injection controls are for.
   control. `planFeedback` captures the feedback as a thought (routed back to the
   Thoughts column — the "previous stage"), refines the idea body with it, and
   marks the plan `stale`, so re-planning incorporates the feedback.
+- **Question dismissal:** unanswered questions have an "×" button to dismiss
+  unhelpful ones (`dismissQuestion` soft-removes them — hidden from the board but
+  kept in the record).
 - **Done:** a planable idea has a task breakdown with testable criteria.
 
 **Status: ✅ COMPLETE (verified).** Implemented in `@svendowideit/ideas-factory`

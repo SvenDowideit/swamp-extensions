@@ -178,6 +178,7 @@ const QuestionSchema = z.object({
   askedAt: z.iso.datetime(),
   answer: z.string().nullable(),
   answeredAt: z.iso.datetime().nullable(),
+  dismissedAt: z.iso.datetime().nullable(),
 });
 
 const QuestionsSchema = z.object({
@@ -947,6 +948,7 @@ export const model = {
             askedAt: now,
             answer: null,
             answeredAt: null,
+            dismissedAt: null,
           });
         }
 
@@ -1071,6 +1073,7 @@ export const model = {
             askedAt: now,
             answer: null,
             answeredAt: null,
+            dismissedAt: null,
           });
         }
 
@@ -1169,6 +1172,7 @@ export const model = {
             askedAt: now,
             answer: null,
             answeredAt: null,
+            dismissedAt: null,
           });
         }
 
@@ -1266,6 +1270,23 @@ export const model = {
         if (q.ideaId) markPlansStale(s, q.ideaId);
         await writeState(context, s);
         return { dataHandles: [], answered: q.id };
+      },
+    },
+
+    dismissQuestion: {
+      description:
+        "Dismiss an unanswered question that is not helpful (soft-remove: it is hidden from the board but kept in the record).",
+      arguments: z.object({ questionId: z.string() }),
+      execute: async (
+        args: { questionId: string },
+        context: MethodContext,
+      ) => {
+        const s = await readState(context);
+        const q = s.questions.find((x) => x.id === args.questionId);
+        if (!q) return { dataHandles: [], error: "question not found" };
+        q.dismissedAt = new Date().toISOString();
+        await writeState(context, s);
+        return { dataHandles: [], dismissed: q.id };
       },
     },
 
@@ -1422,6 +1443,7 @@ export const model = {
             askedAt: now,
             answer: null,
             answeredAt: null,
+            dismissedAt: null,
           });
         }
 
@@ -1631,6 +1653,11 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
     d.classifications.find((x) => x.thoughtId === id) ?? null;
 
   const questionHtml = (q: Question) => {
+    const dismiss = q.answer
+      ? ""
+      : `<form class="inline dismiss" action="/api/dismiss-question" method="post"><input type="hidden" name="questionId" value="${
+        esc(q.id)
+      }"><button type="submit" title="dismiss this question">×</button></form>`;
     const answerHtml = q.answer
       ? `<div class="question-answer"><span class="qa-label">answer</span> ${
         esc(q.answer)
@@ -1640,11 +1667,15 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
       }"><input type="text" name="answer" placeholder="Answer…"><button type="submit">answer</button></form>`;
     return `<div class="question ${
       q.answer ? "answered" : ""
-    }"><div class="question-text">${esc(q.text)}</div>${answerHtml}</div>`;
+    }"><div class="question-head"><div class="question-text">${
+      esc(q.text)
+    }</div>${dismiss}</div>${answerHtml}</div>`;
   };
 
   // Cluster questions (no specific idea yet) live in the Thoughts column.
-  const clusterQuestions = d.questions.filter((q) => !q.ideaId)
+  const clusterQuestions = d.questions.filter((q) =>
+    !q.ideaId && !q.dismissedAt
+  )
     .map(questionHtml).join("");
 
   const thoughtCards = d.thoughts.map((t) => {
@@ -1674,7 +1705,7 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
           : ""
       }</div>`
     ).join("");
-    const qs = d.questions.filter((q) => q.ideaId === i.id);
+    const qs = d.questions.filter((q) => q.ideaId === i.id && !q.dismissedAt);
     const qHtml = qs.length
       ? `<div class="questions-inline"><div class="questions-label">questions</div>${
         qs.map(questionHtml).join("")
@@ -1819,7 +1850,10 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   .questions-inline { margin-top:8px; border-top:1px dashed var(--line); padding-top:6px; }
   .questions-label { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:4px; }
   .question { background:#fef3c7; border:1px solid #fde68a; border-radius:6px; padding:6px 8px; margin:4px 0; }
+  .question-head { display:flex; align-items:flex-start; justify-content:space-between; gap:6px; }
   .question-text { font-size:12px; color:#78350f; margin-bottom:4px; }
+  .dismiss button { background:none; border:none; color:var(--muted); font-size:14px; line-height:1; cursor:pointer; padding:0 2px; }
+  .dismiss button:hover { color:#b91c1c; }
   .question.answered { background:#ecfdf5; border-color:#a7f3d0; }
   .question.answered .question-text { color:#065f46; }
   .question-answer { font-size:12px; color:#065f46; }

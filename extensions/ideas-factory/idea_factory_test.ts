@@ -1,6 +1,7 @@
 import { assertEquals, assertObjectMatch } from "jsr:@std/assert@1";
 import {
   buildAnswerContext,
+  buildDoneContext,
   classifyByKeywords,
   inferTodoList,
   mvpViolation,
@@ -56,6 +57,24 @@ Deno.test("buildAnswerContext returns empty when nothing is answered", () => {
     dismissedAt: null,
   }];
   assertEquals(buildAnswerContext(questions, "i1"), "");
+});
+
+Deno.test("buildDoneContext lists verified tasks and is empty when none", () => {
+  const done = [{
+    id: "t1",
+    title: "add proxy service",
+    description: "d",
+    acceptanceCriteria: ["ac"],
+    testStrategy: "unit" as const,
+    dependencies: [],
+    effort: "small" as const,
+    phase: "MVP",
+    status: "verified" as const,
+  }];
+  const ctx = buildDoneContext(done);
+  assertEquals(ctx.includes("add proxy service"), true);
+  assertEquals(ctx.includes("ALREADY IMPLEMENTED"), true);
+  assertEquals(buildDoneContext([]), "");
 });
 
 Deno.test("mvpViolation flags an over-sized MVP", () => {

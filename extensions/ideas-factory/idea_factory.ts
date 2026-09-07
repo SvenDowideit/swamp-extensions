@@ -687,6 +687,19 @@ function buildPlanPrompt(idea: Idea, userPrompt?: string): string {
 }
 
 /**
+ * Format already-implemented (verified) tasks as prompt context, so re-planning
+ * preserves them and only plans the remaining work.
+ */
+export function buildDoneContext(doneTasks: PlanTask[]): string {
+  if (doneTasks.length === 0) return "";
+  const lines = doneTasks.map((t) => `- [${t.phase}] ${t.title} (verified)`)
+    .join("\n");
+  return `\n\nThese tasks are ALREADY IMPLEMENTED and verified — do NOT re-plan ` +
+    `them. Keep them as-is and plan only the remaining work, extending from what ` +
+    `is implemented:\n${lines}`;
+}
+
+/**
  * Format the user's answers to clarifying questions as prompt context, so the
  * answers actually shape the next LLM run. `ideaId` scopes to one idea; `null`
  * selects cluster-level questions (no idea yet).
@@ -1560,6 +1573,16 @@ export const model = {
         const idea = s.ideas.find((i) => i.id === args.ideaId);
         if (!idea) return { dataHandles: [], error: "idea not found" };
 
+        // Preserve already-implemented (verified/in-progress) tasks from the
+        // current plan, so re-planning never throws away done work.
+        const currentPlan = s.plans.find((p) =>
+          p.ideaId === idea.id && p.status !== "superseded"
+        );
+        const doneTasks =
+          currentPlan?.tasks.filter((t) =>
+            t.status === "verified" || t.status === "in-progress"
+          ) ?? [];
+
         let tasks: PlanTask[] = [];
         let constraints: string[] = [];
         let assumptions: string[] = [];
@@ -1586,7 +1609,8 @@ export const model = {
             String(maxMvpTasks),
           );
           const userContent = buildPlanPrompt(idea, args.userPrompt) +
-            buildAnswerContext(s.questions, idea.id);
+            buildAnswerContext(s.questions, idea.id) +
+            buildDoneContext(doneTasks);
 
           type ParsedPlan = {
             tasks?: {
@@ -1661,7 +1685,9 @@ export const model = {
         const plan: Plan = {
           id: genId(),
           ideaId: idea.id,
-          tasks,
+          // Carry forward the already-implemented tasks, then the newly-planned
+          // remaining work.
+          tasks: [...doneTasks, ...tasks],
           constraints,
           assumptions,
           unknowns,

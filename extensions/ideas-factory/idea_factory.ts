@@ -1493,15 +1493,21 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   const classFor = (id: string) =>
     d.classifications.find((x) => x.thoughtId === id) ?? null;
 
-  const questionHtml = (q: Question) =>
-    `<div class="question"><div class="question-text">${
-      esc(q.text)
-    }</div><form class="inline" action="/api/answer" method="post"><input type="hidden" name="questionId" value="${
-      esc(q.id)
-    }"><input type="text" name="answer" placeholder="Answer…"><button type="submit">answer</button></form></div>`;
+  const questionHtml = (q: Question) => {
+    const answerHtml = q.answer
+      ? `<div class="question-answer"><span class="qa-label">answer</span> ${
+        esc(q.answer)
+      }</div>`
+      : `<form class="inline" action="/api/answer" method="post"><input type="hidden" name="questionId" value="${
+        esc(q.id)
+      }"><input type="text" name="answer" placeholder="Answer…"><button type="submit">answer</button></form>`;
+    return `<div class="question ${
+      q.answer ? "answered" : ""
+    }"><div class="question-text">${esc(q.text)}</div>${answerHtml}</div>`;
+  };
 
   // Cluster questions (no specific idea yet) live in the Thoughts column.
-  const clusterQuestions = d.questions.filter((q) => !q.answer && !q.ideaId)
+  const clusterQuestions = d.questions.filter((q) => !q.ideaId)
     .map(questionHtml).join("");
 
   const thoughtCards = d.thoughts.map((t) => {
@@ -1531,7 +1537,7 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
           : ""
       }</div>`
     ).join("");
-    const qs = d.questions.filter((q) => !q.answer && q.ideaId === i.id);
+    const qs = d.questions.filter((q) => q.ideaId === i.id);
     const qHtml = qs.length
       ? `<div class="questions-inline"><div class="questions-label">questions</div>${
         qs.map(questionHtml).join("")
@@ -1652,6 +1658,10 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   .questions-label { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:4px; }
   .question { background:#fef3c7; border:1px solid #fde68a; border-radius:6px; padding:6px 8px; margin:4px 0; }
   .question-text { font-size:12px; color:#78350f; margin-bottom:4px; }
+  .question.answered { background:#ecfdf5; border-color:#a7f3d0; }
+  .question.answered .question-text { color:#065f46; }
+  .question-answer { font-size:12px; color:#065f46; }
+  .qa-label { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
 </style>
 </head>
 <body>

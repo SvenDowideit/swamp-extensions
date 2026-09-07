@@ -270,6 +270,43 @@ Deno.test("an idea-scoped question is shown inside its idea card", () => {
   assertEquals(html.includes("questions-inline"), true);
 });
 
+Deno.test("an answered question shows both the question and its answer", () => {
+  const now = new Date().toISOString();
+  const html = renderKanban(
+    {
+      thoughts: [],
+      classifications: [],
+      ideas: [{
+        id: "i1",
+        title: "caddy extension",
+        body: "a caddy extension",
+        status: "captured",
+        sourceThoughtIds: [],
+        createdAt: now,
+        updatedAt: now,
+      }],
+      todos: [],
+      actions: [],
+      questions: [{
+        id: "q1",
+        actionId: null,
+        ideaId: "i1",
+        text: "what should the admin API expose?",
+        about: "plan",
+        askedAt: now,
+        answer: "a REST API over Caddy's admin API",
+        answeredAt: now,
+      }],
+      plans: [],
+    },
+    now,
+  );
+  // Both the question and its answer are visible, and no answer form remains.
+  assertEquals(html.includes("what should the admin API expose?"), true);
+  assertEquals(html.includes("a REST API over Caddy's admin API"), true);
+  assertEquals(html.includes("question-answer"), true);
+});
+
 Deno.test("an abandoned idea is not shown in the Ideas column", () => {
   const now = new Date().toISOString();
   const html = renderKanban(

@@ -16,8 +16,10 @@
  *   POST /api/revert     — {actionId} ; revert an action
  *   POST /api/modify     — {actionId, body?} ; modify an idea's body
  *   POST /api/answer     — {questionId, answer} ; answer an LLM question
+ *   POST /api/dismiss-question — {questionId} ; dismiss an unhelpful question
  *   POST /api/plan       — {ideaId, userPrompt?} ; plan an idea (Phase 2)
  *   POST /api/plan-feedback — {ideaId, phase?, feedback} ; refine an idea from plan feedback
+ *   POST /api/set-target — {ideaId, type, path?, url?, language?, structure?} ; link an idea to a target
  */
 const PORT = parseInt(Deno.env.get("IDEA_FACTORY_PORT") ?? "8877");
 const BOARD_PATH = Deno.env.get("IDEA_FACTORY_BOARD") ??
@@ -237,17 +239,6 @@ async function handler(req: Request): Promise<Response> {
       ...(body.url ? { url: body.url } : {}),
       ...(body.language ? { language: body.language } : {}),
       ...(body.structure ? { structure: body.structure } : {}),
-    });
-    if (!r.ok) return respond(req, false, { error: r.output });
-    await renderBoard();
-    return respond(req, true);
-  }
-
-  if (url.pathname === "/api/implement") {
-    if (!body.ideaId) return json(400, { ok: false, error: "ideaId required" });
-    const r = await runMethod("implementPlan", {
-      ideaId: body.ideaId,
-      ...(body.phase ? { phase: body.phase } : {}),
     });
     if (!r.ok) return respond(req, false, { error: r.output });
     await renderBoard();

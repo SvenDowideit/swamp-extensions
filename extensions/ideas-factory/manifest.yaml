@@ -32,5 +32,6 @@ additionalFiles:
   - LICENSE.txt
   - idea_factory_test.ts
   - scripts/capture-server.ts
+  - skills/implement-idea.md
 
 platforms: []

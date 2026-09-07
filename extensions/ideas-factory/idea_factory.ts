@@ -2187,11 +2187,7 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
         ).join("");
         return `<div class="phase"><div class="phase-head">${
           esc(g.name)
-        } <span class="phase-count">${g.tasks.length} task(s)</span><form class="inline implement" action="/api/implement" method="post"><input type="hidden" name="ideaId" value="${
-          esc(p.ideaId)
-        }"><input type="hidden" name="phase" value="${
-          esc(g.name)
-        }"><button type="submit">implement</button></form></div>${tasks}<details class="feedback"><summary>feedback</summary><form action="/api/plan-feedback" method="post"><input type="hidden" name="ideaId" value="${
+        } <span class="phase-count">${g.tasks.length} task(s)</span></div>${tasks}<details class="feedback"><summary>feedback</summary><form action="/api/plan-feedback" method="post"><input type="hidden" name="ideaId" value="${
           esc(p.ideaId)
         }"><input type="hidden" name="phase" value="${
           esc(g.name)
@@ -2282,7 +2278,6 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
   .phase { margin-top:8px; }
   .phase-head { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#52525b; border-bottom:1px solid var(--line); padding-bottom:2px; display:flex; align-items:center; justify-content:space-between; gap:6px; }
   .phase-count { font-weight:400; color:var(--muted); text-transform:none; }
-  .implement button { font-size:10px; padding:1px 6px; }
   .feedback { margin-top:6px; }
   .feedback summary { cursor:pointer; font-size:11px; color:var(--muted); }
   .feedback textarea { width:100%; min-height:48px; font:inherit; font-size:12px; margin-top:4px; padding:4px; border:1px solid var(--line); border-radius:4px; }

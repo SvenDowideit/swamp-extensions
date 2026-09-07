@@ -1,0 +1,48 @@
+id: 520b093e-c8b3-4c0c-857f-bf8369491007
+name: idea-factory
+tags: {}
+jobs:
+  - name: main
+    description: |
+      Process the idea-factory inbox: classify unclassified thoughts, route
+      new-idea / todo thoughts into ideas and todos, then re-render the kanban
+      board. Deterministic in Phase 0 (keyword classification, no LLM).
+    steps:
+      - name: classify
+        description: Classify any unclassified thoughts in the inbox.
+        task:
+          type: model_method
+          modelIdOrName: idea-factory
+          methodName: classifyThought
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: route
+        description: Route classified thoughts into ideas and todos.
+        task:
+          type: model_method
+          modelIdOrName: idea-factory
+          methodName: routeThought
+        dependsOn:
+          - step: classify
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: render
+        description: Re-render the kanban board HTML.
+        task:
+          type: model_method
+          modelIdOrName: idea-factory
+          methodName: renderBoard
+          inputs:
+            path: /home/sven/src/swamp-project/explorer/idea-factory/kanban.html
+        dependsOn:
+          - step: route
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

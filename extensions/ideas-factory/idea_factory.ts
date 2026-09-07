@@ -617,6 +617,23 @@ function buildPlanPrompt(idea: Idea, userPrompt?: string): string {
   }Produce a testable implementation plan for this idea.`;
 }
 
+/**
+ * Format the user's answers to clarifying questions as prompt context, so the
+ * answers actually shape the next LLM run. `ideaId` scopes to one idea; `null`
+ * selects cluster-level questions (no idea yet).
+ */
+export function buildAnswerContext(
+  questions: Question[],
+  ideaId: string | null,
+): string {
+  const answered = questions.filter((q) => q.answer && q.ideaId === ideaId);
+  if (answered.length === 0) return "";
+  const lines = answered.map((q) => `- Q: ${q.text} → A: ${q.answer}`).join(
+    "\n",
+  );
+  return `\n\nThe user answered these clarifying questions:\n${lines}`;
+}
+
 /** Mark any non-superseded plan for an idea as stale (reversion guard). */
 function markPlansStale(s: FactoryState, ideaId: string): void {
   for (const p of s.plans) {
@@ -867,7 +884,8 @@ export const model = {
         if (args.mode === "manual") {
           groups = args.groups ?? [];
         } else {
-          const prompt = buildClusterPrompt(open, args.userPrompt);
+          const prompt = buildClusterPrompt(open, args.userPrompt) +
+            buildAnswerContext(s.questions, null);
           const raw = await chatCompletion(context.globalArgs, [
             { role: "system", content: CLUSTER_SYSTEM },
             { role: "user", content: prompt },
@@ -974,7 +992,8 @@ export const model = {
             { role: "system", content: MERGE_SYSTEM },
             {
               role: "user",
-              content: buildMergePrompt(thought, s.ideas, args.userPrompt),
+              content: buildMergePrompt(thought, s.ideas, args.userPrompt) +
+                buildAnswerContext(s.questions, args.ideaId ?? null),
             },
           ], { json: true });
           llmResponse = raw;
@@ -1095,7 +1114,8 @@ export const model = {
             { role: "system", content: REFINE_SYSTEM },
             {
               role: "user",
-              content: buildRefinePrompt(thought, idea, args.userPrompt),
+              content: buildRefinePrompt(thought, idea, args.userPrompt) +
+                buildAnswerContext(s.questions, idea.id),
             },
           ], { json: true });
           llmResponse = raw;
@@ -1234,6 +1254,10 @@ export const model = {
         if (!q) return { dataHandles: [], error: "question not found" };
         q.answer = args.answer;
         q.answeredAt = new Date().toISOString();
+        // The answer is new information for the idea, so any plan for it is now
+        // out of date — mark it stale so the user re-plans (which will include
+        // the answer via buildAnswerContext).
+        if (q.ideaId) markPlansStale(s, q.ideaId);
         await writeState(context, s);
         return { dataHandles: [], answered: q.id };
       },
@@ -1304,7 +1328,11 @@ export const model = {
         } else {
           const raw = await chatCompletion(context.globalArgs, [
             { role: "system", content: PLAN_SYSTEM },
-            { role: "user", content: buildPlanPrompt(idea, args.userPrompt) },
+            {
+              role: "user",
+              content: buildPlanPrompt(idea, args.userPrompt) +
+                buildAnswerContext(s.questions, idea.id),
+            },
           ], { json: true });
           llmResponse = raw;
           if (raw) {

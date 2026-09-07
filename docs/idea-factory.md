@@ -339,13 +339,11 @@ merge + prompt-injection controls are for.
   questions are surfaced on the board, and the user can answer them or add
   thoughts that refine the idea — which then yields a better, more detailed plan.
 - Reversion guard: a refinement of a planned idea sets its plan `stale` → re-plan.
-- **Answer feedback (⏳ not yet implemented):** answered questions should be fed
-  back into the LLM prompt on the next run (and optionally auto-trigger a
-  re-plan), so answers actually shape the next plan. Currently `answerQuestion`
-  only records the answer — it is visible on the board but is *not* injected into
-  the next `planIdea`/`clusterThoughts`/`mergeIntoIdea`/`refineIdea` call, and
-  answering does not trigger anything. The user must re-trigger manually, and
-  even then the answers are not included in the LLM context.
+- **Answer feedback:** answered questions are fed back into the LLM prompt on the
+  next run (`buildAnswerContext` appends "Q → A" pairs to the prompt for
+  `planIdea`/`clusterThoughts`/`mergeIntoIdea`/`refineIdea`), so answers actually
+  shape the next plan. Answering a question also marks the idea's plan `stale`
+  (reversion guard extended to answers), so the user is prompted to re-plan.
 - **Done:** a planable idea has a task breakdown with testable criteria.
 
 **Status: ✅ COMPLETE (verified).** Implemented in `@svendowideit/ideas-factory`
@@ -355,11 +353,10 @@ end-to-end: planning the Caddy idea produced 7 tasks (each with acceptance
 criteria + test strategy + effort), 5 constraints/assumptions/unknowns, and 5
 clarifying questions; the plan was `draft` (unknowns present). Refining the idea
 marked the plan `stale`; re-planning superseded it and produced a *more detailed*
-plan (10 tasks, 4 unknowns) — the refinement loop working as intended.
-
-> **Open item:** the "answer feedback" bullet above is tracked but not yet
-> implemented — answered questions are recorded and visible, but not yet fed back
-> into the LLM on the next run. Deferred while the user is still testing.
+plan (10 tasks, 4 unknowns) — the refinement loop working as intended. Answer
+feedback verified: answering a question marked the plan `stale`, and re-planning
+incorporated the answers (the plan gained "Caddy admin API client" and "Vault
+secret retrieval" tasks reflecting the user's answers).
 
 **Phase 3 — Action the plan (docs + tests).**
 - `implementPlan` (LLM, `allowFailure`) → `artifacts`: for each task, write

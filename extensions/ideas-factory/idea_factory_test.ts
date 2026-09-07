@@ -1,5 +1,6 @@
 import { assertEquals, assertObjectMatch } from "jsr:@std/assert@1";
 import {
+  buildAnswerContext,
   classifyByKeywords,
   inferTodoList,
   renderKanban,
@@ -10,6 +11,47 @@ import {
 Deno.test("toTitle trims and truncates", () => {
   assertEquals(toTitle("  build the thing  "), "build the thing");
   assertEquals(toTitle("a".repeat(100)).length, 60);
+});
+
+Deno.test("buildAnswerContext includes only answered questions for the idea", () => {
+  const now = new Date().toISOString();
+  const q = (id: string, ideaId: string | null, answer: string | null) => ({
+    id,
+    actionId: null,
+    ideaId,
+    text: `question ${id}`,
+    about: "plan",
+    askedAt: now,
+    answer,
+    answeredAt: answer ? now : null,
+  });
+  const questions = [
+    q("q1", "i1", "answer one"),
+    q("q2", "i1", null), // unanswered — excluded
+    q("q3", "i2", "answer for another idea"), // wrong idea — excluded
+    q("q4", null, "cluster answer"), // cluster-level — excluded for idea scope
+  ];
+  const ctx = buildAnswerContext(questions, "i1");
+  assertEquals(ctx.includes("question q1"), true);
+  assertEquals(ctx.includes("answer one"), true);
+  assertEquals(ctx.includes("question q2"), false);
+  assertEquals(ctx.includes("question q3"), false);
+  assertEquals(ctx.includes("question q4"), false);
+});
+
+Deno.test("buildAnswerContext returns empty when nothing is answered", () => {
+  const now = new Date().toISOString();
+  const questions = [{
+    id: "q1",
+    actionId: null,
+    ideaId: "i1",
+    text: "unanswered",
+    about: "plan",
+    askedAt: now,
+    answer: null,
+    answeredAt: null,
+  }];
+  assertEquals(buildAnswerContext(questions, "i1"), "");
 });
 
 Deno.test("classifier routes a software idea to new-idea", () => {

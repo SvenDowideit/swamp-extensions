@@ -332,6 +332,11 @@ merge + prompt-injection controls are for.
 - `planIdea` (LLM) → `plans`: decompose a planable idea into tasks, each with
   `acceptanceCriteria` + `testStrategy`. A gate decides *which* ideas get a plan
   (effort `medium`+ or high value); trivial ideas skip to `recordOutcome`.
+- **MVP-first phasing:** the plan is phased — `MVP` is the smallest end-to-end
+  working system to try out the idea and UX as quickly as possible (hardcode or
+  simplify, defer generalization), then `Iteration 1`, `Iteration 2`, … iteratively
+  generalize into reusable components. General-purpose components are *not* built
+  before the minimal working system.
 - **Constraint discovery:** the plan records `constraints`, `assumptions`, and
   `unknowns` — the LLM is asked to surface what is unclear, and to ask clarifying
   questions rather than guess.

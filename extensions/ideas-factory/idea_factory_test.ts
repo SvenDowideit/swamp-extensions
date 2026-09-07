@@ -403,6 +403,7 @@ Deno.test("a plan card shows tasks, acceptance criteria, constraints, and unknow
           testStrategy: "unit",
           dependencies: [],
           effort: "small",
+          phase: "MVP",
           status: "ready",
         }],
         constraints: ["requires systemd"],

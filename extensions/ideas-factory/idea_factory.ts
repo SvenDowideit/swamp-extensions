@@ -203,6 +203,7 @@ const PlanTaskSchema = z.object({
   ]),
   dependencies: z.array(z.string()).default([]),
   effort: z.enum(["small", "medium", "large"]).default("medium"),
+  phase: z.string().default("MVP"),
   status: z.enum(["ready", "in-progress", "verified", "unverified", "blocked"])
     .default("ready"),
 });
@@ -600,16 +601,21 @@ function buildRefinePrompt(
 }
 
 const PLAN_SYSTEM =
-  `You are a software-factory planning assistant. Given an idea, produce a testable ` +
-  `implementation plan. Decompose the idea into concrete tasks. For each task give: ` +
-  `title, description, acceptanceCriteria (specific, observable, testable statements), ` +
-  `testStrategy (one of unit|integration|property|golden|contract|manual), dependencies ` +
-  `(task titles it depends on), and effort (small|medium|large). Also identify: ` +
-  `constraints (dependencies, limits, risks), assumptions (things you are assuming), and ` +
-  `unknowns (things that are unclear and would improve the plan if resolved). ` +
-  `If the idea is under-specified, ask clarifying questions instead of guessing — ` +
-  `prefer asking over guessing, because a better-specified idea yields a better plan. ` +
-  `Return JSON: {"tasks":[{"title":"...","description":"...","acceptanceCriteria":["..."],"testStrategy":"unit","dependencies":["..."],"effort":"medium"}],"constraints":["..."],"assumptions":["..."],"unknowns":["..."],"questions":[{"text":"...","about":"..."}]}.`;
+  `You are a software-factory planning assistant. Given an idea, produce a testable, ` +
+  `MVP-first phased implementation plan. ` +
+  `Phase 1 ("MVP") is the smallest end-to-end working system that lets the user try ` +
+  `out the idea and its UX as quickly as possible: hardcode or simplify where you can, ` +
+  `and defer generalization. Later phases iteratively generalize the MVP into reusable ` +
+  `components. Do NOT build general-purpose components before the minimal working system. ` +
+  `For each task give: title, description, acceptanceCriteria (specific, observable, ` +
+  `testable statements), testStrategy (one of unit|integration|property|golden|contract|manual), ` +
+  `dependencies (task titles it depends on), effort (small|medium|large), and phase ` +
+  `("MVP" for the first working slice, then "Iteration 1", "Iteration 2", ... for ` +
+  `generalization). Also identify: constraints (dependencies, limits, risks), assumptions ` +
+  `(things you are assuming), and unknowns (things that are unclear and would improve the ` +
+  `plan if resolved). If the idea is under-specified, ask clarifying questions instead of ` +
+  `guessing — prefer asking over guessing, because a better-specified idea yields a better plan. ` +
+  `Return JSON: {"tasks":[{"title":"...","description":"...","acceptanceCriteria":["..."],"testStrategy":"unit","dependencies":["..."],"effort":"medium","phase":"MVP"}],"constraints":["..."],"assumptions":["..."],"unknowns":["..."],"questions":[{"text":"...","about":"..."}]}.`;
 
 function buildPlanPrompt(idea: Idea, userPrompt?: string): string {
   return `Idea [${idea.id}] ${idea.title}:\n${idea.body}\n\n${
@@ -1284,6 +1290,7 @@ export const model = {
           ]),
           dependencies: z.array(z.string()).optional(),
           effort: z.enum(["small", "medium", "large"]).optional(),
+          phase: z.string().optional(),
         })).optional(),
       }),
       execute: async (
@@ -1298,6 +1305,7 @@ export const model = {
             testStrategy: PlanTask["testStrategy"];
             dependencies?: string[];
             effort?: PlanTask["effort"];
+            phase?: string;
           }[];
         },
         context: MethodContext,
@@ -1323,6 +1331,7 @@ export const model = {
             testStrategy: t.testStrategy,
             dependencies: t.dependencies ?? [],
             effort: t.effort ?? "medium",
+            phase: t.phase ?? "MVP",
             status: "ready",
           }));
         } else {
@@ -1344,6 +1353,7 @@ export const model = {
                 testStrategy?: PlanTask["testStrategy"];
                 dependencies?: string[];
                 effort?: PlanTask["effort"];
+                phase?: string;
               }[];
               constraints?: string[];
               assumptions?: string[];
@@ -1358,6 +1368,7 @@ export const model = {
               testStrategy: t.testStrategy ?? "manual",
               dependencies: t.dependencies ?? [],
               effort: t.effort ?? "medium",
+              phase: t.phase ?? "MVP",
               status: "ready",
             }));
             constraints = parsed?.constraints ?? [];
@@ -1592,7 +1603,7 @@ export function renderKanban(d: BoardData, generatedAt: string): string {
       const tasks = p.tasks.map((t) =>
         `<div class="task"><div class="task-title">${
           esc(t.title)
-        } <span class="task-meta">${esc(t.testStrategy)} · ${
+        } <span class="task-meta">${esc(t.phase)} · ${esc(t.testStrategy)} · ${
           esc(t.effort)
         }</span></div><ul class="criteria">${
           t.acceptanceCriteria.map((c) => `<li>${esc(c)}</li>`).join("")

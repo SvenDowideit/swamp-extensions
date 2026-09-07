@@ -770,6 +770,23 @@ export function detectLanguage(dir: string): {
   language: string;
   testCommand: string;
 } {
+  // A swamp repo (TypeScript extensions) is authoritative — check it first so
+  // the LLM never guesses a different language (e.g. Go for a "caddy extension").
+  const isSwampRepo = (() => {
+    try {
+      return Deno.statSync(`${dir}/.swamp.yaml`).isFile ||
+        Deno.statSync(`${dir}/.swamp`).isDirectory;
+    } catch {
+      return false;
+    }
+  })();
+  if (isSwampRepo) {
+    return {
+      language: "typescript (swamp extension)",
+      testCommand: "deno test",
+    };
+  }
+
   const markers: Array<[string, string, string]> = [
     ["go.mod", "go", "go test ./..."],
     ["Cargo.toml", "rust", "cargo test"],
@@ -820,10 +837,16 @@ async function runCommand(
 const IMPLEMENT_SYSTEM =
   `You are a software implementation assistant. Given an idea and a set of tasks, ` +
   `write the code, docs, and tests to implement them in the target language. ` +
+  `The target language is AUTHORITATIVE — never switch to a different language. ` +
+  `If the language is "typescript (swamp extension)", you are writing a swamp ` +
+  `extension: a TypeScript model type (export const model = { type, version, ` +
+  `globalArguments, resources, methods }) plus a manifest.yaml, NOT a plugin for ` +
+  `the external tool the idea mentions. For example, a "caddy extension" is a swamp ` +
+  `extension that drives Caddy via its admin API — it is NOT a Go Caddy plugin. ` +
+  `Match the structure of existing extensions in the repo. ` +
   `Return JSON: {"files":[{"path":"relative/path","content":"..."}],"testCommand":"..."}. ` +
-  `Write complete, runnable files. Match the existing codebase's language and ` +
-  `conventions. Keep the implementation minimal — implement exactly the tasks given, ` +
-  `no more.`;
+  `Write complete, runnable files. Keep the implementation minimal — implement ` +
+  `exactly the tasks given, no more.`;
 
 function buildImplementPrompt(
   idea: Idea,

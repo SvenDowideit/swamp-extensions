@@ -842,6 +842,8 @@ Deno.test("formatGlobalArgsYaml emits a copy-paste globalArguments block", () =>
     maxFusions: 25,
     llmTimeoutSec: 120,
     llmFailureThreshold: 3,
+    feedbackServerPort: 8765,
+    feedbackServerServiceName: "feedback-server",
   });
   assertEquals(yaml.includes("globalArguments:"), true);
   assertEquals(yaml.includes('llmBaseUrl: "http://localhost:11434"'), true);
@@ -864,6 +866,8 @@ Deno.test("formatGlobalArgsYaml omits empty values", () => {
     maxFusions: 25,
     llmTimeoutSec: 120,
     llmFailureThreshold: 3,
+    feedbackServerPort: 8765,
+    feedbackServerServiceName: "feedback-server",
   });
   assertEquals(yaml.includes("llmModel"), false);
   assertEquals(yaml.includes("llmApiKey"), false);
@@ -2366,6 +2370,8 @@ Deno.test("chatCompletion throws LlmError(server) on fetch failure", async () =>
         maxFusions: 1,
         llmTimeoutSec: 1,
         llmFailureThreshold: 1,
+        feedbackServerPort: 8765,
+        feedbackServerServiceName: "feedback-server",
       }, [{ role: "user", content: "hi" }]),
       LlmError,
     );

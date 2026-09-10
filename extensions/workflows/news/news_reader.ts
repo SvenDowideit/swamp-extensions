@@ -56,6 +56,18 @@ const GlobalArgsSchema = z.object({
   llmFailureThreshold: z.number().int().min(1).default(3).describe(
     "Server-side LLM failures (outage / timeout / HTTP 5xx) tolerated in a step before the step halts. 1 = fail fast on the first server error. Client-side errors are not counted.",
   ),
+  /** Port the feedback queue server listens on. */
+  feedbackServerPort: z.number().int().min(1).max(65535).default(8765).describe(
+    "Port the feedback queue HTTP server listens on (default 8765).",
+  ),
+  /** systemd user service name for the feedback server. */
+  feedbackServerServiceName: z.string().default("feedback-server").describe(
+    "systemd user service name for the feedback server.",
+  ),
+  /** Override the path to the bundled feedback-server.ts script. */
+  feedbackServerScriptPath: z.string().optional().describe(
+    "Override the path to the bundled feedback-server.ts script. Defaults to the script bundled with this extension.",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -580,6 +592,7 @@ type MethodContext = {
     warning: (msg: string, props?: Record<string, unknown>) => void;
   };
   repoDir?: string;
+  extensionFile?: (relPath: string) => string;
   modelType?: string | { raw: string; normalized: string };
   modelId?: string;
   definition?: {
@@ -644,6 +657,39 @@ export function homeDir(): string {
     return Deno.env.get("HOME") || "/tmp";
   } catch {
     return "/tmp";
+  }
+}
+
+/** Expand a leading `~` to the user's home directory. */
+export function expandHome(path: string): string {
+  const h = homeDir();
+  if (path === "~") return h;
+  if (path.startsWith("~/")) return `${h}${path.slice(1)}`;
+  return path;
+}
+
+/** Run a `swamp` CLI command and capture stdout/stderr/exit code. */
+export async function runSwampCmd(
+  args: string[],
+): Promise<{ stdout: string; stderr: string; code: number }> {
+  try {
+    const proc = new Deno.Command("swamp", {
+      args,
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const out = await proc.output();
+    return {
+      stdout: new TextDecoder().decode(out.stdout),
+      stderr: new TextDecoder().decode(out.stderr),
+      code: out.code,
+    };
+  } catch (err) {
+    return {
+      stdout: "",
+      stderr: err instanceof Error ? err.message : String(err),
+      code: 127,
+    };
   }
 }
 
@@ -1263,6 +1309,8 @@ export async function probeLlm(
           maxFusions: 1,
           llmTimeoutSec: 30,
           llmFailureThreshold: 1,
+          feedbackServerPort: 8765,
+          feedbackServerServiceName: "feedback-server",
         },
         [
           { role: "system", content: "Reply with the single word OK." },
@@ -3802,13 +3850,19 @@ function mobileCard(
 /** Model definition for fetching RSS feeds and generating news summaries. */
 export const model = {
   type: "@svendowideit/news-reader",
-  version: "2026.08.08.1",
+  version: "2026.09.10.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
       toVersion: "2026.08.08.1",
       description:
         "Baseline version for @svendowideit/news-reader, no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.10.1",
+      description:
+        "Add feedbackServerPort, feedbackServerServiceName, and feedbackServerScriptPath global args; add ensureFeedbackServer method",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -5406,6 +5460,115 @@ export const model = {
         await Deno.writeTextFile(outPath, page);
         logger?.info("Full stories page written to {path}", { path: outPath });
         return { dataHandles: [handle] };
+      },
+    },
+    ensureFeedbackServer: {
+      description:
+        "Idempotently ensure the feedback queue HTTP server is running as a systemd user service. Resolves the bundled feedback-server.ts script path, creates the unit via @svendowideit/systemd-service (if that extension is installed), and starts it. Skips gracefully (with a log) if the systemd-service extension is not installed.",
+      arguments: z.object({
+        port: z.number().int().min(1).max(65535).optional().describe(
+          "Port the feedback server listens on (defaults to global feedbackServerPort).",
+        ),
+        serviceName: z.string().optional().describe(
+          "systemd user service name (defaults to global feedbackServerServiceName).",
+        ),
+        scriptPath: z.string().optional().describe(
+          "Override the path to the feedback-server.ts script (defaults to the bundled script).",
+        ),
+      }).describe("Arguments for the ensureFeedbackServer method"),
+      execute: async (
+        args: { port?: number; serviceName?: string; scriptPath?: string },
+        context: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        const logger = context.logger;
+        const ga = context.globalArgs as GlobalArgs;
+        const port = args.port ?? ga.feedbackServerPort;
+        const serviceName = args.serviceName ?? ga.feedbackServerServiceName;
+
+        // Resolve the bundled feedback-server.ts script path.
+        let scriptPath = args.scriptPath ?? ga.feedbackServerScriptPath;
+        if (!scriptPath) {
+          if (context.extensionFile) {
+            scriptPath = context.extensionFile("scripts/feedback-server.ts");
+          } else {
+            scriptPath = `${
+              context.repoDir ?? "."
+            }/extensions/workflows/news/scripts/feedback-server.ts`;
+          }
+        }
+
+        // Check whether the systemd-service extension is installed.
+        const probe = await runSwampCmd([
+          "model",
+          "type",
+          "search",
+          "@svendowideit/systemd-service",
+          "--json",
+        ]);
+        const installed = probe.code === 0 &&
+          probe.stdout.includes("@svendowideit/systemd-service");
+        if (!installed) {
+          logger?.info(
+            "@svendowideit/systemd-service not installed — skipping feedback-server service setup. Run `swamp extension pull @svendowideit/systemd-service` to enable it.",
+          );
+          return { dataHandles: [] };
+        }
+
+        const denoPath = expandHome("~/.swamp/deno/deno");
+        const command =
+          `${denoPath} run --allow-net --allow-read --allow-write --allow-env ${scriptPath}`;
+
+        // Idempotently create the unit (createService is a no-op if unchanged).
+        const create = await runSwampCmd([
+          "model",
+          "@svendowideit/systemd-service",
+          "method",
+          "run",
+          "createService",
+          serviceName,
+          "--input",
+          `serviceName=${serviceName}`,
+          "--input",
+          `command=${command}`,
+          "--input",
+          `description=News feedback queue server`,
+          "--input",
+          `environment=["FEEDBACK_PORT=${port}"]`,
+          "--skip-reports",
+        ]);
+        if (create.code !== 0) {
+          throw new Error(
+            `createService failed (${create.code}): ${
+              create.stderr || create.stdout
+            }`,
+          );
+        }
+
+        // Start it (idempotent — enable --now is safe to re-run).
+        const start = await runSwampCmd([
+          "model",
+          "@svendowideit/systemd-service",
+          "method",
+          "run",
+          "startService",
+          serviceName,
+          "--input",
+          `serviceName=${serviceName}`,
+          "--skip-reports",
+        ]);
+        if (start.code !== 0) {
+          throw new Error(
+            `startService failed (${start.code}): ${
+              start.stderr || start.stdout
+            }`,
+          );
+        }
+
+        logger?.info(
+          "Feedback server service {serviceName} is running on port {port} (script {scriptPath})",
+          { serviceName, port, scriptPath },
+        );
+        return { dataHandles: [] };
       },
     },
   },

@@ -63,6 +63,10 @@ inputs:
       type: string
       default: http://localhost:8765
       description: URL of the feedback queue HTTP server.
+    feedbackServerPort:
+      type: integer
+      default: 8765
+      description: Port the feedback queue HTTP server listens on (used by ensure-feedback-server).
     feedbackBatchSize:
       type: integer
       default: 100
@@ -101,6 +105,21 @@ jobs:
         serverUrl: ${{ inputs.feedbackServerUrl }}
         batchSize: ${{ inputs.feedbackBatchSize }}
         maxBatches: ${{ inputs.feedbackMaxBatches }}
+    dependsOn: []
+    weight: 0
+    allowFailure: true
+  - name: ensure-feedback-server
+    description: >-
+      Idempotently ensure the feedback queue HTTP server runs as a systemd user
+      service (via @svendowideit/systemd-service). Skips with a log if that
+      extension is not installed; no-ops if the service is already running.
+    task:
+      type: model_method
+      modelType: "@svendowideit/news-reader"
+      modelName: local-news
+      methodName: ensureFeedbackServer
+      inputs:
+        port: ${{ inputs.feedbackServerPort }}
     dependsOn: []
     weight: 0
     allowFailure: true

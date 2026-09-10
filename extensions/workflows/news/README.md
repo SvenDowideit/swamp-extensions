@@ -65,6 +65,17 @@ Configurable params: `llmBaseUrl`, `llmModel` (empty = fusion off),
 `maxFusions` (int ≥ 1, default 25), `llmTimeoutSec` (1..600s, default 120),
 `llmFailureThreshold` (int ≥ 1, default 3).
 
+`llmApiKey` is **sensitive** — swamp rejects it as a literal value in
+`globalArguments` (it would be stored in cleartext in the definition YAML).
+Store it in a vault and reference it instead:
+
+```sh
+swamp vault put my-vault llm-api-key   # prompts for the value
+```
+
+then set `llmApiKey: ${{ vault.get('my-vault', 'llm-api-key') }}` in the
+instance's `globalArguments`. Ollama (the default) needs no key — leave it unset.
+
 The last three bound how long a failing LLM server can stall a fusion step:
 `maxFusions` caps the total LLM calls per step, `llmTimeoutSec` is the per-call
 timeout, and `llmFailureThreshold` is how many *server-side* failures (outage,

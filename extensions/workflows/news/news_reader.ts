@@ -1362,7 +1362,7 @@ export function formatGlobalArgsYaml(
   for (const [key, value] of Object.entries(args)) {
     if (value === undefined || value === null || value === "") continue;
     if (key === "llmApiKey" && redactApiKey) {
-      lines.push(`  ${key}: "***REDACTED — paste your key here***"`);
+      lines.push(`  ${key}: "\${{ vault.get('<vault>', 'llm-api-key') }}"`);
       continue;
     }
     if (typeof value === "number") {
@@ -1389,7 +1389,7 @@ export function formatGlobalArgsDiffYaml(
     const cur = (current as Record<string, unknown>)[key];
     if (cur === value) continue;
     if (key === "llmApiKey") {
-      lines.push(`  ${key}: "***REDACTED — paste your key here***"`);
+      lines.push(`  ${key}: "\${{ vault.get('<vault>', 'llm-api-key') }}"`);
       continue;
     }
     if (typeof value === "number") {
@@ -4064,6 +4064,12 @@ export const model = {
 
         const merged = { ...ga, ...args } as GlobalArgs;
         logger?.info("Validated config values OK.", {});
+        if (args.llmApiKey !== undefined && args.llmApiKey !== null) {
+          logger?.warning(
+            "llmApiKey is sensitive and cannot be stored as a literal in globalArguments. Store it in a vault (swamp vault put <vault> llm-api-key) and reference it with a vault.get expression.",
+            {},
+          );
+        }
         if (merged.llmModel && merged.llmModel.length > 0) {
           logger?.info(
             "Fusion enabled — llmModel={model}, llmBaseUrl={base}",

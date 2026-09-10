@@ -851,7 +851,7 @@ Deno.test("formatGlobalArgsYaml emits a copy-paste globalArguments block", () =>
   assertEquals(yaml.includes("llmTemperature: 0.1"), true);
   assertEquals(yaml.includes("fusionMinClusterSize: 2"), true);
   assertEquals(yaml.includes("sk-secret"), false);
-  assertEquals(yaml.includes("REDACTED"), true);
+  assertEquals(yaml.includes("vault.get"), true);
 });
 
 Deno.test("formatGlobalArgsYaml omits empty values", () => {

@@ -1,0 +1,71 @@
+id: 3f1a2b3c-4d5e-4f6a-8b7c-9d0e1f2a3b4c
+name: "@svendowideit/gtd"
+description: |
+  GTD processing loop — clarify any unprocessed inbox items into the right GTD
+  lists, then re-render the board. Run after capturing items, or on a schedule.
+
+  Usage:
+    swamp workflow run @svendowideit/gtd
+    swamp workflow run @svendowideit/gtd --input boardPath=/srv/gtd/board.html
+
+  Then read the result:
+    swamp data get --workflow @svendowideit/gtd current --json
+tags: {}
+inputs:
+  properties:
+    boardPath:
+      type: string
+      default: ""
+      description: Optional absolute path for the board HTML.
+  required: []
+jobs:
+  - name: main
+    description: Clarify the inbox, ensure the web UI server, and re-render the board.
+    steps:
+      - name: clarify
+        description: Route unprocessed inbox items to GTD lists.
+        task:
+          type: model_method
+          modelType: "@svendowideit/gtd"
+          modelName: gtd
+          methodName: clarify
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: ensure-server
+        description: >-
+          Idempotently ensure the GTD web UI server runs as a systemd user
+          service (via @svendowideit/systemd-service). Skips with a log if that
+          extension is not installed; no-ops if the service is already running.
+        task:
+          type: model_method
+          modelType: "@svendowideit/gtd"
+          modelName: gtd
+          methodName: ensureServer
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+      - name: render
+        description: Re-render the responsive board HTML.
+        task:
+          type: model_method
+          modelType: "@svendowideit/gtd"
+          modelName: gtd
+          methodName: renderBoard
+          inputs:
+            path: ${{ inputs.boardPath }}
+        dependsOn:
+          - step: clarify
+            condition:
+              type: succeeded
+          - step: ensure-server
+            condition:
+              type: or
+              conditions:
+                - type: succeeded
+                - type: failed
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

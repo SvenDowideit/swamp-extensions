@@ -1,0 +1,39 @@
+manifestVersion: 1
+name: "@svendowideit/gtd"
+version: "2026.09.10.1"
+description: >
+  Getting Things Done (GTD) for swamp — a native model that captures, clarifies,
+  organizes, reflects, and engages. Everything is stored in swamp model data
+  resources (inbox, next-actions, projects, waiting-for, someday-maybe,
+  calendar, reference, contexts, completed, review-log). A responsive web UI is
+  generated as static HTML with htmx for dynamics, served by a small Deno API
+  service.
+
+  Install: swamp extension pull @svendowideit/gtd.
+  The gtd model instance is auto-registered on first run of the gtd workflow.
+  Run: swamp workflow run @svendowideit/gtd
+  UI: ~/.swamp/deno/deno run --allow-net --allow-read --allow-write --allow-env --allow-run scripts/gtd-server.ts
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - gtd.ts
+
+reports:
+  - gtd_report.ts
+
+workflows:
+  - gtd.yaml
+  - gtd-daily.yaml
+  - gtd-weekly.yaml
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - gtd_test.ts
+  - scripts/gtd-server.ts
+
+platforms: []

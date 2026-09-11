@@ -11,7 +11,7 @@ service.
 | Method | Purpose |
 |---|---|
 | `createService` | Write (or update) the unit file and `daemon-reload`. Idempotent — if the unit already matches, it is left untouched. |
-| `startService` | `systemctl --user enable --now` and verify it is active. |
+| `startService` | Enable user lingering, `systemctl --user enable --now`, and verify it is active. |
 | `stopService` | `systemctl --user stop`. |
 | `removeService` | Stop, disable, delete the unit file, and `daemon-reload`. |
 | `status` | Report active/enabled state. |
@@ -23,6 +23,11 @@ API, a queue server) as a persistent background service. This model type is the
 generic building block for that: any other extension can call its methods to
 idempotently create and start a systemd user service for an arbitrary command
 line.
+
+Because these are **user** (not system) units, `systemctl --user` alone only
+starts them when you log in. `startService` therefore enables **user
+lingering** (`loginctl enable-linger`) so your systemd manager and its enabled
+user services start at boot — the way you'd expect a server to behave.
 
 A primary use case is running **swamp's bundled Deno** to serve dynamic web
 services and APIs — for example `@svendowideit/news`'s `feedback-server`:
@@ -66,6 +71,13 @@ swamp extension pull @svendowideit/systemd-service
 | `after` | `[network-online.target]` | `After=` dependencies. |
 | `wants` | `[network-online.target]` | `Wants=` dependencies. |
 | `force` | `false` | Rewrite the unit file even if it already matches. |
+
+## `startService` arguments
+
+| Argument | Default | Description |
+|---|---|---|
+| `serviceName` | — | systemd user service name (without the `.service` suffix). |
+| `linger` | `true` | Enable user lingering (`loginctl enable-linger`) so the service starts at boot. Set `false` to keep login-only behavior. |
 
 ## License
 

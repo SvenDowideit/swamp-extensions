@@ -11,7 +11,10 @@
  *   - `createService` — write (or update) the unit file and `daemon-reload`.
  *                       Idempotent: if the unit already matches, it is left
  *                       untouched.
- *   - `startService`   — `systemctl --user enable --now` and verify it is active.
+ *   - `startService`   — `loginctl enable-linger`, `systemctl --user enable
+ *                       --now`, and verify it is active. Enabling lingering
+ *                       makes the user's systemd manager (and its enabled user
+ *                       services) start at boot, not just at login.
  *   - `stopService`    — `systemctl --user stop`.
  *   - `removeService`  — stop, disable, delete the unit file, and `daemon-reload`.
  *   - `status`         — report active/enabled state.
@@ -80,6 +83,12 @@ const CreateServiceArgsSchema = z.object({
 const ServiceNameArgsSchema = z.object({
   serviceName: z.string().min(1).describe(
     "systemd user service name (without the .service suffix)",
+  ),
+});
+
+const StartArgsSchema = ServiceNameArgsSchema.extend({
+  linger: z.boolean().default(true).describe(
+    "Enable user lingering so this user's systemd manager (and its enabled user services) start at boot, not just at login. Set false to leave the current login-only behavior",
   ),
 });
 
@@ -253,8 +262,16 @@ type MethodContext = {
 
 export const model = {
   type: "@svendowideit/systemd-service",
-  version: "2026.09.10.1",
+  version: "2026.09.11.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.11.1",
+      description:
+        "startService now enables user lingering (loginctl enable-linger) by default so user services start at boot; new startService.linger arg. Global args unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     service: {
       description: "systemd user service status",
@@ -332,14 +349,30 @@ export const model = {
 
     startService: {
       description:
-        "Start and enable a systemd user service and verify it is active",
-      arguments: ServiceNameArgsSchema,
+        "Start and enable a systemd user service, enable user lingering so it runs at boot, and verify it is active",
+      arguments: StartArgsSchema,
       execute: async (
-        args: z.infer<typeof ServiceNameArgsSchema>,
+        args: z.infer<typeof StartArgsSchema>,
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
         const unitDir = expandHome(g.unitDir);
+
+        if (args.linger) {
+          // No username arg => operate on the current user.
+          const linger = await runCmd("loginctl", ["enable-linger"]);
+          if (linger.code !== 0) {
+            throw new Error(
+              `loginctl enable-linger failed (${linger.code}): ${
+                linger.stderr || linger.stdout
+              } — user lingering is required for user services to start at boot`,
+            );
+          }
+          context.logger?.info(
+            "Enabled user lingering so {serviceName} starts at boot, not just at login",
+            { serviceName: args.serviceName },
+          );
+        }
 
         const enable = await systemctl(["enable", "--now", args.serviceName]);
         if (enable.code !== 0) {

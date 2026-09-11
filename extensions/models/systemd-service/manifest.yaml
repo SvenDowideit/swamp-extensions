@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/systemd-service"
-version: "2026.09.10.1"
+version: "2026.09.11.1"
 description: >
   Generic systemd *user* service management. Idempotently creates, starts,
   stops, and removes a systemd user service unit for any service name and

@@ -30,6 +30,8 @@ Deno.test("renderBoard produces a full page with htmx", () => {
   assert(html.includes('id="col-next-actions"'));
   assert(html.includes('id="now-panel"'));
   assert(html.includes("hx-post"));
+  assert(html.includes('id="board-container"'));
+  assert(html.includes('hx-target="#board-container"'));
 });
 
 Deno.test("renderColumn renders inbox cards with clarify forms", () => {
@@ -47,6 +49,11 @@ Deno.test("renderColumn renders inbox cards with clarify forms", () => {
   assert(html.includes("Buy milk"));
   assert(html.includes('hx-post="/api/clarify"'));
   assert(html.includes('name="itemId"'));
+  // Icon-button clarifier: one button per classification, icon + tooltip.
+  assert(html.includes('title="Next action">✅</button>'));
+  assert(html.includes('title="Project">🗂</button>'));
+  assert(html.includes('title="Trash">🗑</button>'));
+  assert(!html.includes("<select"));
 });
 
 Deno.test("renderColumn renders next-actions with complete/defer/revert", () => {

@@ -36,8 +36,9 @@ function json(status: number, body: Record<string, unknown>) {
 async function runSwamp(
   args: string[],
 ): Promise<{ ok: boolean; output: string }> {
-  const cmd = new Deno.Command("swamp", {
+  const cmd = new Deno.Command(await swampBin(), {
     args,
+    cwd: repoDir(),
     stdout: "piped",
     stderr: "piped",
   });
@@ -45,6 +46,31 @@ async function runSwamp(
   const out = new TextDecoder().decode(stdout);
   const err = new TextDecoder().decode(stderr);
   return { ok: code === 0, output: (out + err).trim() || out.trim() };
+}
+
+/**
+ * Resolve the repo root from this script's own location. The script lives at
+ * <repo>/extensions/gtd/scripts/gtd-server.ts, so the repo is three levels up.
+ * Running `swamp` from the repo root is required — swamp resolves the repo from
+ * the current directory, and a systemd service may start in an unrelated cwd.
+ */
+function repoDir(): string {
+  return new URL("../../..", import.meta.url).pathname;
+}
+
+/** Resolve the absolute path to the `swamp` binary (systemd PATH may be minimal). */
+async function swampBin(): Promise<string> {
+  try {
+    const which = new Deno.Command("which", { args: ["swamp"] });
+    const out = await which.output();
+    if (out.code === 0) {
+      const p = new TextDecoder().decode(out.stdout).trim();
+      if (p) return p;
+    }
+  } catch {
+    // fall through
+  }
+  return `${Deno.env.get("HOME") ?? "/tmp"}/.local/bin/swamp`;
 }
 
 /** Run a model method on the gtd instance. */
@@ -92,24 +118,33 @@ async function parseBody(req: Request): Promise<Record<string, string> | null> {
   }
 }
 
-/** Extract a top-level <section id="...">...</section> fragment from the board. */
+/** Extract a top-level element with the given id (section or div) from the board. */
 function extractFragment(html: string, id: string): string | null {
-  const re = new RegExp(`<section id="${id}"[^>]*>[\\s\\S]*?<\\/section>`);
+  if (id === "board-container") {
+    // The container is the last element before <script>; match greedily so
+    // nested sections/divs are all captured.
+    const m = html.match(
+      /<div id="board-container">[\s\S]*<\/div>(?=\s*<script>)/,
+    );
+    return m ? m[0] : null;
+  }
+  const re = new RegExp(
+    `<(?:section|div) id="${id}"[^>]*>[\\s\\S]*?<\\/(?:section|div)>`,
+  );
   const m = html.match(re);
   return m ? m[0] : null;
 }
 
-/** Run an action, re-render, and return the target fragment for htmx. */
+/** Run an action, re-render, and return the full board container for htmx. */
 async function act(
   method: string,
   inputs: Record<string, string>,
-  fragmentId: string,
 ): Promise<Response> {
   const r = await runMethod(method, inputs);
   if (!r.ok) return json(500, { ok: false, error: r.output });
   await renderBoard();
   const html = await Deno.readTextFile(BOARD_PATH).catch(() => "");
-  const frag = extractFragment(html, fragmentId);
+  const frag = extractFragment(html, "board-container");
   if (!frag) return json(500, { ok: false, error: "fragment not found" });
   return new Response(frag, { headers: { "content-type": "text/html" } });
 }
@@ -145,7 +180,7 @@ async function handler(req: Request): Promise<Response> {
     return act("capture", {
       raw,
       ...(body.source ? { source: body.source } : {}),
-    }, "col-inbox");
+    });
   }
 
   if (url.pathname === "/api/clarify") {
@@ -158,18 +193,14 @@ async function handler(req: Request): Promise<Response> {
       ...(body.delegatee ? { delegatee: body.delegatee } : {}),
       ...(body.when ? { when: body.when } : {}),
       ...(body.area ? { area: body.area } : {}),
-    }, "col-inbox");
+    });
   }
 
   if (url.pathname === "/api/complete") {
     if (!body.itemId || !body.list) {
       return json(400, { ok: false, error: "itemId and list required" });
     }
-    return act(
-      "complete",
-      { itemId: body.itemId, list: body.list },
-      "col-next-actions",
-    );
+    return act("complete", { itemId: body.itemId, list: body.list });
   }
 
   if (url.pathname === "/api/defer") {
@@ -177,14 +208,14 @@ async function handler(req: Request): Promise<Response> {
     return act("defer", {
       itemId: body.itemId,
       ...(body.when ? { when: body.when } : {}),
-    }, "col-next-actions");
+    });
   }
 
   if (url.pathname === "/api/revert") {
     if (!body.itemId || !body.list) {
       return json(400, { ok: false, error: "itemId and list required" });
     }
-    return act("revert", { itemId: body.itemId, list: body.list }, "col-inbox");
+    return act("revert", { itemId: body.itemId, list: body.list });
   }
 
   if (url.pathname === "/api/engage") {
@@ -193,15 +224,15 @@ async function handler(req: Request): Promise<Response> {
       ...(body.time ? { time: body.time } : {}),
       ...(body.energy ? { energy: body.energy } : {}),
       ...(body.limit ? { limit: body.limit } : {}),
-    }, "now-panel");
+    });
   }
 
   if (url.pathname === "/api/weekly-review") {
-    return act("weeklyReview", {}, "now-panel");
+    return act("weeklyReview", {});
   }
 
   if (url.pathname === "/api/daily-review") {
-    return act("dailyReview", {}, "now-panel");
+    return act("dailyReview", {});
   }
 
   return json(404, { ok: false, error: "not found" });

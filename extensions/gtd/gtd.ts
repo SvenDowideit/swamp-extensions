@@ -339,6 +339,21 @@ async function runSwampCmd(
   }
 }
 
+/** Resolve the directory containing the `swamp` binary (for systemd PATH). */
+async function resolveSwampDir(): Promise<string> {
+  try {
+    const proc = new Deno.Command("which", { args: ["swamp"] });
+    const out = await proc.output();
+    if (out.code === 0) {
+      const p = new TextDecoder().decode(out.stdout).trim();
+      if (p) return p.slice(0, p.lastIndexOf("/"));
+    }
+  } catch {
+    // fall through to the common install location
+  }
+  return expandHome("~/.local/bin");
+}
+
 async function readList<T>(
   context: MethodContext,
   spec: string,
@@ -364,6 +379,17 @@ const DEFAULT_CONTEXTS: Context[] = [
   { name: "@phone", label: "Phone", icon: "📞" },
   { name: "@computer", label: "Computer", icon: "💻" },
   { name: "@online", label: "Online", icon: "🌍" },
+];
+
+/** The clarify routing kinds, each with an icon and tooltip label. */
+const CLARIFY_KINDS: { kind: string; icon: string; label: string }[] = [
+  { kind: "next-action", icon: "✅", label: "Next action" },
+  { kind: "project", icon: "🗂", label: "Project" },
+  { kind: "waiting-for", icon: "⏳", label: "Waiting for" },
+  { kind: "someday-maybe", icon: "💭", label: "Someday/Maybe" },
+  { kind: "calendar", icon: "📅", label: "Calendar" },
+  { kind: "reference", icon: "🗄", label: "Reference" },
+  { kind: "trash", icon: "🗑", label: "Trash" },
 ];
 
 /** Infer a routing kind from the raw text using GTD-style prefixes. */
@@ -533,10 +559,13 @@ export const model = {
             }
             : inferKind(item.raw);
           const to = await routeItem(context, item, hint, args);
-          item.status = "processed";
           routed.push({ itemId: item.id, to });
         }
 
+        // Clarify empties the inbox: remove the processed items entirely so
+        // they don't linger in the inbox column.
+        const processedIds = new Set(targets.map((i) => i.id));
+        inbox.items = inbox.items.filter((i) => !processedIds.has(i.id));
         await writeList(context, "inbox", inbox);
         context.logger?.info("Clarified {n} item(s)", { n: routed.length });
         return { dataHandles: [], routed, processed: routed.length };
@@ -913,7 +942,15 @@ export const model = {
 
         const denoPath = expandHome("~/.swamp/deno/deno");
         const command =
-          `${denoPath} run --allow-net --allow-read --allow-write --allow-env ${scriptPath}`;
+          `${denoPath} run --allow-net --allow-read --allow-write --allow-env --allow-run ${scriptPath}`;
+
+        // The server shells out to `swamp`; systemd user services run with a
+        // minimal PATH and a default working directory, so add the swamp
+        // binary's directory to the unit env and pin the working directory to
+        // the repo (swamp resolves the repo from the current directory).
+        const swampDir = await resolveSwampDir();
+        const pathEnv = `${swampDir}:/usr/local/bin:/usr/bin:/bin`;
+        const workingDir = context.repoDir ?? ".";
 
         // Idempotently create the unit (createService is a no-op if unchanged).
         const create = await runSwampCmd([
@@ -930,7 +967,9 @@ export const model = {
           "--input",
           "description=GTD web UI server",
           "--input",
-          `environment=["GTD_PORT=${port}", "GTD_BOARD=${boardPath}"]`,
+          `workingDirectory=${workingDir}`,
+          "--input",
+          `environment=["GTD_PORT=${port}", "GTD_BOARD=${boardPath}", "PATH=${pathEnv}"]`,
           "--skip-reports",
         ]);
         if (create.code !== 0) {
@@ -1453,19 +1492,13 @@ export function renderColumn(name: string, d: BoardData): string {
           <div class="card-meta">${esc(i.source)} · ${
           fmtDate(i.capturedAt)
         }</div>
-          <form hx-post="/api/clarify" hx-target="#col-inbox" hx-swap="outerHTML">
+          <form class="clarify" hx-post="/api/clarify" hx-target="#board-container" hx-swap="outerHTML">
             <input type="hidden" name="itemId" value="${esc(i.id)}">
-            <select name="kind">
-              <option value="">auto</option>
-              <option value="next-action">next action</option>
-              <option value="project">project</option>
-              <option value="waiting-for">waiting for</option>
-              <option value="someday-maybe">someday/maybe</option>
-              <option value="calendar">calendar</option>
-              <option value="reference">reference</option>
-              <option value="trash">trash</option>
-            </select>
-            <button type="submit">clarify</button>
+            ${
+          CLARIFY_KINDS.map((k) =>
+            `<button type="submit" name="kind" value="${k.kind}" title="${k.label}">${k.icon}</button>`
+          ).join("")
+        }
           </form>
         </div>`).join(""),
       );
@@ -1482,16 +1515,16 @@ export function renderColumn(name: string, d: BoardData): string {
             a.due ? ` · due ${fmtDate(a.due)}` : ""
           }</div>
           <div class="row-actions">
-            <form hx-post="/api/complete" hx-target="#col-next-actions" hx-swap="outerHTML">
+            <form hx-post="/api/complete" hx-target="#board-container" hx-swap="outerHTML">
               <input type="hidden" name="itemId" value="${esc(a.id)}">
               <input type="hidden" name="list" value="next-actions">
               <button type="submit" title="done">✓</button>
             </form>
-            <form hx-post="/api/defer" hx-target="#col-next-actions" hx-swap="outerHTML">
+            <form hx-post="/api/defer" hx-target="#board-container" hx-swap="outerHTML">
               <input type="hidden" name="itemId" value="${esc(a.id)}">
               <button type="submit" title="defer">⏸</button>
             </form>
-            <form hx-post="/api/revert" hx-target="#col-inbox" hx-swap="outerHTML">
+            <form hx-post="/api/revert" hx-target="#board-container" hx-swap="outerHTML">
               <input type="hidden" name="itemId" value="${esc(a.id)}">
               <input type="hidden" name="list" value="next-actions">
               <button type="submit" title="revert to inbox">↩</button>
@@ -1630,8 +1663,8 @@ function renderNow(d: BoardData): string {
   </section>`;
 }
 
-/** Render the full responsive GTD board page (with htmx). */
-export function renderBoard(d: BoardData, generatedAt: string): string {
+/** Render the now-panel + board wrapped in the htmx-swappable container. */
+export function renderBoardContainer(d: BoardData): string {
   const columns = [
     renderColumn("inbox", d),
     renderColumn("next-actions", d),
@@ -1641,6 +1674,17 @@ export function renderBoard(d: BoardData, generatedAt: string): string {
     renderColumn("calendar", d),
     renderColumn("reference", d),
   ].join("\n");
+  return `<div id="board-container">
+${renderNow(d)}
+<main class="board">
+  ${columns}
+</main>
+</div>`;
+}
+
+/** Render the full responsive GTD board page (with htmx). */
+export function renderBoard(d: BoardData, generatedAt: string): string {
+  const container = renderBoardContainer(d);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1695,6 +1739,9 @@ export function renderBoard(d: BoardData, generatedAt: string): string {
   .card form { display:flex; gap:6px; margin-top:6px; }
   .card select { flex:1; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:12px; }
   .card form button { padding:6px 10px; border:0; border-radius:6px; background:var(--accent); color:#fff; font-size:12px; cursor:pointer; }
+  .card form.clarify { display:flex; gap:4px; margin-top:6px; }
+  .card form.clarify button { padding:4px 6px; border:1px solid var(--line); border-radius:6px; background:#f4f4f5; font-size:14px; line-height:1; cursor:pointer; }
+  .card form.clarify button:hover { background:#e4e4e7; }
   .htmx-request { opacity:.5; pointer-events:none; }
 </style>
 </head>
@@ -1706,15 +1753,12 @@ export function renderBoard(d: BoardData, generatedAt: string): string {
   }"></span></span>
 </header>
 <section class="capture">
-  <form hx-post="/api/capture" hx-target="#col-inbox" hx-swap="outerHTML">
+  <form hx-post="/api/capture" hx-target="#board-container" hx-swap="outerHTML">
     <input type="text" name="raw" placeholder="Capture a thought, task, or idea…" autofocus autocomplete="off">
     <button type="submit">Capture</button>
   </form>
 </section>
-${renderNow(d)}
-<main class="board">
-  ${columns}
-</main>
+${container}
 <script>
 document.querySelectorAll('[data-generated]').forEach(function(el){var d=new Date(el.getAttribute('data-generated'));el.textContent=d.toLocaleString('en-GB');});
 </script>

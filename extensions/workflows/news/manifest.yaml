@@ -1,13 +1,17 @@
 manifestVersion: 1
 name: "@svendowideit/news"
-version: "2026.09.10.1"
+version: "2026.09.11.1"
 description: >
   The full news stack — feed discovery, catalog management, preference-aware
   fetching, LLM story fusion, and static HTML rendering. Ships four model
   extensions (news-feed-discovery, news-feed-catalog, news-reader, news-feed-analysis), one
   report extension (news_html_report), the four news workflows (news-fetch, news-fusion,
   news-curation, news-full), and the decoupled feedback server that closes the
-  👍/👎 loop between the generated HTML page and the workflows.
+  👍/👎 loop between the generated HTML page and the workflows. When the
+  optional @svendowideit/systemd-service extension is installed, the feedback
+  server runs as a systemd user service (via user lingering) so it starts at
+  boot; otherwise the ensure-feedback-server step is skipped and you run it
+  manually.
 
   Install: swamp extension pull @svendowideit/news. Model instances
   (local-news, feed-catalog, feed-discovery, feed-analysis) are auto-registered

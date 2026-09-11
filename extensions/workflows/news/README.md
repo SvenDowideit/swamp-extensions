@@ -246,7 +246,18 @@ users run.
 ## Feedback server
 
 `scripts/feedback-server.ts` is a Deno HTTP server that decouples the HTML page
-from the workflow (see `docs/news-fusing.md`):
+from the workflow (see `docs/news-fusing.md`).
+
+When the [`@svendowideit/systemd-service`](https://github.com/svendowideit/swamp-extensions)
+extension is installed, the workflow's `ensure-feedback-server` step stands the
+server up as a long-lived systemd **user** service (`startService`). Because
+`systemd-service` enables user **lingering** by default, the feedback server
+then starts at boot — not just on login — so it keeps serving your generated
+pages even when no one is signed in. If `@svendowideit/systemd-service` is *not*
+installed, the step is skipped with a log and you can run the server manually
+instead.
+
+The server exposes the following endpoints:
 
 | Endpoint | Purpose |
 |---|---|

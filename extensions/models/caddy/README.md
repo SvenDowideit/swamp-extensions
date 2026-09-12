@@ -93,17 +93,22 @@ swamp model method run my-caddy ensureDnsProxy \
 Two workflows ship alongside the extension (in this repo's `workflows/`):
 
 - **`caddy-setup`** — the full setup: `installCaddy` → `createService` →
-  `startService` → `settingsGuidance` → `configureTls` (best-effort).
-- **`caddy-ensure-proxy`** — a thin wrapper around `ensureDnsProxy` taking
-  `hostname` + `upstream` as inputs.
+  `startService` → `settingsGuidance` → `configureTls` (best-effort). All steps
+  are idempotent, so re-running is safe.
+- **`caddy-ensure-proxy`** — first runs `caddy-setup` (idempotent), then
+  `ensureDnsProxy` for the given `hostname` + `upstream`. This is the
+  desired-state entry point: one command that ensures Caddy is up *and* the
+  proxy exists.
 
 ```sh
-# one-time setup (after creating the model)
+# one-time model creation
 swamp model create @svendowideit/caddy my-caddy \
   --global-arg baseDomain=example.com --global-arg letsEncryptEmail=admin@example.com
+
+# full setup (idempotent)
 swamp workflow run caddy-setup
 
-# idempotent proxy ensure (repeatable)
+# desired-state proxy ensure (idempotent — also runs setup first)
 swamp workflow run caddy-ensure-proxy \
   --input hostname=foo.example.com --input upstream=127.0.0.1:8080
 ```
@@ -172,10 +177,88 @@ swamp model method run my-caddy restartService
 - For plugin builds: Go + [xcaddy](https://github.com/caddyserver/xcaddy) on
   `PATH`.
 
+## DNS ACME certificates (libdns drivers)
+
+Caddy issues certificates automatically via ACME (Let's Encrypt / ZeroSSL). For
+a normal domain, the HTTP-01 challenge works out of the box. For **wildcard
+certificates** (`*.example.com`) or DNS-only validation, Caddy needs a **DNS
+provider plugin** — these are built on the
+[libdns](https://github.com/libdns/libdns) library, one module per provider
+(`github.com/caddy-dns/<provider>`).
+
+### 1. Build Caddy with the right libdns driver
+
+Caddy's standard binary does **not** include DNS providers. Build a custom
+binary with `xcaddy`, listing each provider you need:
+
+```sh
+xcaddy build v2.8.4 \
+  --with github.com/caddy-dns/cloudflare \
+  --with github.com/caddy-dns/route53 \
+  --output ~/.local/bin/caddy
+```
+
+The extension does this for you: set the `plugins` global argument (or pass
+`--input plugins:json=[...]` to `installCaddy` / `upgradeCaddy`):
+
+```sh
+swamp model create @svendowideit/caddy my-caddy \
+  --global-arg 'plugins:json=["github.com/caddy-dns/cloudflare"]'
+swamp model method run my-caddy installCaddy
+```
+
+Supported provider names (mapped by `configureTls`): `cloudflare`, `route53`,
+`digitalocean`, `duckdns`, `porkbun`, `namecheap`. Any other `caddy-dns/*`
+module can be built in via `plugins` directly.
+
+### 2. Set the libdns provider credentials
+
+Each provider reads its credentials from an **environment variable** (e.g.
+`CLOUDFLARE_API_TOKEN`, `AWS_ACCESS_KEY_ID`). Caddy references these in the
+config as `{env.VAR}`. The extension's `configureTls` renders the credential as
+`{env.CADDY_DNS_API_TOKEN}` by default (override with `dnsEnvVar`).
+
+The Caddy process must have that variable in its environment. Add it to the
+systemd user unit (prefer an `EnvironmentFile` with restricted permissions, or
+`systemd-creds`, over a plaintext `Environment=` line):
+
+```ini
+# ~/.config/systemd/user/caddy.service
+[Service]
+EnvironmentFile=-%h/.config/caddy/dns.env
+```
+
+```sh
+# ~/.config/caddy/dns.env  (chmod 600)
+CADDY_DNS_API_TOKEN=your-cloudflare-api-token
+```
+
+Store the token in the swamp Vault and wire it in, rather than committing it:
+
+```sh
+echo "your-token" | swamp vault put caddy-secrets caddy-dns-token
+```
+
+### 3. Configure the DNS ACME challenge
+
+Run `configureTls` with the provider and the subjects (wildcard + apex):
+
+```sh
+swamp model method run my-caddy configureTls \
+  --input dnsProvider=cloudflare \
+  --input 'subjects:json=["*.example.com","example.com"]'
+```
+
+This writes a `tls.automation` policy with an ACME issuer using the DNS
+challenge. Caddy then obtains and auto-renews certificates for those subjects
+using the provider's DNS API. Verify with `checkHealth` and by requesting a
+proxied domain over HTTPS.
+
 ## Notes
 
-- The admin API is powerful; Caddy recommends protecting it. The MVP prints
-  guidance to store an admin API token in the swamp Vault. Binding to a
-  permissioned Unix socket or enforcing a token is a later iteration.
+- The admin API is powerful; Caddy recommends protecting it. Bind it to a
+  permissioned Unix socket by setting `adminApiAddr: unix//path/to/socket`
+  (the extension's client talks over it), or front it with an auth proxy and
+  set `adminApiToken`.
 - Binding privileged ports (80/443) as a user service requires
-  `CAP_NET_BIND_SERVICE`; the MVP only needs the unprivileged admin API port.
+  `CAP_NET_BIND_SERVICE`; the admin API port (2019) is unprivileged.

@@ -413,7 +413,7 @@ Deno.test("detectSwampServeServices filters and strips the prefix", () => {
   ]);
 });
 
-Deno.test("reconcileProxyServices computes add/remove diff", () => {
+Deno.test("reconcileProxyServices computes ensure/remove diff", () => {
   const config = baseConfig();
   const existing = addRouteToConfig(
     config,
@@ -426,12 +426,14 @@ Deno.test("reconcileProxyServices computes add/remove diff", () => {
       upstream: "127.0.0.1:3080",
     },
   ];
-  const { toAdd, toRemove } = reconcileProxyServices(
+  const { toEnsure, toRemove } = reconcileProxyServices(
     desired,
     existing,
     "example.com",
   );
-  assertEquals(toAdd.length, 1);
+  assertEquals(toEnsure, [
+    { hostname: "news.example.com", upstream: "127.0.0.1:3080" },
+  ]);
   assertEquals(toRemove, ["old.example.com"]);
 });
 

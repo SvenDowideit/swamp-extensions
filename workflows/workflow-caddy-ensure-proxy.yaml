@@ -1,13 +1,17 @@
 id: 15344c45-bb8f-42ad-bdde-fae90ec1c83d
 name: caddy-ensure-proxy
 description: |
-  Idempotently ensure a full hostname proxies to a backend host:port.
+  Idempotently ensure Caddy is set up AND a full hostname proxies to a backend
+  host:port.
 
-  Adds the reverse-proxy route if missing, updates it if the upstream changed,
-  and is a no-op if it is already correct. Safe to run repeatedly (desired-state).
+  First runs the caddy-setup workflow (install/create/start — all idempotent),
+  then ensures the reverse-proxy route: adds it if missing, updates it if the
+  upstream changed, and is a no-op if already correct. Safe to run repeatedly
+  (desired-state), so it can be called by a user or another extension/workflow.
 
-  Prerequisite — the Caddy model "my-caddy" must exist and Caddy must be running
-  (see the caddy-setup workflow).
+  Prerequisite — the Caddy model "my-caddy" must exist:
+    swamp model create @svendowideit/caddy my-caddy \
+      --global-arg baseDomain=example.com --global-arg letsEncryptEmail=admin@example.com
 
   Run:
     swamp workflow run caddy-ensure-proxy \
@@ -26,8 +30,16 @@ inputs:
     - upstream
 jobs:
   - name: main
-    description: Ensure the reverse-proxy route for the hostname.
+    description: Ensure Caddy is set up, then ensure the reverse-proxy route.
     steps:
+      - name: setup
+        description: Ensure Caddy is installed and running (idempotent).
+        task:
+          type: workflow
+          workflowIdOrName: caddy-setup
+        dependsOn: []
+        weight: 0
+        allowFailure: false
       - name: ensure
         description: Ensure the hostname proxies to the upstream (add/update/no-op).
         task:
@@ -38,7 +50,10 @@ jobs:
           inputs:
             hostname: ${{ inputs.hostname }}
             upstream: ${{ inputs.upstream }}
-        dependsOn: []
+        dependsOn:
+          - step: setup
+            condition:
+              type: succeeded
         weight: 0
         allowFailure: false
     dependsOn: []

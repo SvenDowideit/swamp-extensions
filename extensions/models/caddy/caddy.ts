@@ -265,6 +265,7 @@ const TlsConfigOutputSchema = z.object({
 const AutoProxyOutputSchema = z.object({
   detected: z.array(z.string()),
   added: z.array(z.string()),
+  updated: z.array(z.string()),
   removed: z.array(z.string()),
   reconciledAt: z.string(),
 });
@@ -778,25 +779,28 @@ export function detectSwampServeServices(
     .filter((name) => name.length > 0);
 }
 
-/** Compute the add/remove diff between desired services and the current config. */
+/** Compute the ensure/remove diff between desired services and the current config. */
 export function reconcileProxyServices(
   desired: Array<{ serviceName: string; hostname: string; upstream: string }>,
   currentConfig: CaddyConfig,
   baseDomain: string,
-): { toAdd: CaddyRoute[]; toRemove: string[] } {
+): {
+  toEnsure: Array<{ hostname: string; upstream: string }>;
+  toRemove: string[];
+} {
   const current = listProxyServices(currentConfig, baseDomain);
-  const currentHostnames = new Set(current.map((s) => s.hostname));
   const desiredHostnames = new Set(desired.map((s) => s.hostname));
 
-  const toAdd = desired
-    .filter((s) => !currentHostnames.has(s.hostname))
-    .map((s) => buildRoute(s.hostname, parseUpstream(s.upstream)));
+  const toEnsure = desired.map((s) => ({
+    hostname: s.hostname,
+    upstream: s.upstream,
+  }));
 
   const toRemove = current
     .filter((s) => !desiredHostnames.has(s.hostname))
     .map((s) => s.hostname);
 
-  return { toAdd, toRemove };
+  return { toEnsure, toRemove };
 }
 
 // ---------------------------------------------------------------------------
@@ -1755,29 +1759,50 @@ export const model = {
         }));
 
         const config = await readConfig(g.adminApiAddr, g.adminApiToken);
-        const { toAdd, toRemove } = reconcileProxyServices(
+        const { toEnsure, toRemove } = reconcileProxyServices(
           desired,
           config,
           baseDomain,
         );
 
         let next = config;
-        for (const route of toAdd) {
-          next = addRouteToConfig(next, route);
+        let changed = false;
+        const added: string[] = [];
+        const updated: string[] = [];
+        for (const item of toEnsure) {
+          const existed = findRouteByHost(next, item.hostname) !== null;
+          const result = ensureRoute(
+            next,
+            item.hostname,
+            parseUpstream(item.upstream),
+          );
+          if (result.changed) {
+            next = result.config;
+            changed = true;
+            (existed ? updated : added).push(item.hostname);
+          }
         }
         for (const hostname of toRemove) {
           next = removeRouteFromConfig(next, hostname);
+          changed = true;
         }
-        await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+        if (changed) {
+          await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+        }
 
         context.logger?.info(
-          "Auto-proxy reconciled: {added} added, {removed} removed",
-          { added: toAdd.length, removed: toRemove.length },
+          "Auto-proxy reconciled: {added} added, {updated} updated, {removed} removed",
+          {
+            added: added.length,
+            updated: updated.length,
+            removed: toRemove.length,
+          },
         );
 
         const handle = await context.writeResource("autoProxy", "current", {
           detected: serviceNames,
-          added: toAdd.map((r) => routeHostname(r) ?? ""),
+          added,
+          updated,
           removed: toRemove,
           reconciledAt: new Date().toISOString(),
         });

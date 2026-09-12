@@ -37,6 +37,12 @@
  *   - `autoProxySwampServe`— detect running `swamp serve` systemd services and
  *                            reconcile their reverse-proxy routes.
  *
+ * Iteration 4 methods:
+ *   - `upgradeCaddy`  — replace the Caddy binary (new version/plugins) with
+ *                       explicit confirmation, then restart the service.
+ *   - `checkHealth`   — report Caddy service + admin API health.
+ *   - `stopService` / `restartService` — stop/restart the Caddy service.
+ *
  * Linux-only: it shells out to `systemctl --user` and manages a systemd user
  * service. Pure helpers (unit rendering, path expansion, version parsing,
  * guidance rendering) are exported for unit testing.
@@ -175,6 +181,18 @@ const AutoProxyArgsSchema = z.object({
   ),
 });
 
+const UpgradeArgsSchema = z.object({
+  version: z.string().optional().describe(
+    "Caddy version to upgrade to (defaults to global caddyVersion)",
+  ),
+  plugins: z.array(z.string()).optional().describe(
+    "Plugins to build in (defaults to global plugins)",
+  ),
+  confirm: z.string().optional().describe(
+    "Set to 'upgrade' to confirm replacing the binary and restarting the service",
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Resource output schemas
 // ---------------------------------------------------------------------------
@@ -235,6 +253,23 @@ const AutoProxyOutputSchema = z.object({
   added: z.array(z.string()),
   removed: z.array(z.string()),
   reconciledAt: z.string(),
+});
+
+const UpgradeOutputSchema = z.object({
+  binPath: z.string(),
+  version: z.string(),
+  plugins: z.array(z.string()),
+  restarted: z.boolean(),
+  upgradedAt: z.string(),
+});
+
+const HealthOutputSchema = z.object({
+  serviceName: z.string(),
+  active: z.boolean(),
+  adminApiReachable: z.boolean(),
+  healthy: z.boolean(),
+  status: z.string(),
+  checkedAt: z.string(),
 });
 
 // ---------------------------------------------------------------------------
@@ -744,6 +779,46 @@ export function reconcileProxyServices(
 }
 
 // ---------------------------------------------------------------------------
+// Upgrade + health pure helpers (exported for unit testing)
+// ---------------------------------------------------------------------------
+
+/** Render the confirmation prompt shown when an upgrade lacks confirm=upgrade. */
+export function renderUpgradeConfirmation(opts: {
+  version?: string;
+  plugins: string[];
+}): string {
+  return [
+    "Upgrading/replacing the Caddy binary is a destructive operation that",
+    "restarts the Caddy service. To proceed, re-run with confirm=upgrade.",
+    "",
+    `  target version: ${opts.version ?? "latest"}`,
+    `  plugins: ${
+      opts.plugins.length > 0 ? opts.plugins.join(", ") : "(none)"
+    }`,
+    "",
+    "Existing configuration is preserved (the config file and admin API",
+    "config are not modified).",
+  ].join("\n");
+}
+
+/** Combine service + admin API liveness into a health verdict. */
+export function computeHealth(
+  active: boolean,
+  adminApiReachable: boolean,
+): { healthy: boolean; status: string } {
+  if (active && adminApiReachable) {
+    return { healthy: true, status: "healthy" };
+  }
+  if (!active && !adminApiReachable) {
+    return { healthy: false, status: "down" };
+  }
+  if (!active) {
+    return { healthy: false, status: "service-not-active" };
+  }
+  return { healthy: false, status: "admin-api-unreachable" };
+}
+
+// ---------------------------------------------------------------------------
 // Command helpers
 // ---------------------------------------------------------------------------
 
@@ -1047,6 +1122,8 @@ type MethodContext = {
   logger?: {
     info: (msg: string, props?: Record<string, unknown>) => void;
     debug?: (msg: string, props?: Record<string, unknown>) => void;
+    warning?: (msg: string, props?: Record<string, unknown>) => void;
+    error?: (msg: string, props?: Record<string, unknown>) => void;
   };
   writeResource: (
     specName: string,
@@ -1061,7 +1138,7 @@ type MethodContext = {
 
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.09.07.4",
+  version: "2026.09.07.5",
   globalArguments: GlobalArgsSchema,
   resources: {
     install: {
@@ -1103,6 +1180,18 @@ export const model = {
     autoProxy: {
       description: "swamp serve auto-proxy reconciliation result",
       schema: AutoProxyOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    upgrade: {
+      description: "Caddy binary upgrade result",
+      schema: UpgradeOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    health: {
+      description: "Caddy service + admin API health check",
+      schema: HealthOutputSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -1626,6 +1715,179 @@ export const model = {
           added: toAdd.map((r) => routeHostname(r) ?? ""),
           removed: toRemove,
           reconciledAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    upgradeCaddy: {
+      description:
+        "Replace the Caddy binary (new version/plugins) with confirmation, then restart the service",
+      arguments: UpgradeArgsSchema,
+      execute: async (
+        args: z.infer<typeof UpgradeArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        if (args.confirm !== "upgrade") {
+          throw new Error(
+            renderUpgradeConfirmation({
+              version: args.version ?? g.caddyVersion,
+              plugins: args.plugins ?? g.plugins,
+            }),
+          );
+        }
+
+        const binPath = expandHome(g.caddyBinPath);
+        const version = args.version ?? g.caddyVersion;
+        const plugins = args.plugins ?? g.plugins;
+        const arch = caddyArch();
+
+        if (plugins.length > 0) {
+          context.logger?.info(
+            "Building Caddy {version} with plugins via xcaddy: {plugins}",
+            { version: version ?? "latest", plugins },
+          );
+          await buildCaddyWithPlugins(binPath, version, plugins);
+        } else {
+          context.logger?.info(
+            "Downloading Caddy binary ({arch}) to {binPath}",
+            { arch, binPath },
+          );
+          await downloadCaddy(binPath, arch);
+        }
+
+        const verified = await verifyCaddy(binPath);
+
+        const restart = await systemctl(["restart", g.serviceName]);
+        if (restart.code !== 0) {
+          throw new Error(
+            `systemctl --user restart ${g.serviceName} failed (${restart.code}): ${
+              restart.stderr || restart.stdout
+            }`,
+          );
+        }
+
+        context.logger?.info(
+          "Upgraded Caddy to {version} and restarted {serviceName}",
+          { version: verified.version, serviceName: g.serviceName },
+        );
+
+        const handle = await context.writeResource("upgrade", "current", {
+          binPath,
+          version: verified.version,
+          plugins,
+          restarted: true,
+          upgradedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    checkHealth: {
+      description: "Report Caddy service + admin API health",
+      arguments: ServiceArgsSchema,
+      execute: async (
+        args: z.infer<typeof ServiceArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const serviceName = args.serviceName ?? g.serviceName;
+
+        const active = await systemctl(["is-active", serviceName]);
+        const adminApiReachable = await checkAdminApi(g.adminApiAddr);
+        const health = computeHealth(active.code === 0, adminApiReachable);
+
+        if (health.healthy) {
+          context.logger?.info("Caddy is healthy ({status})", {
+            status: health.status,
+          });
+        } else {
+          context.logger?.warning?.(
+            "Caddy is unhealthy ({status}): active={active} adminApiReachable={reachable}",
+            {
+              status: health.status,
+              active: active.code === 0,
+              reachable: adminApiReachable,
+            },
+          );
+        }
+
+        const handle = await context.writeResource("health", "current", {
+          serviceName,
+          active: active.code === 0,
+          adminApiReachable,
+          healthy: health.healthy,
+          status: health.status,
+          checkedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    stopService: {
+      description: "Stop the Caddy systemd user service",
+      arguments: ServiceArgsSchema,
+      execute: async (
+        args: z.infer<typeof ServiceArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const serviceName = args.serviceName ?? g.serviceName;
+        const result = await systemctl(["stop", serviceName]);
+        if (result.code !== 0) {
+          throw new Error(
+            `systemctl --user stop ${serviceName} failed (${result.code}): ${
+              result.stderr || result.stdout
+            }`,
+          );
+        }
+        context.logger?.info("Stopped Caddy service {serviceName}", {
+          serviceName,
+        });
+        const handle = await context.writeResource("service", "current", {
+          serviceName,
+          unitPath: expandHome(
+            `~/.config/systemd/user/${serviceName}.service`,
+          ),
+          active: false,
+          enabled: false,
+          adminApiReachable: false,
+          checkedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    restartService: {
+      description: "Restart the Caddy systemd user service",
+      arguments: ServiceArgsSchema,
+      execute: async (
+        args: z.infer<typeof ServiceArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const serviceName = args.serviceName ?? g.serviceName;
+        const result = await systemctl(["restart", serviceName]);
+        if (result.code !== 0) {
+          throw new Error(
+            `systemctl --user restart ${serviceName} failed (${result.code}): ${
+              result.stderr || result.stdout
+            }`,
+          );
+        }
+        context.logger?.info("Restarted Caddy service {serviceName}", {
+          serviceName,
+        });
+        const handle = await context.writeResource("service", "current", {
+          serviceName,
+          unitPath: expandHome(
+            `~/.config/systemd/user/${serviceName}.service`,
+          ),
+          active: true,
+          enabled: true,
+          adminApiReachable: await checkAdminApi(g.adminApiAddr),
+          checkedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
       },

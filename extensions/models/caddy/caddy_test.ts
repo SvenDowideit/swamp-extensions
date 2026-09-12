@@ -6,6 +6,7 @@ import {
   buildCurlArgs,
   buildRoute,
   caddyArch,
+  computeHealth,
   deriveHostname,
   detectSwampServeServices,
   dnsProviderPlugin,
@@ -24,6 +25,7 @@ import {
   renderServiceUnit,
   renderSettingsGuidance,
   renderTlsAutomation,
+  renderUpgradeConfirmation,
   validateBaseDomain,
   validateEmail,
 } from "./caddy.ts";
@@ -429,4 +431,32 @@ Deno.test("reconcileProxyServices computes add/remove diff", () => {
   );
   assertEquals(toAdd.length, 1);
   assertEquals(toRemove, ["old.example.com"]);
+});
+
+// ---------------------------------------------------------------------------
+// Iteration 4: upgrade + health helpers
+// ---------------------------------------------------------------------------
+
+Deno.test("renderUpgradeConfirmation includes version, plugins, and confirm hint", () => {
+  const msg = renderUpgradeConfirmation({
+    version: "v2.9.0",
+    plugins: ["github.com/caddy-dns/cloudflare"],
+  });
+  assertStringIncludes(msg, "confirm=upgrade");
+  assertStringIncludes(msg, "v2.9.0");
+  assertStringIncludes(msg, "github.com/caddy-dns/cloudflare");
+  assertStringIncludes(msg, "preserved");
+});
+
+Deno.test("computeHealth reports healthy only when both checks pass", () => {
+  assertEquals(computeHealth(true, true), { healthy: true, status: "healthy" });
+  assertEquals(computeHealth(false, false), { healthy: false, status: "down" });
+  assertEquals(computeHealth(false, true), {
+    healthy: false,
+    status: "service-not-active",
+  });
+  assertEquals(computeHealth(true, false), {
+    healthy: false,
+    status: "admin-api-unreachable",
+  });
 });

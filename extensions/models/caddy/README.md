@@ -64,6 +64,18 @@ Iteration 3 adds TLS configuration and `swamp serve` auto-proxying:
    services (prefix `swamp-serve-`), derives hostnames from their names, and
    reconciles their reverse-proxy routes (adds new, removes stopped).
 
+## What it does (Iteration 4)
+
+Iteration 4 adds binary upgrades, health monitoring, and service lifecycle:
+
+1. **`upgradeCaddy`** — replaces the Caddy binary (new version/plugins) with
+   explicit confirmation (`confirm=upgrade`), then restarts the service.
+   Existing configuration is preserved.
+2. **`checkHealth`** — reports Caddy service + admin API health (healthy /
+   down / service-not-active / admin-api-unreachable).
+3. **`stopService` / `restartService`** — stop/restart the Caddy systemd user
+   service (complementing the MVP's `startService`).
+
 ## Installation
 
 ```sh
@@ -99,6 +111,11 @@ swamp model method run my-caddy getConfig
 swamp model method run my-caddy configureTls \
   --input dnsProvider=cloudflare --input 'subjects:json=["*.example.com","example.com"]'
 swamp model method run my-caddy autoProxySwampServe
+
+# Iteration 4 — upgrade, health, lifecycle
+swamp model method run my-caddy upgradeCaddy --input confirm=upgrade
+swamp model method run my-caddy checkHealth
+swamp model method run my-caddy restartService
 ```
 
 ## Configuration (global arguments)

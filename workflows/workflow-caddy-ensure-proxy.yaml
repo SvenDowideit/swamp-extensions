@@ -1,0 +1,46 @@
+id: 15344c45-bb8f-42ad-bdde-fae90ec1c83d
+name: caddy-ensure-proxy
+description: |
+  Idempotently ensure a full hostname proxies to a backend host:port.
+
+  Adds the reverse-proxy route if missing, updates it if the upstream changed,
+  and is a no-op if it is already correct. Safe to run repeatedly (desired-state).
+
+  Prerequisite — the Caddy model "my-caddy" must exist and Caddy must be running
+  (see the caddy-setup workflow).
+
+  Run:
+    swamp workflow run caddy-ensure-proxy \
+      --input hostname=foo.example.com --input upstream=127.0.0.1:8080
+tags: {}
+inputs:
+  properties:
+    hostname:
+      type: string
+      description: Full hostname to proxy (e.g. foo.example.com).
+    upstream:
+      type: string
+      description: Backend host:port to proxy to (e.g. 127.0.0.1:8080 or https://10.0.0.5:8443).
+  required:
+    - hostname
+    - upstream
+jobs:
+  - name: main
+    description: Ensure the reverse-proxy route for the hostname.
+    steps:
+      - name: ensure
+        description: Ensure the hostname proxies to the upstream (add/update/no-op).
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: my-caddy
+          methodName: ensureDnsProxy
+          inputs:
+            hostname: ${{ inputs.hostname }}
+            upstream: ${{ inputs.upstream }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

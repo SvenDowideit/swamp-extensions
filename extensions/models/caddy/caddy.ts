@@ -43,6 +43,11 @@
  *   - `checkHealth`   — report Caddy service + admin API health.
  *   - `stopService` / `restartService` — stop/restart the Caddy service.
  *
+ * Desired-state proxy:
+ *   - `ensureDnsProxy` — idempotently ensure a full hostname proxies to a
+ *                        backend host:port (add if missing, update if the
+ *                        upstream changed, no-op if already correct).
+ *
  * Linux-only: it shells out to `systemctl --user` and manages a systemd user
  * service. Pure helpers (unit rendering, path expansion, version parsing,
  * guidance rendering) are exported for unit testing.
@@ -193,6 +198,15 @@ const UpgradeArgsSchema = z.object({
   ),
 });
 
+const EnsureDnsProxyArgsSchema = z.object({
+  hostname: z.string().min(1).describe(
+    "Full hostname to proxy (e.g. foo.example.com)",
+  ),
+  upstream: z.string().min(1).describe(
+    "Backend host:port to proxy to (e.g. 127.0.0.1:8080 or https://10.0.0.5:8443)",
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Resource output schemas
 // ---------------------------------------------------------------------------
@@ -270,6 +284,13 @@ const HealthOutputSchema = z.object({
   healthy: z.boolean(),
   status: z.string(),
   checkedAt: z.string(),
+});
+
+const EnsureProxyOutputSchema = z.object({
+  hostname: z.string(),
+  upstream: z.string(),
+  changed: z.boolean(),
+  ensuredAt: z.string(),
 });
 
 // ---------------------------------------------------------------------------
@@ -819,6 +840,44 @@ export function computeHealth(
 }
 
 // ---------------------------------------------------------------------------
+// Desired-state proxy helpers (exported for unit testing)
+// ---------------------------------------------------------------------------
+
+/** Extract the first upstream dial address from a route (or ""). */
+export function routeUpstream(route: CaddyRoute): string {
+  const handle = route.handle;
+  if (Array.isArray(handle) && handle.length > 0) {
+    const upstreams = (handle[0] as Record<string, unknown>).upstreams;
+    if (Array.isArray(upstreams) && upstreams.length > 0) {
+      const dial = (upstreams[0] as Record<string, unknown>).dial;
+      if (typeof dial === "string") return dial;
+    }
+  }
+  return "";
+}
+
+/** Idempotently ensure a hostname proxies to an upstream (add/update/no-op). */
+export function ensureRoute(
+  config: CaddyConfig,
+  hostname: string,
+  upstream: { dial: string; https: boolean },
+): { config: CaddyConfig; changed: boolean } {
+  const existing = findRouteByHost(config, hostname);
+  const route = buildRoute(hostname, upstream);
+  if (!existing) {
+    return { config: addRouteToConfig(config, route), changed: true };
+  }
+  if (routeUpstream(existing.route) === upstream.dial) {
+    return { config, changed: false };
+  }
+  const next = structuredClone(config);
+  const routes = getRoutes(next);
+  routes[existing.index] = route;
+  setRoutes(next, routes);
+  return { config: next, changed: true };
+}
+
+// ---------------------------------------------------------------------------
 // Command helpers
 // ---------------------------------------------------------------------------
 
@@ -1138,7 +1197,7 @@ type MethodContext = {
 
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.09.07.5",
+  version: "2026.09.07.6",
   globalArguments: GlobalArgsSchema,
   resources: {
     install: {
@@ -1192,6 +1251,12 @@ export const model = {
     health: {
       description: "Caddy service + admin API health check",
       schema: HealthOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    ensureProxy: {
+      description: "Desired-state proxy ensure result",
+      schema: EnsureProxyOutputSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -1888,6 +1953,46 @@ export const model = {
           enabled: true,
           adminApiReachable: await checkAdminApi(g.adminApiAddr),
           checkedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    ensureDnsProxy: {
+      description:
+        "Idempotently ensure a full hostname proxies to a backend host:port",
+      arguments: EnsureDnsProxyArgsSchema,
+      execute: async (
+        args: z.infer<typeof EnsureDnsProxyArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const upstream = parseUpstream(args.upstream);
+
+        const config = await readConfig(g.adminApiAddr, g.adminApiToken);
+        const { config: next, changed } = ensureRoute(
+          config,
+          args.hostname,
+          upstream,
+        );
+        if (changed) {
+          await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+        }
+
+        context.logger?.info(
+          "ensureDnsProxy {hostname} -> {upstream} ({action})",
+          {
+            hostname: args.hostname,
+            upstream: upstream.dial,
+            action: changed ? "updated" : "unchanged",
+          },
+        );
+
+        const handle = await context.writeResource("ensureProxy", "current", {
+          hostname: args.hostname,
+          upstream: upstream.dial,
+          changed,
+          ensuredAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
       },

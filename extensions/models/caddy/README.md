@@ -76,6 +76,38 @@ Iteration 4 adds binary upgrades, health monitoring, and service lifecycle:
 3. **`stopService` / `restartService`** — stop/restart the Caddy systemd user
    service (complementing the MVP's `startService`).
 
+## Desired-state proxy
+
+**`ensureDnsProxy`** — idempotently ensure a full hostname proxies to a backend
+`host:port`. Adds the route if missing, updates it if the upstream changed, and
+is a no-op if already correct. Safe to run repeatedly (desired-state), so it can
+be called by a user or another extension/workflow.
+
+```sh
+swamp model method run my-caddy ensureDnsProxy \
+  --input hostname=foo.example.com --input upstream=127.0.0.1:8080
+```
+
+## Workflows
+
+Two workflows ship alongside the extension (in this repo's `workflows/`):
+
+- **`caddy-setup`** — the full setup: `installCaddy` → `createService` →
+  `startService` → `settingsGuidance` → `configureTls` (best-effort).
+- **`caddy-ensure-proxy`** — a thin wrapper around `ensureDnsProxy` taking
+  `hostname` + `upstream` as inputs.
+
+```sh
+# one-time setup (after creating the model)
+swamp model create @svendowideit/caddy my-caddy \
+  --global-arg baseDomain=example.com --global-arg letsEncryptEmail=admin@example.com
+swamp workflow run caddy-setup
+
+# idempotent proxy ensure (repeatable)
+swamp workflow run caddy-ensure-proxy \
+  --input hostname=foo.example.com --input upstream=127.0.0.1:8080
+```
+
 ## Installation
 
 ```sh

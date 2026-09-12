@@ -10,6 +10,7 @@ import {
   deriveHostname,
   detectSwampServeServices,
   dnsProviderPlugin,
+  ensureRoute,
   expandHome,
   findRouteByHost,
   listProxyServices,
@@ -26,6 +27,7 @@ import {
   renderSettingsGuidance,
   renderTlsAutomation,
   renderUpgradeConfirmation,
+  routeUpstream,
   validateBaseDomain,
   validateEmail,
 } from "./caddy.ts";
@@ -459,4 +461,59 @@ Deno.test("computeHealth reports healthy only when both checks pass", () => {
     healthy: false,
     status: "admin-api-unreachable",
   });
+});
+
+// ---------------------------------------------------------------------------
+// Desired-state proxy helpers
+// ---------------------------------------------------------------------------
+
+Deno.test("routeUpstream extracts the dial address from a route", () => {
+  const route = buildRoute("foo.example.com", {
+    dial: "127.0.0.1:8080",
+    https: false,
+  });
+  assertEquals(routeUpstream(route), "127.0.0.1:8080");
+  assertEquals(routeUpstream({}), "");
+});
+
+Deno.test("ensureRoute adds a missing route", () => {
+  const config = baseConfig();
+  const { config: next, changed } = ensureRoute(
+    config,
+    "foo.example.com",
+    { dial: "127.0.0.1:8080", https: false },
+  );
+  assertEquals(changed, true);
+  assertEquals(findRouteByHost(next, "foo.example.com")?.index, 0);
+});
+
+Deno.test("ensureRoute is a no-op when the upstream already matches", () => {
+  const config = baseConfig();
+  const added = addRouteToConfig(
+    config,
+    buildRoute("foo.example.com", { dial: "127.0.0.1:8080", https: false }),
+  );
+  const { config: next, changed } = ensureRoute(
+    added,
+    "foo.example.com",
+    { dial: "127.0.0.1:8080", https: false },
+  );
+  assertEquals(changed, false);
+  assertEquals(next, added);
+});
+
+Deno.test("ensureRoute updates the route when the upstream changed", () => {
+  const config = baseConfig();
+  const added = addRouteToConfig(
+    config,
+    buildRoute("foo.example.com", { dial: "127.0.0.1:8080", https: false }),
+  );
+  const { config: next, changed } = ensureRoute(
+    added,
+    "foo.example.com",
+    { dial: "127.0.0.1:9999", https: false },
+  );
+  assertEquals(changed, true);
+  const route = findRouteByHost(next, "foo.example.com")?.route;
+  assertEquals(routeUpstream(route ?? {}), "127.0.0.1:9999");
 });

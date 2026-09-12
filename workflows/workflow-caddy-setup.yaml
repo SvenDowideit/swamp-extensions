@@ -1,0 +1,97 @@
+id: f8afb1cd-ac04-4e9b-8279-2bb93d17b65c
+name: caddy-setup
+description: |
+  Full Caddy setup: install the binary, create and start the systemd user
+  service, print settings guidance, and (optionally) configure TLS.
+
+  Prerequisite — create the model first (name must be "my-caddy"):
+    swamp model create @svendowideit/caddy my-caddy \
+      --global-arg baseDomain=example.com \
+      --global-arg letsEncryptEmail=admin@example.com
+
+  Run:
+    swamp workflow run caddy-setup
+    swamp workflow run caddy-setup --input dnsProvider=cloudflare
+
+  The install/create/start steps are idempotent, so re-running is safe.
+tags: {}
+inputs:
+  properties:
+    dnsProvider:
+      type: string
+      default: ""
+      description: >
+        Optional DNS provider for wildcard/DNS-challenge TLS (e.g. cloudflare).
+        Leave empty to skip DNS-challenge configuration.
+  required: []
+jobs:
+  - name: main
+    description: Install, create, start, and configure Caddy.
+    steps:
+      - name: install
+        description: Download (or build) the Caddy binary and verify it runs.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: my-caddy
+          methodName: installCaddy
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: create
+        description: Create the systemd user service unit for Caddy.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: my-caddy
+          methodName: createService
+        dependsOn:
+          - step: install
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: start
+        description: Start and enable the Caddy service and verify the admin API.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: my-caddy
+          methodName: startService
+        dependsOn:
+          - step: create
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: guidance
+        description: Print the minimal Let's Encrypt settings guidance.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: my-caddy
+          methodName: settingsGuidance
+        dependsOn:
+          - step: start
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: tls
+        description: Configure TLS (ACME email + optional DNS provider). Fails gracefully if no email is set.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: my-caddy
+          methodName: configureTls
+          inputs:
+            dnsProvider: ${{ inputs.dnsProvider }}
+        dependsOn:
+          - step: start
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

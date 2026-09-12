@@ -31,6 +31,12 @@
  *   - Admin API protection: the admin endpoint can be bound to a permissioned
  *     Unix socket (`adminApiAddr: unix//path`); the client talks over it.
  *
+ * Iteration 3 methods:
+ *   - `configureTls`       — configure the TLS app (ACME email + optional DNS
+ *                            provider for wildcard/DNS-challenge issuance).
+ *   - `autoProxySwampServe`— detect running `swamp serve` systemd services and
+ *                            reconcile their reverse-proxy routes.
+ *
  * Linux-only: it shells out to `systemctl --user` and manages a systemd user
  * service. Pure helpers (unit rendering, path expansion, version parsing,
  * guidance rendering) are exported for unit testing.
@@ -142,6 +148,33 @@ const StoreConfigArgsSchema = z.object({
 
 const SyncConfigArgsSchema = z.object({});
 
+const ConfigureTlsArgsSchema = z.object({
+  email: z.string().optional().describe(
+    "ACME email (defaults to global letsEncryptEmail)",
+  ),
+  dnsProvider: z.string().optional().describe(
+    "DNS provider name for DNS-challenge issuance (e.g. cloudflare)",
+  ),
+  dnsEnvVar: z.string().optional().describe(
+    "Environment variable holding the DNS provider credential (default CADDY_DNS_API_TOKEN)",
+  ),
+  subjects: z.array(z.string()).optional().describe(
+    "Subjects for the TLS policy (e.g. *.example.com, example.com)",
+  ),
+});
+
+const AutoProxyArgsSchema = z.object({
+  baseDomain: z.string().optional().describe(
+    "Override the base domain (defaults to global baseDomain)",
+  ),
+  prefix: z.string().default("swamp-serve-").describe(
+    "systemd unit name prefix for swamp serve instances",
+  ),
+  port: z.number().int().positive().default(3080).describe(
+    "Port swamp serve instances listen on",
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Resource output schemas
 // ---------------------------------------------------------------------------
@@ -188,6 +221,20 @@ const ConfigOutputSchema = z.object({
   adminApiTokenSet: z.boolean(),
   vaultName: z.string(),
   syncedAt: z.string(),
+});
+
+const TlsConfigOutputSchema = z.object({
+  email: z.string(),
+  dnsProvider: z.string(),
+  subjects: z.array(z.string()),
+  configuredAt: z.string(),
+});
+
+const AutoProxyOutputSchema = z.object({
+  detected: z.array(z.string()),
+  added: z.array(z.string()),
+  removed: z.array(z.string()),
+  reconciledAt: z.string(),
 });
 
 // ---------------------------------------------------------------------------
@@ -593,6 +640,110 @@ export function buildCurlArgs(
 }
 
 // ---------------------------------------------------------------------------
+// TLS + auto-proxy pure helpers (exported for unit testing)
+// ---------------------------------------------------------------------------
+
+/** Map a DNS provider name to its Caddy plugin module path. */
+const DNS_PROVIDER_PLUGINS: Record<string, string> = {
+  cloudflare: "github.com/caddy-dns/cloudflare",
+  route53: "github.com/caddy-dns/route53",
+  digitalocean: "github.com/caddy-dns/digitalocean",
+  duckdns: "github.com/caddy-dns/duckdns",
+  porkbun: "github.com/caddy-dns/porkbun",
+  namecheap: "github.com/caddy-dns/namecheap",
+};
+
+export function dnsProviderPlugin(provider: string): string {
+  const plugin = DNS_PROVIDER_PLUGINS[provider.toLowerCase()];
+  if (!plugin) {
+    throw new Error(
+      `Unsupported DNS provider '${provider}'; supported: ${
+        Object.keys(DNS_PROVIDER_PLUGINS).join(", ")
+      }`,
+    );
+  }
+  return plugin;
+}
+
+/** Render the Caddy TLS automation config (ACME email + optional DNS challenge). */
+export function renderTlsAutomation(opts: {
+  email?: string;
+  dnsProvider?: string;
+  dnsEnvVar?: string;
+  subjects?: string[];
+}): CaddyConfig {
+  const issuer: Record<string, unknown> = { module: "acme" };
+  if (opts.email) issuer.email = opts.email;
+  if (opts.dnsProvider) {
+    issuer.challenges = {
+      dns: {
+        provider: {
+          name: opts.dnsProvider,
+          api_token: `{env.${opts.dnsEnvVar ?? "CADDY_DNS_API_TOKEN"}}`,
+        },
+      },
+    };
+  }
+  const policy: Record<string, unknown> = { issuers: [issuer] };
+  if (opts.subjects && opts.subjects.length > 0) {
+    policy.subjects = opts.subjects;
+  }
+  return {
+    apps: {
+      tls: {
+        automation: {
+          policies: [policy],
+        },
+      },
+    },
+  };
+}
+
+/** Merge a TLS config into a Caddy config (replaces the `tls` app). */
+export function mergeTlsConfig(
+  config: CaddyConfig,
+  tlsConfig: CaddyConfig,
+): CaddyConfig {
+  const next = structuredClone(config);
+  const tls = (tlsConfig.apps as Record<string, unknown>).tls;
+  const apps = (next.apps ??= {}) as Record<string, unknown>;
+  apps.tls = tls;
+  return next;
+}
+
+/** Detect swamp-serve service names from a list of systemd unit names. */
+export function detectSwampServeServices(
+  unitNames: string[],
+  prefix: string,
+): string[] {
+  return unitNames
+    .filter((name) => name.startsWith(prefix) && name.endsWith(".service"))
+    .map((name) => name.slice(prefix.length, -".service".length))
+    .filter((name) => name.length > 0);
+}
+
+/** Compute the add/remove diff between desired services and the current config. */
+export function reconcileProxyServices(
+  desired: Array<{ serviceName: string; hostname: string; upstream: string }>,
+  currentConfig: CaddyConfig,
+  baseDomain: string,
+): { toAdd: CaddyRoute[]; toRemove: string[] } {
+  const current = listProxyServices(currentConfig, baseDomain);
+  const currentHostnames = new Set(current.map((s) => s.hostname));
+  const desiredHostnames = new Set(desired.map((s) => s.hostname));
+
+  const toAdd = desired
+    .filter((s) => !currentHostnames.has(s.hostname))
+    .map((s) => buildRoute(s.hostname, parseUpstream(s.upstream)));
+
+  const toRemove = current
+    .filter((s) => !desiredHostnames.has(s.hostname))
+    .map((s) => s.hostname);
+
+  return { toAdd, toRemove };
+}
+
+// ---------------------------------------------------------------------------
 // Command helpers
 // ---------------------------------------------------------------------------
 
@@ -699,6 +850,28 @@ async function systemctl(
   args: string[],
 ): Promise<CmdResult> {
   return await runCmd("systemctl", ["--user", ...args]);
+}
+
+/** List active systemd user service unit names. */
+async function listSystemdUnits(): Promise<string[]> {
+  const result = await systemctl([
+    "list-units",
+    "--type=service",
+    "--no-legend",
+    "--plain",
+    "--no-pager",
+  ]);
+  if (result.code !== 0) {
+    throw new Error(
+      `systemctl --user list-units failed (${result.code}): ${
+        result.stderr || result.stdout
+      }`,
+    );
+  }
+  return result.stdout
+    .split("\n")
+    .map((line) => line.trim().split(/\s+/)[0])
+    .filter((name) => name && name.length > 0);
 }
 
 async function writeUnitFile(
@@ -888,7 +1061,7 @@ type MethodContext = {
 
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.09.07.3",
+  version: "2026.09.07.4",
   globalArguments: GlobalArgsSchema,
   resources: {
     install: {
@@ -918,6 +1091,18 @@ export const model = {
     config: {
       description: "Effective Caddy configuration snapshot",
       schema: ConfigOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    tlsConfig: {
+      description: "Caddy TLS automation configuration",
+      schema: TlsConfigOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    autoProxy: {
+      description: "swamp serve auto-proxy reconciliation result",
+      schema: AutoProxyOutputSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -1343,6 +1528,104 @@ export const model = {
           adminApiTokenSet: (stored.adminApiTokenSet as boolean) ?? false,
           vaultName: (stored.vaultName as string) ?? "",
           syncedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    configureTls: {
+      description:
+        "Configure the Caddy TLS app (ACME email + optional DNS provider for DNS-challenge issuance)",
+      arguments: ConfigureTlsArgsSchema,
+      execute: async (
+        args: z.infer<typeof ConfigureTlsArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const email = args.email ?? g.letsEncryptEmail;
+        if (!email) {
+          throw new Error(
+            "email is required — set letsEncryptEmail or pass it to configureTls",
+          );
+        }
+        validateEmail(email);
+
+        const tlsConfig = renderTlsAutomation({
+          email,
+          dnsProvider: args.dnsProvider,
+          dnsEnvVar: args.dnsEnvVar,
+          subjects: args.subjects,
+        });
+
+        const config = await readConfig(g.adminApiAddr, g.adminApiToken);
+        const next = mergeTlsConfig(config, tlsConfig);
+        await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+
+        context.logger?.info(
+          "Configured TLS: email={email} dnsProvider={dnsProvider}",
+          { email, dnsProvider: args.dnsProvider ?? "(none)" },
+        );
+
+        const handle = await context.writeResource("tlsConfig", "current", {
+          email,
+          dnsProvider: args.dnsProvider ?? "",
+          subjects: args.subjects ?? [],
+          configuredAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    autoProxySwampServe: {
+      description:
+        "Detect running swamp serve systemd services and reconcile their proxy routes",
+      arguments: AutoProxyArgsSchema,
+      execute: async (
+        args: z.infer<typeof AutoProxyArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const baseDomain = args.baseDomain ?? g.baseDomain;
+        if (!baseDomain) {
+          throw new Error(
+            "baseDomain is required — set it as a global argument or pass it to autoProxySwampServe",
+          );
+        }
+
+        const units = await listSystemdUnits();
+        const serviceNames = detectSwampServeServices(units, args.prefix);
+        const desired = serviceNames.map((name) => ({
+          serviceName: name,
+          hostname: deriveHostname(name, baseDomain),
+          upstream: `127.0.0.1:${args.port}`,
+        }));
+
+        const config = await readConfig(g.adminApiAddr, g.adminApiToken);
+        const { toAdd, toRemove } = reconcileProxyServices(
+          desired,
+          config,
+          baseDomain,
+        );
+
+        let next = config;
+        for (const route of toAdd) {
+          next = addRouteToConfig(next, route);
+        }
+        for (const hostname of toRemove) {
+          next = removeRouteFromConfig(next, hostname);
+        }
+        await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+
+        context.logger?.info(
+          "Auto-proxy reconciled: {added} added, {removed} removed",
+          { added: toAdd.length, removed: toRemove.length },
+        );
+
+        const handle = await context.writeResource("autoProxy", "current", {
+          detected: serviceNames,
+          added: toAdd.map((r) => routeHostname(r) ?? ""),
+          removed: toRemove,
+          reconciledAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
       },

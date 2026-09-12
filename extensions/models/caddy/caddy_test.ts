@@ -7,18 +7,23 @@ import {
   buildRoute,
   caddyArch,
   deriveHostname,
+  detectSwampServeServices,
+  dnsProviderPlugin,
   expandHome,
   findRouteByHost,
   listProxyServices,
+  mergeTlsConfig,
   parseAdminAddr,
   parseCaddyVersion,
   parseUpstream,
+  reconcileProxyServices,
   removeRouteFromConfig,
   renderAdminConfig,
   renderDomainConflictError,
   renderMinimalConfig,
   renderServiceUnit,
   renderSettingsGuidance,
+  renderTlsAutomation,
   validateBaseDomain,
   validateEmail,
 } from "./caddy.ts";
@@ -323,4 +328,105 @@ Deno.test("buildCurlArgs includes body and bearer token when provided", () => {
   const joined = args.join(" ");
   assertStringIncludes(joined, "--data-binary");
   assertStringIncludes(joined, "Authorization: Bearer secret-token");
+});
+
+// ---------------------------------------------------------------------------
+// Iteration 3: TLS + auto-proxy helpers
+// ---------------------------------------------------------------------------
+
+Deno.test("dnsProviderPlugin maps known providers and rejects unknown", () => {
+  assertEquals(
+    dnsProviderPlugin("cloudflare"),
+    "github.com/caddy-dns/cloudflare",
+  );
+  assertEquals(dnsProviderPlugin("Route53"), "github.com/caddy-dns/route53");
+
+  let threw = false;
+  try {
+    dnsProviderPlugin("not-a-provider");
+  } catch {
+    threw = true;
+  }
+  assertEquals(threw, true);
+});
+
+Deno.test("renderTlsAutomation includes email and DNS challenge", () => {
+  const tls = renderTlsAutomation({
+    email: "admin@example.com",
+    dnsProvider: "cloudflare",
+    dnsEnvVar: "CF_TOKEN",
+    subjects: ["*.example.com", "example.com"],
+  });
+  const policies = (tls.apps as Record<string, unknown>).tls as Record<
+    string,
+    unknown
+  >;
+  const automation = policies.automation as Record<string, unknown>;
+  const policyList = automation.policies as Array<Record<string, unknown>>;
+  const issuer = (policyList[0].issuers as Array<Record<string, unknown>>)[0];
+  assertEquals(issuer.module, "acme");
+  assertEquals(issuer.email, "admin@example.com");
+  assertEquals(policyList[0].subjects, ["*.example.com", "example.com"]);
+  const challenges = issuer.challenges as Record<string, unknown>;
+  const dns = challenges.dns as Record<string, unknown>;
+  const provider = dns.provider as Record<string, unknown>;
+  assertEquals(provider.name, "cloudflare");
+  assertEquals(provider.api_token, "{env.CF_TOKEN}");
+});
+
+Deno.test("renderTlsAutomation omits DNS challenge when no provider", () => {
+  const tls = renderTlsAutomation({ email: "admin@example.com" });
+  const policies = (tls.apps as Record<string, unknown>).tls as Record<
+    string,
+    unknown
+  >;
+  const automation = policies.automation as Record<string, unknown>;
+  const policyList = automation.policies as Array<Record<string, unknown>>;
+  const issuer = (policyList[0].issuers as Array<Record<string, unknown>>)[0];
+  assertEquals(issuer.challenges, undefined);
+});
+
+Deno.test("mergeTlsConfig replaces the tls app in a config", () => {
+  const config = baseConfig();
+  const tls = renderTlsAutomation({ email: "admin@example.com" });
+  const merged = mergeTlsConfig(config, tls);
+  const apps = merged.apps as Record<string, unknown>;
+  assertEquals(apps.tls, (tls.apps as Record<string, unknown>).tls);
+  // http app is preserved
+  assertEquals(apps.http, (config.apps as Record<string, unknown>).http);
+});
+
+Deno.test("detectSwampServeServices filters and strips the prefix", () => {
+  const units = [
+    "swamp-serve-news.service",
+    "swamp-serve-blog.service",
+    "caddy.service",
+    "other.service",
+  ];
+  assertEquals(detectSwampServeServices(units, "swamp-serve-"), [
+    "news",
+    "blog",
+  ]);
+});
+
+Deno.test("reconcileProxyServices computes add/remove diff", () => {
+  const config = baseConfig();
+  const existing = addRouteToConfig(
+    config,
+    buildRoute("old.example.com", { dial: "127.0.0.1:3080", https: false }),
+  );
+  const desired = [
+    {
+      serviceName: "news",
+      hostname: "news.example.com",
+      upstream: "127.0.0.1:3080",
+    },
+  ];
+  const { toAdd, toRemove } = reconcileProxyServices(
+    desired,
+    existing,
+    "example.com",
+  );
+  assertEquals(toAdd.length, 1);
+  assertEquals(toRemove, ["old.example.com"]);
 });

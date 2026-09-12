@@ -52,6 +52,18 @@ Secrets are read from the Vault by setting global arguments to
 `${{ vault.get(<vault>, <key>) }}` expressions (resolved by swamp before the
 method runs) — e.g. `--global-arg 'adminApiToken=${{ vault.get(caddy-secrets, caddy-admin-token) }}'`.
 
+## What it does (Iteration 3)
+
+Iteration 3 adds TLS configuration and `swamp serve` auto-proxying:
+
+1. **`configureTls`** — configures the Caddy TLS app with the ACME email and an
+   optional DNS provider (for wildcard / DNS-challenge issuance). The DNS
+   provider credential is read from an environment variable (e.g.
+   `{env.CADDY_DNS_API_TOKEN}`) that you set in the systemd unit or Vault.
+2. **`autoProxySwampServe`** — detects running `swamp serve` systemd user
+   services (prefix `swamp-serve-`), derives hostnames from their names, and
+   reconciles their reverse-proxy routes (adds new, removes stopped).
+
 ## Installation
 
 ```sh
@@ -82,6 +94,11 @@ swamp model method run my-caddy storeConfig \
   --input baseDomain=example.com --input letsEncryptEmail=admin@example.com
 swamp model method run my-caddy syncConfig
 swamp model method run my-caddy getConfig
+
+# Iteration 3 — TLS + auto-proxy
+swamp model method run my-caddy configureTls \
+  --input dnsProvider=cloudflare --input 'subjects:json=["*.example.com","example.com"]'
+swamp model method run my-caddy autoProxySwampServe
 ```
 
 ## Configuration (global arguments)

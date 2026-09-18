@@ -12,6 +12,7 @@ import {
   withMockedFetch,
 } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 import { celEscape, celUnescape, celUnescapeDeep } from "./cel_text.ts";
+import { LOCAL_TIME_SCRIPT } from "./swamp_pulse.ts";
 import { isDocPath } from "./doc_paths.ts";
 import type { runSwampCmd as RunSwampCmd } from "./swamp_pulse.ts";
 import {
@@ -31,6 +32,7 @@ import {
   renderItem,
   renderLeaderboardPage,
   renderMarkdownLite,
+  renderTime,
   renderTourPage,
   resolveManualUrl,
   windowBounds,
@@ -85,6 +87,72 @@ Deno.test("escapeHtml neutralises injection vectors", () => {
     escapeHtml("<img src=x onerror=alert(1)>"),
     "&lt;img src=x onerror=alert(1)&gt;",
   );
+});
+
+// ---------------------------------------------------------------------------
+// renderTime / local-time script
+// ---------------------------------------------------------------------------
+
+Deno.test("renderTime emits a machine-readable time element", () => {
+  const html = renderTime("2026-09-17T23:23:31Z");
+  assertStringIncludes(html, '<time datetime="2026-09-17T23:23:31Z">');
+  assertStringIncludes(html, "2026-09-17T23:23:31Z");
+});
+
+Deno.test("renderTime date format shows the date part without an attribute clash", () => {
+  const html = renderTime("2026-09-17T23:23:31Z", "date");
+  assertStringIncludes(html, 'datetime="2026-09-17T23:23:31Z"');
+  assertStringIncludes(html, 'data-time-format="date"');
+  assertStringIncludes(html, ">2026-09-17</time>");
+});
+
+Deno.test("renderTime escapes a hostile datetime value", () => {
+  const html = renderTime('"><script>alert(1)</script>');
+  assert(!html.includes("<script>alert"), "raw script leaked");
+  assertStringIncludes(html, "&lt;script&gt;");
+});
+
+Deno.test("the local-time script localizes every time element and is injected", () => {
+  // The script references the datetime attribute and toLocaleString.
+  assertStringIncludes(LOCAL_TIME_SCRIPT, "time[datetime]");
+  assertStringIncludes(LOCAL_TIME_SCRIPT, "toLocaleString");
+  // And every rendered page includes it.
+  const ranked = {
+    windows: [{
+      key: "month",
+      label: "This month",
+      since: "",
+      until: "",
+      changes: 1,
+      releases: 1,
+      issues: 0,
+      items: [{
+        ...makeItem("release:r", "2026-09-18T00:00:00Z"),
+        docLinks: [{
+          filename: "a.md",
+          sourceUrl: "https://example.com/blob/x/a.md",
+          manualUrl: "",
+          manualConfidence: 0,
+        }],
+      }],
+    }],
+    totals: {
+      events: 1,
+      commits: 0,
+      releases: 1,
+      issues: 0,
+      docChanges: 1,
+      byRepo: {},
+    },
+    manualPages: 0,
+    generatedAt: "2026-09-18T12:00:00Z",
+  };
+  const summary = renderIndexPage(ranked);
+  const board = renderLeaderboardPage(ranked);
+  for (const html of [summary, board]) {
+    assertStringIncludes(html, "time[datetime]");
+    assertStringIncludes(html, "<time datetime=");
+  }
 });
 
 // ---------------------------------------------------------------------------

@@ -963,6 +963,60 @@ function inlineMarkdown(text: string): string {
   return html;
 }
 
+/**
+ * Render an ISO timestamp as a `<time>` element.
+ *
+ * The server-rendered text is the raw ISO value so the page is readable
+ * without JavaScript and correct for non-JS clients; the client script in
+ * {@link LOCAL_TIME_SCRIPT} rewrites the visible text to the viewer's local
+ * timezone using the `datetime` attribute.
+ */
+export function renderTime(
+  iso: string,
+  format: "datetime" | "date" = "datetime",
+): string {
+  const value = String(iso ?? "");
+  if (!value) return "";
+  const attr = format === "date" ? ' data-time-format="date"' : "";
+  // Without JS the raw value is shown; for "date" the date part is clearer.
+  const text = format === "date" ? value.slice(0, 10) : value;
+  return `<time datetime="${escapeHtml(value)}"${attr}>${
+    escapeHtml(text)
+  }</time>`;
+}
+
+/**
+ * Client script that rewrites every `<time datetime>` to the viewer's local
+ * timezone. Runs on load and is idempotent, so a page re-render or a bfcache
+ * restore stays correct.
+ */
+export const LOCAL_TIME_SCRIPT = `
+(function () {
+  function localize(root) {
+    var nodes = (root || document).querySelectorAll("time[datetime]");
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var iso = el.getAttribute("datetime");
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) continue;
+      var opts = el.getAttribute("data-time-format") === "date"
+        ? { year: "numeric", month: "short", day: "numeric" }
+        : {
+          year: "numeric", month: "short", day: "numeric",
+          hour: "2-digit", minute: "2-digit"
+        };
+      var text = d.toLocaleString(undefined, opts);
+      if (el.textContent !== text) el.textContent = text;
+      // Expose the original UTC value on hover for anyone comparing runs.
+      el.title = d.toISOString();
+      el.setAttribute("data-localized", "1");
+    }
+  }
+  localize(document);
+  window.addEventListener("pageshow", function () { localize(document); });
+})();
+`;
+
 const PAGE_CSS = `
 :root{--bg:#0b0f0c;--panel:#111813;--ink:#d7f5dd;--dim:#7fa88a;--acc:#39ff14;--amber:#ffb000;--mag:#ff4dd2;--line:#1d2a20}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "JetBrains Mono",ui-monospace,monospace}
@@ -1046,6 +1100,7 @@ ${body}
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.
 </footer>
+<script>${LOCAL_TIME_SCRIPT}</script>
 </body></html>`;
 }
 
@@ -1099,7 +1154,7 @@ export function renderItem(item: z.infer<typeof MergedItemSchema>): string {
 <p class="lede">${escapeHtml(item.rationale)}${
     item.repo ? ` · ${escapeHtml(item.repo)}` : ""
   }</p>
-<div class="meta"><span>${escapeHtml(item.date)}</span>${
+<div class="meta"><span>${renderTime(item.date)}</span>${
     item.scope ? `<span>${escapeHtml(item.scope)}</span>` : ""
   }${item.type ? `<span>${escapeHtml(item.type)}</span>` : ""}</div>
 ${body}
@@ -1256,7 +1311,7 @@ export function renderLeaderboardPage(
 <td>${escapeHtml(item.title.slice(0, 90))}</td>
 <td>${escapeHtml(item.kind)}</td>
 <td>${escapeHtml(item.repo || "lab")}</td>
-<td>${escapeHtml(item.date.slice(0, 10))}</td>
+<td>${renderTime(item.date, "date")}</td>
 </tr>`
     ).join("");
     return `<section class="tail"><h2>${
@@ -1375,7 +1430,7 @@ export function renderDocFileCard(group: DocFileGroup): string {
   const changes = group.changes.map((change) =>
     `<li class="doc-change">
 <span class="tier ${change.importance}">${change.importance}</span>
-<span class="doc-date">${escapeHtml(change.date)}</span>
+<span class="doc-date">${renderTime(change.date)}</span>
 <span class="doc-title">${escapeHtml(change.title)}</span>
 <span class="refs">${renderRefs(change)}</span>
 </li>`
@@ -1390,7 +1445,7 @@ export function renderDocFileCard(group: DocFileGroup): string {
   }<span>${group.changes.length} change${
     group.changes.length === 1 ? "" : "s"
   }</span><span>updated ${
-    escapeHtml(group.latestDate)
+    renderTime(group.latestDate)
   }</span><span>${manual}</span></div>
 <ul class="doc-changes">${changes}</ul>
 </article>`;
@@ -1613,7 +1668,7 @@ export const model = {
     {
       toVersion: "2026.09.18.5",
       description:
-        "No schema changes — summary page is docs-only for the month, activity leaderboard moved to its own leaderboard.html",
+        "No schema changes — docs-only summary, activity leaderboard on its own page, and all timestamps localized in the browser",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

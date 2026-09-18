@@ -188,6 +188,16 @@ All interpolated text (commit titles, release bodies, issue bodies) is
 **HTML-escaped**; release and issue bodies are rendered as sanitised text with
 fenced code preserved. This is a tested requirement, not an afterthought.
 
+### Local time
+
+Every timestamp is rendered server-side as a `<time datetime="…">` element
+holding the raw UTC ISO value, so the page is correct without JavaScript. A
+small script in each page then rewrites the visible text to the **viewer's
+browser timezone** via `toLocaleString`, using 12/24-hour conventions and month
+names appropriate to their locale. The original UTC value stays available as the
+element's `title` (hover) and in the `datetime` attribute. This is verified in a
+real headless browser, not just unit-tested.
+
 ## How items are ranked
 
 Pulse does not replicate the swamp-club user-activity leaderboard. It ranks the
@@ -541,7 +551,9 @@ workflow run.
 
 - [x] `swamp extension fmt --check`, `quality` (12/12, 100%)
 - [x] Adversarial review written to the content-hash path from `push --dry-run`
-- [x] Dry-run push clean; 88 unit tests + live end-to-end workflow run passing
+- [x] Timestamps localized to the viewer's timezone by an in-page script
+      (`<time datetime>` + `toLocaleString`), verified in headless Chromium
+- [x] Dry-run push clean; 92 unit tests + live end-to-end workflow run passing
 
 ## License
 

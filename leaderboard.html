@@ -66,13 +66,13 @@ footer .ver{color:var(--acc)}
 <main>
 <h2 class="page-title">Activity leaderboard</h2>
 <div class="cards">
-<div class="card"><div class="n">1481</div><div class="l">MERGED EVENTS</div></div>
-<div class="card"><div class="n">300</div><div class="l">COMMITS</div></div>
-<div class="card"><div class="n">300</div><div class="l">RELEASES</div></div>
+<div class="card"><div class="n">1509</div><div class="l">MERGED EVENTS</div></div>
+<div class="card"><div class="n">92</div><div class="l">COMMITS</div></div>
+<div class="card"><div class="n">64</div><div class="l">RELEASES</div></div>
 <div class="card"><div class="n">1181</div><div class="l">LAB ISSUES</div></div>
-<div class="card"><div class="n">0</div><div class="l">DOC CHANGES</div></div>
+<div class="card"><div class="n">40</div><div class="l">DOC CHANGES</div></div>
 </div>
-<section class="tail"><h2>Last 24 hours · 49 items</h2>
+<section class="tail"><h2>Last 24 hours · 66 items</h2>
 <table class="board"><thead><tr><th>#</th><th></th><th>ITEM</th><th>KIND</th><th>SOURCE</th><th>DATE</th></tr></thead>
 <tbody><tr>
 <td>1</td>
@@ -91,344 +91,166 @@ footer .ver{color:var(--acc)}
 </tr><tr>
 <td>3</td>
 <td><span class="tier A">A</span></td>
-<td>Ephemeral worker fleets accumulate worker records and token bindings that are never reaped</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T23:41:05.802Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>4</td>
-<td><span class="tier A">A</span></td>
-<td>swamp invite link -v puts log output on stdout, breaking the pasteable-link contract</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T23:05:25.518Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>5</td>
-<td><span class="tier A">A</span></td>
-<td>serve: poller pull can race a handler&#39;s delete-then-push and resurrect the deleted item</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T21:38:08.727Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>6</td>
-<td><span class="tier A">A</span></td>
-<td>s3-datastore: pullChanged ignores subdirs while advertising configRefresh, so serve poller</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T21:11:54.725Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>7</td>
-<td><span class="tier A">A</span></td>
-<td>swamp model method run deletes tracked .claude/skills files as an extension-install side e</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T20:43:09.952Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>8</td>
-<td><span class="tier A">A</span></td>
-<td>IAM service accounts: verified deterministic-account lifecycle method with safe 404/409 ha</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T20:35:21.814Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>9</td>
-<td><span class="tier A">A</span></td>
-<td>Add put_events method to event-bus type</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T17:38:57.287Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>10</td>
-<td><span class="tier A">A</span></td>
-<td>Secret Manager: complete metadata-only secret/version hygiene snapshot across projects</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T17:08:57.515Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>11</td>
-<td><span class="tier A">A</span></td>
-<td>Server-side workflow resume fails on direct-type model steps</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T15:00:28.601Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>12</td>
-<td><span class="tier B">B</span></td>
-<td>Interactive prompts write to stdout, corrupting commands whose stdout carries a value</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T23:21:59.016Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>13</td>
-<td><span class="tier B">B</span></td>
-<td>Hot-reload serve.yaml webhook routes (like trigger overrides), not just at startup</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T21:10:39.228Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>14</td>
-<td><span class="tier B">B</span></td>
-<td>verify-build fails on the codegen-verify guard: &#39;No such key: stdout&#39;</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T18:36:36.316Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>15</td>
-<td><span class="tier C">C</span></td>
-<td>main is red: handleWorkerPrune is not wrapped in the serve sync gate</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-18T00:49:15.712Z" data-time-format="date">2026-09-18</time></td>
-</tr><tr>
-<td>16</td>
-<td><span class="tier C">C</span></td>
-<td>swamp 20260918.003339.0-sha.a765b344</td>
+<td>run worker.prune under the sync gate (swamp-club#2268) (#2510)</td>
 <td>change</td>
 <td>swamp-club/swamp</td>
 <td><time datetime="2026-09-18T00:35:16Z" data-time-format="date">2026-09-18</time></td>
 </tr><tr>
-<td>17</td>
-<td><span class="tier C">C</span></td>
-<td>Remove dead verification/container/ and fix the stale AGENTS.md verification instruction</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-18T00:25:17.278Z" data-time-format="date">2026-09-18</time></td>
-</tr><tr>
-<td>18</td>
-<td><span class="tier C">C</span></td>
-<td>Merge gate validates attestations from stale branches, so main can go red with no PR ever </td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-18T00:15:32.051Z" data-time-format="date">2026-09-18</time></td>
-</tr><tr>
-<td>19</td>
-<td><span class="tier C">C</span></td>
-<td>Periodic worker GC sweep prunes outside the sync gate</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-18T00:15:23.823Z" data-time-format="date">2026-09-18</time></td>
-</tr><tr>
-<td>20</td>
-<td><span class="tier C">C</span></td>
-<td>swamp 20260917.233703.0-sha.a3e60933</td>
-<td>change</td>
-<td>swamp-club/swamp</td>
-<td><time datetime="2026-09-17T23:38:48Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>21</td>
-<td><span class="tier C">C</span></td>
-<td>Docs: document swamp worker prune command in manual</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T23:28:18.566Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>22</td>
-<td><span class="tier C">C</span></td>
-<td>Docs: cli-output.md does not state the stdout-is-value / stderr-is-interaction contract</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T23:28:02.503Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>23</td>
-<td><span class="tier C">C</span></td>
-<td>Logging sinks: convergent audit sink setup with typed writer identity and destination veri</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T23:26:47.573Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>24</td>
-<td><span class="tier C">C</span></td>
-<td>Org Policy: typed batch effective-policy snapshots for baseline reports</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T23:26:40.134Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>25</td>
-<td><span class="tier C">C</span></td>
-<td>Recommender: complete multi-scope recommendation snapshot for cost reports</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T23:26:26.383Z" data-time-format="date">2026-09-17</time></td>
-</tr></tbody></table></section>
-<section class="tail"><h2>Last 7 days · 189 items</h2>
-<table class="board"><thead><tr><th>#</th><th></th><th>ITEM</th><th>KIND</th><th>SOURCE</th><th>DATE</th></tr></thead>
-<tbody><tr>
-<td>1</td>
-<td><span class="tier S">S</span></td>
-<td>Security Center: complete location-scoped finding snapshots for current-run reporting</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T21:15:48.075Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>2</td>
-<td><span class="tier A">A</span></td>
-<td>main is red: handleWorkerPrune pushes outside the sync gate, failing serve_deps_rules_test</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-18T00:45:57.673Z" data-time-format="date">2026-09-18</time></td>
-</tr><tr>
-<td>3</td>
+<td>4</td>
 <td><span class="tier A">A</span></td>
 <td>Ephemeral worker fleets accumulate worker records and token bindings that are never reaped</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-17T23:41:05.802Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
-<td>4</td>
+<td>5</td>
+<td><span class="tier A">A</span></td>
+<td>reap stale worker records and token bindings from ephemeral fleets (swamp-club#2192) (#250</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T23:38:48Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>6</td>
+<td><span class="tier A">A</span></td>
+<td>add 7 enrichment methods for governance workflow models (#293)</td>
+<td>change</td>
+<td>swamp-club/swamp-extensions</td>
+<td><time datetime="2026-09-17T23:23:52Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>7</td>
 <td><span class="tier A">A</span></td>
 <td>swamp invite link -v puts log output on stdout, breaking the pasteable-link contract</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-17T23:05:25.518Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
-<td>5</td>
+<td>8</td>
+<td><span class="tier A">A</span></td>
+<td>keep log output off stdout for value-on-stdout commands (swamp-club#2254) (#2507)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T23:03:10Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>9</td>
+<td><span class="tier A">A</span></td>
+<td>reload extension registries after config poller syncs new extensions (swamp-club#2241) (#2</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T22:02:42Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>10</td>
 <td><span class="tier A">A</span></td>
 <td>serve: poller pull can race a handler&#39;s delete-then-push and resurrect the deleted item</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-17T21:38:08.727Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
-<td>6</td>
+<td>11</td>
+<td><span class="tier A">A</span></td>
+<td>gate poller pulls against handler mutations (swamp-club#2247) (#2504)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T21:34:57Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>12</td>
 <td><span class="tier A">A</span></td>
 <td>s3-datastore: pullChanged ignores subdirs while advertising configRefresh, so serve poller</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-17T21:11:54.725Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
-<td>7</td>
+<td>13</td>
+<td><span class="tier A">A</span></td>
+<td>add inventory_findings for SCC v2 location-scoped snapshots (#291)</td>
+<td>change</td>
+<td>swamp-club/swamp-extensions</td>
+<td><time datetime="2026-09-17T21:11:43Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>14</td>
 <td><span class="tier A">A</span></td>
 <td>swamp model method run deletes tracked .claude/skills files as an extension-install side e</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-17T20:43:09.952Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
-<td>8</td>
+<td>15</td>
 <td><span class="tier A">A</span></td>
 <td>IAM service accounts: verified deterministic-account lifecycle method with safe 404/409 ha</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-17T20:35:21.814Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
-<td>9</td>
-<td><span class="tier A">A</span></td>
-<td>Add put_events method to event-bus type</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T17:38:57.287Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>10</td>
-<td><span class="tier A">A</span></td>
-<td>Secret Manager: complete metadata-only secret/version hygiene snapshot across projects</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T17:08:57.515Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>11</td>
-<td><span class="tier A">A</span></td>
-<td>Server-side workflow resume fails on direct-type model steps</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T15:00:28.601Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>12</td>
-<td><span class="tier A">A</span></td>
-<td>license-headers task is a silent no-op inside .claude worktrees (absolute-path skip patter</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T00:51:53.073Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>13</td>
-<td><span class="tier A">A</span></td>
-<td>Add a static-token webhook scheme (constant-time header equality) for Telegram-style secre</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T00:30:06.272Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>14</td>
-<td><span class="tier A">A</span></td>
-<td>validate-attestation hashes the PR merge commit, so a moving base invalidates valid attest</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T00:21:28.772Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>15</td>
-<td><span class="tier A">A</span></td>
-<td>Expired enrollment token cannot be re-minted unless a worker was connected when it expired</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T00:16:03.454Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
 <td>16</td>
 <td><span class="tier A">A</span></td>
-<td>extension push: allow explicit private visibility in the manifest and at publish time, inc</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T23:58:07.700Z" data-time-format="date">2026-09-16</time></td>
+<td>add manage_account enrichment for deterministic service account lifecycle (swamp-club #221</td>
+<td>change</td>
+<td>swamp-club/swamp-extensions</td>
+<td><time datetime="2026-09-17T20:34:52Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>17</td>
 <td><span class="tier A">A</span></td>
-<td>A config-integrity checksum mismatch fails validate-attestation with no log output</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T23:45:39.935Z" data-time-format="date">2026-09-16</time></td>
+<td>persist authored provenance with evaluated caches (swamp-club#2172) (#2502)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T20:29:54Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>18</td>
 <td><span class="tier A">A</span></td>
-<td>Auth gate: require authentication, fail open on outage</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T23:11:24.624Z" data-time-format="date">2026-09-16</time></td>
+<td>preserve legacy files during auto-resolution (#2503)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T20:28:25Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>19</td>
 <td><span class="tier A">A</span></td>
-<td>Verification reviews infer pass from Claude usage-limit errors</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T23:08:10.283Z" data-time-format="date">2026-09-16</time></td>
+<td>preserve parent scope for parent-authored runtime expressions passed to nested workflow in</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T20:07:33Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>20</td>
 <td><span class="tier A">A</span></td>
-<td>Apply score_grants_from_recruit_mv to prod ClickHouse — recruit links mint zero until it l</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T22:50:38.528Z" data-time-format="date">2026-09-16</time></td>
+<td>correct drifted commands and the missing verify transition in issue-lifecycle (#2500)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T19:37:42Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>21</td>
 <td><span class="tier A">A</span></td>
-<td>Auth gate: server-side Ed25519 key management and signed verification proofs</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T22:22:51.247Z" data-time-format="date">2026-09-16</time></td>
+<td>compare-and-swap merges for shard and _meta.json writes (#2245) (#290)</td>
+<td>change</td>
+<td>swamp-club/swamp-extensions</td>
+<td><time datetime="2026-09-17T19:13:36Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>22</td>
 <td><span class="tier A">A</span></td>
-<td>TLS tests assume OpenSSL 3.x defaults and fail on macOS LibreSSL, blocking verify-build</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T21:46:05.666Z" data-time-format="date">2026-09-16</time></td>
+<td>reap orphaned YAML workflow runs after rolling restarts (#2498)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T19:10:24Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>23</td>
 <td><span class="tier A">A</span></td>
-<td>Publishing manual contradicts registry omission defaults and supported visibility values</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T21:41:06.861Z" data-time-format="date">2026-09-16</time></td>
+<td>push token and data mutations to remote datastore after write (#2497)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T18:47:32Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>24</td>
 <td><span class="tier A">A</span></td>
-<td>Data queries read unrelated artifact bodies before metadata filters reject them</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T21:00:44.869Z" data-time-format="date">2026-09-16</time></td>
+<td>evaluate only author-written expressions after CEL substitution (swamp-club#2172) (#2499)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T18:43:34Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>25</td>
 <td><span class="tier A">A</span></td>
-<td>access token mint: support --server so worker server tokens can be minted remotely</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T20:22:03.780Z" data-time-format="date">2026-09-16</time></td>
+<td>honor subdirs-scoped pullChanged in s3 and gcs (swamp-club #2246) (#289)</td>
+<td>change</td>
+<td>swamp-club/swamp-extensions</td>
+<td><time datetime="2026-09-17T17:56:48Z" data-time-format="date">2026-09-17</time></td>
 </tr></tbody></table></section>
-<section class="tail"><h2>This month · 421 items</h2>
+<section class="tail"><h2>Last 7 days · 217 items</h2>
 <table class="board"><thead><tr><th>#</th><th></th><th>ITEM</th><th>KIND</th><th>SOURCE</th><th>DATE</th></tr></thead>
 <tbody><tr>
 <td>1</td>
@@ -439,176 +261,354 @@ footer .ver{color:var(--acc)}
 <td><time datetime="2026-09-17T21:15:48.075Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>2</td>
+<td><span class="tier S">S</span></td>
+<td>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-14T00:28:10Z" data-time-format="date">2026-09-14</time></td>
+</tr><tr>
+<td>3</td>
+<td><span class="tier S">S</span></td>
+<td>strip SWAMP_* env vars from shell model child processes (#2435)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-11T21:51:00Z" data-time-format="date">2026-09-11</time></td>
+</tr><tr>
+<td>4</td>
+<td><span class="tier A">A</span></td>
+<td>main is red: handleWorkerPrune pushes outside the sync gate, failing serve_deps_rules_test</td>
+<td>issue</td>
+<td>lab</td>
+<td><time datetime="2026-09-18T00:45:57.673Z" data-time-format="date">2026-09-18</time></td>
+</tr><tr>
+<td>5</td>
+<td><span class="tier A">A</span></td>
+<td>run worker.prune under the sync gate (swamp-club#2268) (#2510)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-18T00:35:16Z" data-time-format="date">2026-09-18</time></td>
+</tr><tr>
+<td>6</td>
+<td><span class="tier A">A</span></td>
+<td>Ephemeral worker fleets accumulate worker records and token bindings that are never reaped</td>
+<td>issue</td>
+<td>lab</td>
+<td><time datetime="2026-09-17T23:41:05.802Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>7</td>
+<td><span class="tier A">A</span></td>
+<td>reap stale worker records and token bindings from ephemeral fleets (swamp-club#2192) (#250</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T23:38:48Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>8</td>
+<td><span class="tier A">A</span></td>
+<td>add 7 enrichment methods for governance workflow models (#293)</td>
+<td>change</td>
+<td>swamp-club/swamp-extensions</td>
+<td><time datetime="2026-09-17T23:23:52Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>9</td>
+<td><span class="tier A">A</span></td>
+<td>swamp invite link -v puts log output on stdout, breaking the pasteable-link contract</td>
+<td>issue</td>
+<td>lab</td>
+<td><time datetime="2026-09-17T23:05:25.518Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>10</td>
+<td><span class="tier A">A</span></td>
+<td>keep log output off stdout for value-on-stdout commands (swamp-club#2254) (#2507)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T23:03:10Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>11</td>
+<td><span class="tier A">A</span></td>
+<td>reload extension registries after config poller syncs new extensions (swamp-club#2241) (#2</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T22:02:42Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>12</td>
+<td><span class="tier A">A</span></td>
+<td>serve: poller pull can race a handler&#39;s delete-then-push and resurrect the deleted item</td>
+<td>issue</td>
+<td>lab</td>
+<td><time datetime="2026-09-17T21:38:08.727Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>13</td>
+<td><span class="tier A">A</span></td>
+<td>gate poller pulls against handler mutations (swamp-club#2247) (#2504)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T21:34:57Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>14</td>
+<td><span class="tier A">A</span></td>
+<td>s3-datastore: pullChanged ignores subdirs while advertising configRefresh, so serve poller</td>
+<td>issue</td>
+<td>lab</td>
+<td><time datetime="2026-09-17T21:11:54.725Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>15</td>
+<td><span class="tier A">A</span></td>
+<td>add inventory_findings for SCC v2 location-scoped snapshots (#291)</td>
+<td>change</td>
+<td>swamp-club/swamp-extensions</td>
+<td><time datetime="2026-09-17T21:11:43Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>16</td>
+<td><span class="tier A">A</span></td>
+<td>swamp model method run deletes tracked .claude/skills files as an extension-install side e</td>
+<td>issue</td>
+<td>lab</td>
+<td><time datetime="2026-09-17T20:43:09.952Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>17</td>
+<td><span class="tier A">A</span></td>
+<td>IAM service accounts: verified deterministic-account lifecycle method with safe 404/409 ha</td>
+<td>issue</td>
+<td>lab</td>
+<td><time datetime="2026-09-17T20:35:21.814Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>18</td>
+<td><span class="tier A">A</span></td>
+<td>add manage_account enrichment for deterministic service account lifecycle (swamp-club #221</td>
+<td>change</td>
+<td>swamp-club/swamp-extensions</td>
+<td><time datetime="2026-09-17T20:34:52Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>19</td>
+<td><span class="tier A">A</span></td>
+<td>persist authored provenance with evaluated caches (swamp-club#2172) (#2502)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T20:29:54Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>20</td>
+<td><span class="tier A">A</span></td>
+<td>preserve legacy files during auto-resolution (#2503)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T20:28:25Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>21</td>
+<td><span class="tier A">A</span></td>
+<td>preserve parent scope for parent-authored runtime expressions passed to nested workflow in</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T20:07:33Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>22</td>
+<td><span class="tier A">A</span></td>
+<td>correct drifted commands and the missing verify transition in issue-lifecycle (#2500)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T19:37:42Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>23</td>
+<td><span class="tier A">A</span></td>
+<td>compare-and-swap merges for shard and _meta.json writes (#2245) (#290)</td>
+<td>change</td>
+<td>swamp-club/swamp-extensions</td>
+<td><time datetime="2026-09-17T19:13:36Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>24</td>
+<td><span class="tier A">A</span></td>
+<td>reap orphaned YAML workflow runs after rolling restarts (#2498)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T19:10:24Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>25</td>
+<td><span class="tier A">A</span></td>
+<td>push token and data mutations to remote datastore after write (#2497)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T18:47:32Z" data-time-format="date">2026-09-17</time></td>
+</tr></tbody></table></section>
+<section class="tail"><h2>This month · 449 items</h2>
+<table class="board"><thead><tr><th>#</th><th></th><th>ITEM</th><th>KIND</th><th>SOURCE</th><th>DATE</th></tr></thead>
+<tbody><tr>
+<td>1</td>
+<td><span class="tier S">S</span></td>
+<td>Security Center: complete location-scoped finding snapshots for current-run reporting</td>
+<td>issue</td>
+<td>lab</td>
+<td><time datetime="2026-09-17T21:15:48.075Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>2</td>
+<td><span class="tier S">S</span></td>
+<td>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-14T00:28:10Z" data-time-format="date">2026-09-14</time></td>
+</tr><tr>
+<td>3</td>
+<td><span class="tier S">S</span></td>
+<td>strip SWAMP_* env vars from shell model child processes (#2435)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-11T21:51:00Z" data-time-format="date">2026-09-11</time></td>
+</tr><tr>
+<td>4</td>
 <td><span class="tier S">S</span></td>
 <td>Simplify CI: remove redundant jobs, automerge only on security + attestation gates</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-09T15:43:32.888Z" data-time-format="date">2026-09-09</time></td>
 </tr><tr>
-<td>3</td>
+<td>5</td>
 <td><span class="tier S">S</span></td>
 <td>target-domain create/get fail with &quot;security token expired&quot; using valid fresh SSO creds; i</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-08T04:40:27.493Z" data-time-format="date">2026-09-08</time></td>
 </tr><tr>
-<td>4</td>
+<td>6</td>
 <td><span class="tier S">S</span></td>
 <td>Extension version binaries never persisted — binaries security notice has never rendered</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-02T16:39:55.584Z" data-time-format="date">2026-09-02</time></td>
 </tr><tr>
-<td>5</td>
+<td>7</td>
 <td><span class="tier A">A</span></td>
 <td>main is red: handleWorkerPrune pushes outside the sync gate, failing serve_deps_rules_test</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-18T00:45:57.673Z" data-time-format="date">2026-09-18</time></td>
 </tr><tr>
-<td>6</td>
+<td>8</td>
+<td><span class="tier A">A</span></td>
+<td>run worker.prune under the sync gate (swamp-club#2268) (#2510)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-18T00:35:16Z" data-time-format="date">2026-09-18</time></td>
+</tr><tr>
+<td>9</td>
 <td><span class="tier A">A</span></td>
 <td>Ephemeral worker fleets accumulate worker records and token bindings that are never reaped</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-17T23:41:05.802Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
-<td>7</td>
+<td>10</td>
+<td><span class="tier A">A</span></td>
+<td>reap stale worker records and token bindings from ephemeral fleets (swamp-club#2192) (#250</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T23:38:48Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>11</td>
+<td><span class="tier A">A</span></td>
+<td>add 7 enrichment methods for governance workflow models (#293)</td>
+<td>change</td>
+<td>swamp-club/swamp-extensions</td>
+<td><time datetime="2026-09-17T23:23:52Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>12</td>
 <td><span class="tier A">A</span></td>
 <td>swamp invite link -v puts log output on stdout, breaking the pasteable-link contract</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-17T23:05:25.518Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
-<td>8</td>
+<td>13</td>
+<td><span class="tier A">A</span></td>
+<td>keep log output off stdout for value-on-stdout commands (swamp-club#2254) (#2507)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T23:03:10Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>14</td>
+<td><span class="tier A">A</span></td>
+<td>reload extension registries after config poller syncs new extensions (swamp-club#2241) (#2</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T22:02:42Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>15</td>
 <td><span class="tier A">A</span></td>
 <td>serve: poller pull can race a handler&#39;s delete-then-push and resurrect the deleted item</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-17T21:38:08.727Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
-<td>9</td>
+<td>16</td>
+<td><span class="tier A">A</span></td>
+<td>gate poller pulls against handler mutations (swamp-club#2247) (#2504)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T21:34:57Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>17</td>
 <td><span class="tier A">A</span></td>
 <td>s3-datastore: pullChanged ignores subdirs while advertising configRefresh, so serve poller</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-17T21:11:54.725Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
-<td>10</td>
+<td>18</td>
+<td><span class="tier A">A</span></td>
+<td>add inventory_findings for SCC v2 location-scoped snapshots (#291)</td>
+<td>change</td>
+<td>swamp-club/swamp-extensions</td>
+<td><time datetime="2026-09-17T21:11:43Z" data-time-format="date">2026-09-17</time></td>
+</tr><tr>
+<td>19</td>
 <td><span class="tier A">A</span></td>
 <td>swamp model method run deletes tracked .claude/skills files as an extension-install side e</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-17T20:43:09.952Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
-<td>11</td>
+<td>20</td>
 <td><span class="tier A">A</span></td>
 <td>IAM service accounts: verified deterministic-account lifecycle method with safe 404/409 ha</td>
 <td>issue</td>
 <td>lab</td>
 <td><time datetime="2026-09-17T20:35:21.814Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
-<td>12</td>
-<td><span class="tier A">A</span></td>
-<td>Add put_events method to event-bus type</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T17:38:57.287Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>13</td>
-<td><span class="tier A">A</span></td>
-<td>Secret Manager: complete metadata-only secret/version hygiene snapshot across projects</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T17:08:57.515Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>14</td>
-<td><span class="tier A">A</span></td>
-<td>Server-side workflow resume fails on direct-type model steps</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T15:00:28.601Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>15</td>
-<td><span class="tier A">A</span></td>
-<td>license-headers task is a silent no-op inside .claude worktrees (absolute-path skip patter</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T00:51:53.073Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>16</td>
-<td><span class="tier A">A</span></td>
-<td>Add a static-token webhook scheme (constant-time header equality) for Telegram-style secre</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T00:30:06.272Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>17</td>
-<td><span class="tier A">A</span></td>
-<td>validate-attestation hashes the PR merge commit, so a moving base invalidates valid attest</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T00:21:28.772Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>18</td>
-<td><span class="tier A">A</span></td>
-<td>Expired enrollment token cannot be re-minted unless a worker was connected when it expired</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-17T00:16:03.454Z" data-time-format="date">2026-09-17</time></td>
-</tr><tr>
-<td>19</td>
-<td><span class="tier A">A</span></td>
-<td>extension push: allow explicit private visibility in the manifest and at publish time, inc</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T23:58:07.700Z" data-time-format="date">2026-09-16</time></td>
-</tr><tr>
-<td>20</td>
-<td><span class="tier A">A</span></td>
-<td>A config-integrity checksum mismatch fails validate-attestation with no log output</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T23:45:39.935Z" data-time-format="date">2026-09-16</time></td>
-</tr><tr>
 <td>21</td>
 <td><span class="tier A">A</span></td>
-<td>Auth gate: require authentication, fail open on outage</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T23:11:24.624Z" data-time-format="date">2026-09-16</time></td>
+<td>add manage_account enrichment for deterministic service account lifecycle (swamp-club #221</td>
+<td>change</td>
+<td>swamp-club/swamp-extensions</td>
+<td><time datetime="2026-09-17T20:34:52Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>22</td>
 <td><span class="tier A">A</span></td>
-<td>Verification reviews infer pass from Claude usage-limit errors</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T23:08:10.283Z" data-time-format="date">2026-09-16</time></td>
+<td>persist authored provenance with evaluated caches (swamp-club#2172) (#2502)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T20:29:54Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>23</td>
 <td><span class="tier A">A</span></td>
-<td>Apply score_grants_from_recruit_mv to prod ClickHouse — recruit links mint zero until it l</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T22:50:38.528Z" data-time-format="date">2026-09-16</time></td>
+<td>preserve legacy files during auto-resolution (#2503)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T20:28:25Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>24</td>
 <td><span class="tier A">A</span></td>
-<td>Auth gate: server-side Ed25519 key management and signed verification proofs</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T22:22:51.247Z" data-time-format="date">2026-09-16</time></td>
+<td>preserve parent scope for parent-authored runtime expressions passed to nested workflow in</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T20:07:33Z" data-time-format="date">2026-09-17</time></td>
 </tr><tr>
 <td>25</td>
 <td><span class="tier A">A</span></td>
-<td>TLS tests assume OpenSSL 3.x defaults and fail on macOS LibreSSL, blocking verify-build</td>
-<td>issue</td>
-<td>lab</td>
-<td><time datetime="2026-09-16T21:46:05.666Z" data-time-format="date">2026-09-16</time></td>
+<td>correct drifted commands and the missing verify transition in issue-lifecycle (#2500)</td>
+<td>change</td>
+<td>swamp-club/swamp</td>
+<td><time datetime="2026-09-17T19:37:42Z" data-time-format="date">2026-09-17</time></td>
 </tr></tbody></table></section>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.8</span> · last run <time datetime="2026-09-18T06:07:32.538Z">2026-09-18T06:07:32.538Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.8</span> · last run <time datetime="2026-09-18T06:29:15.081Z">2026-09-18T06:29:15.081Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

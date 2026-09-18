@@ -33,12 +33,6 @@ export { isDocPath };
 
 const EXTENSION_NAME = "@svendowideit/swamp-pulse";
 
-/**
- * Extension version, kept in one place so the model definition and the page
- * footer (which shows which build generated the pages) can never drift.
- */
-const EXTENSION_VERSION = "2026.09.18.8";
-
 /** Registry page for this extension. */
 const EXTENSION_URL = `https://swamp-club.com/extensions/${EXTENSION_NAME}`;
 
@@ -1922,7 +1916,11 @@ export async function ensureServerService(
 /** Model definition for Swamp Pulse. */
 export const model = {
   type: "@svendowideit/swamp-pulse",
-  version: EXTENSION_VERSION,
+  // The version must be written as a literal right here. Swamp Club's
+  // registry extractor parses this file statically; if it cannot read a
+  // literal it skips the file and reports the model as removed from the
+  // extension. The footer constant below derives from this value.
+  version: "2026.09.18.10",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1962,6 +1960,17 @@ export const model = {
       toVersion: "2026.09.18.8",
       description:
         "No schema changes — opt-in GitHub Pages publish step; guard polarity corrected on publish steps",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.9",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.10",
+      description:
+        "No schema changes — publishing settings moved to model global arguments (publishMode, pagesRepo, pagesBranch, pagesPath, pagesCname, caddyHostname, caddyUpstream) with a publishConfig resource; restore an inline version literal so the registry indexes the model",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2349,5 +2358,12 @@ export const model = {
     },
   },
 };
+
+/**
+ * Extension version for the page footer, derived from the model definition so
+ * the two cannot drift. Declared after `model` because `model.version` is the
+ * single source of truth (and must stay an inline literal for the registry).
+ */
+const EXTENSION_VERSION: string = model.version;
 
 export { EXTENSION_NAME, EXTENSION_URL, EXTENSION_VERSION };

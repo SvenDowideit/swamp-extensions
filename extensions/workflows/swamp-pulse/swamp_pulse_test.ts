@@ -1306,9 +1306,20 @@ Deno.test("model upgrade chain terminates at the current version and fills new f
     versions.length,
     "duplicate upgrade target",
   );
+  // Compare CalVer numerically per segment — a lexicographic compare puts
+  // "2026.09.18.10" before "2026.09.18.9".
+  const calver = (v: string) => v.split(".").map(Number);
+  const isAscending = (a: string, b: string) => {
+    const x = calver(a), y = calver(b);
+    for (let i = 0; i < Math.max(x.length, y.length); i++) {
+      const d = (x[i] ?? 0) - (y[i] ?? 0);
+      if (d !== 0) return d < 0;
+    }
+    return false;
+  };
   for (let i = 1; i < versions.length; i++) {
     assert(
-      versions[i] > versions[i - 1],
+      isAscending(versions[i - 1], versions[i]),
       `upgrade chain out of order: ${versions[i - 1]} -> ${versions[i]}`,
     );
   }

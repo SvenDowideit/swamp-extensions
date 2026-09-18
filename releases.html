@@ -63,12 +63,265 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260918-003339-0-sha-a765b344"><span class="tier A">A</span>run worker.prune under the sync gate (swamp-club#2268) (#251</a><a href="#release-swamp-club-swamp-v20260917-233703-0-sha-a3e60933"><span class="tier A">A</span>reap stale worker records and token bindings from ephemeral </a><a href="#release-swamp-club-swamp-v20260917-230137-0-sha-6c7ec94e"><span class="tier A">A</span>keep log output off stdout for value-on-stdout commands (swa</a><a href="#release-swamp-club-swamp-v20260917-220103-0-sha-111b8539"><span class="tier A">A</span>reload extension registries after config poller syncs new ex</a><a href="#release-swamp-club-swamp-v20260917-213336-0-sha-d4d3bf38"><span class="tier A">A</span>gate poller pulls against handler mutations (swamp-club#2247</a><a href="#release-swamp-club-swamp-v20260917-193606-0-sha-6bf7f212"><span class="tier A">A</span>correct drifted commands and the missing verify transition i</a><a href="#release-swamp-club-swamp-v20260917-184258-0-sha-660627b8"><span class="tier A">A</span>reap orphaned YAML workflow runs after rolling restarts (#24</a><a href="#release-swamp-club-swamp-v20260917-034341-0-sha-81c00b86"><span class="tier A">A</span>add swamp invite group with recruit link (#2492)</a><a href="#release-swamp-club-swamp-v20260917-032111-0-sha-614bbc7e"><span class="tier A">A</span>add the webhook fields to extension publish fixtures (#2491)</a><a href="#release-swamp-club-swamp-v20260917-005759-0-sha-d82fdabd"><span class="tier A">A</span>wire DirectTypeResolver into server-side workflow resume (sw</a><a href="#release-swamp-club-swamp-v20260917-004815-0-sha-48f62749"><span class="tier A">A</span>collect license headers in Claude worktrees (#2489)</a><a href="#release-swamp-club-swamp-v20260917-004114-0-sha-4f546424"><span class="tier A">A</span>diff the verified worktree, not the caller&#39;s checkout (#2482</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260918-211634-0-sha-bcaa9695"><span class="tier C">C</span>swamp 20260918.211634.0-sha.bcaa9695</a><a href="#release-swamp-club-swamp-v20260918-181015-0-sha-cda6aba2"><span class="tier C">C</span>swamp 20260918.181015.0-sha.cda6aba2</a><a href="#release-swamp-club-swamp-v20260918-171721-0-sha-cc6e1c56"><span class="tier C">C</span>swamp 20260918.171721.0-sha.cc6e1c56</a><a href="#release-swamp-club-swamp-v20260918-171201-0-sha-1d30d6d3"><span class="tier C">C</span>swamp 20260918.171201.0-sha.1d30d6d3</a><a href="#release-swamp-club-swamp-v20260918-170808-0-sha-4ba12f2f"><span class="tier C">C</span>swamp 20260918.170808.0-sha.4ba12f2f</a><a href="#release-swamp-club-swamp-v20260918-155612-0-sha-b1ac6226"><span class="tier C">C</span>swamp 20260918.155612.0-sha.b1ac6226</a><a href="#release-swamp-club-swamp-v20260918-154106-0-sha-85621c2b"><span class="tier C">C</span>swamp 20260918.154106.0-sha.85621c2b</a><a href="#release-swamp-club-swamp-v20260918-141950-0-sha-7b3608ba"><span class="tier C">C</span>swamp 20260918.141950.0-sha.7b3608ba</a><a href="#release-swamp-club-swamp-v20260918-003339-0-sha-a765b344"><span class="tier C">C</span>swamp 20260918.003339.0-sha.a765b344</a><a href="#release-swamp-club-swamp-v20260917-233703-0-sha-a3e60933"><span class="tier C">C</span>swamp 20260917.233703.0-sha.a3e60933</a><a href="#release-swamp-club-swamp-v20260917-232152-0-sha-4430c4b1"><span class="tier C">C</span>swamp 20260917.232152.0-sha.4430c4b1</a><a href="#release-swamp-club-swamp-v20260917-230137-0-sha-6c7ec94e"><span class="tier C">C</span>swamp 20260917.230137.0-sha.6c7ec94e</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20260918-211634-0-sha-bcaa9695">
+<h2><span class="tier C">C</span>swamp 20260918.211634.0-sha.bcaa9695</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-18T21:18:06Z">2026-09-18T21:18:06Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(issue-lifecycle): surface dropped swamp-club lifecycle entries (swamp-club#2279) (#2518)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Lifecycle entries are the audit trail for triage, planning, approval and attestation, but <code>postLifecycleEntry</code> was documented &quot;best-effort&quot;: it logged a non-ok response and returned normally. A method printed <code>succeeded</code> and advanced its local phase while swamp-club never recorded the step. The triage rationale for swamp-club#2265 was lost exactly this way.</p>
+<p>The adapter now reports an outcome instead of swallowing it, and a new <code>_lib/lifecycle_recorder.ts</code> holds the policy that interprets it, keeping the anti-corruption adapter free of caller policy. One function per kind of call site makes the mandatory/courtesy split explicit rather than implied:</p>
+<p>| Function | On failure | Used by |</p>
+<p>| --- | --- | --- |</p>
+<p>| <code>recordLifecycle</code> | raises | every mandatory audit entry |</p>
+<p>| <code>recordLifecycleBestEffort</code> | warns | the assignment entry in <code>start</code> |</p>
+<p>| <code>recordRipple</code> | raises | <code>notify</code> (the ripple is its deliverable) |</p>
+<p>| <code>recordUpstreamChange</code> | raises | status transitions and type updates |</p>
+<p><code>transitionStatus</code> owns the already-in-target-status rule and confirms it by re-reading the issue status rather than matching server error prose, which swamp-club is free to reword. The read is retried once; the patch never is.</p>
+<p>Methods declare <code>rollbackOnFailure</code> so a raised failure leaves the phase unchanged and the re-run is clean. <code>notify</code> and <code>post_attestation</code> are exclu</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.211634.0-sha.bcaa9695" rel="noopener">release v20260918.211634.0-sha.bcaa9695</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bcaa9695" rel="noopener">bcaa9695</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2518" rel="noopener">#2518</a>𝗔 <a href="https://swamp-club.com/lab/2279" rel="noopener">lab#2279</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260918-181015-0-sha-cda6aba2">
+<h2><span class="tier C">C</span>swamp 20260918.181015.0-sha.cda6aba2</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-18T18:11:57Z">2026-09-18T18:11:57Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): include createdAt and updatedAt in issue get and search --json (#2517)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The Lab API returns <code>createdAt</code> and <code>updatedAt</code> on issues, but the client dropped them when mapping responses, so <code>swamp issue get --json</code> and <code>swamp issue search --json</code> had no issue-level timestamps.</p>
+<p>Carry both fields through <code>FetchIssueResponse</code>, <code>IssueGetData</code>, and <code>IssueSearchItem</code> so JSON consumers can see when an issue was filed and last touched. Log-mode output is unchanged.</p>
+<p>Tracking issue: <a href="https://swamp-club.com/lab/2285" rel="noopener">https://swamp-club.com/lab/2285</a></p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Extended existing unit tests for the HTTP client, libswamp get/search, and the issue search renderer to assert the new fields are present in JSON output</li>
+<li>Verification workflow passed on <code>4d9d3a72</code>: lint, fmt, type-check, 12198 tests, deps audit, compile, smoke, code/adversarial/UX reviews (all <code>VERDICT: pass</code>)</li>
+<li>Attestation posted to swamp-club (<code>9f1e25a8-76ce-4c35-b504-3cbccd21fce0</code>)</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260918.181015.0-sha.cda6aba2/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260918.181015.0-sha.cda6aba2/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260918.181015.0-sha.cda6aba2/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260918.181015.0-sha.cda6aba2/swamp-darwin-x86_64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>Linux (x86_64):</strong></p>
+<p>```bash</p>
+<p>curl -L htt</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.181015.0-sha.cda6aba2" rel="noopener">release v20260918.181015.0-sha.cda6aba2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cda6aba2" rel="noopener">cda6aba2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2517" rel="noopener">#2517</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260918-171721-0-sha-cc6e1c56">
+<h2><span class="tier C">C</span>swamp 20260918.171721.0-sha.cc6e1c56</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-18T17:19:01Z">2026-09-18T17:19:01Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(verification): review the provided diff and fail closed on a missing verdict (swamp-club#2265) (#2516)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2265. Two defects in the pre-PR verification harness composed</p>
+<p>into one failure: the code review reviewed the wrong code, and the harness</p>
+<p>recorded that review as an approval. Either alone is survivable; together they</p>
+<p>produced an attestation asserting a clean review of a change nothing examined.</p>
+<p><strong>1. The review prompts asked for a tool the step does not grant.</strong> All four</p>
+<p>prompts opened by instructing the reviewer to run a name-only diff against main</p>
+<p>to identify the changed files. Every review step invokes <code>claude -p</code> with</p>
+<p><code>--allowedTools &quot;Read,Glob,Grep&quot;</code> — no Bash — so the first instruction was</p>
+<p>impossible to follow, and it contradicted the footer the step appends at runtime</p>
+<p>naming the diff file. It also named the local <code>main</code> ref, which is stale in the</p>
+<p>detached review worktree, while the step&#39;s own diff is merge-base relative</p>
+<p>against <code>origin/main</code>. Each prompt now scopes the reviewer to the provided diff</p>
+<p>and says findings must be about a change in it.</p>
+<p><strong>2. A missing VERDICT marker was inferred as a pass.</strong> When the reviewer emitted</p>
+<p>no marker, the step inferred <code>fail</code> only if the text matched a blocking-severity</p>
+<p>label regex, and otherwise inferred <code>pass</code>. A recorded run whose review opened</p>
+<p>&quot;Two blocking findings reported&quot; was scored as a pass, because the word appeared</p>
+<p>in prose rather than as a <code>Blocking:</code> label.</p>
+<p>The ve</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.171721.0-sha.cc6e1c56" rel="noopener">release v20260918.171721.0-sha.cc6e1c56</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cc6e1c56" rel="noopener">cc6e1c56</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2516" rel="noopener">#2516</a>𝗔 <a href="https://swamp-club.com/lab/2265" rel="noopener">lab#2265</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260918-171201-0-sha-1d30d6d3">
+<h2><span class="tier C">C</span>swamp 20260918.171201.0-sha.1d30d6d3</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-18T17:13:43Z">2026-09-18T17:13:43Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): replace bare notifyDirty() with per-path signals in four repositories (swamp-club#2273) (#2514)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>Convert all four bare <code>notifyDirty()</code> (bulk signal) calls in per-path-wired</li>
+</ul>
+<p>  repositories to directory-level per-path signals, fixing <code>workflow delete</code></p>
+<p>  under <code>managedConfig: true</code> leaving the config-tier YAML on the remote</p>
+<p>  datastore</p>
+<ul>
+<li>Add architecture fitness test enforcing the serve handler obligation (no bare</li>
+</ul>
+<p>  <code>notifyDirty</code> in per-path-wired repos)</p>
+<ul>
+<li>Update design/enablers/datastores.md per-call granularity table and serve</li>
+</ul>
+<p>  handler obligation paragraph</p>
+<p><strong>Root cause:</strong> <code>deleteAllByWorkflowId</code> called bare <code>notifyDirty()</code> which set</p>
+<p><code>bulkInvalidated</code> in the datastore extension, triggering a full walk that skips</p>
+<p>deletion detection (documented at datastores.md:1037). This overrode the</p>
+<p>per-path signal from <code>workflowRepo.delete()</code> for the config-tier workflow file,</p>
+<p>so <code>pushChanged</code> never deleted the remote YAML — the next serve boot reloaded</p>
+<p>it.</p>
+<p><strong>Why model delete worked:</strong> No bulk signal — every <code>markDirty</code> call in the</p>
+<p>model delete path passes a specific per-path argument.</p>
+<p>Fixes swamp-club#2273</p>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] Updated existing unit test assertions for <code>deleteAllByWorkflowId</code> (runs</li>
+</ul>
+<p>  directory path instead of <code>undefined</code>)</p>
+<ul>
+<li>[x] Updated existing unit test assertions for <code>rename</code> (old-name directory</li>
+</ul>
+<p>  instead of <code>undefined</code>)</p>
+<ul>
+<li>[x] Updated existing unit test assertions for <code>clearAll</code> (base directory</li>
+</ul>
+<p>  instead of <code>undefined</code>)</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.171201.0-sha.1d30d6d3" rel="noopener">release v20260918.171201.0-sha.1d30d6d3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1d30d6d3" rel="noopener">1d30d6d3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2514" rel="noopener">#2514</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260918-170808-0-sha-4ba12f2f">
+<h2><span class="tier C">C</span>swamp 20260918.170808.0-sha.4ba12f2f</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-18T17:09:47Z">2026-09-18T17:09:47Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(data): resolve workflow data by spec name when instance name differs (swamp-club#2278) (#2515)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>Add spec-name fallback matching to <code>WorkflowDataService.findByNameInWorkflowRun</code> — when exact <code>data.name</code> match fails, fall back to matching the <code>specName</code> tag that the resource writer auto-injects</li>
+<li>Improve the <code>data_pending</code> error message to not assert the producing step hasn&#39;t completed; suggest trying the full instance name</li>
+<li>Three new tests: fallback succeeds, exact name takes priority, missing tag handled gracefully</li>
+</ul>
+<p>Fixes swamp-club#2278</p>
+<p>Co-authored-by: Blake Irvin &lt;blakeirvin@me.com&gt;</p>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] Unit tests for spec-name fallback (3 new cases in <code>workflow_data_service_test.ts</code>)</li>
+<li>[x] Updated <code>data_pending</code> error message assertion in <code>get_test.ts</code></li>
+<li>[x] All 11 workflow data service tests pass</li>
+<li>[x] All 7 data get tests pass</li>
+<li>[x] Full verification workflow: lint, fmt, type-check, tests, compile, deps audit, code review, adversarial review, UX review — all passed</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260918.170808.0-sha.4ba12f2f/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260918.170808.0-sha.4ba12f2f/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260918.170808.0-sha.4ba12f2f/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260918.170808.0-sha.4ba12f2f/swamp-darwin-x86_64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.170808.0-sha.4ba12f2f" rel="noopener">release v20260918.170808.0-sha.4ba12f2f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4ba12f2f" rel="noopener">4ba12f2f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2515" rel="noopener">#2515</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260918-155612-0-sha-b1ac6226">
+<h2><span class="tier C">C</span>swamp 20260918.155612.0-sha.b1ac6226</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-18T15:57:43Z">2026-09-18T15:57:43Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(serve): hot-reload webhook routes from serve.yaml (swamp-club#2234) (#2513)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>Extend the hot-reload path (<code>performServeReload</code>) to also re-read <code>config.webhooks</code> from <code>serve.yaml</code> on SIGHUP and <code>serve.reload</code>, mirroring the existing <code>triggerOverrideUpdater</code> pattern</li>
+<li>Add <code>WebhookService.updateEndpoints()</code> for atomic route table swaps with per-route change logging (added/removed/updated)</li>
+<li>Wire <code>webhookUpdater</code> callback through <code>ServeReloadOptions</code> in both the SIGHUP handler and WebSocket <code>serve.reload</code> handler</li>
+<li>Add <code>webhooksReloaded</code> field to <code>ServeReloadResponse</code></li>
+<li>Skip webhook reload when <code>--webhook</code> CLI flags were used (process arguments are not hot-reloadable config)</li>
+<li>Share the <code>readServeConfigFile</code> call between trigger overrides and webhooks to avoid reading the file twice</li>
+<li>Compare full verifier config structurally so changes to <code>header</code>/<code>prefix</code>/<code>config</code> fields on <code>generic</code> and extension schemes are detected</li>
+</ul>
+<p>Closes swamp-club#2234</p>
+<p>Co-authored-by: magistr &lt;magistr@users.noreply.github.com&gt;</p>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] <code>WebhookService.updateEndpoints()</code> swaps routing correctly (4 unit tests)</li>
+<li>[x] <code>performServeReload</code> calls <code>webhookUpdater</code> with parsed config (4 unit tests)</li>
+<li>[x] Error in webhook config is a soft failure (prior route table preserved)</li>
+<li>[x] Empty update returns 0 changed</li>
+<li>[x] Shared config read works for both triggers and webhooks together</li>
+<li>[x] All 79 tests pass (webhook + extension reload)</li>
+<li>[x] Verification: build 9/</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.155612.0-sha.b1ac6226" rel="noopener">release v20260918.155612.0-sha.b1ac6226</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b1ac6226" rel="noopener">b1ac6226</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2513" rel="noopener">#2513</a>𝗔 <a href="https://swamp-club.com/lab/2234" rel="noopener">lab#2234</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260918-154106-0-sha-85621c2b">
+<h2><span class="tier C">C</span>swamp 20260918.154106.0-sha.85621c2b</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-18T15:42:32Z">2026-09-18T15:42:32Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): write interactive prompts to stderr (swamp-club#2260) (#2512)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>src/cli/prompt_helpers.ts</code> wrote every prompt to stdout. For most commands that is untidy at worst; for a command whose stdout carries a <strong>value</strong> it is corruption:</p>
+<p>```bash</p>
+<p>swamp vault read-secret myvault mykey &gt; key.pem</p>
+<p># key.pem: &quot;This will reveal the secret &#39;mykey&#39; from vault &#39;reprovault&#39;. Continue? [y/N] SECRET-VALUE-123&quot;</p>
+<p>```</p>
+<p>The byte-exact stdout that swamp-club#1768 established is lost to a prompt. The existing <code>assertInteractiveStdin()</code> gate does not help — redirecting *stdout* does not change *stdin*, so the prompt still fires and still lands in the redirect target. That is also why no test caught it: the failure needs a real TTY on stdin <strong>and</strong> a redirected stdout at the same time.</p>
+<p>Prompts are interaction, not output. All four writes in <code>promptLine</code> and <code>promptChoice</code> now go to stderr; <code>promptConfirmation</code> and <code>promptLineWithDefault</code> inherit the fix through <code>promptLine</code>. Every prompting command is covered at once, with no dependency on the value-on-stdout registry.</p>
+<p>This is the second half of the <code>vault read-secret</code> stdout contract — swamp-club#2254 (merged, #2507) fixed LogTape records reaching stdout; prompts do not go through LogTape, so <code>stderrOnly</code> had no reach over them.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong><code>src/cli/prompt_helpers.ts</code></strong> — four <code>Deno.stdout.write</code> → <code>Deno.stderr.write</code>; module doc states the rule and why the stdin gate does not cover it.</li>
+<li>**`src/cli/promp</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.154106.0-sha.85621c2b" rel="noopener">release v20260918.154106.0-sha.85621c2b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/85621c2b" rel="noopener">85621c2b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2512" rel="noopener">#2512</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2507" rel="noopener">#2507</a>𝗔 <a href="https://swamp-club.com/lab/2260" rel="noopener">lab#2260</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260918-141950-0-sha-7b3608ba">
+<h2><span class="tier C">C</span>swamp 20260918.141950.0-sha.7b3608ba</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-18T14:21:25Z">2026-09-18T14:21:25Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(build): make .tool-versions the single source of truth for Deno (swamp-club#1964) (#2511)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Closes swamp-club#1964.</p>
+<p>Deno has no native per-project version pinning, so this repo carried eight independent pins with nothing keeping them in step: six CI steps on a floating <code>v2.9.x</code>, the Dockerfile on an exact tag, and the dead verification container still on 2.8.3.</p>
+<p><code>.tool-versions</code> at the repo root is now the single source of truth. mise reads it natively, and <code>denoland/setup-deno</code> reads the *same file* via its <code>deno-version-file</code> input — already available in the SHA-pinned v2.0.4 the publish workflows use. <strong>CI keeps its existing action and no new third-party action enters the supply chain</strong>; a <code>.mise.toml</code> would have forced <code>jdx/mise-action</code> onto every runner, which is worst on <code>windows-compat.yml</code>. Nothing in CI executes mise — mise is a local developer convenience only.</p>
+<h4 class="body-h">Why this is more than developer convenience</h4>
+<p><code>scripts/download_deno.ts</code> derives the embedded runtime version from <code>deno --version</code> <strong>on the building machine</strong> and bakes that exact release into the compiled binary for user extensions. With <code>release.yml</code> on a floating <code>v2.9.x</code>, consecutive releases could ship different embedded Deno patches with nothing recording which. Pinning exactly makes the shipped artifact reproducible.</p>
+<p>The script now also guards that at its source: it compares the running Deno against the pin, <strong>failing hard under <code>CI</code> and warning locally</strong>. Th</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.141950.0-sha.7b3608ba" rel="noopener">release v20260918.141950.0-sha.7b3608ba</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7b3608ba" rel="noopener">7b3608ba</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2511" rel="noopener">#2511</a>𝗔 <a href="https://swamp-club.com/lab/2271" rel="noopener">lab#2271</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20260918-003339-0-sha-a765b344">
-<h2><span class="tier A">A</span>run worker.prune under the sync gate (swamp-club#2268) (#2510)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-18T00:35:16Z">2026-09-18T00:35:16Z</time></span><span>serve</span><span>fix</span></div>
+<h2><span class="tier C">C</span>swamp 20260918.003339.0-sha.a765b344</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-18T00:35:16Z">2026-09-18T00:35:16Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(serve): run worker.prune under the sync gate (swamp-club#2268) (#2510)</li>
@@ -102,12 +355,12 @@ footer .ver{color:var(--acc)}
 <p><code>handleWorkerPrune</code> calls libswamp functions directly rather than serve handlers,</p>
 <p>so no nes</p></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.003339.0-sha.a765b344" rel="noopener">release v20260918.003339.0-sha.a765b344</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a765b344b79c85a4f56fd3c14d929352ef45e46d" rel="noopener">a765b344</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2510" rel="noopener">#2510</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2509" rel="noopener">#2509</a>𝗔 <a href="https://swamp-club.com/lab/2268" rel="noopener">lab#2268</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.003339.0-sha.a765b344" rel="noopener">release v20260918.003339.0-sha.a765b344</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a765b344" rel="noopener">a765b344</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2510" rel="noopener">#2510</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2509" rel="noopener">#2509</a>𝗔 <a href="https://swamp-club.com/lab/2268" rel="noopener">lab#2268</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-233703-0-sha-a3e60933">
-<h2><span class="tier A">A</span>reap stale worker records and token bindings from ephemeral fleets (swamp-club#2192) (#2509)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T23:38:48Z">2026-09-17T23:38:48Z</time></span><span>workers</span><span>fix</span></div>
+<h2><span class="tier C">C</span>swamp 20260917.233703.0-sha.a3e60933</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T23:38:48Z">2026-09-17T23:38:48Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(workers): reap stale worker records and token bindings from ephemeral fleets (swamp-club#2192) (#2509)</li>
@@ -151,13 +404,38 @@ footer .ver{color:var(--acc)}
 <li>[x] Full test suite: 12,191 passed, 0 failed</li>
 <li>[x] Build</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/a3e60933d3861d2e56d1166533761c28304c6d1f/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.233703.0-sha.a3e60933" rel="noopener">release v20260917.233703.0-sha.a3e60933</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a3e60933d3861d2e56d1166533761c28304c6d1f" rel="noopener">a3e60933</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2509" rel="noopener">#2509</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2262" rel="noopener">#2262</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2261" rel="noopener">#2261</a></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.233703.0-sha.a3e60933" rel="noopener">release v20260917.233703.0-sha.a3e60933</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a3e60933" rel="noopener">a3e60933</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2509" rel="noopener">#2509</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2262" rel="noopener">#2262</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2261" rel="noopener">#2261</a>𝗔 <a href="https://swamp-club.com/lab/2192" rel="noopener">lab#2192</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260917-232152-0-sha-4430c4b1">
+<h2><span class="tier C">C</span>swamp 20260917.232152.0-sha.4430c4b1</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T23:23:31Z">2026-09-17T23:23:31Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>docs(verification): document how to verify TTY-only behaviour with a pty (#2508)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Verifying swamp-club#2254 turned on a code path an agent shell cannot reach. <code>prettyOutput</code> is <code>!noColor &amp;&amp; isStdinTty()</code>, so a TTY session uses the pretty sink and a scripted run uses the plain console sink — and the bug lived in the path a script never touches. The plan for that issue recorded the case as &quot;needs a human at a terminal,&quot; which is the kind of note that makes a whole class of bugs look unverifiable.</p>
+<p>It isn&#39;t. <code>script</code> supplies a real pty on stdin while stdout and stderr still redirect where you point them, so the interactive path is testable in the same automated run and the two streams stay separable.</p>
+<p>Adds a &quot;Verifying TTY-Only Behaviour&quot; section to <code>agent-constraints/verification-conventions.md</code> covering:</p>
+<ul>
+<li>why the path exists, with <code>initializeLogging</code> as the live example</li>
+<li>the <code>script</code> invocation, and <code>cat -A</code> so a stray blank line is visible</li>
+<li>asserting <code>tty</code> inside the subshell, so a harness that silently drops the pty can&#39;t make the check pass vacuously</li>
+<li>running the same harness against the <strong>released</strong> binary as well as the built one — two runs differing only in the binary are what separate a real fix from a test that was always going to pass</li>
+<li>the other things this covers: prompts from <code>prompt_helpers.ts</code>, Ink components, anything branching on <code>Deno.stdout.isTerminal()</code></li>
+</ul>
+<p>Closes swamp-club#2266.</p>
+<h4 class="body-h">Test Plan</h4>
+<p>Docs only — no source chang</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.232152.0-sha.4430c4b1" rel="noopener">release v20260917.232152.0-sha.4430c4b1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4430c4b1" rel="noopener">4430c4b1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2508" rel="noopener">#2508</a>𝗔 <a href="https://swamp-club.com/lab/2254" rel="noopener">lab#2254</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-230137-0-sha-6c7ec94e">
-<h2><span class="tier A">A</span>keep log output off stdout for value-on-stdout commands (swamp-club#2254) (#2507)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T23:03:10Z">2026-09-17T23:03:10Z</time></span><span>cli</span><span>fix</span></div>
+<h2><span class="tier C">C</span>swamp 20260917.230137.0-sha.6c7ec94e</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T23:03:10Z">2026-09-17T23:03:10Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(cli): keep log output off stdout for value-on-stdout commands (swamp-club#2254) (#2507)</li>
@@ -176,13 +454,53 @@ footer .ver{color:var(--acc)}
 <li><strong>The pretty sink honours <code>stderrOnly</code></strong> too — the load-bearing change.</li>
 <li>**`src</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/6c7ec94ebcf62dff924226515ef5741b196cc341/.claude/skills/terminal-output/references/logtape.md" rel="noopener">.claude/skills/terminal-output/references/logtape.md</a></div>
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.230137.0-sha.6c7ec94e" rel="noopener">release v20260917.230137.0-sha.6c7ec94e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6c7ec94ebcf62dff924226515ef5741b196cc341" rel="noopener">6c7ec94e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2507" rel="noopener">#2507</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2258" rel="noopener">#2258</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2264" rel="noopener">#2264</a>𝗔 <a href="https://swamp-club.com/lab/2254" rel="noopener">lab#2254</a></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.230137.0-sha.6c7ec94e" rel="noopener">release v20260917.230137.0-sha.6c7ec94e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6c7ec94e" rel="noopener">6c7ec94e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2507" rel="noopener">#2507</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2258" rel="noopener">#2258</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2264" rel="noopener">#2264</a>𝗔 <a href="https://swamp-club.com/lab/2254" rel="noopener">lab#2254</a></div>
+</article>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260917-220430-0-sha-48473252">
+<h2><span class="tier C">C</span>swamp 20260917.220430.0-sha.48473252</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T22:05:54Z">2026-09-17T22:05:54Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>docs(datastores): correct shard index push path and cleanup semantics (#2506)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>design/enablers/datastores.md</code> still documented the pre-fix shard-first index</p>
+<p>behaviour that caused swamp-club lab#2245. Two sections were wrong:</p>
+<ul>
+<li><strong>Push path (<code>commitPush</code>)</strong> — framed as read-merge-write &quot;under the global</li>
+</ul>
+<p>  lock&quot;. Serve-handler pushes take the same path without holding the lock, so</p>
+<p>  the lock never serialized these writes: a writer with a stale view rewrote the</p>
+<p>  shard from its own entries and silently dropped everyone else&#39;s. Now documents</p>
+<p>  the compare-and-swap merge (etag/generation conditional PUT) that every v2</p>
+<p>  index write actually performs.</p>
+<ul>
+<li><strong>Shard cleanup</strong> — said an emptied shard is deleted from <code>_index/</code> and its key</li>
+</ul>
+<p>  removed from <code>_meta.json</code>. The shipped fix deliberately does the opposite: the</p>
+<p>  shard is left in place as an empty object, because S3-compatible stores ignore</p>
+<p>  <code>If-Match</code> on DELETE and a delete would race a concurrent add.</p>
+<p>The behaviour shipped in swamp-extensions#290; that PR called out the core-repo</p>
+<p>doc update as needing its own PR. Left as-is, the doc instructs the next</p>
+<p>datastore-extension author to rebuild the same data-loss bug.</p>
+<p>Docs only — one file, no code, config, or test changes.</p>
+<p>Closes swamp-club lab#2256</p>
+<h4 class="body-h">Test Plan</h4>
+<p>Local verification workflow on <code>e44d2cbf</code>, attestation</p>
+<p><code>e5e67ad1-38c9-4b36-bee1-a0baec077ba6</code>:</p>
+<ul>
+<li>Build: 9/9 passed (lint, fmt-check, type-check, 12174 tests, deps audit,</li>
+</ul>
+<p>  compile, binar</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.220430.0-sha.48473252" rel="noopener">release v20260917.220430.0-sha.48473252</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/48473252" rel="noopener">48473252</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2506" rel="noopener">#2506</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-220103-0-sha-111b8539">
-<h2><span class="tier A">A</span>reload extension registries after config poller syncs new extensions (swamp-club#2241) (#2505)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T22:02:42Z">2026-09-17T22:02:42Z</time></span><span>serve</span><span>fix</span></div>
+<h2><span class="tier C">C</span>swamp 20260917.220103.0-sha.111b8539</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T22:02:42Z">2026-09-17T22:02:42Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(serve): reload extension registries after config poller syncs new extensions (swamp-club#2241) (#2505)</li>
@@ -209,13 +527,13 @@ footer .ver{color:var(--acc)}
 <p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
 <p>---</p>
 <h4 class="body-h">Installat</h4></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/111b853966d8f4d776304980b23a3823620bfd48/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.220103.0-sha.111b8539" rel="noopener">release v20260917.220103.0-sha.111b8539</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/111b853966d8f4d776304980b23a3823620bfd48" rel="noopener">111b8539</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2505" rel="noopener">#2505</a></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.220103.0-sha.111b8539" rel="noopener">release v20260917.220103.0-sha.111b8539</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/111b8539" rel="noopener">111b8539</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2505" rel="noopener">#2505</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-213336-0-sha-d4d3bf38">
-<h2><span class="tier A">A</span>gate poller pulls against handler mutations (swamp-club#2247) (#2504)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T21:34:57Z">2026-09-17T21:34:57Z</time></span><span>serve</span><span>fix</span></div>
+<h2><span class="tier C">C</span>swamp 20260917.213336.0-sha.d4d3bf38</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T21:34:57Z">2026-09-17T21:34:57Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(serve): gate poller pulls against handler mutations (swamp-club#2247) (#2504)</li>
@@ -249,12 +567,12 @@ footer .ver{color:var(--acc)}
 <p>  merely slow pull never disables the fix.</p>
 <p>-</p></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.213336.0-sha.d4d3bf38" rel="noopener">release v20260917.213336.0-sha.d4d3bf38</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d4d3bf385aa8966f430608e118234c78af919bdc" rel="noopener">d4d3bf38</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2504" rel="noopener">#2504</a>𝗔 <a href="https://swamp-club.com/lab/2247" rel="noopener">lab#2247</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.213336.0-sha.d4d3bf38" rel="noopener">release v20260917.213336.0-sha.d4d3bf38</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d4d3bf38" rel="noopener">d4d3bf38</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2504" rel="noopener">#2504</a>𝗔 <a href="https://swamp-club.com/lab/2247" rel="noopener">lab#2247</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-193606-0-sha-6bf7f212">
-<h2><span class="tier A">A</span>correct drifted commands and the missing verify transition in issue-lifecycle (#2500)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T19:37:42Z">2026-09-17T19:37:42Z</time></span><span>skills</span><span>fix</span></div>
+<h2><span class="tier C">C</span>swamp 20260917.193606.0-sha.6bf7f212</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T19:37:42Z">2026-09-17T19:37:42Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(skills): correct drifted commands and the missing verify transition in issue-lifecycle (#2500)</li>
@@ -280,13 +598,13 @@ footer .ver{color:var(--acc)}
 <p>4. <strong><code>summarize</code> was shown bare</strong> in Phase 6 and the resume table. All three</p>
 <p>   inputs are required with no defaults</p>
 <p>   (`extensions/models/issue_lifecycle</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/6bf7f2121055ef7a0f04d70230df67c64fe07e11/.claude/skills/issue-lifecycle/SKILL.md" rel="noopener">.claude/skills/issue-lifecycle/SKILL.md</a></div>
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.193606.0-sha.6bf7f212" rel="noopener">release v20260917.193606.0-sha.6bf7f212</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6bf7f2121055ef7a0f04d70230df67c64fe07e11" rel="noopener">6bf7f212</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2500" rel="noopener">#2500</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2251" rel="noopener">#2251</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2498" rel="noopener">#2498</a></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.193606.0-sha.6bf7f212" rel="noopener">release v20260917.193606.0-sha.6bf7f212</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6bf7f212" rel="noopener">6bf7f212</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2500" rel="noopener">#2500</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2251" rel="noopener">#2251</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2498" rel="noopener">#2498</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-184258-0-sha-660627b8">
-<h2><span class="tier A">A</span>reap orphaned YAML workflow runs after rolling restarts (#2498)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T19:10:24Z">2026-09-17T19:10:24Z</time></span><span>serve</span><span>fix</span></div>
+<h2><span class="tier C">C</span>swamp 20260917.184258.0-sha.660627b8</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T19:10:24Z">2026-09-17T19:10:24Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(serve): reap orphaned YAML workflow runs after rolling restarts (#2498)</li>
@@ -323,13 +641,13 @@ footer .ver{color:var(--acc)}
 <li>[x] 3 new unit tests for <code>reconcileRemoteInterruptedRuns</code> YAML reconciliation</li>
 </ul>
 <p>  (stale instance YAML reaped, alive instance skipped, no repo → existing behavior)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/660627b8c55262af41b86440483b9d08ad961cbe/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></div>
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.184258.0-sha.660627b8" rel="noopener">release v20260917.184258.0-sha.660627b8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/660627b8c55262af41b86440483b9d08ad961cbe" rel="noopener">660627b8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2498" rel="noopener">#2498</a></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.184258.0-sha.660627b8" rel="noopener">release v20260917.184258.0-sha.660627b8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/660627b8" rel="noopener">660627b8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2498" rel="noopener">#2498</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-034341-0-sha-81c00b86">
-<h2><span class="tier A">A</span>add swamp invite group with recruit link (#2492)</h2>
-<p class="lede">`feat` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T03:45:24Z">2026-09-17T03:45:24Z</time></span><span>cli</span><span>feat</span></div>
+<h2><span class="tier C">C</span>swamp 20260917.034341.0-sha.81c00b86</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T03:45:24Z">2026-09-17T03:45:24Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>feat(cli): add swamp invite group with recruit link (#2492)</li>
@@ -351,12 +669,12 @@ footer .ver{color:var(--acc)}
 <p><strong><code>first-rule</code> is an easter egg.</strong> It&#39;s the same command under a second name, registered <code>.hidden()</code> — absent from help, shell completions and the <code>swamp help --json</code> schema, but reachable when typed. It&#39;s a hidden *sibling* rather than an alias because Cliffy prints aliases in the group listing (<code>link, first-rule</code>), and an easter egg listed in help isn&#39;t one. Both names come from one factory, so they can&#39;t drift.</p>
 <p><strong>Pure group, no positional.</strong> An earlier revision carried an optional <code>[email]</code> positional standing in for the</p></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.034341.0-sha.81c00b86" rel="noopener">release v20260917.034341.0-sha.81c00b86</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/81c00b86beb49cf9ee09d061e4d392f6ee75329b" rel="noopener">81c00b86</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2492" rel="noopener">#2492</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.034341.0-sha.81c00b86" rel="noopener">release v20260917.034341.0-sha.81c00b86</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/81c00b86" rel="noopener">81c00b86</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2492" rel="noopener">#2492</a>𝗔 <a href="https://swamp-club.com/lab/2179" rel="noopener">lab#2179</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-032111-0-sha-614bbc7e">
-<h2><span class="tier A">A</span>add the webhook fields to extension publish fixtures (#2491)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T03:22:42Z">2026-09-17T03:22:42Z</time></span><span>test</span><span>fix</span></div>
+<h2><span class="tier C">C</span>swamp 20260917.032111.0-sha.614bbc7e</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T03:22:42Z">2026-09-17T03:22:42Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(test): add the webhook fields to extension publish fixtures (#2491)</li>
@@ -382,12 +700,12 @@ footer .ver{color:var(--acc)}
 </ul>
 <p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.032111.0-sha.614bbc7e" rel="noopener">release v20260917.032111.0-sha.614bbc7e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/614bbc7e1d97a0a1cad60ac713a5d0edafcd691a" rel="noopener">614bbc7e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2491" rel="noopener">#2491</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.032111.0-sha.614bbc7e" rel="noopener">release v20260917.032111.0-sha.614bbc7e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/614bbc7e" rel="noopener">614bbc7e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2491" rel="noopener">#2491</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-005759-0-sha-d82fdabd">
-<h2><span class="tier A">A</span>wire DirectTypeResolver into server-side workflow resume (swamp-club#2121) (#2490)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T00:59:40Z">2026-09-17T00:59:40Z</time></span><span>serve</span><span>fix</span></div>
+<h2><span class="tier C">C</span>swamp 20260917.005759.0-sha.d82fdabd</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T00:59:40Z">2026-09-17T00:59:40Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(serve): wire DirectTypeResolver into server-side workflow resume (swamp-club#2121) (#2490)</li>
@@ -413,12 +731,12 @@ footer .ver{color:var(--acc)}
 <p><strong>macOS (Apple Silicon):</strong></p>
 <p>`</p></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.005759.0-sha.d82fdabd" rel="noopener">release v20260917.005759.0-sha.d82fdabd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d82fdabd08d07271f3e24fde260a82a6387b7496" rel="noopener">d82fdabd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2490" rel="noopener">#2490</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.005759.0-sha.d82fdabd" rel="noopener">release v20260917.005759.0-sha.d82fdabd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d82fdabd" rel="noopener">d82fdabd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2490" rel="noopener">#2490</a>𝗔 <a href="https://swamp-club.com/lab/2121" rel="noopener">lab#2121</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-004815-0-sha-48f62749">
-<h2><span class="tier A">A</span>collect license headers in Claude worktrees (#2489)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T00:49:54Z">2026-09-17T00:49:54Z</time></span><span>fix</span></div>
+<h2><span class="tier C">C</span>swamp 20260917.004815.0-sha.48f62749</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T00:49:54Z">2026-09-17T00:49:54Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix: collect license headers in Claude worktrees (#2489)</li>
@@ -456,12 +774,12 @@ footer .ver{color:var(--acc)}
 <p>```bash</p>
 <p>curl -L</p></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.004815.0-sha.48f62749" rel="noopener">release v20260917.004815.0-sha.48f62749</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/48f6274909cc79290eb1f79b92bfc51681af4993" rel="noopener">48f62749</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2489" rel="noopener">#2489</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.004815.0-sha.48f62749" rel="noopener">release v20260917.004815.0-sha.48f62749</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/48f62749" rel="noopener">48f62749</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2489" rel="noopener">#2489</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-004114-0-sha-4f546424">
-<h2><span class="tier A">A</span>diff the verified worktree, not the caller&#39;s checkout (#2482)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T00:42:54Z">2026-09-17T00:42:54Z</time></span><span>verification</span><span>fix</span></div>
+<h2><span class="tier C">C</span>swamp 20260917.004114.0-sha.4f546424</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T00:42:54Z">2026-09-17T00:42:54Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(verification): diff the verified worktree, not the caller&#39;s checkout (#2482)</li>
@@ -487,12 +805,12 @@ footer .ver{color:var(--acc)}
 <p>```</p>
 <h4 class="body-h">W</h4></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.004114.0-sha.4f546424" rel="noopener">release v20260917.004114.0-sha.4f546424</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4f546424cdff5b7a84fcdda2ca16c723f26f4986" rel="noopener">4f546424</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2482" rel="noopener">#2482</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.004114.0-sha.4f546424" rel="noopener">release v20260917.004114.0-sha.4f546424</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4f546424" rel="noopener">4f546424</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2482" rel="noopener">#2482</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260917-002611-0-sha-55393f8c">
-<h2><span class="tier A">A</span>add webhook verifier extension kind (swamp-club#2204) (#2488)</h2>
-<p class="lede">`feat` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T00:27:36Z">2026-09-17T00:27:36Z</time></span><span>extensions</span><span>feat</span></div>
+<article class="item" id="release-swamp-club-swamp-v20260917-002611-0-sha-55393f8c">
+<h2><span class="tier C">C</span>swamp 20260917.002611.0-sha.55393f8c</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T00:27:36Z">2026-09-17T00:27:36Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>feat(extensions): add webhook verifier extension kind (swamp-club#2204) (#2488)</li>
@@ -509,13 +827,57 @@ footer .ver{color:var(--acc)}
 <li><strong>Fixes found in review:</strong> typed <code>export const webhook: T</code> metadata extraction, no-op reconcile marks all kinds populated, pulled names containing a kind segment (<code>@org/webhooks</code>) no longer pruned as orphans.</li>
 </ul>
 <p>Not included: <code>extension search --content-type webhooks</code> (needs swamp-club server support), and the <code>@swamp/telegram</code> extension (follo</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/SKILL.md" rel="noopener">.claude/skills/swamp/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/references/extension/guide.md" rel="noopener">.claude/skills/swamp/references/extension/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/references/extension/reference.md" rel="noopener">.claude/skills/swamp/references/extension/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/references/extension/references/webhook/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/webhook/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/AGENTS.md" rel="noopener">AGENTS.md</a>, <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.002611.0-sha.55393f8c" rel="noopener">release v20260917.002611.0-sha.55393f8c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/55393f8c9b6de3d2d00718cd8eb2654e6048eb39" rel="noopener">55393f8c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2488" rel="noopener">#2488</a></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.002611.0-sha.55393f8c" rel="noopener">release v20260917.002611.0-sha.55393f8c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/55393f8c" rel="noopener">55393f8c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2488" rel="noopener">#2488</a>𝗔 <a href="https://swamp-club.com/lab/2204" rel="noopener">lab#2204</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260917-001849-0-sha-1288f64b">
+<h2><span class="tier C">C</span>swamp 20260917.001849.0-sha.1288f64b</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T00:20:25Z">2026-09-17T00:20:25Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(ci): pin validate-attestation checkout to PR head commit (swamp-club#2211) (#2487)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>Pin the <code>validate-attestation</code> CI job&#39;s checkout to <code>github.event.pull_request.head.sha</code> instead of the default merge ref</li>
+<li>Fixes spurious config-integrity checksum mismatches when the base branch moves and touches a hashed file between attesting and CI running</li>
+<li>The attestation records hashes at the PR HEAD commit, so the checkout must match</li>
+</ul>
+<p>Closes swamp-club#2211</p>
+<p>Co-authored-by: skunk-ape &lt;skunk-ape@users.noreply.github.com&gt;</p>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] Verified the <code>ref:</code> addition lands only in the <code>validate-attestation</code> job checkout</li>
+<li>[x] All verification workflows passed (13/13 steps, 0 skipped)</li>
+<li>[x] Code review: pass (no findings)</li>
+<li>[x] Adversarial review: pass (no findings)</li>
+<li>[x] CI security review: pass (no findings)</li>
+<li>[x] Attestation posted to swamp-club</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260917.001849.0-sha.1288f64b/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260917.001849.0-sha.1288f64b/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260917.001849.0-sha.1288f64b/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260917.001849.0-sha.1288f64b/swamp-darwin-x86_64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>Linux (x86_64):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260917.0018" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260917.0018</a></p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.001849.0-sha.1288f64b" rel="noopener">release v20260917.001849.0-sha.1288f64b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1288f64b" rel="noopener">1288f64b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2487" rel="noopener">#2487</a>𝗔 <a href="https://swamp-club.com/lab/2211" rel="noopener">lab#2211</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-001502-0-sha-0c09d987">
-<h2><span class="tier A">A</span>use clock-based expiry in mint guard (#2486)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T00:16:46Z">2026-09-17T00:16:46Z</time></span><span>tokens</span><span>fix</span></div>
+<h2><span class="tier C">C</span>swamp 20260917.001502.0-sha.0c09d987</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-17T00:16:46Z">2026-09-17T00:16:46Z</time></span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(tokens): use clock-based expiry in mint guard (#2486)</li>
@@ -555,116 +917,7 @@ footer .ver{color:var(--acc)}
 <p>```bash</p>
 <p>curl -L ht</p></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.001502.0-sha.0c09d987" rel="noopener">release v20260917.001502.0-sha.0c09d987</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0c09d9875c4639d836f77be196e959ad88dbc90d" rel="noopener">0c09d987</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2486" rel="noopener">#2486</a></div>
-</article></section>
-<section class="tail"><h2>Tooling</h2><article class="item" id="release-swamp-club-swamp-v20260917-001849-0-sha-1288f64b">
-<h2><span class="tier A">A</span>pin validate-attestation checkout to PR head commit (swamp-club#2211) (#2487)</h2>
-<p class="lede">`fix` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T00:20:25Z">2026-09-17T00:20:25Z</time></span><span>ci</span><span>fix</span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(ci): pin validate-attestation checkout to PR head commit (swamp-club#2211) (#2487)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<ul>
-<li>Pin the <code>validate-attestation</code> CI job&#39;s checkout to <code>github.event.pull_request.head.sha</code> instead of the default merge ref</li>
-<li>Fixes spurious config-integrity checksum mismatches when the base branch moves and touches a hashed file between attesting and CI running</li>
-<li>The attestation records hashes at the PR HEAD commit, so the checkout must match</li>
-</ul>
-<p>Closes swamp-club#2211</p>
-<p>Co-authored-by: skunk-ape &lt;skunk-ape@users.noreply.github.com&gt;</p>
-<h4 class="body-h">Test plan</h4>
-<ul>
-<li>[x] Verified the <code>ref:</code> addition lands only in the <code>validate-attestation</code> job checkout</li>
-<li>[x] All verification workflows passed (13/13 steps, 0 skipped)</li>
-<li>[x] Code review: pass (no findings)</li>
-<li>[x] Adversarial review: pass (no findings)</li>
-<li>[x] CI security review: pass (no findings)</li>
-<li>[x] Attestation posted to swamp-club</li>
-</ul>
-<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
-<p>---</p>
-<h4 class="body-h">Installation</h4>
-<p><strong>macOS (Apple Silicon):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260917.001849.0-sha.1288f64b/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260917.001849.0-sha.1288f64b/swamp-darwin-aarch64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>macOS (Intel):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260917.001849.0-sha.1288f64b/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260917.001849.0-sha.1288f64b/swamp-darwin-x86_64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>Linux (x86_64):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260917.0018" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260917.0018</a></p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.001849.0-sha.1288f64b" rel="noopener">release v20260917.001849.0-sha.1288f64b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1288f64bd562db22e91a3410ef0e67f23b3f6654" rel="noopener">1288f64b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2487" rel="noopener">#2487</a></div>
-</article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260917-232152-0-sha-4430c4b1">
-<h2><span class="tier C">C</span>document how to verify TTY-only behaviour with a pty (#2508)</h2>
-<p class="lede">`docs` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T23:23:31Z">2026-09-17T23:23:31Z</time></span><span>verification</span><span>docs</span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>docs(verification): document how to verify TTY-only behaviour with a pty (#2508)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Verifying swamp-club#2254 turned on a code path an agent shell cannot reach. <code>prettyOutput</code> is <code>!noColor &amp;&amp; isStdinTty()</code>, so a TTY session uses the pretty sink and a scripted run uses the plain console sink — and the bug lived in the path a script never touches. The plan for that issue recorded the case as &quot;needs a human at a terminal,&quot; which is the kind of note that makes a whole class of bugs look unverifiable.</p>
-<p>It isn&#39;t. <code>script</code> supplies a real pty on stdin while stdout and stderr still redirect where you point them, so the interactive path is testable in the same automated run and the two streams stay separable.</p>
-<p>Adds a &quot;Verifying TTY-Only Behaviour&quot; section to <code>agent-constraints/verification-conventions.md</code> covering:</p>
-<ul>
-<li>why the path exists, with <code>initializeLogging</code> as the live example</li>
-<li>the <code>script</code> invocation, and <code>cat -A</code> so a stray blank line is visible</li>
-<li>asserting <code>tty</code> inside the subshell, so a harness that silently drops the pty can&#39;t make the check pass vacuously</li>
-<li>running the same harness against the <strong>released</strong> binary as well as the built one — two runs differing only in the binary are what separate a real fix from a test that was always going to pass</li>
-<li>the other things this covers: prompts from <code>prompt_helpers.ts</code>, Ink components, anything branching on <code>Deno.stdout.isTerminal()</code></li>
-</ul>
-<p>Closes swamp-club#2266.</p>
-<h4 class="body-h">Test Plan</h4>
-<p>Docs only — no source chang</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/4430c4b1352a94569f6381ea526a42e07d5369e2/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.232152.0-sha.4430c4b1" rel="noopener">release v20260917.232152.0-sha.4430c4b1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4430c4b1352a94569f6381ea526a42e07d5369e2" rel="noopener">4430c4b1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2508" rel="noopener">#2508</a>𝗔 <a href="https://swamp-club.com/lab/2254" rel="noopener">lab#2254</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260917-220430-0-sha-48473252">
-<h2><span class="tier C">C</span>correct shard index push path and cleanup semantics (#2506)</h2>
-<p class="lede">`docs` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-17T22:05:54Z">2026-09-17T22:05:54Z</time></span><span>datastores</span><span>docs</span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>docs(datastores): correct shard index push path and cleanup semantics (#2506)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>design/enablers/datastores.md</code> still documented the pre-fix shard-first index</p>
-<p>behaviour that caused swamp-club lab#2245. Two sections were wrong:</p>
-<ul>
-<li><strong>Push path (<code>commitPush</code>)</strong> — framed as read-merge-write &quot;under the global</li>
-</ul>
-<p>  lock&quot;. Serve-handler pushes take the same path without holding the lock, so</p>
-<p>  the lock never serialized these writes: a writer with a stale view rewrote the</p>
-<p>  shard from its own entries and silently dropped everyone else&#39;s. Now documents</p>
-<p>  the compare-and-swap merge (etag/generation conditional PUT) that every v2</p>
-<p>  index write actually performs.</p>
-<ul>
-<li><strong>Shard cleanup</strong> — said an emptied shard is deleted from <code>_index/</code> and its key</li>
-</ul>
-<p>  removed from <code>_meta.json</code>. The shipped fix deliberately does the opposite: the</p>
-<p>  shard is left in place as an empty object, because S3-compatible stores ignore</p>
-<p>  <code>If-Match</code> on DELETE and a delete would race a concurrent add.</p>
-<p>The behaviour shipped in swamp-extensions#290; that PR called out the core-repo</p>
-<p>doc update as needing its own PR. Left as-is, the doc instructs the next</p>
-<p>datastore-extension author to rebuild the same data-loss bug.</p>
-<p>Docs only — one file, no code, config, or test changes.</p>
-<p>Closes swamp-club lab#2256</p>
-<h4 class="body-h">Test Plan</h4>
-<p>Local verification workflow on <code>e44d2cbf</code>, attestation</p>
-<p><code>e5e67ad1-38c9-4b36-bee1-a0baec077ba6</code>:</p>
-<ul>
-<li>Build: 9/9 passed (lint, fmt-check, type-check, 12174 tests, deps audit,</li>
-</ul>
-<p>  compile, binar</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/48473252687cc0a7511400f42f6c0e7b246e454d/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.220430.0-sha.48473252" rel="noopener">release v20260917.220430.0-sha.48473252</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/48473252687cc0a7511400f42f6c0e7b246e454d" rel="noopener">48473252</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2506" rel="noopener">#2506</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.001502.0-sha.0c09d987" rel="noopener">release v20260917.001502.0-sha.0c09d987</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0c09d987" rel="noopener">0c09d987</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2486" rel="noopener">#2486</a>𝗔 <a href="https://swamp-club.com/lab/2191" rel="noopener">lab#2191</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260916-235537-0-sha-71971475">
 <h2><span class="tier C">C</span>swamp 20260916.235537.0-sha.71971475</h2>
@@ -5792,13 +6045,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260901.001730.0-sha.8e14ae13" rel="noopener">release v20260901.001730.0-sha.8e14ae13</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8e14ae13" rel="noopener">8e14ae13</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2329" rel="noopener">#2329</a>𝗔 <a href="https://swamp-club.com/lab/1915" rel="noopener">lab#1915</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>154 items across 1 source(s) in this window:
-0 critical, 15 notable, 0 routine,
-139 minor.</p>
-<ul><li><strong>changes</strong> — 137</li><li><strong>fix</strong> — 13</li><li><strong>feat</strong> — 2</li><li><strong>docs</strong> — 2</li></ul></section>
+<p>162 items across 1 source(s) in this window:
+0 critical, 0 notable, 0 routine,
+162 minor.</p>
+<ul><li><strong>changes</strong> — 162</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.10</span> · last run <time datetime="2026-09-18T07:38:56.364Z">2026-09-18T07:38:56.364Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-18T23:53:07.278Z">2026-09-18T23:53:07.278Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

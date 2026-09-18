@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Extensions — Swamp Pulse</title>
+<style>
+:root{--bg:#0b0f0c;--panel:#111813;--ink:#d7f5dd;--dim:#7fa88a;--acc:#39ff14;--amber:#ffb000;--mag:#ff4dd2;--line:#1d2a20}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "JetBrains Mono",ui-monospace,monospace}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+header.top{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+header.top h1{margin:0;font-size:20px;letter-spacing:.06em}
+nav.pages{display:flex;gap:14px;flex-wrap:wrap}
+nav.pages a{color:var(--dim)}nav.pages a.active{color:var(--acc)}
+.tabs{display:flex;gap:8px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px}
+.tab.active{border-color:var(--acc);color:var(--acc)}
+main{padding:20px 22px 60px;max-width:1180px}
+.layout{display:grid;grid-template-columns:250px 1fr;gap:26px}
+@media(max-width:860px){.layout{grid-template-columns:1fr}.toc{display:none}}
+.toc{position:sticky;top:12px;align-self:start;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:12px;max-height:80vh;overflow:auto}
+.toc h3{margin:0 0 8px;font-size:12px;color:var(--dim);letter-spacing:.1em}
+.toc a{display:block;color:var(--dim);padding:2px 0}
+.tier{display:inline-block;min-width:22px;text-align:center;border-radius:4px;padding:1px 6px;font-weight:700;font-size:12px;margin-right:8px}
+.tier.S{background:#3a0d0d;color:#ff6b6b}.tier.A{background:#3a2c0d;color:var(--amber)}.tier.B{background:#12301a;color:var(--acc)}.tier.C{background:#182028;color:var(--dim)}
+.item{border:1px solid var(--line);border-radius:10px;padding:16px;margin:0 0 14px;background:var(--panel)}
+.item h2{margin:0 0 6px;font-size:16px;line-height:1.35}
+.lede{color:var(--ink);margin:4px 0 10px}
+.meta{color:var(--dim);font-size:12.5px;display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+pre{background:#0a0d0b;border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;font-size:13px}
+.body-h{margin:10px 0 4px;font-size:13px;color:var(--dim)}
+.item ul{margin:6px 0 6px 18px;padding:0}.item li{margin:2px 0}
+.refs{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--dim);margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+.docs{margin-top:10px;font-size:13px}
+.docs a{display:inline-block;margin:2px 10px 2px 0}
+table.board{width:100%;border-collapse:collapse;font-size:14px}
+table.board th,table.board td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left}
+table.board th{color:var(--dim);font-size:12px;letter-spacing:.08em}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+.card{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--panel)}
+.card .n{font-size:26px;color:var(--acc);font-weight:700}.card .l{color:var(--dim);font-size:12px;letter-spacing:.08em}
+.tail{margin-top:26px}.tail h2{font-size:15px;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:6px}
+.empty{color:var(--dim);font-style:italic}
+.page-title{margin:0 0 14px;font-size:18px;letter-spacing:.06em}
+.dim{color:var(--dim)}
+.doc-item .meta a{color:var(--acc)}
+.ext-badge{display:inline-block;margin-right:8px;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700;vertical-align:middle}
+.ext-badge.new{background:#12301a;color:var(--acc)}
+.ext-badge.upd{background:#3a2c0d;color:var(--amber)}
+.ext-badge.sig{background:#2a1030;color:var(--mag)}
+.grade{font-weight:700}
+.grade.g-A{color:var(--acc)}.grade.g-B{color:var(--amber)}.grade.g-C{color:var(--mag)}
+.ext-labels{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+.ext-label{border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:11.5px;color:var(--dim)}
+details.more{margin:14px 0}
+details.more summary{cursor:pointer;color:var(--acc);padding:10px;border:1px dashed var(--line);border-radius:8px}
+.doc-changes{list-style:none;margin:8px 0 0;padding:0}
+.doc-change{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:5px 0;border-top:1px dashed var(--line)}
+.doc-date{color:var(--dim);font-size:12.5px;min-width:150px}
+.doc-title{flex:1;min-width:220px}
+.doc-change .refs{margin:0;border:0;padding:0}
+footer{color:var(--dim);font-size:12px;padding:0 22px 40px;max-width:1180px}
+footer .ver{color:var(--acc)}
+.credit{color:var(--dim);font-size:12px;margin-top:4px}
+</style>
+</head><body>
+<header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html" class="active">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html">Issues</a></nav></header>
+<main>
+<h2 class="page-title">Extension registry — every new and changed extension, linked to its source repo</h2>
+<div class="cards">
+<div class="card"><div class="n">0</div><div class="l">NEW</div></div>
+<div class="card"><div class="n">0</div><div class="l">UPDATED</div></div>
+<div class="card"><div class="n">1612</div><div class="l">IN REGISTRY</div></div>
+<div class="card"><div class="n">17</div><div class="l">PAGES READ</div></div>
+</div>
+<section class="tail"><h2>New extensions <span class="dim">· 0</span></h2><p class="dim">First published in this window.</p><p class="empty">None.</p></section>
+<section class="tail"><h2>Updated extensions <span class="dim">· 0</span></h2><p class="dim">A new version published in this window.</p><p class="empty">None.</p></section>
+<section class="tail"><h2>Most pulled <span class="dim">· 25</span></h2><p class="dim">All-time pull counts, regardless of the window.</p><article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/s3-datastore" rel="noopener">@swamp/s3-datastore</a></h2>
+<p class="lede">Store data in an Amazon S3 bucket with local cache synchronization.</p>
+<div class="meta"><span>stack72</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>114,810 pulls</span><span><a href="https://github.com/systeminit/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T18:06:49.543Z">2026-09-17T18:06:49.543Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">datastore</span><span class="ext-label">aws</span><span class="ext-label">s3</span><span class="ext-label">storage</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@stack72/system-extensions" rel="noopener">@stack72/system-extensions</a></h2>
+<p class="lede">Few system extensions for system and disk usage</p>
+<div class="meta"><span>stack72</span><span><span>v2026.03.03.1</span></span><span>90,276 pulls</span><span><span class="dim">no repository</span></span><span>updated <time datetime="2026-03-03T03:19:21.526Z">2026-03-03T03:19:21.526Z</time></span></div>
+
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@webframp/system" rel="noopener">@webframp/system</a></h2>
+<p class="lede">Query local system diagnostics via shell commands for operational visibility.</p>
+<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>60,351 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:44.410Z">2026-09-15T18:02:44.410Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">diagnostics</span><span class="ext-label">linux</span><span class="ext-label">observability</span><span class="ext-label">ops</span><span class="ext-label">system</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@webframp/network" rel="noopener">@webframp/network</a></h2>
+<p class="lede">DNS and network probing model that generates diverse diagnostic events.</p>
+<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>58,837 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:18.572Z">2026-09-15T18:02:18.572Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">certificate</span><span class="ext-label">diagnostics</span><span class="ext-label">dns</span><span class="ext-label">http</span><span class="ext-label">network</span><span class="ext-label">networking</span><span class="ext-label">observability</span><span class="ext-label">ops</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@keeb/ssh" rel="noopener">@keeb/ssh</a></h2>
+<p class="lede">General-purpose SSH operations — exec, upload, wait for connection (https://github.com/keeb/swamp-ssh)</p>
+<div class="meta"><span>keeb</span><span><span>v2026.07.18.1</span></span><span class="grade g-A">A</span><span>51,246 pulls</span><span><a href="https://github.com/keeb/swamp-ssh" rel="noopener">github.com</a></span><span>updated <time datetime="2026-07-18T07:08:50.714Z">2026-07-18T07:08:50.714Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">ssh</span><span class="ext-label">networking</span><span class="ext-label">remote-access</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/software-factory" rel="noopener">@swamp/software-factory</a></h2>
+<p class="lede">A fully generic, model-driven state machine for guiding agents through a</p>
+<div class="meta"><span>stack72</span><span><span>v2026.06.24.1</span></span><span class="grade g-A">A</span><span>50,915 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-06-24T21:05:30.354Z">2026-06-24T21:05:30.354Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">software-factory</span><span class="ext-label">sdlc</span><span class="ext-label">state-machine</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@hivemq/linear" rel="noopener">@hivemq/linear</a></h2>
+<p class="lede"></p>
+<div class="meta"><span>bixu</span><span><span>v2026.03.30.14</span></span><span class="grade g-F">F</span><span>49,285 pulls</span><span><span class="dim">no repository</span></span><span>updated <time datetime="2026-03-30T19:13:14.308Z">2026-03-30T19:13:14.308Z</time></span></div>
+
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@bixu/launchd" rel="noopener">@bixu/launchd</a></h2>
+<p class="lede">Manage macOS launchd daemons: lifecycle, observability, plist management, discovery, and reporting</p>
+<div class="meta"><span>bixu</span><span><span>v2026.04.24.36</span></span><span>47,901 pulls</span><span><a href="https://github.com/bixu/swamp-launchd" rel="noopener">github.com</a></span><span>updated <time datetime="2026-04-24T07:44:58.545Z">2026-04-24T07:44:58.545Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">macos</span><span class="ext-label">launchd</span><span class="ext-label">daemon</span><span class="ext-label">plist</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/gcs-datastore" rel="noopener">@swamp/gcs-datastore</a></h2>
+<p class="lede">Store data in a Google Cloud Storage bucket with local cache synchronization.</p>
+<div class="meta"><span>stack72</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>46,695 pulls</span><span><a href="https://github.com/systeminit/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T18:06:38.942Z">2026-09-17T18:06:38.942Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">datastore</span><span class="ext-label">gcp</span><span class="ext-label">gcs</span><span class="ext-label">storage</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/1password" rel="noopener">@swamp/1password</a></h2>
+<p class="lede">Read, write, delete, and annotate secrets stored in 1Password using the `op` CLI.</p>
+<div class="meta"><span>stack72</span><span><span>v2026.09.10.0</span></span><span class="grade g-A">A</span><span>45,025 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-10T14:08:20.775Z">2026-09-10T14:08:20.775Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">vault</span><span class="ext-label">1password</span><span class="ext-label">secrets</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@webframp/dynamodb-datastore" rel="noopener">@webframp/dynamodb-datastore</a></h2>
+<p class="lede">Stores swamp runtime data in AWS DynamoDB with conditional-write distributed locking (fencing tokens + TTL-as-defense-in-depth) and chunked blob storage for items exceeding DynamoDB&#39;s 400KB size limit. Emits OpenTelemetry spans for DynamoDB</p>
+<div class="meta"><span>webframp</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>33,469 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T18:56:37.632Z">2026-09-17T18:56:37.632Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">aws</span><span class="ext-label">datastore</span><span class="ext-label">dynamodb</span><span class="ext-label">nosql</span><span class="ext-label">observability</span><span class="ext-label">opentelemetry</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@stack72/letsencrypt-certificate" rel="noopener">@stack72/letsencrypt-certificate</a></h2>
+<p class="lede">A model to manage the lifecycle of a LetsEncrypt certificate</p>
+<div class="meta"><span>stack72</span><span><span>v2026.03.04.1</span></span><span>21,199 pulls</span><span><a href="https://github.com/stack72/swamp-letsencrypt" rel="noopener">github.com</a></span><span>updated <time datetime="2026-03-05T00:14:55.062Z">2026-03-05T00:14:55.062Z</time></span></div>
+
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@hivemq/honeycomb" rel="noopener">@hivemq/honeycomb</a></h2>
+<p class="lede">Manage Honeycomb resources via the v1 Configuration API: @hivemq/honeycomb covers SLOs, SLI derived columns, burn alerts, queries, query annotations, and triggers; @hivemq/honeycomb/datasets covers dataset discovery and cleanup</p>
+<div class="meta"><span>bixu</span><span><span>v2026.09.15.1789456481</span></span><span class="grade g-B">B</span><span>12,972 pulls</span><span><a href="https://github.com/hivemq/swamp" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T07:14:42.869Z">2026-09-15T07:14:42.869Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">honeycomb</span><span class="ext-label">observability</span><span class="ext-label">slo</span><span class="ext-label">alerting</span><span class="ext-label">triggers</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@hivemq/1password/item" rel="noopener">@hivemq/1password/item</a></h2>
+<p class="lede">Declarative controller for a single 1Password SSH key item. Audits existence and fingerprint, upserts via op CLI with stdin-based secret delivery.</p>
+<div class="meta"><span>@hivemq</span><span><span>v2026.09.11.1789122868</span></span><span>10,554 pulls</span><span><a href="https://github.com/hivemq/swamp" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-11T10:34:30.202Z">2026-09-11T10:34:30.202Z</time></span></div>
+
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/hetzner-cloud" rel="noopener">@swamp/hetzner-cloud</a></h2>
+<p class="lede">Hetzner Cloud infrastructure models</p>
+<div class="meta"><span>stack72</span><span><span>v2026.09.09.1</span></span><span class="grade g-A">A</span><span>10,018 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-09T11:31:04.782Z">2026-09-09T11:31:04.782Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">hetzner</span><span class="ext-label">cloud</span><span class="ext-label">infrastructure</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@keeb/tailscale" rel="noopener">@keeb/tailscale</a></h2>
+<p class="lede">Install Tailscale on remote VMs over SSH and sync tailnet machine inventory from tailscale status JSON into per-machine resources.</p>
+<div class="meta"><span>keeb</span><span><span>v2026.07.18.1</span></span><span class="grade g-A">A</span><span>6,600 pulls</span><span><a href="https://github.com/keeb/swamp-tailscale" rel="noopener">github.com</a></span><span>updated <time datetime="2026-07-18T07:08:50.704Z">2026-07-18T07:08:50.704Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">tailscale</span><span class="ext-label">networking</span><span class="ext-label">vpn</span><span class="ext-label">security</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/aws/iam" rel="noopener">@swamp/aws/iam</a></h2>
+<p class="lede">AWS IAM infrastructure models</p>
+<div class="meta"><span>stack72</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>6,254 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T15:21:18.989Z">2026-09-17T15:21:18.989Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">aws</span><span class="ext-label">iam</span><span class="ext-label">cloud</span><span class="ext-label">infrastructure</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/aws/ec2" rel="noopener">@swamp/aws/ec2</a></h2>
+<p class="lede">AWS EC2 infrastructure models</p>
+<div class="meta"><span>stack72</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>3,831 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T15:45:49.873Z">2026-09-17T15:45:49.873Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">aws</span><span class="ext-label">ec2</span><span class="ext-label">cloud</span><span class="ext-label">infrastructure</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@evrardjp/openbao-configurator" rel="noopener">@evrardjp/openbao-configurator</a></h2>
+<p class="lede">OpenBao configuration rendering and API lifecycle control: render HCL, status, initialize, unseal, and seal. File deployment and service management are handled by cfgmgmt extensions.</p>
+<div class="meta"><span>evrardjp</span><span><span>v2026.07.17.1</span></span><span class="grade g-A">A</span><span>2,837 pulls</span><span><a href="https://github.com/evrardjp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-07-17T20:44:45.918Z">2026-07-17T20:44:45.918Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">openbao</span><span class="ext-label">vault</span><span class="ext-label">secrets</span><span class="ext-label">lifecycle</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/gcs-datastore-bootstrap" rel="noopener">@swamp/gcs-datastore-bootstrap</a></h2>
+<p class="lede">One-shot bootstrap for @swamp/gcs-datastore. Ships a single provisioner</p>
+<div class="meta"><span>stack72</span><span><span>v2026.06.04.2</span></span><span class="grade g-A">A</span><span>2,753 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-06-04T19:33:39.559Z">2026-06-04T19:33:39.559Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">datastore</span><span class="ext-label">bootstrap</span><span class="ext-label">gcp</span><span class="ext-label">gcs</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/aws/eks" rel="noopener">@swamp/aws/eks</a></h2>
+<p class="lede">AWS EKS infrastructure models</p>
+<div class="meta"><span>stack72</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1,536 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T15:46:54.968Z">2026-09-17T15:46:54.968Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">aws</span><span class="ext-label">eks</span><span class="ext-label">cloud</span><span class="ext-label">infrastructure</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/issue-lifecycle" rel="noopener">@swamp/issue-lifecycle</a></h2>
+<p class="lede">Interactive triage and implementation planning for swamp-club lab issues.</p>
+<div class="meta"><span>stack72</span><span><span>v2026.08.16.1</span></span><span>1,324 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-08-16T21:14:48.492Z">2026-08-16T21:14:48.492Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">issue-lifecycle</span><span class="ext-label">sdlc</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/kubernetes" rel="noopener">@swamp/kubernetes</a></h2>
+<p class="lede">Kubernetes operational toolkit — 16 model types covering pods, deployments, statefulsets, services, RBAC, storage, networking, autoscaling, batch jobs, and more. Includes 14 ready-to-run workflows for namespace debugging, security audits, R</p>
+<div class="meta"><span>stack72</span><span><span>v2026.09.03.1</span></span><span class="grade g-A">A</span><span>1,125 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-03T23:58:36.001Z">2026-09-03T23:58:36.001Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">kubernetes</span><span class="ext-label">k8s</span><span class="ext-label">cluster</span><span class="ext-label">pods</span><span class="ext-label">deployments</span><span class="ext-label">statefulsets</span><span class="ext-label">services</span><span class="ext-label">rbac</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/aws/s3" rel="noopener">@swamp/aws/s3</a></h2>
+<p class="lede">AWS S3 infrastructure models</p>
+<div class="meta"><span>stack72</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1,106 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T15:30:17.701Z">2026-09-17T15:30:17.701Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">aws</span><span class="ext-label">s3</span><span class="ext-label">cloud</span><span class="ext-label">infrastructure</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@webframp/cloudflare" rel="noopener">@webframp/cloudflare</a></h2>
+<p class="lede">Cloudflare management - zones, DNS records, WAF/firewall rules, Workers, and cache/CDN</p>
+<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>1,040 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:49.430Z">2026-09-15T18:02:49.430Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">cache</span><span class="ext-label">cdn</span><span class="ext-label">cloudflare</span><span class="ext-label">dns</span><span class="ext-label">edge</span><span class="ext-label">firewall</span><span class="ext-label">networking</span><span class="ext-label">security</span></div>
+</article></section>
+</main>
+<footer>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.8</span> · last run <time datetime="2026-09-18T06:04:15.602Z">2026-09-18T06:04:15.602Z</time></div>
+  <div>Detail pages follow the interactive release-notes tour format popularised by the
+  <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
+  and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>
+</footer>
+<script>
+(function () {
+  var MINUTE = 60 * 1000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
+
+  // "just now", "15 mins ago", "1 hour ago", "4 hours ago".
+  function relative(ms) {
+    if (ms < MINUTE) return "just now";
+    if (ms < HOUR) {
+      var mins = Math.round(ms / MINUTE);
+      return mins + (mins === 1 ? " min ago" : " mins ago");
+    }
+    var hours = Math.round(ms / HOUR);
+    return hours + (hours === 1 ? " hour ago" : " hours ago");
+  }
+
+  function absolute(d, dateOnly) {
+    var opts = dateOnly
+      ? { year: "numeric", month: "short", day: "numeric" }
+      : {
+        year: "numeric", month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      };
+    return d.toLocaleString(undefined, opts);
+  }
+
+  function localize(root) {
+    var nodes = (root || document).querySelectorAll("time[datetime]");
+    var now = Date.now();
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var d = new Date(el.getAttribute("datetime"));
+      if (isNaN(d.getTime())) continue;
+      var dateOnly = el.getAttribute("data-time-format") === "date";
+      var age = now - d.getTime();
+      // Within the last 24 hours (and not in the future), prefer relative
+      // wording; older values keep an absolute, localized date. A date-only
+      // field stays a date — "15 mins ago" reads oddly in a date column.
+      var text = (!dateOnly && age >= 0 && age < DAY)
+        ? relative(age)
+        : absolute(d, dateOnly);
+      if (el.textContent !== text) el.textContent = text;
+      // Keep the exact value discoverable on hover, in local time.
+      el.title = d.toLocaleString();
+      el.setAttribute("data-localized", "1");
+    }
+  }
+
+  localize(document);
+  window.addEventListener("pageshow", function () { localize(document); });
+  // Refresh relative wording as time passes, so a page left open stays honest.
+  setInterval(function () { localize(document); }, 60000);
+})();
+</script>
+</body></html>

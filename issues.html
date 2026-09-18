@@ -1,0 +1,2269 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab issues — Swamp Pulse</title>
+<style>
+:root{--bg:#0b0f0c;--panel:#111813;--ink:#d7f5dd;--dim:#7fa88a;--acc:#39ff14;--amber:#ffb000;--mag:#ff4dd2;--line:#1d2a20}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "JetBrains Mono",ui-monospace,monospace}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+header.top{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+header.top h1{margin:0;font-size:20px;letter-spacing:.06em}
+nav.pages{display:flex;gap:14px;flex-wrap:wrap}
+nav.pages a{color:var(--dim)}nav.pages a.active{color:var(--acc)}
+.tabs{display:flex;gap:8px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px}
+.tab.active{border-color:var(--acc);color:var(--acc)}
+main{padding:20px 22px 60px;max-width:1180px}
+.layout{display:grid;grid-template-columns:250px 1fr;gap:26px}
+@media(max-width:860px){.layout{grid-template-columns:1fr}.toc{display:none}}
+.toc{position:sticky;top:12px;align-self:start;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:12px;max-height:80vh;overflow:auto}
+.toc h3{margin:0 0 8px;font-size:12px;color:var(--dim);letter-spacing:.1em}
+.toc a{display:block;color:var(--dim);padding:2px 0}
+.tier{display:inline-block;min-width:22px;text-align:center;border-radius:4px;padding:1px 6px;font-weight:700;font-size:12px;margin-right:8px}
+.tier.S{background:#3a0d0d;color:#ff6b6b}.tier.A{background:#3a2c0d;color:var(--amber)}.tier.B{background:#12301a;color:var(--acc)}.tier.C{background:#182028;color:var(--dim)}
+.item{border:1px solid var(--line);border-radius:10px;padding:16px;margin:0 0 14px;background:var(--panel)}
+.item h2{margin:0 0 6px;font-size:16px;line-height:1.35}
+.lede{color:var(--ink);margin:4px 0 10px}
+.meta{color:var(--dim);font-size:12.5px;display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+pre{background:#0a0d0b;border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;font-size:13px}
+.body-h{margin:10px 0 4px;font-size:13px;color:var(--dim)}
+.item ul{margin:6px 0 6px 18px;padding:0}.item li{margin:2px 0}
+.refs{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--dim);margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+.docs{margin-top:10px;font-size:13px}
+.docs a{display:inline-block;margin:2px 10px 2px 0}
+table.board{width:100%;border-collapse:collapse;font-size:14px}
+table.board th,table.board td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left}
+table.board th{color:var(--dim);font-size:12px;letter-spacing:.08em}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+.card{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--panel)}
+.card .n{font-size:26px;color:var(--acc);font-weight:700}.card .l{color:var(--dim);font-size:12px;letter-spacing:.08em}
+.tail{margin-top:26px}.tail h2{font-size:15px;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:6px}
+.empty{color:var(--dim);font-style:italic}
+.page-title{margin:0 0 14px;font-size:18px;letter-spacing:.06em}
+.dim{color:var(--dim)}
+.doc-item .meta a{color:var(--acc)}
+.ext-badge{display:inline-block;margin-right:8px;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700;vertical-align:middle}
+.ext-badge.new{background:#12301a;color:var(--acc)}
+.ext-badge.upd{background:#3a2c0d;color:var(--amber)}
+.ext-badge.sig{background:#2a1030;color:var(--mag)}
+.grade{font-weight:700}
+.grade.g-A{color:var(--acc)}.grade.g-B{color:var(--amber)}.grade.g-C{color:var(--mag)}
+.ext-labels{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+.ext-label{border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:11.5px;color:var(--dim)}
+details.more{margin:14px 0}
+details.more summary{cursor:pointer;color:var(--acc);padding:10px;border:1px dashed var(--line);border-radius:8px}
+.doc-changes{list-style:none;margin:8px 0 0;padding:0}
+.doc-change{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:5px 0;border-top:1px dashed var(--line)}
+.doc-date{color:var(--dim);font-size:12.5px;min-width:150px}
+.doc-title{flex:1;min-width:220px}
+.doc-change .refs{margin:0;border:0;padding:0}
+footer{color:var(--dim);font-size:12px;padding:0 22px 40px;max-width:1180px}
+footer .ver{color:var(--acc)}
+.credit{color:var(--dim);font-size:12px;margin-top:4px}
+</style>
+</head><body>
+<header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2268"><span class="tier A">A</span>main is red: handleWorkerPrune pushes outside the sync gate,</a><a href="#issue-2192"><span class="tier A">A</span>Ephemeral worker fleets accumulate worker records and token </a><a href="#issue-2254"><span class="tier A">A</span>swamp invite link -v puts log output on stdout, breaking the</a><a href="#issue-2247"><span class="tier A">A</span>serve: poller pull can race a handler&#39;s delete-then-push and</a><a href="#issue-2246"><span class="tier A">A</span>s3-datastore: pullChanged ignores subdirs while advertising </a><a href="#issue-2183"><span class="tier A">A</span>swamp model method run deletes tracked .claude/skills files </a><a href="#issue-2217"><span class="tier A">A</span>IAM service accounts: verified deterministic-account lifecyc</a><a href="#issue-2088"><span class="tier A">A</span>Add put_events method to event-bus type</a></aside><div>
+
+<article class="item" id="issue-2223">
+<h2><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots for current-run reporting</h2>
+<p class="lede">Security-related change</p>
+<div class="meta"><span><time datetime="2026-09-17T21:15:48.075Z">2026-09-17T21:15:48.075Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2223" rel="noopener">lab#2223</a></div>
+</article>
+<article class="item" id="issue-2087">
+<h2><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on security + attestation gates</h2>
+<p class="lede">Security-related change</p>
+<div class="meta"><span><time datetime="2026-09-09T15:43:32.888Z">2026-09-09T15:43:32.888Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2087" rel="noopener">lab#2087</a></div>
+</article>
+<article class="item" id="issue-1979">
+<h2><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; using valid fresh SSO creds; identical raw AWS CLI call succeeds</h2>
+<p class="lede">Security-related change</p>
+<div class="meta"><span><time datetime="2026-09-08T04:40:27.493Z">2026-09-08T04:40:27.493Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1979" rel="noopener">lab#1979</a></div>
+</article>
+<article class="item" id="issue-1961">
+<h2><span class="tier S">S</span>Extension version binaries never persisted — binaries security notice has never rendered</h2>
+<p class="lede">Security-related change</p>
+<div class="meta"><span><time datetime="2026-09-02T16:39:55.584Z">2026-09-02T16:39:55.584Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
+</article>
+<article class="item" id="issue-2268">
+<h2><span class="tier A">A</span>main is red: handleWorkerPrune pushes outside the sync gate, failing serve_deps_rules_test</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-18T00:45:57.673Z">2026-09-18T00:45:57.673Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2268" rel="noopener">lab#2268</a></div>
+</article>
+<article class="item" id="issue-2192">
+<h2><span class="tier A">A</span>Ephemeral worker fleets accumulate worker records and token bindings that are never reaped</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-17T23:41:05.802Z">2026-09-17T23:41:05.802Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2192" rel="noopener">lab#2192</a></div>
+</article>
+<article class="item" id="issue-2254">
+<h2><span class="tier A">A</span>swamp invite link -v puts log output on stdout, breaking the pasteable-link contract</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-17T23:05:25.518Z">2026-09-17T23:05:25.518Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2254" rel="noopener">lab#2254</a></div>
+</article>
+<article class="item" id="issue-2247">
+<h2><span class="tier A">A</span>serve: poller pull can race a handler&#39;s delete-then-push and resurrect the deleted item</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-17T21:38:08.727Z">2026-09-17T21:38:08.727Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2247" rel="noopener">lab#2247</a></div>
+</article>
+<article class="item" id="issue-2246">
+<h2><span class="tier A">A</span>s3-datastore: pullChanged ignores subdirs while advertising configRefresh, so serve pollers re-download the whole datastore</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-17T21:11:54.725Z">2026-09-17T21:11:54.725Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2246" rel="noopener">lab#2246</a></div>
+</article>
+<article class="item" id="issue-2183">
+<h2><span class="tier A">A</span>swamp model method run deletes tracked .claude/skills files as an extension-install side effect</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-17T20:43:09.952Z">2026-09-17T20:43:09.952Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2183" rel="noopener">lab#2183</a></div>
+</article>
+<article class="item" id="issue-2217">
+<h2><span class="tier A">A</span>IAM service accounts: verified deterministic-account lifecycle method with safe 404/409 handling</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-17T20:35:21.814Z">2026-09-17T20:35:21.814Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2217" rel="noopener">lab#2217</a></div>
+</article>
+<article class="item" id="issue-2088">
+<h2><span class="tier A">A</span>Add put_events method to event-bus type</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-17T17:38:57.287Z">2026-09-17T17:38:57.287Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2088" rel="noopener">lab#2088</a></div>
+</article>
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2227">
+<h2><span class="tier A">A</span>Secret Manager: complete metadata-only secret/version hygiene snapshot across projects</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-17T17:08:57.515Z">2026-09-17T17:08:57.515Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2227" rel="noopener">lab#2227</a></div>
+</article>
+<article class="item" id="issue-2121">
+<h2><span class="tier A">A</span>Server-side workflow resume fails on direct-type model steps</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-17T15:00:28.601Z">2026-09-17T15:00:28.601Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2121" rel="noopener">lab#2121</a></div>
+</article>
+<article class="item" id="issue-2187">
+<h2><span class="tier A">A</span>license-headers task is a silent no-op inside .claude worktrees (absolute-path skip patterns)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-17T00:51:53.073Z">2026-09-17T00:51:53.073Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2187" rel="noopener">lab#2187</a></div>
+</article>
+<article class="item" id="issue-2204">
+<h2><span class="tier A">A</span>Add a static-token webhook scheme (constant-time header equality) for Telegram-style secret tokens</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-17T00:30:06.272Z">2026-09-17T00:30:06.272Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2204" rel="noopener">lab#2204</a></div>
+</article>
+<article class="item" id="issue-2211">
+<h2><span class="tier A">A</span>validate-attestation hashes the PR merge commit, so a moving base invalidates valid attestations</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-17T00:21:28.772Z">2026-09-17T00:21:28.772Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2211" rel="noopener">lab#2211</a></div>
+</article>
+<article class="item" id="issue-2191">
+<h2><span class="tier A">A</span>Expired enrollment token cannot be re-minted unless a worker was connected when it expired</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-17T00:16:03.454Z">2026-09-17T00:16:03.454Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2191" rel="noopener">lab#2191</a></div>
+</article>
+<article class="item" id="issue-2198">
+<h2><span class="tier A">A</span>extension push: allow explicit private visibility in the manifest and at publish time, including public collectives</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-16T23:58:07.700Z">2026-09-16T23:58:07.700Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2198" rel="noopener">lab#2198</a></div>
+</article>
+<article class="item" id="issue-2212">
+<h2><span class="tier A">A</span>A config-integrity checksum mismatch fails validate-attestation with no log output</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-16T23:45:39.935Z">2026-09-16T23:45:39.935Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2212" rel="noopener">lab#2212</a></div>
+</article>
+<article class="item" id="issue-2182">
+<h2><span class="tier A">A</span>Auth gate: require authentication, fail open on outage</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-16T23:11:24.624Z">2026-09-16T23:11:24.624Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2182" rel="noopener">lab#2182</a></div>
+</article>
+<article class="item" id="issue-2221">
+<h2><span class="tier A">A</span>Verification reviews infer pass from Claude usage-limit errors</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-16T23:08:10.283Z">2026-09-16T23:08:10.283Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2221" rel="noopener">lab#2221</a></div>
+</article>
+<article class="item" id="issue-2216">
+<h2><span class="tier A">A</span>Apply score_grants_from_recruit_mv to prod ClickHouse — recruit links mint zero until it lands</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-16T22:50:38.528Z">2026-09-16T22:50:38.528Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2216" rel="noopener">lab#2216</a></div>
+</article>
+<article class="item" id="issue-2189">
+<h2><span class="tier A">A</span>Auth gate: server-side Ed25519 key management and signed verification proofs</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-16T22:22:51.247Z">2026-09-16T22:22:51.247Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2189" rel="noopener">lab#2189</a></div>
+</article>
+<article class="item" id="issue-2199">
+<h2><span class="tier A">A</span>TLS tests assume OpenSSL 3.x defaults and fail on macOS LibreSSL, blocking verify-build</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-16T21:46:05.666Z">2026-09-16T21:46:05.666Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2199" rel="noopener">lab#2199</a></div>
+</article>
+<article class="item" id="issue-2203">
+<h2><span class="tier A">A</span>Publishing manual contradicts registry omission defaults and supported visibility values</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-16T21:41:06.861Z">2026-09-16T21:41:06.861Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2203" rel="noopener">lab#2203</a></div>
+</article>
+<article class="item" id="issue-2122">
+<h2><span class="tier A">A</span>Data queries read unrelated artifact bodies before metadata filters reject them</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-16T21:00:44.869Z">2026-09-16T21:00:44.869Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2122" rel="noopener">lab#2122</a></div>
+</article>
+<article class="item" id="issue-2195">
+<h2><span class="tier A">A</span>access token mint: support --server so worker server tokens can be minted remotely</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-16T20:22:03.780Z">2026-09-16T20:22:03.780Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2195" rel="noopener">lab#2195</a></div>
+</article>
+<article class="item" id="issue-2200">
+<h2><span class="tier A">A</span>Registry API: opt-in private visibility at publish time with fully backward-compatible defaults (prerequisite for CLI #2198)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-16T19:51:26.836Z">2026-09-16T19:51:26.836Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2200" rel="noopener">lab#2200</a></div>
+</article>
+<article class="item" id="issue-2153">
+<h2><span class="tier A">A</span>Recover interrupted workflow runs from durable checkpoints</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-16T18:55:00.839Z">2026-09-16T18:55:00.839Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2153" rel="noopener">lab#2153</a></div>
+</article>
+<article class="item" id="issue-2188">
+<h2><span class="tier A">A</span>data.latest() cannot see ephemeral data once the light expression context is used (breaks verify-reviews and verify-skills guards)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-16T18:14:20.681Z">2026-09-16T18:14:20.681Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2188" rel="noopener">lab#2188</a></div>
+</article>
+<article class="item" id="issue-2123">
+<h2><span class="tier A">A</span>Expression evaluation scans all model definitions without model or file references</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-16T16:58:37.009Z">2026-09-16T16:58:37.009Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2123" rel="noopener">lab#2123</a></div>
+</article>
+<article class="item" id="issue-2118">
+<h2><span class="tier A">A</span>git: no way to set author/committer dates on commit</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-16T00:39:21.818Z">2026-09-16T00:39:21.818Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2118" rel="noopener">lab#2118</a></div>
+</article>
+<article class="item" id="issue-2124">
+<h2><span class="tier A">A</span>Repeated targeted lookups reparse unrelated model and workflow definitions</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-16T00:30:28.075Z">2026-09-16T00:30:28.075Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2124" rel="noopener">lab#2124</a></div>
+</article>
+<article class="item" id="issue-2099">
+<h2><span class="tier A">A</span>aws-sm vault: support profile config key to select named AWS credential profiles</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-15T23:30:40.046Z">2026-09-15T23:30:40.046Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2099" rel="noopener">lab#2099</a></div>
+</article>
+<article class="item" id="issue-2125">
+<h2><span class="tier A">A</span>Workflow history get/logs enumerate all run contents for a full run UUID</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-15T23:26:37.527Z">2026-09-15T23:26:37.527Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2125" rel="noopener">lab#2125</a></div>
+</article>
+<article class="item" id="issue-2126">
+<h2><span class="tier A">A</span>Brief local model-lock contention incurs a roughly one-second initial retry delay</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-15T22:50:25.511Z">2026-09-15T22:50:25.511Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2126" rel="noopener">lab#2126</a></div>
+</article>
+<article class="item" id="issue-2156">
+<h2><span class="tier A">A</span>Windows: model runtime shell execution produces wrong output encoding and arg splitting</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-15T20:27:31.389Z">2026-09-15T20:27:31.389Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2156" rel="noopener">lab#2156</a></div>
+</article>
+<article class="item" id="issue-2157">
+<h2><span class="tier A">A</span>Windows: CLI resolves 8.3 short names to long names, breaking path comparisons</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-15T19:08:24.251Z">2026-09-15T19:08:24.251Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2157" rel="noopener">lab#2157</a></div>
+</article>
+<article class="item" id="issue-2137">
+<h2><span class="tier A">A</span>Docs: daemon reference says &#39;restart automatically on reboot&#39; for user services</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-14T23:37:31.651Z">2026-09-14T23:37:31.651Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2137" rel="noopener">lab#2137</a></div>
+</article>
+<article class="item" id="issue-2144">
+<h2><span class="tier A">A</span>Show first-login guidance after swamp auth login</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-14T23:10:37.300Z">2026-09-14T23:10:37.300Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2144" rel="noopener">lab#2144</a></div>
+</article>
+<article class="item" id="issue-1753">
+<h2><span class="tier A">A</span>Add SWAMP_CLI_OUTPUT env var to control default output mode (plaintext/tui/json)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-14T21:23:31.387Z">2026-09-14T21:23:31.387Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1753" rel="noopener">lab#1753</a></div>
+</article>
+<article class="item" id="issue-2105">
+<h2><span class="tier A">A</span>deprecated extensions are more prominent than I expected :)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-14T21:19:37.859Z">2026-09-14T21:19:37.859Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2105" rel="noopener">lab#2105</a></div>
+</article>
+<article class="item" id="issue-2059">
+<h2><span class="tier A">A</span>docs(cli): document run GC retention configuration</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-14T19:14:29.262Z">2026-09-14T19:14:29.262Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2059" rel="noopener">lab#2059</a></div>
+</article>
+<article class="item" id="issue-2106">
+<h2><span class="tier A">A</span>swamp serve daemon (user service) doesn&#39;t handle systemd &#39;lingering&#39; — claims it &#39;starts automatically&#39; but only runs while logged in</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-14T19:09:35.057Z">2026-09-14T19:09:35.057Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2106" rel="noopener">lab#2106</a></div>
+</article>
+<article class="item" id="issue-2127">
+<h2><span class="tier A">A</span>Docs: access-commands.md still describes old vault-storage behavior for token mint</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-14T18:02:31.308Z">2026-09-14T18:02:31.308Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2127" rel="noopener">lab#2127</a></div>
+</article>
+<article class="item" id="issue-2128">
+<h2><span class="tier A">A</span>access token mint --vault: surface the secure shared-vault handoff</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-14T16:36:26.652Z">2026-09-14T16:36:26.652Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2128" rel="noopener">lab#2128</a></div>
+</article>
+<article class="item" id="issue-2129">
+<h2><span class="tier A">A</span>Docs: document dashboard URL routing for shareable deep links</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-14T16:20:46.252Z">2026-09-14T16:20:46.252Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2129" rel="noopener">lab#2129</a></div>
+</article>
+<article class="item" id="issue-2114">
+<h2><span class="tier A">A</span>Extend --server-token-file to all --server subcommands</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-14T16:05:32.117Z">2026-09-14T16:05:32.117Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2114" rel="noopener">lab#2114</a></div>
+</article>
+<article class="item" id="issue-2036">
+<h2><span class="tier A">A</span>Document env.* namespace for model-instance globalArguments (host-portable config)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-14T15:49:51.189Z">2026-09-14T15:49:51.189Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2036" rel="noopener">lab#2036</a></div>
+</article>
+<article class="item" id="issue-2115">
+<h2><span class="tier A">A</span>Improve workflow authoring validation and recovery guidance</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-14T15:47:53.347Z">2026-09-14T15:47:53.347Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2115" rel="noopener">lab#2115</a></div>
+</article>
+<article class="item" id="issue-2134">
+<h2><span class="tier A">A</span>Docs: add trigger override coverage to swamp-serve hot-reload manual page</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-14T15:47:44.424Z">2026-09-14T15:47:44.424Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2134" rel="noopener">lab#2134</a></div>
+</article>
+<article class="item" id="issue-2133">
+<h2><span class="tier A">A</span>Docs: clarify trigger override reload semantics in design docs and manual</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-14T15:27:32.718Z">2026-09-14T15:27:32.718Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2133" rel="noopener">lab#2133</a></div>
+</article>
+<article class="item" id="issue-2109">
+<h2><span class="tier A">A</span>serve data.get cannot resolve models stored in managed configuration</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-14T04:12:56.277Z">2026-09-14T04:12:56.277Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2109" rel="noopener">lab#2109</a></div>
+</article>
+<article class="item" id="issue-2117">
+<h2><span class="tier A">A</span>Published model documentation is incomplete or inaccurate across different schema layouts</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-14T00:51:57.496Z">2026-09-14T00:51:57.496Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2117" rel="noopener">lab#2117</a></div>
+</article>
+<article class="item" id="issue-2104">
+<h2><span class="tier A">A</span>Trigger schedule overrides require a swamp serve restart to take effect</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-14T00:33:32.553Z">2026-09-14T00:33:32.553Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2104" rel="noopener">lab#2104</a></div>
+</article>
+<article class="item" id="issue-2130">
+<h2><span class="tier A">A</span>serve vault.annotate does not publish managed configuration changes to the shared datastore</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-13T22:49:48.773Z">2026-09-13T22:49:48.773Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2130" rel="noopener">lab#2130</a></div>
+</article>
+<article class="item" id="issue-2131">
+<h2><span class="tier A">A</span>Flaky test: otel_init_test.ts initTracing returns undefined when no traceparent</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-13T22:37:16.804Z">2026-09-13T22:37:16.804Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2131" rel="noopener">lab#2131</a></div>
+</article>
+<article class="item" id="issue-2108">
+<h2><span class="tier A">A</span>serve model.edit does not publish managed configuration changes to the shared datastore</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-13T22:13:49.266Z">2026-09-13T22:13:49.266Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2108" rel="noopener">lab#2108</a></div>
+</article>
+<article class="item" id="issue-2103">
+<h2><span class="tier A">A</span>Serve Audit Log - Phase 5: Extension sinks, alerting, compliance</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-13T21:57:14.404Z">2026-09-13T21:57:14.404Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2103" rel="noopener">lab#2103</a></div>
+</article>
+<article class="item" id="issue-2111">
+<h2><span class="tier A">A</span>serve: idle peer data.query remains stale when a remote datastore honors selective pulls</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-11T21:45:08.011Z">2026-09-11T21:45:08.011Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2111" rel="noopener">lab#2111</a></div>
+</article>
+<article class="item" id="issue-2100">
+<h2><span class="tier A">A</span>CI auto-merge broken: removed claude-review job was the PR approver</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-10T17:17:08.100Z">2026-09-10T17:17:08.100Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2100" rel="noopener">lab#2100</a></div>
+</article>
+<article class="item" id="issue-2098">
+<h2><span class="tier A">A</span>createModelTestContext mock Logger has .warn() but real runtime has .warning()</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-10T17:15:46.423Z">2026-09-10T17:15:46.423Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2098" rel="noopener">lab#2098</a></div>
+</article>
+<article class="item" id="issue-2074">
+<h2><span class="tier A">A</span>Serve Audit Log - Phase 4: SIEM integrations, bulk export, HMAC</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-10T14:38:04.922Z">2026-09-10T14:38:04.922Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2074" rel="noopener">lab#2074</a></div>
+</article>
+<article class="item" id="issue-2079">
+<h2><span class="tier A">A</span>workflow guard: run requires ${{ }}, evaluate rejects it — no guard form satisfies both</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-09T12:47:17.746Z">2026-09-09T12:47:17.746Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2079" rel="noopener">lab#2079</a></div>
+</article>
+<article class="item" id="issue-2072">
+<h2><span class="tier A">A</span>repo upgrade/init hardcode absolute swamp binary path in hook commands, breaking cross-machine portability</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-09T05:14:46.975Z">2026-09-09T05:14:46.975Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2072" rel="noopener">lab#2072</a></div>
+</article>
+<article class="item" id="issue-2043">
+<h2><span class="tier A">A</span>managedConfig: cross-process sentinel disagreement between CLI and serve</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-09T02:42:19.769Z">2026-09-09T02:42:19.769Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2043" rel="noopener">lab#2043</a></div>
+</article>
+<article class="item" id="issue-2071">
+<h2><span class="tier A">A</span>Expose swamp help to agents proactively in the swamp skill</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-09T00:20:23.320Z">2026-09-09T00:20:23.320Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2071" rel="noopener">lab#2071</a></div>
+</article>
+<article class="item" id="issue-2070">
+<h2><span class="tier A">A</span>Windows: vault roundtrip model outputs UTF-16LE instead of UTF-8</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-09T00:03:42.680Z">2026-09-09T00:03:42.680Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2070" rel="noopener">lab#2070</a></div>
+</article>
+<article class="item" id="issue-2069">
+<h2><span class="tier A">A</span>Make verification reviews tolerate a passing review without an explicit verdict</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-08T22:11:54.935Z">2026-09-08T22:11:54.935Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2069" rel="noopener">lab#2069</a></div>
+</article>
+<article class="item" id="issue-2067">
+<h2><span class="tier A">A</span>Enrich InvocationContext telemetry with datastore type and external vault detection</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-08T19:46:48.006Z">2026-09-08T19:46:48.006Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2067" rel="noopener">lab#2067</a></div>
+</article>
+<article class="item" id="issue-2065">
+<h2><span class="tier A">A</span>Windows: CLI outputs forward-slash lowercase paths instead of native backslash paths</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-08T18:43:28.172Z">2026-09-08T18:43:28.172Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2065" rel="noopener">lab#2065</a></div>
+</article>
+<article class="item" id="issue-2057">
+<h2><span class="tier A">A</span>Audit: emit auth-category events for OAuth device flow and token operations</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-08T18:00:02.072Z">2026-09-08T18:00:02.072Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2057" rel="noopener">lab#2057</a></div>
+</article>
+<article class="item" id="issue-1843">
+<h2><span class="tier A">A</span>worker connect fails against any h2-speaking TLS server (client offers h2 ALPN but WS layer is HTTP/1.1 only)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-08T15:53:23.740Z">2026-09-08T15:53:23.740Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1843" rel="noopener">lab#1843</a></div>
+</article>
+<article class="item" id="issue-1442">
+<h2><span class="tier A">A</span>First-class scheduled garbage collection policy per datastore namespace</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-08T06:58:27.940Z">2026-09-08T06:58:27.940Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1442" rel="noopener">lab#1442</a></div>
+</article>
+<article class="item" id="issue-2049">
+<h2><span class="tier A">A</span>Serve Audit Log - Phase 3: Real-time WebSocket streaming</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-08T06:56:38.229Z">2026-09-08T06:56:38.229Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2049" rel="noopener">lab#2049</a></div>
+</article>
+<article class="item" id="issue-1724">
+<h2><span class="tier A">A</span>swamp cmds don&#39;t realise the user is sshed into the system</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-08T05:40:38.900Z">2026-09-08T05:40:38.900Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1724" rel="noopener">lab#1724</a></div>
+</article>
+<article class="item" id="issue-1990">
+<h2><span class="tier A">A</span>spreadsheets-values: append and update cannot send valueInputOption, so neither can write — query-location parameters are never populated</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-08T05:05:03.842Z">2026-09-08T05:05:03.842Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1990" rel="noopener">lab#1990</a></div>
+</article>
+<article class="item" id="issue-2056">
+<h2><span class="tier A">A</span>Flaky POSIX shutdown handler SIGINT test exits 130</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-08T04:18:39.676Z">2026-09-08T04:18:39.676Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2056" rel="noopener">lab#2056</a></div>
+</article>
+<article class="item" id="issue-2055">
+<h2><span class="tier A">A</span>Test flake: buildOtelResource env var race in parallel test execution</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-08T03:52:41.146Z">2026-09-08T03:52:41.146Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2055" rel="noopener">lab#2055</a></div>
+</article>
+<article class="item" id="issue-2053">
+<h2><span class="tier A">A</span>Windows: HOME environment variable not set — no USERPROFILE fallback</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-08T03:44:37.864Z">2026-09-08T03:44:37.864Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2053" rel="noopener">lab#2053</a></div>
+</article>
+<article class="item" id="issue-2054">
+<h2><span class="tier A">A</span>Property test flake: CEL embedded interpolation with empty expression key</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-08T03:17:43.209Z">2026-09-08T03:17:43.209Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2054" rel="noopener">lab#2054</a></div>
+</article>
+<article class="item" id="issue-2052">
+<h2><span class="tier A">A</span>Adversarial review guard does not cover src/cli/ outside src/cli/commands/</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-07T22:57:42.634Z">2026-09-07T22:57:42.634Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2052" rel="noopener">lab#2052</a></div>
+</article>
+<article class="item" id="issue-2030">
+<h2><span class="tier A">A</span>Expose configured per-method definition arguments in model get --json</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-07T22:12:14.654Z">2026-09-07T22:12:14.654Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2030" rel="noopener">lab#2030</a></div>
+</article>
+<article class="item" id="issue-2050">
+<h2><span class="tier A">A</span>Lab #2037 mitigation does not cover category-specific bundle stores (datastore-bundles, vault-bundles, report-bundles)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-07T21:47:54.050Z">2026-09-07T21:47:54.050Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2050" rel="noopener">lab#2050</a></div>
+</article>
+<article class="item" id="issue-2029">
+<h2><span class="tier A">A</span>Implemented/shipped issues should reference the implementation more clearly</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-07T21:39:00.534Z">2026-09-07T21:39:00.534Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2029" rel="noopener">lab#2029</a></div>
+</article>
+<article class="item" id="issue-2026">
+<h2><span class="tier A">A</span>writeCatalogExport takes 55-150s per workflow step — serializes entire catalog as pretty-printed JSON</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-07T21:01:30.741Z">2026-09-07T21:01:30.741Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2026" rel="noopener">lab#2026</a></div>
+</article>
+<article class="item" id="issue-1957">
+<h2><span class="tier A">A</span>Separation of duties impossible: workflow.approve is authorized against the &#39;run&#39; action, so approvers can start runs and operators can self-approve</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-07T08:00:53.903Z">2026-09-07T08:00:53.903Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1957" rel="noopener">lab#1957</a></div>
+</article>
+<article class="item" id="issue-2028">
+<h2><span class="tier A">A</span>Serve Audit Log - Phase 2: WAL, chain hashing, query API, complete coverage</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-07T07:58:05.886Z">2026-09-07T07:58:05.886Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2028" rel="noopener">lab#2028</a></div>
+</article>
+<article class="item" id="issue-2035">
+<h2><span class="tier A">A</span>data query omits report artifacts returned by data list and versions</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-07T06:40:30.582Z">2026-09-07T06:40:30.582Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2035" rel="noopener">lab#2035</a></div>
+</article>
+<article class="item" id="issue-2040">
+<h2><span class="tier A">A</span>swamp issue bug isn&#39;t auto-filling swamp version, OS and shell</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-07T05:05:26.743Z">2026-09-07T05:05:26.743Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2040" rel="noopener">lab#2040</a></div>
+</article>
+<article class="item" id="issue-2038">
+<h2><span class="tier A">A</span>Upgrade/Update causes odd locking issue on swamp deno</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-07T04:26:25.193Z">2026-09-07T04:26:25.193Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2038" rel="noopener">lab#2038</a></div>
+</article>
+<article class="item" id="issue-2039">
+<h2><span class="tier A">A</span>stale lock file not being cleaned up?</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-07T04:16:34.660Z">2026-09-07T04:16:34.660Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2039" rel="noopener">lab#2039</a></div>
+</article>
+<article class="item" id="issue-2005">
+<h2><span class="tier A">A</span>Docs: document the approve grant action and separation-of-duties patterns</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-05T04:46:01.649Z">2026-09-05T04:46:01.649Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2005" rel="noopener">lab#2005</a></div>
+</article>
+<article class="item" id="issue-1996">
+<h2><span class="tier A">A</span>Docs: Add method-level grant scoping to authorization reference</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-05T04:29:24.998Z">2026-09-05T04:29:24.998Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1996" rel="noopener">lab#1996</a></div>
+</article>
+<article class="item" id="issue-2007">
+<h2><span class="tier A">A</span>Docs: document enriched model search JSON output shape</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-05T04:24:03.788Z">2026-09-05T04:24:03.788Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2007" rel="noopener">lab#2007</a></div>
+</article>
+<article class="item" id="issue-2012">
+<h2><span class="tier A">A</span>feat(nurture): /admin/nurture — who would get what, and why</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-04T23:09:22.466Z">2026-09-04T23:09:22.466Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2012" rel="noopener">lab#2012</a></div>
+</article>
+<article class="item" id="issue-2011">
+<h2><span class="tier A">A</span>feat(nurture): the nurture_send ledger and the dry-run projector, with the cold-start seal</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-04T23:09:21.499Z">2026-09-04T23:09:21.499Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2011" rel="noopener">lab#2011</a></div>
+</article>
+<article class="item" id="issue-2010">
+<h2><span class="tier A">A</span>feat(nurture): batch cohort reads — account-grain identification that carries its evidence</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-04T23:09:15.018Z">2026-09-04T23:09:15.018Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2010" rel="noopener">lab#2010</a></div>
+</article>
+<article class="item" id="issue-2009">
+<h2><span class="tier A">A</span>feat(nurture): the flow catalog and the qualification contract (pure domain)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-04T23:09:13.973Z">2026-09-04T23:09:13.973Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2009" rel="noopener">lab#2009</a></div>
+</article>
+<article class="item" id="issue-2004">
+<h2><span class="tier A">A</span>Serve Audit Log - Phase 1: Event pipeline and durable storage</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-04T23:05:33.101Z">2026-09-04T23:05:33.101Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2004" rel="noopener">lab#2004</a></div>
+</article>
+<article class="item" id="issue-1904">
+<h2><span class="tier A">A</span>Make model argument descriptions discoverable from model search</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-04T18:23:00.600Z">2026-09-04T18:23:00.600Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1904" rel="noopener">lab#1904</a></div>
+</article>
+<article class="item" id="issue-1994">
+<h2><span class="tier A">A</span>Add method-level scoping to grants</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-04T15:50:43.558Z">2026-09-04T15:50:43.558Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1994" rel="noopener">lab#1994</a></div>
+</article>
+<article class="item" id="issue-1992">
+<h2><span class="tier A">A</span>model_handlers acquires write lock on pure-read method invocations</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-04T03:43:31.739Z">2026-09-04T03:43:31.739Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1992" rel="noopener">lab#1992</a></div>
+</article>
+<article class="item" id="issue-1995">
+<h2><span class="tier A">A</span>data.latest cache is stale after nested workflow outputs</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-04T00:02:36.131Z">2026-09-04T00:02:36.131Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1995" rel="noopener">lab#1995</a></div>
+</article>
+<article class="item" id="issue-1993">
+<h2><span class="tier A">A</span>LockTimeoutError surfaces as generic &#39;internal error&#39; at the CLI</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-03T23:04:40.919Z">2026-09-03T23:04:40.919Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1993" rel="noopener">lab#1993</a></div>
+</article>
+<article class="item" id="issue-1819">
+<h2><span class="tier A">A</span>IdP group memberships go stale indefinitely — user.idpGroups is only written by the SSO login hook</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-03T22:47:50.873Z">2026-09-03T22:47:50.873Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1819" rel="noopener">lab#1819</a></div>
+</article>
+<article class="item" id="issue-1984">
+<h2><span class="tier A">A</span>readResource returns stale cursor on serve scheduled workflow runs</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-03T19:03:21.910Z">2026-09-03T19:03:21.910Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1984" rel="noopener">lab#1984</a></div>
+</article>
+<article class="item" id="issue-1971">
+<h2><span class="tier A">A</span>Support agent-neutral repository instructions without duplicating Claude configuration</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-03T15:47:50.391Z">2026-09-03T15:47:50.391Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1971" rel="noopener">lab#1971</a></div>
+</article>
+<article class="item" id="issue-1966">
+<h2><span class="tier A">A</span>Docs: local_encryption vault secrets are excluded from datastore sync — not documented anywhere</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-03T00:29:04.653Z">2026-09-03T00:29:04.653Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1966" rel="noopener">lab#1966</a></div>
+</article>
+<article class="item" id="issue-1972">
+<h2><span class="tier A">A</span>Docs: document --token-file and --server-token-file flags for worker commands</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-03T00:27:24.492Z">2026-09-03T00:27:24.492Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1972" rel="noopener">lab#1972</a></div>
+</article>
+<article class="item" id="issue-1954">
+<h2><span class="tier A">A</span>Docs: update pi skill directory path in repository-configuration.md</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-03T00:25:32.364Z">2026-09-03T00:25:32.364Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1954" rel="noopener">lab#1954</a></div>
+</article>
+<article class="item" id="issue-1742">
+<h2><span class="tier A">A</span>Installation with new account creation times out</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-02T23:33:31.617Z">2026-09-02T23:33:31.617Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1742" rel="noopener">lab#1742</a></div>
+</article>
+<article class="item" id="issue-1786">
+<h2><span class="tier A">A</span>vault.get() arguments are verbatim, so a per-target secret cannot be expressed in workflow YAML</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-02T23:33:14.402Z">2026-09-02T23:33:14.402Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1786" rel="noopener">lab#1786</a></div>
+</article>
+<article class="item" id="issue-1862">
+<h2><span class="tier A">A</span>feat(worker): --server-token-file (and --token-file) to read secrets from a mount without env-var round-trip</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-02T23:24:53.492Z">2026-09-02T23:24:53.492Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1862" rel="noopener">lab#1862</a></div>
+</article>
+<article class="item" id="issue-1950">
+<h2><span class="tier A">A</span>model type describe reports arguments: {} for models that define a full args schema</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-02T22:01:50.689Z">2026-09-02T22:01:50.689Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1950" rel="noopener">lab#1950</a></div>
+</article>
+<article class="item" id="issue-1967">
+<h2><span class="tier A">A</span>Self-update fails on Windows: running binary cannot be replaced due to file locking</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-02T19:38:50.870Z">2026-09-02T19:38:50.870Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1967" rel="noopener">lab#1967</a></div>
+</article>
+<article class="item" id="issue-1963">
+<h2><span class="tier A">A</span>Self-update broken on Windows: tar.gz format and zip extraction missing</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-02T18:25:31.121Z">2026-09-02T18:25:31.121Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1963" rel="noopener">lab#1963</a></div>
+</article>
+<article class="item" id="issue-1958">
+<h2><span class="tier A">A</span>run tracker: hostname-based PID liveness check fails in containers sharing a hostname</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-02T18:13:56.326Z">2026-09-02T18:13:56.326Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1958" rel="noopener">lab#1958</a></div>
+</article>
+<article class="item" id="issue-1960">
+<h2><span class="tier A">A</span>Fix Windows install script (install.ps1) parity with Unix</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-02T17:32:12.669Z">2026-09-02T17:32:12.669Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1960" rel="noopener">lab#1960</a></div>
+</article>
+<article class="item" id="issue-1955">
+<h2><span class="tier A">A</span>serve boot: sweepStaleRecords does a full modelMethodRun per stale lease (~12.5s each), serializing boot reconciliation — 4m28s to sweep nothing</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-02T17:29:19.685Z">2026-09-02T17:29:19.685Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1955" rel="noopener">lab#1955</a></div>
+</article>
+<article class="item" id="issue-1959">
+<h2><span class="tier A">A</span>Add Windows binary to release pipeline</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-02T16:40:15.370Z">2026-09-02T16:40:15.370Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1959" rel="noopener">lab#1959</a></div>
+</article>
+<article class="item" id="issue-1716">
+<h2><span class="tier A">A</span>Generic OTLP endpoint appends signal path after query or fragment</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-02T16:05:21.466Z">2026-09-02T16:05:21.466Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1716" rel="noopener">lab#1716</a></div>
+</article>
+<article class="item" id="issue-1952">
+<h2><span class="tier A">A</span>swamp run gc undocumented in skill&#39;s data/model quick-reference tables</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-02T15:58:06.777Z">2026-09-02T15:58:06.777Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1952" rel="noopener">lab#1952</a></div>
+</article>
+<article class="item" id="issue-1956">
+<h2><span class="tier A">A</span>Dashboard renders a blank page when any workflow run has a pending manual approval (workflow.approvals shape mismatch)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-02T15:51:28.036Z">2026-09-02T15:51:28.036Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1956" rel="noopener">lab#1956</a></div>
+</article>
+<article class="item" id="issue-1944">
+<h2><span class="tier A">A</span>Swamp skill repo reference missing datastore config expression interpolation docs</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-02T02:39:35.994Z">2026-09-02T02:39:35.994Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1944" rel="noopener">lab#1944</a></div>
+</article>
+<article class="item" id="issue-1942">
+<h2><span class="tier A">A</span>Docs: document env and vault expression syntax in datastore configuration reference</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-01T23:54:12.376Z">2026-09-01T23:54:12.376Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1942" rel="noopener">lab#1942</a></div>
+</article>
+<article class="item" id="issue-1935">
+<h2><span class="tier A">A</span>Docs: add swamp auth token list/revoke to API key authentication guide</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-01T23:52:00.042Z">2026-09-01T23:52:00.042Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1935" rel="noopener">lab#1935</a></div>
+</article>
+<article class="item" id="issue-1939">
+<h2><span class="tier A">A</span>formatUserModelError reports &#39;Missing required methods field&#39; for any method sub-field validation failure</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-01T23:46:55.522Z">2026-09-01T23:46:55.522Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1939" rel="noopener">lab#1939</a></div>
+</article>
+<article class="item" id="issue-1801">
+<h2><span class="tier A">A</span>Datastore config should support vault expressions or env var references for tokens</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-01T22:59:48.045Z">2026-09-01T22:59:48.045Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1801" rel="noopener">lab#1801</a></div>
+</article>
+<article class="item" id="issue-1941">
+<h2><span class="tier A">A</span>install.sh: &#39;stable&#39; alias tarball and .sha256 are published non-atomically — checksum verification fails during every release window</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-01T22:55:52.444Z">2026-09-01T22:55:52.444Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1941" rel="noopener">lab#1941</a></div>
+</article>
+<article class="item" id="issue-1936">
+<h2><span class="tier A">A</span>Add support for Google AntiGravity as a supported agent</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-01T21:57:40.521Z">2026-09-01T21:57:40.521Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1936" rel="noopener">lab#1936</a></div>
+</article>
+<article class="item" id="issue-1937">
+<h2><span class="tier A">A</span>swamp update leaks raw LogTape output instead of using presentation output</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-01T21:26:12.114Z">2026-09-01T21:26:12.114Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1937" rel="noopener">lab#1937</a></div>
+</article>
+<article class="item" id="issue-1697">
+<h2><span class="tier A">A</span>Add native support for the Pi coding harness</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-01T20:50:07.525Z">2026-09-01T20:50:07.525Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1697" rel="noopener">lab#1697</a></div>
+</article>
+<article class="item" id="issue-1932">
+<h2><span class="tier A">A</span>Catalog export blocks event loop and global lock during serve push</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-01T18:21:20.151Z">2026-09-01T18:21:20.151Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1932" rel="noopener">lab#1932</a></div>
+</article>
+<article class="item" id="issue-1933">
+<h2><span class="tier A">A</span>Show local vs remote mode indicator in command output</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-01T18:00:51.070Z">2026-09-01T18:00:51.070Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1933" rel="noopener">lab#1933</a></div>
+</article>
+<article class="item" id="issue-1870">
+<h2><span class="tier A">A</span>Move skill review and trigger eval into the local verification loop</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-01T17:09:36.494Z">2026-09-01T17:09:36.494Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1870" rel="noopener">lab#1870</a></div>
+</article>
+<article class="item" id="issue-1706">
+<h2><span class="tier A">A</span>swamp extracts embedded deno into $HOME → unexecutable under SELinux Enforcing; all user extensions fail to load</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-01T02:59:51.636Z">2026-09-01T02:59:51.636Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1706" rel="noopener">lab#1706</a></div>
+</article>
+<article class="item" id="issue-1347">
+<h2><span class="tier A">A</span>Run-context variables (run.id, workflowRunId) undefined in step-input CEL after suspend+resume</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-01T02:59:31.557Z">2026-09-01T02:59:31.557Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1347" rel="noopener">lab#1347</a></div>
+</article>
+<article class="item" id="issue-1311">
+<h2><span class="tier A">A</span>Documentation gives conflicting behavior for pulling yanked extension versions</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-01T02:59:26.182Z">2026-09-01T02:59:26.182Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1311" rel="noopener">lab#1311</a></div>
+</article>
+<article class="item" id="issue-1345">
+<h2><span class="tier A">A</span>--server wss:// client offers h2 ALPN then fails the WebSocket upgrade over HTTP/2 (should pin http/1.1)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-01T02:59:22.748Z">2026-09-01T02:59:22.748Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1345" rel="noopener">lab#1345</a></div>
+</article>
+<article class="item" id="issue-1927">
+<h2><span class="tier A">A</span>Docs: remove driver references from extension documentation</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-01T01:46:24.834Z">2026-09-01T01:46:24.834Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1927" rel="noopener">lab#1927</a></div>
+</article>
+<article class="item" id="issue-1924">
+<h2><span class="tier A">A</span>Remove extension driver support from CLI and domain layers</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-01T01:34:56.464Z">2026-09-01T01:34:56.464Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1924" rel="noopener">lab#1924</a></div>
+</article>
+<article class="item" id="issue-1925">
+<h2><span class="tier A">A</span>docs: write enablers/access-control.md design doc</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-01T01:28:44.674Z">2026-09-01T01:28:44.674Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1925" rel="noopener">lab#1925</a></div>
+</article>
+<article class="item" id="issue-1915">
+<h2><span class="tier A">A</span>swamp extension quality resolves datastores: against the repo root but models: against the manifest dir — datastore extensions are unscorable in a monorepo</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-01T00:18:49.943Z">2026-09-01T00:18:49.943Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1915" rel="noopener">lab#1915</a></div>
+</article>
+<article class="item" id="issue-1899">
+<h2><span class="tier A">A</span>swamp serve panics on successful OAuth device-flow completion (Deno HTTP invariant)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-01T00:10:09.638Z">2026-09-01T00:10:09.638Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
+</article>
+<article class="item" id="issue-2260">
+<h2><span class="tier B">B</span>Interactive prompts write to stdout, corrupting commands whose stdout carries a value</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-17T23:21:59.016Z">2026-09-17T23:21:59.016Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2260" rel="noopener">lab#2260</a></div>
+</article>
+<article class="item" id="issue-2234">
+<h2><span class="tier B">B</span>Hot-reload serve.yaml webhook routes (like trigger overrides), not just at startup</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-17T21:10:39.228Z">2026-09-17T21:10:39.228Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2234" rel="noopener">lab#2234</a></div>
+</article>
+<article class="item" id="issue-2250">
+<h2><span class="tier B">B</span>verify-build fails on the codegen-verify guard: &#39;No such key: stdout&#39;</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-17T18:36:36.316Z">2026-09-17T18:36:36.316Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2250" rel="noopener">lab#2250</a></div>
+</article>
+<article class="item" id="issue-2181">
+<h2><span class="tier B">B</span>Worktree sessions (claude -w) burn turns on the git guard and write swamp state to a throwaway store</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-16T21:47:18.667Z">2026-09-16T21:47:18.667Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2181" rel="noopener">lab#2181</a></div>
+</article>
+<article class="item" id="issue-2179">
+<h2><span class="tier B">B</span>Referral links: reusable /r/&lt;code&gt; signup link, API + payout</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-16T18:26:06.949Z">2026-09-16T18:26:06.949Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2179" rel="noopener">lab#2179</a></div>
+</article>
+<article class="item" id="issue-1376">
+<h2><span class="tier B">B</span>CLI: swamp invite &lt;email&gt; to drive the platform-invite API</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-16T16:06:29.364Z">2026-09-16T16:06:29.364Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1376" rel="noopener">lab#1376</a></div>
+</article>
+<article class="item" id="issue-2020">
+<h2><span class="tier B">B</span>feat(nurture): arm needs-help-after-a-failed-run (NEEDS HELP)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-05T00:36:44.301Z">2026-09-05T00:36:44.301Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2020" rel="noopener">lab#2020</a></div>
+</article>
+<article class="item" id="issue-2019">
+<h2><span class="tier B">B</span>feat(nurture): arm model-usage-without-workflows (BUILDING PRODUCT FEATURES)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-05T00:36:43.234Z">2026-09-05T00:36:43.234Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2019" rel="noopener">lab#2019</a></div>
+</article>
+<article class="item" id="issue-2017">
+<h2><span class="tier B">B</span>feat(nurture): arm reactivation-after-7-days (DRIFTED)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-05T00:36:42.218Z">2026-09-05T00:36:42.218Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2017" rel="noopener">lab#2017</a></div>
+</article>
+<article class="item" id="issue-2016">
+<h2><span class="tier B">B</span>feat(nurture): arm the first flow — extension published, email only, verified in prod</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-05T00:36:38.144Z">2026-09-05T00:36:38.144Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2016" rel="noopener">lab#2016</a></div>
+</article>
+<article class="item" id="issue-2015">
+<h2><span class="tier B">B</span>feat(nurture): the six nurture email templates, previewed before anything sends</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-05T00:36:37.042Z">2026-09-05T00:36:37.042Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2015" rel="noopener">lab#2015</a></div>
+</article>
+<article class="item" id="issue-2014">
+<h2><span class="tier B">B</span>feat(nurture): an outbound transport that reports its outcome, and per-channel send status</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-05T00:36:35.883Z">2026-09-05T00:36:35.883Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2014" rel="noopener">lab#2014</a></div>
+</article>
+<article class="item" id="issue-2013">
+<h2><span class="tier B">B</span>feat(nurture): suppression — opt-out, address-grain frequency caps, one-click unsubscribe</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-05T00:36:34.466Z">2026-09-05T00:36:34.466Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2013" rel="noopener">lab#2013</a></div>
+</article>
+<article class="item" id="issue-2018">
+<h2><span class="tier B">B</span>feat(nurture): arm no-activation-after-30-days (ARRIVED, NEVER RAN)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-05T00:28:37.126Z">2026-09-05T00:28:37.126Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2018" rel="noopener">lab#2018</a></div>
+</article>
+<article class="item" id="issue-2001">
+<h2><span class="tier B">B</span>SSO: SAML assertion attributes are never logged or persisted — cannot tell whether the IdP sent groups</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-04T16:42:07.621Z">2026-09-04T16:42:07.621Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2001" rel="noopener">lab#2001</a></div>
+</article>
+<article class="item" id="issue-1974">
+<h2><span class="tier B">B</span>Every swamp command dies at module load when $TMPDIR sits under a package.json declaring &quot;type&quot;: &quot;commonjs&quot;</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-04T15:52:48.443Z">2026-09-04T15:52:48.443Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
+</article></section>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2272">
+<h2><span class="tier C">C</span>main is red: handleWorkerPrune is not wrapped in the serve sync gate</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-18T00:49:15.712Z">2026-09-18T00:49:15.712Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2272" rel="noopener">lab#2272</a></div>
+</article>
+<article class="item" id="issue-2271">
+<h2><span class="tier C">C</span>Remove dead verification/container/ and fix the stale AGENTS.md verification instruction</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-18T00:25:17.278Z">2026-09-18T00:25:17.278Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2271" rel="noopener">lab#2271</a></div>
+</article>
+<article class="item" id="issue-2270">
+<h2><span class="tier C">C</span>Merge gate validates attestations from stale branches, so main can go red with no PR ever failing</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-18T00:15:32.051Z">2026-09-18T00:15:32.051Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2270" rel="noopener">lab#2270</a></div>
+</article>
+<article class="item" id="issue-2269">
+<h2><span class="tier C">C</span>Periodic worker GC sweep prunes outside the sync gate</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-18T00:15:23.823Z">2026-09-18T00:15:23.823Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2269" rel="noopener">lab#2269</a></div>
+</article>
+<article class="item" id="issue-2263">
+<h2><span class="tier C">C</span>Docs: document swamp worker prune command in manual</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T23:28:18.566Z">2026-09-17T23:28:18.566Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2263" rel="noopener">lab#2263</a></div>
+</article>
+<article class="item" id="issue-2267">
+<h2><span class="tier C">C</span>Docs: cli-output.md does not state the stdout-is-value / stderr-is-interaction contract</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T23:28:02.503Z">2026-09-17T23:28:02.503Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2267" rel="noopener">lab#2267</a></div>
+</article>
+<article class="item" id="issue-2222">
+<h2><span class="tier C">C</span>Logging sinks: convergent audit sink setup with typed writer identity and destination verification</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T23:26:47.573Z">2026-09-17T23:26:47.573Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2222" rel="noopener">lab#2222</a></div>
+</article>
+<article class="item" id="issue-2220">
+<h2><span class="tier C">C</span>Org Policy: typed batch effective-policy snapshots for baseline reports</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T23:26:40.134Z">2026-09-17T23:26:40.134Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2220" rel="noopener">lab#2220</a></div>
+</article>
+<article class="item" id="issue-2215">
+<h2><span class="tier C">C</span>Recommender: complete multi-scope recommendation snapshot for cost reports</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T23:26:26.383Z">2026-09-17T23:26:26.383Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2215" rel="noopener">lab#2215</a></div>
+</article>
+<article class="item" id="issue-2214">
+<h2><span class="tier C">C</span>Billing Budgets: convergent ensure-by-ID-or-unique-name method with etag and notification verification</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T23:26:19.585Z">2026-09-17T23:26:19.585Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2214" rel="noopener">lab#2214</a></div>
+</article>
+<article class="item" id="issue-2213">
+<h2><span class="tier C">C</span>Service Usage: persist a complete paginated enabled-services snapshot for drift reports</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T23:26:11.349Z">2026-09-17T23:26:11.349Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2213" rel="noopener">lab#2213</a></div>
+</article>
+<article class="item" id="issue-2207">
+<h2><span class="tier C">C</span>Resource Manager: recursive caller-visible organisation hierarchy inventory with full pagination</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T23:25:36.160Z">2026-09-17T23:25:36.160Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2207" rel="noopener">lab#2207</a></div>
+</article>
+<article class="item" id="issue-2202">
+<h2><span class="tier C">C</span>BigQuery jobs: add a typed query method that polls, paginates and persists query results</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T23:25:24.937Z">2026-09-17T23:25:24.937Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2202" rel="noopener">lab#2202</a></div>
+</article>
+<article class="item" id="issue-2265">
+<h2><span class="tier C">C</span>verification harness: code review reviews the wrong diff, and a missing VERDICT is recorded as a pass</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T23:07:46.017Z">2026-09-17T23:07:46.017Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2265" rel="noopener">lab#2265</a></div>
+</article>
+<article class="item" id="issue-2258">
+<h2><span class="tier C">C</span>Docs: invite-commands manual page documents an alias and a positional the CLI does not have</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T22:49:01.227Z">2026-09-17T22:49:01.227Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2258" rel="noopener">lab#2258</a></div>
+</article>
+<article class="item" id="issue-2264">
+<h2><span class="tier C">C</span>DeferredExpression durable bindings lose a binding named __proto__ (flaky property test)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T21:54:33.620Z">2026-09-17T21:54:33.620Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2264" rel="noopener">lab#2264</a></div>
+</article>
+<article class="item" id="issue-2255">
+<h2><span class="tier C">C</span>Lab status never returns to shipped on merge — transitions are manual and drift silently</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T21:51:04.877Z">2026-09-17T21:51:04.877Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2255" rel="noopener">lab#2255</a></div>
+</article>
+<article class="item" id="issue-2262">
+<h2><span class="tier C">C</span>Step-lease and pending-dispatch records accumulate with no reaping mechanism</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T21:48:20.480Z">2026-09-17T21:48:20.480Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2262" rel="noopener">lab#2262</a></div>
+</article>
+<article class="item" id="issue-2261">
+<h2><span class="tier C">C</span>Add --server support for swamp worker prune</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T21:48:08.709Z">2026-09-17T21:48:08.709Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2261" rel="noopener">lab#2261</a></div>
+</article>
+<article class="item" id="issue-2259">
+<h2><span class="tier C">C</span>Route log-mode output to stderr by default, with commands opting stdout back in</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T21:27:38.102Z">2026-09-17T21:27:38.102Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2259" rel="noopener">lab#2259</a></div>
+</article>
+<article class="item" id="issue-2257">
+<h2><span class="tier C">C</span>-q does not suppress the update, auth-nudge and autoupdate banners</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T21:21:03.332Z">2026-09-17T21:21:03.332Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2257" rel="noopener">lab#2257</a></div>
+</article>
+<article class="item" id="issue-2224">
+<h2><span class="tier C">C</span>Docs: update admin-only model type list in authorization reference</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T21:14:35.172Z">2026-09-17T21:14:35.172Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2224" rel="noopener">lab#2224</a></div>
+</article>
+<article class="item" id="issue-2230">
+<h2><span class="tier C">C</span>Cloud Asset: complete metadata-only project search snapshot for lifecycle planning</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T21:14:21.224Z">2026-09-17T21:14:21.224Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2230" rel="noopener">lab#2230</a></div>
+</article>
+<article class="item" id="issue-2232">
+<h2><span class="tier C">C</span>Billing telemetry: surface scheduled cancellations (cancelAtPeriodEnd) and emit subscription_canceled reliably</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T21:08:08.055Z">2026-09-17T21:08:08.055Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2232" rel="noopener">lab#2232</a></div>
+</article>
+<article class="item" id="issue-2249">
+<h2><span class="tier C">C</span>s3-datastore: data &#39;latest&#39; pointer objects are never indexed, so deleting a data item leaves an orphaned latest object in S3</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T18:27:14.705Z">2026-09-17T18:27:14.705Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2249" rel="noopener">lab#2249</a></div>
+</article>
+<article class="item" id="issue-2244">
+<h2><span class="tier C">C</span>VaultService.fromRepository ignores managedConfig vaultsDir across 15+ call sites</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-17T16:19:18.027Z">2026-09-17T16:19:18.027Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2244" rel="noopener">lab#2244</a></div>
+</article>
+<article class="item" id="issue-2231">
+<h2><span class="tier C">C</span>Auth gate: enforce authentication and add background proof refresh</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T23:45:31.772Z">2026-09-16T23:45:31.772Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2231" rel="noopener">lab#2231</a></div>
+</article>
+<article class="item" id="issue-2228">
+<h2><span class="tier C">C</span>Swamp Club deno serve stays alive after SIGTERM because background loops are not stopped</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T23:24:55.051Z">2026-09-16T23:24:55.051Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2228" rel="noopener">lab#2228</a></div>
+</article>
+<article class="item" id="issue-2225">
+<h2><span class="tier C">C</span>Swamp Club fresh-database startup aborts migrations on missing deviceCode and concurrent replica markers</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T23:12:00.182Z">2026-09-16T23:12:00.182Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2225" rel="noopener">lab#2225</a></div>
+</article>
+<article class="item" id="issue-2219">
+<h2><span class="tier C">C</span>docs: webhook extension kind and Telegram webhook how-to</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T22:47:03.723Z">2026-09-16T22:47:03.723Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2219" rel="noopener">lab#2219</a></div>
+</article>
+<article class="item" id="issue-2205">
+<h2><span class="tier C">C</span>Docs: document --server support for access token mint</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T21:30:39.189Z">2026-09-16T21:30:39.189Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2205" rel="noopener">lab#2205</a></div>
+</article>
+<article class="item" id="issue-2209">
+<h2><span class="tier C">C</span>Recruit links have no web surface — a CLI-less operative cannot get their link</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T21:30:17.604Z">2026-09-16T21:30:17.604Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2209" rel="noopener">lab#2209</a></div>
+</article>
+<article class="item" id="issue-2210">
+<h2><span class="tier C">C</span>A pending platform invite that loses to the recruit lane is never consumed and leaks a pending slot</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T21:30:07.430Z">2026-09-16T21:30:07.430Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2210" rel="noopener">lab#2210</a></div>
+</article>
+<article class="item" id="issue-2208">
+<h2><span class="tier C">C</span>Docs describe the platform-invite payout as gated on &quot;Tier 5&quot; — it is ORDINAL 5 (8,000 pts, tier 2)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T21:29:59.002Z">2026-09-16T21:29:59.002Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2208" rel="noopener">lab#2208</a></div>
+</article>
+<article class="item" id="issue-2178">
+<h2><span class="tier C">C</span>Windows: add printf shim to PowerShell compatibility prefix</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T18:58:33.277Z">2026-09-16T18:58:33.277Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2178" rel="noopener">lab#2178</a></div>
+</article>
+<article class="item" id="issue-2197">
+<h2><span class="tier C">C</span>Verification workflow guards read a nonexistent .attributes key on @swamp/git diff output, blocking all PRs</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T18:34:02.568Z">2026-09-16T18:34:02.568Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2197" rel="noopener">lab#2197</a></div>
+</article>
+<article class="item" id="issue-2196">
+<h2><span class="tier C">C</span>Workload identity (Kubernetes ServiceAccount / OIDC) for worker enrollment</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T18:26:26.556Z">2026-09-16T18:26:26.556Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2196" rel="noopener">lab#2196</a></div>
+</article>
+<article class="item" id="issue-2193">
+<h2><span class="tier C">C</span>worker connect --ca-cert is not applied to the data plane; dispatches fail with &#39;fetch failed&#39; unless DENO_CERT is set</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T18:26:23.432Z">2026-09-16T18:26:23.432Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2193" rel="noopener">lab#2193</a></div>
+</article>
+<article class="item" id="issue-2184">
+<h2><span class="tier C">C</span>github_issue_triage.ts imports github_helpers.ts, deleted in #919 — @local/swamp-integration has not bundled since</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T17:31:57.845Z">2026-09-16T17:31:57.845Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2184" rel="noopener">lab#2184</a></div>
+</article>
+<article class="item" id="issue-2186">
+<h2><span class="tier C">C</span>Docs: document the swamp invite command group and referral links in content/manual</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T17:27:29.504Z">2026-09-16T17:27:29.504Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2186" rel="noopener">lab#2186</a></div>
+</article>
+<article class="item" id="issue-2185">
+<h2><span class="tier C">C</span>Docs: document workflow checkpoint recovery</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T17:04:25.039Z">2026-09-16T17:04:25.039Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2185" rel="noopener">lab#2185</a></div>
+</article>
+<article class="item" id="issue-2177">
+<h2><span class="tier C">C</span>Docs: expand expression interpolation scope in datastore-configuration reference</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-16T16:06:28.229Z">2026-09-16T16:06:28.229Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2177" rel="noopener">lab#2177</a></div>
+</article>
+<article class="item" id="issue-2147">
+<h2><span class="tier C">C</span>Feed grant projection stamps a site route that does not exist</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-15T15:57:35.302Z">2026-09-15T15:57:35.302Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2147" rel="noopener">lab#2147</a></div>
+</article>
+<article class="item" id="issue-1953">
+<h2><span class="tier C">C</span>Durable, detached workflow execution (DBOS evaluated as the engine)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-15T14:42:36.159Z">2026-09-15T14:42:36.159Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1953" rel="noopener">lab#1953</a></div>
+</article>
+<article class="item" id="issue-2139">
+<h2><span class="tier C">C</span>Cross-workflow step output passing (child→parent)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-15T00:01:53.174Z">2026-09-15T00:01:53.174Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2139" rel="noopener">lab#2139</a></div>
+</article>
+<article class="item" id="issue-2140">
+<h2><span class="tier C">C</span>Add external references field to workflow execution report</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-15T00:01:50.883Z">2026-09-15T00:01:50.883Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2140" rel="noopener">lab#2140</a></div>
+</article>
+<article class="item" id="issue-2143">
+<h2><span class="tier C">C</span>Add swamp workflow history outputs CLI command</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-15T00:01:48.466Z">2026-09-15T00:01:48.466Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2143" rel="noopener">lab#2143</a></div>
+</article>
+<article class="item" id="issue-2142">
+<h2><span class="tier C">C</span>Update manual docs for workflow execution report expansion</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-14T22:25:57.521Z">2026-09-14T22:25:57.521Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2142" rel="noopener">lab#2142</a></div>
+</article>
+<article class="item" id="issue-2141">
+<h2><span class="tier C">C</span>UAT coverage for workflow history outputs and expanded JSON schema</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-14T22:25:51.120Z">2026-09-14T22:25:51.120Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2141" rel="noopener">lab#2141</a></div>
+</article>
+<article class="item" id="issue-2138">
+<h2><span class="tier C">C</span>Document SWAMP_CLI_OUTPUT_JSON output-mode default</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-14T21:38:43.173Z">2026-09-14T21:38:43.173Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2138" rel="noopener">lab#2138</a></div>
+</article>
+<article class="item" id="issue-1525">
+<h2><span class="tier C">C</span>Harden queue claim semantics: atomic claims + status-guarded markDelivered/markFailed across app queues</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-14T19:04:21.305Z">2026-09-14T19:04:21.305Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1525" rel="noopener">lab#1525</a></div>
+</article>
+<article class="item" id="issue-1962">
+<h2><span class="tier C">C</span>Docs: add Windows install instructions to install-swamp how-to guide</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-14T18:57:25.758Z">2026-09-14T18:57:25.758Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1962" rel="noopener">lab#1962</a></div>
+</article>
+<article class="item" id="issue-1977">
+<h2><span class="tier C">C</span>AI-Friendly CLI Manual Dump</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-14T18:57:21.338Z">2026-09-14T18:57:21.338Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1977" rel="noopener">lab#1977</a></div>
+</article>
+<article class="item" id="issue-2051">
+<h2><span class="tier C">C</span>Document configured method arguments in model get JSON</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-14T18:56:11.322Z">2026-09-14T18:56:11.322Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2051" rel="noopener">lab#2051</a></div>
+</article>
+<article class="item" id="issue-2097">
+<h2><span class="tier C">C</span>docs: data.latest second argument matches name OR spec, not just spec</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-14T18:55:55.745Z">2026-09-14T18:55:55.745Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2097" rel="noopener">lab#2097</a></div>
+</article>
+<article class="item" id="issue-2136">
+<h2><span class="tier C">C</span>Docs: Correct server-token storage and document shared-vault handoff</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-14T18:55:35.819Z">2026-09-14T18:55:35.819Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2136" rel="noopener">lab#2136</a></div>
+</article>
+<article class="item" id="issue-2135">
+<h2><span class="tier C">C</span>Docs: document --token-file flag and SWAMP_SERVER_TOKEN_FILE env var</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-14T18:55:24.685Z">2026-09-14T18:55:24.685Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2135" rel="noopener">lab#2135</a></div>
+</article>
+<article class="item" id="issue-2132">
+<h2><span class="tier C">C</span>Docs: update managed config and Kubernetes deployment guides for extension seeding workflow</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-14T18:55:16.254Z">2026-09-14T18:55:16.254Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2132" rel="noopener">lab#2132</a></div>
+</article>
+<article class="item" id="issue-1561">
+<h2><span class="tier C">C</span>swamp command doesn&#39;t check cwd</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-14T18:10:11.489Z">2026-09-14T18:10:11.489Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1561" rel="noopener">lab#1561</a></div>
+</article>
+<article class="item" id="issue-2102">
+<h2><span class="tier C">C</span>Serve Audit Log - Phase 6: Full documentation</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-13T22:00:18.793Z">2026-09-13T22:00:18.793Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2102" rel="noopener">lab#2102</a></div>
+</article>
+<article class="item" id="issue-2112">
+<h2><span class="tier C">C</span>Serve Audit: Extension sink API — design and implementation</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-11T18:41:08.540Z">2026-09-11T18:41:08.540Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2112" rel="noopener">lab#2112</a></div>
+</article>
+<article class="item" id="issue-2107">
+<h2><span class="tier C">C</span>swamp serve daemon (user service) doesn&#39;t handle systemd &#39;lingering&#39; — claims it &#39;starts automatically&#39; but only runs while logged in</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-11T05:27:07.815Z">2026-09-11T05:27:07.815Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2107" rel="noopener">lab#2107</a></div>
+</article>
+<article class="item" id="issue-2089">
+<h2><span class="tier C">C</span>data.latest().attributes/.content unresolved in workflow assert/guard CEL for @mgreten/cli-agent extension data</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-10T20:29:26.925Z">2026-09-10T20:29:26.925Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2089" rel="noopener">lab#2089</a></div>
+</article>
+<article class="item" id="issue-2093">
+<h2><span class="tier C">C</span>agent-runner: allow using the Claude CLI&#39;s stored login instead of requiring an API key</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-10T18:06:47.537Z">2026-09-10T18:06:47.537Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2093" rel="noopener">lab#2093</a></div>
+</article>
+<article class="item" id="issue-2096">
+<h2><span class="tier C">C</span>Per-extension white listing</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-10T08:33:06.394Z">2026-09-10T08:33:06.394Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2096" rel="noopener">lab#2096</a></div>
+</article>
+<article class="item" id="issue-2084">
+<h2><span class="tier C">C</span>Unify serve config credential resolution via CEL expressions</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-09T12:24:42.066Z">2026-09-09T12:24:42.066Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2084" rel="noopener">lab#2084</a></div>
+</article>
+<article class="item" id="issue-2077">
+<h2><span class="tier C">C</span>Block temporary email services on signup</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-09T12:09:14.931Z">2026-09-09T12:09:14.931Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2077" rel="noopener">lab#2077</a></div>
+</article>
+<article class="item" id="issue-2075">
+<h2><span class="tier C">C</span>Docs: Serve audit Phase 4 — SIEM sinks, HMAC, and export reference</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-09T12:02:38.591Z">2026-09-09T12:02:38.591Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2075" rel="noopener">lab#2075</a></div>
+</article>
+<article class="item" id="issue-2006">
+<h2><span class="tier C">C</span>Workflow list endpoints authorize against workflow:* instead of per-workflow</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-09T00:34:28.228Z">2026-09-09T00:34:28.228Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2006" rel="noopener">lab#2006</a></div>
+</article>
+<article class="item" id="issue-2068">
+<h2><span class="tier C">C</span>Add create_pipeline_schedule to @webframp/gitlab</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-08T18:01:27.729Z">2026-09-08T18:01:27.729Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2068" rel="noopener">lab#2068</a></div>
+</article>
+<article class="item" id="issue-2060">
+<h2><span class="tier C">C</span>Document run GC retention configuration</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-08T06:59:47.179Z">2026-09-08T06:59:47.179Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2060" rel="noopener">lab#2060</a></div>
+</article>
+<article class="item" id="issue-2058">
+<h2><span class="tier C">C</span>Audit: many model/data handlers pass wildcard resource name instead of actual model name</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-08T06:21:14.814Z">2026-09-08T06:21:14.814Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2058" rel="noopener">lab#2058</a></div>
+</article>
+<article class="item" id="issue-840">
+<h2><span class="tier C">C</span>Expose run/job/step identifiers as SWAMP_* env vars + CEL values, and template placement selectors (extends #331&#39;s run.id)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-08T04:54:50.714Z">2026-09-08T04:54:50.714Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/840" rel="noopener">lab#840</a></div>
+</article>
+<article class="item" id="issue-1282">
+<h2><span class="tier C">C</span>workflow.run: relay a custom model method&#39;s output as method_output (command steps already do)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-08T04:48:16.135Z">2026-09-08T04:48:16.135Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1282" rel="noopener">lab#1282</a></div>
+</article>
+<article class="item" id="issue-1646">
+<h2><span class="tier C">C</span>Make model output retention fields optional with sensible defaults</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-08T04:35:23.582Z">2026-09-08T04:35:23.582Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1646" rel="noopener">lab#1646</a></div>
+</article>
+<article class="item" id="issue-1479">
+<h2><span class="tier C">C</span>Extensions without a repository can&#39;t receive issues — including the issue asking them to add one</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-08T04:26:35.312Z">2026-09-08T04:26:35.312Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1479" rel="noopener">lab#1479</a></div>
+</article>
+<article class="item" id="issue-1103">
+<h2><span class="tier C">C</span>Architecture guide decision tree omits partial-match extend and package-granularity guidance</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-08T04:23:37.768Z">2026-09-08T04:23:37.768Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1103" rel="noopener">lab#1103</a></div>
+</article>
+<article class="item" id="issue-2031">
+<h2><span class="tier C">C</span>In &quot;swamp workflow run&quot;, &quot;Still running... [Xs elapsed]&quot; should be considered non-essential output</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-06T04:23:14.852Z">2026-09-06T04:23:14.852Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2031" rel="noopener">lab#2031</a></div>
+</article>
+<article class="item" id="issue-2027">
+<h2><span class="tier C">C</span>Retire or rebuild /admin/nurture once the epic lands — it is a gate, and gates are single-use</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-05T03:56:34.227Z">2026-09-05T03:56:34.227Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2027" rel="noopener">lab#2027</a></div>
+</article>
+<article class="item" id="issue-2025">
+<h2><span class="tier C">C</span>harness-marketing-funnel posts {batch:[...]} to /ingest, which is not a batch — every run silently measures zero</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-04T21:08:30.532Z">2026-09-04T21:08:30.532Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2025" rel="noopener">lab#2025</a></div>
+</article>
+<article class="item" id="issue-2008">
+<h2><span class="tier C">C</span>Epic: Product nurture — lifecycle identification, dedupe-safe delivery, and operator control (email, inbox, CLI)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-04T19:41:20.722Z">2026-09-04T19:41:20.722Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2008" rel="noopener">lab#2008</a></div>
+</article>
+<article class="item" id="issue-2024">
+<h2><span class="tier C">C</span>feat(cli): swamp inbox — read swamp-club notifications without leaving the terminal</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-04T19:41:20.711Z">2026-09-04T19:41:20.711Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2024" rel="noopener">lab#2024</a></div>
+</article>
+<article class="item" id="issue-2023">
+<h2><span class="tier C">C</span>feat(cli): tell operatives they have swamp-club notifications waiting</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-04T19:41:19.572Z">2026-09-04T19:41:19.572Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2023" rel="noopener">lab#2023</a></div>
+</article>
+<article class="item" id="issue-2022">
+<h2><span class="tier C">C</span>feat(api): a cheap unread-notification count for API-key clients</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-04T19:41:18.438Z">2026-09-04T19:41:18.438Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2022" rel="noopener">lab#2022</a></div>
+</article>
+<article class="item" id="issue-2021">
+<h2><span class="tier C">C</span>feat(nurture): deliver to the swamp-club inbox on the same dedupe decision as email</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-04T19:41:17.316Z">2026-09-04T19:41:17.316Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2021" rel="noopener">lab#2021</a></div>
+</article>
+<article class="item" id="issue-2000">
+<h2><span class="tier C">C</span>Datastore-backed model catalog: register model definitions via the datastore, not only on-disk yaml</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-04T18:05:52.027Z">2026-09-04T18:05:52.027Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2000" rel="noopener">lab#2000</a></div>
+</article>
+<article class="item" id="issue-2003">
+<h2><span class="tier C">C</span>buildDeps should reuse repoContext.unifiedDataRepo instead of creating a standalone repo per step</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-04T17:26:09.013Z">2026-09-04T17:26:09.013Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2003" rel="noopener">lab#2003</a></div>
+</article>
+<article class="item" id="issue-2002">
+<h2><span class="tier C">C</span>Guard against null parseYaml returns in remaining YAML repositories</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-04T16:41:10.888Z">2026-09-04T16:41:10.888Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2002" rel="noopener">lab#2002</a></div>
+</article>
+<article class="item" id="issue-1991">
+<h2><span class="tier C">C</span>swamp data delete silently reverts — deleted records reappear on subsequent get</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-03T22:42:38.709Z">2026-09-03T22:42:38.709Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1991" rel="noopener">lab#1991</a></div>
+</article>
+<article class="item" id="issue-1987">
+<h2><span class="tier C">C</span>Native background/daemon mode for swamp serve</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-03T17:12:08.838Z">2026-09-03T17:12:08.838Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1987" rel="noopener">lab#1987</a></div>
+</article>
+<article class="item" id="issue-1969">
+<h2><span class="tier C">C</span>Add interactive serve setup skill with best-practice guidance</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-02T19:16:40.786Z">2026-09-02T19:16:40.786Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1969" rel="noopener">lab#1969</a></div>
+</article>
+<article class="item" id="issue-1968">
+<h2><span class="tier C">C</span>Add intent and scope discovery to extension creation skill</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-02T19:00:52.912Z">2026-09-02T19:00:52.912Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1968" rel="noopener">lab#1968</a></div>
+</article>
+<article class="item" id="issue-1938">
+<h2><span class="tier C">C</span>serve still panics on successful OAuth device-flow completion after #1899 fix (200 branch only)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-02T18:04:58.983Z">2026-09-02T18:04:58.983Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1938" rel="noopener">lab#1938</a></div>
+</article>
+<article class="item" id="issue-1663">
+<h2><span class="tier C">C</span>swamp CLI: surface the audience and resolvedInVersion fields swamp-club now serves</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-02T17:33:30.646Z">2026-09-02T17:33:30.646Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1663" rel="noopener">lab#1663</a></div>
+</article>
+<article class="item" id="issue-1949">
+<h2><span class="tier C">C</span>verification-attestation reports 0 skipped and omits skipped steps, including skipped asserts</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-02T15:03:16.673Z">2026-09-02T15:03:16.673Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1949" rel="noopener">lab#1949</a></div>
+</article>
+<article class="item" id="issue-1943">
+<h2><span class="tier C">C</span>formatUserModelError arguments check uses fixed path index, broken for extension schema</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-01T23:32:47.260Z">2026-09-01T23:32:47.260Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1943" rel="noopener">lab#1943</a></div>
+</article>
+<article class="item" id="issue-1940">
+<h2><span class="tier C">C</span>Pi missing from VALID_HOOK_TOOLS — audit hooks are a silent no-op</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-01T23:20:16.834Z">2026-09-01T23:20:16.834Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1940" rel="noopener">lab#1940</a></div>
+</article>
+<article class="item" id="issue-1930">
+<h2><span class="tier C">C</span>&#39;Active in swamp&#39; in scoreboard is ambiguous</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-01T14:08:17.209Z">2026-09-01T14:08:17.209Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1930" rel="noopener">lab#1930</a></div>
+</article>
+<article class="item" id="issue-1928">
+<h2><span class="tier C">C</span>S3 datastore: model method run &amp; datastore sync deadlock in commit/lock phase (anon_pipe_read), no self-heal</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-01T03:27:38.506Z">2026-09-01T03:27:38.506Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1928" rel="noopener">lab#1928</a></div>
+</article>
+<article class="item" id="issue-1371">
+<h2><span class="tier C">C</span>HTTP egress does not honor Happy Eyeballs (RFC 8305) on dual-stack DNS responses — IPv6 blackhole hangs the request</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-01T02:59:42.319Z">2026-09-01T02:59:42.319Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1371" rel="noopener">lab#1371</a></div>
+</article>
+<article class="item" id="issue-1312">
+<h2><span class="tier C">C</span>Issue filing inherits most-recently-created collective&#39;s scope and privacy, with no way to choose</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-01T02:58:40.602Z">2026-09-01T02:58:40.602Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1312" rel="noopener">lab#1312</a></div>
+</article>
+<article class="item" id="issue-1926">
+<h2><span class="tier C">C</span>docs: fix grant file examples to use actions (plural array) not action (singular)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-01T01:26:06.207Z">2026-09-01T01:26:06.207Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1926" rel="noopener">lab#1926</a></div>
+</article>
+<article class="item" id="issue-1833">
+<h2><span class="tier C">C</span>workflow resume writes no progress to a redirected stdout until the run ends</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-01T01:24:31.435Z">2026-09-01T01:24:31.435Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1833" rel="noopener">lab#1833</a></div>
+</article>
+<article class="item" id="issue-1725">
+<h2><span class="tier C">C</span>I _think_ I might like a guard in the trigger yaml</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-01T00:38:11.151Z">2026-09-01T00:38:11.151Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1725" rel="noopener">lab#1725</a></div>
+</article>
+<article class="item" id="issue-1903">
+<h2><span class="tier C">C</span>doctor extensions --repair reports catalog orphans pruned but leaves them in place</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-01T00:24:40.308Z">2026-09-01T00:24:40.308Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1903" rel="noopener">lab#1903</a></div>
+</article></section>
+<section class="tail"><h2>Final thoughts</h2>
+<p>267 items across 1 source(s) in this window:
+4 critical, 142 notable, 16 routine,
+105 minor.</p>
+<ul><li><strong>issues</strong> — 267</li></ul></section>
+</div></div></main>
+<footer>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.8</span> · last run <time datetime="2026-09-18T06:04:15.602Z">2026-09-18T06:04:15.602Z</time></div>
+  <div>Detail pages follow the interactive release-notes tour format popularised by the
+  <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
+  and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>
+</footer>
+<script>
+(function () {
+  var MINUTE = 60 * 1000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
+
+  // "just now", "15 mins ago", "1 hour ago", "4 hours ago".
+  function relative(ms) {
+    if (ms < MINUTE) return "just now";
+    if (ms < HOUR) {
+      var mins = Math.round(ms / MINUTE);
+      return mins + (mins === 1 ? " min ago" : " mins ago");
+    }
+    var hours = Math.round(ms / HOUR);
+    return hours + (hours === 1 ? " hour ago" : " hours ago");
+  }
+
+  function absolute(d, dateOnly) {
+    var opts = dateOnly
+      ? { year: "numeric", month: "short", day: "numeric" }
+      : {
+        year: "numeric", month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      };
+    return d.toLocaleString(undefined, opts);
+  }
+
+  function localize(root) {
+    var nodes = (root || document).querySelectorAll("time[datetime]");
+    var now = Date.now();
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var d = new Date(el.getAttribute("datetime"));
+      if (isNaN(d.getTime())) continue;
+      var dateOnly = el.getAttribute("data-time-format") === "date";
+      var age = now - d.getTime();
+      // Within the last 24 hours (and not in the future), prefer relative
+      // wording; older values keep an absolute, localized date. A date-only
+      // field stays a date — "15 mins ago" reads oddly in a date column.
+      var text = (!dateOnly && age >= 0 && age < DAY)
+        ? relative(age)
+        : absolute(d, dateOnly);
+      if (el.textContent !== text) el.textContent = text;
+      // Keep the exact value discoverable on hover, in local time.
+      el.title = d.toLocaleString();
+      el.setAttribute("data-localized", "1");
+    }
+  }
+
+  localize(document);
+  window.addEventListener("pageshow", function () { localize(document); });
+  // Refresh relative wording as time passes, so a page left open stays honest.
+  setInterval(function () { localize(document); }, 60000);
+})();
+</script>
+</body></html>

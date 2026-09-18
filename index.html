@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Summary — Swamp Pulse</title>
+<style>
+:root{--bg:#0b0f0c;--panel:#111813;--ink:#d7f5dd;--dim:#7fa88a;--acc:#39ff14;--amber:#ffb000;--mag:#ff4dd2;--line:#1d2a20}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "JetBrains Mono",ui-monospace,monospace}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+header.top{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+header.top h1{margin:0;font-size:20px;letter-spacing:.06em}
+nav.pages{display:flex;gap:14px;flex-wrap:wrap}
+nav.pages a{color:var(--dim)}nav.pages a.active{color:var(--acc)}
+.tabs{display:flex;gap:8px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px}
+.tab.active{border-color:var(--acc);color:var(--acc)}
+main{padding:20px 22px 60px;max-width:1180px}
+.layout{display:grid;grid-template-columns:250px 1fr;gap:26px}
+@media(max-width:860px){.layout{grid-template-columns:1fr}.toc{display:none}}
+.toc{position:sticky;top:12px;align-self:start;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:12px;max-height:80vh;overflow:auto}
+.toc h3{margin:0 0 8px;font-size:12px;color:var(--dim);letter-spacing:.1em}
+.toc a{display:block;color:var(--dim);padding:2px 0}
+.tier{display:inline-block;min-width:22px;text-align:center;border-radius:4px;padding:1px 6px;font-weight:700;font-size:12px;margin-right:8px}
+.tier.S{background:#3a0d0d;color:#ff6b6b}.tier.A{background:#3a2c0d;color:var(--amber)}.tier.B{background:#12301a;color:var(--acc)}.tier.C{background:#182028;color:var(--dim)}
+.item{border:1px solid var(--line);border-radius:10px;padding:16px;margin:0 0 14px;background:var(--panel)}
+.item h2{margin:0 0 6px;font-size:16px;line-height:1.35}
+.lede{color:var(--ink);margin:4px 0 10px}
+.meta{color:var(--dim);font-size:12.5px;display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+pre{background:#0a0d0b;border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;font-size:13px}
+.body-h{margin:10px 0 4px;font-size:13px;color:var(--dim)}
+.item ul{margin:6px 0 6px 18px;padding:0}.item li{margin:2px 0}
+.refs{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--dim);margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+.docs{margin-top:10px;font-size:13px}
+.docs a{display:inline-block;margin:2px 10px 2px 0}
+table.board{width:100%;border-collapse:collapse;font-size:14px}
+table.board th,table.board td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left}
+table.board th{color:var(--dim);font-size:12px;letter-spacing:.08em}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+.card{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--panel)}
+.card .n{font-size:26px;color:var(--acc);font-weight:700}.card .l{color:var(--dim);font-size:12px;letter-spacing:.08em}
+.tail{margin-top:26px}.tail h2{font-size:15px;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:6px}
+.empty{color:var(--dim);font-style:italic}
+.page-title{margin:0 0 14px;font-size:18px;letter-spacing:.06em}
+.dim{color:var(--dim)}
+.doc-item .meta a{color:var(--acc)}
+.ext-badge{display:inline-block;margin-right:8px;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700;vertical-align:middle}
+.ext-badge.new{background:#12301a;color:var(--acc)}
+.ext-badge.upd{background:#3a2c0d;color:var(--amber)}
+.ext-badge.sig{background:#2a1030;color:var(--mag)}
+.grade{font-weight:700}
+.grade.g-A{color:var(--acc)}.grade.g-B{color:var(--amber)}.grade.g-C{color:var(--mag)}
+.ext-labels{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+.ext-label{border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:11.5px;color:var(--dim)}
+details.more{margin:14px 0}
+details.more summary{cursor:pointer;color:var(--acc);padding:10px;border:1px dashed var(--line);border-radius:8px}
+.doc-changes{list-style:none;margin:8px 0 0;padding:0}
+.doc-change{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:5px 0;border-top:1px dashed var(--line)}
+.doc-date{color:var(--dim);font-size:12.5px;min-width:150px}
+.doc-title{flex:1;min-width:220px}
+.doc-change .refs{margin:0;border:0;padding:0}
+footer{color:var(--dim);font-size:12px;padding:0 22px 40px;max-width:1180px}
+footer .ver{color:var(--acc)}
+.credit{color:var(--dim);font-size:12px;margin-top:4px}
+</style>
+</head><body>
+<header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html" class="active">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html">Issues</a></nav></header>
+<main>
+<h2 class="page-title">Documentation changes — This month</h2>
+<div class="cards">
+<div class="card"><div class="n">0</div><div class="l">FILES CHANGED</div></div>
+<div class="card"><div class="n">0</div><div class="l">CHANGES</div></div>
+<div class="card"><div class="n">0</div><div class="l">WITH MANUAL PAGE</div></div>
+</div>
+<p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
+<a href="leaderboard.html">Leaderboard</a> page.</p>
+<p class="empty">No documentation changed.</p>
+</main>
+<footer>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.8</span> · last run <time datetime="2026-09-18T06:04:15.602Z">2026-09-18T06:04:15.602Z</time></div>
+  <div>Detail pages follow the interactive release-notes tour format popularised by the
+  <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
+  and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>
+</footer>
+<script>
+(function () {
+  var MINUTE = 60 * 1000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
+
+  // "just now", "15 mins ago", "1 hour ago", "4 hours ago".
+  function relative(ms) {
+    if (ms < MINUTE) return "just now";
+    if (ms < HOUR) {
+      var mins = Math.round(ms / MINUTE);
+      return mins + (mins === 1 ? " min ago" : " mins ago");
+    }
+    var hours = Math.round(ms / HOUR);
+    return hours + (hours === 1 ? " hour ago" : " hours ago");
+  }
+
+  function absolute(d, dateOnly) {
+    var opts = dateOnly
+      ? { year: "numeric", month: "short", day: "numeric" }
+      : {
+        year: "numeric", month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      };
+    return d.toLocaleString(undefined, opts);
+  }
+
+  function localize(root) {
+    var nodes = (root || document).querySelectorAll("time[datetime]");
+    var now = Date.now();
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var d = new Date(el.getAttribute("datetime"));
+      if (isNaN(d.getTime())) continue;
+      var dateOnly = el.getAttribute("data-time-format") === "date";
+      var age = now - d.getTime();
+      // Within the last 24 hours (and not in the future), prefer relative
+      // wording; older values keep an absolute, localized date. A date-only
+      // field stays a date — "15 mins ago" reads oddly in a date column.
+      var text = (!dateOnly && age >= 0 && age < DAY)
+        ? relative(age)
+        : absolute(d, dateOnly);
+      if (el.textContent !== text) el.textContent = text;
+      // Keep the exact value discoverable on hover, in local time.
+      el.title = d.toLocaleString();
+      el.setAttribute("data-localized", "1");
+    }
+  }
+
+  localize(document);
+  window.addEventListener("pageshow", function () { localize(document); });
+  // Refresh relative wording as time passes, so a page left open stays honest.
+  setInterval(function () { localize(document); }, 60000);
+})();
+</script>
+</body></html>

@@ -162,9 +162,38 @@ current month, one card per file, newest first. It carries only docs — the
 activity board lives on its own page.
 
 **`leaderboard.html`** is the activity view: ranked merged items, top 25 per
-window, for 24h / 7d / month. All five pages share the nav bar, so the
-leaderboard is one click from anywhere (and links to every other page, including
-itself).
+window, for 24h / 7d / month.
+
+**`extensions.html`** is the registry view (see below). All six pages share the
+same nav bar, so every page links to every other page.
+
+### Extension registry
+
+`extensions.html` reads the public registry API (`/api/v1/extensions/search`)
+and lists, in this order:
+
+1. **New** — extensions first published in the window.
+2. **Updated** — extensions that published a new version in the window.
+3. **Most pulled** — the highest all-time `pullCount`, regardless of window
+   (labelled as such, since the API exposes no pull history).
+
+Each entry links to the extension's **registry page** and its **source
+repository** (`github.com`/`codeberg.org`), and shows the description, author,
+latest version, quality grade, pull count, labels, and the relevant date —
+localized like every other timestamp. The registry has ~1,600 extensions and
+~600 change in a typical month, so the updated list shows the 50 most recent
+with the remainder behind a `<details>` fold (no JavaScript required).
+
+The registry has no date filter, so windowing pages the `sort=updated` ordering
+until a page falls before the window. That single ordering covers both streams:
+a new extension has `createdAt == updatedAt`, so it appears in the same sweep
+and is classified as _new_ rather than _updated_.
+
+Every page's footer names the extension that generated it, linked to its
+[registry page](https://swamp-club.com/extensions/@svendowideit/swamp-pulse),
+shows the **version** used, and when it **last ran** — the latter rendered with
+the same local-time logic as every other timestamp, so it reads "just now" or "4
+hours ago" for recent runs.
 
 ### New / changed documentation
 
@@ -537,7 +566,8 @@ workflow run.
 **Pages (release-notes tour style)**
 
 - [x] `index.html` (docs summary, month) + `leaderboard.html` (24h/7d/month) +
-      `changes.html` + `releases.html` + `issues.html`, all cross-linked
+      `extensions.html` (registry) + `changes.html` + `releases.html` +
+      `issues.html`, all cross-linked
 - [x] Tour sections: anchored `<h2 id>` headings, "why it matters" lede, body
       block, 𝗗/𝗣/𝗖𝗟/𝗔 reference row
 - [x] Sidebar ToC generated from item anchors; sticky on the detail pages
@@ -566,7 +596,13 @@ workflow run.
       (`<time datetime>` + `toLocaleString`); relative wording within 24h
       (`15 mins ago` / `4 hours ago`), absolute beyond, refreshing each minute —
       verified case-by-case in headless Chromium
-- [x] Dry-run push clean; 92 unit tests + live end-to-end workflow run passing
+- [x] Page footer links the extension registry page and shows the generating
+      version and last-run time (localized), via shared `EXTENSION_URL` /
+      `EXTENSION_VERSION` constants so it cannot drift
+- [x] Extension-registry collector (`swamp_ext_registry.ts`) + `extensions.html`
+      — new / updated / most-pulled, each linked to its registry page and source
+      repo; long list collapsed by default
+- [x] Dry-run push clean; 96 unit tests + live end-to-end workflow run passing
 
 ## License
 

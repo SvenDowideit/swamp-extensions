@@ -125,6 +125,18 @@ jobs:
         dependsOn: []
         weight: 0
         allowFailure: true
+      - name: collect-extensions
+        description: Read the public extension registry and report new / updated extensions plus the most pulled.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-ext-registry"
+          modelName: ext-registry
+          methodName: collect_extensions
+          inputs:
+            since: ${{ inputs.since }}
+        dependsOn: []
+        weight: 0
+        allowFailure: true
       - name: rank
         description: Join releases↔commits↔PRs into merged items, merge into the rolling store, and rank by window.
         task:
@@ -137,6 +149,7 @@ jobs:
             releases: ${{ data.latest("github", "releases").?attributes.orValue({}) }}
             docChanges: ${{ data.latest("github", "docs").?attributes.orValue({}) }}
             labIssues: ${{ data.latest("swamp-club", "issues").?attributes.orValue({}) }}
+            extensions: ${{ data.latest("ext-registry", "registry").?attributes.orValue({}) }}
         dependsOn:
           - step: collect-issues
             condition:
@@ -157,6 +170,12 @@ jobs:
                 - type: succeeded
                 - type: failed
           - step: collect-docs
+            condition:
+              type: or
+              conditions:
+                - type: succeeded
+                - type: failed
+          - step: collect-extensions
             condition:
               type: or
               conditions:

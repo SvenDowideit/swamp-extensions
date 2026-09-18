@@ -12,7 +12,12 @@ import {
   withMockedFetch,
 } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 import { celEscape, celUnescape, celUnescapeDeep } from "./cel_text.ts";
-import { LOCAL_TIME_SCRIPT } from "./swamp_pulse.ts";
+import {
+  EXTENSION_NAME,
+  EXTENSION_URL,
+  EXTENSION_VERSION,
+  LOCAL_TIME_SCRIPT,
+} from "./swamp_pulse.ts";
 import { isDocPath } from "./doc_paths.ts";
 import type { runSwampCmd as RunSwampCmd } from "./swamp_pulse.ts";
 import {
@@ -28,6 +33,7 @@ import {
   parseRefs,
   rankItems,
   renderDocFileCard,
+  renderExtensionsPage,
   renderIndexPage,
   renderItem,
   renderLeaderboardPage,
@@ -99,6 +105,45 @@ Deno.test("renderTime emits a machine-readable time element", () => {
   assertStringIncludes(html, "2026-09-17T23:23:31Z");
 });
 
+Deno.test("the footer links the extension page, shows the version and last run", () => {
+  const ranked = {
+    windows: [{
+      key: "month",
+      label: "This month",
+      since: "",
+      until: "",
+      changes: 1,
+      releases: 1,
+      issues: 0,
+      items: [makeItem("release:r", "2026-09-18T00:00:00Z")],
+    }],
+    totals: {
+      events: 1,
+      commits: 0,
+      releases: 1,
+      issues: 0,
+      docChanges: 0,
+      byRepo: {},
+    },
+    manualPages: 0,
+    extensions: null,
+    generatedAt: "2026-09-18T12:34:56Z",
+  };
+  const html = renderLeaderboardPage(ranked);
+  // Links to the published extension page.
+  assertStringIncludes(html, `href="${EXTENSION_URL}"`);
+  assertEquals(
+    EXTENSION_URL,
+    `https://swamp-club.com/extensions/${EXTENSION_NAME}`,
+  );
+  // Shows the version used to generate the pages.
+  assertStringIncludes(html, EXTENSION_NAME);
+  assertStringIncludes(html, `v${EXTENSION_VERSION}`);
+  // Shows when it last ran, via a localizable <time> element.
+  assertStringIncludes(html, "last run");
+  assertStringIncludes(html, '<time datetime="2026-09-18T12:34:56Z">');
+});
+
 Deno.test("renderTime date format shows the date part without an attribute clash", () => {
   const html = renderTime("2026-09-17T23:23:31Z", "date");
   assertStringIncludes(html, 'datetime="2026-09-17T23:23:31Z"');
@@ -149,6 +194,7 @@ Deno.test("the local-time script localizes every time element and is injected", 
       byRepo: {},
     },
     manualPages: 0,
+    extensions: null,
     generatedAt: "2026-09-18T12:00:00Z",
   };
   const summary = renderIndexPage(ranked);
@@ -841,6 +887,7 @@ Deno.test("renderLeaderboardPage produces a board per window", () => {
       byRepo: { "swamp-club/swamp": 2 },
     },
     manualPages: 10,
+    extensions: null,
     generatedAt: "2026-09-18T12:00:00Z",
   };
   const html = renderLeaderboardPage(ranked);
@@ -859,6 +906,158 @@ Deno.test("renderLeaderboardPage produces a board per window", () => {
   ) {
     assertStringIncludes(html, `href="${href}"`);
   }
+});
+
+Deno.test("renderExtensionsPage groups new, updated and most-pulled with repo links", () => {
+  const mkExt = (over: Record<string, unknown>) => ({
+    name: "@scope/tool",
+    namespace: "@scope",
+    description: "Does a thing.",
+    repository: "https://github.com/scope/tool",
+    repositoryHost: "github.com",
+    repositoryVerified: true,
+    homepageUrl: "",
+    latestVersion: "2026.09.18.1",
+    latestRc: "",
+    latestBeta: "",
+    author: "someone",
+    labels: ["tool"],
+    contentTypes: ["models"],
+    platforms: [],
+    scoreGrade: "A",
+    scorePercentage: 100,
+    pullCount: 0,
+    createdAt: "2026-09-18T00:00:00Z",
+    updatedAt: "2026-09-18T00:00:00Z",
+    isNew: false,
+    isUpdated: false,
+    registryUrl: "https://swamp-club.com/extensions/@scope/tool",
+    ...over,
+  });
+  // Keep registryUrl consistent with the (possibly overridden) name.
+  const withUrl = (o: Record<string, unknown>) => ({
+    ...mkExt(o),
+    registryUrl: `https://swamp-club.com/extensions/${o.name}`,
+  });
+  const ranked = {
+    windows: [],
+    totals: {
+      events: 0,
+      commits: 0,
+      releases: 0,
+      issues: 0,
+      docChanges: 0,
+      byRepo: {},
+    },
+    manualPages: 0,
+    extensions: {
+      extensions: [
+        withUrl({ name: "@a/new", isNew: true }),
+        withUrl({ name: "@b/changed", isUpdated: true }),
+      ],
+      count: 2,
+      newCount: 1,
+      updatedCount: 1,
+      significant: [withUrl({ name: "@swamp/popular", pullCount: 999 })],
+      totalRegistry: 1611,
+      pagesFetched: 7,
+      truncated: false,
+      since: "",
+      until: "",
+      fetchedAt: "2026-09-18T00:00:00Z",
+      durationMs: 1,
+      collectedBy: "x",
+    },
+    generatedAt: "2026-09-18T12:00:00Z",
+  };
+  const html = renderExtensionsPage(ranked);
+  assertStringIncludes(html, "New extensions");
+  assertStringIncludes(html, "Updated extensions");
+  assertStringIncludes(html, "Most pulled");
+  assertStringIncludes(html, "ext-badge new");
+  assertStringIncludes(html, "ext-badge upd");
+  assertStringIncludes(html, "ext-badge sig");
+  // Registry page and source repo are both linked.
+  assertStringIncludes(html, "https://swamp-club.com/extensions/@a/new");
+  assertStringIncludes(html, 'href="https://github.com/scope/tool"');
+  assertStringIncludes(html, "v2026.09.18.1");
+});
+
+Deno.test("renderExtensionsPage handles a missing registry collection", () => {
+  const ranked = {
+    windows: [],
+    totals: {
+      events: 0,
+      commits: 0,
+      releases: 0,
+      issues: 0,
+      docChanges: 0,
+      byRepo: {},
+    },
+    manualPages: 0,
+    extensions: null,
+    generatedAt: "2026-09-18T12:00:00Z",
+  };
+  const html = renderExtensionsPage(ranked);
+  assertStringIncludes(html, "No extension registry data");
+});
+
+Deno.test("renderExtensionsPage collapses a long updated list", () => {
+  const many = Array.from({ length: 60 }, (_, i) => ({
+    name: `@s/tool${i}`,
+    namespace: "@s",
+    description: "x",
+    repository: "https://github.com/s/t",
+    repositoryHost: "github.com",
+    repositoryVerified: true,
+    homepageUrl: "",
+    latestVersion: "1",
+    latestRc: "",
+    latestBeta: "",
+    author: "a",
+    labels: [],
+    contentTypes: [],
+    platforms: [],
+    scoreGrade: "",
+    scorePercentage: 0,
+    pullCount: 0,
+    createdAt: "2026-09-18T00:00:00Z",
+    updatedAt: "2026-09-18T00:00:00Z",
+    isNew: false,
+    isUpdated: true,
+    registryUrl: "https://swamp-club.com/extensions/@s/tool0",
+  }));
+  const ranked = {
+    windows: [],
+    totals: {
+      events: 0,
+      commits: 0,
+      releases: 0,
+      issues: 0,
+      docChanges: 0,
+      byRepo: {},
+    },
+    manualPages: 0,
+    extensions: {
+      extensions: many,
+      count: 60,
+      newCount: 0,
+      updatedCount: 60,
+      significant: [],
+      totalRegistry: 1611,
+      pagesFetched: 7,
+      truncated: false,
+      since: "",
+      until: "",
+      fetchedAt: "",
+      durationMs: 1,
+      collectedBy: "x",
+    },
+    generatedAt: "2026-09-18T12:00:00Z",
+  };
+  const html = renderExtensionsPage(ranked);
+  assertStringIncludes(html, 'class="more"');
+  assertStringIncludes(html, "Show 10 more");
 });
 
 Deno.test("renderIndexPage is docs-only and links to the leaderboard", () => {
@@ -905,6 +1104,7 @@ Deno.test("renderIndexPage is docs-only and links to the leaderboard", () => {
       byRepo: {},
     },
     manualPages: 1,
+    extensions: null,
     generatedAt: "2026-09-18T12:00:00Z",
   };
   const html = renderIndexPage(ranked);
@@ -1069,6 +1269,7 @@ Deno.test("renderIndexPage reads the widest window only (no doc duplicates)", ()
       byRepo: {},
     },
     manualPages: 1,
+    extensions: null,
     generatedAt: "2026-09-18T12:00:00Z",
   };
   const html = renderIndexPage(ranked);
@@ -1210,7 +1411,7 @@ Deno.test("render fails clearly when rank has not run", async () => {
   assert(threw, "render should throw without ranked data");
 });
 
-Deno.test("render writes five HTML pages from ranked data", async () => {
+Deno.test("render writes six HTML pages from ranked data", async () => {
   const ranked = {
     windows: [
       {
@@ -1242,6 +1443,7 @@ Deno.test("render writes five HTML pages from ranked data", async () => {
       byRepo: {},
     },
     manualPages: 0,
+    extensions: null,
     generatedAt: "2026-09-18T12:00:00Z",
   };
   const { context, getWrittenFiles } = createModelTestContext({
@@ -1255,10 +1457,11 @@ Deno.test("render writes five HTML pages from ranked data", async () => {
     context as any,
   );
   const files = getWrittenFiles();
-  assertEquals(files.length, 5);
+  assertEquals(files.length, 6);
   const names = files.map((f) => f.name).sort();
   assertEquals(names, [
     "changes.html",
+    "extensions.html",
     "index.html",
     "issues.html",
     "leaderboard.html",

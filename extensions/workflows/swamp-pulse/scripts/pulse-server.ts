@@ -1,7 +1,7 @@
 /**
  * Static HTTP server for the Swamp Pulse pages.
  *
- * Serves the five generated HTML pages from the pulse output directory, with
+ * Serves the six generated HTML pages from the pulse output directory, with
  * path-traversal protection and a small security header set. Modelled on the
  * news feedback server.
  *
@@ -16,6 +16,7 @@
  * Endpoints:
  *   GET /                 — documentation summary (index.html)
  *   GET /leaderboard.html — activity leaderboard (24h / 7d / month)
+ *   GET /extensions.html  — extension registry (new / updated / most pulled)
  *   GET /changes.html     — commits / changes tour
  *   GET /releases.html    — releases tour
  *   GET /issues.html      — Lab issues tour
@@ -37,6 +38,7 @@ const ALLOWED = new Set([
   "/",
   "/index.html",
   "/leaderboard.html",
+  "/extensions.html",
   "/changes.html",
   "/releases.html",
   "/issues.html",

@@ -1,16 +1,17 @@
 # Read-only; regenerate via 'swamp extension pull'
 manifestVersion: 1
 name: "@svendowideit/swamp-pulse"
-version: "2026.09.18.5"
+version: "2026.09.18.7"
 description: |
   A leaderboard-style activity dashboard for the swamp project itself. Tracks
   swamp-club Lab issues, GitHub commits and GitHub releases across
   swamp-club/swamp and swamp-club/swamp-extensions, joins each release, its
   commit and its pull request into a single merged item, ranks items by a
   synthesized significance hierarchy (tier first, recency as tie-break), and
-  renders five linked static HTML pages — a documentation summary plus
-  an activity leaderboard and changes, releases and issues detail pages
-  with 24h / 7d / current-month windows.
+  renders six linked static HTML pages — a documentation summary, an activity
+  leaderboard, an extension-registry page (new / updated / most-pulled, linked
+  to source repos) and changes, releases and issues detail pages with
+  24h / 7d / current-month windows.
 
   INSTALL (required)
 
@@ -24,7 +25,8 @@ description: |
 
   Scheduled hourly by default. Output lands in ~/.swamp/swamp-pulse/:
   index.html (documentation summary, current month), leaderboard.html
-  (activity for 24h / 7d / month), changes.html, releases.html, issues.html.
+  (activity for 24h / 7d / month), extensions.html (registry changes),
+  changes.html, releases.html, issues.html.
 
   CONFIGURE (all optional — public data, no secrets required)
 
@@ -69,6 +71,7 @@ models:
   - swamp_pulse.ts
   - swamp_club.ts
   - github_commits.ts
+  - swamp_ext_registry.ts
 
 reports:
   - swamp_pulse_report.ts
@@ -84,6 +87,7 @@ additionalFiles:
   - swamp_club_test.ts
   - github_commits_test.ts
   - swamp_pulse_report_test.ts
+  - swamp_ext_registry_test.ts
   - scripts/pulse-server.ts
 
 dependencies:

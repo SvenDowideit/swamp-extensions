@@ -1,0 +1,51 @@
+# Read-only; regenerate via 'swamp extension pull'
+manifestVersion: 1
+name: "@svendowideit/swamp-pulse"
+version: "2026.09.18.1"
+description: >
+  A leaderboard-style activity dashboard for the swamp project itself. Tracks
+  swamp-club Lab issues, GitHub commits and GitHub releases across
+  swamp-club/swamp and swamp-club/swamp-extensions, joins each release, its
+  commit and its pull request into a single merged item, ranks items by a
+  synthesized significance hierarchy (tier first, recency as tie-break), and
+  renders four linked static HTML pages — a leaderboard-style summary plus
+  changes, releases and issues detail pages with 24h / 7d / current-month
+  windows. Detail pages follow the interactive release-notes tour format and
+  every change that touches documentation links to both the published manual
+  page and the exact source file at that commit's SHA.
+
+  Install: swamp extension pull @svendowideit/swamp-pulse.
+  Also pulls @webframp/github (the extended type).
+  Run: swamp workflow run @svendowideit/swamp-pulse
+  UI: ~/.swamp/deno/deno run --allow-net --allow-read --allow-write --allow-env scripts/pulse-server.ts
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - swamp_pulse.ts
+  - swamp_club.ts
+  - github_commits.ts
+
+reports:
+  - swamp_pulse_report.ts
+
+workflows:
+  - swamp-pulse.yaml
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - NOTICE
+  - swamp_pulse_test.ts
+  - swamp_club_test.ts
+  - github_commits_test.ts
+  - swamp_pulse_report_test.ts
+  - scripts/pulse-server.ts
+
+dependencies:
+  - "@webframp/github"
+
+platforms: []

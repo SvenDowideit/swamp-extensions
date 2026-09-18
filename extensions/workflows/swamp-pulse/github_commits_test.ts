@@ -281,47 +281,78 @@ Deno.test("collect_releases stops at the since boundary", async () => {
   });
 });
 
-Deno.test("collect_doc_changes only inspects doc-suspect commits", async () => {
-  const inspected: string[] = [];
+Deno.test("collect_doc_changes finds docs changed by a non-doc commit", async () => {
+  // Regression: docs are usually updated alongside code, so a commit whose
+  // message says nothing about docs must still contribute its .md files.
+  const routes: Array<{ match: string; json: unknown }> = [];
   await withMockedCommand((_cmd, args) => {
     const endpoint = args.join(" ");
-    if (endpoint.includes("/commits?") || endpoint.includes("per_page")) {
+    if (endpoint.includes("compare/")) {
       return {
         code: 0,
-        stdout: JSON.stringify([
-          {
-            sha: "1111111111111111111111111111111111111111",
-            commit: {
-              message: "docs(readme): update",
-              author: { name: "A", date: "2026-09-17T00:00:00Z" },
+        stdout: JSON.stringify({
+          total_commits: 1,
+          files: [
+            {
+              filename: "src/cli/mod.ts",
+              status: "modified",
+              additions: 9,
+              deletions: 1,
+              changes: 10,
             },
-          },
-          {
-            sha: "2222222222222222222222222222222222222222",
-            commit: {
-              message: "feat(core): add thing",
-              author: { name: "B", date: "2026-09-17T01:00:00Z" },
+            {
+              filename: "design/enablers/datastores.md",
+              status: "modified",
+              additions: 3,
+              deletions: 0,
+              changes: 3,
             },
-          },
-        ]),
+            {
+              filename: "README.md",
+              status: "modified",
+              additions: 1,
+              deletions: 0,
+              changes: 1,
+            },
+          ],
+        }),
         stderr: "",
       };
     }
-    // Single-commit endpoint (contains the sha directly).
-    inspected.push(endpoint);
-    return {
-      code: 0,
-      stdout: JSON.stringify({
-        files: [{
-          filename: "README.md",
-          status: "modified",
-          additions: 1,
-          deletions: 0,
-          changes: 1,
-        }],
-      }),
-      stderr: "",
-    };
+    if (endpoint.includes("path=")) {
+      // commits-by-path attribution for each doc file
+      return {
+        code: 0,
+        stdout: JSON.stringify([{
+          sha: "1111111111111111111111111111111111111111",
+        }]),
+        stderr: "",
+      };
+    }
+    if (endpoint.includes("/commits/")) {
+      // parent of the oldest commit
+      return {
+        code: 0,
+        stdout: JSON.stringify({
+          parents: [{ sha: "0000000000000000000000000000000000000000" }],
+        }),
+        stderr: "",
+      };
+    }
+    if (endpoint.includes("per_page")) {
+      return {
+        code: 0,
+        stdout: JSON.stringify([{
+          sha: "1111111111111111111111111111111111111111",
+          commit: {
+            message: "fix(workers): reap stale worker records (#2509)",
+            author: { name: "A", date: "2026-09-17T00:00:00Z" },
+          },
+        }]),
+        stderr: "",
+      };
+    }
+    return { code: 0, stdout: JSON.stringify([]), stderr: "" };
   }, async () => {
     const { context, getWrittenResources } = createModelTestContext({
       globalArgs: {},
@@ -334,51 +365,79 @@ Deno.test("collect_doc_changes only inspects doc-suspect commits", async () => {
         until: "2026-09-18T00:00:00Z",
         maxCommits: 10,
         maxFiles: 100,
+        extraPathPattern: "",
       },
       // deno-lint-ignore no-explicit-any
       context as any,
     );
-    // Only the docs commit should have had its files fetched.
-    assertEquals(inspected.length, 1);
-    assertStringIncludes(
-      inspected[0],
+    const data = getWrittenResources()[0].data as {
+      count: number;
+      repos: { files: { filename: string; sha: string }[] }[];
+    };
+    const names = data.repos[0].files.map((f) => f.filename).sort();
+    assertEquals(names, ["README.md", "design/enablers/datastores.md"]);
+    // src/cli/mod.ts is not documentation.
+    assert(!names.some((n) => n.endsWith(".ts")));
+    // Files are attributed to the commit that touched them.
+    assertEquals(
+      data.repos[0].files[0].sha,
       "1111111111111111111111111111111111111111",
     );
-    const data = getWrittenResources()[0].data as { count: number };
-    assertEquals(data.count, 1);
+    routes.length;
   });
 });
 
-Deno.test("collect_doc_changes marks truncation when the commit cap bites", async () => {
+Deno.test("collect_doc_changes marks truncation when compare reports more commits", async () => {
   await withMockedCommand((_cmd, args) => {
     const endpoint = args.join(" ");
-    if (endpoint.includes("per_page")) {
+    if (endpoint.includes("compare/")) {
       return {
         code: 0,
-        stdout: JSON.stringify([
-          {
-            sha: "1111111111111111111111111111111111111111",
-            commit: {
-              message: "docs: a",
-              author: { name: "A", date: "2026-09-17T00:00:00Z" },
-            },
-          },
-          {
-            sha: "2222222222222222222222222222222222222222",
-            commit: {
-              message: "docs: b",
-              author: { name: "B", date: "2026-09-17T01:00:00Z" },
-            },
-          },
-        ]),
+        stdout: JSON.stringify({
+          total_commits: 99,
+          files: [{
+            filename: "README.md",
+            status: "modified",
+            additions: 1,
+            deletions: 0,
+            changes: 1,
+          }],
+        }),
         stderr: "",
       };
     }
-    return {
-      code: 0,
-      stdout: JSON.stringify({ files: [] }),
-      stderr: "",
-    };
+    if (endpoint.includes("path=")) {
+      return {
+        code: 0,
+        stdout: JSON.stringify([{
+          sha: "1111111111111111111111111111111111111111",
+        }]),
+        stderr: "",
+      };
+    }
+    if (endpoint.includes("/commits/")) {
+      return {
+        code: 0,
+        stdout: JSON.stringify({
+          parents: [{ sha: "0000000000000000000000000000000000000000" }],
+        }),
+        stderr: "",
+      };
+    }
+    if (endpoint.includes("per_page")) {
+      return {
+        code: 0,
+        stdout: JSON.stringify([{
+          sha: "1111111111111111111111111111111111111111",
+          commit: {
+            message: "fix: x",
+            author: { name: "A", date: "2026-09-17T00:00:00Z" },
+          },
+        }]),
+        stderr: "",
+      };
+    }
+    return { code: 0, stdout: JSON.stringify([]), stderr: "" };
   }, async () => {
     const { context, getWrittenResources } = createModelTestContext({
       globalArgs: {},
@@ -391,6 +450,7 @@ Deno.test("collect_doc_changes marks truncation when the commit cap bites", asyn
         until: "2026-09-18T00:00:00Z",
         maxCommits: 1,
         maxFiles: 100,
+        extraPathPattern: "",
       },
       // deno-lint-ignore no-explicit-any
       context as any,

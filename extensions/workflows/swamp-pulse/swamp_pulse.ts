@@ -21,6 +21,9 @@
 import { z } from "npm:zod@4";
 
 import { celUnescapeDeep } from "./cel_text.ts";
+import { isDocPath } from "./doc_paths.ts";
+
+export { isDocPath };
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -66,8 +69,22 @@ const MANUAL_PATH_MAP: Record<string, string> = {
   "design/enablers/access-control.md": "/manual/explanation/swamp-serve",
   "design/enablers/doctor-vaults.md": "/manual/reference/doctor",
   "design/enablers/doctor-secrets.md": "/manual/reference/doctor",
+  "design/enablers/remote-execution.md": "/manual/explanation/remote-execution",
+  "design/enablers/run-tracker.md": "/manual/explanation/the-run-tracker",
+  "design/enablers/serve-audit.md": "/manual/explanation/the-audit-system",
+  "design/enablers/expressions.md": "/manual/reference/cel-expressions",
+  "design/enablers/data-query.md": "/manual/explanation/the-data-layer",
   "design/surfaces/audit-doctor.md": "/manual/explanation/the-audit-system",
   "design/architecture.md": "/manual/explanation/how-swamp-works",
+  "design/operations.md": "/manual/reference/operational-commands",
+  "design/primitives/workflows.md":
+    "/manual/explanation/the-workflow-execution-model",
+  "design/primitives/extensions.md": "/manual/reference/extensions",
+  "design/primitives/vaults.md": "/manual/reference/vaults",
+  "design/primitives/serve.md": "/manual/explanation/swamp-serve",
+  "AGENTS.md": "/manual/explanation/ai-agent-integration",
+  ".claude/skills/swamp/references/issue/guide.md":
+    "/manual/reference/issue-commands",
   "README.md": "/manual",
 };
 
@@ -310,23 +327,6 @@ export function parseConventional(
   };
 }
 
-/** True when a changed path looks like documentation. */
-export function isDocPath(path: string, extraPattern?: string): boolean {
-  const p = String(path ?? "");
-  if (/\.(md|mdx)$/i.test(p)) return true;
-  if (/(^|\/)README(\.[^/]*)?$/i.test(p)) return true;
-  if (p.startsWith("design/")) return true;
-  if (p.includes("/docs/")) return true;
-  if (extraPattern) {
-    try {
-      return new RegExp(extraPattern, "i").test(p);
-    } catch {
-      return false;
-    }
-  }
-  return false;
-}
-
 /** Normalise a manual page path to its slug segments. */
 function slugSegments(url: string): string[] {
   const path = url.replace(/^https?:\/\/[^/]+/, "").replace(/^\/manual/, "");
@@ -344,7 +344,23 @@ function pathSegments(path: string): string[] {
 }
 
 /**
- * Resolve a changed documentation path to a published manual URL.
+ * Join a manual base URL with a page path, tolerating a base that already ends
+ * in `/manual` and a path that also starts with `/manual` (which would
+ * otherwise produce `/manual/manual/...`).
+ */
+function manualUrl(base: string, pagePath: string): string {
+  if (pagePath.startsWith("http")) return pagePath;
+  const b = base.replace(/\/+$/, "");
+  const p = pagePath.replace(/^\/+/, "");
+  if (p === "manual" || p.startsWith("manual/")) {
+    // The path already carries the /manual prefix; drop it if the base has one.
+    const stripped = p.slice("manual".length).replace(/^\/+/, "");
+    return stripped ? `${b}/${stripped}` : b;
+  }
+  return `${b}/${p}`;
+}
+
+/** Resolve a changed documentation path to a published manual URL.
  *
  * Uses an explicit map first, then fuzzy slug similarity. Returns an empty URL
  * when no confident match exists — callers must never guess a manual page.
@@ -356,10 +372,7 @@ export function resolveManualUrl(
 ): { url: string; confidence: number } {
   const mapped = MANUAL_PATH_MAP[path];
   if (mapped) {
-    return {
-      url: mapped.startsWith("http") ? mapped : `${manualBaseUrl}${mapped}`,
-      confidence: 1,
-    };
+    return { url: manualUrl(manualBaseUrl, mapped), confidence: 1 };
   }
 
   const target = pathSegments(path);
@@ -376,7 +389,7 @@ export function resolveManualUrl(
     const confidence = denom === 0 ? 0 : overlap / denom;
     if (confidence > best.confidence) {
       best = {
-        url: page.startsWith("http") ? page : `${manualBaseUrl}${page}`,
+        url: manualUrl(manualBaseUrl, page),
         confidence,
       };
     }
@@ -552,7 +565,11 @@ export function mergeEvents(
     docChanges?: unknown;
     labIssues?: unknown;
   },
-  opts: { manualPages?: string[]; manualBaseUrl?: string } = {},
+  opts: {
+    manualPages?: string[];
+    manualBaseUrl?: string;
+    docPathPattern?: string;
+  } = {},
 ): z.infer<typeof MergedItemSchema>[] {
   const { commits, releases, issues, files } = normalizeInputs(
     celUnescapeDeep(input),
@@ -568,6 +585,8 @@ export function mergeEvents(
     const links: z.infer<typeof DocLinkSchema>[] = [];
     for (const f of files) {
       if (f.repo !== repo || f.sha !== sha) continue;
+      if (!isDocPath(f.filename, opts.docPathPattern)) continue;
+
       const resolved = resolveManualUrl(f.filename, manualPages, manualBaseUrl);
       links.push({
         filename: f.filename,
@@ -983,6 +1002,11 @@ table.board th{color:var(--dim);font-size:12px;letter-spacing:.08em}
 .empty{color:var(--dim);font-style:italic}
 .dim{color:var(--dim)}
 .doc-item .meta a{color:var(--acc)}
+.doc-changes{list-style:none;margin:8px 0 0;padding:0}
+.doc-change{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:5px 0;border-top:1px dashed var(--line)}
+.doc-date{color:var(--dim);font-size:12.5px;min-width:150px}
+.doc-title{flex:1;min-width:220px}
+.doc-change .refs{margin:0;border:0;padding:0}
 footer{color:var(--dim);font-size:12px;padding:0 22px 40px;max-width:1180px}
 .credit{color:var(--dim);font-size:12px;margin-top:4px}
 `;
@@ -1207,17 +1231,14 @@ export function renderIndexPage(
   }).join("\n");
 
   const body =
-    `<main>${cards}${sections}<div class="tail"><h2>New / changed documentation</h2>${
-      renderDocSection(ranked)
-    }</div></main>`;
+    `<main>${cards}${sections}<div class="tail"><h2>New / changed documentation — ${
+      escapeHtml(ranked.windows[ranked.windows.length - 1]?.label ?? "")
+    }</h2>${renderDocSection(ranked)}</div></main>`;
   return layout("Summary", "index.html", body);
 }
 
-/** Render one documentation change as a tour entry, linked to its origin. */
-export function renderDocRow(
-  item: z.infer<typeof MergedItemSchema>,
-  doc: z.infer<typeof DocLinkSchema>,
-): string {
+/** Render the labelled reference row for a change (release/commit/PR/issue). */
+export function renderRefs(item: z.infer<typeof MergedItemSchema>): string {
   const refs: string[] = [];
   if (item.releaseTag) {
     refs.push(
@@ -1243,45 +1264,111 @@ export function renderDocRow(
       `𝗔 <a href="${item.labIssue.url}" rel="noopener">lab#${item.labIssue.number}</a>`,
     );
   }
+  return refs.join("") || '<span class="dim">no source refs</span>';
+}
 
-  const manual = doc.manualUrl
-    ? `<a href="${doc.manualUrl}" rel="noopener">published manual</a>`
+/** One documentation file and the changes that touched it in the window. */
+export type DocFileGroup = {
+  filename: string;
+  repo: string;
+  sourceUrl: string;
+  manualUrl: string;
+  manualConfidence: number;
+  latestDate: string;
+  changes: z.infer<typeof MergedItemSchema>[];
+};
+
+/**
+ * Group documentation changes by file.
+ *
+ * A file is listed once, ordered by most recent change; the changes that
+ * touched it within the window sit inside the group. Deduplication is by
+ * filename, not by URL — the URL carries the commit SHA, so the same file
+ * changed twice would otherwise appear twice.
+ */
+export function groupDocChanges(
+  items: z.infer<typeof MergedItemSchema>[],
+): DocFileGroup[] {
+  const byFile = new Map<string, DocFileGroup>();
+  for (const item of items) {
+    for (const doc of item.docLinks) {
+      let group = byFile.get(doc.filename);
+      if (!group) {
+        group = {
+          filename: doc.filename,
+          repo: item.repo,
+          sourceUrl: doc.sourceUrl,
+          manualUrl: doc.manualUrl,
+          manualConfidence: doc.manualConfidence,
+          latestDate: item.date,
+          changes: [],
+        };
+        byFile.set(doc.filename, group);
+      }
+      if (!group.changes.some((c) => c.id === item.id)) {
+        group.changes.push(item);
+      }
+      // Keep the newest source URL / manual match for the file header.
+      if (Date.parse(item.date) >= Date.parse(group.latestDate)) {
+        group.latestDate = item.date;
+        group.sourceUrl = doc.sourceUrl;
+        group.manualUrl = doc.manualUrl;
+        group.manualConfidence = doc.manualConfidence;
+        group.repo = item.repo || group.repo;
+      }
+    }
+  }
+
+  for (const group of byFile.values()) {
+    group.changes.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+  }
+  return [...byFile.values()].sort(
+    (a, b) => Date.parse(b.latestDate) - Date.parse(a.latestDate),
+  );
+}
+
+/** Render one documentation file and the changes that touched it. */
+export function renderDocFileCard(group: DocFileGroup): string {
+  const manual = group.manualUrl
+    ? `<a href="${group.manualUrl}" rel="noopener">published manual</a>`
     : `<span class="dim">no published page</span>`;
 
+  const changes = group.changes.map((change) =>
+    `<li class="doc-change">
+<span class="tier ${change.importance}">${change.importance}</span>
+<span class="doc-date">${escapeHtml(change.date)}</span>
+<span class="doc-title">${escapeHtml(change.title)}</span>
+<span class="refs">${renderRefs(change)}</span>
+</li>`
+  ).join("\n");
+
   return `<article class="item doc-item">
-<h2><span class="tier ${item.importance}">${item.importance}</span><a href="${doc.sourceUrl}" rel="noopener">${
-    escapeHtml(doc.filename)
+<h2><a href="${group.sourceUrl}" rel="noopener">${
+    escapeHtml(group.filename)
   }</a></h2>
-<p class="lede">${escapeHtml(item.title)}</p>
-<div class="meta"><span>${escapeHtml(item.date)}</span>${
-    item.repo ? `<span>${escapeHtml(item.repo)}</span>` : ""
-  }<span>${manual}</span></div>
-<div class="refs">${
-    refs.join("") || '<span class="dim">no source refs</span>'
-  }</div>
+<div class="meta">${
+    group.repo ? `<span>${escapeHtml(group.repo)}</span>` : ""
+  }<span>${group.changes.length} change${
+    group.changes.length === 1 ? "" : "s"
+  }</span><span>updated ${
+    escapeHtml(group.latestDate)
+  }</span><span>${manual}</span></div>
+<ul class="doc-changes">${changes}</ul>
 </article>`;
 }
 
-/** Collect and render the documentation-change entries across all windows. */
+/** Collect and render the documentation entries for the widest window. */
 function renderDocSection(ranked: z.infer<typeof RankedSchema>): string {
   // The windows nest (24h ⊂ 7d ⊂ month), so read the widest one only — the
   // others are strict subsets and would duplicate every entry.
   const widest = ranked.windows[ranked.windows.length - 1];
   if (!widest) return `<p class="empty">No documentation changed.</p>`;
 
-  const seen = new Set<string>();
-  const rows: string[] = [];
-  for (const item of widest.items) {
-    for (const doc of item.docLinks) {
-      if (seen.has(doc.sourceUrl)) continue;
-      seen.add(doc.sourceUrl);
-      rows.push(renderDocRow(item, doc));
-    }
-  }
-  if (rows.length === 0) {
+  const groups = groupDocChanges(widest.items);
+  if (groups.length === 0) {
     return `<p class="empty">No documentation changed.</p>`;
   }
-  return rows.slice(0, 200).join("\n");
+  return groups.slice(0, 200).map(renderDocFileCard).join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -1465,7 +1552,7 @@ export async function ensureServerService(
 /** Model definition for Swamp Pulse. */
 export const model = {
   type: "@svendowideit/swamp-pulse",
-  version: "2026.09.18.4",
+  version: "2026.09.18.5",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1482,6 +1569,12 @@ export const model = {
       toVersion: "2026.09.18.4",
       description:
         "No schema changes — documentation entries rendered in tour format and attributed to the issue a change closes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.5",
+      description:
+        "No schema changes — documentation grouped one card per file (newest first) with the window in the heading",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1598,6 +1691,7 @@ export const model = {
           {
             manualPages,
             manualBaseUrl: context.globalArgs.manualBaseUrl,
+            docPathPattern: context.globalArgs.docPathPattern,
           },
         );
 

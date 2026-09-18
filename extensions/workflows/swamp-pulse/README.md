@@ -152,11 +152,24 @@ detail pages rather than repeating the sections.
 ### New / changed documentation
 
 Documentation changes get their own section at the bottom of the **summary
-page**, in the same tour format as everything else: each entry shows its
-significance tier, the changed file (linked to the exact source at that commit's
-SHA), the parent change's title, the **date**, the repository, a link to the
-published manual page (or an explicit "no published page"), and a reference row
-back to the **originating Lab issue**, PR and commit.
+page**, labelled with its period like every other section (e.g. "New / changed
+documentation — This month").
+
+Each **file is listed once** — files are ordered by most recently updated, and
+the changes that touched that file within the period sit inside its card:
+
+```
+design/enablers/remote-execution.md
+swamp-club/swamp · 1 change · updated 2026-09-17T23:38:48Z · published manual
+  [A] 2026-09-17T23:38:48Z  reap stale worker records…  𝗗 release … 𝗖𝗟 a3e60933 𝗣 #2509 𝗔 lab#2192
+```
+
+The file header links to the exact source at the most recent commit's SHA, and
+offers the published manual page (or an explicit "no published page"). Each
+nested change carries its tier, date, title, and references back to the
+**originating Lab issue**, PR and commit. Deduplication is by filename, not URL
+— the URL carries the SHA, so the same file changed twice would otherwise appear
+twice.
 
 Where a change's release body says which issue it closes (`Closes lab#N`), that
 issue is linked in preference to any incidental mention — a commit often cites a
@@ -241,10 +254,11 @@ Published under the type name `@svendowideit/swamp-club`.
 
 - `collect_commits { repos, since, until, max }` — commits for every repo in one
   fan-out call, normalised (sha, author, date, message), with `truncated`.
-- `collect_doc_changes { repos, since, until, maxCommits, maxFiles }` — filters
-  each repo's commits to **doc-suspect** ones by message, then fetches their
-  changed files via the single-commit endpoint. (`/commits` list results omit
-  `files`; verified.)
+- `collect_doc_changes { repos, since, until, maxCommits, maxFiles }` — finds
+  every changed documentation file in the range. It walks **all** commits, not
+  just ones with a doc-sounding message (see the note below), inventories the
+  range with the `compare` API, then attributes each doc file to the newest
+  commit that touched it via the commits-by-path endpoint.
 - `collect_releases { repos, since, max }` — body-inclusive releases for every
   repo via the **releases API**, because `gh release list` cannot return bodies
   (verified: the API does, ~2.9 KB each). Paginated, with `truncated`.
@@ -306,9 +320,11 @@ emits two links:
    confidence flag and are only linked above a threshold; below it, the source
    link is the sole link (never guess a manual page).
 
-Whole-window changed files come from one `compare` API call per repo (verified:
-returns the file list for a ref range); per-commit file lists are fetched only
-for doc-suspect commits, bounded by a cap.
+Whole-window changed files come from the `compare` API (verified: returns the
+file list for a ref range) rather than one call per commit, then each doc file
+is attributed to its commit via the commits-by-path endpoint. A message-based
+"doc-suspect" filter is deliberately **not** used — see the note under Design
+notes.
 
 ## Serving and publishing
 
@@ -407,9 +423,13 @@ methods):
   source cursor; each run fetches only what is new since the cursor (with a
   bounded overlap) and merges into a rolling window store. This keeps API volume
   flat instead of re-pulling the whole month every hour.
-- **Bounded GitHub API use.** Per-commit file lists are fetched only for
-  doc-suspect commits, with a hard cap; whole-window doc changes use one
-  `compare` call per repo.
+- **Docs are found by path, not by message.** An early version filtered commits
+  to ones whose message mentioned docs, which missed most documentation changes:
+  in a sampled week, **39 commits touched `.md` files and only 3 had a
+  doc-sounding message** (92% missed). The collector now inventories the whole
+  range with `compare` and filters by changed **path** (`doc_paths.ts`), then
+  attributes each file to its commit. Bounded by `maxCommits`/`maxFiles` with an
+  explicit `truncated` flag.
 - **Truncation is explicit.** Every paginated/capped collector output carries a
   `truncated` boolean so a silently-short list can never be mistaken for the
   full set.
@@ -459,7 +479,8 @@ workflow run.
       (dedupe by SHA **prefix** — release tags carry short SHAs), tier-then-
       recency ordering, namespace-aware `swamp-club#N`, UTC calendar-month
 - [x] Doc linking — sitemap cache + explicit path→manual map + confidence
-      threshold + source fallback
+      threshold + source fallback; grouped one card per file, newest first, with
+      the period in the heading
 - [x] `render` — four HTML pages as `files` **and** to `outputDir`; HTML-escape
       all interpolated text
 - [x] Releases kept individually (1:1 with merges — no collapsing)
@@ -512,7 +533,7 @@ workflow run.
 
 - [x] `swamp extension fmt --check`, `quality` (12/12, 100%)
 - [x] Adversarial review written to the content-hash path from `push --dry-run`
-- [x] Dry-run push clean; 78 unit tests + live end-to-end workflow run passing
+- [x] Dry-run push clean; 87 unit tests + live end-to-end workflow run passing
 
 ## License
 

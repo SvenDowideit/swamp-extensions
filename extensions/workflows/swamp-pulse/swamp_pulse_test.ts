@@ -12,12 +12,13 @@ import {
   withMockedFetch,
 } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 import { celEscape, celUnescape, celUnescapeDeep } from "./cel_text.ts";
+import { isDocPath } from "./doc_paths.ts";
 import type { runSwampCmd as RunSwampCmd } from "./swamp_pulse.ts";
 import {
   classifyImportance,
   ensureServerService,
   escapeHtml,
-  isDocPath,
+  groupDocChanges,
   mergeEvents,
   mergeStore,
   model,
@@ -25,7 +26,7 @@ import {
   parseConventional,
   parseRefs,
   rankItems,
-  renderDocRow,
+  renderDocFileCard,
   renderIndexPage,
   renderItem,
   renderMarkdownLite,
@@ -244,6 +245,21 @@ Deno.test("resolveManualUrl uses the explicit map first", () => {
   );
   assertEquals(result.confidence, 1);
   assertStringIncludes(result.url, "/manual/reference/datastore-configuration");
+});
+
+Deno.test("resolveManualUrl does not double the /manual prefix", () => {
+  // Regression: base ends in /manual and mapped paths also start with /manual,
+  // which produced /manual/manual/... links.
+  const result = resolveManualUrl(
+    "design/enablers/datastores.md",
+    [],
+    "https://swamp-club.com/manual",
+  );
+  assertEquals(
+    result.url,
+    "https://swamp-club.com/manual/reference/datastore-configuration",
+  );
+  assert(!result.url.includes("/manual/manual/"));
 });
 
 Deno.test("resolveManualUrl fuzzy-matches a known page above threshold", () => {
@@ -761,7 +777,7 @@ Deno.test("renderIndexPage produces a leaderboard table per window", () => {
   assertStringIncludes(html, "New / changed documentation");
 });
 
-Deno.test("renderDocRow shows the date, file, manual link and originating issue", () => {
+Deno.test("renderDocFileCard lists a file once with its changes and refs", () => {
   const item = {
     ...makeItem("release:swamp-club-swamp-v1", "2026-09-17T22:05:54Z", "A"),
     title: "correct shard index push path (#2506)",
@@ -788,30 +804,76 @@ Deno.test("renderDocRow shows the date, file, manual link and originating issue"
       "https://swamp-club.com/manual/reference/datastore-configuration",
     manualConfidence: 1,
   };
-  const html = renderDocRow(item, doc);
-  // Same tour shape as a normal item.
+  const html = renderDocFileCard(
+    groupDocChanges([{ ...item, docLinks: [doc] }])[0],
+  );
   assertStringIncludes(html, 'class="item doc-item"');
-  assertStringIncludes(html, 'class="tier A"');
-  // Date, repo, file and manual link.
+  // File appears once, with its changed date, repo and manual link.
+  assertStringIncludes(html, "design/enablers/datastores.md");
   assertStringIncludes(html, "2026-09-17T22:05:54Z");
   assertStringIncludes(html, "swamp-club/swamp");
-  assertStringIncludes(html, "design/enablers/datastores.md");
   assertStringIncludes(html, "published manual");
-  // Links back to the originating PR and lab issue.
+  // The change inside carries the tier and refs back to PR and lab issue.
+  assertStringIncludes(html, 'class="tier A"');
   assertStringIncludes(html, "#2506");
   assertStringIncludes(html, "lab#2245");
   assertStringIncludes(html, "swamp-club.com/lab/2245");
 });
 
-Deno.test("renderDocRow says so when there is no published manual page", () => {
-  const item = makeItem("commit:x", "2026-09-18T00:00:00Z");
-  const doc = {
-    filename: "notes/scratch.md",
-    sourceUrl: "https://example.com/blob/x/notes/scratch.md",
+Deno.test("groupDocChanges lists a file once, newest first, with its changes", () => {
+  const docAt = (sha: string) => ({
+    filename: "AGENTS.md",
+    sourceUrl: `https://github.com/swamp-club/swamp/blob/${sha}/AGENTS.md`,
     manualUrl: "",
-    manualConfidence: 0.2,
+    manualConfidence: 0,
+  });
+  const older = {
+    ...makeItem("commit:old", "2026-09-12T00:00:00Z", "C"),
+    title: "older change",
+    docLinks: [docAt("aaaa")],
   };
-  const html = renderDocRow(item, doc);
+  const newer = {
+    ...makeItem("commit:new", "2026-09-17T00:00:00Z", "A"),
+    title: "newer change",
+    docLinks: [docAt("bbbb")],
+  };
+  const groups = groupDocChanges([older, newer]);
+  assertEquals(groups.length, 1, "same file should group once");
+  assertEquals(groups[0].changes.length, 2);
+  // Newest change first, and the header points at the newest source URL.
+  assertEquals(groups[0].changes[0].title, "newer change");
+  assertStringIncludes(groups[0].sourceUrl, "/bbbb/");
+  assertEquals(groups[0].latestDate, "2026-09-17T00:00:00Z");
+});
+
+Deno.test("groupDocChanges orders files by most recently updated", () => {
+  const mk = (file: string, date: string) => ({
+    ...makeItem(`c:${file}`, date),
+    docLinks: [{
+      filename: file,
+      sourceUrl: `https://example.com/blob/x/${file}`,
+      manualUrl: "",
+      manualConfidence: 0,
+    }],
+  });
+  const groups = groupDocChanges([
+    mk("a.md", "2026-09-12T00:00:00Z"),
+    mk("b.md", "2026-09-17T00:00:00Z"),
+  ]);
+  assertEquals(groups.map((g) => g.filename), ["b.md", "a.md"]);
+});
+
+Deno.test("groupDocChanges shows a no-manual file as such", () => {
+  const item = {
+    ...makeItem("c:x", "2026-09-18T00:00:00Z"),
+    docLinks: [{
+      filename: "notes/scratch.md",
+      sourceUrl: "https://example.com/blob/x/notes/scratch.md",
+      manualUrl: "",
+      manualConfidence: 0.2,
+    }],
+  };
+  const html = renderDocFileCard(groupDocChanges([item])[0]);
   assertStringIncludes(html, "no published page");
 });
 

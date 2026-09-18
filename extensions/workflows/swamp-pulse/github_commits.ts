@@ -24,6 +24,7 @@
 import { z } from "npm:zod@4";
 
 import { celEscape } from "./cel_text.ts";
+import { isDocPath } from "./doc_paths.ts";
 
 const EXTENSION_NAME = "@svendowideit/swamp-pulse";
 
@@ -39,9 +40,6 @@ const reposArg = () =>
     )
     .min(1)
     .describe("Repositories in owner/name format.");
-
-/** Message patterns that mark a commit as likely to touch documentation. */
-const DOC_SUSPECT_RE = /(^|\W)(docs?|readme|manual|design|docs?\/|\.md\b)/i;
 
 const CommitSchema = z.object({
   sha: z.string().describe("Full commit SHA"),
@@ -235,29 +233,104 @@ async function fetchCommits(
   return { commits, truncated };
 }
 
-/** Fetch the changed files for one commit. */
-async function fetchCommitFiles(
+/**
+ * Collect every changed documentation file across a commit range.
+ *
+ * Uses the compare API for the file inventory (two calls for the whole range,
+ * not one call per commit), then attributes each documentation file to the
+ * newest commit that touched it via the commits-by-path endpoint — so a doc
+ * change links back to the change it shipped with, even when the commit message
+ * said nothing about docs.
+ */
+async function fetchRangeDocs(
   repo: string,
-  sha: string,
+  since: string,
+  until: string,
+  maxCommits: number,
   maxFiles: number,
-): Promise<{ files: z.infer<typeof ChangedFileSchema>[]; truncated: boolean }> {
-  const data = await ghApi(`repos/${repo}/commits/${sha}`);
-  const raw = data as Record<string, unknown>;
-  const rows = Array.isArray(raw.files) ? raw.files : [];
-  const files = rows.slice(0, maxFiles).map((f) => {
-    const entry = f as Record<string, unknown>;
-    return {
+  extraPathPattern: string,
+): Promise<{
+  files: z.infer<typeof ChangedFileSchema>[];
+  commitCount: number;
+  truncated: boolean;
+}> {
+  const { commits, truncated: commitsTruncated } = await fetchCommits(
+    repo,
+    since,
+    until,
+    maxCommits,
+    100,
+  );
+  if (commits.length === 0) {
+    return { files: [], commitCount: 0, truncated: commitsTruncated };
+  }
+
+  const head = commits[0].sha;
+  const oldest = commits[commits.length - 1].sha;
+  const parentRaw = await ghApi(`repos/${repo}/commits/${oldest}`);
+  const parent = (parentRaw as { parents?: { sha?: string }[] }).parents?.[0]
+    ?.sha;
+  const base = parent ?? oldest;
+
+  const compare = await ghApi(
+    `repos/${repo}/compare/${base}...${head}?per_page=100`,
+  ) as { files?: Record<string, unknown>[]; total_commits?: number };
+
+  const rows = Array.isArray(compare.files) ? compare.files : [];
+  const docRows = rows.filter((f) =>
+    isDocPath(
+      String((f as Record<string, unknown>).filename ?? ""),
+      extraPathPattern,
+    )
+  );
+
+  const files: z.infer<typeof ChangedFileSchema>[] = [];
+  for (const row of docRows) {
+    if (files.length >= maxFiles) break;
+    const entry = row as Record<string, unknown>;
+    const filename = String(entry.filename ?? "");
+    // Attribute to the newest in-window commit that touched this path.
+    const owner = await fetchOwningCommit(repo, filename, since, until);
+    files.push({
       repo,
-      sha,
-      shortSha: sha.slice(0, 8),
-      filename: String(entry.filename ?? ""),
+      sha: owner?.sha ?? head,
+      shortSha: (owner?.sha ?? head).slice(0, 8),
+      filename,
       status: String(entry.status ?? "modified"),
       additions: Number(entry.additions ?? 0),
       deletions: Number(entry.deletions ?? 0),
       changes: Number(entry.changes ?? 0),
-    };
-  });
-  return { files, truncated: rows.length > files.length };
+    });
+  }
+
+  return {
+    files,
+    commitCount: commits.length,
+    truncated: commitsTruncated || files.length < docRows.length ||
+      (compare.total_commits !== undefined &&
+        compare.total_commits > commits.length),
+  };
+}
+
+/** Find the newest commit in the window that changed a path. */
+async function fetchOwningCommit(
+  repo: string,
+  path: string,
+  since: string,
+  until: string,
+): Promise<{ sha: string } | null> {
+  try {
+    const data = await ghApi(
+      `repos/${repo}/commits?path=${encodeURIComponent(path)}&since=${
+        encodeURIComponent(since)
+      }&until=${encodeURIComponent(until)}&per_page=1`,
+    );
+    const rows = Array.isArray(data) ? data : [];
+    const sha = (rows[0] as { sha?: string } | undefined)?.sha;
+    return sha ? { sha } : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Swamp Pulse GitHub collectors, attached to `@webframp/github`. */
@@ -469,7 +542,7 @@ export const extension = {
     {
       collect_doc_changes: {
         description:
-          "Find changed documentation files in a time window. Filters commits to doc-suspect ones by message, then fetches their changed files — bounded per repository.",
+          "Find changed documentation files in a time window. Walks every commit in the range (not just ones with a doc-sounding message, since docs are often updated alongside code) and keeps only documentation paths.",
         arguments: z.object({
           repos: reposArg(),
           since: z.string().describe(
@@ -478,11 +551,14 @@ export const extension = {
           until: z.string().optional().describe(
             "ISO-8601 upper bound on commit author date (inclusive). Defaults to now.",
           ),
-          maxCommits: z.number().int().min(1).max(200).default(40).describe(
-            "Maximum doc-suspect commits to inspect per repository.",
+          maxCommits: z.number().int().min(1).max(2000).default(500).describe(
+            "Maximum commits to inspect per repository.",
           ),
-          maxFiles: z.number().int().min(1).max(3000).default(500).describe(
-            "Maximum changed files retained per repository.",
+          maxFiles: z.number().int().min(1).max(3000).default(1000).describe(
+            "Maximum changed documentation files retained per repository.",
+          ),
+          extraPathPattern: z.string().default("").describe(
+            "Optional extra regex; matching paths are treated as documentation.",
           ),
         }).strict(),
         execute: async (
@@ -492,6 +568,7 @@ export const extension = {
             until?: string;
             maxCommits: number;
             maxFiles: number;
+            extraPathPattern: string;
           },
           context: Context,
         ) => {
@@ -502,39 +579,25 @@ export const extension = {
           let truncated = false;
 
           for (const repo of args.repos) {
-            const { commits } = await fetchCommits(
+            // Compare gives every file changed across the whole range in two
+            // calls (commits + files), instead of one call per commit.
+            const range = await fetchRangeDocs(
               repo,
               args.since,
               until,
-              args.maxCommits * 5,
-              100,
+              args.maxCommits,
+              args.maxFiles,
+              args.extraPathPattern,
             );
-            const suspects = commits
-              .filter((c) => DOC_SUSPECT_RE.test(c.message))
-              .slice(0, args.maxCommits);
-
-            const files: z.infer<typeof ChangedFileSchema>[] = [];
-            let repoTruncated = commits.length > suspects.length;
-            for (const commit of suspects) {
-              if (files.length >= args.maxFiles) {
-                repoTruncated = true;
-                break;
-              }
-              const result = await fetchCommitFiles(
-                repo,
-                commit.sha,
-                args.maxFiles - files.length,
-              );
-              files.push(...result.files);
-              if (result.truncated) repoTruncated = true;
-            }
+            const files = range.files;
+            const repoTruncated = range.truncated;
 
             count += files.length;
             truncated = truncated || repoTruncated;
             perRepo.push({
               repo,
               files,
-              commitsInspected: suspects.length,
+              commitsInspected: range.commitCount,
               truncated: repoTruncated,
             });
           }

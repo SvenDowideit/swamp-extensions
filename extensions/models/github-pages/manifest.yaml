@@ -1,0 +1,23 @@
+manifestVersion: 1
+name: "@svendowideit/github-pages"
+version: "2026.09.18.1"
+description: >
+  Publish a local directory (and subdirectories) to a GitHub repository's
+  GitHub Pages site, and idempotently configure Pages itself, via the GitHub
+  REST API. Walks the directory, reuses unchanged git blobs, commits the delta
+  as one commit, and reconciles the Pages source/build-type/CNAME/HTTPS config.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - github_pages.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - github_pages_test.ts
+
+platforms: []

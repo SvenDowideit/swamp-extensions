@@ -21,9 +21,11 @@ import {
   mergeEvents,
   mergeStore,
   model,
+  parseClosingIssues,
   parseConventional,
   parseRefs,
   rankItems,
+  renderDocRow,
   renderIndexPage,
   renderItem,
   renderMarkdownLite,
@@ -115,6 +117,80 @@ Deno.test("parseRefs handles a merged title with both namespaces and a bare ref"
 // ---------------------------------------------------------------------------
 // parseConventional
 // ---------------------------------------------------------------------------
+
+Deno.test("parseClosingIssues finds explicit closes/fixes/resolves refs", () => {
+  assertEquals(
+    parseClosingIssues(
+      "Verifying swamp-club#2254 turned on a code path.\n\nCloses swamp-club#2266.",
+    ),
+    [2266],
+  );
+  assertEquals(parseClosingIssues("fixes lab#12 and resolves swim#9"), [12]);
+  assertEquals(parseClosingIssues("mentions swamp-club#1 only"), []);
+});
+
+Deno.test("mergeEvents attributes a change to the issue it closes, not a context mention", () => {
+  const commits = {
+    repos: [{
+      repo: "swamp-club/swamp",
+      commits: [{
+        repo: "swamp-club/swamp",
+        sha: "4430c4b1352a94569f6381ea526a42e07d5369e2",
+        shortSha: "4430c4b1",
+        message:
+          "docs(verification): document how to verify TTY-only behaviour\n\nVerifying swamp-club#2254 turned on a code path.\n\nCloses swamp-club#2266.",
+        author: "A",
+        date: "2026-09-17T23:21:38Z",
+        url: "https://example.com/c",
+      }],
+      count: 1,
+      truncated: false,
+    }],
+    count: 1,
+    truncated: false,
+    since: "",
+    until: "",
+    fetchedAt: "",
+    durationMs: 1,
+    collectedBy: "x",
+  };
+  const issues = {
+    issues: [
+      {
+        number: 2254,
+        type: "bug",
+        status: "shipped",
+        title: "context issue",
+        author: "a",
+        url: "https://swamp-club.com/lab/2254",
+        createdAt: "2026-09-01T00:00:00Z",
+        updatedAt: "2026-09-01T00:00:00Z",
+      },
+      {
+        number: 2266,
+        type: "bug",
+        status: "shipped",
+        title: "the issue actually closed",
+        author: "a",
+        url: "https://swamp-club.com/lab/2266",
+        createdAt: "2026-09-01T00:00:00Z",
+        updatedAt: "2026-09-01T00:00:00Z",
+      },
+    ],
+    count: 2,
+    total: 2,
+    truncated: false,
+    filters: { since: "", until: "", type: "all", status: "all", source: "" },
+    fetchedAt: "",
+    durationMs: 1,
+    collectedBy: "x",
+  };
+  const items = mergeEvents({ commits, labIssues: issues });
+  const change = items.find((i) => i.kind === "change");
+  assert(change);
+  assertEquals(change.labIssue?.number, 2266);
+  assertEquals(change.issueNumbers, [2254, 2266]);
+});
 
 Deno.test("parseConventional extracts type, scope and description", () => {
   assertEquals(parseConventional("fix(cli): keep output off stdout"), {
@@ -685,6 +761,116 @@ Deno.test("renderIndexPage produces a leaderboard table per window", () => {
   assertStringIncludes(html, "New / changed documentation");
 });
 
+Deno.test("renderDocRow shows the date, file, manual link and originating issue", () => {
+  const item = {
+    ...makeItem("release:swamp-club-swamp-v1", "2026-09-17T22:05:54Z", "A"),
+    title: "correct shard index push path (#2506)",
+    repo: "swamp-club/swamp",
+    shortSha: "48473252",
+    commitSha: "48473252687cc0a7511400f42f6c0e7b246e454d",
+    commitUrl: "https://github.com/swamp-club/swamp/commit/48473252",
+    prNumbers: [2506],
+    issueNumbers: [2245],
+    labIssue: {
+      number: 2245,
+      type: "bug",
+      status: "shipped",
+      title: "Datastore doc wrong",
+      author: "sven",
+      url: "https://swamp-club.com/lab/2245",
+    },
+  };
+  const doc = {
+    filename: "design/enablers/datastores.md",
+    sourceUrl:
+      "https://github.com/swamp-club/swamp/blob/48473252/design/enablers/datastores.md",
+    manualUrl:
+      "https://swamp-club.com/manual/reference/datastore-configuration",
+    manualConfidence: 1,
+  };
+  const html = renderDocRow(item, doc);
+  // Same tour shape as a normal item.
+  assertStringIncludes(html, 'class="item doc-item"');
+  assertStringIncludes(html, 'class="tier A"');
+  // Date, repo, file and manual link.
+  assertStringIncludes(html, "2026-09-17T22:05:54Z");
+  assertStringIncludes(html, "swamp-club/swamp");
+  assertStringIncludes(html, "design/enablers/datastores.md");
+  assertStringIncludes(html, "published manual");
+  // Links back to the originating PR and lab issue.
+  assertStringIncludes(html, "#2506");
+  assertStringIncludes(html, "lab#2245");
+  assertStringIncludes(html, "swamp-club.com/lab/2245");
+});
+
+Deno.test("renderDocRow says so when there is no published manual page", () => {
+  const item = makeItem("commit:x", "2026-09-18T00:00:00Z");
+  const doc = {
+    filename: "notes/scratch.md",
+    sourceUrl: "https://example.com/blob/x/notes/scratch.md",
+    manualUrl: "",
+    manualConfidence: 0.2,
+  };
+  const html = renderDocRow(item, doc);
+  assertStringIncludes(html, "no published page");
+});
+
+Deno.test("renderIndexPage doc section reads the widest window only (no duplicates)", () => {
+  const doc = {
+    filename: "design/enablers/datastores.md",
+    sourceUrl:
+      "https://github.com/swamp-club/swamp/blob/abc/design/enablers/datastores.md",
+    manualUrl:
+      "https://swamp-club.com/manual/reference/datastore-configuration",
+    manualConfidence: 1,
+  };
+  const item = {
+    ...makeItem("release:r", "2026-09-18T00:00:00Z"),
+    docLinks: [doc],
+  };
+  const ranked = {
+    windows: [
+      {
+        key: "24h",
+        label: "Last 24 hours",
+        since: "",
+        until: "",
+        changes: 1,
+        releases: 1,
+        issues: 0,
+        items: [item],
+      },
+      {
+        key: "month",
+        label: "This month",
+        since: "",
+        until: "",
+        changes: 1,
+        releases: 1,
+        issues: 0,
+        items: [item],
+      },
+    ],
+    totals: {
+      events: 1,
+      commits: 0,
+      releases: 1,
+      issues: 0,
+      docChanges: 1,
+      byRepo: {},
+    },
+    manualPages: 1,
+    generatedAt: "2026-09-18T12:00:00Z",
+  };
+  const html = renderIndexPage(ranked);
+  const occurrences = html.split('class="item doc-item"').length - 1;
+  assertEquals(
+    occurrences,
+    1,
+    "doc entry was duplicated across nested windows",
+  );
+});
+
 // ---------------------------------------------------------------------------
 // method-level tests with createModelTestContext
 // ---------------------------------------------------------------------------
@@ -703,7 +889,24 @@ Deno.test("model upgrade chain terminates at the current version and fills new f
   assert(upgrades && upgrades.length > 0, "model has no upgrades array");
   const last = upgrades[upgrades.length - 1];
   assertEquals(last.toVersion, model.version);
-  const migrated = last.upgradeAttributes({ outputDir: "/tmp/x" });
+  // Every upgrade entry must target a distinct version, in ascending order.
+  const versions = upgrades.map((u) => u.toVersion);
+  assertEquals(
+    new Set(versions).size,
+    versions.length,
+    "duplicate upgrade target",
+  );
+  for (let i = 1; i < versions.length; i++) {
+    assert(
+      versions[i] > versions[i - 1],
+      `upgrade chain out of order: ${versions[i - 1]} -> ${versions[i]}`,
+    );
+  }
+  // Apply the whole chain, as swamp would for an old instance.
+  let migrated: Record<string, unknown> = { outputDir: "/tmp/x" };
+  for (const upgrade of upgrades) {
+    migrated = upgrade.upgradeAttributes(migrated);
+  }
   assertEquals(migrated.serverPort, 8899);
   assertEquals(migrated.serverServiceName, "swamp-pulse-server");
   assertEquals(migrated.outputDir, "/tmp/x");

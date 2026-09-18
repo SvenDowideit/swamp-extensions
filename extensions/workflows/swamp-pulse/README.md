@@ -147,8 +147,21 @@ Each of the three detail pages is a tour: a sticky sidebar ToC built from the
 item anchors, tour sections in rank order, then the grouped tail sections
 (_Other notable changes_, _Tooling_, _Hidden gems_, _Final thoughts_). The
 summary page is the leaderboard view — it links into the tour anchors on the
-detail pages rather than repeating the sections. A shared
-`"New / changed documentation"` block is rendered on all four.
+detail pages rather than repeating the sections.
+
+### New / changed documentation
+
+Documentation changes get their own section at the bottom of the **summary
+page**, in the same tour format as everything else: each entry shows its
+significance tier, the changed file (linked to the exact source at that commit's
+SHA), the parent change's title, the **date**, the repository, a link to the
+published manual page (or an explicit "no published page"), and a reference row
+back to the **originating Lab issue**, PR and commit.
+
+Where a change's release body says which issue it closes (`Closes lab#N`), that
+issue is linked in preference to any incidental mention — a commit often cites a
+context issue before the one it actually resolves. Detail pages additionally
+show a compact "Docs changed:" line on each affected item.
 
 All interpolated text (commit titles, release bodies, issue bodies) is
 **HTML-escaped**; release and issue bodies are rendered as sanitised text with
@@ -479,7 +492,9 @@ workflow run.
 - [x] Sidebar ToC generated from item anchors; sticky on the detail pages
 - [x] Grouped tail sections: _Other notable changes_, _Tooling_, _Hidden gems_
       (partitioned so each tail item appears in exactly one group)
-- [x] "New / changed documentation" section on every page
+- [x] "New / changed documentation" section on the summary page, in tour format
+      (tier, file, date, repo, manual link, and refs back to the originating Lab
+      issue / PR / commit); compact "Docs changed:" line on detail items
 
 **Serving and publishing**
 

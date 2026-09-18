@@ -249,6 +249,24 @@ export function escapeHtml(text: string): string {
 }
 
 /**
+ * Parse the Lab issue a change **resolves**, if it says so explicitly.
+ *
+ * A commit or release body often mentions a context issue before the one it
+ * actually closes — e.g. "Verifying swamp-club#2254 turned on a code path…
+ * Closes swamp-club#2266". Linking the first mention would point at the wrong
+ * issue, so resolving references (`Closes/Fixes/Resolves lab#N`) are preferred
+ * over incidental mentions.
+ */
+export function parseClosingIssues(text: string): number[] {
+  const src = String(text ?? "");
+  const found = new Set<number>();
+  const pattern =
+    /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+(?:swamp-club|lab)#(\d+)/gi;
+  for (const m of src.matchAll(pattern)) found.add(Number(m[1]));
+  return [...found];
+}
+
+/**
  * Parse issue and PR references from free text.
  *
  * Issue and PR numbers are distinct namespaces on GitHub: `swamp-club#2254`
@@ -591,18 +609,34 @@ export function mergeEvents(
 
   const consumed = new Set<string>();
 
+  /**
+   * Choose the Lab issue to attribute a change to.
+   *
+   * Prefer an explicitly resolved issue (`Closes lab#N`) over incidental
+   * mentions, then fall back to the first mentioned issue that exists.
+   */
+  const pickLabIssue = (
+    text: string,
+    refs: { issues: number[] },
+  ): IssueInput | null => {
+    for (const n of parseClosingIssues(text)) {
+      const issue = issueByNumber.get(n);
+      if (issue) return issue;
+    }
+    return refs.issues
+      .map((n) => issueByNumber.get(n))
+      .find((i) => i !== undefined) ?? null;
+  };
+
   for (const release of releases) {
     const commit = lookupCommit(release.repo, release.commitSha);
     if (commit) consumed.add(`${commit.repo}:${commit.sha}`);
     const fullSha = commit?.sha || release.commitSha;
 
     const title = release.name || release.tagName;
-    const refs = parseRefs(
-      `${release.body}\n${commit?.message ?? ""}\n${title}`,
-    );
-    const labIssue = refs.issues
-      .map((n) => issueByNumber.get(n))
-      .find((i) => i !== undefined) ?? null;
+    const refText = `${release.body}\n${commit?.message ?? ""}\n${title}`;
+    const refs = parseRefs(refText);
+    const labIssue = pickLabIssue(refText, refs);
 
     const conv = parseConventional(commit?.message ?? title);
     const classified = classifyImportance({
@@ -658,9 +692,7 @@ export function mergeEvents(
 
     const conv = parseConventional(commit.message);
     const refs = parseRefs(commit.message);
-    const labIssue = refs.issues
-      .map((n) => issueByNumber.get(n))
-      .find((i) => i !== undefined) ?? null;
+    const labIssue = pickLabIssue(commit.message, refs);
     const classified = classifyImportance({
       kind: "change",
       type: conv.type,
@@ -949,6 +981,8 @@ table.board th{color:var(--dim);font-size:12px;letter-spacing:.08em}
 .card .n{font-size:26px;color:var(--acc);font-weight:700}.card .l{color:var(--dim);font-size:12px;letter-spacing:.08em}
 .tail{margin-top:26px}.tail h2{font-size:15px;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:6px}
 .empty{color:var(--dim);font-style:italic}
+.dim{color:var(--dim)}
+.doc-item .meta a{color:var(--acc)}
 footer{color:var(--dim);font-size:12px;padding:0 22px 40px;max-width:1180px}
 .credit{color:var(--dim);font-size:12px;margin-top:4px}
 `;
@@ -1019,14 +1053,10 @@ export function renderItem(item: z.infer<typeof MergedItemSchema>): string {
   }
 
   const docs = item.docLinks.length
-    ? `<div class="docs"><span class="meta">New / changed documentation</span><br>${
+    ? `<div class="docs"><span class="meta">Docs changed:</span> ${
       item.docLinks.map((d) =>
-        `<a href="${d.sourceUrl}" rel="noopener">${escapeHtml(d.filename)}</a>${
-          d.manualUrl
-            ? ` <a href="${d.manualUrl}" rel="noopener">(manual)</a>`
-            : ""
-        }`
-      ).join("")
+        `<a href="${d.sourceUrl}" rel="noopener">${escapeHtml(d.filename)}</a>`
+      ).join(", ")
     }</div>`
     : "";
 
@@ -1183,32 +1213,75 @@ export function renderIndexPage(
   return layout("Summary", "index.html", body);
 }
 
-/** Collect and render the documentation-change links across all windows. */
+/** Render one documentation change as a tour entry, linked to its origin. */
+export function renderDocRow(
+  item: z.infer<typeof MergedItemSchema>,
+  doc: z.infer<typeof DocLinkSchema>,
+): string {
+  const refs: string[] = [];
+  if (item.releaseTag) {
+    refs.push(
+      `𝗗 <a href="${item.releaseUrl}" rel="noopener">release ${
+        escapeHtml(item.releaseTag)
+      }</a>`,
+    );
+  }
+  if (item.commitSha) {
+    refs.push(
+      `𝗖𝗟 <a href="${item.commitUrl}" rel="noopener">${
+        escapeHtml(item.shortSha)
+      }</a>`,
+    );
+  }
+  for (const pr of item.prNumbers) {
+    refs.push(
+      `𝗣 <a href="https://github.com/${item.repo}/pull/${pr}" rel="noopener">#${pr}</a>`,
+    );
+  }
+  if (item.labIssue) {
+    refs.push(
+      `𝗔 <a href="${item.labIssue.url}" rel="noopener">lab#${item.labIssue.number}</a>`,
+    );
+  }
+
+  const manual = doc.manualUrl
+    ? `<a href="${doc.manualUrl}" rel="noopener">published manual</a>`
+    : `<span class="dim">no published page</span>`;
+
+  return `<article class="item doc-item">
+<h2><span class="tier ${item.importance}">${item.importance}</span><a href="${doc.sourceUrl}" rel="noopener">${
+    escapeHtml(doc.filename)
+  }</a></h2>
+<p class="lede">${escapeHtml(item.title)}</p>
+<div class="meta"><span>${escapeHtml(item.date)}</span>${
+    item.repo ? `<span>${escapeHtml(item.repo)}</span>` : ""
+  }<span>${manual}</span></div>
+<div class="refs">${
+    refs.join("") || '<span class="dim">no source refs</span>'
+  }</div>
+</article>`;
+}
+
+/** Collect and render the documentation-change entries across all windows. */
 function renderDocSection(ranked: z.infer<typeof RankedSchema>): string {
+  // The windows nest (24h ⊂ 7d ⊂ month), so read the widest one only — the
+  // others are strict subsets and would duplicate every entry.
+  const widest = ranked.windows[ranked.windows.length - 1];
+  if (!widest) return `<p class="empty">No documentation changed.</p>`;
+
   const seen = new Set<string>();
-  const links: string[] = [];
-  for (const w of ranked.windows) {
-    for (const item of w.items) {
-      for (const d of item.docLinks) {
-        const key = `${d.sourceUrl}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        links.push(
-          `<li><a href="${d.sourceUrl}" rel="noopener">${
-            escapeHtml(d.filename)
-          }</a>${
-            d.manualUrl
-              ? ` — <a href="${d.manualUrl}" rel="noopener">manual</a>`
-              : ""
-          }</li>`,
-        );
-      }
+  const rows: string[] = [];
+  for (const item of widest.items) {
+    for (const doc of item.docLinks) {
+      if (seen.has(doc.sourceUrl)) continue;
+      seen.add(doc.sourceUrl);
+      rows.push(renderDocRow(item, doc));
     }
   }
-  if (links.length === 0) {
+  if (rows.length === 0) {
     return `<p class="empty">No documentation changed.</p>`;
   }
-  return `<ul>${links.slice(0, 200).join("")}</ul>`;
+  return rows.slice(0, 200).join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -1392,7 +1465,7 @@ export async function ensureServerService(
 /** Model definition for Swamp Pulse. */
 export const model = {
   type: "@svendowideit/swamp-pulse",
-  version: "2026.09.18.3",
+  version: "2026.09.18.4",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1404,6 +1477,12 @@ export const model = {
         serverPort: old.serverPort ?? 8899,
         serverServiceName: old.serverServiceName ?? "swamp-pulse-server",
       }),
+    },
+    {
+      toVersion: "2026.09.18.4",
+      description:
+        "No schema changes — documentation entries rendered in tour format and attributed to the issue a change closes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   resources: {

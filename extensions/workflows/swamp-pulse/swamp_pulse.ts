@@ -2058,7 +2058,8 @@ export const model = {
           }
         } else if (isCaddy) {
           if (!g.caddyHostname.trim()) {
-            reason = "publishMode=caddy requires the caddyHostname global argument";
+            reason =
+              "publishMode=caddy requires the caddyHostname global argument";
           }
         }
 

@@ -2,7 +2,7 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-pulse"
 version: "2026.09.18.1"
-description: >
+description: |
   A leaderboard-style activity dashboard for the swamp project itself. Tracks
   swamp-club Lab issues, GitHub commits and GitHub releases across
   swamp-club/swamp and swamp-club/swamp-extensions, joins each release, its
@@ -10,14 +10,40 @@ description: >
   synthesized significance hierarchy (tier first, recency as tie-break), and
   renders four linked static HTML pages — a leaderboard-style summary plus
   changes, releases and issues detail pages with 24h / 7d / current-month
-  windows. Detail pages follow the interactive release-notes tour format and
-  every change that touches documentation links to both the published manual
-  page and the exact source file at that commit's SHA.
+  windows.
 
-  Install: swamp extension pull @svendowideit/swamp-pulse.
-  Also pulls @webframp/github (the extended type).
-  Run: swamp workflow run @svendowideit/swamp-pulse
-  UI: ~/.swamp/deno/deno run --allow-net --allow-read --allow-write --allow-env scripts/pulse-server.ts
+  INSTALL (required)
+
+      swamp extension pull @svendowideit/swamp-pulse
+      swamp extension pull @webframp/github
+      swamp extension trust add webframp
+
+  RUN (required)
+
+      swamp workflow run @svendowideit/swamp-pulse
+
+  Scheduled hourly by default. Output lands in ~/.swamp/swamp-pulse/:
+  index.html (summary), changes.html, releases.html, issues.html.
+
+  CONFIGURE (all optional — public data, no secrets required)
+
+    apiKey           swamp-club API key, supplied from a vault. Unset runs
+                     anonymously against the public Lab API.
+    outputDir        Where the HTML pages are written.
+    windows          Activity windows to render (24h, 7d, month).
+    repos            Repositories to track.
+
+  Serve the pages over HTTP (optional)
+
+      ~/.swamp/deno/deno run --allow-net --allow-read --allow-env \
+        scripts/pulse-server.ts --port 8899 --dir ~/.swamp/swamp-pulse
+
+  Publish via Caddy (optional)
+
+      swamp workflow run @svendowideit/swamp-pulse \
+        --input publish=caddy --input hostname=pulse.example.com
+
+  Requires @svendowideit/caddy and a configured my-caddy model instance.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

@@ -37,7 +37,7 @@ const EXTENSION_NAME = "@svendowideit/swamp-pulse";
  * Extension version, kept in one place so the model definition and the page
  * footer (which shows which build generated the pages) can never drift.
  */
-const EXTENSION_VERSION = "2026.09.18.7";
+const EXTENSION_VERSION = "2026.09.18.8";
 
 /** Registry page for this extension. */
 const EXTENSION_URL = `https://swamp-club.com/extensions/${EXTENSION_NAME}`;
@@ -132,6 +132,35 @@ const GlobalArgsSchema = z.object({
   ),
   serverScriptPath: z.string().optional().describe(
     "Override the path to the bundled pulse-server.ts script.",
+  ),
+
+  // --- Publishing configuration -------------------------------------------
+  // These live on the model (not the trigger) so a user configures them once
+  // on the instance and every scheduled run picks them up. The workflow reads
+  // them into the `publishConfig` resource, because guards and assert steps
+  // cannot read `model.*.input.globalArguments.*` directly.
+  publishMode: z.enum(["false", "caddy", "github-pages"]).default("false")
+    .describe(
+      "Publishing mode. 'false' publishes nothing; 'caddy' serves locally via " +
+        "@svendowideit/caddy; 'github-pages' commits to a GitHub Pages site.",
+    ),
+  pagesRepo: z.string().default("").describe(
+    "Target repository (owner/name) for publishMode=github-pages.",
+  ),
+  pagesBranch: z.string().default("").describe(
+    "Branch to publish the Pages site to (e.g. gh-pages).",
+  ),
+  pagesPath: z.enum(["/", "/docs"]).default("/").describe(
+    "Directory within the repository Pages serves from.",
+  ),
+  pagesCname: z.string().default("").describe(
+    "Optional custom domain to configure for the Pages site.",
+  ),
+  caddyHostname: z.string().default("").describe(
+    "Public hostname to serve the pages on for publishMode=caddy.",
+  ),
+  caddyUpstream: z.string().default("127.0.0.1:8899").describe(
+    "host:port the Caddy reverse proxy points at.",
   ),
 });
 
@@ -234,6 +263,34 @@ const ManualIndexSchema = z.object({
   pages: z.array(z.string()),
   count: z.number(),
   fetchedAt: z.string(),
+}).strict();
+
+/**
+ * Resolved publishing configuration, written by `publishConfig` from the
+ * model's own global arguments.
+ *
+ * It exists as a resource because workflow **guards and assert steps cannot
+ * read `model.*.input.globalArguments.*`** — they can only read `data.latest`.
+ * A `configure` step runs first, writes this, and every later guard reads it.
+ */
+const PublishConfigSchema = z.object({
+  mode: z.enum(["false", "caddy", "github-pages"]).describe(
+    "Requested publishing mode",
+  ),
+  enabled: z.boolean().describe("True unless mode is 'false'"),
+  caddyHostname: z.string(),
+  caddyUpstream: z.string(),
+  pagesRepo: z.string(),
+  pagesBranch: z.string(),
+  pagesPath: z.string(),
+  pagesCname: z.string(),
+  configured: z.boolean().describe(
+    "True when the selected mode has everything it needs to run",
+  ),
+  reason: z.string().describe(
+    "Why publishing is disabled or misconfigured (empty when ready)",
+  ),
+  resolvedAt: z.string(),
 }).strict();
 
 // ---------------------------------------------------------------------------
@@ -1901,6 +1958,12 @@ export const model = {
         "No schema changes — page footer links the registry page and shows the generating version and last run time; adds the extension-registry page and its collector",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.09.18.8",
+      description:
+        "No schema changes — opt-in GitHub Pages publish step; guard polarity corrected on publish steps",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     store: {
@@ -1913,6 +1976,13 @@ export const model = {
       description: "Ranked merged events per activity window",
       schema: RankedSchema,
       lifetime: "30d",
+      garbageCollection: 5,
+    },
+    publishConfig: {
+      description:
+        "Resolved publishing configuration derived from the model's globals",
+      schema: PublishConfigSchema,
+      lifetime: "30d" as const,
       garbageCollection: 5,
     },
     manualIndex: {
@@ -1961,6 +2031,71 @@ export const model = {
     },
   },
   methods: {
+    publishConfig: {
+      description:
+        "Resolve the model's publishing globals into a resource the workflow can guard on. Publishes nothing itself. Fails only when the selected mode is missing required settings.",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ) => {
+        const g = context.globalArgs;
+        const mode = g.publishMode;
+        const isGithubPages = mode === "github-pages";
+        const isCaddy = mode === "caddy";
+
+        // Only the selected mode's requirements count. A half-filled
+        // github-pages config in caddy mode is not an error.
+        let reason = "";
+        if (isGithubPages) {
+          const missing: string[] = [];
+          if (!g.pagesRepo.trim()) missing.push("pagesRepo");
+          if (!g.pagesBranch.trim()) missing.push("pagesBranch");
+          if (missing.length > 0) {
+            reason = `publishMode=github-pages requires global argument(s): ${
+              missing.join(", ")
+            }`;
+          }
+        } else if (isCaddy) {
+          if (!g.caddyHostname.trim()) {
+            reason = "publishMode=caddy requires the caddyHostname global argument";
+          }
+        }
+
+        const config = {
+          mode,
+          enabled: mode !== "false",
+          caddyHostname: g.caddyHostname,
+          caddyUpstream: g.caddyUpstream,
+          pagesRepo: g.pagesRepo,
+          pagesBranch: g.pagesBranch,
+          pagesPath: g.pagesPath,
+          pagesCname: g.pagesCname,
+          configured: reason === "",
+          reason,
+          resolvedAt: new Date().toISOString(),
+        };
+
+        const handle = await context.writeResource(
+          "publishConfig",
+          "publish-config",
+          config,
+        );
+        if (reason) {
+          context.logger?.warning?.(
+            "Publishing is enabled but not fully configured: {reason}",
+            { reason },
+          );
+        } else {
+          context.logger?.info?.(
+            "Publishing mode {mode} ({state})",
+            { mode, state: config.enabled ? "enabled" : "disabled" },
+          );
+        }
+        return { dataHandles: [handle] };
+      },
+    },
+
     sync_manual_index: {
       description:
         "Fetch and cache the swamp-club manual sitemap so documentation changes can link to their published page.",

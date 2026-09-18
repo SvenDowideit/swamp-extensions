@@ -129,17 +129,30 @@ swamp model @svendowideit/swamp-pulse method run render pulse
 ```
 
 Optional inputs: `repos` (array, overrides the default), `since` (ISO-8601
-window start), `outputDir` (per-run output location), `publish` (`false` |
-`caddy`), and for Caddy mode `hostname`/`upstream`, plus `serverPort` /
-`serviceName` for the systemd service.
+window start), `outputDir` (per-run output location), and `publish` (`false` |
+`caddy` | `github-pages`). For Caddy mode: `hostname`, `upstream`. For GitHub
+Pages mode: `pagesRepo`, `pagesBranch`, `pagesPath`, `pagesCname`. For the
+systemd service: `serverPort`, `serviceName`.
 
 ```sh
+# Serve locally via Caddy
 swamp workflow run @svendowideit/swamp-pulse --input publish=caddy
+
+# Publish to GitHub Pages (requires a target)
+swamp workflow run @svendowideit/swamp-pulse \
+  --input publish=github-pages \
+  --input pagesRepo=owner/repo --input pagesBranch=gh-pages
 ```
+
+> **Guard polarity:** a step's `guard` is a _skip_ condition — a **truthy**
+> guard means the step is skipped. Every optional publish step is therefore
+> written as `guard: inputs.publish != "<mode>"`, so it runs only in its own
+> mode and is skipped otherwise. (An inverted guard here once made the Caddy
+> step run on every default run.)
 
 ### Where the generated HTML goes
 
-All five pages land in one user-global directory so they survive repo moves and
+All six pages land in one user-global directory so they survive repo moves and
 `swamp serve`'s working-directory changes:
 
 | Page            | Path                                 |
@@ -394,8 +407,9 @@ notes.
 ## Serving and publishing
 
 Serving is a **workflow step** (`ensure-server`) backed by the pulse model's
-`ensureServer` method; publishing is a separate optional step. All of it is
-optional and degrades gracefully.
+`ensureServer` method. Publishing is opt-in: **nothing is published by
+default**, and each mode is a separate step that is skipped unless explicitly
+selected.
 
 ### Serve the pages over HTTP (systemd user service)
 
@@ -421,8 +435,9 @@ Without `systemd-service`, run the server manually:
   scripts/pulse-server.ts --port 8899 --dir ~/.swamp/swamp-pulse
 ```
 
-It serves the five allowlisted pages (`/`, `/leaderboard.html`, `/changes.html`,
-`/releases.html`, `/issues.html`) plus `/healthz`, and rejects path traversal.
+It serves the six allowlisted pages (`/`, `/leaderboard.html`,
+`/extensions.html`, `/changes.html`, `/releases.html`, `/issues.html`) plus
+`/healthz`, and rejects path traversal.
 
 ### Publish on a hostname via Caddy (optional)
 
@@ -438,14 +453,42 @@ swamp workflow run @svendowideit/swamp-pulse \
 It depends on `ensure-server` (either outcome) and is `allowFailure: true`, so
 an absent Caddy degrades to local-only with a log.
 
+### Publish to GitHub Pages (optional, opt-in)
+
+Uses
+[`@svendowideit/github-pages`](https://github.com/svendowideit/swamp-extensions)
+to commit the rendered pages to a repository's Pages site via the GitHub REST
+API — no `gh-pages` package, no extra checkout, no action runner. It hashes each
+file as a git blob locally and uploads only what changed, so re-runs are cheap.
+
+```sh
+swamp extension pull @svendowideit/github-pages
+swamp workflow run @svendowideit/swamp-pulse \
+  --input publish=github-pages \
+  --input pagesRepo=owner/repo --input pagesBranch=gh-pages \
+  --input pagesPath=/ --input pagesCname=example.com   # last two optional
+```
+
+**Nothing is published by default.** Two guards enforce that:
+
+1. `require-pages-config` — an assert step that **fails fast** when
+   `publish=github-pages` is set without `pagesRepo` and `pagesBranch`, rather
+   than silently doing nothing or guessing a repository.
+2. `publish-github-pages` — guarded to run only when the mode is selected _and_
+   both are set.
+
+Authentication uses the `gh` CLI's credential (`gh auth login`), so no secret
+needs storing. The step runs `publishDir` with `prune: true`, so files removed
+from the output are removed from the branch too.
+
 ## Models
 
-| Type                                | Purpose                                                                                                               |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `@svendowideit/swamp-pulse`         | Merges collected data, ranks it (tier-then-recency), renders the five HTML pages, and ensures the static server runs. |
-| `@svendowideit/swamp-club`          | Vendored Lab adapter — anonymous-capable Lab issue search.                                                            |
-| `@webframp/github` (extended)       | Upstream GitHub type, extended here with commit and body-inclusive release methods.                                   |
-| `@svendowideit/swamp-pulse-summary` | Report extension — markdown + JSON run summary (counts per window, top-ranked items, doc links).                      |
+| Type                                | Purpose                                                                                                              |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `@svendowideit/swamp-pulse`         | Merges collected data, ranks it (tier-then-recency), renders the six HTML pages, and ensures the static server runs. |
+| `@svendowideit/swamp-club`          | Vendored Lab adapter — anonymous-capable Lab issue search.                                                           |
+| `@webframp/github` (extended)       | Upstream GitHub type, extended here with commit and body-inclusive release methods.                                  |
+| `@svendowideit/swamp-pulse-summary` | Report extension — markdown + JSON run summary (counts per window, top-ranked items, doc links).                     |
 
 ## Workflows
 
@@ -466,12 +509,16 @@ methods):
    releases↔commits↔PRs into merged items, merges into the rolling store,
    computes the three windows (UTC), links docs
 6. **render** — `@svendowideit/swamp-pulse render`, reads the `ranked` resource
-   and writes all five pages
+   and writes all six pages
 7. **ensure-server** — `@svendowideit/swamp-pulse ensureServer`, idempotently
    runs `scripts/pulse-server.ts` as a systemd user service via
    `@svendowideit/systemd-service` (`allowFailure`; skips with a log if absent)
 8. **publish-caddy** — optional Caddy `ensureDnsProxy` pointing at the server
-   (`allowFailure`, guarded to `publish=caddy`)
+   (`allowFailure`, skipped unless `publish=caddy`)
+9. **require-pages-config** — assert that `pagesRepo`/`pagesBranch` are set when
+   `publish=github-pages` (fails fast otherwise)
+10. **publish-github-pages** — optional `@svendowideit/github-pages publishDir`
+    commit (skipped unless selected and configured)
 
 ## Design notes
 
@@ -540,7 +587,7 @@ workflow run.
 - [x] Doc linking — sitemap cache + explicit path→manual map + confidence
       threshold + source fallback; grouped one card per file, newest first, with
       the period in the heading
-- [x] `render` — five HTML pages as `files` **and** to `outputDir`; HTML-escape
+- [x] `render` — six HTML pages as `files` **and** to `outputDir`; HTML-escape
       all interpolated text
 - [x] Releases kept individually (1:1 with merges — no collapsing)
 - [x] Unit tests: event join/dedupe, scoring/ordering, number namespaces, window
@@ -585,8 +632,12 @@ workflow run.
       a systemd user service via `@svendowideit/systemd-service`; skips with a
       log when absent; `createService`/`startService` failures degrade rather
       than fail the run
-- [x] Optional Caddy `ensureDnsProxy` step, guarded to `publish=caddy` and
-      `allowFailure`
+- [x] Optional Caddy `ensureDnsProxy` step, skipped unless `publish=caddy`
+- [x] Optional GitHub Pages publish step
+      (`@svendowideit/github-pages
+      publishDir`), skipped unless
+      `publish=github-pages`; an assert step fails fast if
+      `pagesRepo`/`pagesBranch` are missing
 
 **Quality gate**
 
@@ -602,7 +653,9 @@ workflow run.
 - [x] Extension-registry collector (`swamp_ext_registry.ts`) + `extensions.html`
       — new / updated / most-pulled, each linked to its registry page and source
       repo; long list collapsed by default
-- [x] Dry-run push clean; 96 unit tests + live end-to-end workflow run passing
+- [x] Guard polarity corrected on all publish steps (truthy guard = skip; the
+      Caddy step had been running on every default run)
+- [x] Dry-run push clean; 104 unit tests + live end-to-end workflow run passing
 
 ## License
 

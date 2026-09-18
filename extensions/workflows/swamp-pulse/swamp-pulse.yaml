@@ -38,8 +38,11 @@ inputs:
       enum:
         - "false"
         - caddy
+        - github-pages
       default: "false"
-      description: Publishing mode — local files are always written; caddy additionally serves them.
+      description: >-
+        Publishing mode — local files are always written. caddy additionally
+        serves them locally; github-pages commits them to a repository
     hostname:
       type: string
       default: ""
@@ -56,6 +59,29 @@ inputs:
       type: string
       default: swamp-pulse-server
       description: systemd user service name for the pulse static server.
+    pagesRepo:
+      type: string
+      default: ""
+      description: >-
+        Target repository for github-pages publishing, as owner/name. Required
+        (with pagesBranch) when publish=github-pages.
+    pagesBranch:
+      type: string
+      default: ""
+      description: >-
+        Branch to publish the Pages site to (e.g. gh-pages). Required when
+        publish=github-pages.
+    pagesPath:
+      type: string
+      enum:
+        - /
+        - /docs
+      default: /
+      description: Directory within the repository Pages serves from.
+    pagesCname:
+      type: string
+      default: ""
+      description: Optional custom domain to configure for the Pages site.
   required: []
 tags: {}
 trigger:
@@ -64,6 +90,19 @@ jobs:
   - name: main
     description: Collect → rank → render → (optional) publish.
     steps:
+      - name: configure
+        description: >-
+          Resolve the model's publishing globals into the publishConfig
+          resource. Publishes nothing; every publish guard reads this. Set the
+          mode and targets once on the pulse model and scheduled runs honour it.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-pulse"
+          modelName: pulse
+          methodName: publishConfig
+        dependsOn: []
+        weight: 0
+        allowFailure: false
       - name: manual-index
         description: Cache the swamp-club manual page index so doc changes can link to their published page.
         task:
@@ -230,15 +269,19 @@ jobs:
           @svendowideit/caddy and a configured my-caddy model). Guarded to
           publish=caddy and allowFailure, so an absent Caddy degrades to
           local-only.
-        guard: ${{ inputs.publish == "caddy" && inputs.hostname != "" }}
+        guard: >-
+          ${{ data.latest("pulse", "publish-config").?attributes.?mode.orValue("false")
+          != "caddy" ||
+          data.latest("pulse", "publish-config").?attributes.?caddyHostname.orValue("")
+          == "" }}
         task:
           type: model_method
           modelType: "@svendowideit/caddy"
           modelName: my-caddy
           methodName: ensureDnsProxy
           inputs:
-            hostname: ${{ inputs.hostname }}
-            upstream: ${{ inputs.upstream }}
+            hostname: ${{ data.latest("pulse", "publish-config").attributes.caddyHostname }}
+            upstream: ${{ data.latest("pulse", "publish-config").attributes.caddyUpstream }}
         dependsOn:
           - step: ensure-server
             condition:
@@ -246,8 +289,77 @@ jobs:
               conditions:
                 - type: succeeded
                 - type: failed
+          - step: configure
+            condition:
+              type: or
+              conditions:
+                - type: succeeded
+                - type: failed
         weight: 0
         allowFailure: true
+      - name: require-pages-config
+        description: >-
+          Fail fast when the github-pages publish mode is configured without a
+          target repository and branch, rather than silently doing nothing.
+        guard: >-
+          ${{ data.latest("pulse", "publish-config").?attributes.?mode.orValue("false")
+          != "github-pages" }}
+        task:
+          type: assert
+          expr: >-
+            data.latest("pulse", "publish-config").attributes.reason == ""
+          message: >-
+            ${{ data.latest("pulse", "publish-config").?attributes.?reason.orValue("publishing configuration is incomplete") }}
+          severity: high
+        dependsOn:
+          - step: render
+            condition:
+              type: succeeded
+          - step: configure
+            condition:
+              type: or
+              conditions:
+                - type: succeeded
+                - type: failed
+        weight: 0
+        allowFailure: false
+      - name: publish-github-pages
+        description: >-
+          Commit the rendered pages to a GitHub repository's Pages site
+          (requires @svendowideit/github-pages and gh authentication). Guarded
+          to publish=github-pages so nothing is published by default.
+        guard: >-
+          ${{ data.latest("pulse", "publish-config").?attributes.?mode.orValue("false")
+          != "github-pages" ||
+          data.latest("pulse", "publish-config").?attributes.?configured.orValue(false)
+          == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/github-pages"
+          modelName: pulse-pages
+          methodName: publishDir
+          inputs:
+            dir: >-
+              ${{ data.latest("pulse", "publish-config").?attributes.?outputDir.orValue(inputs.outputDir != "" ? inputs.outputDir : "~/.swamp/swamp-pulse") }}
+            repo: ${{ data.latest("pulse", "publish-config").attributes.pagesRepo }}
+            branch: ${{ data.latest("pulse", "publish-config").attributes.pagesBranch }}
+            message: ${{ "Publish Swamp Pulse " + run.startedAt }}
+            prune: true
+        dependsOn:
+          - step: require-pages-config
+            condition:
+              type: or
+              conditions:
+                - type: succeeded
+                - type: skipped
+          - step: configure
+            condition:
+              type: or
+              conditions:
+                - type: succeeded
+                - type: failed
+        weight: 0
+        allowFailure: false
     dependsOn: []
     weight: 0
 version: 1

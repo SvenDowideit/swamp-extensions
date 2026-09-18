@@ -1,7 +1,7 @@
 # Read-only; regenerate via 'swamp extension pull'
 manifestVersion: 1
 name: "@svendowideit/swamp-pulse"
-version: "2026.09.18.7"
+version: "2026.09.18.8"
 description: |
   A leaderboard-style activity dashboard for the swamp project itself. Tracks
   swamp-club Lab issues, GitHub commits and GitHub releases across
@@ -28,6 +28,10 @@ description: |
   (activity for 24h / 7d / month), extensions.html (registry changes),
   changes.html, releases.html, issues.html.
 
+  Publishing is opt-in and never runs by default. Serve locally as a systemd
+  user service with @svendowideit/systemd-service; or publish to GitHub Pages
+  with @svendowideit/github-pages (requires pagesRepo and pagesBranch).
+
   CONFIGURE (all optional — public data, no secrets required)
 
     apiKey           swamp-club API key, supplied from a vault. Unset runs
@@ -51,6 +55,16 @@ description: |
         scripts/pulse-server.ts --port 8899 --dir ~/.swamp/swamp-pulse
 
   Tune the service:  --input serverPort=8899 --input serviceName=swamp-pulse-server
+
+  Publish to GitHub Pages (opt-in; requires a target repo and branch)
+
+      swamp extension pull @svendowideit/github-pages
+      swamp workflow run @svendowideit/swamp-pulse \
+        --input publish=github-pages \
+        --input pagesRepo=owner/repo --input pagesBranch=gh-pages
+
+  Nothing is published by default; omitting pagesRepo/pagesBranch fails fast
+  with an actionable error rather than silently doing nothing.
 
   Publish on a hostname via Caddy (optional)
 
@@ -92,5 +106,6 @@ additionalFiles:
 
 dependencies:
   - "@webframp/github"
+  - "@svendowideit/github-pages"
 
 platforms: []

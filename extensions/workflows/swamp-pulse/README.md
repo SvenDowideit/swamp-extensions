@@ -297,31 +297,67 @@ Whole-window changed files come from one `compare` API call per repo (verified:
 returns the file list for a ref range); per-commit file lists are fetched only
 for doc-suspect commits, bounded by a cap.
 
-## Publishing
+## Serving and publishing
 
-Publishing is a **workflow job**, not a model method (Caddy, systemd and git are
-other models). `publish` accepts three modes, all optional:
+Serving is a **workflow step** (`ensure-server`) backed by the pulse model's
+`ensureServer` method; publishing is a separate optional step. All of it is
+optional and degrades gracefully.
 
-- **local** (always) — files written to `outputDir`.
-- **caddy** — when
-  [`@svendowideit/caddy`](https://github.com/svendowideit/swamp-extensions) and
-  `@svendowideit/systemd-service` are installed, ensure a reverse proxy to
-  `scripts/pulse-server.ts` (a small static server modelled on the news feedback
-  server) and run it as a user service. Requires a pre-created `my-caddy` model
-  instance (`baseDomain`, `letsEncryptEmail`). Steps are `allowFailure: true`,
-  so an absent Caddy degrades to local-only with a log.
-- **git** — clone `pagesRepo` via `@swamp/git`, write the four HTML files,
-  commit and push. Requires push credentials on the runner; documented in
-  "Configure".
+### Serve the pages over HTTP (systemd user service)
+
+The workflow's `ensure-server` step idempotently ensures the static server runs
+as a systemd **user** service via
+[`@svendowideit/systemd-service`](https://github.com/svendowideit/swamp-extensions):
+
+```sh
+swamp extension pull @svendowideit/systemd-service
+swamp workflow run @svendowideit/swamp-pulse
+```
+
+Because `systemd-service` enables user **lingering** by default, the server
+starts at boot — not just on login — so the pages stay served. The step is
+`allowFailure: true` and the method skips with a log if the extension is not
+installed, so nothing breaks without it. Tune it with
+`--input serverPort=8899 --input serviceName=swamp-pulse-server`.
+
+Without `systemd-service`, run the server manually:
+
+```sh
+~/.swamp/deno/deno run --allow-net --allow-read --allow-env \
+  scripts/pulse-server.ts --port 8899 --dir ~/.swamp/swamp-pulse
+```
+
+It serves the four allowlisted pages (`/`, `/changes.html`, `/releases.html`,
+`/issues.html`) plus `/healthz`, and rejects path traversal.
+
+### Publish on a hostname via Caddy (optional)
+
+When [`@svendowideit/caddy`](https://github.com/svendowideit/swamp-extensions)
+is installed and a `my-caddy` model exists (`baseDomain`, `letsEncryptEmail`),
+the `publish-caddy` step points a reverse proxy at the pulse server:
+
+```sh
+swamp workflow run @svendowideit/swamp-pulse \
+  --input publish=caddy --input hostname=pulse.example.com
+```
+
+It depends on `ensure-server` (either outcome) and is `allowFailure: true`, so
+an absent Caddy degrades to local-only with a log.
+
+### Publish to a git repository (optional)
+
+**Not yet implemented.** Planned: clone the configured `pagesRepo` via
+`@swamp/git`, write the four HTML files, commit and push. Requires push
+credentials on the runner.
 
 ## Models
 
-| Type                                | Purpose                                                                                          |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `@svendowideit/swamp-pulse`         | Merges collected data, ranks it (tier-then-recency), renders the four HTML pages.                |
-| `@svendowideit/swamp-club`          | Vendored Lab adapter — anonymous-capable Lab issue search.                                       |
-| `@webframp/github` (extended)       | Upstream GitHub type, extended here with commit and body-inclusive release methods.              |
-| `@svendowideit/swamp-pulse-summary` | Report extension — markdown + JSON run summary (counts per window, top-ranked items, doc links). |
+| Type                                | Purpose                                                                                                               |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `@svendowideit/swamp-pulse`         | Merges collected data, ranks it (tier-then-recency), renders the four HTML pages, and ensures the static server runs. |
+| `@svendowideit/swamp-club`          | Vendored Lab adapter — anonymous-capable Lab issue search.                                                            |
+| `@webframp/github` (extended)       | Upstream GitHub type, extended here with commit and body-inclusive release methods.                                   |
+| `@svendowideit/swamp-pulse-summary` | Report extension — markdown + JSON run summary (counts per window, top-ranked items, doc links).                      |
 
 ## Workflows
 
@@ -343,7 +379,11 @@ methods):
    computes the three windows (UTC), links docs
 6. **render** — `@svendowideit/swamp-pulse render`, reads the `ranked` resource
    and writes all four pages
-7. **publish** — optional Caddy / git-pages steps (`allowFailure`)
+7. **ensure-server** — `@svendowideit/swamp-pulse ensureServer`, idempotently
+   runs `scripts/pulse-server.ts` as a systemd user service via
+   `@svendowideit/systemd-service` (`allowFailure`; skips with a log if absent)
+8. **publish-caddy** — optional Caddy `ensureDnsProxy` pointing at the server
+   (`allowFailure`, guarded to `publish=caddy`)
 
 ## Design notes
 
@@ -441,10 +481,14 @@ workflow run.
       (partitioned so each tail item appears in exactly one group)
 - [x] "New / changed documentation" section on every page
 
-**Publishing**
+**Serving and publishing**
 
 - [x] `scripts/pulse-server.ts` static server (allowlisted paths,
       traversal-safe)
+- [x] `ensureServer` method + `ensure-server` workflow step — runs the server as
+      a systemd user service via `@svendowideit/systemd-service`; skips with a
+      log when absent; `createService`/`startService` failures degrade rather
+      than fail the run
 - [x] Optional Caddy `ensureDnsProxy` step, guarded to `publish=caddy` and
       `allowFailure`
 - [ ] Optional git-pages push job (documented credentials) — remaining work
@@ -453,7 +497,7 @@ workflow run.
 
 - [x] `swamp extension fmt --check`, `quality` (12/12, 100%)
 - [x] Adversarial review written to the content-hash path from `push --dry-run`
-- [x] Dry-run push clean; 71 unit tests + live end-to-end workflow run passing
+- [x] Dry-run push clean; 78 unit tests + live end-to-end workflow run passing
 
 ## License
 

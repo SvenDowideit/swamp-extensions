@@ -96,6 +96,15 @@ const GlobalArgsSchema = z.object({
   docPathPattern: z.string().default("").describe(
     "Optional extra regex; matching changed paths are treated as documentation.",
   ),
+  serverPort: z.number().int().min(1).max(65535).default(8899).describe(
+    "Port the pulse static server listens on (used by ensureServer).",
+  ),
+  serverServiceName: z.string().default("swamp-pulse-server").describe(
+    "systemd user service name for the pulse static server.",
+  ),
+  serverScriptPath: z.string().optional().describe(
+    "Override the path to the bundled pulse-server.ts script.",
+  ),
 });
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -209,6 +218,7 @@ type MethodContext = {
     info: (msg: string, props?: Record<string, unknown>) => void;
     warning?: (msg: string, props?: Record<string, unknown>) => void;
   };
+  extensionFile?: (relPath: string) => string;
   writeResource: (
     specName: string,
     dataName: string,
@@ -1239,6 +1249,146 @@ export function expandHome(path: string): string {
   return path;
 }
 
+/** Run a `swamp` CLI command and capture stdout/stderr/exit code. */
+export async function runSwampCmd(
+  args: string[],
+): Promise<{ stdout: string; stderr: string; code: number }> {
+  try {
+    const proc = new Deno.Command("swamp", {
+      args,
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const out = await proc.output();
+    return {
+      stdout: new TextDecoder().decode(out.stdout),
+      stderr: new TextDecoder().decode(out.stderr),
+      code: out.code,
+    };
+  } catch (err) {
+    return {
+      stdout: "",
+      stderr: err instanceof Error ? err.message : String(err),
+      code: 127,
+    };
+  }
+}
+
+/**
+ * Resolve the bundled `pulse-server.ts` path.
+ *
+ * Prefers the extension's own bundled file (available when the extension is
+ * installed), falling back to the in-repo development path.
+ */
+export function resolveServerScript(
+  context: MethodContext,
+  override?: string,
+): string {
+  if (override) return override;
+  if (context.globalArgs.serverScriptPath) {
+    return context.globalArgs.serverScriptPath;
+  }
+  if (context.extensionFile) {
+    return context.extensionFile("scripts/pulse-server.ts");
+  }
+  return `${
+    context.repoDir ?? "."
+  }/extensions/workflows/swamp-pulse/scripts/pulse-server.ts`;
+}
+
+/**
+ * Idempotently ensure the pulse static server runs as a systemd user service
+ * via `@svendowideit/systemd-service`.
+ *
+ * Degrades gracefully: if the extension is not installed, or if its CLI calls
+ * fail, the method returns `{ running: false }` with a logged reason instead of
+ * failing the surrounding workflow — the HTML pages are already on disk.
+ */
+export async function ensureServerService(
+  context: MethodContext,
+  opts: { port?: number; serviceName?: string; scriptPath?: string },
+  run: typeof runSwampCmd = runSwampCmd,
+): Promise<{ running: boolean; reason: string; serviceName: string }> {
+  const ga = context.globalArgs;
+  const port = opts.port ?? ga.serverPort;
+  const serviceName = opts.serviceName ?? ga.serverServiceName;
+  const scriptPath = resolveServerScript(context, opts.scriptPath);
+
+  const probe = await run([
+    "model",
+    "type",
+    "search",
+    "@svendowideit/systemd-service",
+    "--json",
+  ]);
+  const installed = probe.code === 0 &&
+    probe.stdout.includes("@svendowideit/systemd-service");
+  if (!installed) {
+    const reason =
+      "@svendowideit/systemd-service not installed — skipping pulse server service setup. Run `swamp extension pull @svendowideit/systemd-service` to enable it.";
+    context.logger?.info?.(reason);
+    return { running: false, reason, serviceName };
+  }
+
+  const denoPath = expandHome("~/.swamp/deno/deno");
+  const outDir = expandHome(ga.outputDir || "~/.swamp/swamp-pulse");
+  // PATH is pinned because systemd user services start with a minimal
+  // environment; the server needs only deno and read access to outDir.
+  const pathEnv = "/usr/local/bin:/usr/bin:/bin";
+  const command =
+    `${denoPath} run --allow-net --allow-read --allow-env ${scriptPath} --port ${port} --dir ${outDir}`;
+
+  const create = await run([
+    "model",
+    "@svendowideit/systemd-service",
+    "method",
+    "run",
+    "createService",
+    serviceName,
+    "--input",
+    `serviceName=${serviceName}`,
+    "--input",
+    `command=${command}`,
+    "--input",
+    "description=Swamp Pulse static server",
+    "--input",
+    `environment=["PULSE_PORT=${port}", "PULSE_DIR=${outDir}", "PATH=${pathEnv}"]`,
+    "--skip-reports",
+  ]);
+  if (create.code !== 0) {
+    const reason = `createService failed (${create.code}): ${
+      create.stderr || create.stdout
+    }`;
+    context.logger?.warning?.(reason);
+    return { running: false, reason, serviceName };
+  }
+
+  const start = await run([
+    "model",
+    "@svendowideit/systemd-service",
+    "method",
+    "run",
+    "startService",
+    serviceName,
+    "--input",
+    `serviceName=${serviceName}`,
+    "--skip-reports",
+  ]);
+  if (start.code !== 0) {
+    const reason = `startService failed (${start.code}): ${
+      start.stderr || start.stdout
+    }`;
+    context.logger?.warning?.(reason);
+    return { running: false, reason, serviceName };
+  }
+
+  context.logger?.info?.(
+    "Pulse server service {serviceName} is running on port {port} (dir {dir})",
+    { serviceName, port, dir: outDir },
+  );
+  return { running: true, reason: "started", serviceName };
+}
+
 /** Model definition for Swamp Pulse. */
 export const model = {
   type: "@svendowideit/swamp-pulse",
@@ -1494,6 +1644,29 @@ export const model = {
           dir: outDir,
         });
         return { dataHandles: handles };
+      },
+    },
+
+    ensureServer: {
+      description:
+        "Idempotently ensure the pulse static server runs as a systemd user service (via @svendowideit/systemd-service) so the generated pages are always served. Resolves the bundled pulse-server.ts script, creates the unit, and starts it. Skips gracefully (with a log) if the systemd-service extension is not installed.",
+      arguments: z.object({
+        port: z.number().int().min(1).max(65535).optional().describe(
+          "Port the server listens on (defaults to global serverPort).",
+        ),
+        serviceName: z.string().optional().describe(
+          "systemd user service name (defaults to global serverServiceName).",
+        ),
+        scriptPath: z.string().optional().describe(
+          "Override the path to the pulse-server.ts script.",
+        ),
+      }),
+      execute: async (
+        args: { port?: number; serviceName?: string; scriptPath?: string },
+        context: MethodContext,
+      ) => {
+        await ensureServerService(context, args);
+        return { dataHandles: [] };
       },
     },
   },

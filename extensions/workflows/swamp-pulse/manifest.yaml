@@ -33,17 +33,31 @@ description: |
     windows          Activity windows to render (24h, 7d, month).
     repos            Repositories to track.
 
-  Serve the pages over HTTP (optional)
+  Serve the pages over HTTP
+
+  The workflow runs the pulse static server as a systemd user service, and
+  needs this extension for that:
+
+      swamp extension pull @svendowideit/systemd-service
+
+  With it installed, the ensure-server step starts the service at boot (via
+  lingering) and keeps it running. Without it, the step is skipped and you run
+  the server by hand:
 
       ~/.swamp/deno/deno run --allow-net --allow-read --allow-env \
         scripts/pulse-server.ts --port 8899 --dir ~/.swamp/swamp-pulse
 
-  Publish via Caddy (optional)
+  Tune the service:  --input serverPort=8899 --input serviceName=swamp-pulse-server
 
+  Publish on a hostname via Caddy (optional)
+
+  Requires the Caddy extension and a configured my-caddy model instance:
+
+      swamp extension pull @svendowideit/caddy
       swamp workflow run @svendowideit/swamp-pulse \
         --input publish=caddy --input hostname=pulse.example.com
 
-  Requires @svendowideit/caddy and a configured my-caddy model instance.
+  The ensure-server step supplies the upstream the proxy points at.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

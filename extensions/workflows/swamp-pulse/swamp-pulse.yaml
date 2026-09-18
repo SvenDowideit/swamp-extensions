@@ -47,6 +47,14 @@ inputs:
       type: string
       default: "127.0.0.1:8899"
       description: host:port the pulse static server listens on (caddy publish mode).
+    serverPort:
+      type: integer
+      default: 8899
+      description: Port the pulse static server listens on (systemd user service).
+    serviceName:
+      type: string
+      default: swamp-pulse-server
+      description: systemd user service name for the pulse static server.
   required: []
 tags: {}
 trigger:
@@ -176,11 +184,32 @@ jobs:
               type: succeeded
         weight: 0
         allowFailure: false
+      - name: ensure-server
+        description: >-
+          Idempotently ensure the pulse static server runs as a systemd user
+          service (via @svendowideit/systemd-service) so the rendered pages are
+          always served. Skips gracefully with a log if that extension is not
+          installed.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-pulse"
+          modelName: pulse
+          methodName: ensureServer
+          inputs:
+            port: ${{ inputs.serverPort }}
+            serviceName: ${{ inputs.serviceName }}
+        dependsOn:
+          - step: render
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
       - name: publish-caddy
         description: >-
-          Serve the rendered pages via a Caddy reverse proxy (requires
+          Point a Caddy reverse proxy at the pulse server (requires
           @svendowideit/caddy and a configured my-caddy model). Guarded to
-          publish=caddy and allowFailure, so an absent Caddy degrades to local-only.
+          publish=caddy and allowFailure, so an absent Caddy degrades to
+          local-only.
         guard: ${{ inputs.publish == "caddy" && inputs.hostname != "" }}
         task:
           type: model_method
@@ -191,9 +220,12 @@ jobs:
             hostname: ${{ inputs.hostname }}
             upstream: ${{ inputs.upstream }}
         dependsOn:
-          - step: render
+          - step: ensure-server
             condition:
-              type: succeeded
+              type: or
+              conditions:
+                - type: succeeded
+                - type: failed
         weight: 0
         allowFailure: true
     dependsOn: []

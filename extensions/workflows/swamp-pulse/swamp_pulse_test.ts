@@ -12,8 +12,10 @@ import {
   withMockedFetch,
 } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 import { celEscape, celUnescape, celUnescapeDeep } from "./cel_text.ts";
+import type { runSwampCmd as RunSwampCmd } from "./swamp_pulse.ts";
 import {
   classifyImportance,
+  ensureServerService,
   escapeHtml,
   isDocPath,
   mergeEvents,
@@ -36,6 +38,8 @@ const globalArgs = {
   windows: ["24h", "7d", "month"],
   storeRetentionDays: 90,
   docPathPattern: "",
+  serverPort: 8899,
+  serverServiceName: "swamp-pulse-server",
 };
 
 // ---------------------------------------------------------------------------
@@ -886,6 +890,108 @@ Deno.test("sync_manual_index degrades gracefully when the sitemap fails", async 
     assertEquals(data.count, 0);
     assertEquals(data.pages, []);
   });
+});
+
+// ---------------------------------------------------------------------------
+// ensureServerService
+// ---------------------------------------------------------------------------
+
+/** Build a fake `runSwampCmd` that answers the probe and records calls. */
+type SwampRun = typeof RunSwampCmd;
+
+function fakeRun(
+  installed: boolean,
+  failOn: string[] = [],
+): { calls: string[][]; run: SwampRun } {
+  const calls: string[][] = [];
+  const run = (args: string[]) => {
+    calls.push(args);
+    if (args[0] === "model" && args[1] === "type") {
+      return Promise.resolve({
+        stdout: installed ? "@svendowideit/systemd-service" : "no matches",
+        stderr: "",
+        code: 0,
+      });
+    }
+    const joined = args.join(" ");
+    const failing = failOn.some((f) => joined.includes(f));
+    return Promise.resolve({
+      stdout: "",
+      stderr: failing ? "unit failed" : "",
+      code: failing ? 1 : 0,
+    });
+  };
+  return { calls, run: run as SwampRun };
+}
+
+function ctxWithExtFile(
+  extensionFile?: (rel: string) => string,
+): Parameters<typeof ensureServerService>[0] {
+  return {
+    globalArgs,
+    repoDir: "/repo",
+    ...(extensionFile ? { extensionFile } : {}),
+    logger: { info: () => {}, warning: () => {} },
+  } as unknown as Parameters<typeof ensureServerService>[0];
+}
+
+Deno.test("ensureServerService skips gracefully when systemd-service is absent", async () => {
+  const { calls, run } = fakeRun(false);
+  const result = await ensureServerService(ctxWithExtFile(), {}, run);
+  assertEquals(result.running, false);
+  assertStringIncludes(result.reason, "not installed");
+  // Only the probe should have run.
+  assertEquals(calls.length, 1);
+});
+
+Deno.test("ensureServerService creates and starts the unit when installed", async () => {
+  const { calls, run } = fakeRun(true);
+  const result = await ensureServerService(ctxWithExtFile(), {}, run);
+  assertEquals(result.running, true);
+  assertEquals(result.serviceName, "swamp-pulse-server");
+  const joined = calls.map((c) => c.join(" ")).join("\n");
+  assertStringIncludes(joined, "createService");
+  assertStringIncludes(joined, "startService");
+  assertStringIncludes(joined, "PULSE_PORT=8899");
+  assertStringIncludes(joined, "pulse-server.ts");
+});
+
+Deno.test("ensureServerService uses the bundled script path from extensionFile", async () => {
+  const { calls, run } = fakeRun(true);
+  await ensureServerService(
+    ctxWithExtFile((rel) => `/pulled/${rel}`),
+    {},
+    run,
+  );
+  const joined = calls.map((c) => c.join(" ")).join("\n");
+  assertStringIncludes(joined, "/pulled/scripts/pulse-server.ts");
+});
+
+Deno.test("ensureServerService returns running=false when createService fails", async () => {
+  const { run } = fakeRun(true, ["createService"]);
+  const result = await ensureServerService(ctxWithExtFile(), {}, run);
+  assertEquals(result.running, false);
+  assertStringIncludes(result.reason, "createService failed");
+});
+
+Deno.test("ensureServerService returns running=false when startService fails", async () => {
+  const { run } = fakeRun(true, ["startService"]);
+  const result = await ensureServerService(ctxWithExtFile(), {}, run);
+  assertEquals(result.running, false);
+  assertStringIncludes(result.reason, "startService failed");
+});
+
+Deno.test("ensureServerService honours per-call port and service name overrides", async () => {
+  const { calls, run } = fakeRun(true);
+  const result = await ensureServerService(
+    ctxWithExtFile(),
+    { port: 9999, serviceName: "custom-pulse" },
+    run,
+  );
+  assertEquals(result.serviceName, "custom-pulse");
+  const joined = calls.map((c) => c.join(" ")).join("\n");
+  assertStringIncludes(joined, "PULSE_PORT=9999");
+  assertStringIncludes(joined, "custom-pulse");
 });
 
 // ---------------------------------------------------------------------------

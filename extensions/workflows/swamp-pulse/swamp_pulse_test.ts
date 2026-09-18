@@ -113,9 +113,13 @@ Deno.test("renderTime escapes a hostile datetime value", () => {
 });
 
 Deno.test("the local-time script localizes every time element and is injected", () => {
-  // The script references the datetime attribute and toLocaleString.
+  // The script localizes via the datetime attribute and picks relative or
+  // absolute wording based on age.
   assertStringIncludes(LOCAL_TIME_SCRIPT, "time[datetime]");
   assertStringIncludes(LOCAL_TIME_SCRIPT, "toLocaleString");
+  assertStringIncludes(LOCAL_TIME_SCRIPT, '" mins ago"');
+  assertStringIncludes(LOCAL_TIME_SCRIPT, '" hour ago"');
+  assertStringIncludes(LOCAL_TIME_SCRIPT, '"just now"');
   // And every rendered page includes it.
   const ranked = {
     windows: [{

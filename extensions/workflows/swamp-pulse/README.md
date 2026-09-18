@@ -193,10 +193,19 @@ fenced code preserved. This is a tested requirement, not an afterthought.
 Every timestamp is rendered server-side as a `<time datetime="…">` element
 holding the raw UTC ISO value, so the page is correct without JavaScript. A
 small script in each page then rewrites the visible text to the **viewer's
-browser timezone** via `toLocaleString`, using 12/24-hour conventions and month
-names appropriate to their locale. The original UTC value stays available as the
-element's `title` (hover) and in the `datetime` attribute. This is verified in a
-real headless browser, not just unit-tested.
+browser timezone**:
+
+- **Within the last 24 hours** it shows relative wording — `just now`,
+  `15 mins ago`, `1 hour ago`, `4 hours ago`.
+- **Older** values show an absolute, localized date/time.
+- A `data-time-format="date"` field (the leaderboard column) always stays a
+  date, since "15 mins ago" reads wrong in a date column, and future timestamps
+  fall back to absolute so clock skew can't print a negative age.
+- The relative wording **refreshes every minute**, so a page left open stays
+  honest, and the exact localized value is available on hover (`title`).
+
+Months, day order and 12/24-hour convention follow the viewer's locale. This is
+verified in a real headless browser, not just unit-tested.
 
 ## How items are ranked
 
@@ -552,7 +561,9 @@ workflow run.
 - [x] `swamp extension fmt --check`, `quality` (12/12, 100%)
 - [x] Adversarial review written to the content-hash path from `push --dry-run`
 - [x] Timestamps localized to the viewer's timezone by an in-page script
-      (`<time datetime>` + `toLocaleString`), verified in headless Chromium
+      (`<time datetime>` + `toLocaleString`); relative wording within 24h
+      (`15 mins ago` / `4 hours ago`), absolute beyond, refreshing each minute —
+      verified case-by-case in headless Chromium
 - [x] Dry-run push clean; 92 unit tests + live end-to-end workflow run passing
 
 ## License

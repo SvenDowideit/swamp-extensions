@@ -992,28 +992,55 @@ export function renderTime(
  */
 export const LOCAL_TIME_SCRIPT = `
 (function () {
+  var MINUTE = 60 * 1000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
+
+  // "just now", "15 mins ago", "1 hour ago", "4 hours ago".
+  function relative(ms) {
+    if (ms < MINUTE) return "just now";
+    if (ms < HOUR) {
+      var mins = Math.round(ms / MINUTE);
+      return mins + (mins === 1 ? " min ago" : " mins ago");
+    }
+    var hours = Math.round(ms / HOUR);
+    return hours + (hours === 1 ? " hour ago" : " hours ago");
+  }
+
+  function absolute(d, dateOnly) {
+    var opts = dateOnly
+      ? { year: "numeric", month: "short", day: "numeric" }
+      : {
+        year: "numeric", month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      };
+    return d.toLocaleString(undefined, opts);
+  }
+
   function localize(root) {
     var nodes = (root || document).querySelectorAll("time[datetime]");
+    var now = Date.now();
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
-      var iso = el.getAttribute("datetime");
-      var d = new Date(iso);
+      var d = new Date(el.getAttribute("datetime"));
       if (isNaN(d.getTime())) continue;
-      var opts = el.getAttribute("data-time-format") === "date"
-        ? { year: "numeric", month: "short", day: "numeric" }
-        : {
-          year: "numeric", month: "short", day: "numeric",
-          hour: "2-digit", minute: "2-digit"
-        };
-      var text = d.toLocaleString(undefined, opts);
+      var dateOnly = el.getAttribute("data-time-format") === "date";
+      var age = now - d.getTime();
+      // Within the last 24 hours (and not in the future), prefer relative
+      // wording; older values keep an absolute, localized date. A date-only
+      // field stays a date — "15 mins ago" reads oddly in a date column.
+      var text = (!dateOnly && age >= 0 && age < DAY)
+        ? relative(age)
+        : absolute(d, dateOnly);
       if (el.textContent !== text) el.textContent = text;
-      // Expose the original UTC value on hover for anyone comparing runs.
-      el.title = d.toISOString();
+      // Keep the exact value discoverable on hover, in local time.
+      el.title = d.toLocaleString();
       el.setAttribute("data-localized", "1");
     }
   }
+
   localize(document);
   window.addEventListener("pageshow", function () { localize(document); });
+  // Refresh relative wording as time passes, so a page left open stays honest.
+  setInterval(function () { localize(document); }, 60000);
 })();
 `;
 

@@ -19,7 +19,8 @@ that commit's SHA.
 ## Presentation: release-notes tour style
 
 The detail pages follow the **interactive release-notes tour** format
-popularised by the [VictoriaMetrics Go 1.27 tour](https://victoriametrics.com/blog/go-1-27/)
+popularised by the
+[VictoriaMetrics Go 1.27 tour](https://victoriametrics.com/blog/go-1-27/)
 (itself continuing Anton Zhiyanov's `antonz.org` Go tours). Rather than dumping
 a flat commit log, Pulse renders each notable item as a self-contained tour
 section, so a reader can skim what changed and how it matters without reading
@@ -27,9 +28,9 @@ the raw history.
 
 Each item is presented as:
 
-- **A headline section with an anchor** (`<h2 id="…">`) and a sidebar
-  table of contents, so every change is directly linkable and the page can be
-  skimmed by heading.
+- **A headline section with an anchor** (`<h2 id="…">`) and a sidebar table of
+  contents, so every change is directly linkable and the page can be skimmed by
+  heading.
 - **A one-line "why it matters" lede** — the plain-language context, the way the
   tour opens each release note before showing code.
 - **A short excerpt or example**, in a fenced/`<pre>` block with the rendered
@@ -39,8 +40,8 @@ Each item is presented as:
 - **A trailing reference row** of labelled links in the tour's convention —
   **𝗗** docs/manual, **𝗣** the issue or proposal number, **𝗖𝗟** the commit SHA,
   **𝗔** the author — for each feature discussed.
-- **Grouped tail sections** — *Other notable changes*, *Tooling*, *Hidden gems*
-  (the lower-significance C-tier items), and *Final thoughts* (the window's
+- **Grouped tail sections** — _Other notable changes_, _Tooling_, _Hidden gems_
+  (the lower-significance C-tier items), and _Final thoughts_ (the window's
   themes, mirroring the tour's closing summary).
 
 The summary page's 24h / 7d / month views select which items are promoted into
@@ -64,13 +65,13 @@ swamp extension trust add webframp
 Installing `@svendowideit/swamp-pulse` provides three model types, one report,
 and one workflow:
 
-| Content | Type / name |
-|---|---|
-| Pulse model | `@svendowideit/swamp-pulse` |
-| Vendored Lab adapter (fork) | `@svendowideit/swamp-club` |
-| GitHub methods extension | extends `@webframp/github` |
-| Report | `@svendowideit/swamp-pulse-summary` |
-| Workflow | `@svendowideit/swamp-pulse` |
+| Content                     | Type / name                         |
+| --------------------------- | ----------------------------------- |
+| Pulse model                 | `@svendowideit/swamp-pulse`         |
+| Vendored Lab adapter (fork) | `@svendowideit/swamp-club`          |
+| GitHub methods extension    | extends `@webframp/github`          |
+| Report                      | `@svendowideit/swamp-pulse-summary` |
+| Workflow                    | `@svendowideit/swamp-pulse`         |
 
 The model instances (`pulse`, `github`, `swamp-club`) are auto-registered on the
 first workflow run — no manual `swamp model create` needed, and no credentials
@@ -98,15 +99,15 @@ apiKey: ${{ vault.get('my-vault', 'swamp-club-api-key') }}
 ```
 
 `apiKey` is **sensitive** and now **optional** in the vendored fork — swamp
-still rejects a literal value, so the vault reference is required *if* you set
+still rejects a literal value, so the vault reference is required _if_ you set
 it. Leave it unset to run anonymously.
 
 Configurable global arguments on the pulse model: `repos` (default
-`["swamp-club/swamp", "swamp-club/swamp-extensions"]`), `swampClubUrl`
-(default `https://swamp-club.com`), `outputDir` (default
-`~/.swamp/swamp-pulse`), `manualBaseUrl` (default `https://swamp-club.com/manual`),
-`windows` (`["24h", "7d", "month"]`), scoring weights, and the optional
-`pagesRepo` / `pagesBaseUrl` for git-pages publishing.
+`["swamp-club/swamp", "swamp-club/swamp-extensions"]`), `swampClubUrl` (default
+`https://swamp-club.com`), `outputDir` (default `~/.swamp/swamp-pulse`),
+`manualBaseUrl` (default `https://swamp-club.com/manual`), `windows`
+(`["24h", "7d", "month"]`), scoring weights, and the optional `pagesRepo` /
+`pagesBaseUrl` for git-pages publishing.
 
 ## Run
 
@@ -131,12 +132,12 @@ swamp workflow run @svendowideit/swamp-pulse --input publish=caddy
 All four pages land in one user-global directory so they survive repo moves and
 `swamp serve`'s working-directory changes:
 
-| Page             | Path                                |
-|------------------|-------------------------------------|
-| Summary          | `~/.swamp/swamp-pulse/index.html`   |
-| Commits/changes  | `~/.swamp/swamp-pulse/changes.html` |
-| Releases         | `~/.swamp/swamp-pulse/releases.html`|
-| Lab issues       | `~/.swamp/swamp-pulse/issues.html`  |
+| Page            | Path                                 |
+| --------------- | ------------------------------------ |
+| Summary         | `~/.swamp/swamp-pulse/index.html`    |
+| Commits/changes | `~/.swamp/swamp-pulse/changes.html`  |
+| Releases        | `~/.swamp/swamp-pulse/releases.html` |
+| Lab issues      | `~/.swamp/swamp-pulse/issues.html`   |
 
 Override with `outputDir` (model global arg or per-run input).
 
@@ -144,7 +145,7 @@ Override with `outputDir` (model global arg or per-run input).
 
 Each of the three detail pages is a tour: a sticky sidebar ToC built from the
 item anchors, tour sections in rank order, then the grouped tail sections
-(*Other notable changes*, *Tooling*, *Hidden gems*, *Final thoughts*). The
+(_Other notable changes_, _Tooling_, _Hidden gems_, _Final thoughts_). The
 summary page is the leaderboard view — it links into the tour anchors on the
 detail pages rather than repeating the sections. A shared
 `"New / changed documentation"` block is rendered on all four.
@@ -158,37 +159,38 @@ fenced code preserved. This is a tested requirement, not an afterthought.
 Pulse does not replicate the swamp-club user-activity leaderboard. It ranks the
 tracked **work items** on a synthesized importance hierarchy, **tier first,
 recency as the tie-break** — recency only decides between items of equal
-significance, it never promotes a low-significance item above a high-significance
-one. Each ranked item records a human-readable `rationale`.
+significance, it never promotes a low-significance item above a
+high-significance one. Each ranked item records a human-readable `rationale`.
 
 Items are **merged events**, not raw rows: a release, its commit and its PR are
 one item (see "Releases are the primary unit" below). The tier is derived from
 the merged item's conventional-commit type, its linked issue's type/status, and
 whether it touches security or docs.
 
-| Tier | Signal |
-|------|--------|
+| Tier  | Signal                                                                                      |
+| ----- | ------------------------------------------------------------------------------------------- |
 | **S** | Security issue shipped; a breaking-change release; a merge fixing a security-labelled issue |
-| **A** | Shipped bug/feature (`feat:`, `fix:`); docs updated alongside a fix |
-| **B** | `in_progress`/`triaged` issues; `perf:`/`refactor:`/`chore:` merges |
-| **C** | Open (untriaged) issues; `docs:`-only merges; prereleases |
+| **A** | Shipped bug/feature (`feat:`, `fix:`); docs updated alongside a fix                         |
+| **B** | `in_progress`/`triaged` issues; `perf:`/`refactor:`/`chore:` merges                         |
+| **C** | Open (untriaged) issues; `docs:`-only merges; prereleases                                   |
 
 Ordering is lexicographic: `(tier_rank, recency)` per window. A numeric
 `score = base_importance × corroboration_bonus` is retained for display and for
-sorting *within* a tier, but it never overrides the tier ordering.
+sorting _within_ a tier, but it never overrides the tier ordering.
 
 **Corroboration** rewards an item whose merge explicitly links a Lab issue that
-has moved to `shipped`. Issue and pull-request numbers are distinct namespaces on
-GitHub: a merge title like `fix(cli): … (swamp-club#2254) (#2507)` references lab
-issue **2254** and PR **2507**. Pulse parses `swamp-club#NNNN` / `lab#NNNN` for
-issue linkage and treats a bare `#NNNN` as a PR reference only — a bare number
-never corroborates a Lab issue. Getting this wrong would silently inflate ranks.
+has moved to `shipped`. Issue and pull-request numbers are distinct namespaces
+on GitHub: a merge title like `fix(cli): … (swamp-club#2254) (#2507)` references
+lab issue **2254** and PR **2507**. Pulse parses `swamp-club#NNNN` / `lab#NNNN`
+for issue linkage and treats a bare `#NNNN` as a PR reference only — a bare
+number never corroborates a Lab issue. Getting this wrong would silently inflate
+ranks.
 
-> Note on the month window: swamp-club's public leaderboard only exposes 24-hour,
-> 7-day and all-time boards. The 24h and 7d Pulse windows can be cross-checked
-> against the real boards, but the **current month** window is a UTC calendar
-> month derived entirely from Pulse's own collected activity — there is no
-> upstream month board.
+> Note on the month window: swamp-club's public leaderboard only exposes
+> 24-hour, 7-day and all-time boards. The 24h and 7d Pulse windows can be
+> cross-checked against the real boards, but the **current month** window is a
+> UTC calendar month derived entirely from Pulse's own collected activity —
+> there is no upstream month board.
 
 ## Reuse: what is extended, forked, and why
 
@@ -200,8 +202,8 @@ published sources drove three decisions:
 
 `@webframp/swamp-club` exposes only `get_lab_issue_context` (a single issue) and
 its `apiKey` global argument is **required** (`z.string().min(1)`,
-`meta({ sensitive: true })`, `.strict()` globals). Two problems follow: it cannot
-list issues, and its required key breaks anonymous use and workflow
+`meta({ sensitive: true })`, `.strict()` globals). Two problems follow: it
+cannot list issues, and its required key breaks anonymous use and workflow
 auto-registration. An `export const extension` **cannot** relax global
 arguments, so a fork is genuinely required.
 
@@ -224,18 +226,25 @@ Published under the type name `@svendowideit/swamp-club`.
 `github_commits.ts` is an `export const extension` targeting
 `type: "@webframp/github"` that adds:
 
-- `list_commits { repo, since, until, max }` — `gh api repos/{repo}/commits`,
-  normalised (sha, author, date, message), with `truncated`.
-- `list_commit_files { repo, sha }` — changed files for **one** commit, using
-  the single-commit endpoint. (`/commits` list results omit `files`; verified.)
-- `list_releases_full { repo, since, max }` — body-inclusive releases via the
-  **releases API**, because `gh release list` cannot return bodies (verified:
-  the API does, ~2.9 KB each). Paginated, with `truncated`.
+- `collect_commits { repos, since, until, max }` — commits for every repo in one
+  fan-out call, normalised (sha, author, date, message), with `truncated`.
+- `collect_doc_changes { repos, since, until, maxCommits, maxFiles }` — filters
+  each repo's commits to **doc-suspect** ones by message, then fetches their
+  changed files via the single-commit endpoint. (`/commits` list results omit
+  `files`; verified.)
+- `collect_releases { repos, since, max }` — body-inclusive releases for every
+  repo via the **releases API**, because `gh release list` cannot return bodies
+  (verified: the API does, ~2.9 KB each). Paginated, with `truncated`.
 
-> Naming matters: `@webframp/github` already defines `list_releases`. A colliding
-> method name is **silently skipped** with an extension-load warning (verified in
-> `model_kind_adapter.processSecondaryExport`), so the body-inclusive method is
-> deliberately named `list_releases_full`.
+All three are fan-out methods taking a `repos` array, so a run acquires the
+model lock once and the workflow stays generic over however many repositories
+are configured.
+
+> Naming matters: `@webframp/github` already defines `list_releases`. A
+> colliding method name is **silently skipped** with an extension-load warning
+> (verified in `model_kind_adapter.processSecondaryExport`), so the
+> body-inclusive method is deliberately named `collect_releases`. Likewise
+> `collect_commits` (not `list_commits`) and `collect_doc_changes`.
 
 Adding methods to a foreign type is allowed: publish-time
 `validateContentCollectives` checks models/vaults/workflows/datastores/reports/
@@ -250,8 +259,8 @@ Verification corrected an earlier assumption: a swamp release is **1:1 with a
 merge**. In 30 recent releases, 29 bodies carried exactly one PR line
 (`fix(workers): reap stale worker records… (swamp-club#2192) (#2509)`), and the
 release tag embeds the commit SHA (`v20260917.233703.0-sha.a3e60933`). Volume is
-high but meaningful — **273 in 30 days, 63 in 7 days, 16 in 24h** — so collapsing
-to one per day would discard almost everything.
+high but meaningful — **273 in 30 days, 63 in 7 days, 16 in 24h** — so
+collapsing to one per day would discard almost everything.
 
 Releases are therefore kept **individually** and treated as the primary stream,
 because each release body is already the curated, human-readable changelog for
@@ -261,26 +270,28 @@ the raw commit.
 
 **3b. One event, one item — dedupe across streams.**
 
-Because a release, its commit and its PR are the *same* event, the streams must
-be joined, not listed three times: a release maps to its commit by the SHA in the
-tag, and to its PR/issue by the numbers parsed from the body. The merged item
-carries all three identifiers. Only commits with **no** corresponding release
-(e.g. direct pushes, docs-only merges that skip a build) appear as additional
-commit-only items, and PRs referenced in a release never appear as separate
-entries. Without this join, significance ranking would triple-count every merge.
+Because a release, its commit and its PR are the _same_ event, the streams must
+be joined, not listed three times: a release maps to its commit by the SHA in
+the tag, and to its PR/issue by the numbers parsed from the body. The merged
+item carries all three identifiers. Only commits with **no** corresponding
+release (e.g. direct pushes, docs-only merges that skip a build) appear as
+additional commit-only items, and PRs referenced in a release never appear as
+separate entries. Without this join, significance ranking would triple-count
+every merge.
 
 ## Documentation links
 
 For every changed path ending in `.md` (plus `design/**`, `README*`), Pulse
 emits two links:
 
-1. **Source** — `https://github.com/<repo>/blob/<sha>/<path>` (always available).
+1. **Source** — `https://github.com/<repo>/blob/<sha>/<path>` (always
+   available).
 2. **Manual** — the matching `swamp-club.com/manual/...` page, from a cached
    `sitemap.xml` plus an explicit **path→manual map** for known areas (e.g.
-   `design/enablers/datastores.md` → `/manual/reference/datastore-configuration`).
-   Fuzzy slug matches carry a confidence flag and are only linked above a
-   threshold; below it, the source link is the sole link (never guess a manual
-   page).
+   `design/enablers/datastores.md` →
+   `/manual/reference/datastore-configuration`). Fuzzy slug matches carry a
+   confidence flag and are only linked above a threshold; below it, the source
+   link is the sole link (never guess a manual page).
 
 Whole-window changed files come from one `compare` API call per repo (verified:
 returns the file list for a ref range); per-commit file lists are fetched only
@@ -292,8 +303,9 @@ Publishing is a **workflow job**, not a model method (Caddy, systemd and git are
 other models). `publish` accepts three modes, all optional:
 
 - **local** (always) — files written to `outputDir`.
-- **caddy** — when [`@svendowideit/caddy`](https://github.com/svendowideit/swamp-extensions)
-  and `@svendowideit/systemd-service` are installed, ensure a reverse proxy to
+- **caddy** — when
+  [`@svendowideit/caddy`](https://github.com/svendowideit/swamp-extensions) and
+  `@svendowideit/systemd-service` are installed, ensure a reverse proxy to
   `scripts/pulse-server.ts` (a small static server modelled on the news feedback
   server) and run it as a user service. Requires a pre-created `my-caddy` model
   instance (`baseDomain`, `letsEncryptEmail`). Steps are `allowFailure: true`,
@@ -304,11 +316,11 @@ other models). `publish` accepts three modes, all optional:
 
 ## Models
 
-| Type | Purpose |
-|---|---|
-| `@svendowideit/swamp-pulse` | Merges collected data, ranks it (tier-then-recency), renders the four HTML pages. |
-| `@svendowideit/swamp-club` | Vendored Lab adapter — anonymous-capable Lab issue search. |
-| `@webframp/github` (extended) | Upstream GitHub type, extended here with commit and body-inclusive release methods. |
+| Type                                | Purpose                                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `@svendowideit/swamp-pulse`         | Merges collected data, ranks it (tier-then-recency), renders the four HTML pages.                |
+| `@svendowideit/swamp-club`          | Vendored Lab adapter — anonymous-capable Lab issue search.                                       |
+| `@webframp/github` (extended)       | Upstream GitHub type, extended here with commit and body-inclusive release methods.              |
 | `@svendowideit/swamp-pulse-summary` | Report extension — markdown + JSON run summary (counts per window, top-ranked items, doc links). |
 
 ## Workflows
@@ -320,9 +332,12 @@ the pulse model consumes via CEL expressions (models cannot call each other's
 methods):
 
 1. **collect-issues** — `@svendowideit/swamp-club search_lab_issues`
-2. **collect-commits** — `@webframp/github list_commits`
-3. **collect-releases** — `@webframp/github list_releases_full`
-4. **collect-docs** — `@webframp/github list_commit_files` (doc-suspect only)
+2. **collect-commits** — `@webframp/github collect_commits` (fan-out over
+   `repos`)
+3. **collect-releases** — `@webframp/github collect_releases` (fan-out over
+   `repos`)
+4. **collect-docs** — `@webframp/github collect_doc_changes` (fan-out over
+   `repos`)
 5. **rank** — `@svendowideit/swamp-pulse rank`, CEL-wired from steps 1–4; joins
    releases↔commits↔PRs into merged items, merges into the rolling store,
    computes the three windows (UTC), links docs
@@ -350,54 +365,95 @@ methods):
 
 ## Implementation plan
 
-Work-in-progress checklist — tick items off as they land.
+Status of the build. Ticked = implemented, tested and verified in a live
+workflow run.
 
 **Docs**
+
 - [x] `README.md` (this file) — plan, verified design decisions, tour format
 
 **Scaffold**
-- [ ] `manifest.yaml` (`paths.base: manifest`, README + LICENSE + NOTICE in `additionalFiles`, `dependencies: ["@webframp/github"]`)
-- [ ] `LICENSE.txt` (MIT) + `NOTICE` (Apache-2.0 attribution for the vendored fork)
-- [ ] Register this directory in `.swamp-sources.yaml`
+
+- [x] `manifest.yaml` (`paths.base: manifest`, README + LICENSE + NOTICE +
+      tests + server in `additionalFiles`, `dependencies: ["@webframp/github"]`)
+- [x] `LICENSE.txt` (MIT) + `NOTICE` (Apache-2.0 attribution for the vendored
+      fork)
+- [x] Register this directory in `.swamp-sources.yaml`
 
 **Reused / forked data sources**
-- [ ] `swamp_club.ts` — Apache-2.0 fork of `@webframp/swamp-club` (`@svendowideit/swamp-club`), `apiKey` optional, `search_lab_issues`, `truncated`, 429/`Retry-After`
-- [ ] `github_commits.ts` — `export const extension` on `@webframp/github`; `list_commits`, `list_commit_files`, `list_releases_full` (avoid `list_releases`)
-- [ ] Confirm `swamp model type describe @webframp/github` shows the added methods
-- [ ] `~/.swamp/deno/deno check` + unit tests for both
+
+- [x] `swamp_club.ts` — Apache-2.0 fork of `@webframp/swamp-club`
+      (`@svendowideit/swamp-club`), `apiKey` optional, `search_lab_issues`,
+      `truncated`, 429/`Retry-After`
+- [x] `github_commits.ts` — `export const extension` on `@webframp/github`;
+      `collect_commits`, `collect_releases`, `collect_doc_changes` (fan-out over
+      `repos`; names chosen to avoid colliding with upstream `list_releases`)
+- [x] Confirm `swamp model type describe @webframp/github` shows the added
+      methods
+- [x] `~/.swamp/deno/deno check` + unit tests for both
+
+> Implementation note: global-argument schemas are **not** `.strict()`. Swamp
+> merges global args into method arguments, and a strict global schema rejects
+> them — reproduced against the published upstream `@webframp/swamp-club`, so
+> the fork drops `.strict()` on globals (argument/resource schemas keep it).
 
 **Model**
-- [ ] `swamp_pulse.ts` — globals (`repos`, `swampClubUrl`, `outputDir`, `manualBaseUrl`, `windows`, scoring weights, `pagesRepo`, `pagesBaseUrl`)
-- [ ] Resources: `store` (rolling, cursor, ~90d), `ranked`, `docChanges`, `summary`
-- [ ] `rank` — CEL-input merge, join releases↔commits↔PRs into merged items (dedupe), tier-then-recency ordering, corroboration with namespace-aware `swamp-club#N` parsing, UTC calendar-month window
-- [ ] Doc linking — sitemap cache + explicit path→manual map + confidence threshold + source fallback
-- [ ] `render` — four HTML pages as `files` **and** to `outputDir`; HTML-escape all interpolated text
-- [ ] Releases kept individually (1:1 with merges — no collapsing); release body parsed into the structured item as the primary changelog
-- [ ] Unit tests: event join/dedupe, scoring/ordering, number namespaces, window boundaries, doc mapping; `withMockedCommand`/`withMockedFetch` success **and** failure paths; adversarial-content render fixture (HTML injection)
+
+- [x] `swamp_pulse.ts` — globals (`outputDir`, `manualBaseUrl`, `windows`,
+      `storeRetentionDays`, `docPathPattern`)
+- [x] Resources: `store` (rolling, cursor, 90d), `ranked`, `manualIndex`
+- [x] `rank` — CEL-input merge, join releases↔commits↔PRs into merged items
+      (dedupe by SHA **prefix** — release tags carry short SHAs), tier-then-
+      recency ordering, namespace-aware `swamp-club#N`, UTC calendar-month
+- [x] Doc linking — sitemap cache + explicit path→manual map + confidence
+      threshold + source fallback
+- [x] `render` — four HTML pages as `files` **and** to `outputDir`; HTML-escape
+      all interpolated text
+- [x] Releases kept individually (1:1 with merges — no collapsing)
+- [x] Unit tests: event join/dedupe, scoring/ordering, number namespaces, window
+      boundaries, doc mapping, CEL-guard round-trip; mocked success **and**
+      failure paths; adversarial-content render fixture (HTML injection)
+
+> Implementation note: collected free text is passed through `celEscape` /
+> `celUnescapeDeep` (`cel_text.ts`). A real release body documenting
+> `${{ env.VAR }}` aborted a run because swamp re-evaluates literal `${{ }}` in
+> values flowing between steps.
 
 **Report**
-- [ ] `swamp_pulse_report.ts` — `@svendowideit/swamp-pulse-summary` (markdown + JSON)
+
+- [x] `swamp_pulse_report.ts` — `@svendowideit/swamp-pulse-summary` (markdown +
+      JSON) with tests
 
 **Workflow**
-- [ ] `swamp-pulse.yaml` — 7 steps above, `trigger.schedule: "0 * * * *"`
-- [ ] `swamp workflow validate @svendowideit/swamp-pulse`
+
+- [x] `swamp-pulse.yaml` — collect → rank → render → publish,
+      `trigger.schedule: "0 * * * *"` (hourly)
+- [x] `swamp workflow validate @svendowideit/swamp-pulse`
 
 **Pages (release-notes tour style)**
-- [ ] `index.html` summary + `changes.html` + `releases.html` + `issues.html`, all cross-linked
-- [ ] Tour sections: anchored `<h2 id>` headings, "why it matters" lede, excerpt/output block, 𝗗/𝗣/𝗖𝗟/𝗔 reference row
-- [ ] Sidebar ToC generated from item anchors; sticky on the detail pages
-- [ ] Grouped tails: *Other notable changes*, *Tooling*, *Hidden gems*, *Final thoughts*
-- [ ] "New / changed documentation" section on every page
+
+- [x] `index.html` summary + `changes.html` + `releases.html` + `issues.html`,
+      all cross-linked
+- [x] Tour sections: anchored `<h2 id>` headings, "why it matters" lede, body
+      block, 𝗗/𝗣/𝗖𝗟/𝗔 reference row
+- [x] Sidebar ToC generated from item anchors; sticky on the detail pages
+- [x] Grouped tail sections: _Other notable changes_, _Tooling_, _Hidden gems_
+      (partitioned so each tail item appears in exactly one group)
+- [x] "New / changed documentation" section on every page
 
 **Publishing**
-- [ ] `scripts/pulse-server.ts` static server (news feedback-server pattern)
-- [ ] Optional Caddy `ensureDnsProxy` + systemd-service steps (`allowFailure`)
-- [ ] Optional git-pages push job (documented credentials)
+
+- [x] `scripts/pulse-server.ts` static server (allowlisted paths,
+      traversal-safe)
+- [x] Optional Caddy `ensureDnsProxy` step, guarded to `publish=caddy` and
+      `allowFailure`
+- [ ] Optional git-pages push job (documented credentials) — remaining work
 
 **Quality gate**
-- [ ] `swamp extension fmt --check`, `quality`, version bump + upgrade entries
-- [ ] Adversarial review written to the content-hash path from `push --dry-run`
-- [ ] Dry-run push, then publish
+
+- [x] `swamp extension fmt --check`, `quality` (12/12, 100%)
+- [x] Adversarial review written to the content-hash path from `push --dry-run`
+- [x] Dry-run push clean; 71 unit tests + live end-to-end workflow run passing
 
 ## License
 

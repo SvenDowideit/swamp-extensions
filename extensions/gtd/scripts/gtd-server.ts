@@ -7,6 +7,12 @@
  * HTML fragment for the target column so htmx can swap it in place (no full
  * page reload).
  *
+ * Transport: when a `swamp serve` process is reachable (SWAMP_SERVE_URL,
+ * default ws://127.0.0.1:9090) actions are dispatched over its WebSocket API,
+ * which is near-instant because serve keeps the repo, extensions, and datastore
+ * warm. When serve is not running the server silently falls back to spawning the
+ * `swamp` CLI per action (~2s of startup each). Both paths are always available.
+ *
  * Usage:
  *   ~/.swamp/deno/deno run --allow-net --allow-read --allow-write --allow-env --allow-run \
  *     scripts/gtd-server.ts
@@ -22,9 +28,19 @@
  *   POST /api/weekly-review
  *   POST /api/daily-review
  */
+import { SwampClient } from "jsr:@swamp-club/swamp-lib@0.20260828.18";
+
 const PORT = parseInt(Deno.env.get("GTD_PORT") ?? "8878");
 const BOARD_PATH = Deno.env.get("GTD_BOARD") ??
   `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/gtd/board.html`;
+const SERVE_URL = Deno.env.get("SWAMP_SERVE_URL") ?? "ws://127.0.0.1:9090";
+const SERVE_CONNECT_TIMEOUT_MS = 2000;
+
+function log(message: string, props?: Record<string, unknown>) {
+  console.log(
+    `[gtd] ${message}` + (props ? ` ${JSON.stringify(props)}` : ""),
+  );
+}
 
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
@@ -36,9 +52,16 @@ function json(status: number, body: Record<string, unknown>) {
 async function runSwamp(
   args: string[],
 ): Promise<{ ok: boolean; output: string }> {
+  // Strip SWAMP_SERVE_URL from the child environment: the CLI fallback must run
+  // locally. Otherwise `swamp` inherits the URL this server uses for its fast
+  // path and tries to reach a serve we already determined is unreachable.
+  const env = { ...Deno.env.toObject() };
+  delete env.SWAMP_SERVE_URL;
   const cmd = new Deno.Command(await swampBin(), {
     args,
     cwd: repoDir(),
+    env,
+    clearEnv: true,
     stdout: "piped",
     stderr: "piped",
   });
@@ -46,6 +69,122 @@ async function runSwamp(
   const out = new TextDecoder().decode(stdout);
   const err = new TextDecoder().decode(stderr);
   return { ok: code === 0, output: (out + err).trim() || out.trim() };
+}
+
+// ---------------------------------------------------------------------------
+// swamp serve fast path (optional)
+// ---------------------------------------------------------------------------
+//
+// A reachable `swamp serve` dispatches model methods over a persistent
+// WebSocket in milliseconds instead of paying the ~2s CLI startup per action.
+// The connection is lazy, cached, and failure-tolerant: any connection or
+// dispatch error drops the client and the caller falls back to the CLI. This
+// keeps the extension fully functional with no serve running.
+
+let serveClient: SwampClient | null = null;
+let serveRetryAt = 0;
+const SERVE_RETRY_MS = 30_000;
+
+/** Connect with a bounded timeout so a hung port never stalls a request. */
+async function connectServe(): Promise<SwampClient> {
+  const client = new SwampClient(SERVE_URL);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      client.connect(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("serve connect timeout")),
+          SERVE_CONNECT_TIMEOUT_MS,
+        );
+      }),
+    ]);
+    return client;
+  } catch (err) {
+    // Abandon the half-open socket so a timed-out connect doesn't leak.
+    try {
+      client.close();
+    } catch {
+      // ignore
+    }
+    throw err;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
+ * Return a connected serve client, or null when serve is unavailable. After a
+ * failed attempt, reconnection is throttled (SERVE_RETRY_MS) so a serve that is
+ * simply not running doesn't cost a connect timeout on every action, while a
+ * serve started later is still picked up automatically.
+ */
+async function getServeClient(): Promise<SwampClient | null> {
+  if (serveClient) return serveClient;
+  if (Date.now() < serveRetryAt) return null;
+  try {
+    serveClient = await connectServe();
+    log("using swamp serve fast path", { url: SERVE_URL });
+    return serveClient;
+  } catch (err) {
+    serveRetryAt = Date.now() + SERVE_RETRY_MS;
+    log("swamp serve not reachable; falling back to CLI", {
+      url: SERVE_URL,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
+/** Drop a client that errored mid-request so the next action reconnects. */
+function dropServeClient(): void {
+  try {
+    serveClient?.close();
+  } catch {
+    // ignore
+  }
+  serveClient = null;
+  serveRetryAt = Date.now() + SERVE_RETRY_MS;
+}
+
+/**
+ * Run a model method through swamp serve. Returns null if serve is unavailable
+ * or the call fails, signalling the caller to fall back to the CLI.
+ */
+async function runMethodViaServe(
+  method: string,
+  inputs: Record<string, string>,
+): Promise<{ ok: boolean; output: string } | null> {
+  const client = await getServeClient();
+  if (!client) return null;
+  try {
+    const view = await client.modelMethodRun({
+      modelIdOrName: "gtd",
+      methodName: method,
+      inputs,
+      skipAllReports: true,
+    });
+    if (view.status !== "succeeded") {
+      return { ok: false, output: `method ${method} ${view.status}` };
+    }
+    return { ok: true, output: "" };
+  } catch (err) {
+    // A method_execution_failed error is a real method failure, not a transport
+    // problem — surface it (do not fall back, which would re-run the method).
+    const code = (err as { code?: string }).code;
+    if (code && code !== "websocket_closed") {
+      return {
+        ok: false,
+        output: err instanceof Error ? err.message : String(err),
+      };
+    }
+    log("swamp serve dispatch failed; falling back to CLI", {
+      method,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    dropServeClient();
+    return null;
+  }
 }
 
 /**
@@ -73,8 +212,14 @@ async function swampBin(): Promise<string> {
   return `${Deno.env.get("HOME") ?? "/tmp"}/.local/bin/swamp`;
 }
 
-/** Run a model method on the gtd instance. */
-function runMethod(method: string, inputs: Record<string, string>) {
+/** Run a model method on the gtd instance (serve fast path, else CLI). */
+async function runMethod(
+  method: string,
+  inputs: Record<string, string>,
+): Promise<{ ok: boolean; output: string }> {
+  const viaServe = await runMethodViaServe(method, inputs);
+  if (viaServe) return viaServe;
+
   const args = ["model", "method", "run", "gtd", method];
   for (const [k, v] of Object.entries(inputs)) {
     if (v !== undefined && v !== "") {
@@ -87,8 +232,13 @@ function runMethod(method: string, inputs: Record<string, string>) {
   return runSwamp(args);
 }
 
-/** Re-render the board to the path we serve. */
-function renderBoard() {
+/** Re-render the board to the path we serve (serve fast path, else CLI). */
+async function renderBoard(): Promise<{ ok: boolean; output: string }> {
+  const viaServe = await runMethodViaServe("renderBoard", {
+    path: BOARD_PATH,
+  });
+  if (viaServe) return viaServe;
+
   return runSwamp([
     "model",
     "method",
@@ -238,5 +388,5 @@ async function handler(req: Request): Promise<Response> {
   return json(404, { ok: false, error: "not found" });
 }
 
-console.log(`GTD server on http://127.0.0.1:${PORT}`);
+log(`GTD server on http://127.0.0.1:${PORT}`);
 Deno.serve({ port: PORT, hostname: "127.0.0.1" }, handler);

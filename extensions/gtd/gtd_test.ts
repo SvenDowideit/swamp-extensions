@@ -51,8 +51,8 @@ Deno.test("renderColumn renders inbox cards with clarify forms", () => {
   assert(html.includes('name="itemId"'));
   // Icon-button clarifier: one button per classification, icon + tooltip.
   assert(html.includes('title="Next action">✅</button>'));
-  assert(html.includes('title="Project">🗂</button>'));
-  assert(html.includes('title="Trash">🗑</button>'));
+  assert(html.includes('title="Project">🗂\uFE0E</button>'));
+  assert(html.includes('title="Trash">🗑\uFE0E</button>'));
   assert(!html.includes("<select"));
 });
 

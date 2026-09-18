@@ -100,6 +100,40 @@ arg) and listens on port `8878` (`serverPort`). The board path it serves is
 Every action (capture, clarify, complete, defer, revert, engage, reviews) is an
 htmx `hx-post` that swaps only the affected column — no full page reload.
 
+### Optional fast path: `swamp serve`
+
+By default the web UI runs each action by spawning the `swamp` CLI, which pays
+~2 seconds of startup per call (two calls per action: the method and the board
+re-render). If a `swamp serve` process is reachable, the UI instead dispatches
+methods over serve's WebSocket API, which is near-instant (tens of
+milliseconds) because serve keeps the repo, extensions, and datastore warm.
+
+This is **entirely optional and automatic**:
+
+- The UI probes `SWAMP_SERVE_URL` (default `ws://127.0.0.1:9090`) lazily.
+- If serve is reachable it uses the fast path and logs `using swamp serve fast
+  path` to the GTD API service logs.
+- If serve is not running, or a dispatch fails, it silently falls back to the
+  CLI and logs `swamp serve not reachable; falling back to CLI`. The extension
+  works exactly as before with no serve running.
+- Reconnection is throttled (30s) so a missing serve never adds latency, and a
+  serve started later is picked up automatically.
+
+The `ensureServer` method passes `SWAMP_SERVE_URL` into the systemd unit using
+the `serveUrl` global arg (default `ws://127.0.0.1:9090`). To point at a
+different instance, set the global arg:
+
+```bash
+swamp model edit gtd --global-arg serveUrl=ws://127.0.0.1:9091
+```
+
+To get the fast path, start serve yourself (the extension never starts it for
+you):
+
+```bash
+swamp serve --port 9090
+```
+
 ## Reports
 
 `@svendowideit/gtd-summary` prints a short summary after each method run.

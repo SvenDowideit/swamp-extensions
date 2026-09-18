@@ -31,6 +31,9 @@ const GlobalArgsSchema = z.object({
   serverPort: z.number().default(8878).describe(
     "Port the GTD web UI server listens on (GTD_PORT).",
   ),
+  serveUrl: z.string().default("ws://127.0.0.1:9090").describe(
+    "URL of a 'swamp serve' instance the GTD web UI uses as a fast path (SWAMP_SERVE_URL). Optional: the UI falls back to the swamp CLI when unreachable.",
+  ),
   serverServiceName: z.string().default("gtd-server").describe(
     "systemd user service name for the GTD web UI server.",
   ),
@@ -384,12 +387,14 @@ const DEFAULT_CONTEXTS: Context[] = [
 /** The clarify routing kinds, each with an icon and tooltip label. */
 const CLARIFY_KINDS: { kind: string; icon: string; label: string }[] = [
   { kind: "next-action", icon: "✅", label: "Next action" },
-  { kind: "project", icon: "🗂", label: "Project" },
+  // U+FE0E forces text presentation so 🗂/🗄/🗑 render as solid black glyphs
+  // (matching the column headings) instead of pale/outlined emoji.
+  { kind: "project", icon: "🗂\uFE0E", label: "Project" },
   { kind: "waiting-for", icon: "⏳", label: "Waiting for" },
   { kind: "someday-maybe", icon: "💭", label: "Someday/Maybe" },
   { kind: "calendar", icon: "📅", label: "Calendar" },
-  { kind: "reference", icon: "🗄", label: "Reference" },
-  { kind: "trash", icon: "🗑", label: "Trash" },
+  { kind: "reference", icon: "🗄\uFE0E", label: "Reference" },
+  { kind: "trash", icon: "🗑\uFE0E", label: "Trash" },
 ];
 
 /** Infer a routing kind from the raw text using GTD-style prefixes. */
@@ -427,7 +432,7 @@ function inferKind(raw: string): {
  */
 export const model = {
   type: "@svendowideit/gtd",
-  version: "2026.09.10.1",
+  version: "2026.09.11.1",
   globalArguments: GlobalArgsSchema,
   resources: {
     inbox: {
@@ -951,6 +956,7 @@ export const model = {
         const swampDir = await resolveSwampDir();
         const pathEnv = `${swampDir}:/usr/local/bin:/usr/bin:/bin`;
         const workingDir = context.repoDir ?? ".";
+        const serveUrl = ga.serveUrl ?? "ws://127.0.0.1:9090";
 
         // Idempotently create the unit (createService is a no-op if unchanged).
         const create = await runSwampCmd([
@@ -969,7 +975,7 @@ export const model = {
           "--input",
           `workingDirectory=${workingDir}`,
           "--input",
-          `environment=["GTD_PORT=${port}", "GTD_BOARD=${boardPath}", "PATH=${pathEnv}"]`,
+          `environment=["GTD_PORT=${port}", "GTD_BOARD=${boardPath}", "SWAMP_SERVE_URL=${serveUrl}", "PATH=${pathEnv}"]`,
           "--skip-reports",
         ]);
         if (create.code !== 0) {
@@ -1001,8 +1007,8 @@ export const model = {
         }
 
         logger?.info(
-          "GTD server service {serviceName} is running on port {port} (script {scriptPath}, board {boardPath})",
-          { serviceName, port, scriptPath, boardPath },
+          "GTD server service {serviceName} is running on port {port} (script {scriptPath}, board {boardPath}, serveUrl {serveUrl})",
+          { serviceName, port, scriptPath, boardPath, serveUrl },
         );
         return { dataHandles: [] };
       },
@@ -1740,7 +1746,7 @@ export function renderBoard(d: BoardData, generatedAt: string): string {
   .card select { flex:1; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:12px; }
   .card form button { padding:6px 10px; border:0; border-radius:6px; background:var(--accent); color:#fff; font-size:12px; cursor:pointer; }
   .card form.clarify { display:flex; gap:4px; margin-top:6px; }
-  .card form.clarify button { padding:4px 6px; border:1px solid var(--line); border-radius:6px; background:#f4f4f5; font-size:14px; line-height:1; cursor:pointer; }
+  .card form.clarify button { padding:4px 6px; border:1px solid var(--line); border-radius:6px; background:#f4f4f5; color:#18181b; font-size:14px; line-height:1; cursor:pointer; }
   .card form.clarify button:hover { background:#e4e4e7; }
   .htmx-request { opacity:.5; pointer-events:none; }
 </style>

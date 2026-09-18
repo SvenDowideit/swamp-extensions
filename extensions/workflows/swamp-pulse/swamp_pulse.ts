@@ -1392,8 +1392,20 @@ export async function ensureServerService(
 /** Model definition for Swamp Pulse. */
 export const model = {
   type: "@svendowideit/swamp-pulse",
-  version: "2026.09.18.1",
+  version: "2026.09.18.3",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.18.3",
+      description:
+        "Add serverPort, serverServiceName and serverScriptPath for the ensureServer systemd user service",
+      upgradeAttributes: (old: Record<string, unknown>) => ({
+        ...old,
+        serverPort: old.serverPort ?? 8899,
+        serverServiceName: old.serverServiceName ?? "swamp-pulse-server",
+      }),
+    },
+  ],
   resources: {
     store: {
       description: "Rolling merged-event store with collection cursors",

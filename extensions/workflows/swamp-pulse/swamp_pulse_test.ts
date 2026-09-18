@@ -689,6 +689,26 @@ Deno.test("renderIndexPage produces a leaderboard table per window", () => {
 // method-level tests with createModelTestContext
 // ---------------------------------------------------------------------------
 
+Deno.test("model upgrade chain terminates at the current version and fills new fields", () => {
+  const upgrades = (model as {
+    upgrades?: Array<
+      {
+        toVersion: string;
+        upgradeAttributes: (
+          o: Record<string, unknown>,
+        ) => Record<string, unknown>;
+      }
+    >;
+  }).upgrades;
+  assert(upgrades && upgrades.length > 0, "model has no upgrades array");
+  const last = upgrades[upgrades.length - 1];
+  assertEquals(last.toVersion, model.version);
+  const migrated = last.upgradeAttributes({ outputDir: "/tmp/x" });
+  assertEquals(migrated.serverPort, 8899);
+  assertEquals(migrated.serverServiceName, "swamp-pulse-server");
+  assertEquals(migrated.outputDir, "/tmp/x");
+});
+
 Deno.test("model exposes the expected specs and methods", () => {
   assertEquals(model.type, "@svendowideit/swamp-pulse");
   for (

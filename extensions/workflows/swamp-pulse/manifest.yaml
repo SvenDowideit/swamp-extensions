@@ -1,7 +1,7 @@
 # Read-only; regenerate via 'swamp extension pull'
 manifestVersion: 1
 name: "@svendowideit/swamp-pulse"
-version: "2026.09.18.1"
+version: "2026.09.18.3"
 description: |
   A leaderboard-style activity dashboard for the swamp project itself. Tracks
   swamp-club Lab issues, GitHub commits and GitHub releases across

@@ -54,36 +54,52 @@ that tour layout; the three detail pages are the long-form versions.
 ```sh
 swamp extension pull @svendowideit/swamp-pulse
 
-# The upstream GitHub extension it extends, plus the collective it lives in.
+# Required target type that this extension extends (see "Reuse" below).
 swamp extension pull @webframp/github
 swamp extension trust add webframp
 ```
 
-The `swamp-pulse` model instance is auto-registered on the first workflow run —
-no manual `swamp model create` needed.
+Installing `@svendowideit/swamp-pulse` provides three model types, one report,
+and one workflow:
+
+| Content | Type / name |
+|---|---|
+| Pulse model | `@svendowideit/swamp-pulse` |
+| Vendored Lab adapter (fork) | `@svendowideit/swamp-club` |
+| GitHub methods extension | extends `@webframp/github` |
+| Report | `@svendowideit/swamp-pulse-summary` |
+| Workflow | `@svendowideit/swamp-pulse` |
+
+The model instances (`pulse`, `github`, `swamp-club`) are auto-registered on the
+first workflow run — no manual `swamp model create` needed, and no credentials
+required (see below).
 
 ## Configure
 
-Pulse reads public data by default. The swamp-club Lab issue API accepts an
-optional `x-api-key`; without one you get the public issue list (types, status,
-authors, timestamps). With one you also get the same view the CLI sees. Store it
-in a vault and reference it:
+Pulse reads **public** data by default, with no secrets:
+
+- The swamp-club Lab API (`GET /api/v1/lab/issues`) is public — anonymous works.
+- `gh` uses its own CLI auth (`gh auth login`) if present; public repos need no
+  token for these read calls.
+
+Optionally, store a swamp-club API key in a vault to see the same issue view the
+CLI sees (it also raises rate limits):
 
 ```sh
 swamp vault put my-vault swamp-club-api-key   # prompts for the value
 ```
 
-Then set it in the instance's `globalArguments`:
+Then set it in the `swamp-club` instance's `globalArguments`:
 
 ```yaml
 apiKey: ${{ vault.get('my-vault', 'swamp-club-api-key') }}
 ```
 
-`apiKey` is **sensitive** — swamp rejects it as a literal value, so the vault
-reference is required if you set it at all. Leave it unset to use the public
-API.
+`apiKey` is **sensitive** and now **optional** in the vendored fork — swamp
+still rejects a literal value, so the vault reference is required *if* you set
+it. Leave it unset to run anonymously.
 
-Configurable global arguments: `repos` (default
+Configurable global arguments on the pulse model: `repos` (default
 `["swamp-club/swamp", "swamp-club/swamp-extensions"]`), `swampClubUrl`
 (default `https://swamp-club.com`), `outputDir` (default
 `~/.swamp/swamp-pulse`), `manualBaseUrl` (default `https://swamp-club.com/manual`),
@@ -93,11 +109,12 @@ Configurable global arguments: `repos` (default
 ## Run
 
 ```sh
-# Collect, rank, and render everything in one execution (the scheduled path).
+# Collect → rank → render in one DAG (the scheduled path).
 swamp workflow run @svendowideit/swamp-pulse
 
 # Or run the stages individually.
-swamp model @svendowideit/swamp-pulse method run generate pulse
+swamp model @svendowideit/swamp-pulse method run rank pulse
+swamp model @svendowideit/swamp-pulse method run render pulse
 ```
 
 Optional inputs: `repos` (array, overrides the default), `windows` (array),
@@ -130,12 +147,18 @@ summary page is the leaderboard view — it links into the tour anchors on the
 detail pages rather than repeating the sections. A shared
 `"New / changed documentation"` block is rendered on all four.
 
+All interpolated text (commit titles, release bodies, issue bodies) is
+**HTML-escaped**; release and issue bodies are rendered as sanitised text with
+fenced code preserved. This is a tested requirement, not an afterthought.
+
 ## How items are ranked
 
 Pulse does not replicate the swamp-club user-activity leaderboard. It ranks the
 tracked **work items** (issues, commits, releases) on a synthesized importance
-hierarchy, falling back to recency when there is no stronger signal. Each ranked
-item records a human-readable `rationale`.
+hierarchy, **tier first, recency as the tie-break** — recency only decides
+between items of equal significance, it never promotes a low-significance item
+above a high-significance one. Each ranked item records a human-readable
+`rationale`.
 
 | Tier | Signal |
 |------|--------|
@@ -144,17 +167,86 @@ item records a human-readable `rationale`.
 | **B** | `in_progress`/`triaged` issues; `fix:`/`perf:` commits; patch release |
 | **C** | Open issues; `docs:`/`refactor:`/`chore:` commits; prereleases |
 
-The final score is `base_importance × recency_decay × corroboration_bonus`.
-Recency decay uses a per-window half-life (24h → 12h, 7d → 3d, month → 10d), and
-corroboration boosts items cross-referenced across sources — a commit message
-mentioning `#2264`, a release body mentioning it, and the issue itself moving to
-`shipped` compound into one higher-ranked story.
+Ordering is lexicographic: `(tier_rank, recency)` per window. A numeric
+`score = base_importance × corroboration_bonus` is retained for display and for
+sorting *within* a tier, but it never overrides the tier ordering.
+
+**Corroboration** boosts items cross-referenced across sources, but issue and
+pull-request numbers are distinct namespaces on GitHub: a commit message like
+`fix(cli): … (swamp-club#2254) (#2507)` references lab issue **2254** and PR
+**2507**. Pulse parses `swamp-club#NNNN` / `lab#NNNN` for issue linkage and
+treats a bare `#NNNN` as a PR reference only — a bare number never corroborates
+a Lab issue. Getting this wrong would silently inflate ranks.
 
 > Note on the month window: swamp-club's public leaderboard only exposes 24-hour,
-> 7-day and all-time boards. The 24h and 7d Pulse windows can therefore be
-> cross-checked against the real boards, but the **current month** window is
-> derived entirely from Pulse's own collected activity — there is no upstream
-> month board.
+> 7-day and all-time boards. The 24h and 7d Pulse windows can be cross-checked
+> against the real boards, but the **current month** window is a UTC calendar
+> month derived entirely from Pulse's own collected activity — there is no
+> upstream month board.
+
+## Reuse: what is extended, forked, and why
+
+Per the repo rule "extend, don't be clever", Pulse reuses existing types rather
+than reimplementing `gh` or HTTP plumbing. Verification against the actual
+published sources drove three decisions:
+
+**1. Lab issues — vendored fork of `@webframp/swamp-club`.**
+
+`@webframp/swamp-club` exposes only `get_lab_issue_context` (a single issue) and
+its `apiKey` global argument is **required** (`z.string().min(1)`,
+`meta({ sensitive: true })`, `.strict()` globals). Two problems follow: it cannot
+list issues, and its required key breaks anonymous use and workflow
+auto-registration. An `export const extension` **cannot** relax global
+arguments, so a fork is genuinely required.
+
+`swamp_club.ts` vendors an Apache-2.0 fork (© Sean Escriva), retaining the
+upstream SPDX header and adding:
+
+- `apiKey` made **optional** (anonymous access when unset).
+- `search_lab_issues { since, until, type?, status?, limit, offset }` —
+  paginated `GET /api/v1/lab/issues`, normalised with `createdAt`/`updatedAt`.
+- `truncated` on the output schema.
+- `host` default retained; timeout + `Retry-After`/429 handling.
+
+Published under the type name `@svendowideit/swamp-club`.
+
+**2. GitHub commits & releases — extend `@webframp/github`.**
+
+`@webframp/github` has **no commit methods at all**, its `ReleaseSchema` is
+`{tagName,name,publishedAt,isPrerelease,isDraft}` with **no `body`** and a
+`--limit 10` cap, and its issue schema has no body. Rather than bypass it,
+`github_commits.ts` is an `export const extension` targeting
+`type: "@webframp/github"` that adds:
+
+- `list_commits { repo, since, until, max }` — `gh api repos/{repo}/commits`,
+  normalised (sha, author, date, message), with `truncated`.
+- `list_commit_files { repo, sha }` — changed files for **one** commit, using
+  the single-commit endpoint. (`/commits` list results omit `files`; verified.)
+- `list_releases_full { repo, since, max }` — body-inclusive releases via the
+  **releases API**, because `gh release list` cannot return bodies (verified:
+  the API does, ~2.9 KB each). Paginated, with `truncated`.
+
+> Naming matters: `@webframp/github` already defines `list_releases`. A colliding
+> method name is **silently skipped** with an extension-load warning (verified in
+> `model_kind_adapter.processSecondaryExport`), so the body-inclusive method is
+> deliberately named `list_releases_full`.
+
+Adding methods to a foreign type is allowed: publish-time
+`validateContentCollectives` checks models/vaults/workflows/datastores/reports/
+webhooks but **not** `contentMetadata.extensions` (verified), and at runtime the
+extension attaches as long as the target type is registered first — so
+`@webframp/github` is a declared `dependencies:` entry and a documented install
+step.
+
+**3. Release noise — collapse to one entry per day.**
+
+Swamp cuts timestamped builds; there were 5 releases on 2026-09-17 alone and
+~100+/month. Listing each build would swamp the page and make "non-patch
+release" meaningless. Pulse collapses releases to **one entry per UTC day** (the
+last build of the day) and uses that build's body as the day's changelog. This
+is why body-inclusive releases matter — the auto-generated *What's Changed* body
+is the day's real content. The changes page is likewise driven from release
+bodies first, with raw commits as the secondary stream.
 
 ## Documentation links
 
@@ -162,88 +254,110 @@ For every changed path ending in `.md` (plus `design/**`, `README*`), Pulse
 emits two links:
 
 1. **Source** — `https://github.com/<repo>/blob/<sha>/<path>` (always available).
-2. **Manual** — the closest `swamp-club.com/manual/...` page, matched from a
-   cached `sitemap.xml` by slug similarity; the source link is the fallback when
-   no page matches.
+2. **Manual** — the matching `swamp-club.com/manual/...` page, from a cached
+   `sitemap.xml` plus an explicit **path→manual map** for known areas (e.g.
+   `design/enablers/datastores.md` → `/manual/reference/datastore-configuration`).
+   Fuzzy slug matches carry a confidence flag and are only linked above a
+   threshold; below it, the source link is the sole link (never guess a manual
+   page).
+
+Whole-window changed files come from one `compare` API call per repo (verified:
+returns the file list for a ref range); per-commit file lists are fetched only
+for doc-suspect commits, bounded by a cap.
 
 ## Publishing
 
-`publish` accepts three modes, all optional:
+Publishing is a **workflow job**, not a model method (Caddy, systemd and git are
+other models). `publish` accepts three modes, all optional:
 
 - **local** (always) — files written to `outputDir`.
 - **caddy** — when [`@svendowideit/caddy`](https://github.com/svendowideit/swamp-extensions)
-  is installed, ensure a reverse proxy to a small static server
-  (`scripts/pulse-server.ts`, modelled on the news feedback server). Skipped with
-  a log when Caddy is absent.
+  and `@svendowideit/systemd-service` are installed, ensure a reverse proxy to
+  `scripts/pulse-server.ts` (a small static server modelled on the news feedback
+  server) and run it as a user service. Requires a pre-created `my-caddy` model
+  instance (`baseDomain`, `letsEncryptEmail`). Steps are `allowFailure: true`,
+  so an absent Caddy degrades to local-only with a log.
 - **git** — clone `pagesRepo` via `@swamp/git`, write the four HTML files,
-  commit and push.
+  commit and push. Requires push credentials on the runner; documented in
+  "Configure".
 
 ## Models
 
 | Type | Purpose |
 |---|---|
-| `@svendowideit/swamp-pulse` | Collects commits, releases and Lab issues; ranks them; renders the four HTML pages. |
-| `@svendowideit/swamp-pulse-summary` | Report extension — markdown + JSON summary of a run (counts per window, top-ranked items, doc links). |
-
-The model extends the upstream GitHub type rather than shelling out:
-
-| Extension file | Target type | Adds |
-|---|---|---|
-| `github_commits.ts` | `@webframp/github` | `list_commits`, `list_commit_files` + `commits` / `commitFiles` resources |
-| `lab_issues.ts` | `@webframp/swamp-club` | `search_lab_issues` + `labIssues` resource |
+| `@svendowideit/swamp-pulse` | Merges collected data, ranks it (tier-then-recency), renders the four HTML pages. |
+| `@svendowideit/swamp-club` | Vendored Lab adapter — anonymous-capable Lab issue search. |
+| `@webframp/github` (extended) | Upstream GitHub type, extended here with commit and body-inclusive release methods. |
+| `@svendowideit/swamp-pulse-summary` | Report extension — markdown + JSON run summary (counts per window, top-ranked items, doc links). |
 
 ## Workflows
 
 ### `swamp-pulse` (every 6 hours)
 
-1. **generate** — collect commits, commit files (doc-suspect commits only),
-   releases and Lab issues for the union window; normalize; rank; link docs;
-   render all four HTML pages.
-2. **publish** — optionally stand up the Caddy proxy and/or push to git pages.
+The workflow is the composition layer — separate collector steps write data that
+the pulse model consumes via CEL expressions (models cannot call each other's
+methods):
+
+1. **collect-issues** — `@svendowideit/swamp-club search_lab_issues`
+2. **collect-commits** — `@webframp/github list_commits`
+3. **collect-releases** — `@webframp/github list_releases_full`
+4. **collect-docs** — `@webframp/github list_commit_files` (doc-suspect only)
+5. **rank** — `@svendowideit/swamp-pulse rank`, CEL-wired from steps 1–4;
+   merges into the rolling store, computes the three windows (UTC), links docs
+6. **render** — `@svendowideit/swamp-pulse render`, reads the `ranked` resource
+   and writes all four pages
+7. **publish** — optional Caddy / git-pages steps (`allowFailure`)
 
 ## Design notes
 
 - **Direct HTTP, not the CLI.** A model method cannot call `swamp issue search`
   — it holds the per-model lock and would deadlock. Lab issues are fetched from
-  `GET /api/v1/lab/issues` directly.
+  `GET /api/v1/lab/issues` directly (in the vendored fork).
+- **Incremental, not full re-fetch.** The pulse store persists a per-repo/per-
+  source cursor; each run fetches only what is new since the cursor (with a
+  bounded overlap) and merges into a rolling window store. This keeps API volume
+  flat instead of re-pulling the whole month every 6 hours.
 - **Bounded GitHub API use.** Per-commit file lists are fetched only for
-  commits whose message looks doc-related, with a hard cap, to keep request
-  volume predictable.
-- **Unofficial endpoint.** The Lab issue API is not a published contract;
-  access is isolated in `lab_issues.ts` so it can be adapted in one place.
+  doc-suspect commits, with a hard cap; whole-window doc changes use one
+  `compare` call per repo.
+- **Truncation is explicit.** Every paginated/capped collector output carries a
+  `truncated` boolean so a silently-short list can never be mistaken for the
+  full set.
+- **Unofficial endpoint.** The Lab issue API is not a published contract; access
+  is isolated in `swamp_club.ts` so it can be adapted in one place.
 
 ## Implementation plan
 
 Work-in-progress checklist — tick items off as they land.
 
+**Docs**
+- [x] `README.md` (this file) — plan, verified design decisions, tour format
+
 **Scaffold**
-- [ ] `manifest.yaml` (`paths.base: manifest`, README + LICENSE in `additionalFiles`, `dependencies: ["@webframp/github", "@webframp/swamp-club"]`)
-- [ ] `LICENSE.txt`
+- [ ] `manifest.yaml` (`paths.base: manifest`, README + LICENSE + NOTICE in `additionalFiles`, `dependencies: ["@webframp/github"]`)
+- [ ] `LICENSE.txt` (MIT) + `NOTICE` (Apache-2.0 attribution for the vendored fork)
 - [ ] Register this directory in `.swamp-sources.yaml`
 
-**Data sources**
-- [ ] `github_commits.ts` — `export const extension` targeting `@webframp/github`; `list_commits { repo, since, until, max }`
-- [ ] `list_commit_files { repo, sha }`, gated to doc-suspect commits + hard cap
-- [ ] `lab_issues.ts` — `export const extension` targeting `@webframp/swamp-club`; `search_lab_issues { since, until, type?, status?, limit }` (paginated)
-- [ ] Verify registration with `swamp model type search`
+**Reused / forked data sources**
+- [ ] `swamp_club.ts` — Apache-2.0 fork of `@webframp/swamp-club` (`@svendowideit/swamp-club`), `apiKey` optional, `search_lab_issues`, `truncated`, 429/`Retry-After`
+- [ ] `github_commits.ts` — `export const extension` on `@webframp/github`; `list_commits`, `list_commit_files`, `list_releases_full` (avoid `list_releases`)
+- [ ] Confirm `swamp model type describe @webframp/github` shows the added methods
 - [ ] `~/.swamp/deno/deno check` + unit tests for both
 
 **Model**
-- [ ] `swamp_pulse.ts` — `@svendowideit/swamp-pulse` global args (`repos`, `swampClubUrl`, `apiKey` sensitive, `outputDir`, `manualBaseUrl`, `windows`, scoring weights, `pagesRepo`, `pagesBaseUrl`)
-- [ ] Resources: `commits`, `releases`, `labIssues`, `docChanges`, `ranked`, `summary`
-- [ ] `collect` — fan-out fetch across repos/issues, union window, UTC month boundary
-- [ ] `rank` — significance tiers + recency decay + corroboration; emit `rationale`
-- [ ] Doc linking — sitemap cache, manual slug match, source-link fallback
-- [ ] `render` — four HTML pages as `files` **and** to `outputDir`
-- [ ] `generate` — `collect → rank → render`
-- [ ] `publish` — local / caddy / git modes
-- [ ] Scoring, window and doc-mapping unit tests; fixture-based render test (no network)
+- [ ] `swamp_pulse.ts` — globals (`repos`, `swampClubUrl`, `outputDir`, `manualBaseUrl`, `windows`, scoring weights, `pagesRepo`, `pagesBaseUrl`)
+- [ ] Resources: `store` (rolling, cursor, ~90d), `ranked`, `docChanges`, `summary`
+- [ ] `rank` — CEL-input merge, tier-then-recency ordering, corroboration with namespace-aware `swamp-club#N` parsing, UTC calendar-month window
+- [ ] Doc linking — sitemap cache + explicit path→manual map + confidence threshold + source fallback
+- [ ] `render` — four HTML pages as `files` **and** to `outputDir`; HTML-escape all interpolated text
+- [ ] Release collapsing to one entry per UTC day; changes page driven by release bodies
+- [ ] Unit tests: scoring/ordering, number namespaces, window boundaries, doc mapping; `withMockedCommand`/`withMockedFetch` success **and** failure paths; adversarial-content render fixture (HTML injection)
 
 **Report**
 - [ ] `swamp_pulse_report.ts` — `@svendowideit/swamp-pulse-summary` (markdown + JSON)
 
 **Workflow**
-- [ ] `swamp-pulse.yaml` — `generate → publish`, `trigger.schedule: "0 */6 * * *"`
+- [ ] `swamp-pulse.yaml` — 7 steps above, `trigger.schedule: "0 */6 * * *"`
 - [ ] `swamp workflow validate @svendowideit/swamp-pulse`
 
 **Pages (release-notes tour style)**
@@ -256,13 +370,15 @@ Work-in-progress checklist — tick items off as they land.
 **Publishing**
 - [ ] `scripts/pulse-server.ts` static server (news feedback-server pattern)
 - [ ] Optional Caddy `ensureDnsProxy` + systemd-service steps (`allowFailure`)
-- [ ] Optional git-pages push job
+- [ ] Optional git-pages push job (documented credentials)
 
 **Quality gate**
-- [ ] `swamp extension fmt --check`, `quality`, version bump + upgrade entry
+- [ ] `swamp extension fmt --check`, `quality`, version bump + upgrade entries
 - [ ] Adversarial review written to the content-hash path from `push --dry-run`
 - [ ] Dry-run push, then publish
 
 ## License
 
-MIT
+MIT for this extension. `swamp_club.ts` is a fork of `@webframp/swamp-club`,
+licensed Apache-2.0 © Sean Escriva; its upstream SPDX header is retained and the
+attribution is recorded in `NOTICE`.

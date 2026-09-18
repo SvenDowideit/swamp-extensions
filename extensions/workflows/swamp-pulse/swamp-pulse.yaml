@@ -6,8 +6,9 @@ description: |
   Every hour: cache the manual index, collect Lab issues, commits, releases and
   changed docs (fanning out over every configured repo), join each release with
   its commit and pull request into one merged item, rank by significance
-  (tier first, recency as tie-break), then render four linked HTML pages —
-  a leaderboard-style summary plus changes, releases and issues tour pages.
+  (tier first, recency as tie-break), then render five linked HTML pages —
+  a documentation summary, an activity leaderboard, and changes, releases and
+  issues tour pages.
 
   Usage:
     swamp workflow run @svendowideit/swamp-pulse
@@ -170,7 +171,7 @@ jobs:
         weight: 0
         allowFailure: false
       - name: render
-        description: Render the four linked HTML pages from the ranked data.
+        description: Render the five linked HTML pages from the ranked data.
         task:
           type: model_method
           modelType: "@svendowideit/swamp-pulse"

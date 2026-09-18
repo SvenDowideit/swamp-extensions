@@ -7,8 +7,9 @@
  *   1. `rank`   — joins releases↔commits↔PRs into one item per change, merges
  *      into a rolling store, computes the 24h / 7d / UTC-month windows, links
  *      documentation, and writes the `ranked` resource.
- *   2. `render` — writes four linked static HTML pages (summary + changes +
- *      releases + issues) as model files and to the configured output dir.
+ *   2. `render` — writes five linked static HTML pages (docs summary,
+ *      leaderboard, changes, releases + issues) as model files and to the
+ *      configured output dir.
  *   3. `sync_manual_index` — caches the swamp-club manual sitemap so doc
  *      changes can link to their published page.
  *

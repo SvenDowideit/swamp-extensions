@@ -103,12 +103,19 @@ apiKey: ${{ vault.get('my-vault', 'swamp-club-api-key') }}
 still rejects a literal value, so the vault reference is required _if_ you set
 it. Leave it unset to run anonymously.
 
-Configurable global arguments on the pulse model: `repos` (default
-`["swamp-club/swamp", "swamp-club/swamp-extensions"]`), `swampClubUrl` (default
-`https://swamp-club.com`), `outputDir` (default `~/.swamp/swamp-pulse`),
-`manualBaseUrl` (default `https://swamp-club.com/manual`), `windows`
-(`["24h", "7d", "month"]`), scoring weights, and the optional `pagesRepo` /
-`pagesBaseUrl` for git-pages publishing.
+Configurable global arguments on the pulse model: `outputDir` (default
+`~/.swamp/swamp-pulse`), `manualBaseUrl` (default
+`https://swamp-club.com/manual`), `windows` (`["24h", "7d", "month"]`),
+`storeRetentionDays` (default 90), `docPathPattern` (default empty), and the
+server settings `serverPort`, `serverServiceName`, `serverScriptPath`.
+
+The repositories to track are a **workflow** input (`repos`), not a model global
+— change them per run or in a trigger override:
+
+```sh
+swamp workflow run @svendowideit/swamp-pulse \
+  --input 'repos:json=["swamp-club/swamp"]'
+```
 
 ## Run
 
@@ -121,8 +128,10 @@ swamp model @svendowideit/swamp-pulse method run rank pulse
 swamp model @svendowideit/swamp-pulse method run render pulse
 ```
 
-Optional inputs: `repos` (array, overrides the default), `windows` (array),
-`outputDir` (per-run output location), `publish` (`false` | `caddy` | `git`).
+Optional inputs: `repos` (array, overrides the default), `since` (ISO-8601
+window start), `outputDir` (per-run output location), `publish` (`false` |
+`caddy`), and for Caddy mode `hostname`/`upstream`, plus `serverPort` /
+`serviceName` for the systemd service.
 
 ```sh
 swamp workflow run @svendowideit/swamp-pulse --input publish=caddy
@@ -383,8 +392,8 @@ Without `systemd-service`, run the server manually:
   scripts/pulse-server.ts --port 8899 --dir ~/.swamp/swamp-pulse
 ```
 
-It serves the four allowlisted pages (`/`, `/changes.html`, `/releases.html`,
-`/issues.html`) plus `/healthz`, and rejects path traversal.
+It serves the five allowlisted pages (`/`, `/leaderboard.html`, `/changes.html`,
+`/releases.html`, `/issues.html`) plus `/healthz`, and rejects path traversal.
 
 ### Publish on a hostname via Caddy (optional)
 
@@ -399,12 +408,6 @@ swamp workflow run @svendowideit/swamp-pulse \
 
 It depends on `ensure-server` (either outcome) and is `allowFailure: true`, so
 an absent Caddy degrades to local-only with a log.
-
-### Publish to a git repository (optional)
-
-**Not yet implemented.** Planned: clone the configured `pagesRepo` via
-`@swamp/git`, write the five HTML files, commit and push. Requires push
-credentials on the runner.
 
 ## Models
 
@@ -554,7 +557,6 @@ workflow run.
       than fail the run
 - [x] Optional Caddy `ensureDnsProxy` step, guarded to `publish=caddy` and
       `allowFailure`
-- [ ] Optional git-pages push job (documented credentials) — remaining work
 
 **Quality gate**
 

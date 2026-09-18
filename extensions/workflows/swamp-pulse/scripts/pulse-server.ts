@@ -1,7 +1,7 @@
 /**
  * Static HTTP server for the Swamp Pulse pages.
  *
- * Serves the four generated HTML pages from the pulse output directory, with
+ * Serves the five generated HTML pages from the pulse output directory, with
  * path-traversal protection and a small security header set. Modelled on the
  * news feedback server.
  *

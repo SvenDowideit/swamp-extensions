@@ -1000,6 +1000,7 @@ table.board th{color:var(--dim);font-size:12px;letter-spacing:.08em}
 .card .n{font-size:26px;color:var(--acc);font-weight:700}.card .l{color:var(--dim);font-size:12px;letter-spacing:.08em}
 .tail{margin-top:26px}.tail h2{font-size:15px;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:6px}
 .empty{color:var(--dim);font-style:italic}
+.page-title{margin:0 0 14px;font-size:18px;letter-spacing:.06em}
 .dim{color:var(--dim)}
 .doc-item .meta a{color:var(--acc)}
 .doc-changes{list-style:none;margin:8px 0 0;padding:0}
@@ -1013,6 +1014,7 @@ footer{color:var(--dim);font-size:12px;padding:0 22px 40px;max-width:1180px}
 
 const PAGE_NAV = [
   { href: "index.html", label: "Summary" },
+  { href: "leaderboard.html", label: "Leaderboard" },
   { href: "changes.html", label: "Changes" },
   { href: "releases.html", label: "Releases" },
   { href: "issues.html", label: "Issues" },
@@ -1198,7 +1200,43 @@ ${byTier("C")} minor.</p>
 }
 
 /** Render the leaderboard-style summary page. */
+/**
+ * Render the summary page: documentation changes for the month.
+ *
+ * The activity leaderboard lives on its own page (`leaderboard.html`); the
+ * summary is docs-only, so a reader who wants "what documentation moved this
+ * month" gets exactly that and nothing else.
+ */
 export function renderIndexPage(
+  ranked: z.infer<typeof RankedSchema>,
+): string {
+  const widest = ranked.windows[ranked.windows.length - 1];
+  const label = widest?.label ?? "";
+  const groups = widest ? groupDocChanges(widest.items) : [];
+  const changeCount = groups.reduce((n, g) => n + g.changes.length, 0);
+
+  const head = `<div class="cards">
+<div class="card"><div class="n">${groups.length}</div><div class="l">FILES CHANGED</div></div>
+<div class="card"><div class="n">${changeCount}</div><div class="l">CHANGES</div></div>
+<div class="card"><div class="n">${
+    groups.filter((g) => g.manualUrl).length
+  }</div><div class="l">WITH MANUAL PAGE</div></div>
+</div>
+<p class="lede">Documentation changed in the ${
+    escapeHtml(label)
+  } window, newest first. The activity leaderboard is on the
+<a href="leaderboard.html">Leaderboard</a> page.</p>`;
+
+  const body = `<main>
+<h2 class="page-title">Documentation changes — ${escapeHtml(label)}</h2>
+${head}
+${renderDocSection(ranked)}
+</main>`;
+  return layout("Summary", "index.html", body);
+}
+
+/** Render the leaderboard page: ranked activity for 24h / 7d / month. */
+export function renderLeaderboardPage(
   ranked: z.infer<typeof RankedSchema>,
 ): string {
   const cards = `<div class="cards">
@@ -1210,7 +1248,7 @@ export function renderIndexPage(
 </div>`;
 
   const sections = ranked.windows.map((w) => {
-    const top = w.items.slice(0, 12);
+    const top = w.items.slice(0, 25);
     const rows = top.map((item, i) =>
       `<tr>
 <td>${i + 1}</td>
@@ -1221,20 +1259,21 @@ export function renderIndexPage(
 <td>${escapeHtml(item.date.slice(0, 10))}</td>
 </tr>`
     ).join("");
-    return `<h2 style="font-size:15px;color:var(--dim);letter-spacing:.1em">${
+    return `<section class="tail"><h2>${
       escapeHtml(w.label)
     } · ${w.items.length} items</h2>
 <table class="board"><thead><tr><th>#</th><th></th><th>ITEM</th><th>KIND</th><th>SOURCE</th><th>DATE</th></tr></thead>
 <tbody>${
       rows || `<tr><td colspan="6" class="empty">No activity.</td></tr>`
-    }</tbody></table>`;
+    }</tbody></table></section>`;
   }).join("\n");
 
-  const body =
-    `<main>${cards}${sections}<div class="tail"><h2>New / changed documentation — ${
-      escapeHtml(ranked.windows[ranked.windows.length - 1]?.label ?? "")
-    }</h2>${renderDocSection(ranked)}</div></main>`;
-  return layout("Summary", "index.html", body);
+  const body = `<main>
+<h2 class="page-title">Activity leaderboard</h2>
+${cards}
+${sections}
+</main>`;
+  return layout("Leaderboard", "leaderboard.html", body);
 }
 
 /** Render the labelled reference row for a change (release/commit/PR/issue). */
@@ -1574,7 +1613,7 @@ export const model = {
     {
       toVersion: "2026.09.18.5",
       description:
-        "No schema changes — documentation grouped one card per file (newest first) with the window in the heading",
+        "No schema changes — summary page is docs-only for the month, activity leaderboard moved to its own leaderboard.html",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1601,6 +1640,12 @@ export const model = {
   files: {
     summaryPage: {
       description: "Leaderboard-style summary page",
+      contentType: "text/html",
+      lifetime: "30d",
+      garbageCollection: 5,
+    },
+    leaderboardPage: {
+      description: "Activity leaderboard page (24h / 7d / month)",
       contentType: "text/html",
       lifetime: "30d",
       garbageCollection: 5,
@@ -1763,7 +1808,7 @@ export const model = {
 
     render: {
       description:
-        "Render the four linked HTML pages (summary, changes, releases, issues) from the ranked data.",
+        "Render the five linked HTML pages (docs summary, leaderboard, changes, releases, issues) from the ranked data.",
       arguments: RenderArgsSchema,
       execute: async (
         args: z.infer<typeof RenderArgsSchema>,
@@ -1783,6 +1828,7 @@ export const model = {
 
         const pages: Record<string, string> = {
           index: renderIndexPage(ranked),
+          leaderboard: renderLeaderboardPage(ranked),
           changes: renderTourPage(
             "Changes",
             "changes.html",
@@ -1805,6 +1851,7 @@ export const model = {
 
         const fileSpecs: Array<[string, string, string]> = [
           ["summaryPage", "index", "index.html"],
+          ["leaderboardPage", "leaderboard", "leaderboard.html"],
           ["changesPage", "changes", "changes.html"],
           ["releasesPage", "releases", "releases.html"],
           ["issuesPage", "issues", "issues.html"],

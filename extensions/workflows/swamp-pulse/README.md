@@ -7,9 +7,10 @@ commits**, and **GitHub releases** — across `swamp-club/swamp` and
 `swamp-club/swamp-extensions`. Because a release, its commit and its PR are the
 same event, the streams are **joined into one merged item per change** rather
 than listed three times. Each item is ranked by a synthesized significance
-hierarchy, and the result is rendered as four linked static HTML pages: three
-detail pages (changes, releases, issues) and one summary page styled after the
-swamp-club leaderboard, with 24-hour / 7-day / current-month windows.
+hierarchy, and the result is rendered as five linked static HTML pages: a docs
+summary, an activity leaderboard, and three detail pages (changes, releases,
+issues) and one summary page styled after the swamp-club leaderboard, with
+24-hour / 7-day / current-month windows.
 
 Every merged item links back to its source, and any change that touches
 documentation produces a **"New / changed documentation"** link to both the
@@ -129,7 +130,7 @@ swamp workflow run @svendowideit/swamp-pulse --input publish=caddy
 
 ### Where the generated HTML goes
 
-All four pages land in one user-global directory so they survive repo moves and
+All five pages land in one user-global directory so they survive repo moves and
 `swamp serve`'s working-directory changes:
 
 | Page            | Path                                 |
@@ -145,9 +146,16 @@ Override with `outputDir` (model global arg or per-run input).
 
 Each of the three detail pages is a tour: a sticky sidebar ToC built from the
 item anchors, tour sections in rank order, then the grouped tail sections
-(_Other notable changes_, _Tooling_, _Hidden gems_, _Final thoughts_). The
-summary page is the leaderboard view — it links into the tour anchors on the
-detail pages rather than repeating the sections.
+(_Other notable changes_, _Tooling_, _Hidden gems_, _Final thoughts_).
+
+**`index.html` (Summary)** is the documentation view: the files changed in the
+current month, one card per file, newest first. It carries only docs — the
+activity board lives on its own page.
+
+**`leaderboard.html`** is the activity view: ranked merged items, top 25 per
+window, for 24h / 7d / month. All five pages share the nav bar, so the
+leaderboard is one click from anywhere (and links to every other page, including
+itself).
 
 ### New / changed documentation
 
@@ -376,14 +384,14 @@ an absent Caddy degrades to local-only with a log.
 ### Publish to a git repository (optional)
 
 **Not yet implemented.** Planned: clone the configured `pagesRepo` via
-`@swamp/git`, write the four HTML files, commit and push. Requires push
+`@swamp/git`, write the five HTML files, commit and push. Requires push
 credentials on the runner.
 
 ## Models
 
 | Type                                | Purpose                                                                                                               |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `@svendowideit/swamp-pulse`         | Merges collected data, ranks it (tier-then-recency), renders the four HTML pages, and ensures the static server runs. |
+| `@svendowideit/swamp-pulse`         | Merges collected data, ranks it (tier-then-recency), renders the five HTML pages, and ensures the static server runs. |
 | `@svendowideit/swamp-club`          | Vendored Lab adapter — anonymous-capable Lab issue search.                                                            |
 | `@webframp/github` (extended)       | Upstream GitHub type, extended here with commit and body-inclusive release methods.                                   |
 | `@svendowideit/swamp-pulse-summary` | Report extension — markdown + JSON run summary (counts per window, top-ranked items, doc links).                      |
@@ -407,7 +415,7 @@ methods):
    releases↔commits↔PRs into merged items, merges into the rolling store,
    computes the three windows (UTC), links docs
 6. **render** — `@svendowideit/swamp-pulse render`, reads the `ranked` resource
-   and writes all four pages
+   and writes all five pages
 7. **ensure-server** — `@svendowideit/swamp-pulse ensureServer`, idempotently
    runs `scripts/pulse-server.ts` as a systemd user service via
    `@svendowideit/systemd-service` (`allowFailure`; skips with a log if absent)
@@ -481,7 +489,7 @@ workflow run.
 - [x] Doc linking — sitemap cache + explicit path→manual map + confidence
       threshold + source fallback; grouped one card per file, newest first, with
       the period in the heading
-- [x] `render` — four HTML pages as `files` **and** to `outputDir`; HTML-escape
+- [x] `render` — five HTML pages as `files` **and** to `outputDir`; HTML-escape
       all interpolated text
 - [x] Releases kept individually (1:1 with merges — no collapsing)
 - [x] Unit tests: event join/dedupe, scoring/ordering, number namespaces, window
@@ -506,14 +514,14 @@ workflow run.
 
 **Pages (release-notes tour style)**
 
-- [x] `index.html` summary + `changes.html` + `releases.html` + `issues.html`,
-      all cross-linked
+- [x] `index.html` (docs summary, month) + `leaderboard.html` (24h/7d/month) +
+      `changes.html` + `releases.html` + `issues.html`, all cross-linked
 - [x] Tour sections: anchored `<h2 id>` headings, "why it matters" lede, body
       block, 𝗗/𝗣/𝗖𝗟/𝗔 reference row
 - [x] Sidebar ToC generated from item anchors; sticky on the detail pages
 - [x] Grouped tail sections: _Other notable changes_, _Tooling_, _Hidden gems_
       (partitioned so each tail item appears in exactly one group)
-- [x] "New / changed documentation" section on the summary page, in tour format
+- [x] "New / changed documentation" as the summary page itself, in tour format
       (tier, file, date, repo, manual link, and refs back to the originating Lab
       issue / PR / commit); compact "Docs changed:" line on detail items
 
@@ -533,7 +541,7 @@ workflow run.
 
 - [x] `swamp extension fmt --check`, `quality` (12/12, 100%)
 - [x] Adversarial review written to the content-hash path from `push --dry-run`
-- [x] Dry-run push clean; 87 unit tests + live end-to-end workflow run passing
+- [x] Dry-run push clean; 88 unit tests + live end-to-end workflow run passing
 
 ## License
 

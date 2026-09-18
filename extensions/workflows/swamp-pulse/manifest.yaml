@@ -8,9 +8,9 @@ description: |
   swamp-club/swamp and swamp-club/swamp-extensions, joins each release, its
   commit and its pull request into a single merged item, ranks items by a
   synthesized significance hierarchy (tier first, recency as tie-break), and
-  renders four linked static HTML pages — a leaderboard-style summary plus
-  changes, releases and issues detail pages with 24h / 7d / current-month
-  windows.
+  renders five linked static HTML pages — a documentation summary plus
+  an activity leaderboard and changes, releases and issues detail pages
+  with 24h / 7d / current-month windows.
 
   INSTALL (required)
 
@@ -23,7 +23,8 @@ description: |
       swamp workflow run @svendowideit/swamp-pulse
 
   Scheduled hourly by default. Output lands in ~/.swamp/swamp-pulse/:
-  index.html (summary), changes.html, releases.html, issues.html.
+  index.html (documentation summary, current month), leaderboard.html
+  (activity for 24h / 7d / month), changes.html, releases.html, issues.html.
 
   CONFIGURE (all optional — public data, no secrets required)
 

@@ -14,7 +14,8 @@
  *     scripts/pulse-server.ts [--port 8899] [--dir ~/.swamp/swamp-pulse]
  *
  * Endpoints:
- *   GET /                 — summary page (index.html)
+ *   GET /                 — documentation summary (index.html)
+ *   GET /leaderboard.html — activity leaderboard (24h / 7d / month)
  *   GET /changes.html     — commits / changes tour
  *   GET /releases.html    — releases tour
  *   GET /issues.html      — Lab issues tour
@@ -35,6 +36,7 @@ export function expandHome(path: string): string {
 const ALLOWED = new Set([
   "/",
   "/index.html",
+  "/leaderboard.html",
   "/changes.html",
   "/releases.html",
   "/issues.html",

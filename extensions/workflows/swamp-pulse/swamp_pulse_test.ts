@@ -29,6 +29,7 @@ import {
   renderDocFileCard,
   renderIndexPage,
   renderItem,
+  renderLeaderboardPage,
   renderMarkdownLite,
   renderTourPage,
   resolveManualUrl,
@@ -745,7 +746,7 @@ Deno.test("renderTourPage groups tail items without duplication", () => {
   assertStringIncludes(html, "Final thoughts");
 });
 
-Deno.test("renderIndexPage produces a leaderboard table per window", () => {
+Deno.test("renderLeaderboardPage produces a board per window", () => {
   const ranked = {
     windows: [
       {
@@ -770,11 +771,85 @@ Deno.test("renderIndexPage produces a leaderboard table per window", () => {
     manualPages: 10,
     generatedAt: "2026-09-18T12:00:00Z",
   };
-  const html = renderIndexPage(ranked);
+  const html = renderLeaderboardPage(ranked);
   assertStringIncludes(html, "SWAMP PULSE");
   assertStringIncludes(html, "Last 24 hours");
   assertStringIncludes(html, 'class="board"');
-  assertStringIncludes(html, "New / changed documentation");
+  // The leaderboard links to every other page, including itself.
+  for (
+    const href of [
+      "index.html",
+      "leaderboard.html",
+      "changes.html",
+      "releases.html",
+      "issues.html",
+    ]
+  ) {
+    assertStringIncludes(html, `href="${href}"`);
+  }
+});
+
+Deno.test("renderIndexPage is docs-only and links to the leaderboard", () => {
+  const item = {
+    ...makeItem("release:r", "2026-09-18T00:00:00Z"),
+    docLinks: [{
+      filename: "design/enablers/datastores.md",
+      sourceUrl:
+        "https://github.com/swamp-club/swamp/blob/abc/design/enablers/datastores.md",
+      manualUrl:
+        "https://swamp-club.com/manual/reference/datastore-configuration",
+      manualConfidence: 1,
+    }],
+  };
+  const ranked = {
+    windows: [
+      {
+        key: "24h",
+        label: "Last 24 hours",
+        since: "",
+        until: "",
+        changes: 1,
+        releases: 1,
+        issues: 0,
+        items: [makeItem("release:x", "2026-09-18T00:00:00Z")],
+      },
+      {
+        key: "month",
+        label: "This month",
+        since: "",
+        until: "",
+        changes: 1,
+        releases: 1,
+        issues: 0,
+        items: [item],
+      },
+    ],
+    totals: {
+      events: 1,
+      commits: 0,
+      releases: 1,
+      issues: 0,
+      docChanges: 1,
+      byRepo: {},
+    },
+    manualPages: 1,
+    generatedAt: "2026-09-18T12:00:00Z",
+  };
+  const html = renderIndexPage(ranked);
+  // Docs content and the month window are present.
+  assertStringIncludes(html, "Documentation changes — This month");
+  assertStringIncludes(html, "design/enablers/datastores.md");
+  // No activity leaderboard table on the summary.
+  assert(
+    !html.includes('class="board"'),
+    "leaderboard table leaked onto summary",
+  );
+  assert(
+    !html.includes("MERGED EVENTS"),
+    "leaderboard cards leaked onto summary",
+  );
+  // And it points at the leaderboard.
+  assertStringIncludes(html, 'href="leaderboard.html"');
 });
 
 Deno.test("renderDocFileCard lists a file once with its changes and refs", () => {
@@ -877,7 +952,7 @@ Deno.test("groupDocChanges shows a no-manual file as such", () => {
   assertStringIncludes(html, "no published page");
 });
 
-Deno.test("renderIndexPage doc section reads the widest window only (no duplicates)", () => {
+Deno.test("renderIndexPage reads the widest window only (no doc duplicates)", () => {
   const doc = {
     filename: "design/enablers/datastores.md",
     sourceUrl:
@@ -1063,7 +1138,7 @@ Deno.test("render fails clearly when rank has not run", async () => {
   assert(threw, "render should throw without ranked data");
 });
 
-Deno.test("render writes four HTML pages from ranked data", async () => {
+Deno.test("render writes five HTML pages from ranked data", async () => {
   const ranked = {
     windows: [
       {
@@ -1108,12 +1183,13 @@ Deno.test("render writes four HTML pages from ranked data", async () => {
     context as any,
   );
   const files = getWrittenFiles();
-  assertEquals(files.length, 4);
+  assertEquals(files.length, 5);
   const names = files.map((f) => f.name).sort();
   assertEquals(names, [
     "changes.html",
     "index.html",
     "issues.html",
+    "leaderboard.html",
     "releases.html",
   ]);
   // Regression: the summaryPage spec must map to the "index" content, not
@@ -1122,7 +1198,12 @@ Deno.test("render writes four HTML pages from ranked data", async () => {
   assert(index);
   const indexHtml = new TextDecoder().decode(index.content as Uint8Array);
   assert(indexHtml.length > 0, "index.html was empty");
-  assertStringIncludes(indexHtml, "SWAMP PULSE");
+  assertStringIncludes(indexHtml, "Documentation changes");
+  // The leaderboard page carries the activity board.
+  const leaderboard = files.find((f) => f.name === "leaderboard.html");
+  assert(leaderboard);
+  const boardHtml = new TextDecoder().decode(leaderboard.content as Uint8Array);
+  assertStringIncludes(boardHtml, 'class="board"');
 });
 
 Deno.test("sync_manual_index caches sitemap pages", async () => {

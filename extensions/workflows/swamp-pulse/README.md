@@ -4,15 +4,17 @@ A leaderboard-style activity dashboard for the swamp project itself.
 
 Swamp Pulse tracks three streams of work — **swamp-club Lab issues**, **GitHub
 commits**, and **GitHub releases** — across `swamp-club/swamp` and
-`swamp-club/swamp-extensions`, ranks every item by a synthesized significance
-hierarchy, and renders four linked static HTML pages: three detail pages
-(changes, releases, issues) and one summary page styled after the swamp-club
-leaderboard, with 24-hour / 7-day / current-month windows.
+`swamp-club/swamp-extensions`. Because a release, its commit and its PR are the
+same event, the streams are **joined into one merged item per change** rather
+than listed three times. Each item is ranked by a synthesized significance
+hierarchy, and the result is rendered as four linked static HTML pages: three
+detail pages (changes, releases, issues) and one summary page styled after the
+swamp-club leaderboard, with 24-hour / 7-day / current-month windows.
 
-Every commit, release and issue entry links back to its source, and any commit
-that touches documentation produces a **"New / changed documentation"** link to
-both the published manual page (when one can be matched) and the exact source
-file at that commit's SHA.
+Every merged item links back to its source, and any change that touches
+documentation produces a **"New / changed documentation"** link to both the
+published manual page (when one can be matched) and the exact source file at
+that commit's SHA.
 
 ## Presentation: release-notes tour style
 
@@ -154,29 +156,33 @@ fenced code preserved. This is a tested requirement, not an afterthought.
 ## How items are ranked
 
 Pulse does not replicate the swamp-club user-activity leaderboard. It ranks the
-tracked **work items** (issues, commits, releases) on a synthesized importance
-hierarchy, **tier first, recency as the tie-break** — recency only decides
-between items of equal significance, it never promotes a low-significance item
-above a high-significance one. Each ranked item records a human-readable
-`rationale`.
+tracked **work items** on a synthesized importance hierarchy, **tier first,
+recency as the tie-break** — recency only decides between items of equal
+significance, it never promotes a low-significance item above a high-significance
+one. Each ranked item records a human-readable `rationale`.
+
+Items are **merged events**, not raw rows: a release, its commit and its PR are
+one item (see "Releases are the primary unit" below). The tier is derived from
+the merged item's conventional-commit type, its linked issue's type/status, and
+whether it touches security or docs.
 
 | Tier | Signal |
 |------|--------|
-| **S** | Security issue shipped; release announcing a breaking change; commit fixing a security-labelled issue |
-| **A** | Shipped bug/feature; non-patch release; `feat:` commit; docs updated alongside a fix |
-| **B** | `in_progress`/`triaged` issues; `fix:`/`perf:` commits; patch release |
-| **C** | Open issues; `docs:`/`refactor:`/`chore:` commits; prereleases |
+| **S** | Security issue shipped; a breaking-change release; a merge fixing a security-labelled issue |
+| **A** | Shipped bug/feature (`feat:`, `fix:`); docs updated alongside a fix |
+| **B** | `in_progress`/`triaged` issues; `perf:`/`refactor:`/`chore:` merges |
+| **C** | Open (untriaged) issues; `docs:`-only merges; prereleases |
 
 Ordering is lexicographic: `(tier_rank, recency)` per window. A numeric
 `score = base_importance × corroboration_bonus` is retained for display and for
 sorting *within* a tier, but it never overrides the tier ordering.
 
-**Corroboration** boosts items cross-referenced across sources, but issue and
-pull-request numbers are distinct namespaces on GitHub: a commit message like
-`fix(cli): … (swamp-club#2254) (#2507)` references lab issue **2254** and PR
-**2507**. Pulse parses `swamp-club#NNNN` / `lab#NNNN` for issue linkage and
-treats a bare `#NNNN` as a PR reference only — a bare number never corroborates
-a Lab issue. Getting this wrong would silently inflate ranks.
+**Corroboration** rewards an item whose merge explicitly links a Lab issue that
+has moved to `shipped`. Issue and pull-request numbers are distinct namespaces on
+GitHub: a merge title like `fix(cli): … (swamp-club#2254) (#2507)` references lab
+issue **2254** and PR **2507**. Pulse parses `swamp-club#NNNN` / `lab#NNNN` for
+issue linkage and treats a bare `#NNNN` as a PR reference only — a bare number
+never corroborates a Lab issue. Getting this wrong would silently inflate ranks.
 
 > Note on the month window: swamp-club's public leaderboard only exposes 24-hour,
 > 7-day and all-time boards. The 24h and 7d Pulse windows can be cross-checked
@@ -238,15 +244,30 @@ extension attaches as long as the target type is registered first — so
 `@webframp/github` is a declared `dependencies:` entry and a documented install
 step.
 
-**3. Release noise — collapse to one entry per day.**
+**3. Releases are the primary unit — no collapsing.**
 
-Swamp cuts timestamped builds; there were 5 releases on 2026-09-17 alone and
-~100+/month. Listing each build would swamp the page and make "non-patch
-release" meaningless. Pulse collapses releases to **one entry per UTC day** (the
-last build of the day) and uses that build's body as the day's changelog. This
-is why body-inclusive releases matter — the auto-generated *What's Changed* body
-is the day's real content. The changes page is likewise driven from release
-bodies first, with raw commits as the secondary stream.
+Verification corrected an earlier assumption: a swamp release is **1:1 with a
+merge**. In 30 recent releases, 29 bodies carried exactly one PR line
+(`fix(workers): reap stale worker records… (swamp-club#2192) (#2509)`), and the
+release tag embeds the commit SHA (`v20260917.233703.0-sha.a3e60933`). Volume is
+high but meaningful — **273 in 30 days, 63 in 7 days, 16 in 24h** — so collapsing
+to one per day would discard almost everything.
+
+Releases are therefore kept **individually** and treated as the primary stream,
+because each release body is already the curated, human-readable changelog for
+that merge: conventional-commit type, scope, title, and the linked lab issue
+and/or PR. Pulse parses the body into a structured item rather than reformatting
+the raw commit.
+
+**3b. One event, one item — dedupe across streams.**
+
+Because a release, its commit and its PR are the *same* event, the streams must
+be joined, not listed three times: a release maps to its commit by the SHA in the
+tag, and to its PR/issue by the numbers parsed from the body. The merged item
+carries all three identifiers. Only commits with **no** corresponding release
+(e.g. direct pushes, docs-only merges that skip a build) appear as additional
+commit-only items, and PRs referenced in a release never appear as separate
+entries. Without this join, significance ranking would triple-count every merge.
 
 ## Documentation links
 
@@ -302,8 +323,9 @@ methods):
 2. **collect-commits** — `@webframp/github list_commits`
 3. **collect-releases** — `@webframp/github list_releases_full`
 4. **collect-docs** — `@webframp/github list_commit_files` (doc-suspect only)
-5. **rank** — `@svendowideit/swamp-pulse rank`, CEL-wired from steps 1–4;
-   merges into the rolling store, computes the three windows (UTC), links docs
+5. **rank** — `@svendowideit/swamp-pulse rank`, CEL-wired from steps 1–4; joins
+   releases↔commits↔PRs into merged items, merges into the rolling store,
+   computes the three windows (UTC), links docs
 6. **render** — `@svendowideit/swamp-pulse render`, reads the `ranked` resource
    and writes all four pages
 7. **publish** — optional Caddy / git-pages steps (`allowFailure`)
@@ -347,11 +369,11 @@ Work-in-progress checklist — tick items off as they land.
 **Model**
 - [ ] `swamp_pulse.ts` — globals (`repos`, `swampClubUrl`, `outputDir`, `manualBaseUrl`, `windows`, scoring weights, `pagesRepo`, `pagesBaseUrl`)
 - [ ] Resources: `store` (rolling, cursor, ~90d), `ranked`, `docChanges`, `summary`
-- [ ] `rank` — CEL-input merge, tier-then-recency ordering, corroboration with namespace-aware `swamp-club#N` parsing, UTC calendar-month window
+- [ ] `rank` — CEL-input merge, join releases↔commits↔PRs into merged items (dedupe), tier-then-recency ordering, corroboration with namespace-aware `swamp-club#N` parsing, UTC calendar-month window
 - [ ] Doc linking — sitemap cache + explicit path→manual map + confidence threshold + source fallback
 - [ ] `render` — four HTML pages as `files` **and** to `outputDir`; HTML-escape all interpolated text
-- [ ] Release collapsing to one entry per UTC day; changes page driven by release bodies
-- [ ] Unit tests: scoring/ordering, number namespaces, window boundaries, doc mapping; `withMockedCommand`/`withMockedFetch` success **and** failure paths; adversarial-content render fixture (HTML injection)
+- [ ] Releases kept individually (1:1 with merges — no collapsing); release body parsed into the structured item as the primary changelog
+- [ ] Unit tests: event join/dedupe, scoring/ordering, number namespaces, window boundaries, doc mapping; `withMockedCommand`/`withMockedFetch` success **and** failure paths; adversarial-content render fixture (HTML injection)
 
 **Report**
 - [ ] `swamp_pulse_report.ts` — `@svendowideit/swamp-pulse-summary` (markdown + JSON)

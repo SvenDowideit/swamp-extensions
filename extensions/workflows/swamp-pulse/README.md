@@ -292,7 +292,7 @@ other models). `publish` accepts three modes, all optional:
 
 ## Workflows
 
-### `swamp-pulse` (every 6 hours)
+### `swamp-pulse` (hourly)
 
 The workflow is the composition layer — separate collector steps write data that
 the pulse model consumes via CEL expressions (models cannot call each other's
@@ -316,7 +316,7 @@ methods):
 - **Incremental, not full re-fetch.** The pulse store persists a per-repo/per-
   source cursor; each run fetches only what is new since the cursor (with a
   bounded overlap) and merges into a rolling window store. This keeps API volume
-  flat instead of re-pulling the whole month every 6 hours.
+  flat instead of re-pulling the whole month every hour.
 - **Bounded GitHub API use.** Per-commit file lists are fetched only for
   doc-suspect commits, with a hard cap; whole-window doc changes use one
   `compare` call per repo.
@@ -357,7 +357,7 @@ Work-in-progress checklist — tick items off as they land.
 - [ ] `swamp_pulse_report.ts` — `@svendowideit/swamp-pulse-summary` (markdown + JSON)
 
 **Workflow**
-- [ ] `swamp-pulse.yaml` — 7 steps above, `trigger.schedule: "0 */6 * * *"`
+- [ ] `swamp-pulse.yaml` — 7 steps above, `trigger.schedule: "0 * * * *"`
 - [ ] `swamp workflow validate @svendowideit/swamp-pulse`
 
 **Pages (release-notes tour style)**

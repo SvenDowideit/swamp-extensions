@@ -1920,7 +1920,7 @@ export const model = {
   // registry extractor parses this file statically; if it cannot read a
   // literal it skips the file and reports the model as removed from the
   // extension. The footer constant below derives from this value.
-  version: "2026.09.18.10",
+  version: "2026.09.18.12",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1971,6 +1971,18 @@ export const model = {
       toVersion: "2026.09.18.10",
       description:
         "No schema changes — publishing settings moved to model global arguments (publishMode, pagesRepo, pagesBranch, pagesPath, pagesCname, caddyHostname, caddyUpstream) with a publishConfig resource; restore an inline version literal so the registry indexes the model",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.11",
+      description:
+        "No schema changes — workflow publish inputs are no longer dead: configure feeds them to publishConfig as per-run overrides that take precedence over the model globals (empty means defer to the model)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.12",
+      description:
+        "No schema changes — document publish configuration precedence (per-run input > model global > default)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2043,13 +2055,57 @@ export const model = {
     publishConfig: {
       description:
         "Resolve the model's publishing globals into a resource the workflow can guard on. Publishes nothing itself. Fails only when the selected mode is missing required settings.",
-      arguments: z.object({}),
+      arguments: z.object({
+        // Per-run overrides. Any value supplied here wins over the model's
+        // global argument, so `--input publish=...` works while a user can
+        // still configure publishing once on the instance.
+        mode: z.enum(["", "false", "caddy", "github-pages"]).optional()
+          .describe(
+            "Override publishMode for this run. Empty uses the model global.",
+          ),
+        pagesRepo: z.string().optional().describe(
+          "Override the target repository (owner/name).",
+        ),
+        pagesBranch: z.string().optional().describe(
+          "Override the Pages branch.",
+        ),
+        pagesPath: z.enum(["/", "/docs"]).optional().describe(
+          "Override the Pages source path.",
+        ),
+        pagesCname: z.string().optional().describe(
+          "Override the custom domain.",
+        ),
+        caddyHostname: z.string().optional().describe(
+          "Override the Caddy hostname.",
+        ),
+        caddyUpstream: z.string().optional().describe(
+          "Override the Caddy upstream.",
+        ),
+      }),
       execute: async (
-        _args: Record<string, never>,
+        args: {
+          mode?: "" | "false" | "caddy" | "github-pages";
+          pagesRepo?: string;
+          pagesBranch?: string;
+          pagesPath?: "/" | "/docs";
+          pagesCname?: string;
+          caddyHostname?: string;
+          caddyUpstream?: string;
+        },
         context: MethodContext,
       ) => {
         const g = context.globalArgs;
-        const mode = g.publishMode;
+        // Precedence: per-run input > model global argument > schema default.
+        const pick = (override: string | undefined, base: string) =>
+          (override ?? "").trim() !== "" ? override!.trim() : base;
+        // An empty string means "not supplied" — fall through to the global.
+        const mode = args.mode ? args.mode : g.publishMode;
+        const pagesRepo = pick(args.pagesRepo, g.pagesRepo);
+        const pagesBranch = pick(args.pagesBranch, g.pagesBranch);
+        const pagesPath = args.pagesPath ?? g.pagesPath;
+        const pagesCname = pick(args.pagesCname, g.pagesCname);
+        const caddyHostname = pick(args.caddyHostname, g.caddyHostname);
+        const caddyUpstream = pick(args.caddyUpstream, g.caddyUpstream);
         const isGithubPages = mode === "github-pages";
         const isCaddy = mode === "caddy";
 
@@ -2058,15 +2114,15 @@ export const model = {
         let reason = "";
         if (isGithubPages) {
           const missing: string[] = [];
-          if (!g.pagesRepo.trim()) missing.push("pagesRepo");
-          if (!g.pagesBranch.trim()) missing.push("pagesBranch");
+          if (!pagesRepo) missing.push("pagesRepo");
+          if (!pagesBranch) missing.push("pagesBranch");
           if (missing.length > 0) {
             reason = `publishMode=github-pages requires global argument(s): ${
               missing.join(", ")
             }`;
           }
         } else if (isCaddy) {
-          if (!g.caddyHostname.trim()) {
+          if (!caddyHostname) {
             reason =
               "publishMode=caddy requires the caddyHostname global argument";
           }
@@ -2075,12 +2131,12 @@ export const model = {
         const config = {
           mode,
           enabled: mode !== "false",
-          caddyHostname: g.caddyHostname,
-          caddyUpstream: g.caddyUpstream,
-          pagesRepo: g.pagesRepo,
-          pagesBranch: g.pagesBranch,
-          pagesPath: g.pagesPath,
-          pagesCname: g.pagesCname,
+          caddyHostname,
+          caddyUpstream,
+          pagesRepo,
+          pagesBranch,
+          pagesPath,
+          pagesCname,
           configured: reason === "",
           reason,
           resolvedAt: new Date().toISOString(),

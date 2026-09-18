@@ -1492,6 +1492,109 @@ Deno.test("render writes six HTML pages from ranked data", async () => {
   assertStringIncludes(boardHtml, 'class="board"');
 });
 
+Deno.test("publishConfig falls back to model globals when no override is given", async () => {
+  const { context, getWrittenResources } = createModelTestContext({
+    globalArgs: {
+      ...globalArgs,
+      publishMode: "github-pages",
+      pagesRepo: "owner/repo",
+      pagesBranch: "gh-pages",
+    },
+    methodName: "publishConfig",
+  });
+  await model.methods.publishConfig.execute(
+    {},
+    // deno-lint-ignore no-explicit-any
+    context as any,
+  );
+  const cfg = getWrittenResources()[0].data as {
+    mode: string;
+    pagesRepo: string;
+    configured: boolean;
+  };
+  assertEquals(cfg.mode, "github-pages");
+  assertEquals(cfg.pagesRepo, "owner/repo");
+  assertEquals(cfg.configured, true);
+});
+
+Deno.test("publishConfig per-run override beats the model global", async () => {
+  // The model is configured to publish, but a run asks for nothing.
+  const { context, getWrittenResources } = createModelTestContext({
+    globalArgs: {
+      ...globalArgs,
+      publishMode: "github-pages",
+      pagesRepo: "owner/repo",
+      pagesBranch: "gh-pages",
+    },
+    methodName: "publishConfig",
+  });
+  await model.methods.publishConfig.execute(
+    { mode: "false" },
+    // deno-lint-ignore no-explicit-any
+    context as any,
+  );
+  const cfg = getWrittenResources()[0].data as { mode: string };
+  assertEquals(cfg.mode, "false");
+});
+
+Deno.test("publishConfig: an empty mode input defers to the model global", async () => {
+  const { context, getWrittenResources } = createModelTestContext({
+    globalArgs: {
+      ...globalArgs,
+      publishMode: "github-pages",
+      pagesRepo: "owner/repo",
+      pagesBranch: "gh-pages",
+    },
+    methodName: "publishConfig",
+  });
+  await model.methods.publishConfig.execute(
+    { mode: "" },
+    // deno-lint-ignore no-explicit-any
+    context as any,
+  );
+  const cfg = getWrittenResources()[0].data as { mode: string };
+  assertEquals(cfg.mode, "github-pages");
+});
+
+Deno.test("publishConfig override supplies missing targets for the run", async () => {
+  // Model has the mode but no repository; the run supplies it.
+  const { context, getWrittenResources } = createModelTestContext({
+    globalArgs: { ...globalArgs, publishMode: "github-pages" },
+    methodName: "publishConfig",
+  });
+  await model.methods.publishConfig.execute(
+    { pagesRepo: "owner/repo", pagesBranch: "gh-pages" },
+    // deno-lint-ignore no-explicit-any
+    context as any,
+  );
+  const cfg = getWrittenResources()[0].data as {
+    configured: boolean;
+    reason: string;
+    pagesRepo: string;
+  };
+  assertEquals(cfg.configured, true);
+  assertEquals(cfg.reason, "");
+  assertEquals(cfg.pagesRepo, "owner/repo");
+});
+
+Deno.test("publishConfig reports an actionable reason when targets are missing", async () => {
+  const { context, getWrittenResources } = createModelTestContext({
+    globalArgs: { ...globalArgs, publishMode: "github-pages" },
+    methodName: "publishConfig",
+  });
+  await model.methods.publishConfig.execute(
+    {},
+    // deno-lint-ignore no-explicit-any
+    context as any,
+  );
+  const cfg = getWrittenResources()[0].data as {
+    configured: boolean;
+    reason: string;
+  };
+  assertEquals(cfg.configured, false);
+  assertStringIncludes(cfg.reason, "pagesRepo");
+});
+
 Deno.test("sync_manual_index caches sitemap pages", async () => {
   await withMockedFetch((req) => {
     if (req.url.includes("sitemap.xml")) {

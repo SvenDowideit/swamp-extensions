@@ -36,13 +36,16 @@ inputs:
     publish:
       type: string
       enum:
+        - ""
         - "false"
         - caddy
         - github-pages
-      default: "false"
+      default: ""
       description: >-
-        Publishing mode — local files are always written. caddy additionally
-        serves them locally; github-pages commits them to a repository
+        Publishing mode for this run. Leave empty to use the model's
+        publishMode global argument (recommended for scheduled runs). 'false'
+        publishes nothing; 'caddy' serves locally; 'github-pages' commits to a
+        GitHub Pages site.
     hostname:
       type: string
       default: ""
@@ -100,6 +103,14 @@ jobs:
           modelType: "@svendowideit/swamp-pulse"
           modelName: pulse
           methodName: publishConfig
+          inputs:
+            mode: ${{ inputs.publish }}
+            pagesRepo: ${{ inputs.pagesRepo }}
+            pagesBranch: ${{ inputs.pagesBranch }}
+            pagesPath: ${{ inputs.pagesPath }}
+            pagesCname: ${{ inputs.pagesCname }}
+            caddyHostname: ${{ inputs.hostname }}
+            caddyUpstream: ${{ inputs.upstream }}
         dependsOn: []
         weight: 0
         allowFailure: false

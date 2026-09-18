@@ -145,10 +145,38 @@ swamp workflow run @svendowideit/swamp-pulse \
 ```
 
 > **Guard polarity:** a step's `guard` is a _skip_ condition — a **truthy**
-> guard means the step is skipped. Every optional publish step is therefore
-> written as `guard: inputs.publish != "<mode>"`, so it runs only in its own
-> mode and is skipped otherwise. (An inverted guard here once made the Caddy
-> step run on every default run.)
+> guard means the step is skipped. Every optional publish step is skipped unless
+> its mode is selected, e.g.
+> `guard: ...mode != "github-pages" || ...configured == false`. (An inverted
+> guard here once made the Caddy step run on every default run.)
+
+### Where publishing config comes from
+
+There are two layers, and the precedence is:
+
+**per-run input → model global argument → schema default**
+
+So you can either configure publishing once on the model instance and let every
+scheduled run honour it:
+
+```sh
+# once, on the instance
+swamp model edit pulse     # set publishMode, pagesRepo, pagesBranch, ...
+
+# every scheduled run now publishes; no trigger inputs needed
+```
+
+…or override it for a single run:
+
+```sh
+swamp workflow run @svendowideit/swamp-pulse   --input publish=github-pages   --input pagesRepo=owner/repo --input pagesBranch=gh-pages
+```
+
+An **empty** `publish` input defers to the model — so the default `""` never
+clobbers a configured instance. `configure` resolves both layers into the
+`publishConfig` resource, which is what the guards and the config assert read
+(they cannot read model global arguments directly), and which fails fast when
+the selected mode is missing something it needs.
 
 ### Where the generated HTML goes
 

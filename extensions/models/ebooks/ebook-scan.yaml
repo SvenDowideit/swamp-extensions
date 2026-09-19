@@ -1,0 +1,74 @@
+id: bbb60144-2c5f-4c95-8e0a-a89fe33aac01
+name: "@svendowideit/ebook-scan"
+description: |
+  Incrementally scan the local filesystem for ebooks and render an HTML page
+  linking to each file's location on disk.
+
+  The scan-disk step is resumable and self-terminating: each run enumerates
+  directories for up to 5 minutes, then hands off to the render-html-list step.
+  Re-run the workflow to continue scanning from where it left off (state is
+  persisted in swamp data). Once the whole tree is covered, the scan restarts
+  fresh on the next run.
+
+  Usage:
+    swamp workflow run @svendowideit/ebook-scan
+    swamp workflow run @svendowideit/ebook-scan --input root=/home/me/books
+    swamp workflow run @svendowideit/ebook-scan --input outputPath=/srv/ebooks.html
+
+  The scan/render steps are idempotent, so re-running is safe.
+tags: {}
+inputs:
+  properties:
+    root:
+      type: string
+      default: "~"
+      description: Filesystem path to scan for ebooks
+    outputPath:
+      type: string
+      default: "~/.swamp/ebooks/ebooks.html"
+      description: Filesystem path for the generated HTML listing
+    title:
+      type: string
+      default: "Ebooks"
+      description: Title for the generated HTML page
+  required: []
+jobs:
+  - name: main
+    description: Scan for ebooks, then (re)generate the HTML listing.
+    steps:
+      - name: scan-disk
+        description: Resume (or start) the ebook scan, up to 5 minutes per run.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ebooks"
+          modelName: ebooks
+          methodName: scan-disk
+          globalArgs:
+            root: ${{ inputs.root }}
+            outputPath: ${{ inputs.outputPath }}
+          inputs:
+            maxDurationMs: 300000
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: render-html-list
+        description: Render discovered ebooks into an HTML page.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ebooks"
+          modelName: ebooks
+          methodName: render-html-list
+          globalArgs:
+            root: ${{ inputs.root }}
+            outputPath: ${{ inputs.outputPath }}
+          inputs:
+            title: ${{ inputs.title }}
+        dependsOn:
+          - step: scan-disk
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

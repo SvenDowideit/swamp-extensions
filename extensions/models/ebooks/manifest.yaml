@@ -1,0 +1,61 @@
+manifestVersion: 1
+name: "@svendowideit/ebooks"
+version: "2026.09.19.1"
+description: |
+  Find every ebook on your machine and turn the results into a browsable HTML
+  page, one link per file pointing straight at its location on disk.
+
+  The scan is resumable — each run picks up where the last one left off and
+  stops itself after 5 minutes, so it never re-searches ground it has already
+  covered. Once the whole tree is scanned it starts fresh again.
+
+  WHAT'S INSIDE
+
+    One model — @svendowideit/ebooks:
+      scan-disk          Walk the filesystem for ebooks (resumable, time-boxed).
+      render-html-list   Render the discovered ebooks into an HTML page.
+
+    One workflow — @svendowideit/ebook-scan:
+      Chains scan-disk -> render-html-list so a single run scans for up to
+      5 minutes and then refreshes the page.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/ebooks
+
+  RUN
+
+      swamp workflow run @svendowideit/ebook-scan
+
+  CONFIGURE (all optional)
+
+    Workflow inputs:
+      root          Filesystem path to scan        (default ~)
+      outputPath    Where to write the HTML page   (default ~/.swamp/ebooks/ebooks.html)
+      title         Page title                     (default "Ebooks")
+
+    Model global arguments:
+      extensions       Ebook extensions to match, e.g. epub, mobi, azw, pdf
+      excludePatterns  Directory names to skip (default .git, .swamp, node_modules, ...)
+
+  EXAMPLES
+
+      swamp workflow run @svendowideit/ebook-scan --input root=/home/me/books
+      swamp workflow run @svendowideit/ebook-scan --input outputPath=/srv/ebooks.html
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - ebooks.ts
+
+workflows:
+  - ebook-scan.yaml
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

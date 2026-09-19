@@ -1,7 +1,7 @@
 /**
  * Ebooks — incrementally walks the local filesystem looking for ebook files
- * (epub, mobi, azw, pdf, …) and renders an HTML page linking to each file's
- * location on disk.
+ * (epub, mobi, azw, pdf, …), detects bibliographic metadata for each, and
+ * renders an HTML page linking to each file's location on disk.
  *
  * The scan is resumable: every `scan-disk` run picks up where the previous one
  * left off (a breadth-first directory frontier is persisted as swamp data), and
@@ -10,10 +10,21 @@
  * covered. A scan only restarts from the root once the whole tree has been
  * enumerated (`completed`).
  *
+ * Metadata detection (see `detect-metadata`) is likewise resumable and shares
+ * the `BookMetadataSchema`/`detectBookMetadata` implementation with the generic
+ * `@svendowideit/book-metadata` model, so the same metadata shape is reusable
+ * for physical books.
+ *
  * @module
  */
 import { z } from "npm:zod@4";
 import { isAbsolute, join, resolve } from "jsr:@std/path@1";
+import {
+  type BookMetadata,
+  BookMetadataSchema,
+  CURRENT_PARSER_VERSION,
+  detectBookMetadata,
+} from "./book_metadata.ts";
 
 const DEFAULT_EXTENSIONS = [
   "epub",
@@ -33,6 +44,12 @@ const GlobalArgsSchema = z.object({
   outputPath: z.string()
     .default("~/.swamp/ebooks/ebooks.html")
     .describe("Filesystem path for the generated HTML listing"),
+  authorsOutputPath: z.string()
+    .default("~/.swamp/ebooks/index.html")
+    .describe(
+      "Filesystem path for the author-grouped index (only ebooks with a " +
+        "detected author)",
+    ),
   extensions: z.array(z.string())
     .default(DEFAULT_EXTENSIONS)
     .describe("File extensions to treat as ebooks (without the dot)"),
@@ -53,11 +70,33 @@ const ScanDiskArgsSchema = z.object({
 
 type ScanDiskArgs = z.infer<typeof ScanDiskArgsSchema>;
 
+const DetectMetadataArgsSchema = z.object({
+  file: z.string()
+    .optional()
+    .describe(
+      "Specific ebook file to detect metadata for. Omit to detect metadata " +
+        "for all discovered ebooks (until maxDurationMs is reached).",
+    ),
+  maxDurationMs: z.number().int().positive()
+    .default(5 * 60 * 1000)
+    .describe(
+      "Self-imposed wall-clock budget per detect run (default 5 minutes)",
+    ),
+});
+
+type DetectMetadataArgs = z.infer<typeof DetectMetadataArgsSchema>;
+
 const RenderArgsSchema = z.object({
   title: z.string().default("Ebooks").describe("Page title"),
 });
 
 type RenderArgs = z.infer<typeof RenderArgsSchema>;
+
+const RenderAuthorsArgsSchema = z.object({
+  title: z.string().default("Ebooks by Author").describe("Page title"),
+});
+
+type RenderAuthorsArgs = z.infer<typeof RenderAuthorsArgsSchema>;
 
 const EbookSchema = z.object({
   path: z.string(),
@@ -78,6 +117,9 @@ const StateSchema = z.object({
 });
 
 type State = z.infer<typeof StateSchema>;
+
+/** Map of ebook path -> detected metadata (absent until detection runs). */
+const MetadataMapSchema = z.record(z.string(), BookMetadataSchema);
 
 const PageResultSchema = z.object({
   outputPath: z.string(),
@@ -197,11 +239,32 @@ function scanDirectory(
 }
 
 /** Render the HTML listing page. */
-function renderHtml(title: string, state: State): string {
+function renderHtml(
+  title: string,
+  state: State,
+  metadata: Record<string, BookMetadata>,
+): string {
   const items = state.ebooks
     .slice()
     .sort((a, b) => a.path.localeCompare(b.path))
     .map((b) => {
+      const md = metadata[b.path];
+      const label = md?.title ?? md?.author ?? null;
+      const edition = md?.editionPublishedAt ?? md?.publishedAt ?? null;
+
+      if (label) {
+        const byline = [md.author, edition ? `ed. ${edition}` : null]
+          .filter(Boolean)
+          .join(" · ");
+        return (
+          `<li><a href="${esc(b.path)}" title="${esc(b.path)}">${
+            esc(label)
+          }</a>` +
+          `<span class="meta">${esc(byline || b.ext.toUpperCase())}</span>` +
+          `<div class="path">${esc(b.path)}</div></li>`
+        );
+      }
+
       return (
         `<li><a href="${esc(b.path)}">${esc(b.path)}</a>` +
         `<span class="meta">${
@@ -226,6 +289,7 @@ function renderHtml(title: string, state: State): string {
   a { text-decoration: none; color: #0b57d0; word-break: break-all; }
   a:hover { text-decoration: underline; }
   .meta { color: #888; margin-left: 0.75rem; font-size: 0.85rem; white-space: nowrap; }
+  .path { color: #aaa; font-size: 0.8rem; word-break: break-all; }
 </style>
 </head>
 <body>
@@ -241,6 +305,86 @@ function renderHtml(title: string, state: State): string {
 `;
 }
 
+/** Render an author-grouped index of ebooks that have a detected author. */
+function renderAuthorsHtml(
+  title: string,
+  state: State,
+  metadata: Record<string, BookMetadata>,
+): string {
+  // Group ebooks by author; skip any without a detected author. A book with
+  // multiple authors is listed under each of them.
+  const byAuthor = new Map<string, { md: BookMetadata; path: string }[]>();
+  for (const b of state.ebooks) {
+    const md = metadata[b.path];
+    const authors = md?.authors?.length
+      ? md.authors
+      : (md?.author ? [md.author] : []);
+    for (const author of authors) {
+      const list = byAuthor.get(author) ?? [];
+      list.push({ md, path: b.path });
+      byAuthor.set(author, list);
+    }
+  }
+
+  const authorNames = [...byAuthor.keys()].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" })
+  );
+
+  const sections = authorNames.map((author) => {
+    const books = byAuthor.get(author)!
+      .sort((a, b) =>
+        (a.md.title ?? a.path).localeCompare(b.md.title ?? b.path)
+      )
+      .map(({ md, path }) => {
+        const edition = md.editionPublishedAt ?? md.publishedAt ?? null;
+        const label = md.title ?? path;
+        return (
+          `<li><a href="${esc(path)}" title="${esc(path)}">${esc(label)}</a>` +
+          `<span class="meta">${edition ? `ed. ${esc(edition)}` : ""}</span>` +
+          `<div class="path">${esc(path)}</div></li>`
+        );
+      })
+      .join("\n      ");
+
+    return (
+      `<section>\n  <h2>${esc(author)}</h2>\n  <ul>\n      ${
+        books || "<li>No books.</li>"
+      }\n  </ul>\n</section>`
+    );
+  }).join("\n  ");
+
+  const total = [...byAuthor.values()].reduce((n, l) => n + l.length, 0);
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)}</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem; color: #1a1a1a; }
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.2rem; margin: 1.5rem 0 0.5rem; border-bottom: 1px solid #eee; padding-bottom: 0.25rem; }
+  .summary { color: #555; margin-bottom: 1rem; }
+  ul { list-style: none; padding: 0; }
+  li { padding: 0.3rem 0; border-bottom: 1px solid #f2f2f2; }
+  a { text-decoration: none; color: #0b57d0; word-break: break-all; }
+  a:hover { text-decoration: underline; }
+  .meta { color: #888; margin-left: 0.75rem; font-size: 0.85rem; white-space: nowrap; }
+  .path { color: #aaa; font-size: 0.8rem; word-break: break-all; }
+</style>
+</head>
+<body>
+<h1>${esc(title)}</h1>
+<p class="summary">${authorNames.length} author${
+    authorNames.length === 1 ? "" : "s"
+  } · ${total} ebook${total === 1 ? "" : "s"}</p>
+  ${sections || "<p>No ebooks with a detected author yet.</p>"}
+</body>
+</html>
+`;
+}
+
 /** Model definition for incrementally scanning and listing local ebooks. */
 export const model = {
   type: "@svendowideit/ebooks",
@@ -251,6 +395,14 @@ export const model = {
       description:
         "Resumable scan state (frontier, seen dirs, discovered ebooks)",
       schema: StateSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    metadata: {
+      description:
+        "Detected book metadata keyed by ebook path (shared shape with " +
+        "@svendowideit/book-metadata)",
+      schema: MetadataMapSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -313,6 +465,56 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
+    "detect-metadata": {
+      description:
+        "Detect bibliographic metadata (author, title, ISBN, publish dates) " +
+        "for a specified ebook file — or for all discovered ebooks — and store " +
+        "it, linked back to each ebook by path.",
+      arguments: DetectMetadataArgsSchema,
+      execute: async (
+        args: DetectMetadataArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const state = await context.readResource("state") as State | null;
+        const prevMeta = await context.readResource("metadata") as
+          | Record<string, BookMetadata>
+          | null;
+        const metadata: Record<string, BookMetadata> = { ...(prevMeta ?? {}) };
+
+        const targets: string[] = args.file
+          ? [absolutePath(args.file)]
+          : (state?.ebooks ?? []).map((e) => e.path);
+
+        const deadline = Date.now() + args.maxDurationMs;
+        let detected = 0;
+        for (const path of targets) {
+          if (Date.now() >= deadline) break;
+          const prev = metadata[path];
+          // Skip only if already detected with the current parser version.
+          if (prev && (prev.parserVersion ?? 0) >= CURRENT_PARSER_VERSION) {
+            continue;
+          }
+          const md = await detectBookMetadata(path);
+          metadata[path] = md;
+          detected += 1;
+        }
+
+        context.logger.info(
+          "Detected metadata for {detected} ebooks ({remaining} remaining)",
+          {
+            detected,
+            remaining: targets.length - Object.keys(metadata).length,
+          },
+        );
+
+        const handle = await context.writeResource(
+          "metadata",
+          "metadata",
+          metadata,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
     "render-html-list": {
       description:
         "Render the discovered ebooks into an HTML page at the configured outputPath.",
@@ -322,6 +524,9 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const state = await context.readResource("state") as State | null;
+        const metadata = await context.readResource("metadata") as
+          | Record<string, BookMetadata>
+          | null;
         const outputPath = absolutePath(context.globalArgs.outputPath);
 
         if (!state || state.ebooks.length === 0) {
@@ -336,7 +541,7 @@ export const model = {
           return { dataHandles: [handle] };
         }
 
-        const html = renderHtml(args.title, state);
+        const html = renderHtml(args.title, state, metadata ?? {});
         try {
           await Deno.mkdir(join(outputPath, ".."), { recursive: true });
           await Deno.writeTextFile(outputPath, html);
@@ -356,6 +561,59 @@ export const model = {
         context.logger.info(
           "Wrote {count} ebooks to {path}",
           { count: state.ebooks.length, path: outputPath },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    "render-html-authors": {
+      description:
+        "Render an author-grouped index page (only ebooks with a detected " +
+        "author) at the configured authorsOutputPath.",
+      arguments: RenderAuthorsArgsSchema,
+      execute: async (
+        args: RenderAuthorsArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const state = await context.readResource("state") as State | null;
+        const metadata = await context.readResource("metadata") as
+          | Record<string, BookMetadata>
+          | null;
+        const outputPath = absolutePath(context.globalArgs.authorsOutputPath);
+
+        const html = renderAuthorsHtml(
+          args.title,
+          state ?? {
+            root: "",
+            completed: true,
+            queue: [],
+            seenDirs: [],
+            ebooks: [],
+            scannedDirs: 0,
+            startedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          metadata ?? {},
+        );
+
+        try {
+          await Deno.mkdir(join(outputPath, ".."), { recursive: true });
+          await Deno.writeTextFile(outputPath, html);
+        } catch (err) {
+          throw new Error(
+            `Failed to write HTML page: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        }
+
+        const handle = await context.writeResource("page", "authors", {
+          outputPath,
+          count: Object.keys(metadata ?? {}).length,
+          generatedAt: new Date().toISOString(),
+        });
+        context.logger.info(
+          "Wrote author index to {path}",
+          { path: outputPath },
         );
         return { dataHandles: [handle] };
       },

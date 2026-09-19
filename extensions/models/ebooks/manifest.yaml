@@ -2,22 +2,32 @@ manifestVersion: 1
 name: "@svendowideit/ebooks"
 version: "2026.09.19.1"
 description: |
-  Find every ebook on your machine and turn the results into a browsable HTML
-  page, one link per file pointing straight at its location on disk.
+  Find every ebook on your machine, detect its bibliographic metadata (author,
+  title, ISBN, publish dates), and turn the results into a browsable HTML page
+  linking each file straight to its location on disk.
 
-  The scan is resumable — each run picks up where the last one left off and
-  stops itself after 5 minutes, so it never re-searches ground it has already
-  covered. Once the whole tree is scanned it starts fresh again.
+  The scan and detection are resumable — each run picks up where the last one
+  left off and stops itself after 5 minutes, so it never re-searches ground it
+  has already covered. Once the whole tree is scanned it starts fresh again.
 
   WHAT'S INSIDE
 
-    One model — @svendowideit/ebooks:
-      scan-disk          Walk the filesystem for ebooks (resumable, time-boxed).
-      render-html-list   Render the discovered ebooks into an HTML page.
+    @svendowideit/ebooks — the scanner:
+      scan-disk            Walk the filesystem for ebooks (resumable, time-boxed).
+      detect-metadata      Detect author/title/ISBN/dates for discovered ebooks.
+      render-html-list     Render the ebooks (with metadata) into an HTML page.
+      render-html-authors  Render an author-grouped index (ebooks with a
+                           detected author).
 
-    One workflow — @svendowideit/ebook-scan:
-      Chains scan-disk -> render-html-list so a single run scans for up to
-      5 minutes and then refreshes the page.
+    @svendowideit/book-metadata — a generic, reusable metadata model (also for
+    physical books):
+      detect             Detect metadata from a single file.
+      register           Store metadata you already have by hand.
+
+    @svendowideit/ebook-scan — the workflow:
+      Chains scan-disk -> detect-metadata -> render-html-list ->
+      render-html-authors so a single run scans for up to 5 minutes, enriches,
+      then refreshes both the listing and the author index.
 
   INSTALL
 
@@ -27,12 +37,18 @@ description: |
 
       swamp workflow run @svendowideit/ebook-scan
 
+      # Skip the directory scan — re-process already-found paths, then render:
+      swamp workflow run @svendowideit/ebook-scan --input skipScan=true
+
   CONFIGURE (all optional)
 
     Workflow inputs:
-      root          Filesystem path to scan        (default ~)
-      outputPath    Where to write the HTML page   (default ~/.swamp/ebooks/ebooks.html)
-      title         Page title                     (default "Ebooks")
+      root               Filesystem path to scan        (default ~)
+      outputPath         Where to write the HTML page   (default ~/.swamp/ebooks/ebooks.html)
+      authorsOutputPath  Where to write the author index (default ~/.swamp/ebooks/index.html)
+      title              Page title                     (default "Ebooks")
+      skipScan           Skip the directory scan and only re-detect + render
+                         already-found ebook paths      (default false)
 
     Model global arguments:
       extensions       Ebook extensions to match, e.g. epub, mobi, azw, pdf
@@ -42,6 +58,7 @@ description: |
 
       swamp workflow run @svendowideit/ebook-scan --input root=/home/me/books
       swamp workflow run @svendowideit/ebook-scan --input outputPath=/srv/ebooks.html
+      swamp workflow run @svendowideit/ebook-scan --input skipScan=true
 
 repository: https://github.com/svendowideit/swamp-extensions
 
@@ -50,6 +67,7 @@ paths:
 
 models:
   - ebooks.ts
+  - book_metadata.ts
 
 workflows:
   - ebook-scan.yaml

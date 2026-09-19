@@ -27,10 +27,21 @@ inputs:
       type: string
       default: "~/.swamp/ebooks/ebooks.html"
       description: Filesystem path for the generated HTML listing
+    authorsOutputPath:
+      type: string
+      default: "~/.swamp/ebooks/index.html"
+      description: Filesystem path for the author-grouped index page
     title:
       type: string
       default: "Ebooks"
       description: Title for the generated HTML page
+    skipScan:
+      type: boolean
+      default: false
+      description: >-
+        Skip the directory scan and only re-process the already-discovered ebook
+        paths (detect metadata + render HTML). Useful when you only changed the
+        metadata detection or rendering and don't need to re-walk the filesystem.
   required: []
 jobs:
   - name: main
@@ -38,6 +49,7 @@ jobs:
     steps:
       - name: scan-disk
         description: Resume (or start) the ebook scan, up to 5 minutes per run.
+        guard: ${{ inputs.skipScan == true }}
         task:
           type: model_method
           modelType: "@svendowideit/ebooks"
@@ -51,8 +63,26 @@ jobs:
         dependsOn: []
         weight: 0
         allowFailure: false
+      - name: detect-metadata
+        description: Detect book metadata (author, title, ISBN, dates) for the discovered ebooks.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ebooks"
+          modelName: ebooks
+          methodName: detect-metadata
+          globalArgs:
+            root: ${{ inputs.root }}
+            outputPath: ${{ inputs.outputPath }}
+          inputs:
+            maxDurationMs: 300000
+        dependsOn:
+          - step: scan-disk
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
       - name: render-html-list
-        description: Render discovered ebooks into an HTML page.
+        description: Render discovered ebooks (with detected metadata) into an HTML page.
         task:
           type: model_method
           modelType: "@svendowideit/ebooks"
@@ -64,7 +94,26 @@ jobs:
           inputs:
             title: ${{ inputs.title }}
         dependsOn:
-          - step: scan-disk
+          - step: detect-metadata
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+      - name: render-html-authors
+        description: Render an author-grouped index page for ebooks with a detected author.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ebooks"
+          modelName: ebooks
+          methodName: render-html-authors
+          globalArgs:
+            root: ${{ inputs.root }}
+            outputPath: ${{ inputs.outputPath }}
+            authorsOutputPath: ${{ inputs.authorsOutputPath }}
+          inputs:
+            title: ${{ inputs.title }}
+        dependsOn:
+          - step: detect-metadata
             condition:
               type: completed
         weight: 0

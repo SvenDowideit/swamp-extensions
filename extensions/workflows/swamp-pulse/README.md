@@ -348,18 +348,20 @@ same nav bar, so every page links to every other page.
 ### Extension registry
 
 `extensions.html` reads the public registry API (`/api/v1/extensions/search`)
-and lists, in this order:
+and presents three tabs — **New**, **Updated**, and **Popular** — with
+CSS/JavaScript to show the selected tab's list and hide the others (the tab
+bar also honours a `#new`/`#updated`/`#popular` URL hash for deep links):
 
 1. **New** — extensions first published in the window.
 2. **Updated** — extensions that published a new version in the window.
-3. **Most pulled** — the highest all-time `pullCount`, regardless of window
+3. **Popular** — the highest all-time `pullCount`, regardless of window
    (labelled as such, since the API exposes no pull history).
 
 Each entry links to the extension's **registry page** and its **source
 repository** (`github.com`/`codeberg.org`), and shows the description, author,
 latest version, quality grade, pull count, labels, and the relevant date —
 localized like every other timestamp. The registry has ~1,600 extensions and
-~600 change in a typical month, so the updated list shows the 50 most recent
+~600 change in a typical month, so the updated tab shows the 50 most recent
 with the remainder behind a `<details>` fold (no JavaScript required).
 
 The registry has no date filter, so windowing pages the `sort=updated` ordering

@@ -984,6 +984,77 @@ Deno.test("renderExtensionsPage groups new, updated and most-pulled with repo li
   assertStringIncludes(html, "v2026.09.18.1");
 });
 
+Deno.test("renderExtensionsPage renders New/Updated/Popular tabs", () => {
+  const ext = (o: Record<string, unknown>) => ({
+    name: "@s/x",
+    namespace: "@s",
+    description: "d",
+    repository: "https://github.com/s/x",
+    repositoryHost: "github.com",
+    repositoryVerified: true,
+    homepageUrl: "",
+    latestVersion: "1",
+    latestRc: "",
+    latestBeta: "",
+    author: "a",
+    labels: [],
+    contentTypes: [],
+    platforms: [],
+    scoreGrade: "",
+    scorePercentage: 0,
+    pullCount: 0,
+    createdAt: "2026-09-18T00:00:00Z",
+    updatedAt: "2026-09-18T00:00:00Z",
+    isNew: false,
+    isUpdated: false,
+    registryUrl: "https://swamp-club.com/extensions/@s/x",
+    ...o,
+  });
+  const ranked = {
+    windows: [],
+    totals: {
+      events: 0,
+      commits: 0,
+      releases: 0,
+      issues: 0,
+      docChanges: 0,
+      byRepo: {},
+    },
+    manualPages: 0,
+    extensions: {
+      extensions: [
+        ext({ name: "@s/new", isNew: true }),
+        ext({ name: "@s/upd", isUpdated: true }),
+      ],
+      count: 2,
+      newCount: 1,
+      updatedCount: 1,
+      significant: [ext({ name: "@s/pop", pullCount: 5 })],
+      totalRegistry: 10,
+      pagesFetched: 1,
+      truncated: false,
+      since: "",
+      until: "",
+      fetchedAt: "",
+      durationMs: 1,
+      collectedBy: "x",
+    },
+    generatedAt: "2026-09-18T12:00:00Z",
+  };
+  const html = renderExtensionsPage(ranked);
+  // Three tab buttons, one per category, with counts.
+  assertStringIncludes(html, 'data-tab="new"');
+  assertStringIncludes(html, 'data-tab="updated"');
+  assertStringIncludes(html, 'data-tab="popular"');
+  // Three panels, only "new" active by default.
+  assertStringIncludes(html, 'data-panel="new"');
+  assertStringIncludes(html, 'data-panel="updated"');
+  assertStringIncludes(html, 'data-panel="popular"');
+  assertStringIncludes(html, '<div class="tab-panel active" data-panel="new">');
+  // The tab-switch script is embedded.
+  assertStringIncludes(html, "tab-panel[data-panel]");
+});
+
 Deno.test("renderExtensionsPage handles a missing registry collection", () => {
   const ranked = {
     windows: [],

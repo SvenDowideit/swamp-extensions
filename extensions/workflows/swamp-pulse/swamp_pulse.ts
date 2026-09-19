@@ -1108,6 +1108,35 @@ export const LOCAL_TIME_SCRIPT = `
 })();
 `;
 
+/**
+ * Client script for the extensions page: three tabs (New / Updated / Popular)
+ * that show one panel and hide the others. Runs on load and reads the current
+ * hash so a `#popular` deep link restores the right tab.
+ */
+export const EXTENSION_TABS_SCRIPT = `
+(function () {
+  function select(id) {
+    var tabs = document.querySelectorAll(".tab[data-tab]");
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].classList.toggle("active", tabs[i].getAttribute("data-tab") === id);
+    }
+    var panels = document.querySelectorAll(".tab-panel[data-panel]");
+    for (var j = 0; j < panels.length; j++) {
+      panels[j].classList.toggle("active", panels[j].getAttribute("data-panel") === id);
+    }
+  }
+  var tabs = document.querySelectorAll(".tab[data-tab]");
+  for (var k = 0; k < tabs.length; k++) {
+    tabs[k].addEventListener("click", function () {
+      select(this.getAttribute("data-tab"));
+    });
+  }
+  var initial = (window.location.hash || "").replace("#", "");
+  var known = ["new", "updated", "popular"];
+  select(known.indexOf(initial) >= 0 ? initial : "new");
+})();
+`;
+
 const PAGE_CSS = `
 :root{--bg:#0b0f0c;--panel:#111813;--ink:#d7f5dd;--dim:#7fa88a;--acc:#39ff14;--amber:#ffb000;--mag:#ff4dd2;--line:#1d2a20}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "JetBrains Mono",ui-monospace,monospace}
@@ -1117,8 +1146,12 @@ header.top h1{margin:0;font-size:20px;letter-spacing:.06em}
 nav.pages{display:flex;gap:14px;flex-wrap:wrap}
 nav.pages a{color:var(--dim)}nav.pages a.active{color:var(--acc)}
 .tabs{display:flex;gap:8px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.tab{padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px}
+.tab{padding:4px 12px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px;background:transparent;cursor:pointer;font-family:inherit}
+.tab:hover{border-color:var(--acc)}
 .tab.active{border-color:var(--acc);color:var(--acc)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.panel-head{font-size:15px;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:6px;margin:20px 0 8px}
 main{padding:20px 22px 60px;max-width:1180px}
 .layout{display:grid;grid-template-columns:250px 1fr;gap:26px}
 @media(max-width:860px){.layout{grid-template-columns:1fr}.toc{display:none}}
@@ -1651,7 +1684,7 @@ export function renderExtensionsPage(
   const fresh = ext.extensions.filter((e) => e.isNew).sort(newestFirst);
   const updated = ext.extensions.filter((e) => e.isUpdated).sort(newestFirst);
 
-  const section = (
+  const panel = (
     title: string,
     note: string,
     items: typeof ext.extensions,
@@ -1659,11 +1692,7 @@ export function renderExtensionsPage(
     collapseAfter = Infinity,
   ) => {
     if (items.length === 0) {
-      return `<section class="tail"><h2>${
-        escapeHtml(title)
-      } <span class="dim">· 0</span></h2><p class="dim">${
-        escapeHtml(note)
-      }</p><p class="empty">None.</p></section>`;
+      return `<p class="empty">None.</p>`;
     }
     const shown = items.slice(0, collapseAfter);
     const rest = items.slice(collapseAfter);
@@ -1674,12 +1703,28 @@ export function renderExtensionsPage(
         escapeHtml(title.toLowerCase())
       }…</summary>
 ${rest.map((e) => renderExtensionCard(e, kind)).join("\n")}</details>`;
-    return `<section class="tail"><h2>${
+    return `<div class="panel-head">${
       escapeHtml(title)
-    } <span class="dim">· ${items.length}</span></h2><p class="dim">${
+    } <span class="dim">· ${items.length}</span></div><p class="dim">${
       escapeHtml(note)
-    }</p>${body}</section>`;
+    }</p>${body}`;
   };
+
+  const tabs = [
+    { id: "new", label: "New", count: fresh.length },
+    { id: "updated", label: "Updated", count: updated.length },
+    { id: "popular", label: "Popular", count: ext.significant.length },
+  ];
+
+  const tabBar = `<div class="tabs">${
+    tabs.map((t, i) =>
+      `<button type="button" class="tab${
+        i === 0 ? " active" : ""
+      }" data-tab="${t.id}">${
+        escapeHtml(t.label)
+      }<span class="dim"> (${t.count})</span></button>`
+    ).join("")
+  }</div>`;
 
   const cards = `<div class="cards">
 <div class="card"><div class="n">${ext.newCount}</div><div class="l">NEW</div></div>
@@ -1691,25 +1736,29 @@ ${rest.map((e) => renderExtensionCard(e, kind)).join("\n")}</details>`;
   const body = `<main>
 <h2 class="page-title">Extension registry — every new and changed extension, linked to its source repo</h2>
 ${cards}
-${section("New extensions", "First published in this window.", fresh, "new")}
-${
-    section(
+${tabBar}
+<div class="tab-panel active" data-panel="new">${
+    panel("New extensions", "First published in this window.", fresh, "new")
+  }</div>
+<div class="tab-panel" data-panel="updated">${
+    panel(
       "Updated extensions",
       "A new version published in this window.",
       updated,
       "updated",
       50,
     )
-  }
-${
-    section(
+  }</div>
+<div class="tab-panel" data-panel="popular">${
+    panel(
       "Most pulled",
       "All-time pull counts, regardless of the window.",
       ext.significant,
       "significant",
     )
-  }
-</main>`;
+  }</div>
+</main>
+<script>${EXTENSION_TABS_SCRIPT}</script>`;
   return layout(
     "Extensions",
     "extensions.html",

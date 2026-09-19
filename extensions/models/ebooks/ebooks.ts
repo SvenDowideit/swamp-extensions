@@ -27,6 +27,8 @@ import {
   type BookResolutionMap,
   BookResolutionMapSchema,
   CURRENT_PARSER_VERSION,
+  CURRENT_RESOLUTION_VERSION,
+  type Resolution,
   detectBookMetadata,
   resolveWikipediaName,
 } from "./book_metadata.ts";
@@ -339,6 +341,15 @@ function renderHtml(
 `;
 }
 
+/**
+ * True when a resolution should be linked as an author: it resolved and was
+ * classified as a person (kind "author"). Other kinds (book, other, …) are
+ * intentionally excluded so false positives are not linked.
+ */
+function isLinkedAuthor(res: Resolution | undefined): boolean {
+  return !!res && res.resolved && res.kind === "author" && res.url != null;
+}
+
 /** Render an author-grouped index of ebooks that have a detected author. */
 function renderAuthorsHtml(
   title: string,
@@ -362,18 +373,22 @@ function renderAuthorsHtml(
     }
   }
 
-  // Sort authors: Wikipedia-resolved (linked) authors first, alphabetically,
-  // then the remaining unresolved authors, alphabetically.
+  // Sort authors: Wikipedia-resolved authors (linked, and classified as a
+  // person) first, alphabetically, then the remaining unresolved authors,
+  // alphabetically.
   const authorNames = [...byAuthor.keys()].sort((a, b) => {
-    const aLinked = authorRes[a]?.url != null;
-    const bLinked = authorRes[b]?.url != null;
+    const aLinked = isLinkedAuthor(authorRes[a]);
+    const bLinked = isLinkedAuthor(authorRes[b]);
     if (aLinked !== bLinked) return aLinked ? -1 : 1;
     return a.localeCompare(b, undefined, { sensitivity: "base" });
   });
 
   const sections = authorNames.map((author) => {
     const resolved = authorRes[author];
-    const link = resolved?.url;
+    // Only link an author to Wikipedia when it was actually classified as a
+    // person (not a book title, number, or other page). This keeps false
+    // positives like "3" or "A Dance" from being linked as authors.
+    const link = isLinkedAuthor(resolved) ? resolved!.url : null;
     const books = byAuthor.get(author)!
       .sort((a, b) =>
         (a.md.title ?? a.path).localeCompare(b.md.title ?? b.path)
@@ -645,29 +660,82 @@ export const model = {
 
         const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-        const authorNamesArr = [...authorNames];
-        for (const name of authorNamesArr) {
-          if (Date.now() >= deadline) break;
+        // Partition authors into: new (never tried), retry (rate-limited/error),
+        // stale (resolved under an older resolutionVersion, so re-analyse), and
+        // done (resolved / confirmed not-found).
+        const newAuthors: string[] = [];
+        const retryAuthors: string[] = [];
+        const staleAuthors: string[] = [];
+        for (const name of authorNames) {
           const r = authorRes[name];
-          // Skip only finalized results (resolved, or a confirmed "not-found").
-          // Retry "rate-limited" and "error" (transient) on a later run.
-          if (r && (r.resolved || r.kind === "not-found")) {
-            skipped += 1;
-            continue;
+          if (!r) {
+            newAuthors.push(name);
+          } else if (r.resolved || r.kind === "not-found") {
+            if (
+              r.resolved &&
+              (r.resolutionVersion ?? 0) < CURRENT_RESOLUTION_VERSION
+            ) {
+              staleAuthors.push(name);
+            } else {
+              skipped += 1;
+            }
+          } else {
+            retryAuthors.push(name);
           }
+        }
+
+        // Retry only ~10% of the pending/errored authors each run, oldest-first,
+        // so the (larger) backlog doesn't starve newly-discovered authors.
+        retryAuthors.sort((a, b) =>
+          (authorRes[a]!.resolvedAt ?? "").localeCompare(
+            authorRes[b]!.resolvedAt ?? "",
+          )
+        );
+        const retryCap = Math.max(1, Math.ceil(retryAuthors.length * 0.1));
+        const retrySlice = retryAuthors.slice(0, retryCap);
+
+        const authorWork = [...newAuthors, ...staleAuthors, ...retrySlice];
+        for (const name of authorWork) {
+          if (Date.now() >= deadline) break;
           authorRes[name] = await resolveWikipediaName(name, "author");
           requested += 1;
           await sleep(150); // polite pacing to avoid Wikipedia rate limits
         }
 
-        const titlesArr = [...titles];
-        for (const title of titlesArr) {
-          if (Date.now() >= deadline) break;
+        // Same treatment for book titles.
+        const newTitles: string[] = [];
+        const retryTitles: string[] = [];
+        const staleTitles: string[] = [];
+        for (const title of titles) {
           const r = bookRes[title];
-          if (r && (r.resolved || r.kind === "not-found")) {
-            skipped += 1;
-            continue;
+          if (!r) {
+            newTitles.push(title);
+          } else if (r.resolved || r.kind === "not-found") {
+            if (
+              r.resolved &&
+              (r.resolutionVersion ?? 0) < CURRENT_RESOLUTION_VERSION
+            ) {
+              staleTitles.push(title);
+            } else {
+              skipped += 1;
+            }
+          } else {
+            retryTitles.push(title);
           }
+        }
+        retryTitles.sort((a, b) =>
+          (bookRes[a]!.resolvedAt ?? "").localeCompare(
+            bookRes[b]!.resolvedAt ?? "",
+          )
+        );
+        const titleRetryCap = Math.max(1, Math.ceil(retryTitles.length * 0.1));
+        const titleWork = [
+          ...newTitles,
+          ...staleTitles,
+          ...retryTitles.slice(0, titleRetryCap),
+        ];
+        for (const title of titleWork) {
+          if (Date.now() >= deadline) break;
           bookRes[title] = await resolveWikipediaName(title, "book");
           requested += 1;
           await sleep(150);
@@ -683,9 +751,15 @@ export const model = {
           ).length;
 
         context.logger.info(
-          "Wikipedia: {requested} newly requested, {skipped} already resolved, {pendingAuthors} authors pending, {pendingBooks} books pending (totals: {authors} authors, {books} books)",
+          "Wikipedia: {requested} requested this run ({newAuthors} new authors + {staleAuthors} stale + {retryAuthors} retried authors, {newTitles} new titles + {staleTitles} stale + {retryTitles} retried titles); {skipped} already resolved; {pendingAuthors} authors + {pendingBooks} books still pending (totals: {authors} authors, {books} books)",
           {
             requested,
+            newAuthors: newAuthors.length,
+            staleAuthors: staleAuthors.length,
+            retryAuthors: retrySlice.length,
+            newTitles: newTitles.length,
+            staleTitles: staleTitles.length,
+            retryTitles: Math.min(titleRetryCap, retryTitles.length),
             skipped,
             pendingAuthors,
             pendingBooks,

@@ -23,6 +23,16 @@ metadata for each, and renders an HTML page linking to each file's location.
   Applegate"), and recording the canonical name, kind and Wikipedia URL.
   Already-resolved names are skipped; rate-limited/failed lookups retry on the
   next run.
+- **Classification via infobox + Wikidata, with raw caching** — each resolution
+  stores the **raw wikitext** and the **Wikidata entity JSON** (fetched and
+  cached separately), not rendered HTML. The author-vs-book decision is made
+  from three ordered signals: the page's infobox template (e.g.
+  `{{Infobox writer}}` / `{{Infobox book}}`), the Wikidata `instance-of` (P31)
+  claims, then the short description. Storing the raw sources means already
+  resolved names can be re-analysed later (bump `CURRENT_RESOLUTION_VERSION`)
+  without re-fetching from Wikipedia, and the author index only links names
+  that are actually classified as people — so false positives like `"3"` or a
+  book title won't appear as linked authors.
 - **HTML listing** — `render-html-list` renders every discovered ebook into a
   static HTML page, showing the detected title, author and edition date where
   available, or the plain file path otherwise.
@@ -105,6 +115,7 @@ physical-book metadata are interchangeable.
 - `state` — resumable scan state (frontier, seen dirs, discovered ebooks).
 - `metadata` — detected book metadata keyed by ebook path.
 - `authors` — Wikipedia resolution of author names (keyed by detected name).
+  Each entry caches the raw wikitext and Wikidata entity for later re-analysis.
 - `books` — Wikipedia resolution of book titles (keyed by detected title).
 - `page` — result of the last HTML page generation (path, count, timestamp).
 - `book` — a single detected/registered book record (book-metadata model).

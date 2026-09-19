@@ -25,6 +25,13 @@ const MAX_READ_BYTES = 128 * 1024 * 1024;
  */
 export const CURRENT_PARSER_VERSION = 3;
 
+/**
+ * Bump this when the Wikipedia resolution / classification logic changes in a
+ * way that should re-analyse already-resolved names. `resolve-wikipedia`
+ * re-resolves any entry whose stored `resolutionVersion` is below this value.
+ */
+export const CURRENT_RESOLUTION_VERSION = 2;
+
 export const BookMetadataSchema = z.object({
   id: z.string(),
   title: z.string().nullable(),
@@ -65,6 +72,16 @@ const ResolutionSchema = z.object({
   from: z.string().nullable(),
   /** ISO timestamp of the last resolution attempt. */
   resolvedAt: z.string(),
+  /** Raw wikitext of the resolved page, cached for later re-analysis. */
+  wikitext: z.string().nullable().optional(),
+  /** Infobox template name detected from the wikitext (e.g. "writer", "book"). */
+  infobox: z.string().nullable().optional(),
+  /** Wikidata QID (e.g. "Q149454"), absent if the page has no Wikidata item. */
+  wikidataId: z.string().nullable().optional(),
+  /** Raw Wikidata entity JSON, cached separately from the wikitext. */
+  wikidata: z.unknown().optional(),
+  /** Version of the resolution/classification logic that produced this record. */
+  resolutionVersion: z.number().int().nonnegative().optional(),
 });
 
 export type Resolution = z.infer<typeof ResolutionSchema>;
@@ -649,9 +666,13 @@ export async function detectBookMetadata(
 
 const WIKI_API = "https://en.wikipedia.org/w/api.php";
 const WIKI_USER_AGENT = "ebooks-scanner/1.0 (local library indexer)";
+const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
 
-async function wikiApi(params: Record<string, string>): Promise<unknown> {
-  const url = `${WIKI_API}?${new URLSearchParams({
+async function apiGet(
+  api: string,
+  params: Record<string, string>,
+): Promise<unknown> {
+  const url = `${api}?${new URLSearchParams({
     format: "json",
     origin: "*",
     ...params,
@@ -662,8 +683,16 @@ async function wikiApi(params: Record<string, string>): Promise<unknown> {
   if (res.status === 429) {
     throw new RateLimitError();
   }
-  if (!res.ok) throw new Error(`Wikipedia API ${res.status}`);
+  if (!res.ok) throw new Error(`${api} API ${res.status}`);
   return await res.json();
+}
+
+async function wikiApi(params: Record<string, string>): Promise<unknown> {
+  return apiGet(WIKI_API, params);
+}
+
+async function wikidataApi(params: Record<string, string>): Promise<unknown> {
+  return apiGet(WIKIDATA_API, params);
 }
 
 /** Thrown on HTTP 429 so the caller can treat it as retryable. */
@@ -679,12 +708,84 @@ interface WikiPage {
   index?: number;
   fullurl?: string;
   canonicalurl?: string;
-  pageprops?: { "wikibase-shortdesc"?: string };
+  pageid?: number;
+  pageprops?: { "wikibase-shortdesc"?: string; "wikibase_item"?: string };
   missing?: boolean;
 }
 
-/** Classify a Wikipedia page as author / book / other from its short description. */
-function classifyKind(description: string | undefined): string {
+/**
+ * Map an infobox template name to a coarse kind. These are the common
+ * people-creative infoboxes (see
+ * https://en.wikipedia.org/wiki/Wikipedia:List_of_infoboxes). Anything not
+ * listed here contributes no signal.
+ */
+const AUTHOR_INFOBOXES = new Set([
+  "infobox writer",
+  "infobox author",
+  "infobox novelist",
+  "infobox person",
+  "infobox poet",
+  "infobox artist",
+  "infobox comics creator",
+  "infobox comedian",
+  "infobox journalist",
+  "infobox officeholder",
+  "infobox scientist",
+  "infobox philosopher",
+  "infobox academic",
+  "infobox military person",
+  "infobox musician",
+]);
+
+const BOOK_INFOBOXES = new Set([
+  "infobox book",
+  "infobox short story",
+  "infobox novel",
+  "infobox comic book title",
+  "infobox graphic novel",
+  "infobox play",
+  "infobox television episode",
+  "infobox film",
+  "infobox video game",
+  "infobox song",
+  "infobox album",
+  "infobox musical composition",
+]);
+
+/**
+ * Extract the (first) infobox template name from raw wikitext. Handles the
+ * common spellings: `{{Infobox writer`, `{{Infobox writer|`, and the
+ * capitalized `{{Infobox Writer` form (case-insensitive on the template name).
+ */
+export function detectInfobox(wikitext: string | null): string | null {
+  if (!wikitext) return null;
+  const m = wikitext.match(/\{\{\s*([Ii]nfobox[ _][A-Za-z _-]+)/);
+  if (!m) return null;
+  return m[1].replace(/_/g, " ").trim().toLowerCase();
+}
+
+/**
+ * Classify a Wikipedia page as author / book / other using three ordered
+ * signals (strongest first):
+ *   1. the infobox template name (explicit, high-confidence),
+ *   2. the Wikidata short description,
+ *   3. (optionally) the cached Wikidata entity's instance-of claims.
+ */
+function classifyKind(
+  description: string | undefined,
+  infobox: string | null,
+  wikidata: unknown,
+): string {
+  if (infobox) {
+    if (AUTHOR_INFOBOXES.has(infobox)) return "author";
+    if (BOOK_INFOBOXES.has(infobox)) return "book";
+  }
+
+  if (wikidata) {
+    const k = classifyFromWikidata(wikidata);
+    if (k) return k;
+  }
+
   if (!description) return "other";
   const d = description.toLowerCase();
   if (
@@ -698,6 +799,90 @@ function classifyKind(description: string | undefined): string {
     return "book";
   }
   return "other";
+}
+
+/** QIDs commonly used as instance-of (P31) for people vs. creative works. */
+const AUTHOR_INSTANCE_QIDS = new Set([
+  "Q5", // human
+]);
+
+const BOOK_INSTANCE_QIDS = new Set([
+  "Q7725634", // literary work
+  "Q47461344", // written work
+  "Q571", // book
+  "Q8261", // novel
+  "Q49084", // short story
+  "Q7318358", // book series
+  "Q277759", // book series (series of creative works)
+]);
+
+/** Walk the cached Wikidata entity JSON for P31 (instance-of) claims. */
+function classifyFromWikidata(wikidata: unknown): string | null {
+  if (!wikidata || typeof wikidata !== "object") return null;
+  const entities = (wikidata as Record<string, unknown>)["entities"] as
+    | Record<string, unknown>
+    | undefined;
+  if (!entities) return null;
+  for (const entity of Object.values(entities)) {
+    const claims = (entity as Record<string, unknown>)["claims"] as
+      | Record<string, unknown>
+      | undefined;
+    const p31 = claims?.["P31"] as unknown[] | undefined;
+    if (!Array.isArray(p31)) continue;
+    for (const claim of p31) {
+      const mainsnak = (claim as Record<string, unknown>)["mainsnak"];
+      const datavalue = (mainsnak as Record<string, unknown>)["datavalue"] as
+        | Record<string, unknown>
+        | undefined;
+      const id = datavalue?.value as { id?: string } | undefined;
+      if (!id?.id) continue;
+      if (AUTHOR_INSTANCE_QIDS.has(id.id)) return "author";
+      if (BOOK_INSTANCE_QIDS.has(id.id)) return "book";
+    }
+  }
+  return null;
+}
+
+/**
+ * Fetch the raw wikitext of a page (for the infobox signal and for caching so
+ * the page can be re-analysed later without re-fetching).
+ */
+async function fetchWikitext(title: string): Promise<string | null> {
+  try {
+    const j = await wikiApi({
+      action: "parse",
+      page: title,
+      prop: "wikitext",
+      formatversion: "2",
+    }) as {
+      parse?: { wikitext?: string; title?: string };
+      error?: { code?: string };
+    };
+    if (!j.parse?.wikitext) return null;
+    return j.parse.wikitext;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch the Wikidata entity for a Wikipedia page. Returns null when the page
+ * has no linked Wikidata item (or the fetch fails), so a page without an item
+ * is distinguishable from a transient error.
+ */
+async function fetchWikidata(page: WikiPage): Promise<unknown> {
+  const qid = page.pageprops?.["wikibase_item"];
+  if (!qid) return null;
+  try {
+    const j = await wikidataApi({
+      action: "wbgetentities",
+      ids: qid,
+      props: "claims|descriptions|labels",
+    });
+    return j;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -782,7 +967,11 @@ export async function resolveWikipediaName(
     // otherwise fall back to the top result.
     let chosen = candidates[0]!;
     for (const c of candidates) {
-      const k = classifyKind(c.page.pageprops?.["wikibase-shortdesc"]);
+      const k = classifyKind(
+        c.page.pageprops?.["wikibase-shortdesc"],
+        null,
+        null,
+      );
       if (expectKind === "author" && k === "author") {
         chosen = c;
         break;
@@ -794,7 +983,15 @@ export async function resolveWikipediaName(
     }
 
     const description = chosen.page.pageprops?.["wikibase-shortdesc"] ?? null;
-    const kind = classifyKind(description ?? undefined);
+
+    // Fetch the raw wikitext and Wikidata entity for the chosen page so we can
+    // (a) classify via infobox + Wikidata and (b) cache them for later
+    // re-analysis without re-fetching.
+    const wikitext = await fetchWikitext(chosen.page.title);
+    const wikidata = await fetchWikidata(chosen.page);
+    const infobox = detectInfobox(wikitext);
+    const kind = classifyKind(description ?? undefined, infobox, wikidata);
+    const wikidataId = chosen.page.pageprops?.["wikibase_item"] ?? null;
 
     return {
       name: chosen.page.title,
@@ -804,6 +1001,11 @@ export async function resolveWikipediaName(
       resolved: true,
       from: name,
       resolvedAt: now,
+      wikitext,
+      infobox,
+      wikidataId,
+      wikidata,
+      resolutionVersion: CURRENT_RESOLUTION_VERSION,
     };
   } catch (err) {
     // A rate limit means "couldn't resolve right now", not "not an author" —

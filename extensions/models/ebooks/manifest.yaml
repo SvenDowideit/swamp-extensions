@@ -15,9 +15,11 @@ description: |
     @svendowideit/ebooks — the scanner:
       scan-disk            Walk the filesystem for ebooks (resumable, time-boxed).
       detect-metadata      Detect author/title/ISBN/dates for discovered ebooks.
+      resolve-wikipedia    Confirm authors/titles on Wikipedia; record canonical
+                           name, kind and URL (aliases + misspellings corrected).
       render-html-list     Render the ebooks (with metadata) into an HTML page.
-      render-html-authors  Render an author-grouped index (ebooks with a
-                           detected author).
+      render-html-authors  Render an author-grouped index (author names link to
+                           their Wikipedia page where resolved).
 
     @svendowideit/book-metadata — a generic, reusable metadata model (also for
     physical books):
@@ -25,9 +27,10 @@ description: |
       register           Store metadata you already have by hand.
 
     @svendowideit/ebook-scan — the workflow:
-      Chains scan-disk -> detect-metadata -> render-html-list ->
-      render-html-authors so a single run scans for up to 5 minutes, enriches,
-      then refreshes both the listing and the author index.
+      Chains scan-disk -> detect-metadata -> resolve-wikipedia ->
+      render-html-list -> render-html-authors so a single run scans for up to
+      5 minutes, enriches, resolves, then refreshes both the listing and the
+      author index.
 
   INSTALL
 

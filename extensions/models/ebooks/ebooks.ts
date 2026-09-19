@@ -20,10 +20,15 @@
 import { z } from "npm:zod@4";
 import { isAbsolute, join, resolve } from "jsr:@std/path@1";
 import {
+  type AuthorResolutionMap,
+  AuthorResolutionMapSchema,
   type BookMetadata,
   BookMetadataSchema,
+  type BookResolutionMap,
+  BookResolutionMapSchema,
   CURRENT_PARSER_VERSION,
   detectBookMetadata,
+  resolveWikipediaName,
 } from "./book_metadata.ts";
 
 const DEFAULT_EXTENSIONS = [
@@ -97,6 +102,16 @@ const RenderAuthorsArgsSchema = z.object({
 });
 
 type RenderAuthorsArgs = z.infer<typeof RenderAuthorsArgsSchema>;
+
+const ResolveWikipediaArgsSchema = z.object({
+  maxDurationMs: z.number().int().positive()
+    .default(5 * 60 * 1000)
+    .describe(
+      "Self-imposed wall-clock budget per resolve run (default 5 minutes)",
+    ),
+});
+
+type ResolveWikipediaArgs = z.infer<typeof ResolveWikipediaArgsSchema>;
 
 const EbookSchema = z.object({
   path: z.string(),
@@ -182,6 +197,25 @@ function freshState(root: string): State {
     startedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Drop non-resolution keys that may have leaked into a resolution map from a
+ * previous instance-name collision (e.g. "outputPath"/"count"/"generatedAt").
+ * Keeps only entries whose value looks like a Resolution record.
+ */
+function sanitizeResolutionMap<T extends Record<string, unknown>>(
+  map: T | null,
+): T {
+  const out: Record<string, unknown> = {};
+  if (map) {
+    for (const [k, v] of Object.entries(map)) {
+      if (v && typeof v === "object" && "name" in v && "kind" in v) {
+        out[k] = v;
+      }
+    }
+  }
+  return out as T;
 }
 
 /** Read directory entry names, returning null on error. */
@@ -310,6 +344,8 @@ function renderAuthorsHtml(
   title: string,
   state: State,
   metadata: Record<string, BookMetadata>,
+  authorRes: AuthorResolutionMap,
+  bookRes: BookResolutionMap,
 ): string {
   // Group ebooks by author; skip any without a detected author. A book with
   // multiple authors is listed under each of them.
@@ -326,11 +362,18 @@ function renderAuthorsHtml(
     }
   }
 
-  const authorNames = [...byAuthor.keys()].sort((a, b) =>
-    a.localeCompare(b, undefined, { sensitivity: "base" })
-  );
+  // Sort authors: Wikipedia-resolved (linked) authors first, alphabetically,
+  // then the remaining unresolved authors, alphabetically.
+  const authorNames = [...byAuthor.keys()].sort((a, b) => {
+    const aLinked = authorRes[a]?.url != null;
+    const bLinked = authorRes[b]?.url != null;
+    if (aLinked !== bLinked) return aLinked ? -1 : 1;
+    return a.localeCompare(b, undefined, { sensitivity: "base" });
+  });
 
   const sections = authorNames.map((author) => {
+    const resolved = authorRes[author];
+    const link = resolved?.url;
     const books = byAuthor.get(author)!
       .sort((a, b) =>
         (a.md.title ?? a.path).localeCompare(b.md.title ?? b.path)
@@ -346,14 +389,27 @@ function renderAuthorsHtml(
       })
       .join("\n      ");
 
+    const heading = link
+      ? `<h2><a href="${esc(link)}" target="_blank" rel="noopener">${
+        esc(author)
+      }</a></h2>`
+      : `<h2>${esc(author)}</h2>`;
+
     return (
-      `<section>\n  <h2>${esc(author)}</h2>\n  <ul>\n      ${
+      `<section>\n  ${heading}\n  <ul>\n      ${
         books || "<li>No books.</li>"
       }\n  </ul>\n</section>`
     );
   }).join("\n  ");
 
   const total = [...byAuthor.values()].reduce((n, l) => n + l.length, 0);
+
+  const checkedAuthors =
+    Object.values(authorRes).filter((r) => r.resolved || r.kind === "not-found")
+      .length;
+  const checkedBooks =
+    Object.values(bookRes).filter((r) => r.resolved || r.kind === "not-found")
+      .length;
 
   return `<!doctype html>
 <html lang="en">
@@ -378,7 +434,11 @@ function renderAuthorsHtml(
 <h1>${esc(title)}</h1>
 <p class="summary">${authorNames.length} author${
     authorNames.length === 1 ? "" : "s"
-  } · ${total} ebook${total === 1 ? "" : "s"}</p>
+  } · ${total} ebook${
+    total === 1 ? "" : "s"
+  } · ${checkedAuthors} Wikipedia-checked author${
+    checkedAuthors === 1 ? "" : "s"
+  } · ${checkedBooks} Wikipedia-checked book${checkedBooks === 1 ? "" : "s"}</p>
   ${sections || "<p>No ebooks with a detected author yet.</p>"}
 </body>
 </html>
@@ -403,6 +463,20 @@ export const model = {
         "Detected book metadata keyed by ebook path (shared shape with " +
         "@svendowideit/book-metadata)",
       schema: MetadataMapSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    authors: {
+      description:
+        "Wikipedia resolution of detected author names (keyed by detected name)",
+      schema: AuthorResolutionMapSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    books: {
+      description:
+        "Wikipedia resolution of detected book titles (keyed by detected title)",
+      schema: BookResolutionMapSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -508,12 +582,18 @@ export const model = {
           detected += 1;
         }
 
+        // Remaining = targets that still need detection (missing or stale).
+        let remaining = 0;
+        for (const path of targets) {
+          const prev = metadata[path];
+          if (!prev || (prev.parserVersion ?? 0) < CURRENT_PARSER_VERSION) {
+            remaining += 1;
+          }
+        }
+
         context.logger.info(
           "Detected metadata for {detected} ebooks ({remaining} remaining)",
-          {
-            detected,
-            remaining: targets.length - Object.keys(metadata).length,
-          },
+          { detected, remaining },
         );
 
         const handle = await context.writeResource(
@@ -522,6 +602,101 @@ export const model = {
           metadata,
         );
         return { dataHandles: [handle] };
+      },
+    },
+    "resolve-wikipedia": {
+      description:
+        "Resolve detected authors and book titles against Wikipedia: confirm " +
+        "each is a known author or book, correct aliases/misspellings, and " +
+        "record the canonical name, kind and Wikipedia URL. Already-resolved " +
+        "names are skipped. Resumable within maxDurationMs.",
+      arguments: ResolveWikipediaArgsSchema,
+      execute: async (
+        args: ResolveWikipediaArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: { name: string }[] }> => {
+        const metadata = await context.readResource("metadata") as
+          | Record<string, BookMetadata>
+          | null;
+
+        const authors = await context.readResource("authors") as
+          | AuthorResolutionMap
+          | null;
+        const authorRes: AuthorResolutionMap = sanitizeResolutionMap(authors);
+
+        const books = await context.readResource("books") as
+          | BookResolutionMap
+          | null;
+        const bookRes: BookResolutionMap = sanitizeResolutionMap(books);
+
+        // Collect distinct author names and titles that need resolving.
+        const authorNames = new Set<string>();
+        const titles = new Set<string>();
+        for (const md of Object.values(metadata ?? {})) {
+          for (const a of md.authors ?? (md.author ? [md.author] : [])) {
+            authorNames.add(a);
+          }
+          if (md.title) titles.add(md.title);
+        }
+
+        const deadline = Date.now() + args.maxDurationMs;
+        let requested = 0;
+        let skipped = 0;
+
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+        const authorNamesArr = [...authorNames];
+        for (const name of authorNamesArr) {
+          if (Date.now() >= deadline) break;
+          const r = authorRes[name];
+          // Skip only finalized results (resolved, or a confirmed "not-found").
+          // Retry "rate-limited" and "error" (transient) on a later run.
+          if (r && (r.resolved || r.kind === "not-found")) {
+            skipped += 1;
+            continue;
+          }
+          authorRes[name] = await resolveWikipediaName(name, "author");
+          requested += 1;
+          await sleep(150); // polite pacing to avoid Wikipedia rate limits
+        }
+
+        const titlesArr = [...titles];
+        for (const title of titlesArr) {
+          if (Date.now() >= deadline) break;
+          const r = bookRes[title];
+          if (r && (r.resolved || r.kind === "not-found")) {
+            skipped += 1;
+            continue;
+          }
+          bookRes[title] = await resolveWikipediaName(title, "book");
+          requested += 1;
+          await sleep(150);
+        }
+
+        const pendingAuthors =
+          Object.values(authorRes).filter((r) =>
+            !r.resolved && r.kind !== "not-found"
+          ).length;
+        const pendingBooks =
+          Object.values(bookRes).filter((r) =>
+            !r.resolved && r.kind !== "not-found"
+          ).length;
+
+        context.logger.info(
+          "Wikipedia: {requested} newly requested, {skipped} already resolved, {pendingAuthors} authors pending, {pendingBooks} books pending (totals: {authors} authors, {books} books)",
+          {
+            requested,
+            skipped,
+            pendingAuthors,
+            pendingBooks,
+            authors: Object.keys(authorRes).length,
+            books: Object.keys(bookRes).length,
+          },
+        );
+
+        const ha = await context.writeResource("authors", "authors", authorRes);
+        const hb = await context.writeResource("books", "books", bookRes);
+        return { dataHandles: [ha, hb] };
       },
     },
     "render-html-list": {
@@ -587,6 +762,12 @@ export const model = {
         const metadata = await context.readResource("metadata") as
           | Record<string, BookMetadata>
           | null;
+        const authors = await context.readResource("authors") as
+          | AuthorResolutionMap
+          | null;
+        const books = await context.readResource("books") as
+          | BookResolutionMap
+          | null;
         const outputPath = absolutePath(context.globalArgs.authorsOutputPath);
 
         const html = renderAuthorsHtml(
@@ -602,6 +783,8 @@ export const model = {
             updatedAt: new Date().toISOString(),
           },
           metadata ?? {},
+          sanitizeResolutionMap(authors),
+          sanitizeResolutionMap(books),
         );
 
         try {
@@ -615,7 +798,7 @@ export const model = {
           );
         }
 
-        const handle = await context.writeResource("page", "authors", {
+        const handle = await context.writeResource("page", "authors-page", {
           outputPath,
           count: Object.keys(metadata ?? {}).length,
           generatedAt: new Date().toISOString(),

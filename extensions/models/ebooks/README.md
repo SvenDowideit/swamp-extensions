@@ -17,6 +17,12 @@ metadata for each, and renders an HTML page linking to each file's location.
   initial/edition publish dates, publisher, language and more from the file path,
   filename, filesystem metadata and (where parseable) the file contents (epub
   OPF, PDF info dictionary, ISBN/date regexes).
+- **Author & title resolution** — `resolve-wikipedia` checks each detected
+  author and title against Wikipedia, confirming it's a known author/book,
+  correcting aliases and misspellings (e.g. "K. A. Applegate" → "Katherine
+  Applegate"), and recording the canonical name, kind and Wikipedia URL.
+  Already-resolved names are skipped; rate-limited/failed lookups retry on the
+  next run.
 - **HTML listing** — `render-html-list` renders every discovered ebook into a
   static HTML page, showing the detected title, author and edition date where
   available, or the plain file path otherwise.
@@ -58,6 +64,7 @@ against the ebook paths already recorded in `state`.
 | ------------------ | ----------- |
 | `scan-disk`        | Start/resume the filesystem scan (arg: `maxDurationMs`). |
 | `detect-metadata`  | Detect metadata for one file (`file`) or all discovered ebooks, up to `maxDurationMs`. |
+| `resolve-wikipedia` | Resolve authors/titles against Wikipedia (canonical name, kind, URL), up to `maxDurationMs`. |
 | `render-html-list` | Render the full HTML listing (arg: `title`). |
 | `render-html-authors` | Render an author-grouped index of ebooks with a detected author (arg: `title`). |
 
@@ -97,5 +104,7 @@ physical-book metadata are interchangeable.
 
 - `state` — resumable scan state (frontier, seen dirs, discovered ebooks).
 - `metadata` — detected book metadata keyed by ebook path.
+- `authors` — Wikipedia resolution of author names (keyed by detected name).
+- `books` — Wikipedia resolution of book titles (keyed by detected title).
 - `page` — result of the last HTML page generation (path, count, timestamp).
 - `book` — a single detected/registered book record (book-metadata model).

@@ -81,6 +81,24 @@ jobs:
               type: always
         weight: 0
         allowFailure: false
+      - name: resolve-wikipedia
+        description: Resolve authors/titles against Wikipedia, recording canonical names + URLs.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ebooks"
+          modelName: ebooks
+          methodName: resolve-wikipedia
+          globalArgs:
+            root: ${{ inputs.root }}
+            outputPath: ${{ inputs.outputPath }}
+          inputs:
+            maxDurationMs: 300000
+        dependsOn:
+          - step: detect-metadata
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
       - name: render-html-list
         description: Render discovered ebooks (with detected metadata) into an HTML page.
         task:
@@ -94,9 +112,9 @@ jobs:
           inputs:
             title: ${{ inputs.title }}
         dependsOn:
-          - step: detect-metadata
+          - step: resolve-wikipedia
             condition:
-              type: completed
+              type: always
         weight: 0
         allowFailure: false
       - name: render-html-authors
@@ -113,9 +131,9 @@ jobs:
           inputs:
             title: ${{ inputs.title }}
         dependsOn:
-          - step: detect-metadata
+          - step: resolve-wikipedia
             condition:
-              type: completed
+              type: always
         weight: 0
         allowFailure: false
     dependsOn: []

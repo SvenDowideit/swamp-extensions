@@ -49,6 +49,34 @@ export const BookMetadataSchema = z.object({
 
 export type BookMetadata = z.infer<typeof BookMetadataSchema>;
 
+/** Resolution status of an author or book against Wikipedia. */
+const ResolutionSchema = z.object({
+  /** Normalized, canonical name (Wikipedia page title). */
+  name: z.string(),
+  /** Full Wikipedia URL (absent if not resolved). */
+  url: z.string().nullable(),
+  /** Short description from Wikidata, used to classify author vs book. */
+  description: z.string().nullable(),
+  /** "author" | "book" | "other" | "not-found". */
+  kind: z.string(),
+  /** Whether this was resolved (true) or determined to be unknown (false). */
+  resolved: z.boolean(),
+  /** Optional: original name we resolved from. */
+  from: z.string().nullable(),
+  /** ISO timestamp of the last resolution attempt. */
+  resolvedAt: z.string(),
+});
+
+export type Resolution = z.infer<typeof ResolutionSchema>;
+
+/** Map of author name -> Wikipedia resolution. */
+export const AuthorResolutionMapSchema = z.record(z.string(), ResolutionSchema);
+export type AuthorResolutionMap = z.infer<typeof AuthorResolutionMapSchema>;
+
+/** Map of book title -> Wikipedia resolution. */
+export const BookResolutionMapSchema = z.record(z.string(), ResolutionSchema);
+export type BookResolutionMap = z.infer<typeof BookResolutionMapSchema>;
+
 const GlobalArgsSchema = z.object({}).passthrough();
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
@@ -613,6 +641,194 @@ export async function detectBookMetadata(
     bytes,
     modifiedAt,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Wikipedia resolution
+// ---------------------------------------------------------------------------
+
+const WIKI_API = "https://en.wikipedia.org/w/api.php";
+const WIKI_USER_AGENT = "ebooks-scanner/1.0 (local library indexer)";
+
+async function wikiApi(params: Record<string, string>): Promise<unknown> {
+  const url = `${WIKI_API}?${new URLSearchParams({
+    format: "json",
+    origin: "*",
+    ...params,
+  })}`;
+  const res = await fetch(url, {
+    headers: { "User-Agent": WIKI_USER_AGENT, "Accept": "application/json" },
+  });
+  if (res.status === 429) {
+    throw new RateLimitError();
+  }
+  if (!res.ok) throw new Error(`Wikipedia API ${res.status}`);
+  return await res.json();
+}
+
+/** Thrown on HTTP 429 so the caller can treat it as retryable. */
+class RateLimitError extends Error {
+  constructor() {
+    super("Wikipedia rate limit (429)");
+  }
+}
+
+interface WikiPage {
+  title: string;
+  ns: number;
+  index?: number;
+  fullurl?: string;
+  canonicalurl?: string;
+  pageprops?: { "wikibase-shortdesc"?: string };
+  missing?: boolean;
+}
+
+/** Classify a Wikipedia page as author / book / other from its short description. */
+function classifyKind(description: string | undefined): string {
+  if (!description) return "other";
+  const d = description.toLowerCase();
+  if (
+    /\b(author|writer|novelist|poet|artist|journalist|editor)\b/.test(d)
+  ) {
+    return "author";
+  }
+  if (
+    /\b(novel|book|series|short story|trilogy|play|comic)\b/.test(d)
+  ) {
+    return "book";
+  }
+  return "other";
+}
+
+/**
+ * Resolve a single name against Wikipedia using two requests:
+ *   1. `opensearch` — tolerant of misspellings, returns corrected titles+URLs.
+ *   2. a single batched `query` (all candidates piped) — returns pageprops
+ *      (short description) for each so we can classify author vs book and pick
+ *      the best match.
+ */
+export async function resolveWikipediaName(
+  name: string,
+  expectKind: "author" | "book",
+): Promise<Resolution> {
+  const now = new Date().toISOString();
+  try {
+    const os = await wikiApi({
+      action: "opensearch",
+      search: name,
+      limit: "5",
+    }) as [string, string[], string[], string[]];
+    const titles = (os[1] ?? []).filter((t) => t && t.trim().length > 0);
+    const urls = os[3] ?? [];
+
+    if (!titles.length) {
+      return {
+        name,
+        url: null,
+        description: null,
+        kind: "not-found",
+        resolved: false,
+        from: null,
+        resolvedAt: now,
+      };
+    }
+
+    // Fetch pageprops for ALL candidates in one batched request.
+    let pages: WikiPage[] = [];
+    const redirectMap = new Map<string, string>(); // from -> to
+    try {
+      const pj = await wikiApi({
+        action: "query",
+        redirects: "1",
+        prop: "info|pageprops",
+        titles: titles.join("|"),
+        inprop: "url",
+      }) as {
+        query?: {
+          pages?: Record<string, WikiPage>;
+          redirects?: { from: string; to: string }[];
+        };
+      };
+      pages = Object.values(pj.query?.pages ?? {});
+      for (const r of pj.query?.redirects ?? []) {
+        redirectMap.set(r.from, r.to);
+      }
+    } catch {
+      pages = [];
+    }
+
+    // Map each opensearch title to its page, resolving redirects (so "K. A.
+    // Applegate" -> "Katherine Applegate" finds the right pageprops).
+    const byTitle = new Map(pages.map((p) => [p.title, p]));
+    const candidates: { page: WikiPage; url: string }[] = [];
+    for (let i = 0; i < titles.length; i++) {
+      const title = titles[i]!;
+      const target = redirectMap.get(title) ?? title;
+      const page = byTitle.get(target);
+      if (page) {
+        candidates.push({
+          page,
+          url: page.canonicalurl ?? page.fullurl ?? urls[i] ?? null,
+        });
+      } else {
+        candidates.push({
+          page: { title: target, ns: 0 },
+          url: urls[i] ?? null,
+        });
+      }
+    }
+
+    // Prefer a candidate whose kind matches what we expected (author vs book);
+    // otherwise fall back to the top result.
+    let chosen = candidates[0]!;
+    for (const c of candidates) {
+      const k = classifyKind(c.page.pageprops?.["wikibase-shortdesc"]);
+      if (expectKind === "author" && k === "author") {
+        chosen = c;
+        break;
+      }
+      if (expectKind === "book" && k === "book") {
+        chosen = c;
+        break;
+      }
+    }
+
+    const description = chosen.page.pageprops?.["wikibase-shortdesc"] ?? null;
+    const kind = classifyKind(description ?? undefined);
+
+    return {
+      name: chosen.page.title,
+      url: chosen.url,
+      description,
+      kind,
+      resolved: true,
+      from: name,
+      resolvedAt: now,
+    };
+  } catch (err) {
+    // A rate limit means "couldn't resolve right now", not "not an author" —
+    // distinguish it so the caller retries on a later run.
+    if (err instanceof RateLimitError) {
+      return {
+        name,
+        url: null,
+        description: null,
+        kind: "rate-limited",
+        resolved: false,
+        from: null,
+        resolvedAt: now,
+      };
+    }
+    return {
+      name,
+      url: null,
+      description: null,
+      kind: "error",
+      resolved: false,
+      from: null,
+      resolvedAt: now,
+    };
+  }
 }
 
 // ---------------------------------------------------------------------------

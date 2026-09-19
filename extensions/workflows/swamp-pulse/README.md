@@ -554,8 +554,9 @@ every merge.
 For every changed path ending in `.md` (plus `design/**`, `README*`), Pulse
 emits two links:
 
-1. **Source** — `https://github.com/<repo>/blob/<sha>/<path>` (always
-   available).
+1. **Source** — `https://github.com/<repo>/blob/main/<path>` (always
+   available; links to the current `main` branch so readers see the final
+   version rather than the snapshot at the triggering commit).
 2. **Manual** — the matching `swamp-club.com/manual/...` page, from a cached
    `sitemap.xml` plus an explicit **path→manual map** for known areas (e.g.
    `design/enablers/datastores.md` →

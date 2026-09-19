@@ -678,7 +678,7 @@ Deno.test("mergeEvents links changed docs with source and manual URLs", () => {
   const item = items.find((i) => i.id.includes("bbbbbbbb"));
   assert(item);
   assertEquals(item.docLinks.length, 1);
-  assertStringIncludes(item.docLinks[0].sourceUrl, "blob/bbbbbbbb");
+  assertStringIncludes(item.docLinks[0].sourceUrl, "blob/main/");
   assertStringIncludes(
     item.docLinks[0].manualUrl,
     "/manual/reference/datastore-configuration",

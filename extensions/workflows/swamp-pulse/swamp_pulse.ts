@@ -654,7 +654,7 @@ export function mergeEvents(
       const resolved = resolveManualUrl(f.filename, manualPages, manualBaseUrl);
       links.push({
         filename: f.filename,
-        sourceUrl: `https://github.com/${repo}/blob/${sha}/${f.filename}`,
+        sourceUrl: `https://github.com/${repo}/blob/main/${f.filename}`,
         manualUrl: resolved.url,
         manualConfidence: resolved.confidence,
       });

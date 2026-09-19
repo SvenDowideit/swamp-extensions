@@ -431,11 +431,20 @@ export const model = {
 
         const prev = await context.readResource("state") as State | null;
         let state: State;
-        if (prev && prev.completed) {
-          context.logger.info("Previous scan complete — starting a fresh scan");
-          state = freshState(root);
-        } else if (prev) {
+        if (prev) {
+          // Additive: never discard prior scan state. If a different root is
+          // requested, treat it as additional territory to scan rather than a
+          // reset — enqueue it so nothing already found is ever lost.
           state = prev;
+          if (state.root !== root && !state.seenDirs.includes(root)) {
+            context.logger.info(
+              "Adding new root {root} to existing scan state (additive)",
+              { root },
+            );
+            state.seenDirs.push(root);
+            state.queue.push(root);
+            state.completed = false;
+          }
         } else {
           state = freshState(root);
         }

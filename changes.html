@@ -11,8 +11,12 @@ header.top h1{margin:0;font-size:20px;letter-spacing:.06em}
 nav.pages{display:flex;gap:14px;flex-wrap:wrap}
 nav.pages a{color:var(--dim)}nav.pages a.active{color:var(--acc)}
 .tabs{display:flex;gap:8px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.tab{padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px}
+.tab{padding:4px 12px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px;background:transparent;cursor:pointer;font-family:inherit}
+.tab:hover{border-color:var(--acc)}
 .tab.active{border-color:var(--acc);color:var(--acc)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.panel-head{font-size:15px;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:6px;margin:20px 0 8px}
 main{padding:20px 22px 60px;max-width:1180px}
 .layout{display:grid;grid-template-columns:250px 1fr;gap:26px}
 @media(max-width:860px){.layout{grid-template-columns:1fr}.toc{display:none}}
@@ -70,7 +74,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">`feat` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-09-17T23:23:52Z">2026-09-17T23:23:52Z</time></span><span>gcp</span><span>feat</span></div>
 <div class="body"><p>feat(gcp): add 7 enrichment methods for governance workflow models (#293)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/3a16448844cdad2c0b2a6c43ffbfdda04bf29cf1/codegen/designs/gcp.md" rel="noopener">codegen/designs/gcp.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/main/codegen/designs/gcp.md" rel="noopener">codegen/designs/gcp.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/3a16448844cdad2c0b2a6c43ffbfdda04bf29cf1" rel="noopener">3a164488</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/293" rel="noopener">#293</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-extensions-acb3aa65a2716a1518d31d174d0a0dbd6b6b7e7d">
@@ -94,7 +98,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-17T20:29:54Z">2026-09-17T20:29:54Z</time></span><span>expressions</span><span>fix</span></div>
 <div class="body"><p>fix(expressions): persist authored provenance with evaluated caches (swamp-club#2172) (#2502)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/388ccad013874f2fb83dda4d902b908c4e1a24d9/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/388ccad013874f2fb83dda4d902b908c4e1a24d9" rel="noopener">388ccad0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2502" rel="noopener">#2502</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-bdd824dfa34af8726d57294c9bc2dca8981e8d06">
@@ -102,7 +106,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-17T20:28:25Z">2026-09-17T20:28:25Z</time></span><span>extensions</span><span>fix</span></div>
 <div class="body"><p>fix(extensions): preserve legacy files during auto-resolution (#2503)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/bdd824dfa34af8726d57294c9bc2dca8981e8d06/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bdd824dfa34af8726d57294c9bc2dca8981e8d06" rel="noopener">bdd824df</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2503" rel="noopener">#2503</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-cb78dc60de482a6bf011132538941b066a45aa98">
@@ -118,7 +122,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">`fix` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-09-17T19:13:36Z">2026-09-17T19:13:36Z</time></span><span>datastore</span><span>fix</span></div>
 <div class="body"><p>fix(datastore): compare-and-swap merges for shard and _meta.json writes (#2245) (#290)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/f1c9c66295777075c0de7f6eb97a50cf83b62612/datastore/gcs/README.md" rel="noopener">datastore/gcs/README.md</a>, <a href="https://github.com/swamp-club/swamp-extensions/blob/f1c9c66295777075c0de7f6eb97a50cf83b62612/datastore/s3/README.md" rel="noopener">datastore/s3/README.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/main/datastore/gcs/README.md" rel="noopener">datastore/gcs/README.md</a>, <a href="https://github.com/swamp-club/swamp-extensions/blob/main/datastore/s3/README.md" rel="noopener">datastore/s3/README.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/f1c9c66295777075c0de7f6eb97a50cf83b62612" rel="noopener">f1c9c662</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2245" rel="noopener">#2245</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/290" rel="noopener">#290</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-d2b999d62d6407229ef4dc87867faaa99ef47104">
@@ -150,7 +154,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">`feat` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-09-17T17:35:16Z">2026-09-17T17:35:16Z</time></span><span>aws/events</span><span>feat</span></div>
 <div class="body"><p>feat(aws/events): add put_events method to event-bus model (#288)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/db34423a4ee39b1c033aa2de96054f40bb9af6f6/codegen/designs/aws.md" rel="noopener">codegen/designs/aws.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/main/codegen/designs/aws.md" rel="noopener">codegen/designs/aws.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/db34423a4ee39b1c033aa2de96054f40bb9af6f6" rel="noopener">db34423a</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/288" rel="noopener">#288</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-6b9d8c1e6a1ac801ea11fe2ead025830f3e55481">
@@ -190,7 +194,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-17T17:00:36Z">2026-09-17T17:00:36Z</time></span><span>cli</span><span>feat</span></div>
 <div class="body"><p>feat(cli): move the first-rule egg to top level and name the payout tier (#2494)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/e8ff688d75a23af47159b23510a893fd1867c003/design/operations.md" rel="noopener">design/operations.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/operations.md" rel="noopener">design/operations.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e8ff688d75a23af47159b23510a893fd1867c003" rel="noopener">e8ff688d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2494" rel="noopener">#2494</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-extensions-2785f521aa7e57580dd9d7fb10337173c09a394f">
@@ -198,7 +202,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">`feat` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-09-16T00:30:30Z">2026-09-16T00:30:30Z</time></span><span>git</span><span>feat</span></div>
 <div class="body"><p>feat(git): support author and committer dates on commit and amend (#282)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/2785f521aa7e57580dd9d7fb10337173c09a394f/git/README.md" rel="noopener">git/README.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/main/git/README.md" rel="noopener">git/README.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/2785f521aa7e57580dd9d7fb10337173c09a394f" rel="noopener">2785f521</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/282" rel="noopener">#282</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-extensions-4b5d22907aaa5ea8bae364525297c0b6aa80a1b2">
@@ -214,7 +218,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">`feat` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-09-15T23:10:55Z">2026-09-15T23:10:55Z</time></span><span>feat</span></div>
 <div class="body"><p>feat: add @swamp/typesafe-ai extension (#280)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/20b5fae4938cb7d95d449ebd5c45ab9b6118fed2/README.md" rel="noopener">README.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/main/README.md" rel="noopener">README.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/20b5fae4938cb7d95d449ebd5c45ab9b6118fed2" rel="noopener">20b5fae4</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/280" rel="noopener">#280</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-extensions-2ae702303dd39d3fbe2da72a51a4f38b25b7661e">
@@ -270,7 +274,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">`fix` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-09-03T23:56:04Z">2026-09-03T23:56:04Z</time></span><span>kubernetes</span><span>fix</span></div>
 <div class="body"><p>fix(kubernetes): node list now syncs — prunes departed nodes (#1975) (#257)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/b02178bde35c60417e9ee981a6d2c63bad1382bb/kubernetes/README.md" rel="noopener">kubernetes/README.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/main/kubernetes/README.md" rel="noopener">kubernetes/README.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/b02178bde35c60417e9ee981a6d2c63bad1382bb" rel="noopener">b02178bd</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/1975" rel="noopener">#1975</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/257" rel="noopener">#257</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-extensions-ed90d6967f572c008f09713ea7b164287f7f9b8e">
@@ -310,7 +314,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">`chore` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-09-18T16:10:36Z">2026-09-18T16:10:36Z</time></span><span>chore</span></div>
 <div class="body"><p>chore: regenerate models from upstream schemas (#295)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/65154e4131869b0ddc8b039231beca9c2896e6a7/model/aws/appsync/README.md" rel="noopener">model/aws/appsync/README.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/main/model/aws/appsync/README.md" rel="noopener">model/aws/appsync/README.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/65154e4131869b0ddc8b039231beca9c2896e6a7" rel="noopener">65154e41</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/295" rel="noopener">#295</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-extensions-f9800427c7e40a344b87688cf7cd9d84ea9be67a">
@@ -342,7 +346,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">`chore` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-09-14T22:55:33Z">2026-09-14T22:55:33Z</time></span><span>chore</span></div>
 <div class="body"><p>chore: split CLAUDE.md into AGENTS.md + thin wrapper (#277)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/34b89f03dee01a8339f6944b59d5349b5f28693f/AGENTS.md" rel="noopener">AGENTS.md</a>, <a href="https://github.com/swamp-club/swamp-extensions/blob/34b89f03dee01a8339f6944b59d5349b5f28693f/CLAUDE.md" rel="noopener">CLAUDE.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/main/AGENTS.md" rel="noopener">AGENTS.md</a>, <a href="https://github.com/swamp-club/swamp-extensions/blob/main/CLAUDE.md" rel="noopener">CLAUDE.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/34b89f03dee01a8339f6944b59d5349b5f28693f" rel="noopener">34b89f03</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/277" rel="noopener">#277</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-extensions-d59111d89b821ab70a0f44d3ca116fa5445bd6de">
@@ -472,7 +476,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 20</li><li><strong>chore</strong> — 20</li><li><strong>feat</strong> — 10</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-19T13:01:29.667Z">2026-09-19T13:01:29.667Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-19T14:03:58.145Z">2026-09-19T14:03:58.145Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

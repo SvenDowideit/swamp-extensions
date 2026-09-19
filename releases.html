@@ -11,8 +11,12 @@ header.top h1{margin:0;font-size:20px;letter-spacing:.06em}
 nav.pages{display:flex;gap:14px;flex-wrap:wrap}
 nav.pages a{color:var(--dim)}nav.pages a.active{color:var(--acc)}
 .tabs{display:flex;gap:8px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.tab{padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px}
+.tab{padding:4px 12px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px;background:transparent;cursor:pointer;font-family:inherit}
+.tab:hover{border-color:var(--acc)}
 .tab.active{border-color:var(--acc);color:var(--acc)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.panel-head{font-size:15px;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:6px;margin:20px 0 8px}
 main{padding:20px 22px 60px;max-width:1180px}
 .layout{display:grid;grid-template-columns:250px 1fr;gap:26px}
 @media(max-width:860px){.layout{grid-template-columns:1fr}.toc{display:none}}
@@ -166,7 +170,7 @@ footer .ver{color:var(--acc)}
 <p>| <code>recordUpstreamChange</code> | raises | status transitions and type updates |</p>
 <p><code>transitionStatus</code> owns the already-in-target-status rule and confirms it by re-reading the issue status rather than matching server error prose, which swamp-club is free to reword. The read is retried once; the patch never is.</p>
 <p>Methods declare <code>rollbackOnFailure</code> so a raised failure leaves the phase unchanged and the re-run is clean. <code>notify</code> and <code>post_attestation</code> are exclu</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/bcaa9695b7f27f51964a9f41587fdf112b261c89/.claude/skills/issue-lifecycle/SKILL.md" rel="noopener">.claude/skills/issue-lifecycle/SKILL.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/issue-lifecycle/SKILL.md" rel="noopener">.claude/skills/issue-lifecycle/SKILL.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.211634.0-sha.bcaa9695" rel="noopener">release v20260918.211634.0-sha.bcaa9695</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bcaa9695b7f27f51964a9f41587fdf112b261c89" rel="noopener">bcaa9695</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2518" rel="noopener">#2518</a>𝗔 <a href="https://swamp-club.com/lab/2279" rel="noopener">lab#2279</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260918-181015-0-sha-cda6aba2">
@@ -234,7 +238,7 @@ footer .ver{color:var(--acc)}
 <p>&quot;Two blocking findings reported&quot; was scored as a pass, because the word appeared</p>
 <p>in prose rather than as a <code>Blocking:</code> label.</p>
 <p>The ve</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/cc6e1c56d5aae60f60204d79aa89b6c3b824035d/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.171721.0-sha.cc6e1c56" rel="noopener">release v20260918.171721.0-sha.cc6e1c56</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cc6e1c56d5aae60f60204d79aa89b6c3b824035d" rel="noopener">cc6e1c56</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2516" rel="noopener">#2516</a>𝗔 <a href="https://swamp-club.com/lab/2265" rel="noopener">lab#2265</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260918-171201-0-sha-1d30d6d3">
@@ -282,7 +286,7 @@ footer .ver{color:var(--acc)}
 <li>[x] Updated existing unit test assertions for <code>clearAll</code> (base directory</li>
 </ul>
 <p>  instead of <code>undefined</code>)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/1d30d6d39b1acba979560bf6c48bfac2b0fa5a18/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.171201.0-sha.1d30d6d3" rel="noopener">release v20260918.171201.0-sha.1d30d6d3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1d30d6d39b1acba979560bf6c48bfac2b0fa5a18" rel="noopener">1d30d6d3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2514" rel="noopener">#2514</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260918-170808-0-sha-4ba12f2f">
@@ -354,7 +358,7 @@ footer .ver{color:var(--acc)}
 <li>[x] All 79 tests pass (webhook + extension reload)</li>
 <li>[x] Verification: build 9/</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/b1ac622637fa988c3dd57bed729e4405b92ec588/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.155612.0-sha.b1ac6226" rel="noopener">release v20260918.155612.0-sha.b1ac6226</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b1ac622637fa988c3dd57bed729e4405b92ec588" rel="noopener">b1ac6226</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2513" rel="noopener">#2513</a>𝗔 <a href="https://swamp-club.com/lab/2234" rel="noopener">lab#2234</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260918-154106-0-sha-85621c2b">
@@ -379,7 +383,7 @@ footer .ver{color:var(--acc)}
 <li><strong><code>src/cli/prompt_helpers.ts</code></strong> — four <code>Deno.stdout.write</code> → <code>Deno.stderr.write</code>; module doc states the rule and why the stdin gate does not cover it.</li>
 <li>**`src/cli/promp</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/85621c2b158cb966c65c500fccc387f80800bd55/.claude/skills/terminal-output/SKILL.md" rel="noopener">.claude/skills/terminal-output/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/85621c2b158cb966c65c500fccc387f80800bd55/.claude/skills/terminal-output/references/logtape.md" rel="noopener">.claude/skills/terminal-output/references/logtape.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/terminal-output/SKILL.md" rel="noopener">.claude/skills/terminal-output/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/terminal-output/references/logtape.md" rel="noopener">.claude/skills/terminal-output/references/logtape.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.154106.0-sha.85621c2b" rel="noopener">release v20260918.154106.0-sha.85621c2b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/85621c2b158cb966c65c500fccc387f80800bd55" rel="noopener">85621c2b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2512" rel="noopener">#2512</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2507" rel="noopener">#2507</a>𝗔 <a href="https://swamp-club.com/lab/2260" rel="noopener">lab#2260</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260918-141950-0-sha-7b3608ba">
@@ -397,7 +401,7 @@ footer .ver{color:var(--acc)}
 <h4 class="body-h">Why this is more than developer convenience</h4>
 <p><code>scripts/download_deno.ts</code> derives the embedded runtime version from <code>deno --version</code> <strong>on the building machine</strong> and bakes that exact release into the compiled binary for user extensions. With <code>release.yml</code> on a floating <code>v2.9.x</code>, consecutive releases could ship different embedded Deno patches with nothing recording which. Pinning exactly makes the shipped artifact reproducible.</p>
 <p>The script now also guards that at its source: it compares the running Deno against the pin, <strong>failing hard under <code>CI</code> and warning locally</strong>. Th</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/7b3608ba912ebe38a4cf6bea653eee2db83fddb9/AGENTS.md" rel="noopener">AGENTS.md</a>, <a href="https://github.com/swamp-club/swamp/blob/7b3608ba912ebe38a4cf6bea653eee2db83fddb9/README.md" rel="noopener">README.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/AGENTS.md" rel="noopener">AGENTS.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/README.md" rel="noopener">README.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.141950.0-sha.7b3608ba" rel="noopener">release v20260918.141950.0-sha.7b3608ba</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7b3608ba912ebe38a4cf6bea653eee2db83fddb9" rel="noopener">7b3608ba</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2511" rel="noopener">#2511</a>𝗔 <a href="https://swamp-club.com/lab/2271" rel="noopener">lab#2271</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260918-003339-0-sha-a765b344">
@@ -486,7 +490,7 @@ footer .ver{color:var(--acc)}
 <li>[x] Full test suite: 12,191 passed, 0 failed</li>
 <li>[x] Build</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/a3e60933d3861d2e56d1166533761c28304c6d1f/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.233703.0-sha.a3e60933" rel="noopener">release v20260917.233703.0-sha.a3e60933</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a3e60933d3861d2e56d1166533761c28304c6d1f" rel="noopener">a3e60933</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2509" rel="noopener">#2509</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2262" rel="noopener">#2262</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2261" rel="noopener">#2261</a>𝗔 <a href="https://swamp-club.com/lab/2192" rel="noopener">lab#2192</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-230137-0-sha-6c7ec94e">
@@ -658,7 +662,7 @@ footer .ver{color:var(--acc)}
 <li>[x] 3 new unit tests for <code>reconcileRemoteInterruptedRuns</code> YAML reconciliation</li>
 </ul>
 <p>  (stale instance YAML reaped, alive instance skipped, no repo → existing behavior)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/660627b8c55262af41b86440483b9d08ad961cbe/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.184258.0-sha.660627b8" rel="noopener">release v20260917.184258.0-sha.660627b8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/660627b8c55262af41b86440483b9d08ad961cbe" rel="noopener">660627b8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2498" rel="noopener">#2498</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-034341-0-sha-81c00b86">
@@ -844,7 +848,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Fixes found in review:</strong> typed <code>export const webhook: T</code> metadata extraction, no-op reconcile marks all kinds populated, pulled names containing a kind segment (<code>@org/webhooks</code>) no longer pruned as orphans.</li>
 </ul>
 <p>Not included: <code>extension search --content-type webhooks</code> (needs swamp-club server support), and the <code>@swamp/telegram</code> extension (follo</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/SKILL.md" rel="noopener">.claude/skills/swamp/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/references/extension/guide.md" rel="noopener">.claude/skills/swamp/references/extension/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/references/extension/reference.md" rel="noopener">.claude/skills/swamp/references/extension/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/references/extension/references/webhook/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/webhook/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/SKILL.md" rel="noopener">.claude/skills/swamp/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/guide.md" rel="noopener">.claude/skills/swamp/references/extension/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/reference.md" rel="noopener">.claude/skills/swamp/references/extension/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/webhook/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/webhook/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260917.002611.0-sha.55393f8c" rel="noopener">release v20260917.002611.0-sha.55393f8c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/55393f8c9b6de3d2d00718cd8eb2654e6048eb39" rel="noopener">55393f8c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2488" rel="noopener">#2488</a>𝗔 <a href="https://swamp-club.com/lab/2204" rel="noopener">lab#2204</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-001502-0-sha-0c09d987">
@@ -916,7 +920,7 @@ footer .ver{color:var(--acc)}
 <li><code>verify-skills</code>: passed; swamp 93%, swamp-getting-started 98%. Trigger evaluations were skipped by the runner because <code>ANTHROPIC_API_KEY</code> was unset, as allowed by the verification conventions.</li>
 <li>Fresh combined verification attestation posted to swamp-club before pushing the synced commit: <code>668c9003-2ea5-4180-a91c-afb0ccdc7362</code>. Verification was rerun after syncing main&#39;s updated review workflow to match CI&#39;s</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/71971475eb99f762d6afe6d474ee2504f728db4c/.claude/skills/swamp/references/extension-publish/reference.md" rel="noopener">.claude/skills/swamp/references/extension-publish/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/71971475eb99f762d6afe6d474ee2504f728db4c/.claude/skills/swamp/references/extension-publish/references/publishing.md" rel="noopener">.claude/skills/swamp/references/extension-publish/references/publishing.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/reference.md" rel="noopener">.claude/skills/swamp/references/extension-publish/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/references/publishing.md" rel="noopener">.claude/skills/swamp/references/extension-publish/references/publishing.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260916.235537.0-sha.71971475" rel="noopener">release v20260916.235537.0-sha.71971475</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/71971475eb99f762d6afe6d474ee2504f728db4c" rel="noopener">71971475</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2484" rel="noopener">#2484</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2200" rel="noopener">#2200</a>𝗔 <a href="https://swamp-club.com/lab/2198" rel="noopener">lab#2198</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260916-233837-0-sha-9b557bde">
@@ -1173,7 +1177,7 @@ footer .ver{color:var(--acc)}
 <p><strong>macOS (Intel):</strong></p>
 <p>```bash</p>
 <p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v2026" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v2026</a></p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/b07863c96b0897f85087685038c5b08ed1624a03/.claude/skills/ddd/SKILL.md" rel="noopener">.claude/skills/ddd/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/b07863c96b0897f85087685038c5b08ed1624a03/.claude/skills/ddd/references/testing.md" rel="noopener">.claude/skills/ddd/references/testing.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/ddd/SKILL.md" rel="noopener">.claude/skills/ddd/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/ddd/references/testing.md" rel="noopener">.claude/skills/ddd/references/testing.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260916.202907.0-sha.b07863c9" rel="noopener">release v20260916.202907.0-sha.b07863c9</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b07863c96b0897f85087685038c5b08ed1624a03" rel="noopener">b07863c9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2474" rel="noopener">#2474</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260916-194305-0-sha-27c764d6">
@@ -1234,7 +1238,7 @@ footer .ver{color:var(--acc)}
 <li><code>design/enablers/data-query.md</code> now describes per-row, access-driven loading.</li>
 </ul>
 <p>Known limit: operand order matters. With <code>attributes.value &gt; 0 &amp;&amp; specName == &quot;question&quot;</code>, bodies are still read, but an unreadable unrelated body no longer aborts the query. Re</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/c30806e598596838b3cb1e8fbb59ee409569ae60/design/enablers/data-query.md" rel="noopener">design/enablers/data-query.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/data-query.md" rel="noopener">design/enablers/data-query.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260916.191155.0-sha.c30806e5" rel="noopener">release v20260916.191155.0-sha.c30806e5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c30806e598596838b3cb1e8fbb59ee409569ae60" rel="noopener">c30806e5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2469" rel="noopener">#2469</a>𝗔 <a href="https://swamp-club.com/lab/2122" rel="noopener">lab#2122</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260916-185424-0-sha-a3123298">
@@ -1506,7 +1510,7 @@ footer .ver{color:var(--acc)}
 <p>```bash</p>
 <p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260915.202402.0-sha.d483b740/swamp-linux-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260915.202402.0-sha.d483b740/swamp-linux-aarch64</a> -o swamp</p>
 <p>chmod +x swamp &amp;&amp; sudo mv swamp /</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/d483b740875716c3723a0452a221bf87c14fd011/design/primitives/vaults.md" rel="noopener">design/primitives/vaults.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/vaults.md" rel="noopener">design/primitives/vaults.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260915.202402.0-sha.d483b740" rel="noopener">release v20260915.202402.0-sha.d483b740</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d483b740875716c3723a0452a221bf87c14fd011" rel="noopener">d483b740</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2461" rel="noopener">#2461</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2156" rel="noopener">#2156</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260915-190922-0-sha-aedd7249">
@@ -1731,7 +1735,7 @@ footer .ver{color:var(--acc)}
 <p><strong>macOS (Apple Silicon):</strong></p>
 <p>```bash</p>
 <p>curl -L <a href="https://githu" rel="noopener">https://githu</a></p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/d781306e272a2752909b9199775f856f11d77ac7/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260914.220320.0-sha.d781306e" rel="noopener">release v20260914.220320.0-sha.d781306e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d781306e272a2752909b9199775f856f11d77ac7" rel="noopener">d781306e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2455" rel="noopener">#2455</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260914-212001-0-sha-231a9884">
@@ -1861,7 +1865,7 @@ footer .ver{color:var(--acc)}
 <p><strong>Linux (aarch64):</strong></p>
 <p>```bash</p>
 <p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260914.163154.0-sha.0bc3d215" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260914.163154.0-sha.0bc3d215</a></p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/0bc3d2152b2dae89f312b6c943003cdee7f914ad/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260914.163154.0-sha.0bc3d215" rel="noopener">release v20260914.163154.0-sha.0bc3d215</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0bc3d2152b2dae89f312b6c943003cdee7f914ad" rel="noopener">0bc3d215</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2452" rel="noopener">#2452</a>𝗔 <a href="https://swamp-club.com/lab/2128" rel="noopener">lab#2128</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260914-160035-0-sha-05b96352">
@@ -2287,7 +2291,7 @@ footer .ver{color:var(--acc)}
 <li>[x] 162 serve_audit domain tests (alerts, HMAC, compliance, streaming, hot-reload, emitter integration)</li>
 </ul>
 <p>-</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/216a065f94483b0590429c38d7018c8554583c7c/design/enablers/serve-audit.md" rel="noopener">design/enablers/serve-audit.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-audit.md" rel="noopener">design/enablers/serve-audit.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260913.215629.0-sha.216a065f" rel="noopener">release v20260913.215629.0-sha.216a065f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/216a065f94483b0590429c38d7018c8554583c7c" rel="noopener">216a065f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2438" rel="noopener">#2438</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2103" rel="noopener">#2103</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2112" rel="noopener">#2112</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260913-214835-0-sha-71f2a64d">
@@ -2774,7 +2778,7 @@ footer .ver{color:var(--acc)}
 <p><strong>macOS (Apple Silicon):</strong></p>
 <p>```bash</p>
 <p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260909.0510" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260909.0510</a></p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/55e7a45f6e677b2346cb424d124a8c2ead481a4a/design/surfaces/audit-doctor.md" rel="noopener">design/surfaces/audit-doctor.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/audit-doctor.md" rel="noopener">design/surfaces/audit-doctor.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260909.051030.0-sha.55e7a45f" rel="noopener">release v20260909.051030.0-sha.55e7a45f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/55e7a45f6e677b2346cb424d124a8c2ead481a4a" rel="noopener">55e7a45f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2421" rel="noopener">#2421</a>𝗔 <a href="https://swamp-club.com/lab/2072" rel="noopener">lab#2072</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260909-010103-0-sha-5ced88dd">
@@ -2863,7 +2867,7 @@ footer .ver{color:var(--acc)}
 <p>```</p>
 <p><strong>Linux (x86_64):</strong></p>
 <p>```</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/data/guide.md" rel="noopener">.claude/skills/swamp/references/data/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/issue/guide.md" rel="noopener">.claude/skills/swamp/references/issue/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/model/guide.md" rel="noopener">.claude/skills/swamp/references/model/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/model/reference.md" rel="noopener">.claude/skills/swamp/references/model/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/repo/guide.md" rel="noopener">.claude/skills/swamp/references/repo/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/report/guide.md" rel="noopener">.claude/skills/swamp/references/report/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/share/guide.md" rel="noopener">.claude/skills/swamp/references/share/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/troubleshooting/guide.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/vault/guide.md" rel="noopener">.claude/skills/swamp/references/vault/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/workflow/guide.md" rel="noopener">.claude/skills/swamp/references/workflow/guide.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/data/guide.md" rel="noopener">.claude/skills/swamp/references/data/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/issue/guide.md" rel="noopener">.claude/skills/swamp/references/issue/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/guide.md" rel="noopener">.claude/skills/swamp/references/model/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/reference.md" rel="noopener">.claude/skills/swamp/references/model/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/guide.md" rel="noopener">.claude/skills/swamp/references/repo/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/report/guide.md" rel="noopener">.claude/skills/swamp/references/report/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/share/guide.md" rel="noopener">.claude/skills/swamp/references/share/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/guide.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/vault/guide.md" rel="noopener">.claude/skills/swamp/references/vault/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/guide.md" rel="noopener">.claude/skills/swamp/references/workflow/guide.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260909.001808.0-sha.e5db6fcb" rel="noopener">release v20260909.001808.0-sha.e5db6fcb</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7" rel="noopener">e5db6fcb</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2418" rel="noopener">#2418</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2071" rel="noopener">#2071</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260909-000105-0-sha-bc67c9be">
@@ -3182,7 +3186,7 @@ footer .ver{color:var(--acc)}
 <p><strong>Windows (x86_64):</strong></p>
 <p>```powershell</p>
 <p>Invoke-WebRequest -Uri <a href="https://github.com/swamp-club/swamp/releases/download/v20260908.064324.0-sha.6f857724/swamp-windows-x86" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260908.064324.0-sha.6f857724/swamp-windows-x86</a></p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/6f857724cb58b10ed66d8ca699d03059e2fa9516/design/primitives/data.md" rel="noopener">design/primitives/data.md</a>, <a href="https://github.com/swamp-club/swamp/blob/6f857724cb58b10ed66d8ca699d03059e2fa9516/design/primitives/models.md" rel="noopener">design/primitives/models.md</a>, <a href="https://github.com/swamp-club/swamp/blob/6f857724cb58b10ed66d8ca699d03059e2fa9516/design/surfaces/repo.md" rel="noopener">design/surfaces/repo.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/models.md" rel="noopener">design/primitives/models.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/repo.md" rel="noopener">design/surfaces/repo.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260908.064324.0-sha.6f857724" rel="noopener">release v20260908.064324.0-sha.6f857724</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6f857724cb58b10ed66d8ca699d03059e2fa9516" rel="noopener">6f857724</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2407" rel="noopener">#2407</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260908-053658-0-sha-c938f1a1">
@@ -4713,7 +4717,7 @@ footer .ver{color:var(--acc)}
 <p><strong>macOS (Apple Silicon):</strong></p>
 <p>```bash</p>
 <p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20</a></p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/f2eefb58b1dc4488f374e36dafa35a1de69d44a3/.claude/skills/swamp/references/extension/references/model/skills.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/skills.md</a>, <a href="https://github.com/swamp-club/swamp/blob/f2eefb58b1dc4488f374e36dafa35a1de69d44a3/CLAUDE.md" rel="noopener">CLAUDE.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/skills.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/skills.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/CLAUDE.md" rel="noopener">CLAUDE.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260903.004401.0-sha.f2eefb58" rel="noopener">release v20260903.004401.0-sha.f2eefb58</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f2eefb58b1dc4488f374e36dafa35a1de69d44a3" rel="noopener">f2eefb58</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2365" rel="noopener">#2365</a>𝗔 <a href="https://swamp-club.com/lab/1971" rel="noopener">lab#1971</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260902-233057-0-sha-97ccc9b1">
@@ -4744,7 +4748,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>[x] 7 unit tests for <code>resolveVaultExpressions()</code>:</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/97ccc9b1a43e54d4c8c375f6c43187454a6fa51f/.claude/skills/swamp/references/model/references/examples.md" rel="noopener">.claude/skills/swamp/references/model/references/examples.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/references/examples.md" rel="noopener">.claude/skills/swamp/references/model/references/examples.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.233057.0-sha.97ccc9b1" rel="noopener">release v20260902.233057.0-sha.97ccc9b1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/97ccc9b1a43e54d4c8c375f6c43187454a6fa51f" rel="noopener">97ccc9b1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2364" rel="noopener">#2364</a>𝗔 <a href="https://swamp-club.com/lab/1786" rel="noopener">lab#1786</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260902-232700-0-sha-4d67d0b1">
@@ -5161,7 +5165,7 @@ footer .ver{color:var(--acc)}
 <p><strong>Linux (x86_64):</strong></p>
 <p>```bash</p>
 <p>c</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/5e6df04266356d349d7ae9f88de1fa8798f5c7a3/design/surfaces/agent-interface.md" rel="noopener">design/surfaces/agent-interface.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/agent-interface.md" rel="noopener">design/surfaces/agent-interface.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.150547.0-sha.5e6df042" rel="noopener">release v20260902.150547.0-sha.5e6df042</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5e6df04266356d349d7ae9f88de1fa8798f5c7a3" rel="noopener">5e6df042</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2347" rel="noopener">#2347</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1954" rel="noopener">#1954</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260901-234625-0-sha-971cc6b5">
@@ -5500,7 +5504,7 @@ footer .ver{color:var(--acc)}
 <p><strong>macOS (Apple Silicon):</strong></p>
 <p>```bash</p>
 <p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260901.013347.0-sha.58c65184/swamp-darwin" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260901.013347.0-sha.58c65184/swamp-darwin</a></p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/58c651842279e8db8e78f39c2f17d9e403d48080/.claude/skills/swamp/references/architecture/guide.md" rel="noopener">.claude/skills/swamp/references/architecture/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/58c651842279e8db8e78f39c2f17d9e403d48080/.claude/skills/swamp/references/troubleshooting/reference.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/58c651842279e8db8e78f39c2f17d9e403d48080/.claude/skills/swamp/references/troubleshooting/references/error-inspection.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/error-inspection.md</a>, <a href="https://github.com/swamp-club/swamp/blob/58c651842279e8db8e78f39c2f17d9e403d48080/.claude/skills/swamp/references/troubleshooting/references/health-checks.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/health-checks.md</a>, <a href="https://github.com/swamp-club/swamp/blob/58c651842279e8db8e78f39c2f17d9e403d48080/.claude/skills/swamp/references/troubleshooting/references/tracing.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/tracing.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/architecture/guide.md" rel="noopener">.claude/skills/swamp/references/architecture/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/reference.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/references/error-inspection.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/error-inspection.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/references/health-checks.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/health-checks.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/references/tracing.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/tracing.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260901.013347.0-sha.58c65184" rel="noopener">release v20260901.013347.0-sha.58c65184</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/58c651842279e8db8e78f39c2f17d9e403d48080" rel="noopener">58c65184</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2333" rel="noopener">#2333</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1927" rel="noopener">#1927</a>𝗔 <a href="https://swamp-club.com/lab/1924" rel="noopener">lab#1924</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260901-001730-0-sha-8e14ae13">
@@ -5966,7 +5970,7 @@ footer .ver{color:var(--acc)}
 <p><strong>Linux (x86_64):</strong></p>
 <p>```bash</p>
 <p>curl -L <a href="https://github.com/swamp-club/swamp/release" rel="noopener">https://github.com/swamp-club/swamp/release</a></p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/7c5fc5a0788df7af5734347745415a85b976113d/.claude/skills/swamp/references/model/references/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/model/references/troubleshooting.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/references/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/model/references/troubleshooting.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.155646.0-sha.7c5fc5a0" rel="noopener">release v20260902.155646.0-sha.7c5fc5a0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7c5fc5a0788df7af5734347745415a85b976113d" rel="noopener">7c5fc5a0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2349" rel="noopener">#2349</a>𝗔 <a href="https://swamp-club.com/lab/1952" rel="noopener">lab#1952</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260902-023341-0-sha-820f22f0">
@@ -6005,7 +6009,7 @@ footer .ver{color:var(--acc)}
 <p>```bash</p>
 <p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260902.023341.0-sha.820f22f0/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260902.023341.0-sha.820f22f0/swamp-darwin-x86_64</a> -o swamp</p>
 <p>chmod +x swamp &amp;&amp; sudo mv swa</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/820f22f0544fefa4407ddbbc2aa49ab5948cb817/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.023341.0-sha.820f22f0" rel="noopener">release v20260902.023341.0-sha.820f22f0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/820f22f0544fefa4407ddbbc2aa49ab5948cb817" rel="noopener">820f22f0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2346" rel="noopener">#2346</a>𝗔 <a href="https://swamp-club.com/lab/1944" rel="noopener">lab#1944</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260901-012545-0-sha-7d7984ad">
@@ -6041,7 +6045,7 @@ footer .ver{color:var(--acc)}
 <p><strong>macOS (Intel):</strong></p>
 <p>```bash</p>
 <p>curl -L <a href="https://github.com" rel="noopener">https://github.com</a></p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/7d7984adc3a589df883ef460f5bc7e4d10259b13/design/README.md" rel="noopener">design/README.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260901.012545.0-sha.7d7984ad" rel="noopener">release v20260901.012545.0-sha.7d7984ad</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7d7984adc3a589df883ef460f5bc7e4d10259b13" rel="noopener">7d7984ad</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2332" rel="noopener">#2332</a>𝗔 <a href="https://swamp-club.com/lab/1925" rel="noopener">lab#1925</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
@@ -6051,7 +6055,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 107</li><li><strong>feat</strong> — 47</li><li><strong>docs</strong> — 6</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-19T13:01:29.667Z">2026-09-19T13:01:29.667Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-19T14:03:58.145Z">2026-09-19T14:03:58.145Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

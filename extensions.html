@@ -11,8 +11,12 @@ header.top h1{margin:0;font-size:20px;letter-spacing:.06em}
 nav.pages{display:flex;gap:14px;flex-wrap:wrap}
 nav.pages a{color:var(--dim)}nav.pages a.active{color:var(--acc)}
 .tabs{display:flex;gap:8px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.tab{padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px}
+.tab{padding:4px 12px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px;background:transparent;cursor:pointer;font-family:inherit}
+.tab:hover{border-color:var(--acc)}
 .tab.active{border-color:var(--acc);color:var(--acc)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.panel-head{font-size:15px;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:6px;margin:20px 0 8px}
 main{padding:20px 22px 60px;max-width:1180px}
 .layout{display:grid;grid-template-columns:250px 1fr;gap:26px}
 @media(max-width:860px){.layout{grid-template-columns:1fr}.toc{display:none}}
@@ -66,12 +70,67 @@ footer .ver{color:var(--acc)}
 <main>
 <h2 class="page-title">Extension registry — every new and changed extension, linked to its source repo</h2>
 <div class="cards">
-<div class="card"><div class="n">224</div><div class="l">NEW</div></div>
+<div class="card"><div class="n">228</div><div class="l">NEW</div></div>
 <div class="card"><div class="n">767</div><div class="l">UPDATED</div></div>
-<div class="card"><div class="n">1621</div><div class="l">IN REGISTRY</div></div>
+<div class="card"><div class="n">1625</div><div class="l">IN REGISTRY</div></div>
 <div class="card"><div class="n">10</div><div class="l">PAGES READ</div></div>
 </div>
-<section class="tail"><h2>New extensions <span class="dim">· 224</span></h2><p class="dim">First published in this window.</p><article class="item ext-item">
+<div class="tabs"><button type="button" class="tab active" data-tab="new">New<span class="dim"> (228)</span></button><button type="button" class="tab" data-tab="updated">Updated<span class="dim"> (767)</span></button><button type="button" class="tab" data-tab="popular">Popular<span class="dim"> (25)</span></button></div>
+<div class="tab-panel active" data-panel="new"><div class="panel-head">New extensions <span class="dim">· 228</span></div><p class="dim">First published in this window.</p><article class="item ext-item">
+<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@dataverket/omni" rel="noopener">@dataverket/omni</a></h2>
+<p class="lede">Talos fleet discovery for swamp, via Sidero Omni, plus the disk layout of every machine in a cluster.</p>
+<div class="meta"><span>beddari</span><span><span>v2026.09.19.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/dataverket-org/swamp-extensions" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-19T13:29:32.783Z">2026-09-19T13:29:32.783Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">omni</span><span class="ext-label">talos</span><span class="ext-label">kubernetes</span><span class="ext-label">inventory</span><span class="ext-label">siderolabs</span><span class="ext-label">volumes</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@dataverket/talosctl" rel="noopener">@dataverket/talosctl</a></h2>
+<p class="lede">Talos Linux machines for swamp, through `talosctl`, with or without Omni.</p>
+<div class="meta"><span>beddari</span><span><span>v2026.09.19.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/dataverket-org/swamp-extensions" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-19T13:29:20.533Z">2026-09-19T13:29:20.533Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">talos</span><span class="ext-label">kubernetes</span><span class="ext-label">infrastructure</span><span class="ext-label">volumes</span><span class="ext-label">disks</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@dismal_swamper/goupgrade" rel="noopener">@dismal_swamper/goupgrade</a></h2>
+<p class="lede">Upgrade Go projects: bump the Go toolchain version in go.mod and update all module dependencies</p>
+<div class="meta"><span>dismal_swamper</span><span><span>v2026.09.19.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/sam-atkins/goupgrade-ext" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-19T13:19:09.664Z">2026-09-19T13:19:09.664Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">go</span><span class="ext-label">golang</span><span class="ext-label">upgrade</span><span class="ext-label">dependencies</span><span class="ext-label">toolchain</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@magistr/swamp-watch" rel="noopener">@magistr/swamp-watch</a></h2>
+<p class="lede">Per-workflow observability for a swamp repo&#39;s own scheduled work.</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>2 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>first published <time datetime="2026-08-22T20:39:03.424Z">2026-08-22T20:39:03.424Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">observability</span><span class="ext-label">monitoring</span><span class="ext-label">swamp</span><span class="ext-label">prometheus</span><span class="ext-label">scheduling</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@magistr/mongodb-datastore" rel="noopener">@magistr/mongodb-datastore</a></h2>
+<p class="lede">MongoDB-backed swamp datastore — distributed locks with TTL, heartbeat, and nonce fencing, plus a manifest+content-addressed-blob sync protocol that streams the datastore tier as inline-bytes cursor batches. Dirty tracking rides an append-o</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-mongodb-datastore" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-01T11:16:11.098Z">2026-09-01T11:16:11.098Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">mongodb</span><span class="ext-label">datastore</span><span class="ext-label">distributed-lock</span><span class="ext-label">content-addressed</span><span class="ext-label">replica-set</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@magistr/spotify-data" rel="noopener">@magistr/spotify-data</a></h2>
+<p class="lede">Import a Spotify &quot;Extended streaming history&quot; GDPR export into swamp — one</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-01T18:23:41.281Z">2026-09-01T18:23:41.281Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">music</span><span class="ext-label">spotify</span><span class="ext-label">listening</span><span class="ext-label">import</span><span class="ext-label">gdpr</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@dismal_swamper/govulncheck" rel="noopener">@dismal_swamper/govulncheck</a></h2>
+<p class="lede">Run govulncheck against a Go module and record which known vulnerabilities affect the code</p>
+<div class="meta"><span>dismal_swamper</span><span><span>v2026.09.19.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/sam-atkins/govulncheck-ext" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-19T13:05:15.214Z">2026-09-19T13:05:15.214Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">go</span><span class="ext-label">golang</span><span class="ext-label">govulncheck</span><span class="ext-label">vulnerability</span><span class="ext-label">security</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@magistr/distress" rel="noopener">@magistr/distress</a></h2>
+<p class="lede">A distress-call beacon for AI agents.</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-01T14:09:16.377Z">2026-09-01T14:09:16.377Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">distress</span><span class="ext-label">alerting</span><span class="ext-label">notification</span><span class="ext-label">escalation</span><span class="ext-label">ai-agents</span><span class="ext-label">ai-welfare</span><span class="ext-label">observability</span><span class="ext-label">on-call</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@magistr/diskio" rel="noopener">@magistr/diskio</a></h2>
+<p class="lede">Answer &quot;what is actually reading this disk?&quot; on a Linux host whose storage</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-01T11:35:22.824Z">2026-09-01T11:35:22.824Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">storage</span><span class="ext-label">unraid</span><span class="ext-label">homelab</span><span class="ext-label">observability</span><span class="ext-label">fuse</span><span class="ext-label">device-mapper</span><span class="ext-label">troubleshooting</span></div>
+</article>
+<article class="item ext-item">
 <h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@dismal_swamper/pushover" rel="noopener">@dismal_swamper/pushover</a></h2>
 <p class="lede">Send push notifications via the Pushover API</p>
 <div class="meta"><span>dismal_swamper</span><span><span>v2026.09.19.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/sam-atkins/pushover-ext" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-19T12:49:58.296Z">2026-09-19T12:49:58.296Z</time></span></div>
@@ -98,7 +157,7 @@ footer .ver{color:var(--acc)}
 <article class="item ext-item">
 <h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@dataverket/openstack" rel="noopener">@dataverket/openstack</a></h2>
 <p class="lede">OpenStack for swamp, through the official `openstack` CLI.</p>
-<div class="meta"><span>beddari</span><span><span>v2026.09.18.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/dataverket-org/swamp-extensions" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-18T19:27:56.017Z">2026-09-18T19:27:56.017Z</time></span></div>
+<div class="meta"><span>beddari</span><span><span>v2026.09.18.1</span></span><span class="grade g-A">A</span><span>2 pulls</span><span><a href="https://github.com/dataverket-org/swamp-extensions" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-18T19:27:56.017Z">2026-09-18T19:27:56.017Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">openstack</span><span class="ext-label">nova</span><span class="ext-label">cinder</span><span class="ext-label">neutron</span><span class="ext-label">glance</span><span class="ext-label">compute</span><span class="ext-label">volumes</span><span class="ext-label">floating-ip</span></div>
 </article>
 <article class="item ext-item">
@@ -286,36 +345,6 @@ footer .ver{color:var(--acc)}
 <p class="lede">Deterministic queries over a Junos SRX security policy tree expressed as YAML.</p>
 <div class="meta"><span>hmcrum</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/hcrumpler/swamp-extensions" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-17T20:59:28.176Z">2026-09-17T20:59:28.176Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">juniper</span><span class="ext-label">junos</span><span class="ext-label">srx</span><span class="ext-label">firewall</span><span class="ext-label">security</span><span class="ext-label">network</span><span class="ext-label">policy</span><span class="ext-label">yaml</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@magistr/swamp-watch" rel="noopener">@magistr/swamp-watch</a></h2>
-<p class="lede">Per-workflow observability for a swamp repo&#39;s own scheduled work.</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>2 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>first published <time datetime="2026-08-22T20:39:03.424Z">2026-08-22T20:39:03.424Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">observability</span><span class="ext-label">monitoring</span><span class="ext-label">swamp</span><span class="ext-label">prometheus</span><span class="ext-label">scheduling</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@magistr/mongodb-datastore" rel="noopener">@magistr/mongodb-datastore</a></h2>
-<p class="lede">MongoDB-backed swamp datastore — distributed locks with TTL, heartbeat, and nonce fencing, plus a manifest+content-addressed-blob sync protocol that streams the datastore tier as inline-bytes cursor batches. Dirty tracking rides an append-o</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-mongodb-datastore" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-01T11:16:11.098Z">2026-09-01T11:16:11.098Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">mongodb</span><span class="ext-label">datastore</span><span class="ext-label">distributed-lock</span><span class="ext-label">content-addressed</span><span class="ext-label">replica-set</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@magistr/spotify-data" rel="noopener">@magistr/spotify-data</a></h2>
-<p class="lede">Import a Spotify &quot;Extended streaming history&quot; GDPR export into swamp — one</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-01T18:23:41.281Z">2026-09-01T18:23:41.281Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">music</span><span class="ext-label">spotify</span><span class="ext-label">listening</span><span class="ext-label">import</span><span class="ext-label">gdpr</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@magistr/distress" rel="noopener">@magistr/distress</a></h2>
-<p class="lede">A distress-call beacon for AI agents.</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-01T14:09:16.377Z">2026-09-01T14:09:16.377Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">distress</span><span class="ext-label">alerting</span><span class="ext-label">notification</span><span class="ext-label">escalation</span><span class="ext-label">ai-agents</span><span class="ext-label">ai-welfare</span><span class="ext-label">observability</span><span class="ext-label">on-call</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@magistr/diskio" rel="noopener">@magistr/diskio</a></h2>
-<p class="lede">Answer &quot;what is actually reading this disk?&quot; on a Linux host whose storage</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>first published <time datetime="2026-09-01T11:35:22.824Z">2026-09-01T11:35:22.824Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">storage</span><span class="ext-label">unraid</span><span class="ext-label">homelab</span><span class="ext-label">observability</span><span class="ext-label">fuse</span><span class="ext-label">device-mapper</span><span class="ext-label">troubleshooting</span></div>
 </article>
 <article class="item ext-item">
 <h2><span class="ext-badge new">NEW</span><a href="https://swamp-club.com/extensions/@webframp/aws/kiro-usage" rel="noopener">@webframp/aws/kiro-usage</a></h2>
@@ -1414,54 +1443,319 @@ footer .ver{color:var(--acc)}
 <p class="lede">Structural health monitoring for a UniFi fabric. The `@sntxrr/unifi-fabric/topology` model&#39;s `check` method compares a declared topology against live `/stat/device` rows and reports the failures that outcome-based monitoring cannot see: a d</p>
 <div class="meta"><span>sntxrr</span><span><span>v2026.08.20.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/sntxrr/swamp-unifi" rel="noopener">github.com</a></span><span>first published <time datetime="2026-08-20T21:06:35.757Z">2026-08-20T21:06:35.757Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">unifi</span><span class="ext-label">ubiquiti</span><span class="ext-label">udm</span><span class="ext-label">topology</span><span class="ext-label">drift</span><span class="ext-label">monitoring</span><span class="ext-label">networking</span><span class="ext-label">prometheus</span></div>
-</article></section>
-<section class="tail"><h2>Updated extensions <span class="dim">· 767</span></h2><p class="dim">A new version published in this window.</p><article class="item ext-item">
+</article></div>
+<div class="tab-panel" data-panel="updated"><div class="panel-head">Updated extensions <span class="dim">· 767</span></div><p class="dim">A new version published in this window.</p><article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/victoriametrics" rel="noopener">@magistr/victoriametrics</a></h2>
+<p class="lede">VictoriaMetrics query API for swamp — instant/range PromQL, scrape-target</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>7 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:06:32.292Z">2026-09-19T13:06:32.292Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">metrics</span><span class="ext-label">observability</span><span class="ext-label">victoriametrics</span><span class="ext-label">prometheus</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/victorialogs" rel="noopener">@magistr/victorialogs</a></h2>
+<p class="lede">VictoriaLogs query API — run LogsQL queries, field/stream stats, and hits</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>3 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:06:29.827Z">2026-09-19T13:06:29.827Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">logs</span><span class="ext-label">observability</span><span class="ext-label">victorialogs</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/tubearchivist" rel="noopener">@magistr/tubearchivist</a></h2>
+<p class="lede">TubeArchivist API integration — manage videos, channels, downloads, and search</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:06:27.439Z">2026-09-19T13:06:27.439Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">youtube</span><span class="ext-label">media</span><span class="ext-label">archival</span><span class="ext-label">tubearchivist</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/telegram-send" rel="noopener">@magistr/telegram-send</a></h2>
+<p class="lede">Send messages, photos, documents, and videos to Telegram chats and channels</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>5 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:06:25.048Z">2026-09-19T13:06:25.048Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">telegram</span><span class="ext-label">send</span><span class="ext-label">bot</span><span class="ext-label">notification</span><span class="ext-label">chat</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/telegram-import" rel="noopener">@magistr/telegram-import</a></h2>
+<p class="lede">Import Telegram channel export (zip) with posts, images, files, and videos into Obsidian vault</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:06:22.588Z">2026-09-19T13:06:22.588Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">telegram</span><span class="ext-label">obsidian</span><span class="ext-label">import</span><span class="ext-label">chat</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/talos-node" rel="noopener">@magistr/talos-node</a></h2>
+<p class="lede">Talos Linux node management via talosctl - provision, bootstrap, patch, upgrade, health check, and more</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>3 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:06:19.862Z">2026-09-19T13:06:19.862Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">talos</span><span class="ext-label">kubernetes</span><span class="ext-label">infrastructure</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/talm-cluster" rel="noopener">@magistr/talm-cluster</a></h2>
+<p class="lede">Talos cluster lifecycle management via talm — init, configure, template nodes, apply configs, bootstrap, and health checks</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:06:17.424Z">2026-09-19T13:06:17.424Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">talos</span><span class="ext-label">talm</span><span class="ext-label">kubernetes</span><span class="ext-label">infrastructure</span><span class="ext-label">cluster</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/swamp-go-brr" rel="noopener">@magistr/swamp-go-brr</a></h2>
+<p class="lede">An autonomous, driver-free development loop for coding agents. You hand it an</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>3 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:06:07.807Z">2026-09-19T13:06:07.807Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">automation</span><span class="ext-label">orchestration</span><span class="ext-label">dag</span><span class="ext-label">firecracker</span><span class="ext-label">claude</span><span class="ext-label">tdd</span><span class="ext-label">autonomous</span><span class="ext-label">homelab</span></div>
+</article>
+<article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/stripe-mpp" rel="noopener">@magistr/stripe-mpp</a></h2>
 <p class="lede">Stripe Machine Payments Protocol (MPP) — agent buyer (probe/mint/pay over HTTP-402 Payment auth), consumer buyer (grant a Shared Payment Token from a Link wallet via link-cli, spend by reference), and full seller API (challenge/verify/charg</p>
-<div class="meta"><span>magistr</span><span><span>v2026.08.19.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T12:33:42.553Z">2026-09-19T12:33:42.553Z</time></span></div>
+<div class="meta"><span>magistr</span><span><span>v2026.08.19.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:06:04.767Z">2026-09-19T13:06:04.767Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">stripe</span><span class="ext-label">mpp</span><span class="ext-label">payments</span><span class="ext-label">machine-payments</span><span class="ext-label">agentic-commerce</span><span class="ext-label">http-402</span></div>
 </article>
 <article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/livejournal-import" rel="noopener">@magistr/livejournal-import</a></h2>
-<p class="lede">Import LiveJournal blog entries with images, tags, mood, now playing, and comments into Obsidian vault</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.19.1</span></span><span class="grade g-A">A</span><span>16 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T12:25:21.963Z">2026-09-19T12:25:21.963Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">livejournal</span><span class="ext-label">obsidian</span><span class="ext-label">import</span><span class="ext-label">blog</span></div>
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/skype" rel="noopener">@magistr/skype</a></h2>
+<p class="lede">Skype SQLite database reader — conversations, contacts, messages, search, Obsidian export</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:56.859Z">2026-09-19T13:05:56.859Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">skype</span><span class="ext-label">messaging</span><span class="ext-label">archive</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/shoko" rel="noopener">@magistr/shoko</a></h2>
+<p class="lede">Shoko anime metadata server API — series, episodes, files, and metadata.</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>7 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:54.324Z">2026-09-19T13:05:54.324Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">anime</span><span class="ext-label">metadata</span><span class="ext-label">shoko</span><span class="ext-label">self-hosted</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/seanime" rel="noopener">@magistr/seanime</a></h2>
+<p class="lede">Seanime self-hosted anime server API — library, search, downloads, playback.</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:51.812Z">2026-09-19T13:05:51.812Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">anime</span><span class="ext-label">seanime</span><span class="ext-label">self-hosted</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/seadex" rel="noopener">@magistr/seadex</a></h2>
+<p class="lede">SeaDex (releases.moe) — best-release recommendations for anime, lookups by</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:49.158Z">2026-09-19T13:05:49.158Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">anime</span><span class="ext-label">releases</span><span class="ext-label">seadex</span></div>
 </article>
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/reading-list" rel="noopener">@magistr/reading-list</a></h2>
 <p class="lede">A tiered reading list for a hand-picked set of writers — reads the Swamp</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.19.1</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T12:23:33.093Z">2026-09-19T12:23:33.093Z</time></span></div>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:46.458Z">2026-09-19T13:05:46.458Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">rss</span><span class="ext-label">atom</span><span class="ext-label">feed</span><span class="ext-label">reading</span><span class="ext-label">wardley</span><span class="ext-label">linkedin</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/porkbun" rel="noopener">@magistr/porkbun</a></h2>
+<p class="lede">Porkbun DNS record management with full CRUD for all common record types</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:43.437Z">2026-09-19T13:05:43.437Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">dns</span><span class="ext-label">porkbun</span><span class="ext-label">domains</span><span class="ext-label">networking</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/pihole" rel="noopener">@magistr/pihole</a></h2>
+<p class="lede">Pi-hole custom DNS record management for swamp — list, add, delete, and</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>67 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:40.285Z">2026-09-19T13:05:40.285Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">dns</span><span class="ext-label">pihole</span><span class="ext-label">networking</span><span class="ext-label">homelab</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/obsidian-yt-archiver" rel="noopener">@magistr/obsidian-yt-archiver</a></h2>
+<p class="lede">Scan Obsidian vault for YouTube links, archive in TubeArchivist, generate reference notes</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:37.830Z">2026-09-19T13:05:37.830Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">obsidian</span><span class="ext-label">youtube</span><span class="ext-label">tubearchivist</span><span class="ext-label">archival</span></div>
 </article>
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/obsidian-vault" rel="noopener">@magistr/obsidian-vault</a></h2>
 <p class="lede">Manage Obsidian vaults headlessly from a mounted directory, or via the official CLI (v1.12+) — notes, search, tags, links, daily notes, frontmatter, corpus digest</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.19.1</span></span><span class="grade g-A">A</span><span>33 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T12:23:29.732Z">2026-09-19T12:23:29.732Z</time></span></div>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>33 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:35.118Z">2026-09-19T13:05:35.118Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">obsidian</span><span class="ext-label">notes</span><span class="ext-label">knowledge-management</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/observability-agent" rel="noopener">@magistr/observability-agent</a></h2>
+<p class="lede">Install and configure a host-native metrics + logs agent on a remote</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:31.821Z">2026-09-19T13:05:31.821Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">monitoring</span><span class="ext-label">observability</span><span class="ext-label">metrics</span><span class="ext-label">logs</span><span class="ext-label">node-exporter</span><span class="ext-label">blackbox</span><span class="ext-label">vector</span><span class="ext-label">victoriametrics</span></div>
 </article>
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/musicbrainz" rel="noopener">@magistr/musicbrainz</a></h2>
 <p class="lede">MusicBrainz metadata — search, look up, and browse artists, release groups,</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.19.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T12:23:26.289Z">2026-09-19T12:23:26.289Z</time></span></div>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:29.356Z">2026-09-19T13:05:29.356Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">music</span><span class="ext-label">metadata</span><span class="ext-label">musicbrainz</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/music-library" rel="noopener">@magistr/music-library</a></h2>
+<p class="lede">Multidimensional music library catalog built WITHOUT touching the</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:25.100Z">2026-09-19T13:05:25.100Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">music</span><span class="ext-label">library</span><span class="ext-label">metadata</span><span class="ext-label">tags</span><span class="ext-label">encoding</span><span class="ext-label">id3</span><span class="ext-label">catalog</span><span class="ext-label">unraid</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/livejournal-import" rel="noopener">@magistr/livejournal-import</a></h2>
+<p class="lede">Import LiveJournal blog entries with images, tags, mood, now playing, and comments into Obsidian vault</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>16 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:21.569Z">2026-09-19T13:05:21.569Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">livejournal</span><span class="ext-label">obsidian</span><span class="ext-label">import</span><span class="ext-label">blog</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@bad-at-naming/libvirt" rel="noopener">@bad-at-naming/libvirt</a></h2>
+<p class="lede">Comprehensive libvirt/virsh management — VMs, networks, storage pools,</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>10 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:17.095Z">2026-09-19T13:05:17.095Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">libvirt</span><span class="ext-label">virsh</span><span class="ext-label">kvm</span><span class="ext-label">qemu</span><span class="ext-label">virtualization</span><span class="ext-label">vm</span><span class="ext-label">homelab</span><span class="ext-label">ssh</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/lastfm" rel="noopener">@magistr/lastfm</a></h2>
+<p class="lede">Last.fm for swamp — read a user&#39;s scrobble history and listening statistics</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:14.430Z">2026-09-19T13:05:14.430Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">music</span><span class="ext-label">lastfm</span><span class="ext-label">scrobbles</span><span class="ext-label">listening</span><span class="ext-label">statistics</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/kaiten" rel="noopener">@magistr/kaiten</a></h2>
+<p class="lede">Kaiten work-management REST API (read-only) — list/get spaces, boards, columns, and cards with token auth, offset/limit pagination, and 429 back-off</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:11.711Z">2026-09-19T13:05:11.711Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">kaiten</span><span class="ext-label">kanban</span><span class="ext-label">project-management</span><span class="ext-label">task-tracking</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/juick" rel="noopener">@magistr/juick</a></h2>
+<p class="lede">Juick.com microblogging API - fetch posts, comments, threads, and import to Obsidian</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>3 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:09.196Z">2026-09-19T13:05:09.196Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">juick</span><span class="ext-label">obsidian</span><span class="ext-label">import</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/jscad-stl-validator" rel="noopener">@magistr/jscad-stl-validator</a></h2>
+<p class="lede">STL file validator — checks triangle count, degenerate faces, bounding box</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:06.561Z">2026-09-19T13:05:06.561Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">cad</span><span class="ext-label">jscad</span><span class="ext-label">stl</span><span class="ext-label">validation</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/jscad-stl-slicer" rel="noopener">@magistr/jscad-stl-slicer</a></h2>
+<p class="lede">STL slicer — Z-plane slicing, orthographic projection, symmetry analysis, feature detection, mesh comparison</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:05:04.109Z">2026-09-19T13:05:04.109Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">cad</span><span class="ext-label">jscad</span><span class="ext-label">stl</span><span class="ext-label">analysis</span></div>
 </article>
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/jscad-cad" rel="noopener">@magistr/jscad-cad</a></h2>
 <p class="lede">JSCAD v2 CAD renderer — evaluate CadScript main() and serialize to STL/DXF/SVG/OBJ/3MF. Includes jscad-codegen Claude Code skill.</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.19.1</span></span><span class="grade g-A">A</span><span>7 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T12:23:20.768Z">2026-09-19T12:23:20.768Z</time></span></div>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>7 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:59.956Z">2026-09-19T13:04:59.956Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">cad</span><span class="ext-label">jscad</span><span class="ext-label">3d-printing</span><span class="ext-label">stl</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/jabber" rel="noopener">@magistr/jabber</a></h2>
+<p class="lede">Read, search, and import Psi/Psi+ Jabber (XMPP) chat history — DMs and MUC conferences — into Obsidian vault as markdown notes</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:56.999Z">2026-09-19T13:04:56.999Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">jabber</span><span class="ext-label">xmpp</span><span class="ext-label">psi</span><span class="ext-label">obsidian</span><span class="ext-label">import</span><span class="ext-label">chat</span><span class="ext-label">history</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/issue-lifecycle" rel="noopener">@magistr/issue-lifecycle</a></h2>
+<p class="lede">Issue lifecycle model with 9 bundled Claude Code skills for DDD, TDD,</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>59 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:54.553Z">2026-09-19T13:04:54.553Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">issue-tracking</span><span class="ext-label">tdd</span><span class="ext-label">ddd</span><span class="ext-label">review</span><span class="ext-label">lifecycle</span><span class="ext-label">sdlc</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/homeassistant" rel="noopener">@magistr/homeassistant</a></h2>
+<p class="lede">Home Assistant integration for swamp — query entity states, call services,</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>66 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:51.043Z">2026-09-19T13:04:51.043Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">home-automation</span><span class="ext-label">homeassistant</span><span class="ext-label">iot</span><span class="ext-label">smart-home</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/herdr" rel="noopener">@magistr/herdr</a></h2>
+<p class="lede">Drive a herdr terminal-agent runtime from swamp.</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>7 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:48.521Z">2026-09-19T13:04:48.521Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">herdr</span><span class="ext-label">ssh</span><span class="ext-label">remote</span><span class="ext-label">terminal</span><span class="ext-label">multiplexer</span><span class="ext-label">agents</span><span class="ext-label">ai-agents</span><span class="ext-label">claude-code</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/headphones" rel="noopener">@magistr/headphones</a></h2>
+<p class="lede">Headphones music-download automation API for swamp — manage artists, albums,</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>2 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:45.890Z">2026-09-19T13:04:45.890Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">music</span><span class="ext-label">automation</span><span class="ext-label">headphones</span><span class="ext-label">self-hosted</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/good-planning" rel="noopener">@magistr/good-planning</a></h2>
+<p class="lede">Good-planning model that operationalizes Felipe Bovolon&#39;s &quot;Good Planning</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>34 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:42.511Z">2026-09-19T13:04:42.511Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">planning</span><span class="ext-label">strategy</span><span class="ext-label">governance</span><span class="ext-label">adaptive</span><span class="ext-label">bovolon</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/gonic" rel="noopener">@magistr/gonic</a></h2>
+<p class="lede">Gonic Subsonic-compatible music server API for swamp — browse, search,</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>6 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:39.792Z">2026-09-19T13:04:39.792Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">music</span><span class="ext-label">subsonic</span><span class="ext-label">gonic</span><span class="ext-label">self-hosted</span></div>
 </article>
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/fragrantica" rel="noopener">@magistr/fragrantica</a></h2>
 <p class="lede">Fragrantica for swamp — search perfumes, list them by designer/house or by</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.19.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T12:23:17.452Z">2026-09-19T12:23:17.452Z</time></span></div>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:36.450Z">2026-09-19T13:04:36.450Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">perfume</span><span class="ext-label">fragrance</span><span class="ext-label">fragrantica</span><span class="ext-label">scraper</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/flipper-zero" rel="noopener">@magistr/flipper-zero</a></h2>
+<p class="lede">Control a Flipper Zero over its USB serial CLI from swamp.</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:33.365Z">2026-09-19T13:04:33.365Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">flipper-zero</span><span class="ext-label">serial</span><span class="ext-label">usb</span><span class="ext-label">hardware</span><span class="ext-label">cli</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/firecracker" rel="noopener">@magistr/firecracker</a></h2>
+<p class="lede">Firecracker microVM lifecycle management via SSH + the Unix-socket REST API.</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>40 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:30.364Z">2026-09-19T13:04:30.364Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">firecracker</span><span class="ext-label">microvm</span><span class="ext-label">kvm</span><span class="ext-label">virtualization</span><span class="ext-label">vm</span><span class="ext-label">aws</span><span class="ext-label">homelab</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/fidonet-msgbase" rel="noopener">@magistr/fidonet-msgbase</a></h2>
+<p class="lede">FidoNet JAM/Squish/FTS-0001 message base reader — browse areas, read messages, search by sender/address/text</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:27.566Z">2026-09-19T13:04:27.566Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">fidonet</span><span class="ext-label">messaging</span><span class="ext-label">archive</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/fc-task-server" rel="noopener">@magistr/fc-task-server</a></h2>
+<p class="lede">Host↔guest task/result control-plane server for Firecracker microVM agents.</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>15 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:24.985Z">2026-09-19T13:04:24.985Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">firecracker</span><span class="ext-label">microvm</span><span class="ext-label">agent</span><span class="ext-label">task-server</span><span class="ext-label">claude-code</span><span class="ext-label">isolation</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/dawarich" rel="noopener">@magistr/dawarich</a></h2>
+<p class="lede">Dawarich self-hosted location-tracking API for swamp — read points, visits,</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:17.388Z">2026-09-19T13:04:17.388Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">location</span><span class="ext-label">gps</span><span class="ext-label">self-hosted</span><span class="ext-label">dawarich</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/cozystack-platform" rel="noopener">@magistr/cozystack-platform</a></h2>
+<p class="lede">Cozystack platform management — install operator, deploy packages, manage apps/tenants, bootstrap CNI, and verify platform health</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:14.767Z">2026-09-19T13:04:14.767Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">cozystack</span><span class="ext-label">kubernetes</span><span class="ext-label">infrastructure</span><span class="ext-label">platform</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/cozystack-linstor" rel="noopener">@magistr/cozystack-linstor</a></h2>
+<p class="lede">Linstor distributed storage management for Cozystack — ZFS pool creation, storage classes, node and pool status</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>2 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:12.278Z">2026-09-19T13:04:12.278Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">cozystack</span><span class="ext-label">linstor</span><span class="ext-label">kubernetes</span><span class="ext-label">storage</span><span class="ext-label">infrastructure</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/comfyui" rel="noopener">@magistr/comfyui</a></h2>
+<p class="lede">Drive a ComfyUI server over its HTTP API from swamp. Ships three bundled</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:09.751Z">2026-09-19T13:04:09.751Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">comfyui</span><span class="ext-label">ideogram</span><span class="ext-label">krea</span><span class="ext-label">flux</span><span class="ext-label">minimax-h3</span><span class="ext-label">image</span><span class="ext-label">text-to-image</span><span class="ext-label">reference-to-video</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/career-kb" rel="noopener">@magistr/career-kb</a></h2>
+<p class="lede">Retrieval, routing, and triage over a career-research knowledge base — 22</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:06.928Z">2026-09-19T13:04:06.928Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">career</span><span class="ext-label">knowledge-base</span><span class="ext-label">retrieval</span><span class="ext-label">routing</span><span class="ext-label">psychology</span><span class="ext-label">career-inaction</span><span class="ext-label">career-indecision</span><span class="ext-label">impostor</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/cadvisor" rel="noopener">@magistr/cadvisor</a></h2>
+<p class="lede">cAdvisor container metrics for swamp — deploy a cAdvisor container over SSH,</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:04.419Z">2026-09-19T13:04:04.419Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">metrics</span><span class="ext-label">containers</span><span class="ext-label">monitoring</span><span class="ext-label">cadvisor</span></div>
 </article>
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/bandcamp" rel="noopener">@magistr/bandcamp</a></h2>
 <p class="lede">Bandcamp for swamp — search artists, albums, and tracks on the public</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.19.1</span></span><span class="grade g-A">A</span><span>2 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T12:23:13.980Z">2026-09-19T12:23:13.980Z</time></span></div>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>2 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:04:01.860Z">2026-09-19T13:04:01.860Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">music</span><span class="ext-label">bandcamp</span><span class="ext-label">media</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/arckit" rel="noopener">@magistr/arckit</a></h2>
+<p class="lede">Standalone swamp port of ArcKit (https://github.com/tractorjuice/arc-kit —</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:03:58.272Z">2026-09-19T13:03:58.272Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">arckit</span><span class="ext-label">architecture</span><span class="ext-label">governance</span><span class="ext-label">enterprise-architecture</span><span class="ext-label">state-machine</span><span class="ext-label">lifecycle</span><span class="ext-label">compliance</span><span class="ext-label">templates</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/anime-cron" rel="noopener">@magistr/anime-cron</a></h2>
+<p class="lede">Anime automation pipeline: fetch airing episodes from Nyaa, sync watch</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:03:55.183Z">2026-09-19T13:03:55.183Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">anime</span><span class="ext-label">anilist</span><span class="ext-label">nyaa</span><span class="ext-label">transmission</span><span class="ext-label">seadex</span><span class="ext-label">torrent</span><span class="ext-label">media</span></div>
+</article>
+<details class="more"><summary>Show 717 more updated extensions…</summary>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/anilist" rel="noopener">@magistr/anilist</a></h2>
+<p class="lede">AniList GraphQL API — search and fetch anime/manga, media details, user lists, trending, and a Telegram activity notifier with completed/dropped detection</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span>3 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:03:52.603Z">2026-09-19T13:03:52.603Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">anime</span><span class="ext-label">manga</span><span class="ext-label">anilist</span><span class="ext-label">media</span></div>
+</article>
+<article class="item ext-item">
+<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/anilist-chart" rel="noopener">@magistr/anilist-chart</a></h2>
+<p class="lede">Read-only render layer for the AniList chat statistics site: turns the</p>
+<div class="meta"><span>magistr</span><span><span>v2026.09.19.2</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-19T13:03:49.903Z">2026-09-19T13:03:49.903Z</time></span></div>
+<div class="ext-labels"><span class="ext-label">anilist</span><span class="ext-label">anime</span><span class="ext-label">clickhouse</span><span class="ext-label">charts</span><span class="ext-label">render</span></div>
 </article>
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@vcjdeboer/session-suite" rel="noopener">@vcjdeboer/session-suite</a></h2>
@@ -1715,7 +2009,6 @@ footer .ver{color:var(--acc)}
 <div class="meta"><span>stack72</span><span><span>v2026.09.18.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-18T16:37:25.519Z">2026-09-18T16:37:25.519Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">aws</span><span class="ext-label">securitylake</span><span class="ext-label">cloud</span><span class="ext-label">infrastructure</span></div>
 </article>
-<details class="more"><summary>Show 717 more updated extensions…</summary>
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@swamp/aws/transfer" rel="noopener">@swamp/aws/transfer</a></h2>
 <p class="lede">AWS TRANSFER infrastructure models</p>
@@ -2025,7 +2318,7 @@ footer .ver{color:var(--acc)}
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@swamp/aws/route53" rel="noopener">@swamp/aws/route53</a></h2>
 <p class="lede">AWS ROUTE53 infrastructure models</p>
-<div class="meta"><span>stack72</span><span><span>v2026.09.18.1</span></span><span class="grade g-A">A</span><span>342 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-18T16:33:21.839Z">2026-09-18T16:33:21.839Z</time></span></div>
+<div class="meta"><span>stack72</span><span><span>v2026.09.18.1</span></span><span class="grade g-A">A</span><span>348 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-18T16:33:21.839Z">2026-09-18T16:33:21.839Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">aws</span><span class="ext-label">route53</span><span class="ext-label">cloud</span><span class="ext-label">infrastructure</span></div>
 </article>
 <article class="item ext-item">
@@ -3247,270 +3540,6 @@ footer .ver{color:var(--acc)}
 <div class="ext-labels"><span class="ext-label">gcp</span><span class="ext-label">google-cloud</span><span class="ext-label">iam</span><span class="ext-label">cloud</span><span class="ext-label">infrastructure</span></div>
 </article>
 <article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/victoriametrics" rel="noopener">@magistr/victoriametrics</a></h2>
-<p class="lede">VictoriaMetrics query API for swamp — instant/range PromQL, scrape-target</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>7 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:30:07.683Z">2026-09-17T20:30:07.683Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">metrics</span><span class="ext-label">observability</span><span class="ext-label">victoriametrics</span><span class="ext-label">prometheus</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/victorialogs" rel="noopener">@magistr/victorialogs</a></h2>
-<p class="lede">VictoriaLogs query API — run LogsQL queries, field/stream stats, and hits</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>3 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:30:05.842Z">2026-09-17T20:30:05.842Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">logs</span><span class="ext-label">observability</span><span class="ext-label">victorialogs</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/tubearchivist" rel="noopener">@magistr/tubearchivist</a></h2>
-<p class="lede">TubeArchivist API integration — manage videos, channels, downloads, and search</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:30:04.006Z">2026-09-17T20:30:04.006Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">youtube</span><span class="ext-label">media</span><span class="ext-label">archival</span><span class="ext-label">tubearchivist</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/telegram-send" rel="noopener">@magistr/telegram-send</a></h2>
-<p class="lede">Send messages, photos, documents, and videos to Telegram chats and channels</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>5 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:30:02.109Z">2026-09-17T20:30:02.109Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">telegram</span><span class="ext-label">send</span><span class="ext-label">bot</span><span class="ext-label">notification</span><span class="ext-label">chat</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/telegram-import" rel="noopener">@magistr/telegram-import</a></h2>
-<p class="lede">Import Telegram channel export (zip) with posts, images, files, and videos into Obsidian vault</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:30:00.253Z">2026-09-17T20:30:00.253Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">telegram</span><span class="ext-label">obsidian</span><span class="ext-label">import</span><span class="ext-label">chat</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/talos-node" rel="noopener">@magistr/talos-node</a></h2>
-<p class="lede">Talos Linux node management via talosctl - provision, bootstrap, patch, upgrade, health check, and more</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>3 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:57.730Z">2026-09-17T20:29:57.730Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">talos</span><span class="ext-label">kubernetes</span><span class="ext-label">infrastructure</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/talm-cluster" rel="noopener">@magistr/talm-cluster</a></h2>
-<p class="lede">Talos cluster lifecycle management via talm — init, configure, template nodes, apply configs, bootstrap, and health checks</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:55.671Z">2026-09-17T20:29:55.671Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">talos</span><span class="ext-label">talm</span><span class="ext-label">kubernetes</span><span class="ext-label">infrastructure</span><span class="ext-label">cluster</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/swamp-go-brr" rel="noopener">@magistr/swamp-go-brr</a></h2>
-<p class="lede">An autonomous, driver-free development loop for coding agents. You hand it an</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>3 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:48.017Z">2026-09-17T20:29:48.017Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">automation</span><span class="ext-label">orchestration</span><span class="ext-label">dag</span><span class="ext-label">firecracker</span><span class="ext-label">claude</span><span class="ext-label">tdd</span><span class="ext-label">autonomous</span><span class="ext-label">homelab</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/skype" rel="noopener">@magistr/skype</a></h2>
-<p class="lede">Skype SQLite database reader — conversations, contacts, messages, search, Obsidian export</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:38.468Z">2026-09-17T20:29:38.468Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">skype</span><span class="ext-label">messaging</span><span class="ext-label">archive</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/shoko" rel="noopener">@magistr/shoko</a></h2>
-<p class="lede">Shoko anime metadata server API — series, episodes, files, and metadata.</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>7 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:35.717Z">2026-09-17T20:29:35.717Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">anime</span><span class="ext-label">metadata</span><span class="ext-label">shoko</span><span class="ext-label">self-hosted</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/seanime" rel="noopener">@magistr/seanime</a></h2>
-<p class="lede">Seanime self-hosted anime server API — library, search, downloads, playback.</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:33.953Z">2026-09-17T20:29:33.953Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">anime</span><span class="ext-label">seanime</span><span class="ext-label">self-hosted</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/seadex" rel="noopener">@magistr/seadex</a></h2>
-<p class="lede">SeaDex (releases.moe) — best-release recommendations for anime, lookups by</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:31.999Z">2026-09-17T20:29:31.999Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">anime</span><span class="ext-label">releases</span><span class="ext-label">seadex</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/porkbun" rel="noopener">@magistr/porkbun</a></h2>
-<p class="lede">Porkbun DNS record management with full CRUD for all common record types</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:26.979Z">2026-09-17T20:29:26.979Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">dns</span><span class="ext-label">porkbun</span><span class="ext-label">domains</span><span class="ext-label">networking</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/pihole" rel="noopener">@magistr/pihole</a></h2>
-<p class="lede">Pi-hole custom DNS record management for swamp — list, add, delete, and</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>67 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:25.203Z">2026-09-17T20:29:25.203Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">dns</span><span class="ext-label">pihole</span><span class="ext-label">networking</span><span class="ext-label">homelab</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/obsidian-yt-archiver" rel="noopener">@magistr/obsidian-yt-archiver</a></h2>
-<p class="lede">Scan Obsidian vault for YouTube links, archive in TubeArchivist, generate reference notes</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:23.468Z">2026-09-17T20:29:23.468Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">obsidian</span><span class="ext-label">youtube</span><span class="ext-label">tubearchivist</span><span class="ext-label">archival</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/observability-agent" rel="noopener">@magistr/observability-agent</a></h2>
-<p class="lede">Install and configure a host-native metrics + logs agent on a remote</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:18.063Z">2026-09-17T20:29:18.063Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">monitoring</span><span class="ext-label">observability</span><span class="ext-label">metrics</span><span class="ext-label">logs</span><span class="ext-label">node-exporter</span><span class="ext-label">blackbox</span><span class="ext-label">vector</span><span class="ext-label">victoriametrics</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/music-library" rel="noopener">@magistr/music-library</a></h2>
-<p class="lede">Multidimensional music library catalog built WITHOUT touching the</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:13.623Z">2026-09-17T20:29:13.623Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">music</span><span class="ext-label">library</span><span class="ext-label">metadata</span><span class="ext-label">tags</span><span class="ext-label">encoding</span><span class="ext-label">id3</span><span class="ext-label">catalog</span><span class="ext-label">unraid</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@bad-at-naming/libvirt" rel="noopener">@bad-at-naming/libvirt</a></h2>
-<p class="lede">Comprehensive libvirt/virsh management — VMs, networks, storage pools,</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>10 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:07.495Z">2026-09-17T20:29:07.495Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">libvirt</span><span class="ext-label">virsh</span><span class="ext-label">kvm</span><span class="ext-label">qemu</span><span class="ext-label">virtualization</span><span class="ext-label">vm</span><span class="ext-label">homelab</span><span class="ext-label">ssh</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/lastfm" rel="noopener">@magistr/lastfm</a></h2>
-<p class="lede">Last.fm for swamp — read a user&#39;s scrobble history and listening statistics</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:05.627Z">2026-09-17T20:29:05.627Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">music</span><span class="ext-label">lastfm</span><span class="ext-label">scrobbles</span><span class="ext-label">listening</span><span class="ext-label">statistics</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/kaiten" rel="noopener">@magistr/kaiten</a></h2>
-<p class="lede">Kaiten work-management REST API (read-only) — list/get spaces, boards, columns, and cards with token auth, offset/limit pagination, and 429 back-off</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:03.662Z">2026-09-17T20:29:03.662Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">kaiten</span><span class="ext-label">kanban</span><span class="ext-label">project-management</span><span class="ext-label">task-tracking</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/juick" rel="noopener">@magistr/juick</a></h2>
-<p class="lede">Juick.com microblogging API - fetch posts, comments, threads, and import to Obsidian</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>3 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:29:01.735Z">2026-09-17T20:29:01.735Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">juick</span><span class="ext-label">obsidian</span><span class="ext-label">import</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/jscad-stl-validator" rel="noopener">@magistr/jscad-stl-validator</a></h2>
-<p class="lede">STL file validator — checks triangle count, degenerate faces, bounding box</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:59.819Z">2026-09-17T20:28:59.819Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">cad</span><span class="ext-label">jscad</span><span class="ext-label">stl</span><span class="ext-label">validation</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/jscad-stl-slicer" rel="noopener">@magistr/jscad-stl-slicer</a></h2>
-<p class="lede">STL slicer — Z-plane slicing, orthographic projection, symmetry analysis, feature detection, mesh comparison</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:58.102Z">2026-09-17T20:28:58.102Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">cad</span><span class="ext-label">jscad</span><span class="ext-label">stl</span><span class="ext-label">analysis</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/jabber" rel="noopener">@magistr/jabber</a></h2>
-<p class="lede">Read, search, and import Psi/Psi+ Jabber (XMPP) chat history — DMs and MUC conferences — into Obsidian vault as markdown notes</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:52.851Z">2026-09-17T20:28:52.851Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">jabber</span><span class="ext-label">xmpp</span><span class="ext-label">psi</span><span class="ext-label">obsidian</span><span class="ext-label">import</span><span class="ext-label">chat</span><span class="ext-label">history</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/issue-lifecycle" rel="noopener">@magistr/issue-lifecycle</a></h2>
-<p class="lede">Issue lifecycle model with 9 bundled Claude Code skills for DDD, TDD,</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>59 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:50.977Z">2026-09-17T20:28:50.977Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">issue-tracking</span><span class="ext-label">tdd</span><span class="ext-label">ddd</span><span class="ext-label">review</span><span class="ext-label">lifecycle</span><span class="ext-label">sdlc</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/homeassistant" rel="noopener">@magistr/homeassistant</a></h2>
-<p class="lede">Home Assistant integration for swamp — query entity states, call services,</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>66 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:48.499Z">2026-09-17T20:28:48.499Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">home-automation</span><span class="ext-label">homeassistant</span><span class="ext-label">iot</span><span class="ext-label">smart-home</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/herdr" rel="noopener">@magistr/herdr</a></h2>
-<p class="lede">Drive a herdr terminal-agent runtime from swamp.</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>7 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:46.332Z">2026-09-17T20:28:46.332Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">herdr</span><span class="ext-label">ssh</span><span class="ext-label">remote</span><span class="ext-label">terminal</span><span class="ext-label">multiplexer</span><span class="ext-label">agents</span><span class="ext-label">ai-agents</span><span class="ext-label">claude-code</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/headphones" rel="noopener">@magistr/headphones</a></h2>
-<p class="lede">Headphones music-download automation API for swamp — manage artists, albums,</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>2 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:44.206Z">2026-09-17T20:28:44.206Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">music</span><span class="ext-label">automation</span><span class="ext-label">headphones</span><span class="ext-label">self-hosted</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/good-planning" rel="noopener">@magistr/good-planning</a></h2>
-<p class="lede">Good-planning model that operationalizes Felipe Bovolon&#39;s &quot;Good Planning</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>34 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:42.480Z">2026-09-17T20:28:42.480Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">planning</span><span class="ext-label">strategy</span><span class="ext-label">governance</span><span class="ext-label">adaptive</span><span class="ext-label">bovolon</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/gonic" rel="noopener">@magistr/gonic</a></h2>
-<p class="lede">Gonic Subsonic-compatible music server API for swamp — browse, search,</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>6 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:40.369Z">2026-09-17T20:28:40.369Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">music</span><span class="ext-label">subsonic</span><span class="ext-label">gonic</span><span class="ext-label">self-hosted</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/flipper-zero" rel="noopener">@magistr/flipper-zero</a></h2>
-<p class="lede">Control a Flipper Zero over its USB serial CLI from swamp.</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:35.196Z">2026-09-17T20:28:35.196Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">flipper-zero</span><span class="ext-label">serial</span><span class="ext-label">usb</span><span class="ext-label">hardware</span><span class="ext-label">cli</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/firecracker" rel="noopener">@magistr/firecracker</a></h2>
-<p class="lede">Firecracker microVM lifecycle management via SSH + the Unix-socket REST API.</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>40 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:33.278Z">2026-09-17T20:28:33.278Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">firecracker</span><span class="ext-label">microvm</span><span class="ext-label">kvm</span><span class="ext-label">virtualization</span><span class="ext-label">vm</span><span class="ext-label">aws</span><span class="ext-label">homelab</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/fidonet-msgbase" rel="noopener">@magistr/fidonet-msgbase</a></h2>
-<p class="lede">FidoNet JAM/Squish/FTS-0001 message base reader — browse areas, read messages, search by sender/address/text</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:31.341Z">2026-09-17T20:28:31.341Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">fidonet</span><span class="ext-label">messaging</span><span class="ext-label">archive</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/fc-task-server" rel="noopener">@magistr/fc-task-server</a></h2>
-<p class="lede">Host↔guest task/result control-plane server for Firecracker microVM agents.</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>15 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:29.414Z">2026-09-17T20:28:29.414Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">firecracker</span><span class="ext-label">microvm</span><span class="ext-label">agent</span><span class="ext-label">task-server</span><span class="ext-label">claude-code</span><span class="ext-label">isolation</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/dawarich" rel="noopener">@magistr/dawarich</a></h2>
-<p class="lede">Dawarich self-hosted location-tracking API for swamp — read points, visits,</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:23.865Z">2026-09-17T20:28:23.865Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">location</span><span class="ext-label">gps</span><span class="ext-label">self-hosted</span><span class="ext-label">dawarich</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/cozystack-platform" rel="noopener">@magistr/cozystack-platform</a></h2>
-<p class="lede">Cozystack platform management — install operator, deploy packages, manage apps/tenants, bootstrap CNI, and verify platform health</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:22.056Z">2026-09-17T20:28:22.056Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">cozystack</span><span class="ext-label">kubernetes</span><span class="ext-label">infrastructure</span><span class="ext-label">platform</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/cozystack-linstor" rel="noopener">@magistr/cozystack-linstor</a></h2>
-<p class="lede">Linstor distributed storage management for Cozystack — ZFS pool creation, storage classes, node and pool status</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>2 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:20.138Z">2026-09-17T20:28:20.138Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">cozystack</span><span class="ext-label">linstor</span><span class="ext-label">kubernetes</span><span class="ext-label">storage</span><span class="ext-label">infrastructure</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/comfyui" rel="noopener">@magistr/comfyui</a></h2>
-<p class="lede">Drive a ComfyUI server over its HTTP API from swamp. Ships three bundled</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>4 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:18.369Z">2026-09-17T20:28:18.369Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">comfyui</span><span class="ext-label">ideogram</span><span class="ext-label">krea</span><span class="ext-label">flux</span><span class="ext-label">minimax-h3</span><span class="ext-label">image</span><span class="ext-label">text-to-image</span><span class="ext-label">reference-to-video</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/career-kb" rel="noopener">@magistr/career-kb</a></h2>
-<p class="lede">Retrieval, routing, and triage over a career-research knowledge base — 22</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:16.335Z">2026-09-17T20:28:16.335Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">career</span><span class="ext-label">knowledge-base</span><span class="ext-label">retrieval</span><span class="ext-label">routing</span><span class="ext-label">psychology</span><span class="ext-label">career-inaction</span><span class="ext-label">career-indecision</span><span class="ext-label">impostor</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/cadvisor" rel="noopener">@magistr/cadvisor</a></h2>
-<p class="lede">cAdvisor container metrics for swamp — deploy a cAdvisor container over SSH,</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>1 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:14.331Z">2026-09-17T20:28:14.331Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">metrics</span><span class="ext-label">containers</span><span class="ext-label">monitoring</span><span class="ext-label">cadvisor</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/arckit" rel="noopener">@magistr/arckit</a></h2>
-<p class="lede">Standalone swamp port of ArcKit (https://github.com/tractorjuice/arc-kit —</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:09.723Z">2026-09-17T20:28:09.723Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">arckit</span><span class="ext-label">architecture</span><span class="ext-label">governance</span><span class="ext-label">enterprise-architecture</span><span class="ext-label">state-machine</span><span class="ext-label">lifecycle</span><span class="ext-label">compliance</span><span class="ext-label">templates</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/anime-cron" rel="noopener">@magistr/anime-cron</a></h2>
-<p class="lede">Anime automation pipeline: fetch airing episodes from Nyaa, sync watch</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:07.409Z">2026-09-17T20:28:07.409Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">anime</span><span class="ext-label">anilist</span><span class="ext-label">nyaa</span><span class="ext-label">transmission</span><span class="ext-label">seadex</span><span class="ext-label">torrent</span><span class="ext-label">media</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/anilist" rel="noopener">@magistr/anilist</a></h2>
-<p class="lede">AniList GraphQL API — search and fetch anime/manga, media details, user lists, trending, and a Telegram activity notifier with completed/dropped detection</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>3 pulls</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:04.993Z">2026-09-17T20:28:04.993Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">anime</span><span class="ext-label">manga</span><span class="ext-label">anilist</span><span class="ext-label">media</span></div>
-</article>
-<article class="item ext-item">
-<h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@magistr/anilist-chart" rel="noopener">@magistr/anilist-chart</a></h2>
-<p class="lede">Read-only render layer for the AniList chat statistics site: turns the</p>
-<div class="meta"><span>magistr</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span><a href="https://github.com/umag/swamp-workspace" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T20:28:02.437Z">2026-09-17T20:28:02.437Z</time></span></div>
-<div class="ext-labels"><span class="ext-label">anilist</span><span class="ext-label">anime</span><span class="ext-label">clickhouse</span><span class="ext-label">charts</span><span class="ext-label">render</span></div>
-</article>
-<article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@webframp/aws/event-topology" rel="noopener">@webframp/aws/event-topology</a></h2>
 <p class="lede">Event topology observation — discovers the directed graph of event</p>
 <div class="meta"><span>webframp</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>3 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T18:56:45.959Z">2026-09-17T18:56:45.959Z</time></span></div>
@@ -3813,7 +3842,7 @@ footer .ver{color:var(--acc)}
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@swamp/s3-datastore" rel="noopener">@swamp/s3-datastore</a></h2>
 <p class="lede">Store data in an Amazon S3 bucket with local cache synchronization.</p>
-<div class="meta"><span>stack72</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>118,873 pulls</span><span><a href="https://github.com/systeminit/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T18:06:49.543Z">2026-09-17T18:06:49.543Z</time></span></div>
+<div class="meta"><span>stack72</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>118,874 pulls</span><span><a href="https://github.com/systeminit/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T18:06:49.543Z">2026-09-17T18:06:49.543Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">datastore</span><span class="ext-label">aws</span><span class="ext-label">s3</span><span class="ext-label">storage</span></div>
 </article>
 <article class="item ext-item">
@@ -4407,7 +4436,7 @@ footer .ver{color:var(--acc)}
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@webframp/system" rel="noopener">@webframp/system</a></h2>
 <p class="lede">Query local system diagnostics via shell commands for operational visibility.</p>
-<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>62,596 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:44.410Z">2026-09-15T18:02:44.410Z</time></span></div>
+<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>62,671 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:44.410Z">2026-09-15T18:02:44.410Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">diagnostics</span><span class="ext-label">linux</span><span class="ext-label">observability</span><span class="ext-label">ops</span><span class="ext-label">system</span></div>
 </article>
 <article class="item ext-item">
@@ -4509,7 +4538,7 @@ footer .ver{color:var(--acc)}
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@webframp/gitlab" rel="noopener">@webframp/gitlab</a></h2>
 <p class="lede">Read and write GitLab data via GraphQL (REST fallback for branches and</p>
-<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>421 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:19.026Z">2026-09-15T18:02:19.026Z</time></span></div>
+<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>427 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:19.026Z">2026-09-15T18:02:19.026Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">gitlab</span><span class="ext-label">git</span><span class="ext-label">devops</span><span class="ext-label">ci</span><span class="ext-label">issues</span><span class="ext-label">api</span><span class="ext-label">graphql</span><span class="ext-label">dashboard</span></div>
 </article>
 <article class="item ext-item">
@@ -4533,7 +4562,7 @@ footer .ver{color:var(--acc)}
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@webframp/network" rel="noopener">@webframp/network</a></h2>
 <p class="lede">DNS and network probing model that generates diverse diagnostic events.</p>
-<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>61,092 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:18.572Z">2026-09-15T18:02:18.572Z</time></span></div>
+<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>61,167 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:18.572Z">2026-09-15T18:02:18.572Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">certificate</span><span class="ext-label">diagnostics</span><span class="ext-label">dns</span><span class="ext-label">http</span><span class="ext-label">network</span><span class="ext-label">networking</span><span class="ext-label">observability</span><span class="ext-label">ops</span></div>
 </article>
 <article class="item ext-item">
@@ -4785,7 +4814,7 @@ footer .ver{color:var(--acc)}
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@swamp/hetzner-cloud" rel="noopener">@swamp/hetzner-cloud</a></h2>
 <p class="lede">Hetzner Cloud infrastructure models</p>
-<div class="meta"><span>stack72</span><span><span>v2026.09.09.1</span></span><span class="grade g-A">A</span><span>10,145 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-09T11:31:04.782Z">2026-09-09T11:31:04.782Z</time></span></div>
+<div class="meta"><span>stack72</span><span><span>v2026.09.09.1</span></span><span class="grade g-A">A</span><span>10,151 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-09T11:31:04.782Z">2026-09-09T11:31:04.782Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">hetzner</span><span class="ext-label">cloud</span><span class="ext-label">infrastructure</span></div>
 </article>
 <article class="item ext-item">
@@ -5577,13 +5606,13 @@ footer .ver{color:var(--acc)}
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@thomas/forgejo" rel="noopener">@thomas/forgejo</a></h2>
 <p class="lede">Careful administration of a Forgejo (or Gitea) server over its /api/v1 REST API, authenticated with a scoped access token. Find-or-create organizations and repositories and converge their settings, run GitHub pull-mirrors (create via /repos</p>
-<div class="meta"><span>thomas</span><span><span>v2026.09.04.2</span></span><span class="grade g-A">A</span><span>12 pulls</span><span><a href="https://github.com/thomas-elliott/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-04T10:41:23.284Z">2026-09-04T10:41:23.284Z</time></span></div>
+<div class="meta"><span>thomas</span><span><span>v2026.09.04.2</span></span><span class="grade g-A">A</span><span>13 pulls</span><span><a href="https://github.com/thomas-elliott/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-04T10:41:23.284Z">2026-09-04T10:41:23.284Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">forgejo</span><span class="ext-label">gitea</span><span class="ext-label">git</span><span class="ext-label">mirrors</span><span class="ext-label">provisioning</span><span class="ext-label">admin</span></div>
 </article>
 <article class="item ext-item">
 <h2><span class="ext-badge upd">UPDATED</span><a href="https://swamp-club.com/extensions/@swamp/kubernetes" rel="noopener">@swamp/kubernetes</a></h2>
 <p class="lede">Kubernetes operational toolkit — 16 model types covering pods, deployments, statefulsets, services, RBAC, storage, networking, autoscaling, batch jobs, and more. Includes 14 ready-to-run workflows for namespace debugging, security audits, R</p>
-<div class="meta"><span>stack72</span><span><span>v2026.09.03.1</span></span><span class="grade g-A">A</span><span>1,132 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-03T23:58:36.001Z">2026-09-03T23:58:36.001Z</time></span></div>
+<div class="meta"><span>stack72</span><span><span>v2026.09.03.1</span></span><span class="grade g-A">A</span><span>1,133 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-03T23:58:36.001Z">2026-09-03T23:58:36.001Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">kubernetes</span><span class="ext-label">k8s</span><span class="ext-label">cluster</span><span class="ext-label">pods</span><span class="ext-label">deployments</span><span class="ext-label">statefulsets</span><span class="ext-label">services</span><span class="ext-label">rbac</span></div>
 </article>
 <article class="item ext-item">
@@ -6017,23 +6046,23 @@ footer .ver{color:var(--acc)}
 <p class="lede">Auto-applier for docker image updates — pulls + restarts compose stacks with deny lists, cooling periods, and a per-run cap.</p>
 <div class="meta"><span>lint</span><span><span>v2026.08.20.1</span></span><span class="grade g-A">A</span><span>16 pulls</span><span><a href="https://github.com/sock-lint/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-08-20T16:22:23.446Z">2026-08-20T16:22:23.446Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">docker</span><span class="ext-label">updates</span><span class="ext-label">automation</span><span class="ext-label">homelab</span></div>
-</article></details></section>
-<section class="tail"><h2>Most pulled <span class="dim">· 25</span></h2><p class="dim">All-time pull counts, regardless of the window.</p><article class="item ext-item">
+</article></details></div>
+<div class="tab-panel" data-panel="popular"><div class="panel-head">Most pulled <span class="dim">· 25</span></div><p class="dim">All-time pull counts, regardless of the window.</p><article class="item ext-item">
 <h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/s3-datastore" rel="noopener">@swamp/s3-datastore</a></h2>
 <p class="lede">Store data in an Amazon S3 bucket with local cache synchronization.</p>
-<div class="meta"><span>stack72</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>118,873 pulls</span><span><a href="https://github.com/systeminit/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T18:06:49.543Z">2026-09-17T18:06:49.543Z</time></span></div>
+<div class="meta"><span>stack72</span><span><span>v2026.09.17.1</span></span><span class="grade g-A">A</span><span>118,874 pulls</span><span><a href="https://github.com/systeminit/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-17T18:06:49.543Z">2026-09-17T18:06:49.543Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">datastore</span><span class="ext-label">aws</span><span class="ext-label">s3</span><span class="ext-label">storage</span></div>
 </article>
 <article class="item ext-item">
 <h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@webframp/system" rel="noopener">@webframp/system</a></h2>
 <p class="lede">Query local system diagnostics via shell commands for operational visibility.</p>
-<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>62,596 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:44.410Z">2026-09-15T18:02:44.410Z</time></span></div>
+<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>62,671 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:44.410Z">2026-09-15T18:02:44.410Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">diagnostics</span><span class="ext-label">linux</span><span class="ext-label">observability</span><span class="ext-label">ops</span><span class="ext-label">system</span></div>
 </article>
 <article class="item ext-item">
 <h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@webframp/network" rel="noopener">@webframp/network</a></h2>
 <p class="lede">DNS and network probing model that generates diverse diagnostic events.</p>
-<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>61,092 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:18.572Z">2026-09-15T18:02:18.572Z</time></span></div>
+<div class="meta"><span>webframp</span><span><span>v2026.09.15.1</span></span><span class="grade g-A">A</span><span>61,167 pulls</span><span><a href="https://github.com/webframp/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-15T18:02:18.572Z">2026-09-15T18:02:18.572Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">certificate</span><span class="ext-label">diagnostics</span><span class="ext-label">dns</span><span class="ext-label">http</span><span class="ext-label">network</span><span class="ext-label">networking</span><span class="ext-label">observability</span><span class="ext-label">ops</span></div>
 </article>
 <article class="item ext-item">
@@ -6069,7 +6098,7 @@ footer .ver{color:var(--acc)}
 <article class="item ext-item">
 <h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/hetzner-cloud" rel="noopener">@swamp/hetzner-cloud</a></h2>
 <p class="lede">Hetzner Cloud infrastructure models</p>
-<div class="meta"><span>stack72</span><span><span>v2026.09.09.1</span></span><span class="grade g-A">A</span><span>10,145 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-09T11:31:04.782Z">2026-09-09T11:31:04.782Z</time></span></div>
+<div class="meta"><span>stack72</span><span><span>v2026.09.09.1</span></span><span class="grade g-A">A</span><span>10,151 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-09T11:31:04.782Z">2026-09-09T11:31:04.782Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">hetzner</span><span class="ext-label">cloud</span><span class="ext-label">infrastructure</span></div>
 </article>
 <article class="item ext-item">
@@ -6093,7 +6122,7 @@ footer .ver{color:var(--acc)}
 <article class="item ext-item">
 <h2><span class="ext-badge sig">POPULAR</span><a href="https://swamp-club.com/extensions/@swamp/kubernetes" rel="noopener">@swamp/kubernetes</a></h2>
 <p class="lede">Kubernetes operational toolkit — 16 model types covering pods, deployments, statefulsets, services, RBAC, storage, networking, autoscaling, batch jobs, and more. Includes 14 ready-to-run workflows for namespace debugging, security audits, R</p>
-<div class="meta"><span>stack72</span><span><span>v2026.09.03.1</span></span><span class="grade g-A">A</span><span>1,132 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-03T23:58:36.001Z">2026-09-03T23:58:36.001Z</time></span></div>
+<div class="meta"><span>stack72</span><span><span>v2026.09.03.1</span></span><span class="grade g-A">A</span><span>1,133 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-03T23:58:36.001Z">2026-09-03T23:58:36.001Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">kubernetes</span><span class="ext-label">k8s</span><span class="ext-label">cluster</span><span class="ext-label">pods</span><span class="ext-label">deployments</span><span class="ext-label">statefulsets</span><span class="ext-label">services</span><span class="ext-label">rbac</span></div>
 </article>
 <article class="item ext-item">
@@ -6167,10 +6196,33 @@ footer .ver{color:var(--acc)}
 <p class="lede">AWS CLOUDFRONT infrastructure models</p>
 <div class="meta"><span>stack72</span><span><span>v2026.09.18.1</span></span><span class="grade g-A">A</span><span>753 pulls</span><span><a href="https://github.com/swamp-club/swamp-extensions" rel="noopener">github.com</a></span><span>updated <time datetime="2026-09-18T16:20:01.496Z">2026-09-18T16:20:01.496Z</time></span></div>
 <div class="ext-labels"><span class="ext-label">aws</span><span class="ext-label">cloudfront</span><span class="ext-label">cloud</span><span class="ext-label">infrastructure</span></div>
-</article></section>
+</article></div>
 </main>
+<script>
+(function () {
+  function select(id) {
+    var tabs = document.querySelectorAll(".tab[data-tab]");
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].classList.toggle("active", tabs[i].getAttribute("data-tab") === id);
+    }
+    var panels = document.querySelectorAll(".tab-panel[data-panel]");
+    for (var j = 0; j < panels.length; j++) {
+      panels[j].classList.toggle("active", panels[j].getAttribute("data-panel") === id);
+    }
+  }
+  var tabs = document.querySelectorAll(".tab[data-tab]");
+  for (var k = 0; k < tabs.length; k++) {
+    tabs[k].addEventListener("click", function () {
+      select(this.getAttribute("data-tab"));
+    });
+  }
+  var initial = (window.location.hash || "").replace("#", "");
+  var known = ["new", "updated", "popular"];
+  select(known.indexOf(initial) >= 0 ? initial : "new");
+})();
+</script>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-19T13:01:29.667Z">2026-09-19T13:01:29.667Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-19T14:03:58.145Z">2026-09-19T14:03:58.145Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

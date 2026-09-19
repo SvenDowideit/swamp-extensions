@@ -11,8 +11,12 @@ header.top h1{margin:0;font-size:20px;letter-spacing:.06em}
 nav.pages{display:flex;gap:14px;flex-wrap:wrap}
 nav.pages a{color:var(--dim)}nav.pages a.active{color:var(--acc)}
 .tabs{display:flex;gap:8px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.tab{padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px}
+.tab{padding:4px 12px;border:1px solid var(--line);border-radius:999px;color:var(--dim);font-size:13px;background:transparent;cursor:pointer;font-family:inherit}
+.tab:hover{border-color:var(--acc)}
 .tab.active{border-color:var(--acc);color:var(--acc)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.panel-head{font-size:15px;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:6px;margin:20px 0 8px}
 main{padding:20px 22px 60px;max-width:1180px}
 .layout{display:grid;grid-template-columns:250px 1fr;gap:26px}
 @media(max-width:860px){.layout{grid-template-columns:1fr}.toc{display:none}}
@@ -73,7 +77,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
 <a href="leaderboard.html">Leaderboard</a> page.</p>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/bcaa9695b7f27f51964a9f41587fdf112b261c89/.claude/skills/issue-lifecycle/SKILL.md" rel="noopener">.claude/skills/issue-lifecycle/SKILL.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/issue-lifecycle/SKILL.md" rel="noopener">.claude/skills/issue-lifecycle/SKILL.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-18T21:18:06Z">2026-09-18T21:18:06Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -83,7 +87,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/cc6e1c56d5aae60f60204d79aa89b6c3b824035d/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-18T17:19:01Z">2026-09-18T17:19:01Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -93,7 +97,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/1d30d6d39b1acba979560bf6c48bfac2b0fa5a18/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-18T17:13:43Z">2026-09-18T17:13:43Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -103,7 +107,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/65154e4131869b0ddc8b039231beca9c2896e6a7/model/aws/appsync/README.md" rel="noopener">model/aws/appsync/README.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/model/aws/appsync/README.md" rel="noopener">model/aws/appsync/README.md</a></h2>
 <div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-09-18T16:10:36Z">2026-09-18T16:10:36Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier B">B</span>
@@ -113,7 +117,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/b1ac622637fa988c3dd57bed729e4405b92ec588/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-18T15:57:43Z">2026-09-18T15:57:43Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -123,7 +127,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/85621c2b158cb966c65c500fccc387f80800bd55/.claude/skills/terminal-output/SKILL.md" rel="noopener">.claude/skills/terminal-output/SKILL.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/terminal-output/SKILL.md" rel="noopener">.claude/skills/terminal-output/SKILL.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-18T15:42:32Z">2026-09-18T15:42:32Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -133,7 +137,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/85621c2b158cb966c65c500fccc387f80800bd55/.claude/skills/terminal-output/references/logtape.md" rel="noopener">.claude/skills/terminal-output/references/logtape.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/terminal-output/references/logtape.md" rel="noopener">.claude/skills/terminal-output/references/logtape.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-18T15:42:32Z">2026-09-18T15:42:32Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -143,7 +147,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/7b3608ba912ebe38a4cf6bea653eee2db83fddb9/AGENTS.md" rel="noopener">AGENTS.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/AGENTS.md" rel="noopener">AGENTS.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-09-18T14:21:25Z">2026-09-18T14:21:25Z</time></span><span><a href="https://swamp-club.com/manual/explanation/ai-agent-integration" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -159,7 +163,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/7b3608ba912ebe38a4cf6bea653eee2db83fddb9/README.md" rel="noopener">README.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/README.md" rel="noopener">README.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-09-18T14:21:25Z">2026-09-18T14:21:25Z</time></span><span><a href="https://swamp-club.com/manual" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -175,7 +179,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/a3e60933d3861d2e56d1166533761c28304c6d1f/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-17T23:38:48Z">2026-09-17T23:38:48Z</time></span><span><a href="https://swamp-club.com/manual/explanation/remote-execution" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -185,7 +189,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/3a16448844cdad2c0b2a6c43ffbfdda04bf29cf1/codegen/designs/gcp.md" rel="noopener">codegen/designs/gcp.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/codegen/designs/gcp.md" rel="noopener">codegen/designs/gcp.md</a></h2>
 <div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-09-17T23:23:52Z">2026-09-17T23:23:52Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -195,7 +199,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/388ccad013874f2fb83dda4d902b908c4e1a24d9/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-17T20:29:54Z">2026-09-17T20:29:54Z</time></span><span><a href="https://swamp-club.com/manual/reference/cel-expressions" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -205,7 +209,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/bdd824dfa34af8726d57294c9bc2dca8981e8d06/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-17T20:28:25Z">2026-09-17T20:28:25Z</time></span><span><a href="https://swamp-club.com/manual/reference/extensions" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -215,7 +219,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/f1c9c66295777075c0de7f6eb97a50cf83b62612/datastore/gcs/README.md" rel="noopener">datastore/gcs/README.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/datastore/gcs/README.md" rel="noopener">datastore/gcs/README.md</a></h2>
 <div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-09-17T19:13:36Z">2026-09-17T19:13:36Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -225,7 +229,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/f1c9c66295777075c0de7f6eb97a50cf83b62612/datastore/s3/README.md" rel="noopener">datastore/s3/README.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/datastore/s3/README.md" rel="noopener">datastore/s3/README.md</a></h2>
 <div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-09-17T19:13:36Z">2026-09-17T19:13:36Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -235,7 +239,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/660627b8c55262af41b86440483b9d08ad961cbe/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-17T19:10:24Z">2026-09-17T19:10:24Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-run-tracker" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -245,7 +249,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/db34423a4ee39b1c033aa2de96054f40bb9af6f6/codegen/designs/aws.md" rel="noopener">codegen/designs/aws.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/codegen/designs/aws.md" rel="noopener">codegen/designs/aws.md</a></h2>
 <div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-09-17T17:35:16Z">2026-09-17T17:35:16Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -255,7 +259,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/e8ff688d75a23af47159b23510a893fd1867c003/design/operations.md" rel="noopener">design/operations.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/operations.md" rel="noopener">design/operations.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-17T17:00:36Z">2026-09-17T17:00:36Z</time></span><span><a href="https://swamp-club.com/manual/reference/operational-commands" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -265,7 +269,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/SKILL.md" rel="noopener">.claude/skills/swamp/SKILL.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/SKILL.md" rel="noopener">.claude/skills/swamp/SKILL.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-17T00:27:36Z">2026-09-17T00:27:36Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -275,7 +279,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/references/extension/guide.md" rel="noopener">.claude/skills/swamp/references/extension/guide.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/guide.md" rel="noopener">.claude/skills/swamp/references/extension/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-17T00:27:36Z">2026-09-17T00:27:36Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -285,7 +289,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/references/extension/reference.md" rel="noopener">.claude/skills/swamp/references/extension/reference.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/reference.md" rel="noopener">.claude/skills/swamp/references/extension/reference.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-17T00:27:36Z">2026-09-17T00:27:36Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -295,7 +299,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/references/extension/references/webhook/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/webhook/api.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/webhook/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/webhook/api.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-17T00:27:36Z">2026-09-17T00:27:36Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -305,7 +309,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-17T00:27:36Z">2026-09-17T00:27:36Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -315,7 +319,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/55393f8c9b6de3d2d00718cd8eb2654e6048eb39/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-17T00:27:36Z">2026-09-17T00:27:36Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-workflow-execution-model" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -325,7 +329,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/71971475eb99f762d6afe6d474ee2504f728db4c/.claude/skills/swamp/references/extension-publish/reference.md" rel="noopener">.claude/skills/swamp/references/extension-publish/reference.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/reference.md" rel="noopener">.claude/skills/swamp/references/extension-publish/reference.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-16T23:57:17Z">2026-09-16T23:57:17Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -335,7 +339,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/71971475eb99f762d6afe6d474ee2504f728db4c/.claude/skills/swamp/references/extension-publish/references/publishing.md" rel="noopener">.claude/skills/swamp/references/extension-publish/references/publishing.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/references/publishing.md" rel="noopener">.claude/skills/swamp/references/extension-publish/references/publishing.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-16T23:57:17Z">2026-09-16T23:57:17Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -345,7 +349,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/b07863c96b0897f85087685038c5b08ed1624a03/.claude/skills/ddd/SKILL.md" rel="noopener">.claude/skills/ddd/SKILL.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/ddd/SKILL.md" rel="noopener">.claude/skills/ddd/SKILL.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-16T20:30:51Z">2026-09-16T20:30:51Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -355,7 +359,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/b07863c96b0897f85087685038c5b08ed1624a03/.claude/skills/ddd/references/testing.md" rel="noopener">.claude/skills/ddd/references/testing.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/ddd/references/testing.md" rel="noopener">.claude/skills/ddd/references/testing.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-16T20:30:51Z">2026-09-16T20:30:51Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -365,7 +369,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/c30806e598596838b3cb1e8fbb59ee409569ae60/design/enablers/data-query.md" rel="noopener">design/enablers/data-query.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/data-query.md" rel="noopener">design/enablers/data-query.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-16T19:13:31Z">2026-09-16T19:13:31Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-data-layer" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -375,7 +379,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/2785f521aa7e57580dd9d7fb10337173c09a394f/git/README.md" rel="noopener">git/README.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/git/README.md" rel="noopener">git/README.md</a></h2>
 <div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-09-16T00:30:30Z">2026-09-16T00:30:30Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -385,7 +389,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/d483b740875716c3723a0452a221bf87c14fd011/design/primitives/vaults.md" rel="noopener">design/primitives/vaults.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/vaults.md" rel="noopener">design/primitives/vaults.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-15T20:25:28Z">2026-09-15T20:25:28Z</time></span><span><a href="https://swamp-club.com/manual/reference/vaults" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -395,7 +399,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/34b89f03dee01a8339f6944b59d5349b5f28693f/CLAUDE.md" rel="noopener">CLAUDE.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/CLAUDE.md" rel="noopener">CLAUDE.md</a></h2>
 <div class="meta"><span>swamp-club/swamp-extensions</span><span>2 changes</span><span>updated <time datetime="2026-09-14T22:55:33Z">2026-09-14T22:55:33Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier B">B</span>
@@ -411,7 +415,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/d781306e272a2752909b9199775f856f11d77ac7/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-14T22:04:53Z">2026-09-14T22:04:53Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -421,7 +425,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/0bc3d2152b2dae89f312b6c943003cdee7f914ad/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-14T16:33:33Z">2026-09-14T16:33:33Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -431,7 +435,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/216a065f94483b0590429c38d7018c8554583c7c/design/enablers/serve-audit.md" rel="noopener">design/enablers/serve-audit.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-audit.md" rel="noopener">design/enablers/serve-audit.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-13T21:58:01Z">2026-09-13T21:58:01Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-audit-system" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -441,7 +445,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/55e7a45f6e677b2346cb424d124a8c2ead481a4a/design/surfaces/audit-doctor.md" rel="noopener">design/surfaces/audit-doctor.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/audit-doctor.md" rel="noopener">design/surfaces/audit-doctor.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-09T05:12:04Z">2026-09-09T05:12:04Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-audit-system" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -451,7 +455,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/data/guide.md" rel="noopener">.claude/skills/swamp/references/data/guide.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/data/guide.md" rel="noopener">.claude/skills/swamp/references/data/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-09T00:19:45Z">2026-09-09T00:19:45Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -461,7 +465,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/issue/guide.md" rel="noopener">.claude/skills/swamp/references/issue/guide.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/issue/guide.md" rel="noopener">.claude/skills/swamp/references/issue/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-09T00:19:45Z">2026-09-09T00:19:45Z</time></span><span><a href="https://swamp-club.com/manual/reference/issue-commands" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -471,7 +475,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/model/guide.md" rel="noopener">.claude/skills/swamp/references/model/guide.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/guide.md" rel="noopener">.claude/skills/swamp/references/model/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-09T00:19:45Z">2026-09-09T00:19:45Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -481,7 +485,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/model/reference.md" rel="noopener">.claude/skills/swamp/references/model/reference.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/reference.md" rel="noopener">.claude/skills/swamp/references/model/reference.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-09T00:19:45Z">2026-09-09T00:19:45Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -491,7 +495,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/repo/guide.md" rel="noopener">.claude/skills/swamp/references/repo/guide.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/guide.md" rel="noopener">.claude/skills/swamp/references/repo/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-09T00:19:45Z">2026-09-09T00:19:45Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -501,7 +505,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/report/guide.md" rel="noopener">.claude/skills/swamp/references/report/guide.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/report/guide.md" rel="noopener">.claude/skills/swamp/references/report/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-09T00:19:45Z">2026-09-09T00:19:45Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -511,7 +515,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/share/guide.md" rel="noopener">.claude/skills/swamp/references/share/guide.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/share/guide.md" rel="noopener">.claude/skills/swamp/references/share/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-09T00:19:45Z">2026-09-09T00:19:45Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -521,7 +525,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/troubleshooting/guide.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/guide.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/guide.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-09T00:19:45Z">2026-09-09T00:19:45Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -531,7 +535,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/vault/guide.md" rel="noopener">.claude/skills/swamp/references/vault/guide.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/vault/guide.md" rel="noopener">.claude/skills/swamp/references/vault/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-09T00:19:45Z">2026-09-09T00:19:45Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -541,7 +545,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/e5db6fcb5261bcf81b71d5c48739a7aa76e0e1f7/.claude/skills/swamp/references/workflow/guide.md" rel="noopener">.claude/skills/swamp/references/workflow/guide.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/guide.md" rel="noopener">.claude/skills/swamp/references/workflow/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-09T00:19:45Z">2026-09-09T00:19:45Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -551,7 +555,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/6f857724cb58b10ed66d8ca699d03059e2fa9516/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-08T06:45:04Z">2026-09-08T06:45:04Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -561,7 +565,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/6f857724cb58b10ed66d8ca699d03059e2fa9516/design/primitives/models.md" rel="noopener">design/primitives/models.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/models.md" rel="noopener">design/primitives/models.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-08T06:45:04Z">2026-09-08T06:45:04Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -571,7 +575,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/6f857724cb58b10ed66d8ca699d03059e2fa9516/design/surfaces/repo.md" rel="noopener">design/surfaces/repo.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/repo.md" rel="noopener">design/surfaces/repo.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-08T06:45:04Z">2026-09-08T06:45:04Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -581,7 +585,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/b02178bde35c60417e9ee981a6d2c63bad1382bb/kubernetes/README.md" rel="noopener">kubernetes/README.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/kubernetes/README.md" rel="noopener">kubernetes/README.md</a></h2>
 <div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-09-03T23:56:04Z">2026-09-03T23:56:04Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -591,7 +595,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/f2eefb58b1dc4488f374e36dafa35a1de69d44a3/.claude/skills/swamp/references/extension/references/model/skills.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/skills.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/skills.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/skills.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-03T00:45:27Z">2026-09-03T00:45:27Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -601,7 +605,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/97ccc9b1a43e54d4c8c375f6c43187454a6fa51f/.claude/skills/swamp/references/model/references/examples.md" rel="noopener">.claude/skills/swamp/references/model/references/examples.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/references/examples.md" rel="noopener">.claude/skills/swamp/references/model/references/examples.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-02T23:32:31Z">2026-09-02T23:32:31Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -611,7 +615,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/7c5fc5a0788df7af5734347745415a85b976113d/.claude/skills/swamp/references/model/references/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/model/references/troubleshooting.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/references/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/model/references/troubleshooting.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-02T15:58:19Z">2026-09-02T15:58:19Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier C">C</span>
@@ -621,7 +625,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/5e6df04266356d349d7ae9f88de1fa8798f5c7a3/design/surfaces/agent-interface.md" rel="noopener">design/surfaces/agent-interface.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/agent-interface.md" rel="noopener">design/surfaces/agent-interface.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-02T15:07:28Z">2026-09-02T15:07:28Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -631,7 +635,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/820f22f0544fefa4407ddbbc2aa49ab5948cb817/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-02T02:35:04Z">2026-09-02T02:35:04Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier C">C</span>
@@ -641,7 +645,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/58c651842279e8db8e78f39c2f17d9e403d48080/.claude/skills/swamp/references/architecture/guide.md" rel="noopener">.claude/skills/swamp/references/architecture/guide.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/architecture/guide.md" rel="noopener">.claude/skills/swamp/references/architecture/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-01T01:35:06Z">2026-09-01T01:35:06Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -651,7 +655,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/58c651842279e8db8e78f39c2f17d9e403d48080/.claude/skills/swamp/references/troubleshooting/reference.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/reference.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/reference.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/reference.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-01T01:35:06Z">2026-09-01T01:35:06Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -661,7 +665,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/58c651842279e8db8e78f39c2f17d9e403d48080/.claude/skills/swamp/references/troubleshooting/references/error-inspection.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/error-inspection.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/references/error-inspection.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/error-inspection.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-01T01:35:06Z">2026-09-01T01:35:06Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -671,7 +675,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/58c651842279e8db8e78f39c2f17d9e403d48080/.claude/skills/swamp/references/troubleshooting/references/health-checks.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/health-checks.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/references/health-checks.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/health-checks.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-01T01:35:06Z">2026-09-01T01:35:06Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -681,7 +685,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/58c651842279e8db8e78f39c2f17d9e403d48080/.claude/skills/swamp/references/troubleshooting/references/tracing.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/tracing.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/references/tracing.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/tracing.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-01T01:35:06Z">2026-09-01T01:35:06Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -691,7 +695,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/7d7984adc3a589df883ef460f5bc7e4d10259b13/design/README.md" rel="noopener">design/README.md</a></h2>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-09-01T01:27:07Z">2026-09-01T01:27:07Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier C">C</span>
@@ -702,7 +706,7 @@ footer .ver{color:var(--acc)}
 </article>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-19T13:01:29.667Z">2026-09-19T13:01:29.667Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-19T14:03:58.145Z">2026-09-19T14:03:58.145Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -294,9 +294,10 @@ const PublishConfigSchema = z.object({
 type MethodContext = {
   globalArgs: GlobalArgs;
   repoDir: string;
+  definition?: { name?: string };
   logger?: {
     info: (msg: string, props?: Record<string, unknown>) => void;
-    warning?: (msg: string, props?: Record<string, unknown>) => void;
+    warn: (msg: string, props?: Record<string, unknown>) => void;
   };
   extensionFile?: (relPath: string) => string;
   writeResource: (
@@ -1765,6 +1766,154 @@ const RenderArgsSchema = z.object({
   ),
 });
 
+/**
+ * Human-facing catalogue of the model's global arguments.
+ *
+ * A `setup` method needs more than the schema can express: valid values for an
+ * enum, whether a setting is required for a given mode, and a plain-language
+ * explanation. Zod 4 does not expose enum options or defaults conveniently, so
+ * this table is the single place that knowledge lives and the schema is kept in
+ * step with it by {@link SETUP_SPECS}.
+ */
+export type SetupSpec = {
+  name: string;
+  kind: "string" | "number" | "array" | "enum";
+  values?: string[];
+  default: string;
+  /** Grouping used when printing help. */
+  group: "general" | "serving" | "publishing";
+  /** Required only when this returns true (evaluated against resolved config). */
+  requiredWhen?: (cfg: ResolvedConfig) => boolean;
+  description: string;
+};
+
+/** The global arguments resolved for one run, after overrides. */
+export type ResolvedConfig = {
+  mode: string;
+  pagesRepo: string;
+  pagesBranch: string;
+  caddyHostname: string;
+};
+
+/** Every global argument, with the help a user needs to set it. */
+export const SETUP_SPECS: SetupSpec[] = [
+  {
+    name: "outputDir",
+    kind: "string",
+    default: "~/.swamp/swamp-pulse",
+    group: "general",
+    description: "Directory the six rendered HTML pages are written to.",
+  },
+  {
+    name: "windows",
+    kind: "array",
+    values: ["24h", "7d", "month"],
+    default: '["24h","7d","month"]',
+    group: "general",
+    description: "Which activity windows to compute and render.",
+  },
+  {
+    name: "storeRetentionDays",
+    kind: "number",
+    default: "90",
+    group: "general",
+    description: "How many days of merged events to keep in the rolling store.",
+  },
+  {
+    name: "manualBaseUrl",
+    kind: "string",
+    default: "https://swamp-club.com/manual",
+    group: "general",
+    description: "Base URL used when linking changed docs to the manual.",
+  },
+  {
+    name: "docPathPattern",
+    kind: "string",
+    default: '""',
+    group: "general",
+    description:
+      "Extra regex; matching changed paths are treated as documentation.",
+  },
+  {
+    name: "serverPort",
+    kind: "number",
+    default: "8899",
+    group: "serving",
+    description: "Port the pulse static server listens on.",
+  },
+  {
+    name: "serverServiceName",
+    kind: "string",
+    default: "swamp-pulse-server",
+    group: "serving",
+    description: "systemd user service name for the pulse server.",
+  },
+  {
+    name: "serverScriptPath",
+    kind: "string",
+    default: "(bundled script)",
+    group: "serving",
+    description: "Override the path to the bundled pulse-server.ts.",
+  },
+  {
+    name: "publishMode",
+    kind: "enum",
+    values: ["false", "caddy", "github-pages"],
+    default: "false",
+    group: "publishing",
+    description:
+      "What publishing to do. false = nothing; caddy = serve on a hostname; github-pages = commit to a Pages branch.",
+  },
+  {
+    name: "pagesRepo",
+    kind: "string",
+    default: '""',
+    group: "publishing",
+    requiredWhen: (c) => c.mode === "github-pages",
+    description:
+      "Target repository as owner/name. Required for publishMode=github-pages.",
+  },
+  {
+    name: "pagesBranch",
+    kind: "string",
+    default: '""',
+    group: "publishing",
+    requiredWhen: (c) => c.mode === "github-pages",
+    description:
+      "Branch Pages serves from, e.g. gh-pages. Required for publishMode=github-pages.",
+  },
+  {
+    name: "pagesPath",
+    kind: "enum",
+    values: ["/", "/docs"],
+    default: "/",
+    group: "publishing",
+    description: "Directory within the repository that Pages serves.",
+  },
+  {
+    name: "pagesCname",
+    kind: "string",
+    default: '""',
+    group: "publishing",
+    description: "Optional custom domain for the Pages site.",
+  },
+  {
+    name: "caddyHostname",
+    kind: "string",
+    default: '""',
+    group: "publishing",
+    requiredWhen: (c) => c.mode === "caddy",
+    description: "Public hostname to serve on. Required for publishMode=caddy.",
+  },
+  {
+    name: "caddyUpstream",
+    kind: "string",
+    default: "127.0.0.1:8899",
+    group: "publishing",
+    description: "host:port the Caddy reverse proxy points at.",
+  },
+];
+
 /** Expand a leading `~` to the user's home directory. */
 export function expandHome(path: string): string {
   const h = Deno.env.get("HOME") ?? "/tmp";
@@ -1883,7 +2032,7 @@ export async function ensureServerService(
     const reason = `createService failed (${create.code}): ${
       create.stderr || create.stdout
     }`;
-    context.logger?.warning?.(reason);
+    context.logger?.warn?.(reason);
     return { running: false, reason, serviceName };
   }
 
@@ -1902,7 +2051,7 @@ export async function ensureServerService(
     const reason = `startService failed (${start.code}): ${
       start.stderr || start.stdout
     }`;
-    context.logger?.warning?.(reason);
+    context.logger?.warn?.(reason);
     return { running: false, reason, serviceName };
   }
 
@@ -1920,7 +2069,7 @@ export const model = {
   // registry extractor parses this file statically; if it cannot read a
   // literal it skips the file and reports the model as removed from the
   // extension. The footer constant below derives from this value.
-  version: "2026.09.18.12",
+  version: "2026.09.18.15",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1983,6 +2132,24 @@ export const model = {
       toVersion: "2026.09.18.12",
       description:
         "No schema changes — document publish configuration precedence (per-run input > model global > default)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.13",
+      description:
+        "No schema changes — document how to configure publishing on the pulse instance (model create/edit, file location, precedence, resolved config)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.14",
+      description:
+        "No schema changes — document how to configure publishing on the pulse instance (model create/edit, file location, precedence, resolved config)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.18.15",
+      description:
+        "No schema changes — add a setup method that lists every setting with its valid values, default and current value, validates proposed values, and reports the resolved publishing config; fix logger.warning -> logger.warn so warnings are actually emitted",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2148,7 +2315,7 @@ export const model = {
           config,
         );
         if (reason) {
-          context.logger?.warning?.(
+          context.logger?.warn?.(
             "Publishing is enabled but not fully configured: {reason}",
             { reason },
           );
@@ -2159,6 +2326,236 @@ export const model = {
           );
         }
         return { dataHandles: [handle] };
+      },
+    },
+
+    setup: {
+      description:
+        "Configuration helper. Run with no inputs to print every setting with its valid values, default and current value; pass any of them as inputs to validate and see the exact command to persist the change. Also reports the resolved publishing config. Persists nothing itself.",
+      arguments: z.object({
+        publishMode: z.enum(["false", "caddy", "github-pages"]).optional()
+          .describe("Publishing mode."),
+        pagesRepo: z.string().optional().describe(
+          "Target repository (owner/name) for github-pages.",
+        ),
+        pagesBranch: z.string().optional().describe(
+          "Branch Pages serves from, e.g. gh-pages.",
+        ),
+        pagesPath: z.enum(["/", "/docs"]).optional().describe(
+          "Directory Pages serves from.",
+        ),
+        pagesCname: z.string().optional().describe("Custom domain."),
+        caddyHostname: z.string().optional().describe(
+          "Public hostname for caddy mode.",
+        ),
+        caddyUpstream: z.string().optional().describe(
+          "host:port the Caddy proxy points at.",
+        ),
+        serverPort: z.number().int().min(1).max(65535).optional().describe(
+          "Port the pulse server listens on.",
+        ),
+        serverServiceName: z.string().optional().describe(
+          "systemd user service name.",
+        ),
+        outputDir: z.string().optional().describe(
+          "Where the HTML pages are written.",
+        ),
+      }),
+      execute: (
+        args: Record<string, unknown>,
+        context: MethodContext,
+      ) => {
+        const g = context.globalArgs;
+        const defName = context.definition?.name ?? "pulse";
+
+        // Current values, redacted where needed, as display strings.
+        const currentOf = (name: string): string => {
+          const v = (g as Record<string, unknown>)[name];
+          if (v === undefined) return "(unset)";
+          if (Array.isArray(v)) return JSON.stringify(v);
+          if (v === "") return '"" (empty)';
+          return String(v);
+        };
+
+        // Coerce defensively: a missing global must never stringify to
+        // "undefined".
+        const str = (v: unknown, fallback = ""): string =>
+          v === undefined || v === null ? fallback : String(v);
+        const resolved: ResolvedConfig = {
+          mode: str(
+            (args.publishMode as string | undefined) ?? g.publishMode,
+            "false",
+          ),
+          pagesRepo: str((args.pagesRepo as string | undefined) ?? g.pagesRepo),
+          pagesBranch: str(
+            (args.pagesBranch as string | undefined) ?? g.pagesBranch,
+          ),
+          caddyHostname: str(
+            (args.caddyHostname as string | undefined) ?? g.caddyHostname,
+          ),
+        };
+
+        // Swamp injects the model's resolved globals into `args`, so presence
+        // alone is not intent. A value counts as supplied only when it differs
+        // from the current global argument (or the setting is unset).
+        const norm = (v: unknown) =>
+          typeof v === "string" ? v : JSON.stringify(v);
+        const provided = Object.keys(args).filter((k) => {
+          if (args[k] === undefined) return false;
+          const cur = (g as Record<string, unknown>)[k];
+          if (cur === undefined) return true;
+          return norm(args[k]) !== norm(cur);
+        });
+
+        // --- Validate provided values against the schema ------------------
+        const issues: string[] = [];
+        for (const key of provided) {
+          const value = args[key];
+          if (value === undefined) continue;
+          const field =
+            GlobalArgsSchema.shape[key as keyof typeof GlobalArgsSchema.shape];
+          if (!field) {
+            issues.push(`${key}: not a known setting`);
+            continue;
+          }
+          const res = field.safeParse(value);
+          if (!res.success) {
+            issues.push(
+              `${key}: ${res.error.issues.map((i) => i.message).join("; ")}`,
+            );
+          }
+        }
+        if (issues.length > 0) {
+          for (const issue of issues) {
+            context.logger?.warn?.("setup: {issue}", { issue });
+          }
+          throw new Error(
+            `setup: ${issues.length} invalid value(s): ${issues.join(", ")}`,
+          );
+        }
+
+        // --- No inputs: print the full reference --------------------------
+        if (provided.length === 0) {
+          context.logger?.info?.(
+            "swamp-pulse setup — every setting, its valid values and current value",
+            {},
+          );
+          let group = "";
+          for (const spec of SETUP_SPECS) {
+            if (spec.group !== group) {
+              group = spec.group;
+              context.logger?.info?.("--- {group} ---", { group });
+            }
+            const values = spec.values
+              ? ` values=${spec.values.join("|")}`
+              : "";
+            const req = spec.requiredWhen?.(resolved)
+              ? " [required for the current mode]"
+              : "";
+            context.logger?.info?.(
+              "{name} [{kind}] default={default}{values} current={current}{req} — {description}",
+              {
+                name: spec.name,
+                kind: spec.kind,
+                default: spec.default,
+                values,
+                current: currentOf(spec.name),
+                req,
+                description: spec.description,
+              },
+            );
+          }
+          context.logger?.info?.(
+            "Publishing resolves to: mode={mode} pagesRepo={repo} pagesBranch={branch} caddyHostname={caddy}",
+            {
+              mode: resolved.mode,
+              repo: resolved.pagesRepo || "(unset)",
+              branch: resolved.pagesBranch || "(unset)",
+              caddy: resolved.caddyHostname || "(unset)",
+            },
+          );
+          if (!resolved.mode || resolved.mode === "false") {
+            context.logger?.info?.(
+              "Publishing is off. To enable: --input publishMode=github-pages --input pagesRepo=owner/repo --input pagesBranch=gh-pages (or publishMode=caddy --input caddyHostname=host).",
+              {},
+            );
+          } else {
+            const missing = SETUP_SPECS.filter((sp) =>
+              sp.requiredWhen?.(resolved)
+            ).filter((sp) => currentOf(sp.name).startsWith('""'));
+            if (missing.length > 0) {
+              context.logger?.warn?.(
+                "publishMode={mode} still needs: {missing}",
+                {
+                  mode: resolved.mode,
+                  missing: missing.map((m) => m.name).join(", "),
+                },
+              );
+            }
+          }
+          context.logger?.info?.(
+            "These are the model's global arguments. To change them: swamp model edit {name} (opens $EDITOR), or create the instance with --global-arg. Passing them to this method validates only — it does not persist.",
+            { name: defName },
+          );
+          return { dataHandles: [] };
+        }
+
+        // --- Inputs supplied: validate, summarise, print the edit command --
+        context.logger?.info?.("Validated {n} setting(s) OK.", {
+          n: provided.length,
+        });
+        const lines: string[] = [];
+        for (const key of provided) {
+          lines.push(`  ${key}: ${JSON.stringify(args[key])}`);
+        }
+        context.logger?.info?.(
+          "Would set:\n{lines}",
+          { lines: lines.join("\n") },
+        );
+
+        // Re-evaluate requirements with the proposed values applied.
+        const after: ResolvedConfig = {
+          mode: String(
+            (args.publishMode as string | undefined) ?? g.publishMode,
+          ),
+          pagesRepo: String(
+            (args.pagesRepo as string | undefined) ?? g.pagesRepo,
+          ),
+          pagesBranch: String(
+            (args.pagesBranch as string | undefined) ?? g.pagesBranch,
+          ),
+          caddyHostname: String(
+            (args.caddyHostname as string | undefined) ?? g.caddyHostname,
+          ),
+        };
+        const stillMissing = SETUP_SPECS.filter((sp) =>
+          sp.requiredWhen?.(after)
+        ).filter((sp) => {
+          const proposed = (args as Record<string, unknown>)[sp.name];
+          const value = proposed !== undefined
+            ? String(proposed)
+            : String((g as Record<string, unknown>)[sp.name] ?? "");
+          return value === "";
+        });
+        if (after.mode !== "false" && stillMissing.length > 0) {
+          context.logger?.warn?.(
+            "After this change publishMode={mode} would still be missing: {missing}",
+            {
+              mode: after.mode,
+              missing: stillMissing.map((m) => m.name).join(", "),
+            },
+          );
+        }
+
+        context.logger?.info?.(
+          "To persist, run `swamp model edit {name}` and set the values above in globalArguments:.",
+          { name: defName },
+        );
+        context.logger?.info?.(
+          "Non-interactive alternative: pipe the definition through — cat models/@svendowideit/swamp-pulse/{name}.yaml | swamp model edit {name} --json",
+          { name: defName },
+        );
+        return { dataHandles: [] };
       },
     },
 
@@ -2184,7 +2581,7 @@ export const model = {
               .filter((u) => u.includes("/manual/"));
           }
         } catch (err) {
-          context.logger?.warning?.("Manual sitemap fetch failed: {error}", {
+          context.logger?.warn?.("Manual sitemap fetch failed: {error}", {
             error: err instanceof Error ? err.message : String(err),
           });
         }

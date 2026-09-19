@@ -388,6 +388,9 @@ export const extension = {
         ) => {
           const startMs = Date.now();
           const until = args.until ?? new Date().toISOString();
+          const since = args.since && args.since.trim()
+            ? args.since
+            : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
           const perRepo = [];
           let count = 0;
           let truncated = false;
@@ -395,7 +398,7 @@ export const extension = {
           for (const repo of args.repos) {
             const result = await fetchCommits(
               repo,
-              args.since,
+              since,
               until,
               args.max,
               args.pageSize,
@@ -414,7 +417,7 @@ export const extension = {
             repos: perRepo,
             count,
             truncated,
-            since: args.since,
+            since,
             until,
             fetchedAt: new Date().toISOString(),
             durationMs: Date.now() - startMs,
@@ -457,8 +460,9 @@ export const extension = {
           context: Context,
         ) => {
           const startMs = Date.now();
-          const since = args.since ??
-            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          const since = args.since && args.since.trim()
+            ? args.since
+            : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
           const sinceMs = Date.parse(since);
           const perRepo = [];
           let count = 0;
@@ -574,6 +578,9 @@ export const extension = {
         ) => {
           const startMs = Date.now();
           const until = args.until ?? new Date().toISOString();
+          const since = args.since && args.since.trim()
+            ? args.since
+            : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
           const perRepo = [];
           let count = 0;
           let truncated = false;
@@ -583,7 +590,7 @@ export const extension = {
             // calls (commits + files), instead of one call per commit.
             const range = await fetchRangeDocs(
               repo,
-              args.since,
+              since,
               until,
               args.maxCommits,
               args.maxFiles,
@@ -606,7 +613,7 @@ export const extension = {
             repos: perRepo,
             count,
             truncated,
-            since: args.since,
+            since,
             until,
             fetchedAt: new Date().toISOString(),
             durationMs: Date.now() - startMs,

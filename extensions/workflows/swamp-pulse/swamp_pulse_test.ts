@@ -17,6 +17,7 @@ import {
   EXTENSION_URL,
   EXTENSION_VERSION,
   LOCAL_TIME_SCRIPT,
+  SETUP_SPECS,
 } from "./swamp_pulse.ts";
 import { isDocPath } from "./doc_paths.ts";
 import type { runSwampCmd as RunSwampCmd } from "./swamp_pulse.ts";
@@ -1595,6 +1596,99 @@ Deno.test("publishConfig reports an actionable reason when targets are missing",
   assertStringIncludes(cfg.reason, "pagesRepo");
 });
 
+Deno.test("SETUP_SPECS covers every global argument and documents valid values", () => {
+  const schemaKeys = Object.keys(
+    (model.globalArguments as unknown as { shape: Record<string, unknown> })
+      .shape,
+  );
+  const specKeys = SETUP_SPECS.map((s) => s.name);
+  // Every spec must be a real global argument...
+  for (const k of specKeys) {
+    assert(schemaKeys.includes(k), `spec '${k}' is not a global argument`);
+  }
+  // ...and every global argument must be documented.
+  for (const k of schemaKeys) {
+    assert(specKeys.includes(k), `global argument '${k}' has no setup spec`);
+  }
+  // Enums must list their values.
+  for (const spec of SETUP_SPECS) {
+    if (spec.kind === "enum") {
+      assert(
+        spec.values && spec.values.length > 0,
+        `enum spec '${spec.name}' lists no values`,
+      );
+    }
+    assert(spec.default !== undefined, `spec '${spec.name}' has no default`);
+    assert(spec.description.length > 0, `spec '${spec.name}' has no help`);
+  }
+});
+
+Deno.test("setup with no inputs lists every setting and the resolved config", async () => {
+  const { context, getLogs } = createModelTestContext({
+    globalArgs,
+    methodName: "setup",
+  });
+  await model.methods.setup.execute(
+    {},
+    // deno-lint-ignore no-explicit-any
+    context as any,
+  );
+  const logs = getLogs();
+  // One line per setting, carrying its name in the structured props.
+  const names = new Set(
+    logs.map((l) =>
+      String((l.args?.[0] as Record<string, unknown>)?.name ?? "")
+    ),
+  );
+  for (const spec of SETUP_SPECS) {
+    assert(names.has(spec.name), `setup did not print ${spec.name}`);
+  }
+  const text = logs.map((l) => l.message).join("\n");
+  assertStringIncludes(text, "Publishing resolves to");
+  assertStringIncludes(text, "Publishing is off");
+  assert(!text.includes("Validated"), "no-input run should not claim changes");
+});
+
+Deno.test("setup validates supplied values and prints the persist command", async () => {
+  const { context, getLogs } = createModelTestContext({
+    globalArgs,
+    methodName: "setup",
+  });
+  await model.methods.setup.execute(
+    {
+      publishMode: "github-pages",
+      pagesRepo: "owner/repo",
+      pagesBranch: "gh-pages",
+    },
+    // deno-lint-ignore no-explicit-any
+    context as any,
+  );
+  const text = getLogs().map((l) => l.message).join("\n");
+  assertStringIncludes(text, "Validated {n} setting(s) OK");
+  assertStringIncludes(text, "Would set");
+  assertStringIncludes(text, "swamp model edit");
+});
+
+Deno.test("setup warns when the selected mode would still be missing targets", async () => {
+  const { context, getLogs } = createModelTestContext({
+    globalArgs,
+    methodName: "setup",
+  });
+  await model.methods.setup.execute(
+    { publishMode: "github-pages" },
+    // deno-lint-ignore no-explicit-any
+    context as any,
+  );
+  const logs = getLogs();
+  const text = logs.map((l) => l.message).join("\n");
+  assertStringIncludes(text, "would still be missing");
+  // The missing names travel in the structured props, not the template.
+  const props = logs.flatMap((l) => l.args ?? []) as Record<string, unknown>[];
+  const missing = props.map((p) => String(p.missing ?? "")).join(",");
+  assertStringIncludes(missing, "pagesRepo");
+  assertStringIncludes(missing, "pagesBranch");
+});
+
 Deno.test("sync_manual_index caches sitemap pages", async () => {
   await withMockedFetch((req) => {
     if (req.url.includes("sitemap.xml")) {
@@ -1686,7 +1780,7 @@ function ctxWithExtFile(
     globalArgs,
     repoDir: "/repo",
     ...(extensionFile ? { extensionFile } : {}),
-    logger: { info: () => {}, warning: () => {} },
+    logger: { info: () => {}, warn: () => {} },
   } as unknown as Parameters<typeof ensureServerService>[0];
 }
 

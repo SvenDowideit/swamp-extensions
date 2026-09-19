@@ -1,7 +1,7 @@
 # Read-only; regenerate via 'swamp extension pull'
 manifestVersion: 1
 name: "@svendowideit/swamp-pulse"
-version: "2026.09.18.12"
+version: "2026.09.18.15"
 description: |
   A leaderboard-style activity dashboard for the swamp project itself. Tracks
   swamp-club Lab issues, GitHub commits and GitHub releases across
@@ -34,11 +34,65 @@ description: |
 
   CONFIGURE (all optional — public data, no secrets required)
 
-    apiKey           swamp-club API key, supplied from a vault. Unset runs
-                     anonymously against the public Lab API.
-    outputDir        Where the HTML pages are written.
-    windows          Activity windows to render (24h, 7d, month).
-    repos            Repositories to track.
+  See every setting, its valid values, its default and its current value:
+
+      swamp model @svendowideit/swamp-pulse method run setup pulse
+
+  Pass any of them to have the value validated and see the exact change to
+  make (this does not persist anything):
+
+      swamp model @svendowideit/swamp-pulse method run setup pulse \
+        --input publishMode=github-pages \
+        --input pagesRepo=owner/repo --input pagesBranch=gh-pages
+
+  The setup method works before the "pulse" instance exists — running any
+  method creates it with defaults. Note that auto-created instances live in
+  .swamp/auto-definitions/ and are deliberately NOT listed by
+  "swamp model search"/"model list", so those can look empty even while
+  workflows run. "swamp model get pulse" shows it. This is also why
+  "swamp model edit pulse" can report "Model not found" on a fresh install:
+  run setup first, or create the instance explicitly (below).
+
+  Publishing is driven by the "pulse" model instance, not by the trigger, so
+  configuring it once makes every scheduled run honour it.
+
+  Settings:  publishMode (false | caddy | github-pages), pagesRepo,
+             pagesBranch, pagesPath (/ or /docs), pagesCname,
+             caddyHostname, caddyUpstream.
+  Also:      outputDir, windows, serverPort, serverServiceName.
+  Note:      "repos" is a WORKFLOW input, not a model global.
+
+  Set them when creating the instance:
+
+      swamp model create @svendowideit/swamp-pulse pulse \
+        --global-arg publishMode=github-pages \
+        --global-arg pagesRepo=owner/repo \
+        --global-arg pagesBranch=gh-pages
+
+  That writes models/@svendowideit/swamp-pulse/pulse.yaml — a normal,
+  committable file listing every setting, safe to edit directly. To change it
+  afterwards, edit that file or run:
+
+      swamp model edit pulse          # opens $EDITOR, save and quit
+      cat models/@svendowideit/swamp-pulse/pulse.yaml | swamp model edit pulse --json
+
+  If the instance does not exist yet, the first run auto-creates it with all
+  defaults (publishing off). Auto-created instances live in
+  .swamp/auto-definitions/ and are not listed by "swamp model search".
+
+  Precedence:  per-run --input  >  model global argument  >  schema default.
+  So an individual run can override the model:
+
+      swamp workflow run @svendowideit/swamp-pulse \
+        --input publish=github-pages \
+        --input pagesRepo=owner/repo --input pagesBranch=gh-pages
+
+  An empty --input publish defers to the model (its default is ""), so a bare
+  "swamp workflow run" never overrides a configured instance.
+
+  Inspect what a run resolved:
+
+      swamp data get pulse publish-config --json
 
   Serve the pages over HTTP
 
@@ -56,25 +110,21 @@ description: |
 
   Tune the service:  --input serverPort=8899 --input serviceName=swamp-pulse-server
 
-  Publish to GitHub Pages (opt-in; requires a target repo and branch)
+  PUBLISH TARGETS (all opt-in; nothing publishes by default)
+
+  GitHub Pages — commits the rendered pages to a repository's Pages site:
 
       swamp extension pull @svendowideit/github-pages
-      swamp workflow run @svendowideit/swamp-pulse \
-        --input publish=github-pages \
-        --input pagesRepo=owner/repo --input pagesBranch=gh-pages
 
-  Nothing is published by default; omitting pagesRepo/pagesBranch fails fast
-  with an actionable error rather than silently doing nothing.
-
-  Publish on a hostname via Caddy (optional)
-
-  Requires the Caddy extension and a configured my-caddy model instance:
+  Caddy — serves them on a hostname through a reverse proxy:
 
       swamp extension pull @svendowideit/caddy
       swamp workflow run @svendowideit/swamp-pulse \
         --input publish=caddy --input hostname=pulse.example.com
 
-  The ensure-server step supplies the upstream the proxy points at.
+  Both need their target set (pagesRepo/pagesBranch, or caddyHostname) either
+  on the pulse model or per run; see CONFIGURE above. A run that selects a mode
+  without a target fails fast with an actionable error.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

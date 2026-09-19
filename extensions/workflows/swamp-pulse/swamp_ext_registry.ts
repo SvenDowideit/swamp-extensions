@@ -271,7 +271,10 @@ export const model = {
       ) => {
         const startMs = Date.now();
         const until = args.until ?? new Date().toISOString();
-        const sinceMs = Date.parse(args.since);
+        const since = args.since && args.since.trim()
+          ? args.since
+          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const sinceMs = Date.parse(since);
         const untilMs = Date.parse(until);
         const pageSize = context.globalArgs.pageSize;
 
@@ -329,7 +332,7 @@ export const model = {
           totalRegistry,
           pagesFetched: pages,
           truncated,
-          since: args.since,
+          since,
           until,
           fetchedAt: new Date().toISOString(),
           durationMs: Date.now() - startMs,

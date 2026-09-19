@@ -28,7 +28,10 @@ inputs:
     since:
       type: string
       default: ""
-      description: Collection window start (ISO-8601); empty means 30 days ago.
+      description: >-
+        Collection window start (ISO-8601). An empty value (the default, and
+        what every scheduled run uses) is normalised to 30 days ago by the
+        collectors, so leaving it unset collects the trailing 30-day window.
     outputDir:
       type: string
       default: ""

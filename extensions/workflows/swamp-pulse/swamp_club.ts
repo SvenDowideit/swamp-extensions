@@ -299,8 +299,9 @@ export const model = {
       ) => {
         const startMs = Date.now();
         const until = args.until ?? new Date().toISOString();
-        const since = args.since ??
-          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const since = args.since && args.since.trim()
+          ? args.since
+          : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
         const sinceMs = Date.parse(since);
         const untilMs = Date.parse(until);
 

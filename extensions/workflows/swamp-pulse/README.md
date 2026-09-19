@@ -134,6 +134,11 @@ window start), `outputDir` (per-run output location), and `publish` (`false` |
 Pages mode: `pagesRepo`, `pagesBranch`, `pagesPath`, `pagesCname`. For the
 systemd service: `serverPort`, `serviceName`.
 
+The `since` input defaults to the empty string, and the collectors normalise
+an empty `since` to 30 days ago — so a bare `swamp workflow run` (and every
+scheduled/hourly run) collects the trailing 30-day window. Pass an explicit
+ISO-8601 timestamp to narrow the window.
+
 ```sh
 # Serve locally via Caddy
 swamp workflow run @svendowideit/swamp-pulse --input publish=caddy
@@ -152,31 +157,163 @@ swamp workflow run @svendowideit/swamp-pulse \
 
 ### Where publishing config comes from
 
-There are two layers, and the precedence is:
+Two layers, resolved with this precedence:
 
 **per-run input → model global argument → schema default**
 
-So you can either configure publishing once on the model instance and let every
-scheduled run honour it:
+#### See every setting first
+
+Before changing anything, ask the model what it accepts:
 
 ```sh
-# once, on the instance
-swamp model edit pulse     # set publishMode, pagesRepo, pagesBranch, ...
-
-# every scheduled run now publishes; no trigger inputs needed
+swamp model @svendowideit/swamp-pulse method run setup pulse
 ```
 
-…or override it for a single run:
+That prints each global argument grouped by purpose, with its **valid values**,
+**default**, **current value**, and a one-line explanation — plus what
+publishing currently resolves to and what's missing for the selected mode:
+
+```
+--- publishing ---
+publishMode [enum] default=false values=false|caddy|github-pages current=false — What publishing to do. …
+pagesRepo [string] default="" current="" (empty) — Target repository as owner/name. Required for publishMode=github-pages.
+pagesBranch [string] default="" current="" (empty) — Branch Pages serves from, e.g. gh-pages. Required for publishMode=github-pages.
+Publishing resolves to: mode=false pagesRepo=(unset) pagesBranch=(unset) caddyHostname=(unset)
+Publishing is off. To enable: --input publishMode=github-pages --input pagesRepo=owner/repo --input pagesBranch=gh-pages …
+```
+
+Pass values to have them **validated** and see the exact change to make — it
+does not persist anything itself:
 
 ```sh
-swamp workflow run @svendowideit/swamp-pulse   --input publish=github-pages   --input pagesRepo=owner/repo --input pagesBranch=gh-pages
+swamp model @svendowideit/swamp-pulse method run setup pulse \
+  --input publishMode=github-pages \
+  --input pagesRepo=owner/repo --input pagesBranch=gh-pages
 ```
 
-An **empty** `publish` input defers to the model — so the default `""` never
-clobbers a configured instance. `configure` resolves both layers into the
-`publishConfig` resource, which is what the guards and the config assert read
-(they cannot read model global arguments directly), and which fails fast when
-the selected mode is missing something it needs.
+```
+Validated 3 setting(s) OK.
+Would set:
+  publishMode: "github-pages"
+  pagesRepo: "owner/repo"
+  pagesBranch: "gh-pages"
+To persist, run `swamp model edit pulse` and set the values above in globalArguments:.
+```
+
+Because the method runs against the model type, **it works even before the
+`pulse` instance exists** — running it creates the instance with all defaults
+(same as the first workflow run), so you can inspect the configuration on a
+fresh install.
+
+#### Option A — configure the model once (recommended for scheduled runs)
+
+The workflow runs against a model instance named **`pulse`**
+(`@svendowideit/swamp-pulse`). Set the publishing globals on it and every
+scheduled run honours them with no trigger inputs.
+
+Create the instance up front with the values you want:
+
+```sh
+swamp model create @svendowideit/swamp-pulse pulse \
+  --global-arg publishMode=github-pages \
+  --global-arg pagesRepo=owner/repo \
+  --global-arg pagesBranch=gh-pages
+```
+
+This writes `models/@svendowideit/swamp-pulse/pulse.yaml` (a normal, committable
+file — not under `.swamp/`). Because it lists every global argument, the file is
+also the easiest thing to inspect and edit by hand:
+
+```yaml
+type: "@svendowideit/swamp-pulse"
+typeVersion: 2026.09.18.12
+id: 508ebdd4-d95a-40be-b813-a64bc2030fee
+name: pulse
+version: 1
+tags: {}
+globalArguments:
+  outputDir: ~/.swamp/swamp-pulse
+  publishMode: github-pages # false | caddy | github-pages
+  pagesRepo: owner/repo # required for github-pages
+  pagesBranch: gh-pages # required for github-pages
+  pagesPath: / # / or /docs
+  pagesCname: "" # optional custom domain
+  caddyHostname: "" # required for caddy
+  caddyUpstream: 127.0.0.1:8899
+methods: {}
+```
+
+To change it later, either edit that file directly, or run:
+
+```sh
+swamp model edit pulse          # opens $EDITOR; save and quit to apply
+```
+
+`swamp model edit` opens the definition in your editor. If `$EDITOR` is unset it
+falls back to an interactive picker, so for a non-interactive script pipe the
+whole definition in instead:
+
+```sh
+cat models/@svendowideit/swamp-pulse/pulse.yaml | swamp model edit pulse --json
+```
+
+Then simply run the workflow — no publish inputs needed:
+
+```sh
+swamp workflow run @svendowideit/swamp-pulse
+```
+
+If the `pulse` instance does not exist yet, running any method (including
+`setup`) or the first workflow run auto-creates it under
+`.swamp/auto-definitions/` with **all defaults** (publishing off).
+
+This is also why `swamp model edit pulse` can fail with
+**`Model not found:
+pulse`** on a fresh install, and why `swamp model search`
+shows no models even though workflows are running: auto-created definitions are
+deliberately **not listed** by `swamp model search` or `swamp model list` — they
+exist only for data ownership. `swamp model get pulse` shows them, and creating
+the instance explicitly (as above) makes it visible and keeps it in a file you
+can commit.
+
+#### Option B — override for one run
+
+Any of the publish settings can be supplied per run, overriding the model for
+that invocation only:
+
+```sh
+swamp workflow run @svendowideit/swamp-pulse \
+  --input publish=github-pages \
+  --input pagesRepo=owner/repo --input pagesBranch=gh-pages
+```
+
+The full set of per-run publish inputs: `publish`, `pagesRepo`, `pagesBranch`,
+`pagesPath`, `pagesCname`, and (Caddy mode) `hostname`, `upstream`.
+
+An **empty** `publish` defers to the model, which is why its default is `""`
+rather than `"false"` — a bare `swamp workflow run` never clobbers a configured
+instance, and `--input publish=false` is how you switch publishing off for a
+single run.
+
+#### How it is resolved
+
+`configure` is the first step of every run. It merges both layers into the
+**`publishConfig`** resource, which is what the guards and the config assert
+actually read — workflow guards and `assert` steps cannot read
+`model.*.input.globalArguments.*`, only `data.latest(...)`.
+
+```
+configure  →  publishConfig resource  →  guards + require-pages-config assert
+```
+
+It publishes nothing itself. If the selected mode is missing something it needs
+(say `github-pages` with no `pagesRepo`), it records an actionable `reason` and
+the run **fails fast** rather than silently skipping the publish. Inspect what a
+run resolved with:
+
+```sh
+swamp data get pulse publish-config --json
+```
 
 ### Where the generated HTML goes
 

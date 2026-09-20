@@ -119,6 +119,9 @@ type RenderAuthorsArgs = z.infer<typeof RenderAuthorsArgsSchema>;
 const PickArgsSchema = z.object({
   name: z.string(),
   expectKind: z.enum(["author", "book"]),
+  key: z.string().optional().describe(
+    "Filesystem-safe instance key for this name (defaults to nameKey(name))",
+  ),
   results: z.array(z.object({
     title: z.string(),
     description: z.string().nullable(),
@@ -156,6 +159,9 @@ type Candidate = z.infer<typeof CandidateSchema>;
 const ClassifyArgsSchema = z.object({
   name: z.string(),
   expectKind: z.enum(["author", "book"]),
+  key: z.string().optional().describe(
+    "Filesystem-safe instance key for this name (defaults to nameKey(name))",
+  ),
   title: z.string().nullable().default(null),
   url: z.string().nullable().default(null),
   description: z.string().nullable().default(null),
@@ -170,6 +176,8 @@ type ClassifyArgs = z.infer<typeof ClassifyArgsSchema>;
 const NameItemSchema = z.object({
   name: z.string(),
   expectKind: z.enum(["author", "book"]),
+  /** Filesystem-safe key for this name (see `nameKey`). */
+  key: z.string(),
 });
 
 type NameItem = z.infer<typeof NameItemSchema>;
@@ -244,7 +252,15 @@ type MethodContext = {
     findAllForModel: (
       type: string,
       modelId: string,
-    ) => Promise<{ name: string; specName?: string }[]>;
+    ) => Promise<
+      {
+        name: string;
+        tags: Record<string, string>;
+        createdAt: Date;
+        isDeleted: boolean;
+        isRenamed: boolean;
+      }[]
+    >;
   };
   modelType: string;
   modelId: string;
@@ -265,6 +281,35 @@ function fileExtension(name: string): string {
   const dot = name.lastIndexOf(".");
   if (dot <= 0 || dot === name.length - 1) return "";
   return name.slice(dot + 1).toLowerCase();
+}
+
+/** Deterministic 32-bit FNV-1a hash (hex) of a string — stable across runs. */
+export function fnv1a(input: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+
+/**
+ * A stable, filesystem-safe key for an arbitrary detected name (author or
+ * title). Names come from filenames and file contents and can be extremely
+ * long, non-ASCII, or garbage — so the key is sanitized to `[a-z0-9-]`,
+ * truncated, and suffixed with a short hash of the *original* name to keep it
+ * unique and bounded well under filesystem name limits. The human-readable
+ * name is always carried in the record itself; this key is only for storage.
+ */
+export function nameKey(name: string): string {
+  const normalized = name.replace(/\s+/g, " ").trim().toLowerCase();
+  const safe = normalized
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48)
+    .replace(/-+$/g, "");
+  const hash = fnv1a(normalized);
+  return safe ? `${safe}-${hash}` : hash;
 }
 
 /** Escape a string for safe embedding in an HTML attribute / text node. */
@@ -291,48 +336,164 @@ export function freshState(root: string): State {
 }
 
 /**
- * Collect the distinct author names and book titles that need resolving from
- * the detected metadata, as a name list (each with an expected kind), excluding
- * names that already have a resolution record.
+ * Load every stored resolution record, keyed by the *original detected name*
+ * (the record's `from` field). Enumerating once and keying by `from` makes this
+ * independent of how the record's instance name was derived (new safe keys or
+ * legacy raw names), and avoids one read per candidate name.
+ */
+async function loadResolutions(
+  context: MethodContext,
+): Promise<Map<string, Resolution>> {
+  const byName = new Map<string, Resolution>();
+  const all = await context.dataRepository.findAllForModel(
+    context.modelType,
+    context.modelId,
+  );
+  for (const rec of all) {
+    if (rec.tags?.specName !== "resolution") continue;
+    if (rec.isDeleted || rec.isRenamed) continue;
+    const content = await context.readResource(rec.name) as Resolution | null;
+    if (!content) continue;
+    const key = content.from ?? content.name;
+    if (key) byName.set(key, content);
+  }
+  return byName;
+}
+
+/**
+ * A plan of which names to resolve next, plus the counts that explain it.
+ */
+export interface NamePlan {
+  selected: NameItem[];
+  fresh: number;
+  failed: number;
+  done: number;
+  backlog: number;
+}
+
+/**
+ * Pure selection logic: given every candidate name and the resolutions already
+ * on record, choose the next `maxNames` to resolve so the backlog drains:
+ *
+ *   1. names with no resolution record ("fresh") fill ~90% of the budget
+ *   2. the remaining slots go to names that failed (resolved=false), least
+ *      recently attempted first, so transient failures get retried
+ *   3. if there aren't enough failures, the rest of the budget goes to fresh
+ *
+ * Successfully-resolved names are never selected. `maxNames <= 0` means "all".
+ */
+export function planNames(
+  candidates: NameItem[],
+  resolutions: Map<string, Resolution>,
+  maxNames: number,
+): NamePlan {
+  const fresh: NameItem[] = [];
+  const failed: { item: NameItem; at: string }[] = [];
+  let done = 0;
+  for (const item of candidates) {
+    const res = resolutions.get(item.name);
+    if (!res) {
+      fresh.push(item);
+    } else if (res.resolved) {
+      done += 1;
+    } else {
+      failed.push({ item, at: res.resolvedAt ?? "" });
+    }
+  }
+  // Least-recently-attempted failures first.
+  failed.sort((a, b) => a.at.localeCompare(b.at));
+
+  const selected: NameItem[] = [];
+  const picked = new Set<string>();
+  const unlimited = maxNames <= 0;
+  const take = (item: NameItem) => {
+    if (!unlimited && selected.length >= maxNames) return;
+    const k = `${item.expectKind}:${item.name}`;
+    if (picked.has(k)) return;
+    picked.add(k);
+    selected.push(item);
+  };
+
+  const freshTarget = unlimited
+    ? fresh.length
+    : Math.min(fresh.length, Math.ceil(maxNames * 0.9));
+  for (let i = 0; i < freshTarget; i++) take(fresh[i]);
+  for (const f of failed) take(f.item);
+  // If there weren't enough failures to fill the budget, use more fresh names.
+  for (const item of fresh) take(item);
+
+  return {
+    selected,
+    fresh: fresh.length,
+    failed: failed.length,
+    done,
+    backlog: fresh.length + failed.length - selected.length,
+  };
+}
+
+/**
+ * Collect the names that need resolving from the detected metadata, excluding
+ * successfully-resolved names and prioritising fresh names over retries.
  */
 async function collectNames(
   metadata: Record<string, BookMetadata>,
   context: MethodContext,
+  maxNames: number,
 ): Promise<Names> {
-  const authorNames = new Set<string>();
-  const titles = new Set<string>();
+  // Collect authors and titles as separate sets. Authors are ranked by how
+  // many ebooks credit them (most prolific first) so each run resolves the
+  // names that affect the most books, rather than filename artefacts that
+  // happen to sort early. Authors come before titles so the author index
+  // actually makes progress.
+  const authorCount = new Map<string, number>();
+  const titleSet = new Set<string>();
   for (const md of Object.values(metadata)) {
     for (const a of md.authors ?? (md.author ? [md.author] : [])) {
-      authorNames.add(a);
+      if (a.trim()) authorCount.set(a, (authorCount.get(a) ?? 0) + 1);
     }
-    if (md.title) titles.add(md.title);
+    if (md.title && md.title.trim()) titleSet.add(md.title);
   }
 
-  // Enumerate existing resolution records (specName "resolution") so we skip
-  // already-resolved names. Records are keyed `resolution-<name>`.
-  const resolved = new Set<string>();
-  try {
-    const all = await context.dataRepository.findAllForModel(
-      context.modelType,
-      context.modelId,
+  const candidates: NameItem[] = [];
+  const seen = new Set<string>();
+  const addCandidate = (name: string, expectKind: "author" | "book") => {
+    const dedupeKey = `${expectKind}:${name}`;
+    if (seen.has(dedupeKey)) return;
+    seen.add(dedupeKey);
+    candidates.push({ name, expectKind, key: nameKey(name) });
+  };
+  // Skip names with no letters at all — filename artefacts like "01", "." or
+  // "271 009 5", never a person. Rank the rest by book count, then name.
+  const hasLetter = (s: string) => /\p{L}/u.test(s);
+  const rankedAuthors = [...authorCount.keys()]
+    .filter(hasLetter)
+    .sort((a, b) =>
+      (authorCount.get(b)! - authorCount.get(a)!) || a.localeCompare(b)
     );
-    for (const rec of all) {
-      if (rec.specName === "resolution" && rec.name.startsWith("resolution-")) {
-        resolved.add(rec.name.slice("resolution-".length));
-      }
-    }
-  } catch {
-    // Best-effort: if enumeration fails, resolve everything.
-  }
+  for (const name of rankedAuthors) addCandidate(name, "author");
+  for (const name of [...titleSet].sort()) addCandidate(name, "book");
 
-  const items: NameItem[] = [];
-  for (const name of authorNames) {
-    if (!resolved.has(name)) items.push({ name, expectKind: "author" });
+  const resolutions = await loadResolutions(context);
+  const plan = planNames(candidates, resolutions, maxNames);
+
+  context.logger.info(
+    "Planned {planned}/{max} names ({fresh} fresh, {failed} retryable, {done} done, {backlog} backlog remaining)",
+    {
+      planned: plan.selected.length,
+      max: maxNames <= 0 ? "all" : maxNames,
+      fresh: plan.fresh,
+      failed: plan.failed,
+      done: plan.done,
+      backlog: plan.backlog,
+    },
+  );
+  for (const item of plan.selected) {
+    context.logger.info("  plan → {kind}: {name}", {
+      kind: item.expectKind,
+      name: item.name,
+    });
   }
-  for (const title of titles) {
-    if (!resolved.has(title)) items.push({ name: title, expectKind: "book" });
-  }
-  return { items };
+  return { items: plan.selected };
 }
 
 /** Read directory entry names, returning null on error. */
@@ -756,7 +917,7 @@ export const model = {
         const metadata = await context.readResource("metadata") as
           | Record<string, BookMetadata>
           | null;
-        const names = await collectNames(metadata ?? {}, context);
+        const names = await collectNames(metadata ?? {}, context, 0);
         const handle = await context.writeResource("names", "names", names);
         context.logger.info("Collected {n} names to resolve", {
           n: names.items.length,
@@ -778,16 +939,11 @@ export const model = {
         const metadata = await context.readResource("metadata") as
           | Record<string, BookMetadata>
           | null;
-        const all = await collectNames(metadata ?? {}, context);
-        const names: Names = { items: all.items.slice(0, args.maxNames) };
+        const names = await collectNames(metadata ?? {}, context, args.maxNames);
         const handle = await context.writeResource("names", "names", names);
-        context.logger.info(
-          "Planned {n} names to resolve ({remaining} remaining)",
-          {
-            n: names.items.length,
-            remaining: all.items.length - names.items.length,
-          },
-        );
+        context.logger.info("Planned {n} names to resolve", {
+          n: names.items.length,
+        });
         return { dataHandles: [handle] };
       },
     },
@@ -814,14 +970,16 @@ export const model = {
           description: chosen?.description ?? null,
           wikidataId: chosen?.wikidataId ?? null,
         };
+        const key = args.key ?? nameKey(args.name);
         const handle = await context.writeResource(
           "candidate",
-          `candidate-${args.name}`,
+          `candidate-${key}`,
           candidate,
         );
-        context.logger.info("Picked candidate {title} for {name}", {
+        context.logger.info("Picked candidate {title} for {name} ({key})", {
           title: chosen?.title ?? "none",
           name: args.name,
+          key,
         });
         return { dataHandles: [handle] };
       },
@@ -855,14 +1013,16 @@ export const model = {
           expectKind: args.expectKind,
         };
 
+        const key = args.key ?? nameKey(args.name);
         const handle = await context.writeResource(
           "resolution",
-          `resolution-${args.name}`,
+          `resolution-${key}`,
           resolution,
         );
-        context.logger.info("Classified {name} as {kind}", {
+        context.logger.info("Classified {name} as {kind} ({key})", {
           name: args.name,
           kind,
+          key,
         });
         return { dataHandles: [handle] };
       },
@@ -932,14 +1092,13 @@ export const model = {
           | null;
         const outputPath = absolutePath(context.globalArgs.authorsOutputPath);
 
-        // Resolution records are keyed by the detected name (author name or
-        // book title), prefixed with the spec. Read each detected name's record.
+        // Resolutions are keyed by the detected name (author or title). Load
+        // them all once and index by the record's `from` field.
+        const byName = await loadResolutions(context);
         const resolutions: Record<string, Resolution> = {};
         for (const md of Object.values(metadata ?? {})) {
           for (const name of md.authors ?? (md.author ? [md.author] : [])) {
-            const rec = await context.readResource(`resolution-${name}`) as
-              | Resolution
-              | null;
+            const rec = byName.get(name);
             if (rec) resolutions[name] = rec;
           }
         }

@@ -8,7 +8,7 @@ description: |
   only after the parent's plan-resolution step has completed.
 
   Inputs:
-    items     — array of { name, expectKind } objects to resolve
+    items     — array of { name, expectKind, key } objects to resolve
     cacheDir  — shared cache dir (default ~/.swamp/web-cache)
 tags: {}
 inputs:
@@ -21,6 +21,8 @@ inputs:
           name:
             type: string
           expectKind:
+            type: string
+          key:
             type: string
         required:
           - name
@@ -36,7 +38,7 @@ jobs:
   - name: main
     description: Resolve + classify each name.
     steps:
-      - name: resolve-${{ self.item.name }}
+      - name: resolve-${{ self.item.key }}
         concurrency: 1
         forEach:
           item: item
@@ -47,6 +49,7 @@ jobs:
           inputs:
             name: ${{ self.item.name }}
             expectKind: ${{ self.item.expectKind }}
+            key: ${{ self.item.key }}
             cacheDir: ${{ inputs.cacheDir }}
         dependsOn: []
         weight: 0

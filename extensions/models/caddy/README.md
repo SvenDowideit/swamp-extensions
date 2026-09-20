@@ -271,6 +271,25 @@ swamp model create @svendowideit/caddy my-caddy \
 config keeps them when adding routes, so re-running `installCaddy` /
 `createService` no longer reintroduces TLS or privileged-port assumptions.
 
+## Config persistence
+
+Routes are applied live via the admin API, not written to the Caddyfile. Caddy
+autosaves the running JSON config (to `~/.config/caddy/autosave.json`), but only
+reloads it when started with `--resume`. The systemd unit therefore runs:
+
+```
+ExecStart=... run --resume --config <Caddyfile> --adapter caddyfile
+```
+
+On a fresh install there is no autosave file yet, so Caddy falls back to the
+generated Caddyfile; on subsequent restarts it resumes the last admin-API
+config, so proxy routes survive `stopService` / `restartService` and reboots.
+There is no `ExecReload` pointing at the Caddyfile — doing so would discard the
+admin-API config.
+
+Re-run `createService` after upgrading from an older version to regenerate the
+unit with `--resume`.
+
 ## Notes
 
 - The admin API is powerful; Caddy recommends protecting it. Bind it to a

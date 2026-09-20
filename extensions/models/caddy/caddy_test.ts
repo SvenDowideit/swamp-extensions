@@ -99,7 +99,7 @@ Deno.test("parseCaddyVersion throws on empty output", () => {
   assertEquals(threw, true);
 });
 
-Deno.test("renderServiceUnit includes binary and config but no --admin flag", () => {
+Deno.test("renderServiceUnit includes binary, config, and --resume, but no --admin flag", () => {
   const unit = renderServiceUnit({
     binPath: "/home/alice/.local/bin/caddy",
     configPath: "/home/alice/.config/caddy/Caddyfile",
@@ -108,12 +108,21 @@ Deno.test("renderServiceUnit includes binary and config but no --admin flag", ()
   assertStringIncludes(unit, "--config /home/alice/.config/caddy/Caddyfile");
   assertStringIncludes(unit, "--adapter caddyfile");
   assertStringIncludes(unit, "WantedBy=default.target");
+  // --resume reloads the config autosaved from admin-API changes, so routes
+  // survive a service restart.
+  assertStringIncludes(unit, "run --resume");
   // Caddy v2.11+ rejects `caddy run --admin`; the admin endpoint belongs in
   // the Caddyfile global options instead.
   const hasAdminFlag = unit
     .split("\n")
     .some((line) => /(^|\s)--admin(\s|$)/.test(line));
   assertEquals(hasAdminFlag, false);
+  // Reloading via the Caddyfile would discard admin-API routes, so the unit
+  // must not carry an ExecReload pointing at it.
+  const hasExecReload = unit
+    .split("\n")
+    .some((line) => line.startsWith("ExecReload="));
+  assertEquals(hasExecReload, false);
 });
 
 Deno.test("renderMinimalConfig is a valid empty Caddyfile with defaults", () => {

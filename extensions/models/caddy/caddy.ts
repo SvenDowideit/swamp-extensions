@@ -337,6 +337,12 @@ export function parseCaddyVersion(stdout: string): string {
  *
  * The admin endpoint is configured via the Caddyfile's `admin` global option,
  * not a `--admin` CLI flag (Caddy v2.11+ rejects `caddy run --admin`).
+ *
+ * `--resume` is passed so that config applied via the admin API (routes added
+ * by addProxyService/ensureDnsProxy etc.) survives a service restart: Caddy
+ * autosaves the running JSON config to its config dir, but only reloads it
+ * with `--resume`. On a fresh install there is no autosave file yet, so Caddy
+ * falls back to `--config` (the generated Caddyfile) — see the run docs.
  */
 export function renderServiceUnit(opts: {
   binPath: string;
@@ -352,8 +358,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=${binPath} run --config ${configPath} --adapter caddyfile
-ExecReload=${binPath} reload --config ${configPath} --adapter caddyfile
+ExecStart=${binPath} run --resume --config ${configPath} --adapter caddyfile
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=5
@@ -1297,7 +1302,7 @@ type MethodContext = {
 
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.09.20.1",
+  version: "2026.09.20.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1308,6 +1313,12 @@ export const model = {
         const { caddyVersion: _removed, ...rest } = old;
         return rest;
       },
+    },
+    {
+      toVersion: "2026.09.20.2",
+      description:
+        "createService now runs Caddy with --resume (and no ExecReload), so admin-API routes survive a service restart. Global args unchanged; re-run createService to regenerate the unit.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   resources: {

@@ -47,7 +47,7 @@ const GlobalArgsSchema = z.object({
   restUrl: z.string()
     .default(WIKI_REST)
     .describe("Wikipedia REST v1 base URL"),
-}).passthrough();
+});
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
@@ -134,6 +134,27 @@ const PageResultSchema = z.object({
 });
 
 type PageResult = z.infer<typeof PageResultSchema>;
+
+// ---------------------------------------------------------------------------
+// Resource schemas
+// ---------------------------------------------------------------------------
+
+const SearchResultSchema = z.object({
+  query: z.string(),
+  results: z.array(z.object({
+    title: z.string(),
+    description: z.string().nullable(),
+    url: z.string().nullable(),
+  })),
+  cached: z.boolean(),
+});
+
+const InfoboxResultSchema = z.object({
+  title: z.string(),
+  infobox: z.record(z.string(), z.string().nullable()),
+  template: z.string().nullable(),
+  cached: z.boolean(),
+});
 
 // ---------------------------------------------------------------------------
 // Method context
@@ -487,13 +508,13 @@ export const model = {
     },
     search: {
       description: "Parsed search results (from the shared cache)",
-      schema: z.unknown(),
+      schema: SearchResultSchema,
       lifetime: "infinite",
       garbageCollection: 20,
     },
     infobox: {
       description: "Extracted infobox key/value pairs for a page",
-      schema: z.unknown(),
+      schema: InfoboxResultSchema,
       lifetime: "infinite",
       garbageCollection: 20,
     },

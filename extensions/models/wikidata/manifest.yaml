@@ -1,0 +1,62 @@
+manifestVersion: 1
+name: "@svendowideit/wikidata"
+version: "2026.09.20.1"
+description: |
+  A Wikidata domain client that reads responses from the shared web cache owned
+  by @svendowideit/web-cache. Like @svendowideit/wikipedia, it fetches nothing
+  itself — it parses responses that web-cache has already fetched and cached.
+
+  It exposes the generalised Wikidata operations an entity-resolution pipeline
+  needs: search for entities, fetch an entity's claims/descriptions/labels,
+  resolve a Wikipedia page title to a QID via its sitelink, and extract
+  structured claims (e.g. instance-of / P31) into simple key/value form.
+
+  The seam is a workflow: web-cache.get fetches + caches a Wikidata URL, then a
+  wikidata.search / get-entity / resolve-title / get-claims step reads that
+  cached body and parses it. All models share the same cacheDir (default
+  ~/.swamp/web-cache) and a URL-normalizing cache-key scheme.
+
+  WHAT'S INSIDE
+
+    @svendowideit/wikidata — the domain parser:
+      search          Parse a cached wbsearchentities response.
+      get-entity      Parse a cached wbgetentities response for a QID.
+      resolve-title   Resolve a Wikipedia title to a QID via its sitelink.
+      get-claims      Extract one property's claim values (e.g. P31).
+      get-instance-of Extract instance-of (P31) values from an entity.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/web-cache
+      swamp extension pull @svendowideit/wikidata
+
+  RUN (see README for the full workflow seam)
+
+      # 1. fetch + cache (web-cache)
+      swamp model @svendowideit/web-cache method run get cache \
+        --input url="https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q286116&format=json"
+
+      # 2. parse (wikidata reads the cache)
+      swamp model @svendowideit/wikidata method run get-entity wd \
+        --input id="Q286116"
+
+  CONFIGURE (all optional global arguments)
+
+      cacheDir         Shared cache dir to read from  (default ~/.swamp/web-cache)
+      apiUrl           Wikidata action API base       (default www.wikidata.org)
+      language         Label/description language     (default en)
+      site             Sitelink site id               (default enwiki)
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - wikidata.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

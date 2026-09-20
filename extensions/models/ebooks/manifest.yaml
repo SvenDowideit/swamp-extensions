@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/ebooks"
-version: "2026.09.20.1"
+version: "2026.09.20.2"
 description: |
   Find every ebook on your machine, detect its bibliographic metadata (author,
   title, ISBN, publish dates), resolve authors/titles against Wikipedia +
@@ -21,11 +21,10 @@ description: |
     @svendowideit/ebooks — the scanner + decision engine:
       scan-disk             Walk the filesystem for ebooks (resumable, time-boxed).
       detect-metadata       Detect author/title/ISBN/dates for discovered ebooks.
-      plan-resolution       Emit round-1 opensearch URLs (no fetching).
-      choose-candidates     Read cached opensearch; emit round-2 query URLs.
-      choose-final          Read cached pageprops; emit round-3 wikitext/wikidata URLs.
-      finalize-resolution   Classify each name; write authors/books maps.
-      resolve-wikipedia     Back-compat: runs finalize-resolution alone.
+      plan-resolution       Emit the names (authors + titles) still to resolve.
+      pick-candidate        Choose one name's canonical candidate (per name).
+      classify              Classify a name (author vs book) and write its record.
+      resolve-wikipedia     DEPRECATED — emits the name list (back-compat alias).
       render-html-list      Render the ebooks (with metadata) into an HTML page.
       render-html-authors   Render an author-grouped index (resolved names linked).
 
@@ -34,11 +33,14 @@ description: |
       detect             Detect metadata from a single file.
       register           Store metadata you already have by hand.
 
-    @svendowideit/ebook-scan — the workflow:
-      Chains scan-disk -> detect-metadata -> plan-resolution ->
-      web-cache.get-many -> choose-candidates -> web-cache.get-many ->
-      choose-final -> web-cache.get-many -> finalize-resolution ->
-      render-html-list -> render-html-authors.
+    Workflows:
+      @svendowideit/ebook-scan        scan -> detect -> plan -> resolve -> render.
+      @svendowideit/ebooks-resolve-names
+                                      Fan out over the planned name list.
+      @svendowideit/ebooks-resolve-name
+                                      Resolve + classify one name (calls the
+                                      wikipedia/wikidata workflows, which call
+                                      web-cache).
 
   INSTALL
 

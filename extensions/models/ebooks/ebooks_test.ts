@@ -7,6 +7,8 @@ import {
   model,
   nameKey,
   planNames,
+  renderAuthorsHtml,
+  renderHtml,
 } from "./ebooks.ts";
 import type { Resolution } from "./book_metadata.ts";
 
@@ -161,6 +163,14 @@ Deno.test("planNames gives ~10% of the budget to retries alongside fresh", () =>
   assertEquals(names.filter((n) => n.startsWith("F")).length, 9);
   assertEquals(names.filter((n) => n.startsWith("X")).length, 1);
   assertEquals(names.at(-1), "X1");
+});
+
+Deno.test("planNames flags truncation when the cap leaves a backlog", () => {
+  const candidates = ["A", "B", "C", "D", "E"].map((n) => item(n));
+  const capped = planNames(candidates, new Map(), 3);
+  assertEquals(capped.truncated, true);
+  const uncapped = planNames(candidates, new Map(), 10);
+  assertEquals(uncapped.truncated, false);
 });
 
 Deno.test("planNames with maxNames<=0 selects everything (fresh first)", () => {
@@ -374,6 +384,499 @@ Deno.test("plan-resolution: letterless author artefacts are skipped", async () =
     r.specName === "names"
   )!.data as { items: { name: string }[] }).items;
   assertEquals(items.map((i) => i.name), ["Real Author"]);
+});
+
+// ---------------------------------------------------------------------------
+// renderHtml / renderAuthorsHtml — pure rendering
+// ---------------------------------------------------------------------------
+
+const sampleState = {
+  root: "/books",
+  completed: true,
+  queue: [],
+  seenDirs: [],
+  ebooks: [
+    { path: "/books/bester.epub", name: "bester.epub", ext: "epub", bytes: 1234 },
+    { path: "/books/other.mobi", name: "other.mobi", ext: "mobi", bytes: 42 },
+  ],
+  scannedDirs: 1,
+  startedAt: "2026-01-01T00:00:00Z",
+  updatedAt: "2026-01-01T00:00:00Z",
+};
+
+/** A complete BookMetadata record for render tests. */
+function md(
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
+  return {
+    id: "book:x",
+    title: null,
+    author: null,
+    isbn: null,
+    publishedAt: null,
+    editionPublishedAt: null,
+    publisher: null,
+    language: null,
+    description: null,
+    series: null,
+    format: "epub",
+    detected: true,
+    confidence: 0.5,
+    sourcePath: "/books/bester.epub",
+    sourceName: "bester.epub",
+    bytes: 1,
+    modifiedAt: null,
+    ...overrides,
+  };
+}
+
+Deno.test("renderHtml labels detected ebooks and escapes paths", () => {
+  const html = renderHtml("Ebooks", sampleState, {
+    "/books/bester.epub": md({
+      title: "The Demolished Man",
+      author: "Alfred Bester",
+      editionPublishedAt: "1953",
+    }),
+    // deno-lint-ignore no-explicit-any
+  } as any);
+  assertEquals(html.includes("The Demolished Man"), true);
+  assertEquals(html.includes("Alfred Bester"), true);
+  assertEquals(html.includes("2 ebooks"), true);
+});
+
+Deno.test("renderHtml falls back to a placeholder when empty", () => {
+  const empty = { ...sampleState, ebooks: [] };
+  const html = renderHtml("Ebooks", empty, {});
+  assertEquals(html.includes("No ebooks found yet."), true);
+});
+
+Deno.test("renderAuthorsHtml groups by author and escapes HTML", () => {
+  const html = renderAuthorsHtml(
+    "By Author",
+    sampleState,
+    {
+      "/books/bester.epub": md({
+        title: "The Demolished Man",
+        author: "Alfred Bester",
+        authors: ["Alfred Bester"],
+      }),
+      // deno-lint-ignore no-explicit-any
+    } as any,
+    {
+      "Alfred Bester": {
+        name: "Alfred Bester",
+        url: "https://en.wikipedia.org/wiki/Alfred_Bester",
+        description: "American writer",
+        kind: "author",
+        resolved: true,
+        from: "Alfred Bester",
+        resolvedAt: "2026-01-01T00:00:00Z",
+        expectKind: "author",
+      },
+    },
+  );
+  // Resolved-as-person authors are linked to Wikipedia.
+  assertEquals(html.includes('href="https://en.wikipedia.org/wiki/Alfred_Bester"'), true);
+  assertEquals(html.includes("1 author"), true);
+});
+
+Deno.test("renderAuthorsHtml does not link an author resolved as a non-person", () => {
+  const html = renderAuthorsHtml(
+    "By Author",
+    sampleState,
+    {
+      "/books/bester.epub": md({ authors: ["A Book"], title: "X" }),
+      // deno-lint-ignore no-explicit-any
+    } as any,
+    {
+      "A Book": {
+        name: "A Book",
+        url: "https://en.wikipedia.org/wiki/A_Book",
+        description: null,
+        kind: "book",
+        resolved: true,
+        from: "A Book",
+        resolvedAt: "2026-01-01T00:00:00Z",
+        expectKind: "author",
+      },
+    },
+  );
+  assertEquals(html.includes("wikipedia.org"), false);
+});
+
+// ---------------------------------------------------------------------------
+// Method execute paths: scan-disk / detect-metadata / pick-candidate / classify
+// ---------------------------------------------------------------------------
+
+Deno.test("scan-disk walks the tree and records ebooks", async () => {
+  const root = await Deno.makeTempDir({ prefix: "ebooks-scan-" });
+  try {
+    await Deno.mkdir(`${root}/sub`);
+    await Deno.writeTextFile(`${root}/book.epub`, "x");
+    await Deno.writeTextFile(`${root}/sub/another.pdf`, "yy");
+
+    const ctx = createModelTestContext({
+      globalArgs: { root, extensions: ["epub", "pdf"], excludePatterns: [] },
+      methodName: "scan-disk",
+    });
+    await model.methods["scan-disk"].execute(
+      { maxDurationMs: 30_000 },
+      // deno-lint-ignore no-explicit-any
+      ctx.context as any,
+    );
+
+    const state = ctx.getWrittenResources().find((r) =>
+      r.specName === "state"
+    )!.data as { ebooks: { path: string }[]; completed: boolean };
+    assertEquals(state.ebooks.length, 2);
+    assertEquals(state.completed, true);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("scan-disk resumes from stored state without losing prior ebooks", async () => {
+  const root = await Deno.makeTempDir({ prefix: "ebooks-scan-" });
+  try {
+    await Deno.writeTextFile(`${root}/book.epub`, "x");
+    const prior = {
+      ...freshState(root),
+      completed: false,
+      queue: [root],
+      seenDirs: [],
+      ebooks: [{
+        path: "/already/found.epub",
+        name: "found.epub",
+        ext: "epub",
+        bytes: 1,
+      }],
+    };
+    const ctx = createModelTestContext({
+      globalArgs: { root, extensions: ["epub"], excludePatterns: [] },
+      methodName: "scan-disk",
+      storedResources: { state: prior },
+    });
+    await model.methods["scan-disk"].execute(
+      { maxDurationMs: 30_000 },
+      // deno-lint-ignore no-explicit-any
+      ctx.context as any,
+    );
+    const state = ctx.getWrittenResources().find((r) =>
+      r.specName === "state"
+    )!.data as { ebooks: { path: string }[] };
+    // The additive policy must keep the previously-found ebook.
+    assertEquals(state.ebooks.some((e) => e.path === "/already/found.epub"), true);
+    assertEquals(state.ebooks.some((e) => e.path === `${root}/book.epub`), true);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("detect-metadata detects a single named file", async () => {
+  const root = await Deno.makeTempDir({ prefix: "ebooks-meta-" });
+  try {
+    const file = `${root}/Alfred Bester - The Demolished Man (1953).epub`;
+    await Deno.writeTextFile(file, "not a real epub");
+    const ctx = createModelTestContext({
+      globalArgs: {},
+      methodName: "detect-metadata",
+    });
+    await model.methods["detect-metadata"].execute(
+      { file, maxDurationMs: 30_000 },
+      // deno-lint-ignore no-explicit-any
+      ctx.context as any,
+    );
+    const md = ctx.getWrittenResources().find((r) =>
+      r.specName === "metadata"
+    )!.data as Record<string, { title: string | null; author: string | null }>;
+    const rec = md[file]!;
+    assertEquals(rec.title, "The Demolished Man");
+    assertEquals(rec.author, "Alfred Bester");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("detect-metadata skips entries already at the current parser version", async () => {
+  const root = await Deno.makeTempDir({ prefix: "ebooks-meta-" });
+  try {
+    const file = `${root}/book.epub`;
+    await Deno.writeTextFile(file, "x");
+    const prior = {
+      [file]: {
+        id: "x",
+        title: "Already Done",
+        author: null,
+        isbn: null,
+        publishedAt: null,
+        editionPublishedAt: null,
+        publisher: null,
+        language: null,
+        description: null,
+        series: null,
+        format: "epub",
+        detected: true,
+        confidence: 0.3,
+        parserVersion: 9999,
+        sourcePath: file,
+        sourceName: "book.epub",
+        bytes: 1,
+        modifiedAt: null,
+      },
+    };
+    const ctx = createModelTestContext({
+      globalArgs: {},
+      methodName: "detect-metadata",
+      storedResources: {
+        state: { ...freshState(root), ebooks: [{ path: file, name: "book.epub", ext: "epub", bytes: 1 }] },
+        metadata: prior,
+      },
+    });
+    await model.methods["detect-metadata"].execute(
+      { maxDurationMs: 30_000 },
+      // deno-lint-ignore no-explicit-any
+      ctx.context as any,
+    );
+    const md = ctx.getWrittenResources().find((r) =>
+      r.specName === "metadata"
+    )!.data as Record<string, { title: string | null }>;
+    assertEquals(md[file]!.title, "Already Done");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("pick-candidate chooses and writes a candidate record", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: {},
+    methodName: "pick-candidate",
+  });
+  await model.methods["pick-candidate"].execute({
+    name: "Alfred Bester",
+    expectKind: "author",
+    results: [
+      { title: "Alfred Bester", description: null, url: "https://x/A" },
+    ],
+    pages: {
+      "Alfred Bester": {
+        title: "Alfred Bester",
+        url: "https://x/A",
+        shortdesc: "American science fiction author",
+        wikidataId: "Q286116",
+      },
+    },
+    // deno-lint-ignore no-explicit-any
+  } as any,
+    // deno-lint-ignore no-explicit-any
+    ctx.context as any);
+  const cand = ctx.getWrittenResources().find((r) =>
+    r.specName === "candidate"
+  )!;
+  assertEquals(cand.name, `candidate-${nameKey("Alfred Bester")}`);
+  assertEquals(cand.data.title, "Alfred Bester");
+  assertEquals(cand.data.wikidataId, "Q286116");
+});
+
+Deno.test("pick-candidate writes a null candidate when there are no results", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: {},
+    methodName: "pick-candidate",
+  });
+  await model.methods["pick-candidate"].execute({
+    name: "Nobody",
+    expectKind: "author",
+    results: [],
+    pages: {},
+    // deno-lint-ignore no-explicit-any
+  } as any,
+    // deno-lint-ignore no-explicit-any
+    ctx.context as any);
+  const cand = ctx.getWrittenResources().find((r) =>
+    r.specName === "candidate"
+  )!;
+  assertEquals(cand.data.title, null);
+});
+
+Deno.test("classify writes an author resolution from an infobox", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: {},
+    methodName: "classify",
+  });
+  await model.methods.classify.execute({
+    name: "Alfred Bester",
+    expectKind: "author",
+    title: "Alfred Bester",
+    url: "https://en.wikipedia.org/wiki/Alfred_Bester",
+    description: "American writer",
+    wikidataId: "Q286116",
+    infoboxTemplate: "infobox writer",
+    instanceOf: ["Q5"],
+    // deno-lint-ignore no-explicit-any
+  } as any,
+    // deno-lint-ignore no-explicit-any
+    ctx.context as any);
+  const res = ctx.getWrittenResources().find((r) =>
+    r.specName === "resolution"
+  )!;
+  assertEquals(res.name, `resolution-${nameKey("Alfred Bester")}`);
+  assertEquals(res.data.kind, "author");
+  assertEquals(res.data.resolved, true);
+  assertEquals(res.data.from, "Alfred Bester");
+});
+
+Deno.test("classify marks an unresolved name as not resolved", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: {},
+    methodName: "classify",
+  });
+  await model.methods.classify.execute({
+    name: "Some Unknown",
+    expectKind: "book",
+    title: null,
+    url: null,
+    description: null,
+    wikidataId: null,
+    infoboxTemplate: null,
+    instanceOf: [],
+    // deno-lint-ignore no-explicit-any
+  } as any,
+    // deno-lint-ignore no-explicit-any
+    ctx.context as any);
+  const res = ctx.getWrittenResources().find((r) =>
+    r.specName === "resolution"
+  )!;
+  assertEquals(res.data.resolved, false);
+  assertEquals(res.data.kind, "other");
+});
+
+Deno.test("classify honors an explicit key for the instance name", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: {},
+    methodName: "classify",
+  });
+  await model.methods.classify.execute({
+    name: "A Very Long Name",
+    expectKind: "author",
+    key: "short-key",
+    title: "A Very Long Name",
+    url: null,
+    description: null,
+    wikidataId: null,
+    infoboxTemplate: null,
+    instanceOf: [],
+    // deno-lint-ignore no-explicit-any
+  } as any,
+    // deno-lint-ignore no-explicit-any
+    ctx.context as any);
+  const res = ctx.getWrittenResources().find((r) =>
+    r.specName === "resolution"
+  )!;
+  assertEquals(res.name, "resolution-short-key");
+});
+
+Deno.test("render-html-list writes the page and a page resource", async () => {
+  const outputDir = await Deno.makeTempDir({ prefix: "ebooks-out-" });
+  try {
+    const outputPath = `${outputDir}/nested/ebooks.html`;
+    const ctx = createModelTestContext({
+      globalArgs: { outputPath },
+      methodName: "render-html-list",
+      storedResources: { state: sampleState, metadata: {} },
+    });
+    await model.methods["render-html-list"].execute(
+      { title: "Ebooks" },
+      // deno-lint-ignore no-explicit-any
+      ctx.context as any,
+    );
+    const page = ctx.getWrittenResources().find((r) =>
+      r.specName === "page"
+    )!;
+    assertEquals(page.data.count, 2);
+    const written = await Deno.readTextFile(outputPath);
+    assertEquals(written.includes("bester.epub"), true);
+  } finally {
+    await Deno.remove(outputDir, { recursive: true });
+  }
+});
+
+Deno.test("render-html-list writes an empty page when nothing was found", async () => {
+  const outputDir = await Deno.makeTempDir({ prefix: "ebooks-out-" });
+  try {
+    const outputPath = `${outputDir}/ebooks.html`;
+    const ctx = createModelTestContext({
+      globalArgs: { outputPath },
+      methodName: "render-html-list",
+    });
+    await model.methods["render-html-list"].execute(
+      { title: "Ebooks" },
+      // deno-lint-ignore no-explicit-any
+      ctx.context as any,
+    );
+    const page = ctx.getWrittenResources().find((r) =>
+      r.specName === "page"
+    )!;
+    assertEquals(page.data.count, 0);
+  } finally {
+    await Deno.remove(outputDir, { recursive: true });
+  }
+});
+
+Deno.test("render-html-authors writes the author index page", async () => {
+  const outputDir = await Deno.makeTempDir({ prefix: "ebooks-out-" });
+  try {
+    const outputPath = `${outputDir}/index.html`;
+    const ctx = createModelTestContext({
+      globalArgs: { authorsOutputPath: outputPath },
+      methodName: "render-html-authors",
+      storedResources: {
+        state: sampleState,
+        metadata: {
+          "/books/bester.epub": md({
+            authors: ["Alfred Bester"],
+            title: "The Demolished Man",
+          }),
+        },
+      },
+    });
+    // render-html-authors loads resolution records from the data repository.
+    // deno-lint-ignore no-explicit-any
+    (ctx.context as any).dataRepository = {
+      findAllForModel: () => Promise.resolve([]),
+    };
+    await model.methods["render-html-authors"].execute(
+      { title: "By Author" },
+      // deno-lint-ignore no-explicit-any
+      ctx.context as any,
+    );
+    const page = ctx.getWrittenResources().find((r) =>
+      r.specName === "page"
+    )!;
+    assertEquals(page.name, "authors-page");
+    const written = await Deno.readTextFile(outputPath);
+    assertEquals(written.includes("Alfred Bester"), true);
+  } finally {
+    await Deno.remove(outputDir, { recursive: true });
+  }
+});
+
+Deno.test("render-html-list throws a descriptive error on an unwritable path", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: { outputPath: "/proc/definitely/not/writable.html" },
+    methodName: "render-html-list",
+    storedResources: { state: sampleState, metadata: {} },
+  });
+  let threw = false;
+  try {
+    await model.methods["render-html-list"].execute(
+      { title: "E" },
+      // deno-lint-ignore no-explicit-any
+      ctx.context as any,
+    );
+  } catch (err) {
+    threw = true;
+    assertEquals((err as Error).message.startsWith("Failed to write HTML page"), true);
+  }
+  assertEquals(threw, true);
 });
 
 

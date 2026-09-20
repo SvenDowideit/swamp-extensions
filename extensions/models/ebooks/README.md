@@ -85,11 +85,10 @@ swamp workflow run @svendowideit/ebook-scan --input maxFetches=50
 | ---------------------- | ----------- |
 | `scan-disk`            | Start/resume the filesystem scan (arg: `maxDurationMs`). |
 | `detect-metadata`      | Detect metadata for one file (`file`) or all discovered ebooks, up to `maxDurationMs`. |
-| `plan-resolution`      | Emit round-1 opensearch URLs for names that need resolving (no fetching). |
-| `choose-candidates`    | Read cached opensearch bodies; emit round-2 pageprops query URLs. |
-| `choose-final`         | Read cached pageprops; choose the canonical candidate; emit round-3 wikitext + wikidata URLs. |
-| `finalize-resolution`  | Read cached wikitext + wikidata bodies; classify; write `authors`/`books`. |
-| `resolve-wikipedia`    | Back-compat: runs `finalize-resolution` alone. |
+| `plan-resolution`      | Emit the authors/titles that still need resolving, capped at `maxNames`. Does no fetching. |
+| `pick-candidate`       | Choose one name's canonical candidate from its already-parsed search + page-props results (per name). |
+| `classify`             | Classify one name (author/book) from its infobox + Wikidata P31 and write the `resolution` record (per name). |
+| `resolve-wikipedia`    | DEPRECATED — back-compat; emits the name list (same as `plan-resolution`). |
 | `render-html-list`     | Render the full HTML listing (arg: `title`). |
 | `render-html-authors`  | Render an author-grouped index of ebooks with a detected author (arg: `title`). |
 
@@ -107,21 +106,25 @@ physical-book metadata are interchangeable.
 
 ## Resolution pipeline
 
-Resolution is split into a fetch-free decision pipeline driven by the workflow,
-with all network I/O delegated to `@svendowideit/web-cache`:
+Resolution is a fetch-free decision pipeline driven by workflows, with all
+network I/O delegated (transitively) to `@svendowideit/web-cache`:
 
 ```
-plan-resolution     → emits opensearch URLs
-web-cache.get-many  → fetches + caches opensearch
-choose-candidates   → emits pageprops query URLs
-web-cache.get-many  → fetches + caches pageprops
-choose-final        → chooses canonical candidate; emits wikitext + wikidata URLs
-web-cache.get-many  → fetches + caches wikitext + wikidata entity
-finalize-resolution → classifies (infobox + P31) and writes authors/books
+plan-resolution                     → emits the names still to resolve
+  → forEach name: ebooks-resolve-name
+      wikipedia-search              → candidate titles
+      wikipedia-page-props          → canonical title / shortdesc / wikidataId
+      ebooks.pick-candidate         → choose the best candidate
+      wikipedia-infobox             → infobox template name
+      wikidata-instance-of          → P31 value QIDs
+      ebooks.classify               → classify (author/book) + write `resolution`
+render-html-list / render-html-authors
 ```
 
-The ebook model shares the same `cacheDir` and URL-normalizing cache-key scheme
-as web-cache, so it reads cached bodies directly (no re-fetching).
+Each of those child steps calls the wikipedia/wikidata workflows, which read the
+bodies web-cache has already fetched and cached. The ebook model shares the same
+`cacheDir` and URL-normalizing cache-key scheme as web-cache, so cache-hit vs
+fetch is invisible here.
 
 ## Workflow inputs
 
@@ -150,11 +153,12 @@ as web-cache, so it reads cached bodies directly (no re-fetching).
 
 - `state` — resumable scan state (frontier, seen dirs, discovered ebooks).
 - `metadata` — detected book metadata keyed by ebook path.
-- `plan` — the resolution plan (names, URLs, chosen candidates) driving the
-  multi-round fetch pipeline.
-- `authors` — Wikipedia/Wikidata resolution of author names (keyed by detected
-  name). Each entry records the canonical name, kind, URL, infobox and Wikidata
+- `names` — the list of `{ name, expectKind, key }` items `plan-resolution`
+  emitted this run (the fan-out driver), plus `planned`/`backlog`/`truncated`
+  counts so a capped run honestly reports names left for a later run.
+- `candidate` — a chosen candidate per name (`pick-candidate`).
+- `resolution` — a per-name Wikipedia/Wikidata resolution record (`classify`).
+  Each entry records the canonical name, kind, URL, infobox and Wikidata
   `instance-of` values (the raw bodies are cached by web-cache).
-- `books` — Wikipedia/Wikidata resolution of book titles (keyed by detected title).
 - `page` — result of the last HTML page generation (path, count, timestamp).
 - `book` — a single detected/registered book record (book-metadata model).

@@ -185,6 +185,12 @@ type NameItem = z.infer<typeof NameItemSchema>;
 /** The set of names that need resolving (emitted by `plan-resolution`). */
 const NamesSchema = z.object({
   items: z.array(NameItemSchema),
+  /** Number of names emitted this run. */
+  planned: z.number().int().nonnegative(),
+  /** Names not emitted because the per-run cap was reached. */
+  backlog: z.number().int().nonnegative(),
+  /** True when the cap left names for a later run. */
+  truncated: z.boolean(),
 });
 
 type Names = z.infer<typeof NamesSchema>;
@@ -369,6 +375,8 @@ export interface NamePlan {
   failed: number;
   done: number;
   backlog: number;
+  /** True when the cap left names for a later run (backlog > 0). */
+  truncated: boolean;
 }
 
 /**
@@ -422,12 +430,14 @@ export function planNames(
   // If there weren't enough failures to fill the budget, use more fresh names.
   for (const item of fresh) take(item);
 
+  const backlog = fresh.length + failed.length - selected.length;
   return {
     selected,
     fresh: fresh.length,
     failed: failed.length,
     done,
-    backlog: fresh.length + failed.length - selected.length,
+    backlog,
+    truncated: backlog > 0,
   };
 }
 
@@ -493,7 +503,12 @@ async function collectNames(
       name: item.name,
     });
   }
-  return { items: plan.selected };
+  return {
+    items: plan.selected,
+    planned: plan.selected.length,
+    backlog: plan.backlog,
+    truncated: plan.truncated,
+  };
 }
 
 /** Read directory entry names, returning null on error. */
@@ -627,7 +642,7 @@ function isLinkedAuthor(res: Resolution | undefined): boolean {
 }
 
 /** Render an author-grouped index of ebooks that have a detected author. */
-function renderAuthorsHtml(
+export function renderAuthorsHtml(
   title: string,
   state: State,
   metadata: Record<string, BookMetadata>,
@@ -740,8 +755,17 @@ function renderAuthorsHtml(
 /** Model definition for incrementally scanning and listing local ebooks. */
 export const model = {
   type: "@svendowideit/ebooks",
-  version: "2026.09.20.1",
+  version: "2026.09.20.2",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.20.2",
+      description:
+        "No schema changes — plan-resolution now records planned/backlog/" +
+        "truncated on the names record; docs corrected to the current methods",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     state: {
       description:
@@ -939,7 +963,11 @@ export const model = {
         const metadata = await context.readResource("metadata") as
           | Record<string, BookMetadata>
           | null;
-        const names = await collectNames(metadata ?? {}, context, args.maxNames);
+        const names = await collectNames(
+          metadata ?? {},
+          context,
+          args.maxNames,
+        );
         const handle = await context.writeResource("names", "names", names);
         context.logger.info("Planned {n} names to resolve", {
           n: names.items.length,

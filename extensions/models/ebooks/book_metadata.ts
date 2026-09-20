@@ -882,6 +882,13 @@ export const model = {
   type: "@svendowideit/book-metadata",
   version: "2026.09.19.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.19.1",
+      description: "Initial version — no migrations",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     book: {
       description: "Detected or registered bibliographic metadata for a book",

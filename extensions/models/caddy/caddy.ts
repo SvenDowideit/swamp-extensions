@@ -85,7 +85,7 @@ const GlobalArgsSchema = z.object({
   plugins: z.array(z.string()).default([]).describe(
     "Caddy plugins to build in via xcaddy (e.g. github.com/caddy-dns/cloudflare)",
   ),
-  adminApiToken: z.string().optional().describe(
+  adminApiToken: z.string().optional().meta({ sensitive: true }).describe(
     "Optional admin API token (sent as a Bearer header when set)",
   ),
   vaultName: z.string().optional().describe(
@@ -149,7 +149,7 @@ const StoreConfigArgsSchema = z.object({
   letsEncryptEmail: z.string().optional().describe(
     "Let's Encrypt / ACME email to store in the Vault",
   ),
-  adminApiToken: z.string().optional().describe(
+  adminApiToken: z.string().optional().meta({ sensitive: true }).describe(
     "Admin API token to store in the Vault",
   ),
   vaultName: z.string().optional().describe(

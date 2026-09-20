@@ -1,0 +1,80 @@
+id: 229a2890-8582-4ec3-90b7-95ae427acad9
+name: "@svendowideit/wikidata-resolve-title"
+description: |
+  Resolve a Wikipedia page title to a Wikidata QID via its sitelink, through
+  the shared cache, transparently.
+
+  Steps: build the sitelink URL → web-cache-fetch → parse the cached body.
+
+  Inputs:
+    title    — Wikipedia page title
+    site     — sitelink site id (default enwiki)
+    cacheDir — shared cache dir (default ~/.swamp/web-cache)
+tags: {}
+inputs:
+  properties:
+    title:
+      type: string
+      description: Wikipedia page title
+    site:
+      type: string
+      default: "enwiki"
+      description: Sitelink site id
+    cacheDir:
+      type: string
+      default: "~/.swamp/web-cache"
+      description: Shared cache directory
+  required:
+    - title
+jobs:
+  - name: main
+    description: Resolve a title to a QID.
+    steps:
+      - name: build-url
+        description: Build the sitelink lookup URL.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikidata"
+          modelName: wd
+          methodName: resolve-title-url
+          inputs:
+            title: ${{ inputs.title }}
+            site: ${{ inputs.site }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: fetch
+        description: Fetch + cache the sitelink URL.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/web-cache-fetch"
+          inputs:
+            urls: ${{ data.latest("wd", "resolve-title-url").attributes.urls }}
+            cacheDir: ${{ inputs.cacheDir }}
+        dependsOn:
+          - step: build-url
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: parse
+        description: Parse the cached sitelink body into a QID.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikidata"
+          modelName: wd
+          methodName: resolve-title
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            title: ${{ inputs.title }}
+            site: ${{ inputs.site }}
+        dependsOn:
+          - step: fetch
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

@@ -1,0 +1,56 @@
+id: d36e854a-94ce-4427-a6b2-42b78b7aabcc
+name: "@svendowideit/ebooks-resolve-names"
+description: |
+  Fan out over a list of names (authors + book titles), resolving and
+  classifying each via @svendowideit/ebooks-resolve-name. This is the typed
+  boundary between the parent (which computes the name list) and the per-name
+  resolution pipeline — the list is passed as a typed input, so forEach expands
+  only after the parent's plan-resolution step has completed.
+
+  Inputs:
+    items     — array of { name, expectKind } objects to resolve
+    cacheDir  — shared cache dir (default ~/.swamp/web-cache)
+tags: {}
+inputs:
+  properties:
+    items:
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          expectKind:
+            type: string
+        required:
+          - name
+          - expectKind
+      description: Names to resolve (each with an expected kind)
+    cacheDir:
+      type: string
+      default: "~/.swamp/web-cache"
+      description: Shared cache directory
+  required:
+    - items
+jobs:
+  - name: main
+    description: Resolve + classify each name.
+    steps:
+      - name: resolve-${{ self.item.name }}
+        concurrency: 1
+        forEach:
+          item: item
+          in: ${{ inputs.items }}
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/ebooks-resolve-name"
+          inputs:
+            name: ${{ self.item.name }}
+            expectKind: ${{ self.item.expectKind }}
+            cacheDir: ${{ inputs.cacheDir }}
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

@@ -88,6 +88,13 @@ models:
 
 workflows:
   - ebook-scan.yaml
+  - ebooks-resolve-name.yaml
+  - ebooks-resolve-names.yaml
+
+dependencies:
+  - "@svendowideit/web-cache"
+  - "@svendowideit/wikipedia"
+  - "@svendowideit/wikidata"
 
 additionalFiles:
   - README.md

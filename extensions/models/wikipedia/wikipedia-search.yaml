@@ -1,0 +1,87 @@
+id: afa7d34c-dd6b-43d7-8f5b-f0f2a2d35637
+name: "@svendowideit/wikipedia-search"
+description: |
+  Search Wikipedia (opensearch) through the shared cache, transparently. The
+  caller does not care whether a network fetch happened or a cache hit was used
+  (the `cached` flag is returned as metadata only).
+
+  Steps: build the opensearch URL → web-cache-fetch → parse the cached body.
+
+  Inputs:
+    query    — search term
+    limit    — max results (default 5)
+    key      — optional data name for the result (defaults to query)
+    cacheDir — shared cache dir (default ~/.swamp/web-cache)
+tags: {}
+inputs:
+  properties:
+    query:
+      type: string
+      description: Search term
+    limit:
+      type: number
+      default: 5
+      description: Maximum number of results
+    key:
+      type: string
+      default: ""
+      description: Optional data name for the result
+    cacheDir:
+      type: string
+      default: "~/.swamp/web-cache"
+      description: Shared cache directory
+  required:
+    - query
+jobs:
+  - name: main
+    description: Search Wikipedia through the cache.
+    steps:
+      - name: build-url
+        description: Build the opensearch URL for the query.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikipedia"
+          modelName: wiki
+          methodName: search-url
+          inputs:
+            query: ${{ inputs.query }}
+            limit: ${{ inputs.limit }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: fetch
+        description: Fetch + cache the opensearch URL.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/web-cache-fetch"
+          inputs:
+            urls: ${{ data.latest("wiki", "search-url").attributes.urls }}
+            cacheDir: ${{ inputs.cacheDir }}
+        dependsOn:
+          - step: build-url
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: parse
+        description: Parse the cached opensearch body into results.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikipedia"
+          modelName: wiki
+          methodName: search
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            query: ${{ inputs.query }}
+            limit: ${{ inputs.limit }}
+            key: ${{ inputs.key }}
+        dependsOn:
+          - step: fetch
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

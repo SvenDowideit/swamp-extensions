@@ -1,0 +1,80 @@
+id: 3b614493-4c53-4089-bd49-c648a927ea57
+name: "@svendowideit/wikidata-instance-of"
+description: |
+  Extract an entity's instance-of (P31) value QIDs through the shared cache,
+  transparently. The caller does not care whether a fetch happened or a cache
+  hit was used.
+
+  Steps: build the entity URL → web-cache-fetch → parse + extract P31.
+
+  Inputs:
+    id       — Wikidata QID (e.g. Q286116)
+    key      — optional data name for the result (defaults to QID)
+    cacheDir — shared cache dir (default ~/.swamp/web-cache)
+tags: {}
+inputs:
+  properties:
+    id:
+      type: string
+      description: Wikidata QID
+    key:
+      type: string
+      default: ""
+      description: Optional data name for the result
+    cacheDir:
+      type: string
+      default: "~/.swamp/web-cache"
+      description: Shared cache directory
+  required:
+    - id
+jobs:
+  - name: main
+    description: Extract instance-of (P31) for an entity.
+    steps:
+      - name: build-url
+        description: Build the wbgetentities URL.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikidata"
+          modelName: wd
+          methodName: entity-url
+          inputs:
+            id: ${{ inputs.id }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: fetch
+        description: Fetch + cache the entity URL.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/web-cache-fetch"
+          inputs:
+            urls: ${{ data.latest("wd", "entity-url").attributes.urls }}
+            cacheDir: ${{ inputs.cacheDir }}
+        dependsOn:
+          - step: build-url
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: parse
+        description: Extract P31 values from the cached entity.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikidata"
+          modelName: wd
+          methodName: get-instance-of
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            id: ${{ inputs.id }}
+            key: ${{ inputs.key }}
+        dependsOn:
+          - step: fetch
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

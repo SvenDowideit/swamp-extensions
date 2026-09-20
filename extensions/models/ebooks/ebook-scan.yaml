@@ -10,13 +10,15 @@ description: |
   workflow to continue scanning from where it left off (state is persisted in
   swamp data). Once the whole tree is covered, the scan restarts fresh.
 
-  Resolution is a fetch-free decision pipeline in the ebooks model, with all
-  fetching delegated to @svendowideit/web-cache:
+  Resolution is pure workflow composition. This workflow knows nothing about
+  fetching or caching: it fans out per name into the
+  @svendowideit/ebooks-resolve-name child workflow, which in turn calls the
+  @svendowideit/wikipedia and @svendowideit/wikidata workflows (and they call
+  @svendowideit/web-cache). Cache-hit vs fetch is invisible throughout.
 
-    plan-resolution  →  web-cache.get-many (opensearch)
-    choose-candidates →  web-cache.get-many (pageprops query)
-    choose-final     →  web-cache.get-many (wikitext + wikidata entity)
-    finalize-resolution (classify + write authors/books)
+    scan-disk → detect-metadata → plan-resolution
+    → forEach name: @svendowideit/ebooks-resolve-name
+    → render-html-list → render-html-authors
 
   Usage:
     swamp workflow run @svendowideit/ebook-scan
@@ -47,13 +49,13 @@ inputs:
       type: string
       default: "~/.swamp/web-cache"
       description: Shared web-cache directory (must match web-cache + ebooks)
-    maxFetches:
+    maxNames:
       type: number
       default: 20
       description: >-
-        Cap on origin fetches per web-cache.get-many call. Cached hits don't
-        count, so the backlog is spread across runs. Raise to fetch more per run,
-        lower to keep runs short.
+        Cap on the number of names resolved per run. Already-resolved names are
+        excluded first, so the backlog drains across runs. Raise to resolve more
+        per run, lower to keep runs short.
     skipScan:
       type: boolean
       default: false
@@ -103,7 +105,7 @@ jobs:
         weight: 0
         allowFailure: false
       - name: plan-resolution
-        description: Compute names to resolve and emit round-1 opensearch URLs.
+        description: Compute the names (authors + titles) that need resolving.
         task:
           type: model_method
           modelType: "@svendowideit/ebooks"
@@ -114,120 +116,23 @@ jobs:
             outputPath: ${{ inputs.outputPath }}
             cacheDir: ${{ inputs.cacheDir }}
           inputs:
-            maxDurationMs: 300000
+            maxNames: ${{ inputs.maxNames }}
         dependsOn:
           - step: detect-metadata
             condition:
               type: always
         weight: 0
         allowFailure: false
-      - name: fetch-search
-        description: Fetch + cache the opensearch URLs (round 1) via web-cache.
+      - name: resolve-names
+        description: Resolve + classify each name via the fan-out child workflow.
         task:
-          type: model_method
-          modelType: "@svendowideit/web-cache"
-          modelName: web-cache
-          methodName: get-many
-          globalArgs:
-            cacheDir: ${{ inputs.cacheDir }}
+          type: workflow
+          workflowIdOrName: "@svendowideit/ebooks-resolve-names"
           inputs:
-            urls: ${{ data.latest("ebooks", "plan").attributes.searchUrls }}
-            maxFetches: ${{ inputs.maxFetches }}
+            items: ${{ data.latest("ebooks", "names").attributes.items }}
+            cacheDir: ${{ inputs.cacheDir }}
         dependsOn:
           - step: plan-resolution
-            condition:
-              type: always
-        weight: 0
-        allowFailure: true
-      - name: choose-candidates
-        description: Read cached opensearch bodies and emit round-2 pageprops URLs.
-        task:
-          type: model_method
-          modelType: "@svendowideit/ebooks"
-          modelName: ebooks
-          methodName: choose-candidates
-          globalArgs:
-            root: ${{ inputs.root }}
-            outputPath: ${{ inputs.outputPath }}
-            cacheDir: ${{ inputs.cacheDir }}
-          inputs:
-            maxDurationMs: 300000
-        dependsOn:
-          - step: fetch-search
-            condition:
-              type: always
-        weight: 0
-        allowFailure: true
-      - name: fetch-query
-        description: Fetch + cache the pageprops query URLs (round 2) via web-cache.
-        task:
-          type: model_method
-          modelType: "@svendowideit/web-cache"
-          modelName: web-cache
-          methodName: get-many
-          globalArgs:
-            cacheDir: ${{ inputs.cacheDir }}
-          inputs:
-            urls: ${{ data.latest("ebooks", "candidates").attributes.queryUrls }}
-            maxFetches: ${{ inputs.maxFetches }}
-        dependsOn:
-          - step: choose-candidates
-            condition:
-              type: always
-        weight: 0
-        allowFailure: true
-      - name: choose-final
-        description: Choose the canonical candidate and emit round-3 wikitext + wikidata URLs.
-        task:
-          type: model_method
-          modelType: "@svendowideit/ebooks"
-          modelName: ebooks
-          methodName: choose-final
-          globalArgs:
-            root: ${{ inputs.root }}
-            outputPath: ${{ inputs.outputPath }}
-            cacheDir: ${{ inputs.cacheDir }}
-          inputs:
-            maxDurationMs: 300000
-        dependsOn:
-          - step: fetch-query
-            condition:
-              type: always
-        weight: 0
-        allowFailure: true
-      - name: fetch-final
-        description: Fetch + cache the wikitext + wikidata entity URLs (round 3) via web-cache.
-        task:
-          type: model_method
-          modelType: "@svendowideit/web-cache"
-          modelName: web-cache
-          methodName: get-many
-          globalArgs:
-            cacheDir: ${{ inputs.cacheDir }}
-          inputs:
-            urls: ${{ data.latest("ebooks", "final").attributes.finalFetchUrls }}
-            maxFetches: ${{ inputs.maxFetches }}
-        dependsOn:
-          - step: choose-final
-            condition:
-              type: always
-        weight: 0
-        allowFailure: true
-      - name: finalize-resolution
-        description: Classify each name and write the authors/books resolution maps.
-        task:
-          type: model_method
-          modelType: "@svendowideit/ebooks"
-          modelName: ebooks
-          methodName: finalize-resolution
-          globalArgs:
-            root: ${{ inputs.root }}
-            outputPath: ${{ inputs.outputPath }}
-            cacheDir: ${{ inputs.cacheDir }}
-          inputs:
-            maxDurationMs: 300000
-        dependsOn:
-          - step: fetch-final
             condition:
               type: always
         weight: 0
@@ -246,7 +151,7 @@ jobs:
           inputs:
             title: ${{ inputs.title }}
         dependsOn:
-          - step: finalize-resolution
+          - step: resolve-names
             condition:
               type: always
         weight: 0
@@ -266,7 +171,7 @@ jobs:
           inputs:
             title: ${{ inputs.title }}
         dependsOn:
-          - step: finalize-resolution
+          - step: resolve-names
             condition:
               type: always
         weight: 0

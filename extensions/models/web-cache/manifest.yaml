@@ -68,6 +68,11 @@ paths:
 models:
   - web_cache.ts
 
+workflows:
+  - web-cache-fetch.yaml
+
+dependencies: []
+
 additionalFiles:
   - README.md
   - LICENSE.txt

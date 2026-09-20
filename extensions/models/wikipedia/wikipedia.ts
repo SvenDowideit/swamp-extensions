@@ -89,6 +89,9 @@ const SearchArgsSchema = z.object({
   limit: z.number().int().min(1).max(20)
     .default(5)
     .describe("Maximum number of results"),
+  key: z.string()
+    .optional()
+    .describe("Optional data name for the result (defaults to the query)."),
   url: z.string().url()
     .optional()
     .describe(
@@ -108,6 +111,12 @@ const GetInfoboxArgsSchema = z.object({
       "Restrict to a specific infobox template name (e.g. 'writer', 'book'). " +
         "Omit to return the first infobox found.",
     ),
+  key: z.string()
+    .optional()
+    .describe(
+      "Optional data name for the result (defaults to the title). Pass the " +
+        "caller's own logical name so downstream steps reference it directly.",
+    ),
   url: z.string().url()
     .optional()
     .describe(
@@ -118,6 +127,45 @@ const GetInfoboxArgsSchema = z.object({
 });
 
 type GetInfoboxArgs = z.infer<typeof GetInfoboxArgsSchema>;
+
+/** Build a search URL for a query (no fetching). */
+const SearchUrlArgsSchema = z.object({
+  query: TitleArg.describe("Search query"),
+  limit: z.number().int().min(1).max(20)
+    .default(5)
+    .describe("Maximum number of results"),
+});
+
+type SearchUrlArgs = z.infer<typeof SearchUrlArgsSchema>;
+
+/** Build a page URL for a title in a format (no fetching). */
+const PageUrlArgsSchema = z.object({
+  title: TitleArg,
+  format: FormatArg,
+});
+
+type PageUrlArgs = z.infer<typeof PageUrlArgsSchema>;
+
+/** Build a batched page-props query URL for candidate titles (no fetching). */
+const PagePropsUrlArgsSchema = z.object({
+  titles: z.array(z.string().min(1)).min(1).describe("Candidate page titles"),
+});
+
+type PagePropsUrlArgs = z.infer<typeof PagePropsUrlArgsSchema>;
+
+/** Parse a cached page-props (action=query&prop=info|pageprops) response. */
+const GetPagePropsArgsSchema = z.object({
+  titles: z.array(z.string().min(1)).min(1)
+    .describe("Candidate page titles to resolve"),
+  key: z.string()
+    .optional()
+    .describe("Optional data name for the result (defaults to joined titles)."),
+  url: z.string().url()
+    .optional()
+    .describe("Exact page-props URL to read from the cache (omit to derive)."),
+});
+
+type GetPagePropsArgs = z.infer<typeof GetPagePropsArgsSchema>;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -153,6 +201,24 @@ const InfoboxResultSchema = z.object({
   title: z.string(),
   infobox: z.record(z.string(), z.string().nullable()),
   template: z.string().nullable(),
+  cached: z.boolean(),
+});
+
+const UrlResultSchema = z.object({
+  url: z.string(),
+  urls: z.array(z.string()),
+});
+
+const PagePropsResultSchema = z.object({
+  pages: z.record(
+    z.string(),
+    z.object({
+      title: z.string(),
+      url: z.string().nullable(),
+      shortdesc: z.string().nullable(),
+      wikidataId: z.string().nullable(),
+    }),
+  ),
   cached: z.boolean(),
 });
 
@@ -313,6 +379,76 @@ function searchUrl(ctx: MethodContext, query: string, limit: number): string {
     origin: "*",
   });
   return `${ctx.globalArgs.apiUrl}?${params}`;
+}
+
+/** Build a batched page-props query URL (action=query&prop=info|pageprops). */
+function pagePropsUrl(ctx: MethodContext, titles: string[]): string {
+  const params = new URLSearchParams({
+    action: "query",
+    redirects: "1",
+    prop: "info|pageprops",
+    titles: titles.join("|"),
+    inprop: "url",
+    format: "json",
+    origin: "*",
+  });
+  return `${ctx.globalArgs.apiUrl}?${params}`;
+}
+
+/**
+ * Parse a cached page-props response body into a map of canonical title →
+ * { url, shortdesc, wikidataId }, following redirects.
+ */
+function parsePageProps(body: string | null): Record<
+  string,
+  {
+    title: string;
+    url: string | null;
+    shortdesc: string | null;
+    wikidataId: string | null;
+  }
+> {
+  const out: Record<
+    string,
+    {
+      title: string;
+      url: string | null;
+      shortdesc: string | null;
+      wikidataId: string | null;
+    }
+  > = {};
+  if (!body) return out;
+  try {
+    const parsed = JSON.parse(body) as {
+      query?: {
+        pages?: Record<string, {
+          title: string;
+          canonicalurl?: string;
+          fullurl?: string;
+          pageprops?: {
+            "wikibase-shortdesc"?: string;
+            "wikibase_item"?: string;
+          };
+        }>;
+        redirects?: { from: string; to: string }[];
+      };
+    };
+    const redirects = new Map(
+      (parsed.query?.redirects ?? []).map((r) => [r.from, r.to]),
+    );
+    for (const page of Object.values(parsed.query?.pages ?? {})) {
+      const title = redirects.get(page.title) ?? page.title;
+      out[title] = {
+        title,
+        url: page.canonicalurl ?? page.fullurl ?? null,
+        shortdesc: page.pageprops?.["wikibase-shortdesc"] ?? null,
+        wikidataId: page.pageprops?.["wikibase_item"] ?? null,
+      };
+    }
+  } catch {
+    // ignore malformed body
+  }
+  return out;
 }
 
 /** Extract the human-readable content string from a parsed action API response. */
@@ -518,8 +654,97 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 20,
     },
+    url: {
+      description: "A built MediaWiki URL (for the fetch seam)",
+      schema: UrlResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    "page-props": {
+      description:
+        "Parsed page-props (canonical title, url, shortdesc, wikidataId)",
+      schema: PagePropsResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
   },
   methods: {
+    "search-url": {
+      description:
+        "Build the opensearch URL for a query (no fetching). Use this to feed " +
+        "a web-cache fetch step, then `search` to parse the cached result.",
+      arguments: SearchUrlArgsSchema,
+      execute: async (args: SearchUrlArgs, context: MethodContext) => {
+        const url = searchUrl(context, args.query, args.limit);
+        const handle = await context.writeResource("url", "search-url", {
+          url,
+          urls: [url],
+        });
+        context.logger.info("Built search URL for {query}", {
+          query: args.query,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    "page-url": {
+      description:
+        "Build the page URL for a title in a format (no fetching). Use this to " +
+        "feed a web-cache fetch step, then `get-page` to parse the cached body.",
+      arguments: PageUrlArgsSchema,
+      execute: async (args: PageUrlArgs, context: MethodContext) => {
+        const url = pageUrl(context, args.title, args.format);
+        const handle = await context.writeResource("url", "page-url", {
+          url,
+          urls: [url],
+        });
+        context.logger.info("Built page URL for {title} ({format})", {
+          title: args.title,
+          format: args.format,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    "page-props-url": {
+      description:
+        "Build a batched page-props query URL for candidate titles (no " +
+        "fetching). Use this to feed a web-cache fetch step, then " +
+        "`get-page-props` to parse the cached result.",
+      arguments: PagePropsUrlArgsSchema,
+      execute: async (args: PagePropsUrlArgs, context: MethodContext) => {
+        const url = pagePropsUrl(context, args.titles);
+        const handle = await context.writeResource("url", "page-props-url", {
+          url,
+          urls: [url],
+        });
+        context.logger.info("Built page-props URL for {n} titles", {
+          n: args.titles.length,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    "get-page-props": {
+      description:
+        "Parse a cached page-props response into canonical title → url, " +
+        "shortdesc and wikidataId. Reads from the shared web cache.",
+      arguments: GetPagePropsArgsSchema,
+      execute: async (args: GetPagePropsArgs, context: MethodContext) => {
+        const dir = expandHome(context.globalArgs.cacheDir);
+        const url = args.url ?? pagePropsUrl(context, args.titles);
+        const body = await readCachedBody(dir, url);
+        const pages = parsePageProps(body);
+        const result = { pages, cached: body != null };
+        const handle = await context.writeResource(
+          "page-props",
+          `page-props-${args.key || args.titles.join("|")}`,
+          result,
+        );
+        context.logger.info("Parsed page-props for {n} titles ({src})", {
+          n: args.titles.length,
+          src: body != null ? "cache" : "miss",
+        });
+        return { dataHandles: [handle] };
+      },
+    },
     "search": {
       description:
         "Parse a cached opensearch response for a query into corrected titles, " +
@@ -559,9 +784,10 @@ export const model = {
           })),
           cached: body != null,
         };
+        const key = args.key || args.query;
         const handle = await context.writeResource(
           "search",
-          webCacheKey(url),
+          `search-${key}`,
           result,
         );
         context.logger.info("Searched {query}: {n} results ({src})", {
@@ -604,7 +830,7 @@ export const model = {
         };
         const handle = await context.writeResource(
           "page",
-          webCacheKey(url),
+          `page-${args.title}`,
           result,
         );
         context.logger.info("Parsed {title} ({format}) {src}", {
@@ -653,7 +879,7 @@ export const model = {
         };
         const handle = await context.writeResource(
           "infobox",
-          webCacheKey(url),
+          `infobox-${args.key || args.title}`,
           result,
         );
         context.logger.info("Extracted infobox from {title} ({template})", {

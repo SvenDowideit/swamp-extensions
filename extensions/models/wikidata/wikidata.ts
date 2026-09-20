@@ -108,10 +108,38 @@ const GetInstanceOfArgsSchema = z.object({
   id: z.string().min(1).describe(
     "Wikidata QID whose instance-of (P31) to extract",
   ),
+  key: z.string()
+    .optional()
+    .describe("Optional data name for the result (defaults to the QID)."),
   url: UrlArg,
 });
 
 type GetInstanceOfArgs = z.infer<typeof GetInstanceOfArgsSchema>;
+
+/** Build a wbsearchentities URL (no fetching). */
+const SearchUrlArgsSchema = z.object({
+  query: z.string().min(1).describe("Search query (an entity label)"),
+  limit: z.number().int().min(1).max(50)
+    .default(10)
+    .describe("Maximum number of results"),
+});
+
+type SearchUrlArgs = z.infer<typeof SearchUrlArgsSchema>;
+
+/** Build a wbgetentities URL for a QID (no fetching). */
+const EntityUrlArgsSchema = z.object({
+  id: z.string().min(1).describe("Wikidata QID, e.g. 'Q286116'"),
+});
+
+type EntityUrlArgs = z.infer<typeof EntityUrlArgsSchema>;
+
+/** Build a sitelink-lookup URL (title → QID) (no fetching). */
+const ResolveTitleUrlArgsSchema = z.object({
+  title: z.string().min(1).describe("Page title to resolve"),
+  site: z.string().optional().describe("Override the global site id"),
+});
+
+type ResolveTitleUrlArgs = z.infer<typeof ResolveTitleUrlArgsSchema>;
 
 // ---------------------------------------------------------------------------
 // Method context
@@ -357,6 +385,11 @@ const InstanceOfResultSchema = z.object({
   cached: z.boolean(),
 });
 
+const UrlResultSchema = z.object({
+  url: z.string(),
+  urls: z.array(z.string()),
+});
+
 // ---------------------------------------------------------------------------
 // Model definition
 // ---------------------------------------------------------------------------
@@ -397,8 +430,73 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 20,
     },
+    url: {
+      description: "A built Wikidata URL (for the fetch seam)",
+      schema: UrlResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
   },
   methods: {
+    "search-url": {
+      description:
+        "Build the wbsearchentities URL (no fetching). Use this to feed a " +
+        "web-cache fetch step, then `search` to parse the cached result.",
+      arguments: SearchUrlArgsSchema,
+      execute: async (args: SearchUrlArgs, context: MethodContext) => {
+        const url = searchUrl(
+          context,
+          args.query,
+          args.limit,
+          context.globalArgs.language,
+        );
+        const handle = await context.writeResource("url", "search-url", {
+          url,
+          urls: [url],
+        });
+        context.logger.info("Built Wikidata search URL for {query}", {
+          query: args.query,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    "entity-url": {
+      description:
+        "Build the wbgetentities URL for a QID (no fetching). Use this to feed " +
+        "a web-cache fetch step, then `get-entity` / `get-claims` / " +
+        "`get-instance-of` to parse the cached result.",
+      arguments: EntityUrlArgsSchema,
+      execute: async (args: EntityUrlArgs, context: MethodContext) => {
+        const url = entityUrl(context, args.id);
+        const handle = await context.writeResource("url", "entity-url", {
+          url,
+          urls: [url],
+        });
+        context.logger.info("Built Wikidata entity URL for {id}", {
+          id: args.id,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    "resolve-title-url": {
+      description:
+        "Build the sitelink-lookup URL (title → QID) (no fetching). Use this " +
+        "to feed a web-cache fetch step, then `resolve-title` to parse.",
+      arguments: ResolveTitleUrlArgsSchema,
+      execute: async (args: ResolveTitleUrlArgs, context: MethodContext) => {
+        const site = args.site ?? context.globalArgs.site;
+        const url = sitelinkUrl(context, args.title, site);
+        const handle = await context.writeResource(
+          "url",
+          "resolve-title-url",
+          { url, urls: [url] },
+        );
+        context.logger.info("Built sitelink URL for {title}", {
+          title: args.title,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
     "search": {
       description:
         "Parse a cached wbsearchentities response into matching entities " +
@@ -447,7 +545,7 @@ export const model = {
         };
         const handle = await context.writeResource(
           "search",
-          webCacheKey(url),
+          `search-${args.query}`,
           result,
         );
         context.logger.info("Searched {query}: {n} results ({src})", {
@@ -495,7 +593,7 @@ export const model = {
         };
         const handle = await context.writeResource(
           "entity",
-          webCacheKey(url),
+          `entity-${args.id}`,
           result,
         );
         context.logger.info("Got entity {id} ({src})", {
@@ -550,7 +648,7 @@ export const model = {
         };
         const handle = await context.writeResource(
           "resolution",
-          webCacheKey(url),
+          `resolution-${args.title}`,
           result,
         );
         context.logger.info("Resolved {title} → {id} ({src})", {
@@ -593,7 +691,7 @@ export const model = {
         };
         const handle = await context.writeResource(
           "claims",
-          webCacheKey(url),
+          `claims-${args.id}-${args.property}`,
           result,
         );
         context.logger.info(
@@ -637,7 +735,7 @@ export const model = {
         };
         const handle = await context.writeResource(
           "instance-of",
-          webCacheKey(url),
+          `instance-of-${args.key || args.id}`,
           result,
         );
         context.logger.info("Instance-of {id}: {n} values ({src})", {

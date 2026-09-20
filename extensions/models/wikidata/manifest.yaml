@@ -55,6 +55,14 @@ paths:
 models:
   - wikidata.ts
 
+workflows:
+  - wikidata-get-entity.yaml
+  - wikidata-instance-of.yaml
+  - wikidata-resolve-title.yaml
+
+dependencies:
+  - "@svendowideit/web-cache"
+
 additionalFiles:
   - README.md
   - LICENSE.txt

@@ -1,0 +1,146 @@
+id: aaa8740f-122c-4dae-9f58-bdcb6028f434
+name: "@svendowideit/ebooks-resolve-name"
+description: |
+  Resolve and classify one name (an author or a book title) against Wikipedia
+  and Wikidata, through the shared cache, transparently. Emits a single per-name
+  `resolution` record owned by @svendowideit/ebooks.
+
+  The whole pipeline is workflow composition — this workflow knows nothing about
+  fetching or caching. It calls the wikipedia/wikidata workflows, which in turn
+  call web-cache; cache-hit vs fetch is invisible here (only surfaced as
+  metadata).
+
+    wikipedia-search      → candidate titles
+    wikipedia-page-props  → canonical title / shortdesc / wikidataId
+    ebooks.pick-candidate → choose the best candidate
+    wikipedia-infobox     → infobox template name
+    wikidata-instance-of  → P31 value QIDs
+    ebooks.classify       → classify (author/book) + write the resolution record
+
+  Inputs:
+    name       — the author name or book title to resolve
+    expectKind — "author" | "book"
+    cacheDir   — shared cache dir (default ~/.swamp/web-cache)
+tags: {}
+inputs:
+  properties:
+    name:
+      type: string
+      description: The name to resolve
+    expectKind:
+      type: string
+      description: author | book
+    cacheDir:
+      type: string
+      default: "~/.swamp/web-cache"
+      description: Shared cache directory
+  required:
+    - name
+    - expectKind
+jobs:
+  - name: main
+    description: Resolve + classify one name.
+    steps:
+      - name: search
+        description: Search Wikipedia for the name.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/wikipedia-search"
+          inputs:
+            query: ${{ inputs.name }}
+            key: ${{ inputs.name }}
+            cacheDir: ${{ inputs.cacheDir }}
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+      - name: page-props
+        description: Resolve candidate titles to canonical title/QID.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/wikipedia-page-props"
+          inputs:
+            titles: ${{ data.latest("wiki", 'search-' + inputs.name).attributes.results.map(r, r.title) }}
+            key: ${{ inputs.name }}
+            cacheDir: ${{ inputs.cacheDir }}
+        dependsOn:
+          - step: search
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: pick
+        description: Choose the best candidate for the name.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ebooks"
+          modelName: ebooks
+          methodName: pick-candidate
+          inputs:
+            name: ${{ inputs.name }}
+            expectKind: ${{ inputs.expectKind }}
+            results: ${{ data.latest("wiki", 'search-' + inputs.name).attributes.results }}
+            pages: ${{ data.latest("wiki", 'page-props-' + inputs.name).attributes.pages }}
+        dependsOn:
+          - step: page-props
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: infobox
+        description: Fetch + parse the chosen page's infobox.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/wikipedia-infobox"
+          inputs:
+            title: ${{ data.latest("ebooks", 'candidate-' + inputs.name).attributes.title }}
+            key: ${{ inputs.name }}
+            cacheDir: ${{ inputs.cacheDir }}
+        dependsOn:
+          - step: pick
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: instance-of
+        description: Fetch + parse the chosen entity's P31 values.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/wikidata-instance-of"
+          inputs:
+            id: ${{ data.latest("ebooks", 'candidate-' + inputs.name).attributes.wikidataId }}
+            key: ${{ inputs.name }}
+            cacheDir: ${{ inputs.cacheDir }}
+        dependsOn:
+          - step: pick
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: classify
+        description: Classify (author/book) and write the resolution record.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ebooks"
+          modelName: ebooks
+          methodName: classify
+          inputs:
+            name: ${{ inputs.name }}
+            expectKind: ${{ inputs.expectKind }}
+            title: ${{ data.latest("ebooks", 'candidate-' + inputs.name).attributes.title }}
+            url: ${{ data.latest("ebooks", 'candidate-' + inputs.name).attributes.url }}
+            description: ${{ data.latest("ebooks", 'candidate-' + inputs.name).attributes.description }}
+            wikidataId: ${{ data.latest("ebooks", 'candidate-' + inputs.name).attributes.wikidataId }}
+            infoboxTemplate: ${{ data.latest("wiki", 'infobox-' + inputs.name).attributes.template }}
+            instanceOf: ${{ data.latest("wd", 'instance-of-' + inputs.name).attributes.instanceOf }}
+        dependsOn:
+          - step: infobox
+            condition:
+              type: always
+          - step: instance-of
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

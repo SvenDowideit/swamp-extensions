@@ -1,0 +1,80 @@
+id: 99bfa21c-c791-46c3-9799-20a3404e9146
+name: "@svendowideit/wikipedia-page"
+description: |
+  Fetch + parse a Wikipedia page through the shared cache, transparently. The
+  caller does not care whether a network fetch happened or a cache hit was used.
+
+  Steps: build the page URL → web-cache-fetch → parse the cached body.
+
+  Inputs:
+    title    — page title
+    format   — wikitext | html | parsoid | summary | json (default wikitext)
+    cacheDir — shared cache dir (default ~/.swamp/web-cache)
+tags: {}
+inputs:
+  properties:
+    title:
+      type: string
+      description: Page title
+    format:
+      type: string
+      default: "wikitext"
+      description: Content format (wikitext | html | parsoid | summary | json)
+    cacheDir:
+      type: string
+      default: "~/.swamp/web-cache"
+      description: Shared cache directory
+  required:
+    - title
+jobs:
+  - name: main
+    description: Fetch + parse a Wikipedia page.
+    steps:
+      - name: build-url
+        description: Build the page URL for the title/format.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikipedia"
+          modelName: wiki
+          methodName: page-url
+          inputs:
+            title: ${{ inputs.title }}
+            format: ${{ inputs.format }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: fetch
+        description: Fetch + cache the page URL.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/web-cache-fetch"
+          inputs:
+            urls: ${{ data.latest("wiki", "page-url").attributes.urls }}
+            cacheDir: ${{ inputs.cacheDir }}
+        dependsOn:
+          - step: build-url
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: parse
+        description: Parse the cached page body into content.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikipedia"
+          modelName: wiki
+          methodName: get-page
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            title: ${{ inputs.title }}
+            format: ${{ inputs.format }}
+        dependsOn:
+          - step: fetch
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

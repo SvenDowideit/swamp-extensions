@@ -1,0 +1,56 @@
+id: 74f4482a-830a-4b78-a99d-691f70ba4e73
+name: "@svendowideit/web-cache-fetch"
+description: |
+  Fetch a list of URLs through the shared disk cache. This is the single place
+  any workflow goes to pull an external URL: it prefers the cached copy, paces
+  origin requests, retries 429s, and caps origin fetches per call so a backlog
+  drains across runs. Returns nothing domain-specific — callers read the cached
+  bodies themselves (or via their own domain model's parse methods).
+
+  Inputs:
+    urls       — array of URLs to fetch (empty strings are skipped/deduped)
+    maxFetches — cap on origin fetches this call makes (default 20)
+    cacheDir   — shared cache dir (default ~/.swamp/web-cache)
+
+  This is the fetch seam: wikipedia and wikidata workflows call this workflow,
+  then parse the cached bodies they asked for.
+tags: {}
+inputs:
+  properties:
+    urls:
+      type: array
+      items:
+        type: string
+      description: URLs to fetch (deduped; empty strings skipped)
+    maxFetches:
+      type: number
+      default: 20
+      description: Cap on origin fetches per call (cached hits don't count)
+    cacheDir:
+      type: string
+      default: "~/.swamp/web-cache"
+      description: Shared cache directory (must match every reader)
+  required:
+    - urls
+jobs:
+  - name: main
+    description: Fetch + cache the requested URLs.
+    steps:
+      - name: get-many
+        description: Fetch each URL through the disk cache (paced, retried, capped).
+        task:
+          type: model_method
+          modelType: "@svendowideit/web-cache"
+          modelName: cache
+          methodName: get-many
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            urls: ${{ inputs.urls }}
+            maxFetches: ${{ inputs.maxFetches }}
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

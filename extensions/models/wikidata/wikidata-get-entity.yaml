@@ -1,0 +1,74 @@
+id: 1698ba0f-fdc6-4f9b-9fec-976b14a16aa1
+name: "@svendowideit/wikidata-get-entity"
+description: |
+  Fetch + parse a Wikidata entity (wbgetentities) through the shared cache,
+  transparently. The caller does not care whether a fetch happened or a cache
+  hit was used (`cached` is metadata only).
+
+  Steps: build the entity URL → web-cache-fetch → parse the cached body.
+
+  Inputs:
+    id       — Wikidata QID (e.g. Q286116)
+    cacheDir — shared cache dir (default ~/.swamp/web-cache)
+tags: {}
+inputs:
+  properties:
+    id:
+      type: string
+      description: Wikidata QID
+    cacheDir:
+      type: string
+      default: "~/.swamp/web-cache"
+      description: Shared cache directory
+  required:
+    - id
+jobs:
+  - name: main
+    description: Fetch + parse a Wikidata entity.
+    steps:
+      - name: build-url
+        description: Build the wbgetentities URL.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikidata"
+          modelName: wd
+          methodName: entity-url
+          inputs:
+            id: ${{ inputs.id }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: fetch
+        description: Fetch + cache the entity URL.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/web-cache-fetch"
+          inputs:
+            urls: ${{ data.latest("wd", "entity-url").attributes.urls }}
+            cacheDir: ${{ inputs.cacheDir }}
+        dependsOn:
+          - step: build-url
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: parse
+        description: Parse the cached entity body.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikidata"
+          modelName: wd
+          methodName: get-entity
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            id: ${{ inputs.id }}
+        dependsOn:
+          - step: fetch
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

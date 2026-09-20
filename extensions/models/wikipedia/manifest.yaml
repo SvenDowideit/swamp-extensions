@@ -48,6 +48,15 @@ paths:
 models:
   - wikipedia.ts
 
+workflows:
+  - wikipedia-search.yaml
+  - wikipedia-page.yaml
+  - wikipedia-infobox.yaml
+  - wikipedia-page-props.yaml
+
+dependencies:
+  - "@svendowideit/web-cache"
+
 additionalFiles:
   - README.md
   - LICENSE.txt

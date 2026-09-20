@@ -13,7 +13,7 @@
  * @module
  */
 import { z } from "npm:zod@4";
-import { strFromU8, unzipSync } from "npm:fflate@0.8.3";
+import { unzipSync } from "npm:fflate@0.8.3";
 import { basename, dirname, isAbsolute, join, resolve } from "jsr:@std/path@1";
 
 const MAX_READ_BYTES = 128 * 1024 * 1024;
@@ -23,7 +23,7 @@ const MAX_READ_BYTES = 128 * 1024 * 1024;
  * stored metadata. `detect-metadata` re-detects any entry whose stored
  * `parserVersion` is below this value.
  */
-export const CURRENT_PARSER_VERSION = 3;
+export const CURRENT_PARSER_VERSION = 4;
 
 /**
  * Bump this when the Wikipedia resolution / classification logic changes in a
@@ -57,7 +57,7 @@ export const BookMetadataSchema = z.object({
 export type BookMetadata = z.infer<typeof BookMetadataSchema>;
 
 /** Resolution status of an author or book against Wikipedia/Wikidata. */
-const ResolutionSchema = z.object({
+export const ResolutionSchema = z.object({
   /** Normalized, canonical name (Wikipedia page title). */
   name: z.string(),
   /** Full Wikipedia URL (absent if not resolved). */
@@ -80,17 +80,11 @@ const ResolutionSchema = z.object({
   instanceOf: z.array(z.string()).optional(),
   /** Version of the resolution/classification logic that produced this record. */
   resolutionVersion: z.number().int().nonnegative().optional(),
+  /** Whether this name is an author ("author") or a book ("book"). */
+  expectKind: z.enum(["author", "book"]).optional(),
 });
 
 export type Resolution = z.infer<typeof ResolutionSchema>;
-
-/** Map of author name -> Wikipedia resolution. */
-export const AuthorResolutionMapSchema = z.record(z.string(), ResolutionSchema);
-export type AuthorResolutionMap = z.infer<typeof AuthorResolutionMapSchema>;
-
-/** Map of book title -> Wikipedia resolution. */
-export const BookResolutionMapSchema = z.record(z.string(), ResolutionSchema);
-export type BookResolutionMap = z.infer<typeof BookResolutionMapSchema>;
 
 const GlobalArgsSchema = z.object({}).strict();
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -155,8 +149,20 @@ function stemName(name: string): string {
 /** Collapse whitespace and trim. */
 function clean(s: string | null | undefined): string | null {
   if (s == null) return null;
-  const t = s.replace(/\s+/g, " ").trim();
+  const t = stripControlChars(s).replace(/\s+/g, " ").trim();
   return t.length === 0 ? null : t;
+}
+
+/** Strip C0 control characters (incl. NUL) from a string. */
+function stripControlChars(s: string): string {
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    const isC0 = c <= 0x08 || c === 0x0b || c === 0x0c ||
+      (c >= 0x0e && c <= 0x1f);
+    if (!isC0) out += s[i];
+  }
+  return out;
 }
 
 /** Strip trailing parenthetical format/version/omnibus markers from a title. */
@@ -189,6 +195,49 @@ function extractIsbn(text: string): string | null {
   const m10 = text.match(/\b(?:\d[- ]?){9}[\dXx]\b/);
   if (m10) return m10[0].replace(/[- ]/g, "").toUpperCase();
   return null;
+}
+
+/**
+ * Decode bytes as text, honouring the declared encoding. EPUB/OPF (and some
+ * other) XML files are frequently UTF-16 (declared via BOM or the `<?xml … ?>`
+ * `encoding` attribute), but a naive UTF-8 decode produces NUL-embedded strings
+ * like "R\0.\0 A\0.". Detect UTF-16 (BOM or NUL-byte pattern) and decode
+ * accordingly; fall back to UTF-8.
+ */
+export function decodeText(bytes: Uint8Array): string {
+  // Byte order mark
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return new TextDecoder("utf-16le").decode(bytes.subarray(2));
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return new TextDecoder("utf-16be").decode(bytes.subarray(2));
+  }
+
+  // A UTF-16 file without a BOM interleaves NUL bytes with every ASCII char.
+  // Sniff the first chunk: if ASCII characters alternate with NULs, it's
+  // UTF-16 (LE if NUL follows the char, BE if it precedes it).
+  const head = bytes.subarray(0, Math.min(bytes.length, 512));
+  let nulAfter = 0;
+  let nulBefore = 0;
+  let ascii = 0;
+  for (let i = 0; i < head.length; i++) {
+    if (head[i] === 0) {
+      if (i > 0 && head[i - 1] >= 0x20 && head[i - 1] < 0x7f) nulAfter++;
+      if (i + 1 < head.length && head[i + 1] >= 0x20 && head[i + 1] < 0x7f) {
+        nulBefore++;
+      }
+    } else if (head[i] >= 0x20 && head[i] < 0x7f) {
+      ascii++;
+    }
+  }
+  // Heuristic: a genuine UTF-16 doc has roughly as many NULs as ASCII chars.
+  if (ascii > 8 && (nulAfter > ascii / 2 || nulBefore > ascii / 2)) {
+    return nulAfter >= nulBefore
+      ? new TextDecoder("utf-16le").decode(bytes)
+      : new TextDecoder("utf-16be").decode(bytes);
+  }
+
+  return new TextDecoder("utf-8").decode(bytes);
 }
 
 /** Extract a 4-digit year from a string, or null. */
@@ -433,7 +482,7 @@ function parseEpub(bytes: Uint8Array): Record<string, string | null> {
     let opfPath: string | null = null;
     const container = zip["META-INF/container.xml"];
     if (container) {
-      const xml = strFromU8(container);
+      const xml = decodeText(container);
       const m = xml.match(/full-path="([^"]+)"/);
       if (m) opfPath = m[1];
     }
@@ -448,7 +497,7 @@ function parseEpub(bytes: Uint8Array): Record<string, string | null> {
 
     const opfRaw = zip[opfPath];
     if (!opfRaw) return out;
-    const opf = strFromU8(opfRaw);
+    const opf = decodeText(opfRaw);
 
     const title = opf.match(/<dc:title[^>]*>([\s\S]*?)<\/dc:title>/i);
     if (title) out.title = clean(title[1].replace(/<[^>]+>/g, ""));
@@ -506,7 +555,7 @@ function parsePdf(bytes: Uint8Array): Record<string, string | null> {
     publisher: null,
   };
   // Only scan the first ~4 MiB where the info dict usually lives.
-  const head = strFromU8(
+  const head = decodeText(
     bytes.subarray(0, Math.min(bytes.length, 4 * 1024 * 1024)),
   );
 
@@ -659,188 +708,16 @@ export async function detectBookMetadata(
 }
 
 // ---------------------------------------------------------------------------
-// Wikipedia resolution
+// Resolution classification
 // ---------------------------------------------------------------------------
-
-const WIKI_API = "https://en.wikipedia.org/w/api.php";
-const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
-
-/** Build the opensearch URL for a name. */
-export function wikipediaSearchUrl(query: string, limit = 5): string {
-  const params = new URLSearchParams({
-    action: "opensearch",
-    search: query,
-    limit: String(limit),
-    format: "json",
-    origin: "*",
-  });
-  return `${WIKI_API}?${params}`;
-}
-
-/** Build the batched pageprops query URL for candidate titles. */
-export function wikipediaQueryUrl(titles: string[]): string {
-  const params = new URLSearchParams({
-    action: "query",
-    redirects: "1",
-    prop: "info|pageprops",
-    titles: titles.join("|"),
-    inprop: "url",
-    format: "json",
-    origin: "*",
-  });
-  return `${WIKI_API}?${params}`;
-}
-
-/** Build the wikitext parse URL for a page title. */
-export function wikipediaWikitextUrl(title: string): string {
-  const params = new URLSearchParams({
-    action: "parse",
-    page: title,
-    prop: "wikitext",
-    formatversion: "2",
-    format: "json",
-    origin: "*",
-  });
-  return `${WIKI_API}?${params}`;
-}
-
-/** Build the wbgetentities URL for a QID. */
-export function wikidataEntityUrl(qid: string): string {
-  const params = new URLSearchParams({
-    action: "wbgetentities",
-    ids: qid,
-    props: "claims|descriptions|labels",
-    format: "json",
-    origin: "*",
-  });
-  return `${WIKIDATA_API}?${params}`;
-}
-
-// --- shared cache key scheme (must match @svendowideit/web-cache exactly) ---
-
-/** Deterministic 32-bit hash (FNV-1a), identical to web-cache's fnv1a. */
-export function fnv1a(input: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return (h >>> 0).toString(16).padStart(8, "0");
-}
-
-/** Canonicalize a URL, identical to web-cache's normalizeUrl. */
-export function normalizeUrl(url: string): string {
-  let u: URL;
-  try {
-    u = new URL(url);
-  } catch {
-    return url;
-  }
-  u.protocol = u.protocol.toLowerCase();
-  u.hostname = u.hostname.toLowerCase();
-  if (u.protocol === "http:" && u.port === "80") u.port = "";
-  if (u.protocol === "https:" && u.port === "443") u.port = "";
-  u.hash = "";
-
-  const entries = [...u.searchParams.entries()].sort((a, b) => {
-    if (a[0] !== b[0]) return a[0] < b[0] ? -1 : 1;
-    return a[1] < b[1] ? -1 : 1;
-  });
-  const sp = new URLSearchParams();
-  for (const [k, v] of entries) sp.append(k, v);
-  u.search = sp.toString();
-
-  return u.toString();
-}
-
-/** URL-only cache key, identical to web-cache's webCacheKey. */
-export function webCacheKey(url: string): string {
-  const normalized = normalizeUrl(url);
-  const safe = normalized
-    .replace(/^https?:\/\//, "")
-    .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-  return `${safe}-${fnv1a(normalized)}`;
-}
-
-/** Read a cached body for a URL from the shared cache dir (read-only). */
-export async function readCachedBody(
-  dir: string,
-  url: string,
-): Promise<string | null> {
-  try {
-    return await Deno.readTextFile(`${dir}/${webCacheKey(url)}/body`);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Extract the raw wikitext string from a cached `action=parse&prop=wikitext`
- * response body (handles both formatversion=1 `{"*": ...}` and formatversion=2
- * plain-string shapes).
- */
-export function parseWikitext(body: string | null): string | null {
-  if (!body) return null;
-  try {
-    const parsed = JSON.parse(body) as {
-      parse?: { wikitext?: string | { "*"?: string } };
-    };
-    const wt = parsed.parse?.wikitext;
-    if (typeof wt === "string") return wt;
-    if (wt && typeof wt === "object" && typeof wt["*"] === "string") {
-      return wt["*"];
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Extract the instance-of (P31) value QIDs from a cached `wbgetentities`
- * response body for a given QID. Returns an empty array when absent/malformed.
- */
-export function parseInstanceOf(body: string | null, qid: string): string[] {
-  if (!body) return [];
-  try {
-    const parsed = JSON.parse(body) as {
-      entities?: Record<string, {
-        claims?: Record<string, unknown[]>;
-      }>;
-    };
-    const claims = parsed.entities?.[qid]?.claims?.["P31"] ?? [];
-    const out: string[] = [];
-    for (const claim of claims) {
-      const mainsnak = (claim as Record<string, unknown>)["mainsnak"] as
-        | { datavalue?: { value?: { id?: string } } }
-        | undefined;
-      const id = mainsnak?.datavalue?.value?.id;
-      if (id) out.push(id);
-    }
-    return out;
-  } catch {
-    return [];
-  }
-}
-
-interface WikiPage {
-  title: string;
-  ns: number;
-  index?: number;
-  fullurl?: string;
-  canonicalurl?: string;
-  pageid?: number;
-  pageprops?: { "wikibase-shortdesc"?: string; "wikibase_item"?: string };
-  missing?: boolean;
-}
 
 /**
  * Map an infobox template name to a coarse kind. These are the common
  * people-creative infoboxes (see
  * https://en.wikipedia.org/wiki/Wikipedia:List_of_infoboxes). Anything not
- * listed here contributes no signal.
+ * listed here contributes no signal. The infobox template name is produced by
+ * the @svendowideit/wikipedia model's `get-infobox` method — this model only
+ * classifies the (already-parsed) name against these sets.
  */
 const AUTHOR_INFOBOXES = new Set([
   "infobox writer",
@@ -875,39 +752,6 @@ const BOOK_INFOBOXES = new Set([
   "infobox musical composition",
 ]);
 
-/**
- * Extract the (first) infobox template name from raw wikitext. Handles the
- * common spellings: `{{Infobox writer`, `{{Infobox writer|`, and the
- * capitalized `{{Infobox Writer` form (case-insensitive on the template name).
- */
-export function detectInfobox(wikitext: string | null): string | null {
-  if (!wikitext) return null;
-  const m = wikitext.match(/\{\{\s*([Ii]nfobox[ _][A-Za-z _-]+)/);
-  if (!m) return null;
-  return m[1].replace(/_/g, " ").trim().toLowerCase();
-}
-
-/**
- * Classify a page as author / book / other from its short description alone.
- * (Used during candidate selection, before the wikitext/wikidata signals are
- * available. The full classification happens later in `classifyResolved`.)
- */
-function classifyKind(description: string | undefined): string {
-  if (!description) return "other";
-  const d = description.toLowerCase();
-  if (
-    /\b(author|writer|novelist|poet|artist|journalist|editor)\b/.test(d)
-  ) {
-    return "author";
-  }
-  if (
-    /\b(novel|book|series|short story|trilogy|play|comic)\b/.test(d)
-  ) {
-    return "book";
-  }
-  return "other";
-}
-
 /** QIDs commonly used as instance-of (P31) for people vs. creative works. */
 const AUTHOR_INSTANCE_QIDS = new Set([
   "Q5", // human
@@ -924,94 +768,69 @@ const BOOK_INSTANCE_QIDS = new Set([
 ]);
 
 /**
- * Parse a cached opensearch response body into candidate titles/urls. Returns
- * null when the body is absent or malformed.
+ * Classify a page as author / book / other from its short description alone.
+ * (Used during candidate selection, before the wikitext/wikidata signals are
+ * available. The full classification happens later in `classifyResolved`.)
  */
-export function parseOpenSearch(body: string | null): {
-  titles: string[];
-  urls: string[];
-} | null {
-  if (!body) return null;
-  try {
-    const parsed = JSON.parse(body) as [string, string[], string[], string[]];
-    const titles = (parsed[1] ?? []).filter((t) => t && t.trim().length > 0);
-    const urls = parsed[3] ?? [];
-    return { titles, urls };
-  } catch {
-    return null;
+export function classifyKind(description: string | null | undefined): string {
+  if (!description) return "other";
+  const d = description.toLowerCase();
+  if (
+    /\b(author|writer|novelist|poet|artist|journalist|editor)\b/.test(d)
+  ) {
+    return "author";
   }
+  if (
+    /\b(novel|book|series|short story|trilogy|play|comic)\b/.test(d)
+  ) {
+    return "book";
+  }
+  return "other";
+}
+
+/** A single search-result candidate (parsed by the wikipedia model). */
+export interface SearchCandidate {
+  title: string;
+  description: string | null;
+  url: string | null;
+}
+
+/** A resolved page entry (parsed by the wikipedia page-props method). */
+export interface ResolvedPage {
+  title: string;
+  url: string | null;
+  shortdesc: string | null;
+  wikidataId: string | null;
 }
 
 /**
- * Parse a cached `query` (pageprops) response body into a map of candidate
- * page title -> { url, shortdesc, wikidataId }.
- */
-export function parsePageProps(body: string | null): Record<
-  string,
-  { url: string | null; shortdesc: string | null; wikidataId: string | null }
-> {
-  const out: Record<
-    string,
-    { url: string | null; shortdesc: string | null; wikidataId: string | null }
-  > = {};
-  if (!body) return out;
-  try {
-    const parsed = JSON.parse(body) as {
-      query?: {
-        pages?: Record<string, WikiPage>;
-        redirects?: { from: string; to: string }[];
-      };
-    };
-    const redirects = new Map(
-      (parsed.query?.redirects ?? []).map((r) => [r.from, r.to]),
-    );
-    for (const page of Object.values(parsed.query?.pages ?? {})) {
-      const title = redirects.get(page.title) ?? page.title;
-      out[title] = {
-        url: page.canonicalurl ?? page.fullurl ?? null,
-        shortdesc: page.pageprops?.["wikibase-shortdesc"] ?? null,
-        wikidataId: page.pageprops?.["wikibase_item"] ?? null,
-      };
-    }
-  } catch {
-    // ignore
-  }
-  return out;
-}
-
-/**
- * Choose the best candidate for a name given its opensearch results and its
- * pageprops. Prefers a candidate whose infobox-free short-description matches
- * the expected kind; falls back to the first candidate. Returns the chosen
+ * Pick the best candidate for a name given its (already-parsed) search results
+ * and page-props. Prefers the candidate whose short description matches the
+ * expected kind; falls back to the first candidate. Returns the chosen
  * title/url/description/wikidataId, or null when there are no candidates.
  */
-export function chooseCandidate(
-  name: string,
+export function pickCandidate(
   expectKind: "author" | "book",
-  os: { titles: string[]; urls: string[] } | null,
-  pageProps: Record<
-    string,
-    { url: string | null; shortdesc: string | null; wikidataId: string | null }
-  >,
+  results: SearchCandidate[],
+  pages: Record<string, ResolvedPage>,
 ): {
-  name: string;
   title: string;
   url: string | null;
   description: string | null;
   wikidataId: string | null;
 } | null {
-  if (!os || os.titles.length === 0) return null;
+  if (!results || results.length === 0) return null;
 
-  const candidates = os.titles.map((title, i) => ({
-    title,
-    url: pageProps[title]?.url ?? os.urls[i] ?? null,
-    shortdesc: pageProps[title]?.shortdesc ?? null,
-    wikidataId: pageProps[title]?.wikidataId ?? null,
+  const candidates = results.map((r) => ({
+    title: r.title,
+    url: pages[r.title]?.url ?? r.url ?? null,
+    shortdesc: pages[r.title]?.shortdesc ?? null,
+    wikidataId: pages[r.title]?.wikidataId ?? null,
   }));
 
   let chosen = candidates[0]!;
   for (const c of candidates) {
-    const k = classifyKind(c.shortdesc ?? undefined);
+    const k = classifyKind(c.shortdesc);
     if (expectKind === "author" && k === "author") {
       chosen = c;
       break;
@@ -1023,7 +842,6 @@ export function chooseCandidate(
   }
 
   return {
-    name,
     title: chosen.title,
     url: chosen.url,
     description: chosen.shortdesc,
@@ -1034,9 +852,9 @@ export function chooseCandidate(
 /**
  * Classify a name using the decisions specific to the ebooks extension: the
  * Wikipedia infobox template name and the Wikidata instance-of (P31) values.
- * This keeps ebook-specific classification here (tweakable without touching
- * the generalised wikipedia/wikidata models) while the *fetching* of those two
- * signals is delegated to the web-cache + wikipedia/wikidata models.
+ * The infobox name and P31 values are fetched + parsed by the wikipedia/wikidata
+ * models (via their own workflows, which delegate to web-cache); this model
+ * only applies the ebook-specific classification.
  */
 export function classifyResolved(
   infobox: string | null,

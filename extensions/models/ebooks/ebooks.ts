@@ -20,28 +20,17 @@
 import { z } from "npm:zod@4";
 import { isAbsolute, join, resolve } from "jsr:@std/path@1";
 import {
-  type AuthorResolutionMap,
-  AuthorResolutionMapSchema,
   type BookMetadata,
   BookMetadataSchema,
-  type BookResolutionMap,
-  BookResolutionMapSchema,
-  chooseCandidate,
   classifyResolved,
   CURRENT_PARSER_VERSION,
   CURRENT_RESOLUTION_VERSION,
   detectBookMetadata,
-  detectInfobox,
-  parseInstanceOf,
-  parseOpenSearch,
-  parsePageProps,
-  parseWikitext,
-  readCachedBody,
+  pickCandidate,
   type Resolution,
-  wikidataEntityUrl,
-  wikipediaQueryUrl,
-  wikipediaSearchUrl,
-  wikipediaWikitextUrl,
+  ResolutionSchema,
+  type ResolvedPage,
+  type SearchCandidate,
 } from "./book_metadata.ts";
 
 const DEFAULT_EXTENSIONS = [
@@ -122,59 +111,90 @@ const RenderAuthorsArgsSchema = z.object({
 
 type RenderAuthorsArgs = z.infer<typeof RenderAuthorsArgsSchema>;
 
-const ResolveWikipediaArgsSchema = z.object({
-  maxDurationMs: z.number().int().positive()
-    .default(5 * 60 * 1000)
-    .describe(
-      "Self-imposed wall-clock budget per resolve run (default 5 minutes)",
-    ),
-});
-
-type ResolveWikipediaArgs = z.infer<typeof ResolveWikipediaArgsSchema>;
-
-const PlanArgsSchema = z.object({
-  maxDurationMs: z.number().int().positive()
-    .default(5 * 60 * 1000)
-    .describe("Self-imposed wall-clock budget per plan run"),
-});
-
-type PlanArgs = z.infer<typeof PlanArgsSchema>;
-
-/** A name to resolve (author or book title). */
-const PlanItemSchema = z.object({
+/**
+ * Pick one name's canonical candidate. The inputs arrive as already-parsed
+ * wikipedia data (referenced via `data.latest`); this only applies the
+ * ebook-specific candidate selection and writes a `candidate` record.
+ */
+const PickArgsSchema = z.object({
   name: z.string(),
   expectKind: z.enum(["author", "book"]),
-  /** Chosen canonical title (populated by choose-candidates). */
+  results: z.array(z.object({
+    title: z.string(),
+    description: z.string().nullable(),
+    url: z.string().nullable(),
+  })).default([]),
+  pages: z.record(
+    z.string(),
+    z.object({
+      title: z.string(),
+      url: z.string().nullable(),
+      shortdesc: z.string().nullable(),
+      wikidataId: z.string().nullable(),
+    }),
+  ).default({}),
+});
+
+type PickArgs = z.infer<typeof PickArgsSchema>;
+
+/** A chosen candidate (the pick-candidate output). */
+const CandidateSchema = z.object({
+  name: z.string(),
+  expectKind: z.enum(["author", "book"]),
   title: z.string().nullable(),
-  /** Chosen Wikipedia URL. */
   url: z.string().nullable(),
-  /** Short description from pageprops. */
   description: z.string().nullable(),
-  /** Wikidata QID from pageprops. */
   wikidataId: z.string().nullable(),
 });
 
-type PlanItem = z.infer<typeof PlanItemSchema>;
+type Candidate = z.infer<typeof CandidateSchema>;
 
 /**
- * The resolution plan. Each stage records the URLs the workflow must fetch via
- * web-cache.get-many; the next stage reads the cached bodies and fills in more.
+ * Classify one name and write the final resolution record. The candidate and
+ * the wikipedia/wikidata signals arrive as already-parsed inputs.
  */
-const PlanSchema = z.object({
-  items: z.array(PlanItemSchema),
-  /** Round-1 opensearch URLs, parallel to `items`. */
-  searchUrls: z.array(z.string()),
-  /** Round-2 pageprops query URLs, parallel to `items`. */
-  queryUrls: z.array(z.string()),
-  /** Round-3 wikitext URL per item (parallel to `items`). */
-  wikitextUrls: z.array(z.string()),
-  /** Round-3 wikidata entity URL per item (parallel; empty where no QID). */
-  wikidataUrls: z.array(z.string()),
-  /** Round-3 combined fetch URLs (wikitext + wikidata) for one get-many call. */
-  finalFetchUrls: z.array(z.string()),
+const ClassifyArgsSchema = z.object({
+  name: z.string(),
+  expectKind: z.enum(["author", "book"]),
+  title: z.string().nullable().default(null),
+  url: z.string().nullable().default(null),
+  description: z.string().nullable().default(null),
+  wikidataId: z.string().nullable().default(null),
+  infoboxTemplate: z.string().nullable().default(null),
+  instanceOf: z.array(z.string()).default([]),
 });
 
-type Plan = z.infer<typeof PlanSchema>;
+type ClassifyArgs = z.infer<typeof ClassifyArgsSchema>;
+
+/** A name to resolve (author or book title). */
+const NameItemSchema = z.object({
+  name: z.string(),
+  expectKind: z.enum(["author", "book"]),
+});
+
+type NameItem = z.infer<typeof NameItemSchema>;
+
+/** The set of names that need resolving (emitted by `plan-resolution`). */
+const NamesSchema = z.object({
+  items: z.array(NameItemSchema),
+});
+
+type Names = z.infer<typeof NamesSchema>;
+
+/** Args for the deprecated resolve-wikipedia back-compat method. */
+const ResolveWikipediaArgsSchema = z.object({});
+type ResolveWikipediaArgs = z.infer<typeof ResolveWikipediaArgsSchema>;
+
+/** Args for plan-resolution (emits the name list). */
+const PlanArgsSchema = z.object({
+  maxNames: z.number().int().positive()
+    .default(20)
+    .describe(
+      "Cap on the number of names emitted this run. Already-resolved names are " +
+        "excluded first, so a large backlog is spread across runs.",
+    ),
+});
+type PlanArgs = z.infer<typeof PlanArgsSchema>;
 
 const EbookSchema = z.object({
   path: z.string(),
@@ -220,6 +240,14 @@ type MethodContext = {
     instanceName: string,
     version?: number,
   ) => Promise<Record<string, unknown> | null>;
+  dataRepository: {
+    findAllForModel: (
+      type: string,
+      modelId: string,
+    ) => Promise<{ name: string; specName?: string }[]>;
+  };
+  modelType: string;
+  modelId: string;
 };
 
 /** Expand `~` and relative paths to an absolute path. */
@@ -263,22 +291,48 @@ export function freshState(root: string): State {
 }
 
 /**
- * Drop non-resolution keys that may have leaked into a resolution map from a
- * previous instance-name collision (e.g. "outputPath"/"count"/"generatedAt").
- * Keeps only entries whose value looks like a Resolution record.
+ * Collect the distinct author names and book titles that need resolving from
+ * the detected metadata, as a name list (each with an expected kind), excluding
+ * names that already have a resolution record.
  */
-export function sanitizeResolutionMap<T extends Record<string, unknown>>(
-  map: T | null,
-): T {
-  const out: Record<string, unknown> = {};
-  if (map) {
-    for (const [k, v] of Object.entries(map)) {
-      if (v && typeof v === "object" && "name" in v && "kind" in v) {
-        out[k] = v;
+async function collectNames(
+  metadata: Record<string, BookMetadata>,
+  context: MethodContext,
+): Promise<Names> {
+  const authorNames = new Set<string>();
+  const titles = new Set<string>();
+  for (const md of Object.values(metadata)) {
+    for (const a of md.authors ?? (md.author ? [md.author] : [])) {
+      authorNames.add(a);
+    }
+    if (md.title) titles.add(md.title);
+  }
+
+  // Enumerate existing resolution records (specName "resolution") so we skip
+  // already-resolved names. Records are keyed `resolution-<name>`.
+  const resolved = new Set<string>();
+  try {
+    const all = await context.dataRepository.findAllForModel(
+      context.modelType,
+      context.modelId,
+    );
+    for (const rec of all) {
+      if (rec.specName === "resolution" && rec.name.startsWith("resolution-")) {
+        resolved.add(rec.name.slice("resolution-".length));
       }
     }
+  } catch {
+    // Best-effort: if enumeration fails, resolve everything.
   }
-  return out as T;
+
+  const items: NameItem[] = [];
+  for (const name of authorNames) {
+    if (!resolved.has(name)) items.push({ name, expectKind: "author" });
+  }
+  for (const title of titles) {
+    if (!resolved.has(title)) items.push({ name: title, expectKind: "book" });
+  }
+  return { items };
 }
 
 /** Read directory entry names, returning null on error. */
@@ -416,8 +470,7 @@ function renderAuthorsHtml(
   title: string,
   state: State,
   metadata: Record<string, BookMetadata>,
-  authorRes: AuthorResolutionMap,
-  bookRes: BookResolutionMap,
+  resolutions: Record<string, Resolution>,
 ): string {
   // Group ebooks by author; skip any without a detected author. A book with
   // multiple authors is listed under each of them.
@@ -438,14 +491,14 @@ function renderAuthorsHtml(
   // person) first, alphabetically, then the remaining unresolved authors,
   // alphabetically.
   const authorNames = [...byAuthor.keys()].sort((a, b) => {
-    const aLinked = isLinkedAuthor(authorRes[a]);
-    const bLinked = isLinkedAuthor(authorRes[b]);
+    const aLinked = isLinkedAuthor(resolutions[a]);
+    const bLinked = isLinkedAuthor(resolutions[b]);
     if (aLinked !== bLinked) return aLinked ? -1 : 1;
     return a.localeCompare(b, undefined, { sensitivity: "base" });
   });
 
   const sections = authorNames.map((author) => {
-    const resolved = authorRes[author];
+    const resolved = resolutions[author];
     // Only link an author to Wikipedia when it was actually classified as a
     // person (not a book title, number, or other page). This keeps false
     // positives like "3" or "A Dance" from being linked as authors.
@@ -481,11 +534,13 @@ function renderAuthorsHtml(
   const total = [...byAuthor.values()].reduce((n, l) => n + l.length, 0);
 
   const checkedAuthors =
-    Object.values(authorRes).filter((r) => r.resolved || r.kind === "not-found")
-      .length;
+    Object.values(resolutions).filter((r) =>
+      r.expectKind === "author" && (r.resolved || r.kind === "not-found")
+    ).length;
   const checkedBooks =
-    Object.values(bookRes).filter((r) => r.resolved || r.kind === "not-found")
-      .length;
+    Object.values(resolutions).filter((r) =>
+      r.expectKind === "book" && (r.resolved || r.kind === "not-found")
+    ).length;
 
   return `<!doctype html>
 <html lang="en">
@@ -521,71 +576,6 @@ function renderAuthorsHtml(
 `;
 }
 
-/**
- * Classify and write the final resolution maps for a plan whose wikitext +
- * wikidata bodies are already cached. Shared by `resolve-wikipedia` (back-compat)
- * and `finalize-resolution`.
- */
-async function finalizePlan(
-  context: MethodContext,
-  plan: Plan,
-): Promise<{ name: string }[]> {
-  const dir = absolutePath(context.globalArgs.cacheDir);
-
-  const authors = await context.readResource("authors") as
-    | AuthorResolutionMap
-    | null;
-  const authorRes: AuthorResolutionMap = sanitizeResolutionMap(authors);
-  const books = await context.readResource("books") as
-    | BookResolutionMap
-    | null;
-  const bookRes: BookResolutionMap = sanitizeResolutionMap(books);
-
-  const now = new Date().toISOString();
-  for (let i = 0; i < plan.items.length; i++) {
-    const item = plan.items[i]!;
-    const wikitextUrl = plan.wikitextUrls[i] ?? "";
-    const wikidataUrl = plan.wikidataUrls[i] ?? "";
-
-    const wikitext = parseWikitext(
-      wikitextUrl ? await readCachedBody(dir, wikitextUrl) : null,
-    );
-    const instanceOf = item.wikidataId && wikidataUrl
-      ? parseInstanceOf(await readCachedBody(dir, wikidataUrl), item.wikidataId)
-      : [];
-
-    const infobox = detectInfobox(wikitext);
-    const kind = classifyResolved(
-      infobox,
-      instanceOf.length ? instanceOf : null,
-    );
-
-    const resolution: Resolution = {
-      name: item.title ?? item.name,
-      url: item.url,
-      description: item.description,
-      kind,
-      resolved: item.title != null,
-      from: item.name,
-      resolvedAt: now,
-      infobox,
-      wikidataId: item.wikidataId,
-      instanceOf,
-      resolutionVersion: CURRENT_RESOLUTION_VERSION,
-    };
-
-    if (item.expectKind === "author") {
-      authorRes[item.name] = resolution;
-    } else {
-      bookRes[item.name] = resolution;
-    }
-  }
-
-  const ha = await context.writeResource("authors", "authors", authorRes);
-  const hb = await context.writeResource("books", "books", bookRes);
-  return [ha, hb];
-}
-
 /** Model definition for incrementally scanning and listing local ebooks. */
 export const model = {
   type: "@svendowideit/ebooks",
@@ -607,35 +597,24 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 10,
     },
-    authors: {
+    names: {
       description:
-        "Wikipedia resolution of detected author names (keyed by detected name)",
-      schema: AuthorResolutionMapSchema,
+        "The set of names that need resolving (emitted by plan-resolution)",
+      schema: NamesSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
-    books: {
+    resolution: {
       description:
-        "Wikipedia resolution of detected book titles (keyed by detected title)",
-      schema: BookResolutionMapSchema,
+        "A per-name Wikipedia/Wikidata resolution record (factory: one instance " +
+        "per resolved name)",
+      schema: ResolutionSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
-    plan: {
-      description: "Round-1 resolution plan (names + opensearch URLs)",
-      schema: PlanSchema,
-      lifetime: "infinite",
-      garbageCollection: 10,
-    },
-    candidates: {
-      description: "Round-2 resolution plan (names + pageprops query URLs)",
-      schema: PlanSchema,
-      lifetime: "infinite",
-      garbageCollection: 10,
-    },
-    final: {
-      description: "Round-3 resolution plan (chosen candidates + fetch URLs)",
-      schema: PlanSchema,
+    candidate: {
+      description: "A chosen candidate (the pick-candidate output, per name)",
+      schema: CandidateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -765,214 +744,127 @@ export const model = {
     },
     "resolve-wikipedia": {
       description:
-        "DEPRECATED — kept for back-compat. Resolution is now a fetch-free " +
-        "pipeline (plan-resolution → web-cache.get-many → choose-candidates → " +
-        "web-cache.get-many → choose-final → web-cache.get-many → " +
-        "finalize-resolution), driven by the workflow. This method performs the " +
-        "finalize-resolution stage alone against already-cached bodies.",
+        "DEPRECATED — kept for back-compat. Resolution is now a per-name " +
+        "workflow pipeline (plan-resolution → forEach name → " +
+        "@svendowideit/ebooks-resolve-name → classify). This method only emits " +
+        "the name list (same as plan-resolution).",
       arguments: ResolveWikipediaArgsSchema,
       execute: async (
         _args: ResolveWikipediaArgs,
         context: MethodContext,
       ): Promise<{ dataHandles: { name: string }[] }> => {
-        const plan = await context.readResource("final") as Plan | null;
-        if (!plan || plan.items.length === 0) {
-          context.logger.info("No resolution plan — nothing to finalize");
-          return { dataHandles: [] };
-        }
-        const handles = await finalizePlan(context, plan);
-        return { dataHandles: handles };
+        const metadata = await context.readResource("metadata") as
+          | Record<string, BookMetadata>
+          | null;
+        const names = await collectNames(metadata ?? {}, context);
+        const handle = await context.writeResource("names", "names", names);
+        context.logger.info("Collected {n} names to resolve", {
+          n: names.items.length,
+        });
+        return { dataHandles: [handle] };
       },
     },
     "plan-resolution": {
       description:
-        "Compute the set of author names and book titles that need resolving, " +
-        "and emit round-1 opensearch URLs. Does no fetching — the workflow " +
-        "feeds these URLs to web-cache.get-many.",
+        "Compute the set of author names and book titles that need resolving " +
+        "and emit them as a name list, excluding already-resolved names and " +
+        "capped at `maxNames` per run. Does no fetching — the workflow fans out " +
+        "per name into @svendowideit/ebooks-resolve-name.",
       arguments: PlanArgsSchema,
       execute: async (
-        _args: PlanArgs,
+        args: PlanArgs,
         context: MethodContext,
       ): Promise<{ dataHandles: { name: string }[] }> => {
         const metadata = await context.readResource("metadata") as
           | Record<string, BookMetadata>
           | null;
-
-        const authors = await context.readResource("authors") as
-          | AuthorResolutionMap
-          | null;
-        const authorRes: AuthorResolutionMap = sanitizeResolutionMap(authors);
-        const books = await context.readResource("books") as
-          | BookResolutionMap
-          | null;
-        const bookRes: BookResolutionMap = sanitizeResolutionMap(books);
-
-        // Collect distinct author names and titles that need resolving.
-        const authorNames = new Set<string>();
-        const titles = new Set<string>();
-        for (const md of Object.values(metadata ?? {})) {
-          for (const a of md.authors ?? (md.author ? [md.author] : [])) {
-            authorNames.add(a);
-          }
-          if (md.title) titles.add(md.title);
-        }
-
-        const items: PlanItem[] = [];
-        const addWork = (name: string, expectKind: "author" | "book") => {
-          const map = expectKind === "author" ? authorRes : bookRes;
-          const r = map[name];
-          if (!r || (!r.resolved && r.kind !== "not-found")) {
-            items.push({
-              name,
-              expectKind,
-              title: null,
-              url: null,
-              description: null,
-              wikidataId: null,
-            });
-          }
+        const all = await collectNames(metadata ?? {}, context);
+        const names: Names = { items: all.items.slice(0, args.maxNames) };
+        const handle = await context.writeResource("names", "names", names);
+        context.logger.info(
+          "Planned {n} names to resolve ({remaining} remaining)",
+          {
+            n: names.items.length,
+            remaining: all.items.length - names.items.length,
+          },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    "pick-candidate": {
+      description:
+        "Pick one name's canonical candidate from its already-parsed search + " +
+        "page-props results. Writes a `candidate` record. Called per name by " +
+        "@svendowideit/ebooks-resolve-name.",
+      arguments: PickArgsSchema,
+      execute: async (
+        args: PickArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const chosen = pickCandidate(
+          args.expectKind,
+          args.results as SearchCandidate[],
+          args.pages as Record<string, ResolvedPage>,
+        );
+        const candidate: Candidate = {
+          name: args.name,
+          expectKind: args.expectKind,
+          title: chosen?.title ?? null,
+          url: chosen?.url ?? null,
+          description: chosen?.description ?? null,
+          wikidataId: chosen?.wikidataId ?? null,
         };
-        for (const name of authorNames) addWork(name, "author");
-        for (const title of titles) addWork(title, "book");
-
-        const plan: Plan = {
-          items,
-          searchUrls: items.map((i) => wikipediaSearchUrl(i.name)),
-          queryUrls: [],
-          wikitextUrls: [],
-          wikidataUrls: [],
-          finalFetchUrls: [],
-        };
-
-        const handle = await context.writeResource("plan", "plan", plan);
-        context.logger.info("Planned {n} names to resolve", {
-          n: items.length,
+        const handle = await context.writeResource(
+          "candidate",
+          `candidate-${args.name}`,
+          candidate,
+        );
+        context.logger.info("Picked candidate {title} for {name}", {
+          title: chosen?.title ?? "none",
+          name: args.name,
         });
         return { dataHandles: [handle] };
       },
     },
-    "choose-candidates": {
+    "classify": {
       description:
-        "Read cached opensearch bodies (round 1) and emit round-2 pageprops " +
-        "query URLs. Does no fetching.",
-      arguments: PlanArgsSchema,
+        "Classify one name (author vs book) and write the final `resolution` " +
+        "record. Called per name by @svendowideit/ebooks-resolve-name.",
+      arguments: ClassifyArgsSchema,
       execute: async (
-        _args: PlanArgs,
+        args: ClassifyArgs,
         context: MethodContext,
-      ): Promise<{ dataHandles: { name: string }[] }> => {
-        const plan = await context.readResource("plan") as Plan | null;
-        if (!plan) {
-          context.logger.info("No plan — run plan-resolution first");
-          return { dataHandles: [] };
-        }
-        const dir = absolutePath(context.globalArgs.cacheDir);
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const kind = classifyResolved(
+          args.infoboxTemplate,
+          args.instanceOf.length ? args.instanceOf : null,
+        );
 
-        const queryUrls: string[] = [];
-        for (let i = 0; i < plan.items.length; i++) {
-          const os = parseOpenSearch(
-            await readCachedBody(dir, plan.searchUrls[i]!),
-          );
-          if (os && os.titles.length > 0) {
-            queryUrls.push(wikipediaQueryUrl(os.titles));
-          } else {
-            queryUrls.push("");
-          }
-        }
-        plan.queryUrls = queryUrls;
+        const resolution: Resolution = {
+          name: args.title ?? args.name,
+          url: args.url,
+          description: args.description,
+          kind,
+          resolved: args.title != null,
+          from: args.name,
+          resolvedAt: new Date().toISOString(),
+          infobox: args.infoboxTemplate,
+          wikidataId: args.wikidataId,
+          instanceOf: args.instanceOf,
+          resolutionVersion: CURRENT_RESOLUTION_VERSION,
+          expectKind: args.expectKind,
+        };
 
         const handle = await context.writeResource(
-          "candidates",
-          "candidates",
-          plan,
+          "resolution",
+          `resolution-${args.name}`,
+          resolution,
         );
-        context.logger.info("Chose candidates for {n} names", {
-          n: plan.items.length,
+        context.logger.info("Classified {name} as {kind}", {
+          name: args.name,
+          kind,
         });
         return { dataHandles: [handle] };
-      },
-    },
-    "choose-final": {
-      description:
-        "Read cached pageprops bodies (round 2), choose the canonical " +
-        "candidate per name, and emit round-3 wikitext + wikidata URLs. Does " +
-        "no fetching.",
-      arguments: PlanArgsSchema,
-      execute: async (
-        _args: PlanArgs,
-        context: MethodContext,
-      ): Promise<{ dataHandles: { name: string }[] }> => {
-        const plan = await context.readResource("candidates") as Plan | null;
-        if (!plan) {
-          context.logger.info("No candidates — run choose-candidates first");
-          return { dataHandles: [] };
-        }
-        const dir = absolutePath(context.globalArgs.cacheDir);
-
-        const wikitextUrls: string[] = [];
-        const wikidataUrls: string[] = [];
-        for (let i = 0; i < plan.items.length; i++) {
-          const item = plan.items[i]!;
-          const searchUrl = plan.searchUrls[i]!;
-          const queryUrl = plan.queryUrls[i]!;
-
-          const os = parseOpenSearch(await readCachedBody(dir, searchUrl));
-          const pageProps = parsePageProps(
-            await readCachedBody(dir, queryUrl),
-          );
-          const chosen = chooseCandidate(
-            item.name,
-            item.expectKind,
-            os,
-            pageProps,
-          );
-
-          if (chosen) {
-            item.title = chosen.title;
-            item.url = chosen.url;
-            item.description = chosen.description;
-            item.wikidataId = chosen.wikidataId;
-            wikitextUrls.push(wikipediaWikitextUrl(chosen.title));
-            wikidataUrls.push(
-              chosen.wikidataId ? wikidataEntityUrl(chosen.wikidataId) : "",
-            );
-          } else {
-            wikitextUrls.push("");
-            wikidataUrls.push("");
-          }
-        }
-        plan.wikitextUrls = wikitextUrls;
-        plan.wikidataUrls = wikidataUrls;
-        // One combined list so the workflow can fetch both round-3 kinds with a
-        // single web-cache.get-many call.
-        plan.finalFetchUrls = [
-          ...wikitextUrls.filter((u) => u.length > 0),
-          ...wikidataUrls.filter((u) => u.length > 0),
-        ];
-
-        const handle = await context.writeResource("final", "final", plan);
-        context.logger.info("Chose final candidates for {n} names", {
-          n: plan.items.length,
-        });
-        return { dataHandles: [handle] };
-      },
-    },
-    "finalize-resolution": {
-      description:
-        "Read cached wikitext + wikidata bodies (round 3), classify each name " +
-        "using the ebook-specific decisions, and write the authors/books " +
-        "resolution maps. Does no fetching.",
-      arguments: PlanArgsSchema,
-      execute: async (
-        _args: PlanArgs,
-        context: MethodContext,
-      ): Promise<{ dataHandles: { name: string }[] }> => {
-        const plan = await context.readResource("final") as Plan | null;
-        if (!plan || plan.items.length === 0) {
-          context.logger.info("No plan — nothing to finalize");
-          return { dataHandles: [] };
-        }
-        const handles = await finalizePlan(context, plan);
-        return { dataHandles: handles };
       },
     },
     "render-html-list": {
@@ -1038,13 +930,19 @@ export const model = {
         const metadata = await context.readResource("metadata") as
           | Record<string, BookMetadata>
           | null;
-        const authors = await context.readResource("authors") as
-          | AuthorResolutionMap
-          | null;
-        const books = await context.readResource("books") as
-          | BookResolutionMap
-          | null;
         const outputPath = absolutePath(context.globalArgs.authorsOutputPath);
+
+        // Resolution records are keyed by the detected name (author name or
+        // book title), prefixed with the spec. Read each detected name's record.
+        const resolutions: Record<string, Resolution> = {};
+        for (const md of Object.values(metadata ?? {})) {
+          for (const name of md.authors ?? (md.author ? [md.author] : [])) {
+            const rec = await context.readResource(`resolution-${name}`) as
+              | Resolution
+              | null;
+            if (rec) resolutions[name] = rec;
+          }
+        }
 
         const html = renderAuthorsHtml(
           args.title,
@@ -1059,8 +957,7 @@ export const model = {
             updatedAt: new Date().toISOString(),
           },
           metadata ?? {},
-          sanitizeResolutionMap(authors),
-          sanitizeResolutionMap(books),
+          resolutions,
         );
 
         try {

@@ -245,7 +245,7 @@ type MethodContext = {
 // ---------------------------------------------------------------------------
 
 /** Expand `~` to the home directory. */
-function expandHome(raw: string): string {
+export function expandHome(raw: string): string {
   if (raw.startsWith("~")) {
     const home = Deno.env.get("HOME") ?? "~";
     return raw === "~" ? home : `${home}${raw.slice(1)}`;
@@ -258,7 +258,7 @@ function expandHome(raw: string): string {
  * identical to `@svendowideit/web-cache`'s `fnv1a` so both models derive the
  * same cache key for the same URL.
  */
-function fnv1a(input: string): string {
+export function fnv1a(input: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < input.length; i++) {
     h ^= input.charCodeAt(i);
@@ -273,7 +273,7 @@ function fnv1a(input: string): string {
  * `@svendowideit/web-cache`'s `normalizeUrl` — both models derive the same
  * cache key from the same URL. See that model for the exact rules.
  */
-function normalizeUrl(url: string): string {
+export function normalizeUrl(url: string): string {
   let u: URL;
   try {
     u = new URL(url);
@@ -302,7 +302,7 @@ function normalizeUrl(url: string): string {
  * `webCacheKey`, so a cached body written by `web-cache.get(url)` is found here
  * regardless of query-parameter ordering or minor URL spelling differences.
  */
-function webCacheKey(url: string): string {
+export function webCacheKey(url: string): string {
   const normalized = normalizeUrl(url);
   const safe = normalized
     .replace(/^https?:\/\//, "")
@@ -332,7 +332,7 @@ async function readCachedBody(
 // ---------------------------------------------------------------------------
 
 /** Build the URL for a page fetch in a given format. */
-function pageUrl(
+export function pageUrl(
   ctx: MethodContext,
   title: string,
   format: PageFormat,
@@ -370,7 +370,11 @@ function pageUrl(
 }
 
 /** Build the URL for an opensearch query. */
-function searchUrl(ctx: MethodContext, query: string, limit: number): string {
+export function searchUrl(
+  ctx: MethodContext,
+  query: string,
+  limit: number,
+): string {
   const params = new URLSearchParams({
     action: "opensearch",
     search: query,
@@ -382,7 +386,7 @@ function searchUrl(ctx: MethodContext, query: string, limit: number): string {
 }
 
 /** Build a batched page-props query URL (action=query&prop=info|pageprops). */
-function pagePropsUrl(ctx: MethodContext, titles: string[]): string {
+export function pagePropsUrl(ctx: MethodContext, titles: string[]): string {
   const params = new URLSearchParams({
     action: "query",
     redirects: "1",
@@ -399,7 +403,7 @@ function pagePropsUrl(ctx: MethodContext, titles: string[]): string {
  * Parse a cached page-props response body into a map of canonical title →
  * { url, shortdesc, wikidataId }, following redirects.
  */
-function parsePageProps(body: string | null): Record<
+export function parsePageProps(body: string | null): Record<
   string,
   {
     title: string;
@@ -452,7 +456,10 @@ function parsePageProps(body: string | null): Record<
 }
 
 /** Extract the human-readable content string from a parsed action API response. */
-function extractContent(format: PageFormat, parsed: unknown): string | null {
+export function extractContent(
+  format: PageFormat,
+  parsed: unknown,
+): string | null {
   if (format === "parsoid" || format === "summary") {
     return typeof parsed === "string"
       ? parsed
@@ -633,8 +640,22 @@ function findTopLevelEq(text: string): number {
 /** A read-only Wikipedia domain client layered over @svendowideit/web-cache. */
 export const model = {
   type: "@svendowideit/wikipedia",
-  version: "2026.09.20.2",
+  version: "2026.09.20.4",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.20.3",
+      description: "No schema changes — page-props support",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.20.4",
+      description:
+        "No schema changes — export URL builders/parsers and add method " +
+        "execute-path test coverage",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     page: {
       description: "A parsed Wikipedia page (content from the shared cache)",

@@ -107,3 +107,18 @@ swamp model @svendowideit/wikipedia method run get-infobox wiki \
 - `page` — parsed page content (from the shared cache).
 - `search` — parsed search results.
 - `infobox` — extracted infobox key/value pairs.
+- `page-props` — canonical title → url, shortdesc and wikidataId (from `get-page-props`).
+- `url` — a built MediaWiki URL (`search-url` / `page-url` / `page-props-url`) for the web-cache fetch seam.
+
+## Testing
+
+```bash
+~/.swamp/deno/deno test --allow-read --allow-write \
+  extensions/models/wikipedia/wikipedia_test.ts
+```
+
+Coverage includes the infobox helpers, the shared cache-key helpers, every URL
+builder (all `get-page` format branches + search + page-props), `extractContent`
+format handling, `parsePageProps` (including redirects), and every method
+execute path against seeded temp cache dirs — `search`, `get-page`,
+`get-infobox`, and `get-page-props`, for both cache hits and misses.

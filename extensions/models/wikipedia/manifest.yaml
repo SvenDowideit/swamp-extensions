@@ -1,67 +1,44 @@
 manifestVersion: 1
 name: "@svendowideit/wikipedia"
-version: "2026.09.20.1"
+version: "2026.09.20.2"
 description: |
-  A caching client for the Wikipedia and Wikidata APIs. Fetch a page as raw
-  wikitext (default), rendered HTML, Parsoid HTML, a REST summary, or raw JSON —
-  and search for pages by title. Every response is cached on disk under
-  ~/.swamp/wikipedia (configurable), keyed by URL, with the full set of HTTP
-  response headers (Date, Last-Modified, ETag, Cache-Control, Age, Expires)
-  recorded alongside the body.
+  A Wikipedia/Wikidata domain client that reads responses from the shared web
+  cache owned by @svendowideit/web-cache. It does not fetch or cache anything
+  itself — fetch, cache, pacing and rate-limit retry are web-cache's job.
 
-  Repeated calls always prefer the cached copy and avoid external traffic
-  unless the entry is missing, explicitly bypassed (forceRefresh), or stale
-  per the freshness policy (caller maxAgeMs, origin Cache-Control/Expires, or
-  the global defaultMaxAgeMs). Origin requests are paced with a tunable
-  minimum delay (persisted across runs) and auto-retry after rate limits, so
-  bulk use stays within Wikipedia's acceptable request rate. Cache inspection
-  and invalidation are built in.
+  The seam is a workflow: a web-cache.get step fetches + caches a URL, then a
+  wikipedia.get-page / search / get-infobox step reads that cached body and
+  parses the domain content (wikitext, rendered HTML, Parsoid, REST summary,
+  raw JSON, or the page's infobox as key/value pairs). Both models share the
+  same cacheDir (default ~/.swamp/web-cache) and a URL-only cache-key scheme.
 
   WHAT'S INSIDE
 
-    @svendowideit/wikipedia — the caching client:
-      search        Tolerant title search (opensearch), cached.
-      get-page      Fetch a page (wikitext | html | parsoid | summary | json).
-      get-infobox   Fetch wikitext and extract the infobox as key/value pairs.
-      invalidate    Drop one entry, one title, or the whole cache.
-      cache-info    Report cache size, age, freshness, and stored headers.
+    @svendowideit/wikipedia — the domain parser:
+      search        Parse a cached opensearch response into titles/descriptions/URLs.
+      get-page      Parse a cached page (wikitext | html | parsoid | summary | json).
+      get-infobox   Extract an infobox as key/value pairs from cached wikitext.
 
   INSTALL
 
+      swamp extension pull @svendowideit/web-cache
       swamp extension pull @svendowideit/wikipedia
 
-  RUN
+  RUN (see README for the full workflow seam)
 
+      # 1. fetch + cache (web-cache)
+      swamp model @svendowideit/web-cache method run get cache \
+        --input url="https://en.wikipedia.org/w/api.php?action=parse&page=Alfred+Bester&prop=wikitext&format=json"
+
+      # 2. parse (wikipedia reads the cache)
       swamp model @svendowideit/wikipedia method run get-page wiki \
-        --input title="Alfred Bester" --input format=wikitext
-
-      swamp model @svendowideit/wikipedia method run search wiki \
-        --input query="Alfred Bester"
-
-      swamp model @svendowideit/wikipedia method run get-infobox wiki \
-        --input title="Alfred Bester"
-
-      # Tune the request rate: back off to one request every 3s, wait up to
-      # 10s before retrying a 429, and allow up to 2 retries:
-      swamp model @svendowideit/wikipedia method run get-page wiki \
-        --global-arg requestDelayMs=3000 \
-        --global-arg retryDelayMs=10000 \
-        --global-arg maxRetries=2 \
         --input title="Alfred Bester" --input format=wikitext
 
   CONFIGURE (all optional global arguments)
 
-      cacheDir         Where to cache responses      (default ~/.swamp/wikipedia)
-      apiUrl           MediaWiki action API base     (default en.wikipedia.org)
-      restUrl          Wikipedia REST v1 base        (default en.wikipedia.org)
-      wikidataUrl      Wikidata action API base       (default www.wikidata.org)
-      userAgent        User-Agent header              (default swamp-wikipedia/1.0)
-      defaultMaxAgeMs  Freshness window; 0 = always   (default 0)
-                       prefer cache (origin directives honored)
-      requestDelayMs   Minimum delay between origin   (default 1000)
-                       requests (persisted across runs)
-      retryDelayMs     Wait after a 429 before retry  (default 5000)
-      maxRetries       Retries after a 429            (default 1)
+      cacheDir         Shared cache dir to read from  (default ~/.swamp/web-cache)
+      apiUrl           MediaWiki action API base      (default en.wikipedia.org)
+      restUrl          Wikipedia REST v1 base         (default en.wikipedia.org)
 
 repository: https://github.com/svendowideit/swamp-extensions
 

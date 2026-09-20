@@ -1,44 +1,55 @@
 # @svendowideit/wikipedia
 
-A caching client for the Wikipedia and Wikidata APIs, built as a swamp model so
-any extension or workflow can fetch and re-analyse Wikipedia content without
-repeatedly hitting the network.
+A Wikipedia/Wikidata domain client layered on top of the shared web cache owned
+by [`@svendowideit/web-cache`](../web-cache). It **fetches nothing itself** — it
+parses responses that `web-cache` has already fetched and cached.
 
 ## What it does
 
-- **Fetches in many formats** — raw **wikitext** (the default), rendered
-  **html**, **parsoid** HTML, the REST **summary**, and raw action-API **json**.
-- **Searches** — tolerant title search via `opensearch`, returning corrected
-  titles, short descriptions and URLs.
-- **Extracts infoboxes** — pulls the raw wikitext and parses the page's infobox
+- **Parses many formats** — raw **wikitext** (default), rendered **html**,
+  **parsoid** HTML, the REST **summary**, and raw action-API **json**.
+- **Searches** — parses a cached `opensearch` response into corrected titles,
+  short descriptions and URLs.
+- **Extracts infoboxes** — pulls cached wikitext and parses the page's infobox
   template into `key → value` pairs, optionally restricted to a specific
   template name (`writer`, `book`, `person`, …).
-- **Caches everything on disk** — every response is stored under
-  `~/.swamp/wikipedia` (configurable), keyed by a hash of the request URL, with
-  the **full set of HTTP response headers** (Date, Last-Modified, ETag,
-  Cache-Control, Age, Expires, Server, …) recorded next to the body.
-- **Always prefers the cache** — a repeated call returns the cached copy and
-  makes no external request unless the entry is missing, explicitly bypassed
-  (`forceRefresh`), or stale.
-- **Paces origin requests** — a tunable minimum delay between requests
-  (`requestDelayMs`, default 1000ms) is enforced **across runs** (persisted in
-  the cache dir), so bulk use stays within Wikipedia's acceptable rate. 429
-  responses are retried with backoff (`retryDelayMs` / `maxRetries`), honouring
-  the origin's `Retry-After` header. The wait is reported in the logs.
 
-## How the cache decides freshness
+## How it works with web-cache
 
-A cached entry is reused unless it's considered stale, decided in this order:
+Fetching, caching, pacing and retry are `@svendowideit/web-cache`'s
+responsibility. This model only *reads* entries from the shared cache directory
+(default `~/.swamp/web-cache`), keyed by URL. On a cache miss it returns an empty
+result with `cached: false` — it never makes a network request.
 
-1. **Caller / global `maxAgeMs`** — if set (> 0), an entry older than that is
-   stale. `0` means "never expire".
-2. **Origin `Cache-Control: max-age`** (adjusted for the origin's `Age` header) —
-   respected when present. `no-store` / `no-cache` are treated as "don't reuse".
-3. **Origin `Expires`** — respected when present.
-4. **No directives** — defaults to never expiring, so the cache is sticky.
+The intended seam is a workflow:
 
-`cache-info` reports the age of every entry and the headers that were recorded,
-so callers can reason about how fresh the data is.
+```yaml
+jobs:
+  - name: main
+    steps:
+      - name: fetch
+        task:
+          type: model_method
+          modelType: "@svendowideit/web-cache"
+          modelName: cache
+          methodName: get
+          inputs:
+            url: ${{ inputs.url }}
+        dependsOn: []
+      - name: parse
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikipedia"
+          modelName: wiki
+          methodName: get-page
+          inputs:
+            title: ${{ inputs.title }}
+            format: wikitext
+        dependsOn:
+          - step: fetch
+            condition:
+              type: always
+```
 
 ## Models
 
@@ -46,37 +57,32 @@ so callers can reason about how fresh the data is.
 
 | Method          | Description |
 | --------------- | ----------- |
-| `search`        | Search for a term; returns corrected titles, descriptions, URLs. |
-| `get-page`      | Fetch a page's content in a chosen format (wikitext default). |
-| `get-infobox`   | Fetch wikitext and extract the infobox as key/value pairs. |
-| `invalidate`    | Drop one entry, one title, or the whole cache. |
-| `cache-info`    | Inspect the cache: size, age, freshness, stored headers. |
+| `search`        | Parse a cached opensearch response into titles, descriptions, URLs. |
+| `get-page`      | Parse a cached page in a chosen format (wikitext default). |
+| `get-infobox`   | Extract an infobox as key/value pairs from cached wikitext. |
 
 ## Quick start
 
 ```bash
+swamp extension pull @svendowideit/web-cache
 swamp extension pull @svendowideit/wikipedia
 
-# Fetch a page as wikitext (cached):
+# 1. Fetch + cache the wikitext (web-cache):
+swamp model @svendowideit/web-cache method run get cache \
+  --input url="https://en.wikipedia.org/w/api.php?action=parse&page=Alfred+Bester&prop=wikitext&format=json"
+
+# 2. Parse it (wikipedia reads the cache):
 swamp model @svendowideit/wikipedia method run get-page wiki \
   --input title="Alfred Bester" --input format=wikitext
 
-# Search (cached):
-swamp model @svendowideit/wikipedia method run search wiki \
-  --input query="Alfred Bester"
-
-# Extract an infobox (cached):
+# Extract an infobox (from cached wikitext):
 swamp model @svendowideit/wikipedia method run get-infobox wiki \
   --input title="Alfred Bester"
-
-# Tune the request rate (e.g. back off to one request every 3s, and wait up
-# to 10s before retrying a 429):
-swamp model @svendowideit/wikipedia method run get-page wiki \
-  --global-arg requestDelayMs=3000 \
-  --global-arg retryDelayMs=10000 \
-  --global-arg maxRetries=2 \
-  --input title="Alfred Bester" --input format=wikitext
 ```
+
+> **Note:** the URL passed to `web-cache.get` must match the URL `wikipedia`
+> derives for the same `(title, format)`. Both use the same `apiUrl`/`restUrl`
+> global arguments (defaults: en.wikipedia.org), so the two steps line up.
 
 ### Formats (`get-page`)
 
@@ -90,33 +96,14 @@ swamp model @svendowideit/wikipedia method run get-page wiki \
 
 ## Global arguments
 
-| Key               | Default                          | Description |
-| ----------------- | -------------------------------- | ----------- |
-| `cacheDir`        | `~/.swamp/wikipedia`             | Where responses are cached |
-| `apiUrl`          | `https://en.wikipedia.org/w/api.php` | MediaWiki action API base |
-| `restUrl`         | `https://en.wikipedia.org/api/rest_v1` | Wikipedia REST v1 base |
-| `wikidataUrl`     | `https://www.wikidata.org/w/api.php` | Wikidata action API base |
-| `userAgent`       | `swamp-wikipedia/1.0 (local caching client)` | User-Agent header |
-| `defaultMaxAgeMs` | `0`                              | Freshness window; `0` = always prefer cache |
-| `requestDelayMs`  | `1000`                           | Minimum delay between origin requests (persisted across runs; `0` disables) |
-| `retryDelayMs`    | `5000`                           | Wait after a 429 before retrying (origin `Retry-After` wins) |
-| `maxRetries`      | `1`                              | Number of retries after a 429 |
+| Key        | Default                           | Description |
+| ---------- | --------------------------------- | ----------- |
+| `cacheDir` | `~/.swamp/web-cache`              | Shared cache dir to read from (must match web-cache) |
+| `apiUrl`   | `https://en.wikipedia.org/w/api.php` | MediaWiki action API base |
+| `restUrl`  | `https://en.wikipedia.org/api/rest_v1` | Wikipedia REST v1 base |
 
 ## Data
 
-- `page` — fetched page content plus cache metadata (keyed by URL hash).
-- `search` — search results (keyed by URL hash).
+- `page` — parsed page content (from the shared cache).
+- `search` — parsed search results.
 - `infobox` — extracted infobox key/value pairs.
-- `cache` — cache inspection / invalidation results.
-
-## Cache layout
-
-```
-~/.swamp/wikipedia/
-  <key>/
-    meta.json   # URL, status, fetchedAt, headers, size
-    body        # raw response body
-```
-
-Each `key` is `{method}-{url-slug}-{fnv1a-hash}`, stable across runs so the same
-request always maps to the same cache entry.

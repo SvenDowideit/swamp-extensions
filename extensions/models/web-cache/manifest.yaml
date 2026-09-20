@@ -1,0 +1,67 @@
+manifestVersion: 1
+name: "@svendowideit/web-cache"
+version: "2026.09.20.1"
+description: |
+  A managed, disk-backed HTTP GET cache. Every GET is cached on disk — the raw
+  body plus the full set of response headers (Date, Last-Modified, ETag,
+  Cache-Control, Age, Expires) — under a shared cache directory (default
+  ~/.swamp/web-cache), keyed deterministically by URL.
+
+  Repeated calls always prefer the cached copy and avoid external traffic
+  unless the entry is missing, explicitly bypassed (forceRefresh), or stale.
+  Origin requests are paced with a tunable minimum delay (persisted across
+  runs) and HTTP 429s are retried with backoff, so bulk use stays within the
+  origin's acceptable request rate. Cache inspection and invalidation are
+  built in, and the cache is shared with other models (e.g.
+  @svendowideit/wikipedia) via the same URL-only key scheme.
+
+  WHAT'S INSIDE
+
+    @svendowideit/web-cache — the caching client:
+      get          Fetch a URL and return the raw body (cached).
+      get-json     Fetch a URL and return the parsed JSON body (cached).
+      invalidate   Drop one entry, one URL, or the whole cache.
+      cache-info   Report cache size, age, freshness, and stored headers.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/web-cache
+
+  RUN
+
+      swamp model @svendowideit/web-cache method run get cache \
+        --input url="https://en.wikipedia.org/w/api.php?action=opensearch&search=Alfred+Bester&limit=5&format=json"
+
+      swamp model @svendowideit/web-cache method run cache-info cache
+
+  USE WITH @svendowideit/wikipedia (workflow seam)
+
+      # 1. web-cache fetches + caches the URL
+      # 2. wikipedia reads the cached body and parses the domain content
+      # Both models share the same cacheDir (default ~/.swamp/web-cache).
+
+  CONFIGURE (all optional global arguments)
+
+      cacheDir         Where to cache responses      (default ~/.swamp/web-cache)
+      userAgent        User-Agent header              (default swamp-web-cache/1.0)
+      defaultMaxAgeMs  Freshness window; 0 = always   (default 0)
+                       prefer cache
+      requestDelayMs   Minimum delay between origin   (default 1000)
+                       requests (persisted across runs)
+      retryDelayMs     Wait after a 429 before retry  (default 5000)
+      maxRetries       Retries after a 429            (default 1)
+      acceptHeader     Accept header sent             (default application/json)
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - web_cache.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

@@ -28,8 +28,8 @@ import {
   BookResolutionMapSchema,
   CURRENT_PARSER_VERSION,
   CURRENT_RESOLUTION_VERSION,
-  type Resolution,
   detectBookMetadata,
+  type Resolution,
   resolveWikipediaName,
 } from "./book_metadata.ts";
 

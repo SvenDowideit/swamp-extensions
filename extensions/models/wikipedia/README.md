@@ -68,6 +68,14 @@ swamp model @svendowideit/wikipedia method run search wiki \
 # Extract an infobox (cached):
 swamp model @svendowideit/wikipedia method run get-infobox wiki \
   --input title="Alfred Bester"
+
+# Tune the request rate (e.g. back off to one request every 3s, and wait up
+# to 10s before retrying a 429):
+swamp model @svendowideit/wikipedia method run get-page wiki \
+  --global-arg requestDelayMs=3000 \
+  --global-arg retryDelayMs=10000 \
+  --global-arg maxRetries=2 \
+  --input title="Alfred Bester" --input format=wikitext
 ```
 
 ### Formats (`get-page`)

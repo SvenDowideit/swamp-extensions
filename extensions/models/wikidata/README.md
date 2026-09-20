@@ -109,7 +109,9 @@ swamp model @svendowideit/wikidata method run resolve-title wd \
 
 - `search` — parsed entity search results.
 - `entity` — a parsed entity (id, label, description, sitelinks, claims).
+- `resolution` — a resolved Wikipedia title → QID (site, title, id, label).
 - `claims` — extracted property claim values.
+- `instance-of` — extracted P31 (instance of) values.
 
 ## Example: classifying an author vs a book
 

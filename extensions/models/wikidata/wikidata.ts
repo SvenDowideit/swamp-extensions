@@ -51,7 +51,7 @@ const GlobalArgsSchema = z.object({
   site: z.string()
     .default("enwiki")
     .describe("Site id used for sitelink lookups (e.g. enwiki, commonswiki)"),
-}).passthrough();
+});
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
@@ -268,7 +268,7 @@ interface Entity {
 }
 
 /** Extract the `entities` map from a wbgetentities response. */
-function parseEntities(parsed: unknown): Record<string, Entity> | null {
+export function parseEntities(parsed: unknown): Record<string, Entity> | null {
   if (typeof parsed !== "object" || parsed === null) return null;
   const e = (parsed as Record<string, unknown>)["entities"];
   return (e && typeof e === "object" ? e : null) as
@@ -277,7 +277,7 @@ function parseEntities(parsed: unknown): Record<string, Entity> | null {
 }
 
 /** Resolve a label/description for a given language (falls back to first). */
-function localized(
+export function localized(
   map: Record<string, { language: string; value: string }> | undefined,
   lang: string,
 ): string | null {
@@ -308,6 +308,56 @@ export function extractClaimValues(claims: unknown[] | undefined): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// Resource schemas
+// ---------------------------------------------------------------------------
+
+const SearchResultSchema = z.object({
+  query: z.string(),
+  results: z.array(z.object({
+    id: z.string(),
+    label: z.string().nullable(),
+    description: z.string().nullable(),
+    url: z.string().nullable(),
+  })),
+  cached: z.boolean(),
+});
+
+const EntityResultSchema = z.object({
+  id: z.string(),
+  entity: z.object({
+    id: z.string(),
+    label: z.string().nullable(),
+    description: z.string().nullable(),
+    sitelinks: z.record(z.string(), z.unknown()).nullable(),
+    claims: z.record(z.string(), z.unknown()).nullable(),
+  }).nullable(),
+  missing: z.boolean(),
+  cached: z.boolean(),
+});
+
+const ResolutionResultSchema = z.object({
+  title: z.string(),
+  site: z.string(),
+  id: z.string().nullable(),
+  label: z.string().nullable(),
+  description: z.string().nullable(),
+  cached: z.boolean(),
+});
+
+const ClaimsResultSchema = z.object({
+  id: z.string(),
+  property: z.string(),
+  values: z.array(z.string()),
+  cached: z.boolean(),
+});
+
+const InstanceOfResultSchema = z.object({
+  id: z.string(),
+  instanceOf: z.array(z.string()),
+  cached: z.boolean(),
+});
+
+// ---------------------------------------------------------------------------
 // Model definition
 // ---------------------------------------------------------------------------
 
@@ -319,19 +369,31 @@ export const model = {
   resources: {
     search: {
       description: "Parsed wbsearchentities results",
-      schema: z.unknown(),
+      schema: SearchResultSchema,
       lifetime: "infinite",
       garbageCollection: 20,
     },
     entity: {
       description: "A parsed Wikidata entity (claims, labels, descriptions)",
-      schema: z.unknown(),
+      schema: EntityResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    resolution: {
+      description: "Resolved Wikipedia title → Wikidata QID via its sitelink",
+      schema: ResolutionResultSchema,
       lifetime: "infinite",
       garbageCollection: 20,
     },
     claims: {
       description: "Extracted property claim values for an entity",
-      schema: z.unknown(),
+      schema: ClaimsResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    "instance-of": {
+      description: "Instance-of (P31) value QIDs for an entity",
+      schema: InstanceOfResultSchema,
       lifetime: "infinite",
       garbageCollection: 20,
     },
@@ -487,7 +549,7 @@ export const model = {
           cached: body != null,
         };
         const handle = await context.writeResource(
-          "entity",
+          "resolution",
           webCacheKey(url),
           result,
         );
@@ -574,7 +636,7 @@ export const model = {
           cached: body != null,
         };
         const handle = await context.writeResource(
-          "claims",
+          "instance-of",
           webCacheKey(url),
           result,
         );

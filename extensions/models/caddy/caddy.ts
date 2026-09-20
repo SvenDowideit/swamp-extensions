@@ -209,7 +209,7 @@ const EnsureDnsProxyArgsSchema = z.object({
     "Full hostname to proxy (e.g. foo.example.com)",
   ),
   upstream: z.string().min(1).describe(
-    "Backend host:port to proxy to (e.g. 127.0.0.1:8080 or https://10.0.0.5:8443)",
+    "Backend host:port to proxy to (e.g. 127.0.0.1:8080 or https://192.0.2.10:8443)",
   ),
 });
 
@@ -1193,11 +1193,20 @@ async function readConfig(
   let body: unknown;
   try {
     body = JSON.parse(resp.body);
-  } catch {
-    return baseConfig(listenAddrs, autoHttps);
+  } catch (err) {
+    // A non-empty but unparseable body means we cannot trust the running
+    // config; falling back to a fresh base config would silently POST it back
+    // and clobber the live config. Fail loudly instead.
+    throw new Error(
+      `Caddy admin API returned an unparseable config: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
   }
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return baseConfig(listenAddrs, autoHttps);
+    throw new Error(
+      `Caddy admin API returned an unexpected config shape (expected a JSON object)`,
+    );
   }
   return ensureServerDefaults(body as CaddyConfig, listenAddrs, autoHttps);
 }
@@ -1290,6 +1299,17 @@ export const model = {
   type: "@svendowideit/caddy",
   version: "2026.09.20.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.20.1",
+      description:
+        "installCaddy/upgradeCaddy now download the current release from the caddyserver.com API with optional module packages (plugins); the caddyVersion global arg was removed. Adds autoHttps and listenAddrs globals. Drops the obsolete caddyVersion field (GlobalArgsSchema is strict).",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { caddyVersion: _removed, ...rest } = old;
+        return rest;
+      },
+    },
+  ],
   resources: {
     install: {
       description: "Caddy binary install status",

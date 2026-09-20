@@ -62,7 +62,14 @@ const GlobalArgsSchema = z.object({
   acceptHeader: z.string()
     .default("application/json")
     .describe("Accept header sent with requests"),
-}).passthrough();
+  maxFetchesPerCall: z.number().int().positive()
+    .default(100)
+    .describe(
+      "Maximum number of *origin* fetches (network requests) a single get/get-many " +
+        "call will make before returning. Cached hits don't count, so the " +
+        "remaining URLs are picked up on the next run.",
+    ),
+});
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
@@ -89,6 +96,22 @@ type GetArgs = z.infer<typeof GetArgsSchema>;
 
 const GetJsonArgsSchema = z.object({ url: UrlArg }).extend(FreshnessArgs.shape);
 type GetJsonArgs = z.infer<typeof GetJsonArgsSchema>;
+
+const GetManyArgsSchema = z.object({
+  urls: z.array(z.string()).min(1)
+    .describe(
+      "URLs to fetch (each cached independently). Empty strings are skipped, " +
+        "so parallel arrays may carry placeholders for not-found entries.",
+    ),
+  maxFetches: z.number().int().positive()
+    .optional()
+    .describe(
+      "Cap on the number of origin fetches this call makes (omit = use global " +
+        "maxFetchesPerCall). Cached hits don't count; once the cap is hit, the " +
+        "remaining URLs are left for a later run.",
+    ),
+}).extend(FreshnessArgs.shape);
+type GetManyArgs = z.infer<typeof GetManyArgsSchema>;
 
 const InvalidateArgsSchema = z.object({
   key: z.string()
@@ -546,8 +569,18 @@ async function cachedFetch(
 /** A managed, disk-backed HTTP GET cache with pacing and retry. */
 export const model = {
   type: "@svendowideit/web-cache",
-  version: "2026.09.20.1",
+  version: "2026.09.20.2",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.20.2",
+      description: "Add maxFetchesPerCall global argument with default 100",
+      upgradeAttributes: (old: Record<string, unknown>) => ({
+        ...old,
+        maxFetchesPerCall: 100,
+      }),
+    },
+  ],
   resources: {
     fetch: {
       description: "Result of a get (raw body, headers, cache state)",
@@ -637,6 +670,77 @@ export const model = {
             : "fetched",
         });
         return { dataHandles: [handle] };
+      },
+    },
+    "get-many": {
+      description:
+        "Fetch many URLs in one method call, caching each independently. " +
+        "Writes one fetch resource per URL (keyed by cache key). Prefer this " +
+        "over fanning out parallel get calls against this model — it acquires " +
+        "the per-model lock once and produces all outputs in one execution. " +
+        "Origin fetches are capped by `maxFetches` (cached hits don't count), so " +
+        "a large backlog is spread across runs.",
+      arguments: GetManyArgsSchema,
+      execute: async (args: GetManyArgs, context: MethodContext) => {
+        const handles: { name: string }[] = [];
+        const maxFetches = args.maxFetches ??
+          context.globalArgs.maxFetchesPerCall;
+        let fetched = 0;
+        let cached = 0;
+        let skipped = 0;
+        let capped = false;
+        let processed = 0;
+        const seen = new Set<string>();
+        for (const url of args.urls) {
+          if (!url || url.trim().length === 0) {
+            skipped += 1;
+            processed += 1;
+            continue;
+          }
+          const key = webCacheKey(url);
+          // Two names can resolve to the same URL; dedupe so we don't write the
+          // same instance name twice (which fails data-output validation).
+          if (seen.has(key)) {
+            skipped += 1;
+            processed += 1;
+            continue;
+          }
+          seen.add(key);
+          if (fetched >= maxFetches) {
+            capped = true;
+            break;
+          }
+          const res = await cachedFetch(context, url, args);
+          processed += 1;
+          const result: FetchResult = {
+            url,
+            key,
+            body: res.body,
+            status: res.entry?.status ?? null,
+            headers: res.entry?.headers ?? {},
+            fromCache: res.fromCache,
+            refreshed: res.refreshed,
+          };
+          const handle = await context.writeResource(
+            "fetch",
+            key,
+            result,
+          );
+          handles.push(handle);
+          if (res.fromCache) cached += 1;
+          else fetched += 1;
+        }
+        context.logger.info(
+          "GET many: {fetched} fetched, {cached} cache, {skipped} skipped, {remaining} left{cap}",
+          {
+            fetched,
+            cached,
+            skipped,
+            remaining: args.urls.length - processed,
+            cap: capped ? ` (cap ${maxFetches})` : "",
+          },
+        );
+        return { dataHandles: handles };
       },
     },
     "invalidate": {

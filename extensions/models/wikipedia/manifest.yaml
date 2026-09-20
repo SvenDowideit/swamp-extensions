@@ -1,0 +1,70 @@
+manifestVersion: 1
+name: "@svendowideit/wikipedia"
+version: "2026.09.20.1"
+description: |
+  A caching client for the Wikipedia and Wikidata APIs. Fetch a page as raw
+  wikitext (default), rendered HTML, Parsoid HTML, a REST summary, or raw JSON —
+  and search for pages by title. Every response is cached on disk under
+  ~/.swamp/wikipedia (configurable), keyed by URL, with the full set of HTTP
+  response headers (Date, Last-Modified, ETag, Cache-Control, Age, Expires)
+  recorded alongside the body.
+
+  Repeated calls always prefer the cached copy and avoid external traffic
+  unless the entry is missing, explicitly bypassed (forceRefresh), or stale
+  per the freshness policy (caller maxAgeMs, origin Cache-Control/Expires, or
+  the global defaultMaxAgeMs). Origin requests are paced with a tunable
+  minimum delay (persisted across runs) and auto-retry after rate limits, so
+  bulk use stays within Wikipedia's acceptable request rate. Cache inspection
+  and invalidation are built in.
+
+  WHAT'S INSIDE
+
+    @svendowideit/wikipedia — the caching client:
+      search        Tolerant title search (opensearch), cached.
+      get-page      Fetch a page (wikitext | html | parsoid | summary | json).
+      get-infobox   Fetch wikitext and extract the infobox as key/value pairs.
+      invalidate    Drop one entry, one title, or the whole cache.
+      cache-info    Report cache size, age, freshness, and stored headers.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/wikipedia
+
+  RUN
+
+      swamp model @svendowideit/wikipedia method run get-page wiki \
+        --input title="Alfred Bester" --input format=wikitext
+
+      swamp model @svendowideit/wikipedia method run search wiki \
+        --input query="Alfred Bester"
+
+      swamp model @svendowideit/wikipedia method run get-infobox wiki \
+        --input title="Alfred Bester"
+
+  CONFIGURE (all optional global arguments)
+
+      cacheDir         Where to cache responses      (default ~/.swamp/wikipedia)
+      apiUrl           MediaWiki action API base     (default en.wikipedia.org)
+      restUrl          Wikipedia REST v1 base        (default en.wikipedia.org)
+      wikidataUrl      Wikidata action API base       (default www.wikidata.org)
+      userAgent        User-Agent header              (default swamp-wikipedia/1.0)
+      defaultMaxAgeMs  Freshness window; 0 = always   (default 0)
+                       prefer cache (origin directives honored)
+      requestDelayMs   Minimum delay between origin   (default 1000)
+                       requests (persisted across runs)
+      retryDelayMs     Wait after a 429 before retry  (default 5000)
+      maxRetries       Retries after a 429            (default 1)
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+paths:
+  base: manifest
+
+models:
+  - wikipedia.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

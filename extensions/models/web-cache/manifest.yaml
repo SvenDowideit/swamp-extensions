@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/web-cache"
-version: "2026.09.20.2"
+version: "2026.09.20.4"
 description: |
   A managed, disk-backed HTTP GET cache. Every GET is cached on disk — the raw
   body plus the full set of response headers (Date, Last-Modified, ETag,

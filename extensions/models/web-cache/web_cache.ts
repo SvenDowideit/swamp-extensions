@@ -165,6 +165,26 @@ const FetchResultSchema = z.object({
 
 type FetchResult = z.infer<typeof FetchResultSchema>;
 
+/** Summary written by get-many (one record per call, keyed `get-many`). */
+const BatchSummarySchema = z.object({
+  /** URLs processed this call (cached hits + origin fetches). */
+  processed: z.number().int().nonnegative(),
+  /** URLs fetched from the origin this call. */
+  fetched: z.number().int().nonnegative(),
+  /** URLs served from the cache this call. */
+  cached: z.number().int().nonnegative(),
+  /** Blank or duplicate URLs skipped this call. */
+  skipped: z.number().int().nonnegative(),
+  /** URLs left for a later run because the origin-fetch cap was hit. */
+  remaining: z.number().int().nonnegative(),
+  /** The origin-fetch cap in force for this call. */
+  maxFetches: z.number().int().positive(),
+  /** True when the cap was hit and URLs were left unprocessed. */
+  truncated: z.boolean(),
+});
+
+type BatchSummary = z.infer<typeof BatchSummarySchema>;
+
 /** Result of get-json (body parsed as JSON). */
 const JsonResultSchema = z.object({
   url: z.string(),
@@ -569,7 +589,7 @@ async function cachedFetch(
 /** A managed, disk-backed HTTP GET cache with pacing and retry. */
 export const model = {
   type: "@svendowideit/web-cache",
-  version: "2026.09.20.2",
+  version: "2026.09.20.4",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -579,6 +599,18 @@ export const model = {
         ...old,
         maxFetchesPerCall: 100,
       }),
+    },
+    {
+      toVersion: "2026.09.20.3",
+      description: "Add adversarial-review test coverage (no schema changes)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.20.4",
+      description:
+        "get-many now writes a `batch` summary (counts + truncated flag) so a " +
+        "capped call honestly reports URLs left for a later run",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   resources: {
@@ -591,6 +623,13 @@ export const model = {
     json: {
       description: "Result of a get-json (parsed JSON, cache state)",
       schema: JsonResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    batch: {
+      description:
+        "Summary of a get-many call (counts + whether the fetch cap truncated it)",
+      schema: BatchSummarySchema,
       lifetime: "infinite",
       garbageCollection: 20,
     },
@@ -730,13 +769,30 @@ export const model = {
           if (res.fromCache) cached += 1;
           else fetched += 1;
         }
+        const remaining = args.urls.length - processed;
+        // Surface the cap honestly: a capped call leaves URLs for a later run.
+        const summary: BatchSummary = {
+          processed,
+          fetched,
+          cached,
+          skipped,
+          remaining,
+          maxFetches,
+          truncated: capped,
+        };
+        const summaryHandle = await context.writeResource(
+          "batch",
+          "get-many",
+          summary,
+        );
+        handles.push(summaryHandle);
         context.logger.info(
           "GET many: {fetched} fetched, {cached} cache, {skipped} skipped, {remaining} left{cap}",
           {
             fetched,
             cached,
             skipped,
-            remaining: args.urls.length - processed,
+            remaining,
             cap: capped ? ` (cap ${maxFetches})` : "",
           },
         );

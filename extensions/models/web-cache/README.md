@@ -101,6 +101,7 @@ swamp model @svendowideit/web-cache method run cache-info cache
 
 - `fetch` — result of a `get` / `get-many` (body, headers, cache state), keyed by URL hash.
 - `json` — result of a `get-json` (parsed JSON, cache state), keyed by URL hash.
+- `batch` — `get-many` summary (fetched/cached/skipped/remaining counts, `maxFetches`, and a `truncated` flag when the cap left URLs for a later run), keyed `get-many`.
 - `cache` — cache inspection / invalidation results.
 
 ## Cache layout
@@ -112,3 +113,17 @@ swamp model @svendowideit/web-cache method run cache-info cache
     body        # raw response body
   .last-request # pacing state (epoch ms)
 ```
+
+## Testing
+
+```bash
+~/.swamp/deno/deno test --allow-read --allow-write \
+  extensions/models/web-cache/web_cache_test.ts
+```
+
+Coverage includes the pure key helpers (`fnv1a`, `normalizeUrl`,
+`webCacheKey`) plus every method execute path against a fake `fetch` and a
+temp cache dir: cache hits / `forceRefresh` / staleness, non-2xx responses,
+the 429 retry loop (success and give-up), network-error fallback to cache,
+pacing via the persisted `.last-request`, `get-many` fan-out / dedupe /
+`maxFetches` cap, and `invalidate` / `cache-info` (single entry and summary).

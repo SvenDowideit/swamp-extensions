@@ -1,13 +1,28 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.09.20.2"
+version: "2026.09.20.3"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
-  Installs the current Caddy binary (optionally with module packages compiled
-  in via the caddyserver.com download API),
-  creates and manages a systemd user service, and drives Caddy's admin API for
-  live configuration. MVP: install Caddy, create/start the systemd user
-  service, and print minimal Let's Encrypt settings guidance.
+
+  Installs the current Caddy binary, optionally compiling in extra module
+  packages requested from the caddyserver.com download API (e.g.
+  github.com/hairyhenderson/caddy-teapot-module) — no local Go toolchain or
+  xcaddy needed. Writes and manages a systemd *user* service, and drives
+  Caddy live through its admin API: add/remove reverse-proxy routes without a
+  restart, ensure desired-state routes, configure TLS/ACME (including DNS
+  challenge providers for wildcard certs), and auto-proxy swamp-serve
+  instances. Service lifecycle (start/stop/restart), health checks, config
+  snapshot/read, Vault-backed config, and binary upgrades are included.
+
+  Runs unprivileged (plain HTTP on high ports, auto_https off) or as a
+  Let's Encrypt TLS proxy on 80/443. Admin-API routes persist across restarts
+  via Caddy's autosave + --resume.
+
+  Methods: installCaddy, createService, startService, stopService,
+  restartService, checkHealth, settingsGuidance, storeConfig, syncConfig,
+  getConfig, configureTls, addProxyService, removeProxyService,
+  ensureDnsProxy, autoProxySwampServe, startBackendService,
+  stopBackendService, restartBackendService, upgradeCaddy.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

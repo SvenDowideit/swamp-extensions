@@ -1,8 +1,131 @@
 # @svendowideit/caddy
 
-A swamp model extension that manages Caddy on a Linux host with systemd. It is
-a **swamp extension** (a TypeScript model type) that drives Caddy via its admin
-API and systemd — **not** a Go Caddy plugin.
+A [swamp](https://swamp-club.com) model extension that installs and manages
+[Caddy](https://caddyserver.com) on a Linux host with systemd. It is a **swamp
+extension** (a TypeScript model type) that drives Caddy through its **admin
+API** and **systemd** — it is **not** a Go Caddy plugin.
+
+Use it to:
+
+- **Install Caddy** — download the current release, optionally compiling in
+  extra modules (DNS providers, the teapot handler, etc.) with no local Go
+  toolchain.
+- **Run it as a service** — write and manage a systemd **user** service,
+  either as a normal TLS reverse proxy on 80/443 or unprivileged on high ports
+  with plain HTTP.
+- **Proxy services** — add/remove reverse-proxy routes live through the admin
+  API (no restart), or declare the route you want and let `ensureDnsProxy`
+  reconcile it.
+- **Terminate TLS** — configure ACME (Let's Encrypt/ZeroSSL), including DNS
+  challenge providers for wildcard certificates.
+- **Operate it** — health checks, service lifecycle, config snapshots,
+  Vault-backed settings, and binary upgrades.
+
+Routes live in Caddy's admin API, not the Caddyfile, and **persist across
+service restarts and reboots** (Caddy autosave + `--resume`).
+
+## Install
+
+```sh
+swamp extension pull @svendowideit/caddy
+```
+
+Requires Linux with systemd user services, and network access to
+`caddyserver.com` to download the binary. See
+[Requirements](#requirements) for details.
+
+## Quick start
+
+```sh
+# 1. Create a model. Set baseDomain/letsEncryptEmail for a public TLS proxy,
+#    or autoHttps=off + listenAddrs for unprivileged plain HTTP.
+swamp model create @svendowideit/caddy my-caddy \
+  --global-arg baseDomain=example.com \
+  --global-arg letsEncryptEmail=admin@example.com
+
+# 2. Install the binary, create and start the service.
+swamp model method run my-caddy installCaddy
+swamp model method run my-caddy createService
+swamp model method run my-caddy startService
+
+# 3. Proxy a backend, then check health.
+swamp model method run my-caddy addProxyService \
+  --input serviceName=my-app --input upstream=127.0.0.1:8080
+swamp model method run my-caddy checkHealth
+```
+
+Or run the bundled idempotent workflows: `swamp workflow run caddy-setup`, and
+`swamp workflow run caddy-ensure-proxy --input hostname=… --input upstream=…`.
+
+## Choosing global arguments
+
+Global arguments are set at model creation (or `swamp model edit my-caddy`) and
+apply to every method run. The common decisions:
+
+| I want…                          | Set                                                            |
+| -------------------------------- | -------------------------------------------------------------- |
+| Public TLS reverse proxy on 443  | `baseDomain=example.com letsEncryptEmail=admin@example.com`    |
+| Unprivileged plain HTTP          | `autoHttps=off listenAddrs:json=[":8888",":8443"]`             |
+| Extra Caddy modules in the binary| `plugins:json=["github.com/hairyhenderson/caddy-teapot-module"]` |
+| A protected admin API            | `adminApiAddr=unix//run/user/1000/caddy.sock`                  |
+| Vault-backed settings            | `vaultName=caddy-secrets` then `storeConfig`                   |
+
+The full list is in [Configuration](#configuration-global-arguments).
+
+### Extra Caddy modules (`plugins`)
+
+Caddy's stock binary does **not** include third-party modules. The extension
+asks the [caddyserver.com download API](https://caddyserver.com/api/download)
+to compile them in server-side, so **no Go toolchain or `xcaddy` is needed**.
+Pass any package listed on the [Caddy download page](https://caddyserver.com/download)
+as a `plugins` entry; `installCaddy` / `upgradeCaddy` pass each as a repeated
+`p=` parameter.
+
+The classic example is the **teapot** handler
+(`github.com/hairyhenderson/caddy-teapot-module`), which adds an
+`http.handlers.teapot` module that answers `418 I'm a teapot`:
+
+```sh
+# Single package: the teapot module.
+swamp model create @svendowideit/caddy my-caddy \
+  --global-arg 'plugins:json=["github.com/hairyhenderson/caddy-teapot-module"]'
+swamp model method run my-caddy installCaddy
+```
+
+Add **more than one** package as additional array entries:
+
+```sh
+# Several packages at once: teapot + two DNS providers.
+swamp model create @svendowideit/caddy my-caddy \
+  --global-arg 'plugins:json=[
+    "github.com/hairyhenderson/caddy-teapot-module",
+    "github.com/caddy-dns/cloudflare",
+    "github.com/caddy-dns/route53"
+  ]'
+swamp model method run my-caddy installCaddy
+```
+
+**Package-specific settings**: pin a package to a version by appending
+`@<version>` (`go get`-style). Each package is pinned independently:
+
+```sh
+--global-arg 'plugins:json=[
+  "github.com/hairyhenderson/caddy-teapot-module@v0.0.2",
+  "github.com/caddy-dns/cloudflare@v0.2.4"
+]'
+```
+
+After installing, confirm the modules are present:
+
+```sh
+swamp model method run my-caddy installCaddy    # runs `caddy list-modules`
+# or directly:
+~/.local/bin/caddy list-modules | grep -E 'teapot|dns.providers'
+```
+
+Module *behaviour* (e.g. a `teapot` route) is configured through Caddy itself,
+not through `plugins`; this extension exposes generic proxy/TLS methods, and
+more bespoke config can be applied with the admin API.
 
 ## What it does (MVP)
 
@@ -114,12 +237,6 @@ swamp workflow run caddy-ensure-proxy \
   --input hostname=foo.example.com --input upstream=127.0.0.1:8080
 ```
 
-## Installation
-
-```sh
-swamp extension pull @svendowideit/caddy
-```
-
 ## Usage
 
 ```sh
@@ -158,20 +275,38 @@ swamp model method run my-caddy restartService
 
 ## Configuration (global arguments)
 
-| Argument            | Default                    | Purpose                                  |
-| ------------------- | -------------------------- | ---------------------------------------- |
-| `caddyBinPath`      | `~/.local/bin/caddy`       | Where the Caddy binary is installed      |
+| Argument           | Default                     | Purpose                                                                 |
+| ------------------ | --------------------------- | ----------------------------------------------------------------------- |
+| `caddyBinPath`     | `~/.local/bin/caddy`        | Where the Caddy binary is installed                                     |
+| `configPath`       | `~/.config/caddy/Caddyfile` | Caddy config file the service starts from                               |
+| `serviceName`      | `caddy`                     | systemd user service name                                               |
+| `adminApiAddr`     | `localhost:2019`            | Caddy admin API listen address (or `unix//path`); written to the Caddyfile global options |
+| `adminApiToken`    | *(unset)*                   | Optional admin API token (Bearer header)                                |
+| `autoHttps`        | `on`                        | Automatic HTTPS mode: `on`, `off` (plain HTTP), or `disable_redirects`/`disable_certs`/`ignore_loaded_certs` |
+| `listenAddrs`      | `[":443", ":80"]`           | HTTP server listen addresses for admin-API routes (e.g. `[":8888", ":8443"]` for unprivileged ports) |
+| `baseDomain`       | *(unset)*                   | Base domain for derived hostnames (`addProxyService`)                    |
+| `letsEncryptEmail` | *(unset)*                   | ACME / Let's Encrypt email (`configureTls`)                              |
+| `plugins`          | `[]`                        | Module packages to compile into the downloaded binary, each optionally `@version`-pinned |
+| `vaultName`        | *(unset)*                   | Vault used by `storeConfig` to write secrets                            |
 
-| `adminApiAddr`      | `localhost:2019`           | Caddy admin API listen address (or `unix//path`); written to the Caddyfile global options |
-| `adminApiToken`     | *(unset)*                  | Optional admin API token (Bearer header) |
-| `vaultName`         | *(unset)*                  | Vault used by `storeConfig` to write secrets |
-| `configPath`        | `~/.config/caddy/Caddyfile` | Caddy config file the service runs     |
-| `serviceName`       | `caddy`                    | systemd user service name               |
-| `autoHttps`         | `on`                       | Automatic HTTPS mode: `on`, `off` (plain HTTP), or `disable_redirects`/`disable_certs`/`ignore_loaded_certs` |
-| `listenAddrs`       | `[":443", ":80"]`          | HTTP server listen addresses for admin-API routes (e.g. `[":8888", ":8443"]` for unprivileged ports) |
-| `baseDomain`        | *(unset)*                  | Base domain for derived hostnames       |
-| `letsEncryptEmail`  | *(unset)*                  | ACME / Let's Encrypt email              |
-| `plugins`           | `[]`                       | Module packages to compile into the downloaded binary (e.g. `github.com/caddy-dns/cloudflare`, optionally `@version`) |
+Every argument is optional; the defaults above apply when it is unset (except
+`baseDomain`/`letsEncryptEmail`/`vaultName`, which methods require when relevant).
+
+```sh
+# Show every argument and its current value:
+swamp model get my-caddy --json | jq '.globalArguments'
+
+# Change one later:
+swamp model edit my-caddy
+# or recreate with the flags you want:
+swamp model create @svendowideit/caddy my-caddy --global-arg autoHttps=off
+```
+
+Some methods also take **per-run arguments** (`--input …`) that override the
+global for that call — e.g. `addProxyService --input serviceName=… --input
+upstream=…`, or `upgradeCaddy --input plugins:json=[…] --input confirm=upgrade`.
+Run `swamp model type describe @svendowideit/caddy --json` for the full method
+and argument list.
 
 ## Requirements
 
@@ -190,15 +325,18 @@ provider plugin** — these are built on the
 
 ### 1. Download Caddy with the right libdns driver
 
-Caddy's standard binary does **not** include DNS providers. The extension
-requests them as packages from the caddyserver.com download API, which compiles
-them into the binary server-side (no local Go toolchain needed). Set the
-`plugins` global argument (or pass `--input plugins:json=[...]` to
-`installCaddy` / `upgradeCaddy`):
+Caddy's standard binary does **not** include DNS providers. Add the provider
+package to `plugins` (see
+[Extra Caddy modules](#extra-caddy-modules-plugins)) and install — the API
+compiles it into the binary server-side:
 
 ```sh
 swamp model create @svendowideit/caddy my-caddy \
-  --global-arg 'plugins:json=["github.com/caddy-dns/cloudflare"]'
+  --global-arg 'plugins:json=[
+    "github.com/hairyhenderson/caddy-teapot-module",
+    "github.com/caddy-dns/cloudflare"
+  ]' \
+  --global-arg baseDomain=example.com --global-arg letsEncryptEmail=admin@example.com
 swamp model method run my-caddy installCaddy
 ```
 

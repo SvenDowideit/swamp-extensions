@@ -1302,7 +1302,7 @@ type MethodContext = {
 
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.09.20.2",
+  version: "2026.09.20.3",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1318,6 +1318,12 @@ export const model = {
       toVersion: "2026.09.20.2",
       description:
         "createService now runs Caddy with --resume (and no ExecReload), so admin-API routes survive a service restart. Global args unchanged; re-run createService to regenerate the unit.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.20.3",
+      description:
+        "Documentation only: expanded README and manifest description, with examples for the caddy-teapot-module and multi-package plugin config. Schema unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

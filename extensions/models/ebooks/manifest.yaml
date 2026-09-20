@@ -1,25 +1,33 @@
 manifestVersion: 1
 name: "@svendowideit/ebooks"
-version: "2026.09.19.1"
+version: "2026.09.20.1"
 description: |
   Find every ebook on your machine, detect its bibliographic metadata (author,
-  title, ISBN, publish dates), and turn the results into a browsable HTML page
-  linking each file straight to its location on disk.
+  title, ISBN, publish dates), resolve authors/titles against Wikipedia +
+  Wikidata, and turn the results into a browsable HTML page linking each file
+  straight to its location on disk.
 
   The scan and detection are resumable — each run picks up where the last one
   left off and stops itself after 5 minutes, so it never re-searches ground it
   has already covered. Once the whole tree is scanned it starts fresh again.
 
+  Resolution is a fetch-free decision pipeline in this model; all fetching is
+  delegated to @svendowideit/web-cache (which paces and caches). The ebook
+  model only reads the shared cache and applies ebook-specific decisions
+  (candidate selection, infobox + Wikidata instance-of classification).
+
   WHAT'S INSIDE
 
-    @svendowideit/ebooks — the scanner:
-      scan-disk            Walk the filesystem for ebooks (resumable, time-boxed).
-      detect-metadata      Detect author/title/ISBN/dates for discovered ebooks.
-      resolve-wikipedia    Confirm authors/titles on Wikipedia; record canonical
-                           name, kind and URL (aliases + misspellings corrected).
-      render-html-list     Render the ebooks (with metadata) into an HTML page.
-      render-html-authors  Render an author-grouped index (author names link to
-                           their Wikipedia page where resolved).
+    @svendowideit/ebooks — the scanner + decision engine:
+      scan-disk             Walk the filesystem for ebooks (resumable, time-boxed).
+      detect-metadata       Detect author/title/ISBN/dates for discovered ebooks.
+      plan-resolution       Emit round-1 opensearch URLs (no fetching).
+      choose-candidates     Read cached opensearch; emit round-2 query URLs.
+      choose-final          Read cached pageprops; emit round-3 wikitext/wikidata URLs.
+      finalize-resolution   Classify each name; write authors/books maps.
+      resolve-wikipedia     Back-compat: runs finalize-resolution alone.
+      render-html-list      Render the ebooks (with metadata) into an HTML page.
+      render-html-authors   Render an author-grouped index (resolved names linked).
 
     @svendowideit/book-metadata — a generic, reusable metadata model (also for
     physical books):
@@ -27,13 +35,14 @@ description: |
       register           Store metadata you already have by hand.
 
     @svendowideit/ebook-scan — the workflow:
-      Chains scan-disk -> detect-metadata -> resolve-wikipedia ->
-      render-html-list -> render-html-authors so a single run scans for up to
-      5 minutes, enriches, resolves, then refreshes both the listing and the
-      author index.
+      Chains scan-disk -> detect-metadata -> plan-resolution ->
+      web-cache.get-many -> choose-candidates -> web-cache.get-many ->
+      choose-final -> web-cache.get-many -> finalize-resolution ->
+      render-html-list -> render-html-authors.
 
   INSTALL
 
+      swamp extension pull @svendowideit/web-cache
       swamp extension pull @svendowideit/ebooks
 
   RUN
@@ -50,18 +59,23 @@ description: |
       outputPath         Where to write the HTML page   (default ~/.swamp/ebooks/ebooks.html)
       authorsOutputPath  Where to write the author index (default ~/.swamp/ebooks/index.html)
       title              Page title                     (default "Ebooks")
+      cacheDir           Shared web-cache dir           (default ~/.swamp/web-cache)
+      maxFetches         Cap on origin fetches per       (default 20)
+                         web-cache.get-many call (cached hits don't count)
       skipScan           Skip the directory scan and only re-detect + render
                          already-found ebook paths      (default false)
 
     Model global arguments:
       extensions       Ebook extensions to match, e.g. epub, mobi, azw, pdf
       excludePatterns  Directory names to skip (default .git, .swamp, node_modules, ...)
+      cacheDir         Shared web-cache dir to read resolution responses from
 
   EXAMPLES
 
       swamp workflow run @svendowideit/ebook-scan --input root=/home/me/books
       swamp workflow run @svendowideit/ebook-scan --input outputPath=/srv/ebooks.html
       swamp workflow run @svendowideit/ebook-scan --input skipScan=true
+      swamp workflow run @svendowideit/ebook-scan --input maxFetches=50
 
 repository: https://github.com/svendowideit/swamp-extensions
 

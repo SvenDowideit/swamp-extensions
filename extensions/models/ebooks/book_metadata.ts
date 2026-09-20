@@ -13,7 +13,7 @@
  * @module
  */
 import { z } from "npm:zod@4";
-import { strFromU8, unzipSync } from "npm:fflate@0.8.2";
+import { strFromU8, unzipSync } from "npm:fflate@0.8.3";
 import { basename, dirname, isAbsolute, join, resolve } from "jsr:@std/path@1";
 
 const MAX_READ_BYTES = 128 * 1024 * 1024;
@@ -56,7 +56,7 @@ export const BookMetadataSchema = z.object({
 
 export type BookMetadata = z.infer<typeof BookMetadataSchema>;
 
-/** Resolution status of an author or book against Wikipedia. */
+/** Resolution status of an author or book against Wikipedia/Wikidata. */
 const ResolutionSchema = z.object({
   /** Normalized, canonical name (Wikipedia page title). */
   name: z.string(),
@@ -72,14 +72,12 @@ const ResolutionSchema = z.object({
   from: z.string().nullable(),
   /** ISO timestamp of the last resolution attempt. */
   resolvedAt: z.string(),
-  /** Raw wikitext of the resolved page, cached for later re-analysis. */
-  wikitext: z.string().nullable().optional(),
   /** Infobox template name detected from the wikitext (e.g. "writer", "book"). */
   infobox: z.string().nullable().optional(),
-  /** Wikidata QID (e.g. "Q149454"), absent if the page has no Wikidata item. */
+  /** Wikidata QID (e.g. "Q286116"), absent if the page has no Wikidata item. */
   wikidataId: z.string().nullable().optional(),
-  /** Raw Wikidata entity JSON, cached separately from the wikitext. */
-  wikidata: z.unknown().optional(),
+  /** Wikidata instance-of (P31) value QIDs, e.g. ["Q5"] for a person. */
+  instanceOf: z.array(z.string()).optional(),
   /** Version of the resolution/classification logic that produced this record. */
   resolutionVersion: z.number().int().nonnegative().optional(),
 });
@@ -94,7 +92,7 @@ export type AuthorResolutionMap = z.infer<typeof AuthorResolutionMapSchema>;
 export const BookResolutionMapSchema = z.record(z.string(), ResolutionSchema);
 export type BookResolutionMap = z.infer<typeof BookResolutionMapSchema>;
 
-const GlobalArgsSchema = z.object({}).passthrough();
+const GlobalArgsSchema = z.object({}).strict();
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
 const DetectArgsSchema = z.object({
@@ -665,40 +663,165 @@ export async function detectBookMetadata(
 // ---------------------------------------------------------------------------
 
 const WIKI_API = "https://en.wikipedia.org/w/api.php";
-const WIKI_USER_AGENT = "ebooks-scanner/1.0 (local library indexer)";
 const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
 
-async function apiGet(
-  api: string,
-  params: Record<string, string>,
-): Promise<unknown> {
-  const url = `${api}?${new URLSearchParams({
+/** Build the opensearch URL for a name. */
+export function wikipediaSearchUrl(query: string, limit = 5): string {
+  const params = new URLSearchParams({
+    action: "opensearch",
+    search: query,
+    limit: String(limit),
     format: "json",
     origin: "*",
-    ...params,
-  })}`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": WIKI_USER_AGENT, "Accept": "application/json" },
   });
-  if (res.status === 429) {
-    throw new RateLimitError();
+  return `${WIKI_API}?${params}`;
+}
+
+/** Build the batched pageprops query URL for candidate titles. */
+export function wikipediaQueryUrl(titles: string[]): string {
+  const params = new URLSearchParams({
+    action: "query",
+    redirects: "1",
+    prop: "info|pageprops",
+    titles: titles.join("|"),
+    inprop: "url",
+    format: "json",
+    origin: "*",
+  });
+  return `${WIKI_API}?${params}`;
+}
+
+/** Build the wikitext parse URL for a page title. */
+export function wikipediaWikitextUrl(title: string): string {
+  const params = new URLSearchParams({
+    action: "parse",
+    page: title,
+    prop: "wikitext",
+    formatversion: "2",
+    format: "json",
+    origin: "*",
+  });
+  return `${WIKI_API}?${params}`;
+}
+
+/** Build the wbgetentities URL for a QID. */
+export function wikidataEntityUrl(qid: string): string {
+  const params = new URLSearchParams({
+    action: "wbgetentities",
+    ids: qid,
+    props: "claims|descriptions|labels",
+    format: "json",
+    origin: "*",
+  });
+  return `${WIKIDATA_API}?${params}`;
+}
+
+// --- shared cache key scheme (must match @svendowideit/web-cache exactly) ---
+
+/** Deterministic 32-bit hash (FNV-1a), identical to web-cache's fnv1a. */
+export function fnv1a(input: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
   }
-  if (!res.ok) throw new Error(`${api} API ${res.status}`);
-  return await res.json();
+  return (h >>> 0).toString(16).padStart(8, "0");
 }
 
-async function wikiApi(params: Record<string, string>): Promise<unknown> {
-  return apiGet(WIKI_API, params);
+/** Canonicalize a URL, identical to web-cache's normalizeUrl. */
+export function normalizeUrl(url: string): string {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return url;
+  }
+  u.protocol = u.protocol.toLowerCase();
+  u.hostname = u.hostname.toLowerCase();
+  if (u.protocol === "http:" && u.port === "80") u.port = "";
+  if (u.protocol === "https:" && u.port === "443") u.port = "";
+  u.hash = "";
+
+  const entries = [...u.searchParams.entries()].sort((a, b) => {
+    if (a[0] !== b[0]) return a[0] < b[0] ? -1 : 1;
+    return a[1] < b[1] ? -1 : 1;
+  });
+  const sp = new URLSearchParams();
+  for (const [k, v] of entries) sp.append(k, v);
+  u.search = sp.toString();
+
+  return u.toString();
 }
 
-async function wikidataApi(params: Record<string, string>): Promise<unknown> {
-  return apiGet(WIKIDATA_API, params);
+/** URL-only cache key, identical to web-cache's webCacheKey. */
+export function webCacheKey(url: string): string {
+  const normalized = normalizeUrl(url);
+  const safe = normalized
+    .replace(/^https?:\/\//, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return `${safe}-${fnv1a(normalized)}`;
 }
 
-/** Thrown on HTTP 429 so the caller can treat it as retryable. */
-class RateLimitError extends Error {
-  constructor() {
-    super("Wikipedia rate limit (429)");
+/** Read a cached body for a URL from the shared cache dir (read-only). */
+export async function readCachedBody(
+  dir: string,
+  url: string,
+): Promise<string | null> {
+  try {
+    return await Deno.readTextFile(`${dir}/${webCacheKey(url)}/body`);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract the raw wikitext string from a cached `action=parse&prop=wikitext`
+ * response body (handles both formatversion=1 `{"*": ...}` and formatversion=2
+ * plain-string shapes).
+ */
+export function parseWikitext(body: string | null): string | null {
+  if (!body) return null;
+  try {
+    const parsed = JSON.parse(body) as {
+      parse?: { wikitext?: string | { "*"?: string } };
+    };
+    const wt = parsed.parse?.wikitext;
+    if (typeof wt === "string") return wt;
+    if (wt && typeof wt === "object" && typeof wt["*"] === "string") {
+      return wt["*"];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract the instance-of (P31) value QIDs from a cached `wbgetentities`
+ * response body for a given QID. Returns an empty array when absent/malformed.
+ */
+export function parseInstanceOf(body: string | null, qid: string): string[] {
+  if (!body) return [];
+  try {
+    const parsed = JSON.parse(body) as {
+      entities?: Record<string, {
+        claims?: Record<string, unknown[]>;
+      }>;
+    };
+    const claims = parsed.entities?.[qid]?.claims?.["P31"] ?? [];
+    const out: string[] = [];
+    for (const claim of claims) {
+      const mainsnak = (claim as Record<string, unknown>)["mainsnak"] as
+        | { datavalue?: { value?: { id?: string } } }
+        | undefined;
+      const id = mainsnak?.datavalue?.value?.id;
+      if (id) out.push(id);
+    }
+    return out;
+  } catch {
+    return [];
   }
 }
 
@@ -765,27 +888,11 @@ export function detectInfobox(wikitext: string | null): string | null {
 }
 
 /**
- * Classify a Wikipedia page as author / book / other using three ordered
- * signals (strongest first):
- *   1. the infobox template name (explicit, high-confidence),
- *   2. the Wikidata short description,
- *   3. (optionally) the cached Wikidata entity's instance-of claims.
+ * Classify a page as author / book / other from its short description alone.
+ * (Used during candidate selection, before the wikitext/wikidata signals are
+ * available. The full classification happens later in `classifyResolved`.)
  */
-function classifyKind(
-  description: string | undefined,
-  infobox: string | null,
-  wikidata: unknown,
-): string {
-  if (infobox) {
-    if (AUTHOR_INFOBOXES.has(infobox)) return "author";
-    if (BOOK_INFOBOXES.has(infobox)) return "book";
-  }
-
-  if (wikidata) {
-    const k = classifyFromWikidata(wikidata);
-    if (k) return k;
-  }
-
+function classifyKind(description: string | undefined): string {
   if (!description) return "other";
   const d = description.toLowerCase();
   if (
@@ -816,221 +923,136 @@ const BOOK_INSTANCE_QIDS = new Set([
   "Q277759", // book series (series of creative works)
 ]);
 
-/** Walk the cached Wikidata entity JSON for P31 (instance-of) claims. */
-function classifyFromWikidata(wikidata: unknown): string | null {
-  if (!wikidata || typeof wikidata !== "object") return null;
-  const entities = (wikidata as Record<string, unknown>)["entities"] as
-    | Record<string, unknown>
-    | undefined;
-  if (!entities) return null;
-  for (const entity of Object.values(entities)) {
-    const claims = (entity as Record<string, unknown>)["claims"] as
-      | Record<string, unknown>
-      | undefined;
-    const p31 = claims?.["P31"] as unknown[] | undefined;
-    if (!Array.isArray(p31)) continue;
-    for (const claim of p31) {
-      const mainsnak = (claim as Record<string, unknown>)["mainsnak"];
-      const datavalue = (mainsnak as Record<string, unknown>)["datavalue"] as
-        | Record<string, unknown>
-        | undefined;
-      const id = datavalue?.value as { id?: string } | undefined;
-      if (!id?.id) continue;
-      if (AUTHOR_INSTANCE_QIDS.has(id.id)) return "author";
-      if (BOOK_INSTANCE_QIDS.has(id.id)) return "book";
-    }
+/**
+ * Parse a cached opensearch response body into candidate titles/urls. Returns
+ * null when the body is absent or malformed.
+ */
+export function parseOpenSearch(body: string | null): {
+  titles: string[];
+  urls: string[];
+} | null {
+  if (!body) return null;
+  try {
+    const parsed = JSON.parse(body) as [string, string[], string[], string[]];
+    const titles = (parsed[1] ?? []).filter((t) => t && t.trim().length > 0);
+    const urls = parsed[3] ?? [];
+    return { titles, urls };
+  } catch {
+    return null;
   }
-  return null;
 }
 
 /**
- * Fetch the raw wikitext of a page (for the infobox signal and for caching so
- * the page can be re-analysed later without re-fetching).
+ * Parse a cached `query` (pageprops) response body into a map of candidate
+ * page title -> { url, shortdesc, wikidataId }.
  */
-async function fetchWikitext(title: string): Promise<string | null> {
+export function parsePageProps(body: string | null): Record<
+  string,
+  { url: string | null; shortdesc: string | null; wikidataId: string | null }
+> {
+  const out: Record<
+    string,
+    { url: string | null; shortdesc: string | null; wikidataId: string | null }
+  > = {};
+  if (!body) return out;
   try {
-    const j = await wikiApi({
-      action: "parse",
-      page: title,
-      prop: "wikitext",
-      formatversion: "2",
-    }) as {
-      parse?: { wikitext?: string; title?: string };
-      error?: { code?: string };
+    const parsed = JSON.parse(body) as {
+      query?: {
+        pages?: Record<string, WikiPage>;
+        redirects?: { from: string; to: string }[];
+      };
     };
-    if (!j.parse?.wikitext) return null;
-    return j.parse.wikitext;
+    const redirects = new Map(
+      (parsed.query?.redirects ?? []).map((r) => [r.from, r.to]),
+    );
+    for (const page of Object.values(parsed.query?.pages ?? {})) {
+      const title = redirects.get(page.title) ?? page.title;
+      out[title] = {
+        url: page.canonicalurl ?? page.fullurl ?? null,
+        shortdesc: page.pageprops?.["wikibase-shortdesc"] ?? null,
+        wikidataId: page.pageprops?.["wikibase_item"] ?? null,
+      };
+    }
   } catch {
-    return null;
+    // ignore
   }
+  return out;
 }
 
 /**
- * Fetch the Wikidata entity for a Wikipedia page. Returns null when the page
- * has no linked Wikidata item (or the fetch fails), so a page without an item
- * is distinguishable from a transient error.
+ * Choose the best candidate for a name given its opensearch results and its
+ * pageprops. Prefers a candidate whose infobox-free short-description matches
+ * the expected kind; falls back to the first candidate. Returns the chosen
+ * title/url/description/wikidataId, or null when there are no candidates.
  */
-async function fetchWikidata(page: WikiPage): Promise<unknown> {
-  const qid = page.pageprops?.["wikibase_item"];
-  if (!qid) return null;
-  try {
-    const j = await wikidataApi({
-      action: "wbgetentities",
-      ids: qid,
-      props: "claims|descriptions|labels",
-    });
-    return j;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Resolve a single name against Wikipedia using two requests:
- *   1. `opensearch` — tolerant of misspellings, returns corrected titles+URLs.
- *   2. a single batched `query` (all candidates piped) — returns pageprops
- *      (short description) for each so we can classify author vs book and pick
- *      the best match.
- */
-export async function resolveWikipediaName(
+export function chooseCandidate(
   name: string,
   expectKind: "author" | "book",
-): Promise<Resolution> {
-  const now = new Date().toISOString();
-  try {
-    const os = await wikiApi({
-      action: "opensearch",
-      search: name,
-      limit: "5",
-    }) as [string, string[], string[], string[]];
-    const titles = (os[1] ?? []).filter((t) => t && t.trim().length > 0);
-    const urls = os[3] ?? [];
+  os: { titles: string[]; urls: string[] } | null,
+  pageProps: Record<
+    string,
+    { url: string | null; shortdesc: string | null; wikidataId: string | null }
+  >,
+): {
+  name: string;
+  title: string;
+  url: string | null;
+  description: string | null;
+  wikidataId: string | null;
+} | null {
+  if (!os || os.titles.length === 0) return null;
 
-    if (!titles.length) {
-      return {
-        name,
-        url: null,
-        description: null,
-        kind: "not-found",
-        resolved: false,
-        from: null,
-        resolvedAt: now,
-      };
+  const candidates = os.titles.map((title, i) => ({
+    title,
+    url: pageProps[title]?.url ?? os.urls[i] ?? null,
+    shortdesc: pageProps[title]?.shortdesc ?? null,
+    wikidataId: pageProps[title]?.wikidataId ?? null,
+  }));
+
+  let chosen = candidates[0]!;
+  for (const c of candidates) {
+    const k = classifyKind(c.shortdesc ?? undefined);
+    if (expectKind === "author" && k === "author") {
+      chosen = c;
+      break;
     }
-
-    // Fetch pageprops for ALL candidates in one batched request.
-    let pages: WikiPage[] = [];
-    const redirectMap = new Map<string, string>(); // from -> to
-    try {
-      const pj = await wikiApi({
-        action: "query",
-        redirects: "1",
-        prop: "info|pageprops",
-        titles: titles.join("|"),
-        inprop: "url",
-      }) as {
-        query?: {
-          pages?: Record<string, WikiPage>;
-          redirects?: { from: string; to: string }[];
-        };
-      };
-      pages = Object.values(pj.query?.pages ?? {});
-      for (const r of pj.query?.redirects ?? []) {
-        redirectMap.set(r.from, r.to);
-      }
-    } catch {
-      pages = [];
+    if (expectKind === "book" && k === "book") {
+      chosen = c;
+      break;
     }
-
-    // Map each opensearch title to its page, resolving redirects (so "K. A.
-    // Applegate" -> "Katherine Applegate" finds the right pageprops).
-    const byTitle = new Map(pages.map((p) => [p.title, p]));
-    const candidates: { page: WikiPage; url: string }[] = [];
-    for (let i = 0; i < titles.length; i++) {
-      const title = titles[i]!;
-      const target = redirectMap.get(title) ?? title;
-      const page = byTitle.get(target);
-      if (page) {
-        candidates.push({
-          page,
-          url: page.canonicalurl ?? page.fullurl ?? urls[i] ?? null,
-        });
-      } else {
-        candidates.push({
-          page: { title: target, ns: 0 },
-          url: urls[i] ?? null,
-        });
-      }
-    }
-
-    // Prefer a candidate whose kind matches what we expected (author vs book);
-    // otherwise fall back to the top result.
-    let chosen = candidates[0]!;
-    for (const c of candidates) {
-      const k = classifyKind(
-        c.page.pageprops?.["wikibase-shortdesc"],
-        null,
-        null,
-      );
-      if (expectKind === "author" && k === "author") {
-        chosen = c;
-        break;
-      }
-      if (expectKind === "book" && k === "book") {
-        chosen = c;
-        break;
-      }
-    }
-
-    const description = chosen.page.pageprops?.["wikibase-shortdesc"] ?? null;
-
-    // Fetch the raw wikitext and Wikidata entity for the chosen page so we can
-    // (a) classify via infobox + Wikidata and (b) cache them for later
-    // re-analysis without re-fetching.
-    const wikitext = await fetchWikitext(chosen.page.title);
-    const wikidata = await fetchWikidata(chosen.page);
-    const infobox = detectInfobox(wikitext);
-    const kind = classifyKind(description ?? undefined, infobox, wikidata);
-    const wikidataId = chosen.page.pageprops?.["wikibase_item"] ?? null;
-
-    return {
-      name: chosen.page.title,
-      url: chosen.url,
-      description,
-      kind,
-      resolved: true,
-      from: name,
-      resolvedAt: now,
-      wikitext,
-      infobox,
-      wikidataId,
-      wikidata,
-      resolutionVersion: CURRENT_RESOLUTION_VERSION,
-    };
-  } catch (err) {
-    // A rate limit means "couldn't resolve right now", not "not an author" —
-    // distinguish it so the caller retries on a later run.
-    if (err instanceof RateLimitError) {
-      return {
-        name,
-        url: null,
-        description: null,
-        kind: "rate-limited",
-        resolved: false,
-        from: null,
-        resolvedAt: now,
-      };
-    }
-    return {
-      name,
-      url: null,
-      description: null,
-      kind: "error",
-      resolved: false,
-      from: null,
-      resolvedAt: now,
-    };
   }
+
+  return {
+    name,
+    title: chosen.title,
+    url: chosen.url,
+    description: chosen.shortdesc,
+    wikidataId: chosen.wikidataId,
+  };
+}
+
+/**
+ * Classify a name using the decisions specific to the ebooks extension: the
+ * Wikipedia infobox template name and the Wikidata instance-of (P31) values.
+ * This keeps ebook-specific classification here (tweakable without touching
+ * the generalised wikipedia/wikidata models) while the *fetching* of those two
+ * signals is delegated to the web-cache + wikipedia/wikidata models.
+ */
+export function classifyResolved(
+  infobox: string | null,
+  instanceOf: string[] | null,
+): "author" | "book" | "other" {
+  if (infobox) {
+    if (AUTHOR_INFOBOXES.has(infobox)) return "author";
+    if (BOOK_INFOBOXES.has(infobox)) return "book";
+  }
+  if (instanceOf) {
+    for (const qid of instanceOf) {
+      if (AUTHOR_INSTANCE_QIDS.has(qid)) return "author";
+      if (BOOK_INSTANCE_QIDS.has(qid)) return "book";
+    }
+  }
+  return "other";
 }
 
 // ---------------------------------------------------------------------------

@@ -17,22 +17,22 @@ metadata for each, and renders an HTML page linking to each file's location.
   initial/edition publish dates, publisher, language and more from the file path,
   filename, filesystem metadata and (where parseable) the file contents (epub
   OPF, PDF info dictionary, ISBN/date regexes).
-- **Author & title resolution** — `resolve-wikipedia` checks each detected
-  author and title against Wikipedia, confirming it's a known author/book,
-  correcting aliases and misspellings (e.g. "K. A. Applegate" → "Katherine
-  Applegate"), and recording the canonical name, kind and Wikipedia URL.
-  Already-resolved names are skipped; rate-limited/failed lookups retry on the
-  next run.
-- **Classification via infobox + Wikidata, with raw caching** — each resolution
-  stores the **raw wikitext** and the **Wikidata entity JSON** (fetched and
-  cached separately), not rendered HTML. The author-vs-book decision is made
-  from three ordered signals: the page's infobox template (e.g.
-  `{{Infobox writer}}` / `{{Infobox book}}`), the Wikidata `instance-of` (P31)
-  claims, then the short description. Storing the raw sources means already
-  resolved names can be re-analysed later (bump `CURRENT_RESOLUTION_VERSION`)
-  without re-fetching from Wikipedia, and the author index only links names
-  that are actually classified as people — so false positives like `"3"` or a
-  book title won't appear as linked authors.
+- **Author & title resolution (delegated fetch)** — resolution is a fetch-free
+  decision pipeline in this model. It emits the Wikipedia/Wikidata URLs to
+  fetch, and the `@svendowideit/web-cache` model does the actual fetching
+  (pacing + caching). This model then reads the cached bodies and applies
+  ebook-specific decisions: candidate selection from opensearch results,
+  canonical-name correction (e.g. "K. A. Applegate" → "Katherine Applegate"),
+  and author-vs-book classification from the page's infobox template and the
+  Wikidata `instance-of` (P31) claims.
+- **Classification via infobox + Wikidata** — the author-vs-book decision uses
+  two ordered signals: the page's infobox template (e.g. `{{Infobox writer}}` /
+  `{{Infobox book}}`), then the Wikidata `instance-of` values (e.g. `Q5` =
+  human vs `Q571` = book). Because the raw wikitext and Wikidata entity are
+  cached by web-cache (not re-fetched), already-resolved names can be
+  re-analysed later (bump `CURRENT_RESOLUTION_VERSION`). The author index only
+  links names actually classified as people — so false positives like `"3"` or
+  a book title won't appear as linked authors.
 - **HTML listing** — `render-html-list` renders every discovered ebook into a
   static HTML page, showing the detected title, author and edition date where
   available, or the plain file path otherwise.
@@ -43,6 +43,7 @@ metadata for each, and renders an HTML page linking to each file's location.
 ## Quick Start
 
 ```bash
+swamp extension pull @svendowideit/web-cache
 swamp extension pull @svendowideit/ebooks
 
 # Run the bundled workflow (auto-registers the "ebooks" model on first run):
@@ -63,20 +64,34 @@ scan step:
 swamp workflow run @svendowideit/ebook-scan --input skipScan=true
 ```
 
-This runs only `detect-metadata -> render-html-list -> render-html-authors`
+This runs only `detect-metadata -> … -> render-html-list -> render-html-authors`
 against the ebook paths already recorded in `state`.
+
+### Tune the fetch rate
+
+Resolution fetching is delegated to `@svendowideit/web-cache`, whose `get-many`
+calls are capped by `maxFetches` (origin fetches per call — cached hits don't
+count). Lower it to keep each run short; raise it to drain the backlog faster:
+
+```bash
+swamp workflow run @svendowideit/ebook-scan --input maxFetches=50
+```
 
 ## Models
 
 ### @svendowideit/ebooks
 
-| Method             | Description |
-| ------------------ | ----------- |
-| `scan-disk`        | Start/resume the filesystem scan (arg: `maxDurationMs`). |
-| `detect-metadata`  | Detect metadata for one file (`file`) or all discovered ebooks, up to `maxDurationMs`. |
-| `resolve-wikipedia` | Resolve authors/titles against Wikipedia (canonical name, kind, URL), up to `maxDurationMs`. |
-| `render-html-list` | Render the full HTML listing (arg: `title`). |
-| `render-html-authors` | Render an author-grouped index of ebooks with a detected author (arg: `title`). |
+| Method                 | Description |
+| ---------------------- | ----------- |
+| `scan-disk`            | Start/resume the filesystem scan (arg: `maxDurationMs`). |
+| `detect-metadata`      | Detect metadata for one file (`file`) or all discovered ebooks, up to `maxDurationMs`. |
+| `plan-resolution`      | Emit round-1 opensearch URLs for names that need resolving (no fetching). |
+| `choose-candidates`    | Read cached opensearch bodies; emit round-2 pageprops query URLs. |
+| `choose-final`         | Read cached pageprops; choose the canonical candidate; emit round-3 wikitext + wikidata URLs. |
+| `finalize-resolution`  | Read cached wikitext + wikidata bodies; classify; write `authors`/`books`. |
+| `resolve-wikipedia`    | Back-compat: runs `finalize-resolution` alone. |
+| `render-html-list`     | Render the full HTML listing (arg: `title`). |
+| `render-html-authors`  | Render an author-grouped index of ebooks with a detected author (arg: `title`). |
 
 ### @svendowideit/book-metadata
 
@@ -90,6 +105,24 @@ A generic, reusable metadata model (usable for physical books too):
 Both share the same `BookMetadata` shape, so ebook-detected metadata and
 physical-book metadata are interchangeable.
 
+## Resolution pipeline
+
+Resolution is split into a fetch-free decision pipeline driven by the workflow,
+with all network I/O delegated to `@svendowideit/web-cache`:
+
+```
+plan-resolution     → emits opensearch URLs
+web-cache.get-many  → fetches + caches opensearch
+choose-candidates   → emits pageprops query URLs
+web-cache.get-many  → fetches + caches pageprops
+choose-final        → chooses canonical candidate; emits wikitext + wikidata URLs
+web-cache.get-many  → fetches + caches wikitext + wikidata entity
+finalize-resolution → classifies (infobox + P31) and writes authors/books
+```
+
+The ebook model shares the same `cacheDir` and URL-normalizing cache-key scheme
+as web-cache, so it reads cached bodies directly (no re-fetching).
+
 ## Workflow inputs
 
 | Key                 | Default                        | Description                            |
@@ -98,6 +131,8 @@ physical-book metadata are interchangeable.
 | `outputPath`        | `~/.swamp/ebooks/ebooks.html`  | Where to write the HTML listing        |
 | `authorsOutputPath` | `~/.swamp/ebooks/index.html`   | Where to write the author index        |
 | `title`             | `Ebooks`                       | Page title                             |
+| `cacheDir`          | `~/.swamp/web-cache`           | Shared web-cache dir (must match web-cache + ebooks) |
+| `maxFetches`        | `20`                           | Cap on origin fetches per `web-cache.get-many` call (cached hits don't count) |
 | `skipScan`          | `false`                        | Skip the directory scan; only re-detect metadata and render |
 
 ## Global arguments (ebooks model)
@@ -109,13 +144,17 @@ physical-book metadata are interchangeable.
 | `authorsOutputPath` | `~/.swamp/ebooks/index.html` | Where to write the author index        |
 | `extensions`      | epub, mobi, azw, azw3, fb2, lit, djvu, pdf | Ebook extensions to match |
 | `excludePatterns` | `.git`, `.swamp`, `node_modules`, `.cache`, `.Trash` | Dir names to skip |
+| `cacheDir`        | `~/.swamp/web-cache`           | Shared web-cache dir to read resolution responses from |
 
 ## Data
 
 - `state` — resumable scan state (frontier, seen dirs, discovered ebooks).
 - `metadata` — detected book metadata keyed by ebook path.
-- `authors` — Wikipedia resolution of author names (keyed by detected name).
-  Each entry caches the raw wikitext and Wikidata entity for later re-analysis.
-- `books` — Wikipedia resolution of book titles (keyed by detected title).
+- `plan` — the resolution plan (names, URLs, chosen candidates) driving the
+  multi-round fetch pipeline.
+- `authors` — Wikipedia/Wikidata resolution of author names (keyed by detected
+  name). Each entry records the canonical name, kind, URL, infobox and Wikidata
+  `instance-of` values (the raw bodies are cached by web-cache).
+- `books` — Wikipedia/Wikidata resolution of book titles (keyed by detected title).
 - `page` — result of the last HTML page generation (path, count, timestamp).
 - `book` — a single detected/registered book record (book-metadata model).

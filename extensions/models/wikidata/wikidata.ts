@@ -163,8 +163,8 @@ type MethodContext = {
 // Shared cache key scheme (must match @svendowideit/web-cache exactly)
 // ---------------------------------------------------------------------------
 
-/** Expand `~` to the home directory. */
-function expandHome(raw: string): string {
+/** Expand `~` to the home directory. Exported so tests can cover it directly. */
+export function expandHome(raw: string): string {
   if (raw.startsWith("~")) {
     const home = Deno.env.get("HOME") ?? "~";
     return raw === "~" ? home : `${home}${raw.slice(1)}`;
@@ -173,7 +173,7 @@ function expandHome(raw: string): string {
 }
 
 /** Deterministic 32-bit hash (FNV-1a), identical to web-cache's fnv1a. */
-function fnv1a(input: string): string {
+export function fnv1a(input: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < input.length; i++) {
     h ^= input.charCodeAt(i);
@@ -183,7 +183,7 @@ function fnv1a(input: string): string {
 }
 
 /** Canonicalize a URL, identical to web-cache's normalizeUrl. */
-function normalizeUrl(url: string): string {
+export function normalizeUrl(url: string): string {
   let u: URL;
   try {
     u = new URL(url);
@@ -208,7 +208,7 @@ function normalizeUrl(url: string): string {
 }
 
 /** URL-only cache key, identical to web-cache's webCacheKey. */
-function webCacheKey(url: string): string {
+export function webCacheKey(url: string): string {
   const normalized = normalizeUrl(url);
   const safe = normalized
     .replace(/^https?:\/\//, "")
@@ -235,7 +235,7 @@ async function readCachedBody(
 // ---------------------------------------------------------------------------
 
 /** Build the wbsearchentities URL. */
-function searchUrl(
+export function searchUrl(
   ctx: MethodContext,
   query: string,
   limit: number,
@@ -254,7 +254,7 @@ function searchUrl(
 }
 
 /** Build the wbgetentities URL for one or more QIDs. */
-function entityUrl(ctx: MethodContext, id: string): string {
+export function entityUrl(ctx: MethodContext, id: string): string {
   const params = new URLSearchParams({
     action: "wbgetentities",
     ids: id,
@@ -267,7 +267,11 @@ function entityUrl(ctx: MethodContext, id: string): string {
 }
 
 /** Build the sitelink-lookup URL (Wikipedia title → Wikidata entity). */
-function sitelinkUrl(ctx: MethodContext, title: string, site: string): string {
+export function sitelinkUrl(
+  ctx: MethodContext,
+  title: string,
+  site: string,
+): string {
   const params = new URLSearchParams({
     action: "wbgetentities",
     sites: site,
@@ -397,8 +401,17 @@ const UrlResultSchema = z.object({
 /** A read-only Wikidata domain client layered over @svendowideit/web-cache. */
 export const model = {
   type: "@svendowideit/wikidata",
-  version: "2026.09.20.1",
+  version: "2026.09.20.3",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.20.3",
+      description:
+        "No schema changes — export URL builders/cache helpers for testing and " +
+        "add method execute-path test coverage",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     search: {
       description: "Parsed wbsearchentities results",

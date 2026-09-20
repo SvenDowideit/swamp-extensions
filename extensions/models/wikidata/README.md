@@ -112,6 +112,7 @@ swamp model @svendowideit/wikidata method run resolve-title wd \
 - `resolution` — a resolved Wikipedia title → QID (site, title, id, label).
 - `claims` — extracted property claim values.
 - `instance-of` — extracted P31 (instance of) values.
+- `url` — a built Wikidata URL (`search-url` / `entity-url` / `resolve-title-url`) for the web-cache fetch seam.
 
 ## Example: classifying an author vs a book
 
@@ -124,3 +125,16 @@ swamp model @svendowideit/wikidata method run resolve-title wd --input title="Al
 swamp model @svendowideit/wikidata method run get-instance-of wd --input id="Q286116"
 # → instanceOf: ["Q5"]  (human)
 ```
+
+## Testing
+
+```bash
+~/.swamp/deno/deno test --allow-read --allow-write --allow-env \
+  extensions/models/wikidata/wikidata_test.ts
+```
+
+Coverage includes the pure helpers (`extractClaimValues`, `parseEntities`,
+`localized`, the shared cache-key helpers) plus the URL builders and every
+method execute path against seeded temp cache dirs — `search`, `get-entity`,
+`resolve-title` (sitelink match and single-entity fallback), `get-claims`, and
+`get-instance-of`, for both cache hits and misses.

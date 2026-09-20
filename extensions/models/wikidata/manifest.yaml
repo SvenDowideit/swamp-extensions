@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/wikidata"
-version: "2026.09.20.1"
+version: "2026.09.20.3"
 description: |
   A Wikidata domain client that reads responses from the shared web cache owned
   by @svendowideit/web-cache. Like @svendowideit/wikipedia, it fetches nothing

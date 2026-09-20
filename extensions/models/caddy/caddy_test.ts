@@ -2,15 +2,18 @@ import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 
 import {
   addRouteToConfig,
+  automaticHttpsConfig,
   baseConfig,
   buildCurlArgs,
   buildRoute,
   caddyArch,
+  caddyDownloadUrl,
   computeHealth,
   deriveHostname,
   detectSwampServeServices,
   dnsProviderPlugin,
   ensureRoute,
+  ensureServerDefaults,
   expandHome,
   findRouteByHost,
   listProxyServices,
@@ -64,6 +67,28 @@ Deno.test("parseCaddyVersion extracts the leading version token", () => {
   assertEquals(parseCaddyVersion("v2.8.4"), "v2.8.4");
 });
 
+Deno.test("caddyDownloadUrl targets the download API with os/arch", () => {
+  assertEquals(
+    caddyDownloadUrl("amd64"),
+    "https://caddyserver.com/api/download?os=linux&arch=amd64",
+  );
+});
+
+Deno.test("caddyDownloadUrl adds a p param per module package", () => {
+  const url = new URL(
+    caddyDownloadUrl("amd64", [
+      "github.com/caddy-dns/cloudflare",
+      "github.com/caddy-dns/route53@v1.2.3",
+    ]),
+  );
+  assertEquals(url.searchParams.getAll("p"), [
+    "github.com/caddy-dns/cloudflare",
+    "github.com/caddy-dns/route53@v1.2.3",
+  ]);
+  assertEquals(url.searchParams.get("os"), "linux");
+  assertEquals(url.searchParams.get("arch"), "amd64");
+});
+
 Deno.test("parseCaddyVersion throws on empty output", () => {
   let threw = false;
   try {
@@ -74,21 +99,107 @@ Deno.test("parseCaddyVersion throws on empty output", () => {
   assertEquals(threw, true);
 });
 
-Deno.test("renderServiceUnit includes binary, config, and admin API", () => {
+Deno.test("renderServiceUnit includes binary and config but no --admin flag", () => {
   const unit = renderServiceUnit({
     binPath: "/home/alice/.local/bin/caddy",
     configPath: "/home/alice/.config/caddy/Caddyfile",
-    adminApiAddr: "localhost:2019",
   });
   assertStringIncludes(unit, "ExecStart=/home/alice/.local/bin/caddy run");
   assertStringIncludes(unit, "--config /home/alice/.config/caddy/Caddyfile");
-  assertStringIncludes(unit, "--admin localhost:2019");
+  assertStringIncludes(unit, "--adapter caddyfile");
   assertStringIncludes(unit, "WantedBy=default.target");
+  // Caddy v2.11+ rejects `caddy run --admin`; the admin endpoint belongs in
+  // the Caddyfile global options instead.
+  const hasAdminFlag = unit
+    .split("\n")
+    .some((line) => /(^|\s)--admin(\s|$)/.test(line));
+  assertEquals(hasAdminFlag, false);
 });
 
-Deno.test("renderMinimalConfig is a valid empty Caddyfile", () => {
+Deno.test("renderMinimalConfig is a valid empty Caddyfile with defaults", () => {
   const cfg = renderMinimalConfig();
   assertStringIncludes(cfg, "Managed by @svendowideit/caddy");
+  assertStringIncludes(cfg, "{");
+});
+
+Deno.test("renderMinimalConfig writes admin addr and auto_https when non-default", () => {
+  const cfg = renderMinimalConfig({
+    adminApiAddr: "unix//run/user/1000/caddy.sock",
+    autoHttps: "off",
+  });
+  assertStringIncludes(cfg, "admin unix//run/user/1000/caddy.sock");
+  assertStringIncludes(cfg, "auto_https off");
+});
+
+Deno.test("renderMinimalConfig omits default admin addr and auto_https on", () => {
+  const cfg = renderMinimalConfig({
+    adminApiAddr: "localhost:2019",
+    autoHttps: "on",
+  });
+  const hasAdmin = cfg.split("\n").some((line) =>
+    line.trim().startsWith("admin ")
+  );
+  const hasAutoHttps = cfg
+    .split("\n")
+    .some((line) => line.trim().startsWith("auto_https "));
+  assertEquals(hasAdmin, false);
+  assertEquals(hasAutoHttps, false);
+});
+
+Deno.test("baseConfig uses the provided listen addresses", () => {
+  const config = baseConfig([":8888", ":8443"]);
+  const apps = config.apps as Record<string, unknown>;
+  const http = apps.http as Record<string, unknown>;
+  const servers = http.servers as Record<string, unknown>;
+  const srv0 = servers.srv0 as Record<string, unknown>;
+  assertEquals(srv0.listen, [":8888", ":8443"]);
+});
+
+Deno.test("automaticHttpsConfig maps modes to JSON fields", () => {
+  assertEquals(automaticHttpsConfig("on"), null);
+  assertEquals(automaticHttpsConfig("off"), { disable: true });
+  assertEquals(automaticHttpsConfig("disable_redirects"), {
+    disable_redirects: true,
+  });
+  assertEquals(automaticHttpsConfig("disable_certs"), {
+    disable_certificates: true,
+  });
+  assertEquals(automaticHttpsConfig("ignore_loaded_certs"), {
+    ignore_loaded_certificates: true,
+  });
+});
+
+Deno.test("baseConfig disables automatic HTTPS when requested", () => {
+  const config = baseConfig([":8888"], "off");
+  const apps = config.apps as Record<string, unknown>;
+  const http = apps.http as Record<string, unknown>;
+  const servers = http.servers as Record<string, unknown>;
+  const srv0 = servers.srv0 as Record<string, unknown>;
+  assertEquals(srv0.automatic_https, { disable: true });
+});
+
+Deno.test("ensureServerDefaults seeds a missing server with listen + auto_https", () => {
+  const seeded = ensureServerDefaults({ apps: {} }, [":8888", ":8443"], "off");
+  const apps = seeded.apps as Record<string, unknown>;
+  const http = apps.http as Record<string, unknown>;
+  const servers = http.servers as Record<string, unknown>;
+  const srv0 = servers.srv0 as Record<string, unknown>;
+  assertEquals(srv0.listen, [":8888", ":8443"]);
+  assertEquals(srv0.automatic_https, { disable: true });
+});
+
+Deno.test("ensureServerDefaults leaves an existing server untouched", () => {
+  const existing = baseConfig([":443"], "on");
+  const withRoute = addRouteToConfig(
+    existing,
+    buildRoute("foo.example.com", { dial: "127.0.0.1:8080", https: false }),
+  );
+  const seeded = ensureServerDefaults(withRoute, [":8888"], "off");
+  const apps = seeded.apps as Record<string, unknown>;
+  const http = apps.http as Record<string, unknown>;
+  const servers = http.servers as Record<string, unknown>;
+  const srv0 = servers.srv0 as Record<string, unknown>;
+  assertEquals(srv0.listen, [":443"]);
 });
 
 Deno.test("renderSettingsGuidance lists base domain, email, and token", () => {
@@ -441,13 +552,11 @@ Deno.test("reconcileProxyServices computes ensure/remove diff", () => {
 // Iteration 4: upgrade + health helpers
 // ---------------------------------------------------------------------------
 
-Deno.test("renderUpgradeConfirmation includes version, plugins, and confirm hint", () => {
+Deno.test("renderUpgradeConfirmation includes packages and confirm hint", () => {
   const msg = renderUpgradeConfirmation({
-    version: "v2.9.0",
     plugins: ["github.com/caddy-dns/cloudflare"],
   });
   assertStringIncludes(msg, "confirm=upgrade");
-  assertStringIncludes(msg, "v2.9.0");
   assertStringIncludes(msg, "github.com/caddy-dns/cloudflare");
   assertStringIncludes(msg, "preserved");
 });

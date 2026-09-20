@@ -8,10 +8,11 @@ API and systemd — **not** a Go Caddy plugin.
 
 The MVP covers the initial setup and lifecycle of Caddy itself:
 
-1. **`installCaddy`** — downloads the Caddy binary (or builds it with
-   [xcaddy](https://github.com/caddyserver/xcaddy) when plugins are requested),
-   places it at `caddyBinPath`, and verifies it runs (`caddy version` +
-   `caddy list-modules`).
+1. **`installCaddy`** — downloads the current Caddy binary from the
+   [caddyserver.com download API](https://caddyserver.com/api/download) (with
+   any requested module packages compiled in), places it at `caddyBinPath`, and
+   verifies it runs (`caddy version` + `caddy list-modules`). No Go toolchain or
+   `xcaddy` needed.
 2. **`createService`** — writes a systemd **user** service unit
    (`~/.config/systemd/user/caddy.service`) that runs Caddy with the admin API
    enabled, plus a minimal Caddyfile.
@@ -68,9 +69,9 @@ Iteration 3 adds TLS configuration and `swamp serve` auto-proxying:
 
 Iteration 4 adds binary upgrades, health monitoring, and service lifecycle:
 
-1. **`upgradeCaddy`** — replaces the Caddy binary (new version/plugins) with
-   explicit confirmation (`confirm=upgrade`), then restarts the service.
-   Existing configuration is preserved.
+1. **`upgradeCaddy`** — replaces the Caddy binary (current release, with module
+   packages) with explicit confirmation (`confirm=upgrade`), then restarts the
+   service. Existing configuration is preserved.
 2. **`checkHealth`** — reports Caddy service + admin API health (healthy /
    down / service-not-active / admin-api-unreachable).
 3. **`stopService` / `restartService`** — stop/restart the Caddy systemd user
@@ -160,22 +161,23 @@ swamp model method run my-caddy restartService
 | Argument            | Default                    | Purpose                                  |
 | ------------------- | -------------------------- | ---------------------------------------- |
 | `caddyBinPath`      | `~/.local/bin/caddy`       | Where the Caddy binary is installed      |
-| `caddyVersion`      | *(latest)*                 | Caddy version to install (e.g. `v2.8.4`) |
-| `adminApiAddr`      | `localhost:2019`           | Caddy admin API listen address (or `unix//path`) |
+
+| `adminApiAddr`      | `localhost:2019`           | Caddy admin API listen address (or `unix//path`); written to the Caddyfile global options |
 | `adminApiToken`     | *(unset)*                  | Optional admin API token (Bearer header) |
 | `vaultName`         | *(unset)*                  | Vault used by `storeConfig` to write secrets |
 | `configPath`        | `~/.config/caddy/Caddyfile` | Caddy config file the service runs     |
 | `serviceName`       | `caddy`                    | systemd user service name               |
+| `autoHttps`         | `on`                       | Automatic HTTPS mode: `on`, `off` (plain HTTP), or `disable_redirects`/`disable_certs`/`ignore_loaded_certs` |
+| `listenAddrs`       | `[":443", ":80"]`          | HTTP server listen addresses for admin-API routes (e.g. `[":8888", ":8443"]` for unprivileged ports) |
 | `baseDomain`        | *(unset)*                  | Base domain for derived hostnames       |
 | `letsEncryptEmail`  | *(unset)*                  | ACME / Let's Encrypt email              |
-| `plugins`           | `[]`                       | Caddy plugins to build in via xcaddy    |
+| `plugins`           | `[]`                       | Module packages to compile into the downloaded binary (e.g. `github.com/caddy-dns/cloudflare`, optionally `@version`) |
 
 ## Requirements
 
 - Linux with systemd (user services enabled).
 - `systemctl --user` works in the environment the model runs in.
-- For plugin builds: Go + [xcaddy](https://github.com/caddyserver/xcaddy) on
-  `PATH`.
+- Network access to `caddyserver.com` to download the binary.
 
 ## DNS ACME certificates (libdns drivers)
 
@@ -186,20 +188,13 @@ provider plugin** — these are built on the
 [libdns](https://github.com/libdns/libdns) library, one module per provider
 (`github.com/caddy-dns/<provider>`).
 
-### 1. Build Caddy with the right libdns driver
+### 1. Download Caddy with the right libdns driver
 
-Caddy's standard binary does **not** include DNS providers. Build a custom
-binary with `xcaddy`, listing each provider you need:
-
-```sh
-xcaddy build v2.8.4 \
-  --with github.com/caddy-dns/cloudflare \
-  --with github.com/caddy-dns/route53 \
-  --output ~/.local/bin/caddy
-```
-
-The extension does this for you: set the `plugins` global argument (or pass
-`--input plugins:json=[...]` to `installCaddy` / `upgradeCaddy`):
+Caddy's standard binary does **not** include DNS providers. The extension
+requests them as packages from the caddyserver.com download API, which compiles
+them into the binary server-side (no local Go toolchain needed). Set the
+`plugins` global argument (or pass `--input plugins:json=[...]` to
+`installCaddy` / `upgradeCaddy`):
 
 ```sh
 swamp model create @svendowideit/caddy my-caddy \
@@ -208,8 +203,9 @@ swamp model method run my-caddy installCaddy
 ```
 
 Supported provider names (mapped by `configureTls`): `cloudflare`, `route53`,
-`digitalocean`, `duckdns`, `porkbun`, `namecheap`. Any other `caddy-dns/*`
-module can be built in via `plugins` directly.
+`digitalocean`, `duckdns`, `porkbun`, `namecheap`. Any module package
+registered on the [Caddy download page](https://caddyserver.com/download) can be
+requested via `plugins` directly (append `@version` to pin one).
 
 ### 2. Set the libdns provider credentials
 
@@ -254,11 +250,35 @@ challenge. Caddy then obtains and auto-renews certificates for those subjects
 using the provider's DNS API. Verify with `checkHealth` and by requesting a
 proxied domain over HTTPS.
 
+## Plain HTTP / unprivileged ports
+
+To run Caddy as an unprivileged systemd user service (no `CAP_NET_BIND_SERVICE`)
+serving plain HTTP on non-resolvable or mDNS hostnames, set:
+
+```sh
+swamp model create @svendowideit/caddy my-caddy \
+  --global-arg 'listenAddrs:json=[":8888", ":8443"]' \
+  --global-arg autoHttps=off
+```
+
+- `listenAddrs` — the HTTP server listen addresses used for routes added via the
+  admin API (default `[":443", ":80"]`).
+- `autoHttps=off` — disables both certificate automation and HTTP→HTTPS
+  redirects. Use `disable_redirects` to keep cert automation but skip the
+  redirect server, or `disable_certs` to keep redirects but skip issuance.
+
+`createService` writes these into the generated Caddyfile, and the admin API
+config keeps them when adding routes, so re-running `installCaddy` /
+`createService` no longer reintroduces TLS or privileged-port assumptions.
+
 ## Notes
 
 - The admin API is powerful; Caddy recommends protecting it. Bind it to a
   permissioned Unix socket by setting `adminApiAddr: unix//path/to/socket`
   (the extension's client talks over it), or front it with an auth proxy and
   set `adminApiToken`.
+- The admin endpoint is written to the Caddyfile's `admin` global option. Caddy
+  v2.11+ removed the `caddy run --admin` CLI flag, so the systemd unit does not
+  pass `--admin`.
 - Binding privileged ports (80/443) as a user service requires
   `CAP_NET_BIND_SERVICE`; the admin API port (2019) is unprivileged.

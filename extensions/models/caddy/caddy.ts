@@ -6,8 +6,10 @@
  * API and systemd — *not* a Go Caddy plugin.
  *
  * MVP methods:
- *   - `installCaddy`    — download (or build with xcaddy) the Caddy binary,
- *                         place it at `caddyBinPath`, and verify it runs.
+ *   - `installCaddy`    — download the current Caddy binary (with any requested
+ *                         module packages compiled in via the caddyserver.com
+ *                         download API), place it at `caddyBinPath`, and verify
+ *                         it runs.
  *   - `createService`   — write a systemd *user* service unit for Caddy.
  *   - `startService`    — start + enable the service and verify the admin API.
  *   - `settingsGuidance`— print the minimal settings needed for a useful
@@ -38,8 +40,9 @@
  *                            reconcile their reverse-proxy routes.
  *
  * Iteration 4 methods:
- *   - `upgradeCaddy`  — replace the Caddy binary (new version/plugins) with
- *                       explicit confirmation, then restart the service.
+ *   - `upgradeCaddy`  — replace the Caddy binary (current release, with module
+ *                       packages) with explicit confirmation, then restart the
+ *                       service.
  *   - `checkHealth`   — report Caddy service + admin API health.
  *   - `stopService` / `restartService` — stop/restart the Caddy service.
  *
@@ -64,14 +67,23 @@ const GlobalArgsSchema = z.object({
   caddyBinPath: z.string().default("~/.local/bin/caddy").describe(
     "Path where the Caddy binary is installed",
   ),
-  caddyVersion: z.string().optional().describe(
-    "Caddy version to install (e.g. v2.8.4); omit for latest",
-  ),
   adminApiAddr: z.string().default("localhost:2019").describe(
-    "Caddy admin API listen address",
+    "Caddy admin API listen address (written to the Caddyfile global options)",
   ),
   configPath: z.string().default("~/.config/caddy/Caddyfile").describe(
     "Path to the Caddy config file the service runs",
+  ),
+  autoHttps: z.enum([
+    "on",
+    "off",
+    "disable_redirects",
+    "disable_certs",
+    "ignore_loaded_certs",
+  ]).default("on").describe(
+    "Caddy automatic HTTPS mode: 'on' (default), 'off' for plain HTTP, or a disable_* variant",
+  ),
+  listenAddrs: z.array(z.string()).default([":443", ":80"]).describe(
+    "HTTP server listen addresses for routes added via the admin API (e.g. [':8888', ':8443'])",
   ),
   serviceName: z.string().default("caddy").describe(
     "systemd user service name",
@@ -83,7 +95,7 @@ const GlobalArgsSchema = z.object({
     "Email used for Let's Encrypt / ACME certificate issuance",
   ),
   plugins: z.array(z.string()).default([]).describe(
-    "Caddy plugins to build in via xcaddy (e.g. github.com/caddy-dns/cloudflare)",
+    "Caddy module packages to include in the downloaded binary, e.g. github.com/caddy-dns/cloudflare (optionally github.com/foo/bar@v1.2.3)",
   ),
   adminApiToken: z.string().optional().meta({ sensitive: true }).describe(
     "Optional admin API token (sent as a Bearer header when set)",
@@ -96,11 +108,8 @@ const GlobalArgsSchema = z.object({
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
 const InstallArgsSchema = z.object({
-  version: z.string().optional().describe(
-    "Override the Caddy version to install (defaults to global caddyVersion)",
-  ),
   plugins: z.array(z.string()).optional().describe(
-    "Override the plugins to build in (defaults to global plugins)",
+    "Override the module packages to include (defaults to global plugins)",
   ),
   force: z.boolean().default(false).describe(
     "Reinstall even if the binary already exists",
@@ -187,11 +196,8 @@ const AutoProxyArgsSchema = z.object({
 });
 
 const UpgradeArgsSchema = z.object({
-  version: z.string().optional().describe(
-    "Caddy version to upgrade to (defaults to global caddyVersion)",
-  ),
   plugins: z.array(z.string()).optional().describe(
-    "Plugins to build in (defaults to global plugins)",
+    "Module packages to include (defaults to global plugins)",
   ),
   confirm: z.string().optional().describe(
     "Set to 'upgrade' to confirm replacing the binary and restarting the service",
@@ -326,13 +332,17 @@ export function parseCaddyVersion(stdout: string): string {
   return first;
 }
 
-/** Render the systemd *user* service unit file content for Caddy. */
+/**
+ * Render the systemd *user* service unit file content for Caddy.
+ *
+ * The admin endpoint is configured via the Caddyfile's `admin` global option,
+ * not a `--admin` CLI flag (Caddy v2.11+ rejects `caddy run --admin`).
+ */
 export function renderServiceUnit(opts: {
   binPath: string;
   configPath: string;
-  adminApiAddr: string;
 }): string {
-  const { binPath, configPath, adminApiAddr } = opts;
+  const { binPath, configPath } = opts;
   return `# Managed by @svendowideit/caddy — do not edit by hand.
 [Unit]
 Description=Caddy web server
@@ -342,8 +352,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=${binPath} run --config ${configPath} --adapter caddyfile --admin ${adminApiAddr}
-ExecReload=${binPath} reload --config ${configPath} --adapter caddyfile --admin ${adminApiAddr}
+ExecStart=${binPath} run --config ${configPath} --adapter caddyfile
+ExecReload=${binPath} reload --config ${configPath} --adapter caddyfile
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=5
@@ -357,10 +367,29 @@ WantedBy=default.target
 `;
 }
 
-/** Render a minimal, valid Caddyfile (sites are added later via the admin API). */
-export function renderMinimalConfig(): string {
-  return `# Managed by @svendowideit/caddy — sites are added via the admin API.
-`;
+/**
+ * Render the base Caddyfile with global options (sites are added later via the
+ * admin API). The admin endpoint lives here rather than in a `--admin` flag,
+ * because Caddy v2.11+ removed the flag.
+ */
+export function renderMinimalConfig(
+  opts?: { adminApiAddr?: string; autoHttps?: string },
+): string {
+  const adminApiAddr = opts?.adminApiAddr ?? "localhost:2019";
+  const autoHttps = opts?.autoHttps ?? "on";
+  const lines = [
+    "# Managed by @svendowideit/caddy — sites are added via the admin API.",
+    "{",
+  ];
+  if (adminApiAddr !== "localhost:2019") {
+    lines.push(`\tadmin ${adminApiAddr}`);
+  }
+  if (autoHttps !== "on") {
+    lines.push(`\tauto_https ${autoHttps}`);
+  }
+  lines.push("}");
+  lines.push("");
+  return lines.join("\n");
 }
 
 /** Render the minimal-settings guidance text for a useful Let's Encrypt setup. */
@@ -459,20 +488,73 @@ export function buildRoute(
   };
 }
 
+/**
+ * Map an automatic-HTTPS mode to the JSON server's `automatic_https` object.
+ * Caddy's Caddyfile `auto_https` global option adapts to this per-server field;
+ * we set it directly because routes are applied via the admin API as JSON.
+ * Returns null for the default (`on`) so the field is omitted.
+ */
+export function automaticHttpsConfig(
+  mode: string,
+): Record<string, unknown> | null {
+  switch (mode) {
+    case "off":
+      return { disable: true };
+    case "disable_redirects":
+      return { disable_redirects: true };
+    case "disable_certs":
+      return { disable_certificates: true };
+    case "ignore_loaded_certs":
+      return { ignore_loaded_certificates: true };
+    default:
+      return null;
+  }
+}
+
 /** The base Caddy JSON config with an empty route table. */
-export function baseConfig(): CaddyConfig {
+export function baseConfig(
+  listenAddrs: string[] = [":443", ":80"],
+  autoHttps = "on",
+): CaddyConfig {
+  const srv0: Record<string, unknown> = {
+    listen: listenAddrs,
+    routes: [],
+  };
+  const automaticHttps = automaticHttpsConfig(autoHttps);
+  if (automaticHttps) srv0.automatic_https = automaticHttps;
   return {
     apps: {
       http: {
-        servers: {
-          srv0: {
-            listen: [":443", ":80"],
-            routes: [],
-          },
-        },
+        servers: { srv0 },
       },
     },
   };
+}
+
+/**
+ * Ensure the managed HTTP server (`apps.http.servers.srv0`) exists with the
+ * configured listen addresses and automatic-HTTPS setting. An existing server
+ * is left untouched, so a running config is never clobbered.
+ */
+export function ensureServerDefaults(
+  config: CaddyConfig,
+  listenAddrs: string[] = [":443", ":80"],
+  autoHttps = "on",
+): CaddyConfig {
+  const next = structuredClone(config);
+  const apps = (next.apps ??= {}) as Record<string, unknown>;
+  const http = (apps.http ??= {}) as Record<string, unknown>;
+  const servers = (http.servers ??= {}) as Record<string, unknown>;
+  if (!servers.srv0) {
+    const srv0: Record<string, unknown> = {
+      listen: listenAddrs,
+      routes: [],
+    };
+    const automaticHttps = automaticHttpsConfig(autoHttps);
+    if (automaticHttps) srv0.automatic_https = automaticHttps;
+    servers.srv0 = srv0;
+  }
+  return next;
 }
 
 /** Read the routes array from a config (empty if absent). */
@@ -809,15 +891,14 @@ export function reconcileProxyServices(
 
 /** Render the confirmation prompt shown when an upgrade lacks confirm=upgrade. */
 export function renderUpgradeConfirmation(opts: {
-  version?: string;
   plugins: string[];
 }): string {
   return [
     "Upgrading/replacing the Caddy binary is a destructive operation that",
     "restarts the Caddy service. To proceed, re-run with confirm=upgrade.",
     "",
-    `  target version: ${opts.version ?? "latest"}`,
-    `  plugins: ${
+    "  target version: current caddyserver.com release",
+    `  packages: ${
       opts.plugins.length > 0 ? opts.plugins.join(", ") : "(none)"
     }`,
     "",
@@ -912,40 +993,44 @@ async function runCmd(
   }
 }
 
-/** Download the standard Caddy binary (latest) and make it executable. */
+/**
+ * Build the caddyserver.com download URL for the current Caddy release.
+ *
+ * The API always serves the current version; module packages are requested
+ * with repeatable `p` parameters (each may be `path` or `path@version`), which
+ * is the same mechanism the official download page uses.
+ */
+export function caddyDownloadUrl(
+  arch: string,
+  plugins: string[] = [],
+): string {
+  const params = new URLSearchParams({ os: "linux", arch });
+  for (const plugin of plugins) params.append("p", plugin);
+  return `https://caddyserver.com/api/download?${params.toString()}`;
+}
+
+/**
+ * Download the Caddy binary (current release, with any requested module
+ * packages compiled in) and make it executable.
+ */
 async function downloadCaddy(
   binPath: string,
   arch: string,
+  plugins: string[] = [],
 ): Promise<void> {
-  const url = `https://caddyserver.com/api/download?os=linux&arch=${arch}`;
+  const url = caddyDownloadUrl(arch, plugins);
   const resp = await fetch(url);
   if (!resp.ok) {
-    throw new Error(`Failed to download Caddy (${resp.status}): ${url}`);
+    const detail = await resp.text().catch(() => "");
+    throw new Error(
+      `Failed to download Caddy (${resp.status}): ${url}${
+        detail ? ` — ${detail}` : ""
+      }`,
+    );
   }
   const bytes = new Uint8Array(await resp.arrayBuffer());
   await Deno.mkdir(dirnameOf(binPath), { recursive: true });
   await Deno.writeFile(binPath, bytes, { mode: 0o755 });
-}
-
-/** Build Caddy with plugins using xcaddy (requires Go + xcaddy on PATH). */
-async function buildCaddyWithPlugins(
-  binPath: string,
-  version: string | undefined,
-  plugins: string[],
-): Promise<void> {
-  const args = ["build"];
-  if (version) args.push(version);
-  for (const p of plugins) args.push("--with", p);
-  args.push("--output", binPath);
-  const result = await runCmd("xcaddy", args);
-  if (result.code !== 0) {
-    throw new Error(
-      `xcaddy build failed (${result.code}): ${
-        result.stderr || result.stdout
-      }` +
-        " — xcaddy requires Go and xcaddy installed on PATH",
-    );
-  }
 }
 
 /** Verify the installed binary: `caddy version` and `caddy list-modules`. */
@@ -1089,6 +1174,8 @@ async function adminApiRequestUnix(
 async function readConfig(
   adminApiAddr: string,
   token?: string,
+  listenAddrs?: string[],
+  autoHttps?: string,
 ): Promise<CaddyConfig> {
   const resp = await adminApiRequest(
     adminApiAddr,
@@ -1097,7 +1184,7 @@ async function readConfig(
     undefined,
     token,
   );
-  if (resp.status === 404) return baseConfig();
+  if (resp.status === 404) return baseConfig(listenAddrs, autoHttps);
   if (resp.status < 200 || resp.status >= 300) {
     throw new Error(
       `Failed to read Caddy config (${resp.status}): ${resp.body}`,
@@ -1107,12 +1194,12 @@ async function readConfig(
   try {
     body = JSON.parse(resp.body);
   } catch {
-    return baseConfig();
+    return baseConfig(listenAddrs, autoHttps);
   }
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return baseConfig();
+    return baseConfig(listenAddrs, autoHttps);
   }
-  return body as CaddyConfig;
+  return ensureServerDefaults(body as CaddyConfig, listenAddrs, autoHttps);
 }
 
 /** Replace the Caddy JSON config via the admin API. */
@@ -1201,7 +1288,7 @@ type MethodContext = {
 
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.09.07.6",
+  version: "2026.09.20.1",
   globalArguments: GlobalArgsSchema,
   resources: {
     install: {
@@ -1268,7 +1355,7 @@ export const model = {
   methods: {
     installCaddy: {
       description:
-        "Download (or build with xcaddy) the Caddy binary and verify it runs",
+        "Download the current Caddy binary (with any requested module packages) and verify it runs",
       arguments: InstallArgsSchema,
       execute: async (
         args: z.infer<typeof InstallArgsSchema>,
@@ -1276,7 +1363,6 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
         const binPath = expandHome(g.caddyBinPath);
-        const version = args.version ?? g.caddyVersion;
         const plugins = args.plugins ?? g.plugins;
         const arch = caddyArch();
 
@@ -1289,19 +1375,15 @@ export const model = {
             { binPath },
           );
         } else {
-          if (plugins.length > 0) {
-            context.logger?.info(
-              "Building Caddy with plugins via xcaddy: {plugins}",
-              { plugins },
-            );
-            await buildCaddyWithPlugins(binPath, version, plugins);
-          } else {
-            context.logger?.info(
-              "Downloading Caddy binary ({arch}) to {binPath}",
-              { arch, binPath },
-            );
-            await downloadCaddy(binPath, arch);
-          }
+          context.logger?.info(
+            "Downloading Caddy binary ({arch}, packages: {plugins}) to {binPath}",
+            {
+              arch,
+              plugins: plugins.length > 0 ? plugins.join(", ") : "(none)",
+              binPath,
+            },
+          );
+          await downloadCaddy(binPath, arch, plugins);
         }
 
         const verified = await verifyCaddy(binPath);
@@ -1336,17 +1418,19 @@ export const model = {
           `~/.config/systemd/user/${serviceName}.service`,
         );
 
-        const unit = renderServiceUnit({
-          binPath,
-          configPath,
-          adminApiAddr: g.adminApiAddr,
-        });
+        const unit = renderServiceUnit({ binPath, configPath });
         await writeUnitFile(unitPath, unit);
 
         // Write a minimal config so the service can actually start.
         const configDir = dirnameOf(configPath);
         await Deno.mkdir(configDir, { recursive: true });
-        await Deno.writeTextFile(configPath, renderMinimalConfig());
+        await Deno.writeTextFile(
+          configPath,
+          renderMinimalConfig({
+            adminApiAddr: g.adminApiAddr,
+            autoHttps: g.autoHttps,
+          }),
+        );
 
         const reload = await systemctl(["daemon-reload"]);
         if (reload.code !== 0) {
@@ -1473,7 +1557,12 @@ export const model = {
         const upstream = parseUpstream(args.upstream);
         const route = buildRoute(hostname, upstream);
 
-        const config = await readConfig(g.adminApiAddr, g.adminApiToken);
+        const config = await readConfig(
+          g.adminApiAddr,
+          g.adminApiToken,
+          g.listenAddrs,
+          g.autoHttps,
+        );
         const next = addRouteToConfig(config, route); // throws on domain conflict
         await writeConfig(g.adminApiAddr, next, g.adminApiToken);
 
@@ -1521,7 +1610,12 @@ export const model = {
           );
         }
 
-        const config = await readConfig(g.adminApiAddr, g.adminApiToken);
+        const config = await readConfig(
+          g.adminApiAddr,
+          g.adminApiToken,
+          g.listenAddrs,
+          g.autoHttps,
+        );
         const next = removeRouteFromConfig(config, hostname); // throws if not found
         await writeConfig(g.adminApiAddr, next, g.adminApiToken);
 
@@ -1715,7 +1809,12 @@ export const model = {
           subjects: args.subjects,
         });
 
-        const config = await readConfig(g.adminApiAddr, g.adminApiToken);
+        const config = await readConfig(
+          g.adminApiAddr,
+          g.adminApiToken,
+          g.listenAddrs,
+          g.autoHttps,
+        );
         const next = mergeTlsConfig(config, tlsConfig);
         await writeConfig(g.adminApiAddr, next, g.adminApiToken);
 
@@ -1758,7 +1857,12 @@ export const model = {
           upstream: `127.0.0.1:${args.port}`,
         }));
 
-        const config = await readConfig(g.adminApiAddr, g.adminApiToken);
+        const config = await readConfig(
+          g.adminApiAddr,
+          g.adminApiToken,
+          g.listenAddrs,
+          g.autoHttps,
+        );
         const { toEnsure, toRemove } = reconcileProxyServices(
           desired,
           config,
@@ -1812,7 +1916,7 @@ export const model = {
 
     upgradeCaddy: {
       description:
-        "Replace the Caddy binary (new version/plugins) with confirmation, then restart the service",
+        "Replace the Caddy binary (current release, with module packages) with confirmation, then restart the service",
       arguments: UpgradeArgsSchema,
       execute: async (
         args: z.infer<typeof UpgradeArgsSchema>,
@@ -1821,31 +1925,23 @@ export const model = {
         const g = context.globalArgs;
         if (args.confirm !== "upgrade") {
           throw new Error(
-            renderUpgradeConfirmation({
-              version: args.version ?? g.caddyVersion,
-              plugins: args.plugins ?? g.plugins,
-            }),
+            renderUpgradeConfirmation({ plugins: args.plugins ?? g.plugins }),
           );
         }
 
         const binPath = expandHome(g.caddyBinPath);
-        const version = args.version ?? g.caddyVersion;
         const plugins = args.plugins ?? g.plugins;
         const arch = caddyArch();
 
-        if (plugins.length > 0) {
-          context.logger?.info(
-            "Building Caddy {version} with plugins via xcaddy: {plugins}",
-            { version: version ?? "latest", plugins },
-          );
-          await buildCaddyWithPlugins(binPath, version, plugins);
-        } else {
-          context.logger?.info(
-            "Downloading Caddy binary ({arch}) to {binPath}",
-            { arch, binPath },
-          );
-          await downloadCaddy(binPath, arch);
-        }
+        context.logger?.info(
+          "Downloading Caddy binary ({arch}, packages: {plugins}) to {binPath}",
+          {
+            arch,
+            plugins: plugins.length > 0 ? plugins.join(", ") : "(none)",
+            binPath,
+          },
+        );
+        await downloadCaddy(binPath, arch, plugins);
 
         const verified = await verifyCaddy(binPath);
 
@@ -1994,7 +2090,12 @@ export const model = {
         const g = context.globalArgs;
         const upstream = parseUpstream(args.upstream);
 
-        const config = await readConfig(g.adminApiAddr, g.adminApiToken);
+        const config = await readConfig(
+          g.adminApiAddr,
+          g.adminApiToken,
+          g.listenAddrs,
+          g.autoHttps,
+        );
         const { config: next, changed } = ensureRoute(
           config,
           args.hostname,

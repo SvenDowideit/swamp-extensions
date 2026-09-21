@@ -54,13 +54,32 @@ That is the whole install. The workflows auto-create the model instances
 `swamp model create` prerequisite.
 
 The one thing you must supply yourself is a credential in a vault, because your
-ride history is private:
+ride history is private. Create the vault first, then store the credential in
+it:
 
 ```sh
-# Store your Zwift account credentials (or a refresh token) once.
+# Create a vault to hold the credential. This example uses the systemd-creds
+# backend — secrets encrypted at rest (AES256-GCM, bound to your UID +
+# machine-id), no daemon, requires systemd v256+. Any vault type works; see
+# https://swamp-club.com/manual/reference/vaults
+swamp vault create @svendowideit/systemd-creds zwift-secrets
+
+# Store your Zwift account credentials (or a refresh token) once. Prefer a
+# refresh token: once one is stored, the password is no longer needed.
 swamp vault put zwift-secrets ZWIFT_USERNAME
 swamp vault put zwift-secrets ZWIFT_PASSWORD
 ```
+
+If you would rather not stand up a backend, `local_encryption` is built in and
+needs no extra extension:
+
+```sh
+swamp vault create local_encryption zwift-secrets
+```
+
+See the [Vaults reference](https://swamp-club.com/manual/reference/vaults) for
+every backend (AWS Secrets Manager, Azure Key Vault, 1Password, and yours via
+`extensions/vaults/`).
 
 ## Configuration
 
@@ -144,6 +163,10 @@ Default `weights`: `ability: 0.35`, `timing: 0.3`, `duration: 0.2`,
 ## Examples
 
 ```sh
+# Create the vault that holds your credential (systemd-creds backend here; any
+# type works). Skip this if you already have a vault named zwift-secrets.
+swamp vault create @svendowideit/systemd-creds zwift-secrets
+
 # Store credentials once — the sync workflow persists the rotated refresh
 # token, so later runs do not need the password.
 swamp vault put zwift-secrets ZWIFT_USERNAME

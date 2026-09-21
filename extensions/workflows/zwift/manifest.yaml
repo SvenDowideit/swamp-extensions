@@ -30,9 +30,15 @@ description: |
 
   RUN
 
-      # Store your Zwift credentials once in a vault. Your ride history is
-      # private, so there is no way to read it without this. Use a refresh
-      # token instead of a password if you prefer:
+      # Your ride history is private, so the models need a credential stored in
+      # a vault. Create the vault once, then store the credential in it. This
+      # example uses the systemd-creds backend (encrypted at rest, no daemon;
+      # systemd v256+), but any vault type works:
+      #   https://swamp-club.com/manual/reference/vaults
+      swamp vault create @svendowideit/systemd-creds zwift-secrets
+
+      # Store your Zwift account credentials. Use a refresh token instead of a
+      # password if you prefer:
       #   swamp vault put zwift-secrets ZWIFT_REFRESH_TOKEN
       swamp vault put zwift-secrets ZWIFT_USERNAME
       swamp vault put zwift-secrets ZWIFT_PASSWORD

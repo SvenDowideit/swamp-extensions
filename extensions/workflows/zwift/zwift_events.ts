@@ -235,7 +235,10 @@ const ScheduleSchema = z.object({
   windowEnd: z.string(),
   eventCount: z.number(),
   raceCount: z.number(),
+  seriesReferenced: z.number(),
   seriesExpanded: z.number(),
+  /** True when `maxSeries` (or the feed's own 200 cap) clipped the schedule. */
+  truncated: z.boolean(),
   sourceNote: z.string(),
   events: z.array(EventSchema),
 });
@@ -389,6 +392,9 @@ export function normalizeEvent(
 // ---------------------------------------------------------------------------
 
 /** Fetch JSON with the shared user-agent; throws on a non-2xx response. */
+/** Wall-clock budget for a single Zwift public-feed request. */
+export const REQUEST_TIMEOUT_MS = 30_000;
+
 async function fetchJson(
   url: string,
   userAgent: string,
@@ -396,9 +402,17 @@ async function fetchJson(
 ): Promise<unknown> {
   const res = await fetchImpl(url, {
     headers: { Accept: "application/json", "User-Agent": userAgent },
+    // A wedged connection must not hang an unattended scheduled run forever.
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!res.ok) {
-    throw new Error(`GET ${url} failed (HTTP ${res.status})`);
+    // Include a short body excerpt so a schedule failure names its cause.
+    const body = await res.text().catch(() => "");
+    const detail = body.trim().slice(0, 200);
+    throw new Error(
+      `GET ${url} failed (HTTP ${res.status})` +
+        (detail ? ` — ${detail}` : ""),
+    );
   }
   return await res.json();
 }
@@ -412,13 +426,26 @@ function asArray(payload: unknown): Record<string, unknown>[] {
   return [];
 }
 
+/** The result of {@link collectEvents}: the events, plus how much was capped. */
+export interface CollectEventsResult {
+  /** Matching events within the horizon, sorted by start time. */
+  events: ZwiftEvent[];
+  /** Number of distinct series the feeds referenced. */
+  seriesReferenced: number;
+  /** Number of those series actually expanded (capped at `maxSeries`). */
+  seriesExpanded: number;
+}
+
 /**
- * Collect events for the next `horizonDays`.
+ * Collect every race/group event in the horizon.
  *
- * Two passes, because the public feed is capped at 200 and cannot be date
- * filtered: (1) the upcoming feed, which is live but shallow; (2) each series
- * it mentions, which reaches further ahead and *does* honour a date range.
- * Results are de-duplicated by event id.
+ * The public feed is capped at 200 events and ignores date filters, so the
+ * horizon is completed by expanding each event *series* it references, which
+ * reaches further ahead and honours `event_starts_after/before`. Results are
+ * de-duplicated by event id.
+ *
+ * Returns the events plus `seriesReferenced`/`seriesExpanded`, so a caller can
+ * report when `maxSeries` clipped the expansion.
  */
 export async function collectEvents(
   cfg: {
@@ -435,7 +462,7 @@ export async function collectEvents(
   nowMs: number,
   fetchImpl: typeof fetch,
   log: (msg: string, props?: Record<string, unknown>) => void,
-): Promise<ZwiftEvent[]> {
+): Promise<CollectEventsResult> {
   const horizonMs = nowMs + cfg.horizonDays * 86_400_000;
   const seen = new Map<string, ZwiftEvent>();
   const seriesIds = new Map<number, string>();
@@ -502,7 +529,11 @@ export async function collectEvents(
     }
   }
 
-  return [...seen.values()].sort((a, b) => a.startMs - b.startMs);
+  return {
+    events: [...seen.values()].sort((a, b) => a.startMs - b.startMs),
+    seriesReferenced: seriesIds.size,
+    seriesExpanded: seriesToExpand.length,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -559,7 +590,7 @@ export const model = {
           : g.eventTypes;
         const maxSeries = args.maxSeries ?? g.maxSeries;
 
-        const events = await collectEvents(
+        const collected = await collectEvents(
           {
             apiBase: g.apiBase,
             horizonDays,
@@ -575,6 +606,7 @@ export const model = {
           fetch,
           (msg, props) => ctx.logger.info(msg, props ?? {}),
         );
+        const events = collected.events;
 
         const raceCount = events.filter((e) => e.isRace).length;
         const schedule = {
@@ -584,7 +616,9 @@ export const model = {
           windowEnd: new Date(nowMs + horizonDays * 86_400_000).toISOString(),
           eventCount: events.length,
           raceCount,
-          seriesExpanded: Math.min(g.maxSeries, events.length),
+          seriesReferenced: collected.seriesReferenced,
+          seriesExpanded: collected.seriesExpanded,
+          truncated: collected.seriesExpanded < collected.seriesReferenced,
           sourceNote:
             "Public calendar (unauth) + per-series expansion; the public feed " +
             "is capped at 200 and ignores date filters.",

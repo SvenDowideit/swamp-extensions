@@ -174,7 +174,7 @@ Deno.test("collectEvents de-duplicates and filters by horizon and type", async (
     );
   }) as typeof fetch;
 
-  const events = await collectEvents(
+  const result = await collectEvents(
     {
       apiBase: "https://example.test",
       horizonDays: 10,
@@ -195,7 +195,10 @@ Deno.test("collectEvents de-duplicates and filters by horizon and type", async (
     () => {},
   );
 
+  const events = result.events;
   assertEquals(events.map((e) => e.id), ["1", "6"]);
+  assertEquals(result.seriesReferenced, 1);
+  assertEquals(result.seriesExpanded, 1);
   // One upcoming fetch plus one series expansion.
   assertEquals(calls.length, 2);
   assertEquals(calls[1].includes("event_starts_after="), true);
@@ -222,7 +225,7 @@ Deno.test("collectEvents tolerates a failing series without losing the feed", as
     );
   }) as typeof fetch;
 
-  const events = await collectEvents(
+  const result = await collectEvents(
     {
       apiBase: "https://example.test",
       horizonDays: 10,
@@ -239,8 +242,8 @@ Deno.test("collectEvents tolerates a failing series without losing the feed", as
     () => {},
   );
 
-  assertEquals(events.length, 1);
-  assertEquals(events[0].id, "1");
+  assertEquals(result.events.length, 1);
+  assertEquals(result.events[0].id, "1");
 });
 
 Deno.test("model exposes a fetch method and a schedule resource", () => {

@@ -98,6 +98,9 @@ export function tokensUsable(tokens: ZwiftTokens, skewMs = 30_000): boolean {
   return tokens.expiresAt - skewMs > Date.now();
 }
 
+/** Wall-clock budget for a single token-exchange request. */
+export const AUTH_TIMEOUT_MS = 30_000;
+
 /**
  * Exchange a password or refresh token for an access token.
  *
@@ -130,9 +133,13 @@ export async function getAccessToken(input: AuthInput): Promise<ZwiftTokens> {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: form.toString(),
+      // A wedged connection must not hang an unattended scheduled run forever.
+      signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
     });
   } catch (err) {
-    throw new ZwiftAuthError(`auth request failed: ${(err as Error).message}`);
+    throw new ZwiftAuthError(
+      `auth request failed: ${(err as Error).message}`,
+    );
   }
 
   const text = await res.text();

@@ -42,18 +42,29 @@ import {
 // Global arguments
 // ---------------------------------------------------------------------------
 
+/**
+ * The name of a vault or a vault key — an identifier, never a secret value.
+ *
+ * Grouping these in one named schema documents that distinction: a vault key
+ * *name* is safe to store, display, and default, which is why it carries no
+ * `sensitive` metadata. Only the values fetched from those keys are secret
+ * (see `password`/`refreshToken` below, and the vault references the workflow
+ * injects).
+ */
+const vaultIdentifier = z.string();
+
 const GlobalArgsSchema = z.object({
-  vaultName: z.string().default("zwift-secrets").describe(
+  vaultName: vaultIdentifier.default("zwift-secrets").describe(
     "Vault the model reads credentials from (and where it persists the " +
       "rotated refresh token)",
   ),
-  usernameKey: z.string().default("ZWIFT_USERNAME").describe(
+  usernameKey: vaultIdentifier.default("ZWIFT_USERNAME").describe(
     "Vault key holding the Zwift account email/username",
   ),
-  passwordKey: z.string().default("ZWIFT_PASSWORD").describe(
+  passwordKey: vaultIdentifier.default("ZWIFT_PASSWORD").describe(
     "Vault key holding the Zwift account password",
   ),
-  refreshTokenKey: z.string().default("ZWIFT_REFRESH_TOKEN").describe(
+  refreshTokenKey: vaultIdentifier.default("ZWIFT_REFRESH_TOKEN").describe(
     "Vault key holding a pre-obtained refresh token (preferred over a password)",
   ),
   username: z.string().optional().describe(
@@ -332,6 +343,8 @@ const HistorySchema = z.object({
   halfLifeDays: z.number(),
   windowDays: z.number(),
   rideCount: z.number(),
+  /** True when the activity cap clipped the history (more rides exist). */
+  truncated: z.boolean(),
   rides: z.array(RideRowSchema),
 });
 
@@ -441,6 +454,9 @@ export function normalizeActivity(
 // API client
 // ---------------------------------------------------------------------------
 
+/** Wall-clock budget for a single Zwift HTTP request. */
+export const REQUEST_TIMEOUT_MS = 30_000;
+
 /** Minimal authenticated JSON client for the endpoints this model uses. */
 async function apiGet(
   path: string,
@@ -456,6 +472,8 @@ async function apiGet(
       Accept: "application/json",
       "User-Agent": "swamp-zwift/1.0",
     },
+    // A wedged connection must not hang an unattended scheduled run forever.
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!res.ok) {
     // 403/401 from the API gateway almost always means the access token was
@@ -471,7 +489,14 @@ async function apiGet(
           `swamp data delete zwift-rider session-auth --yes`,
       );
     }
-    throw new Error(`GET ${path} failed (HTTP ${res.status})`);
+    // Include a short body excerpt: Zwift's error JSON carries the reason
+    // (e.g. `{"message":"limit.too.large"}`) that a bare status hides.
+    const body = await res.text().catch(() => "");
+    const detail = body.trim().slice(0, 200);
+    throw new Error(
+      `GET ${path} failed (HTTP ${res.status})` +
+        (detail ? ` — ${detail}` : ""),
+    );
   }
   return await res.json();
 }
@@ -514,6 +539,8 @@ export const ACTIVITIES_PAGE_LIMIT = 50;
  *
  * Stops early when a short page arrives (the history is exhausted) and caps the
  * total at `maxActivities` so a very long history cannot balloon the run.
+ * `truncated` reports whether the cap was hit, so a consumer can tell a complete
+ * history from a clipped one.
  */
 async function fetchActivities(
   riderId: string,
@@ -521,9 +548,10 @@ async function fetchActivities(
   accessToken: string,
   apiBase: string,
   fetchImpl: typeof fetch,
-): Promise<Record<string, unknown>[]> {
+): Promise<{ activities: Record<string, unknown>[]; truncated: boolean }> {
   const out: Record<string, unknown>[] = [];
   const pageSize = Math.min(ACTIVITIES_PAGE_LIMIT, Math.max(1, maxActivities));
+  let truncated = false;
   for (let start = 0; out.length < maxActivities; start += pageSize) {
     const page = activitiesOf(
       await apiGet(
@@ -536,8 +564,10 @@ async function fetchActivities(
     );
     out.push(...page);
     if (page.length < pageSize) break;
+    // A full page at the cap boundary means more history exists.
+    if (out.length >= maxActivities) truncated = true;
   }
-  return out.slice(0, maxActivities);
+  return { activities: out.slice(0, maxActivities), truncated };
 }
 
 /**
@@ -964,13 +994,14 @@ export const model = {
           profile,
         );
 
-        const rawActivities = await fetchActivities(
-          riderId,
-          maxActivities,
-          tokens.accessToken,
-          g.apiBase,
-          fetchImpl,
-        );
+        const { activities: rawActivities, truncated: activitiesTruncated } =
+          await fetchActivities(
+            riderId,
+            maxActivities,
+            tokens.accessToken,
+            g.apiBase,
+            fetchImpl,
+          );
 
         const cutoff = nowMs - windowDays * 86_400_000;
         const activities: Activity[] = [];
@@ -999,6 +1030,7 @@ export const model = {
           halfLifeDays: g.halfLifeDays,
           windowDays,
           rideCount: activities.length,
+          truncated: activitiesTruncated,
           rides: activities.map((a) => ({
             id: a.id,
             startMs: a.startMs,

@@ -149,14 +149,14 @@ Deno.test("lintReadme does not flag adjacent non-empty blocks", () => {
 
 Deno.test("extractTypeFromSource finds the type literal", () => {
   assertEquals(
-    extractTypeFromSource('export const model = {\n  type: "@me/tool",'),
+    extractTypeFromSource('const tool = {\n  type: "@me/tool",'),
     "@me/tool",
   );
   assertEquals(extractTypeFromSource("const x = 1;"), null);
 });
 
 Deno.test("extractMethodKeysFromSource reads top-level method keys", () => {
-  const src = `export const model = {
+  const src = `const tool = {
   type: "@me/tool",
   methods: {
     run: {
@@ -171,7 +171,7 @@ Deno.test("extractMethodKeysFromSource reads top-level method keys", () => {
 });
 
 Deno.test("extractMethodKeysFromSource ignores nested object keys", () => {
-  const src = `export const model = {
+  const src = `const tool = {
   type: "@me/tool",
   methods: {
     run: {

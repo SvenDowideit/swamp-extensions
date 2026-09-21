@@ -132,13 +132,20 @@ swamp model create @me/tool t --global-arg path=/tmp
 Some details about the model and its methods.
 `;
 
-const SOURCE = `export const model = {
-  type: "@me/tool",
-  methods: {
-    run: { description: "x" },
-  },
-};
-`;
+// Built at runtime so this test file's own text does not contain a literal
+// `export const` model declaration. Swamp's extension loader scans raw `.ts`
+// text (including colocated `_test.ts` files) for that sequence and would
+// otherwise register this fixture as a real model, colliding with the other
+// fixture and tripping the I-Repo-1 duplicate-type invariant.
+const SOURCE = [
+  "export const " + "model = {",
+  '  type: "@me/tool",',
+  "  methods: {",
+  '    run: { description: "x" },',
+  "  },",
+  "};",
+  "",
+].join("\n");
 
 /** Create a temp extension directory containing manifest/README/source. */
 async function makeExtension(): Promise<string> {

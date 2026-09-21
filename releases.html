@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260918-211634-0-sha-bcaa9695"><span class="tier A">A</span>surface dropped swamp-club lifecycle entries (swamp-club#227</a><a href="#release-swamp-club-swamp-v20260918-181015-0-sha-cda6aba2"><span class="tier A">A</span>include createdAt and updatedAt in issue get and search --js</a><a href="#release-swamp-club-swamp-v20260918-171721-0-sha-cc6e1c56"><span class="tier A">A</span>review the provided diff and fail closed on a missing verdic</a><a href="#release-swamp-club-swamp-v20260918-171201-0-sha-1d30d6d3"><span class="tier A">A</span>replace bare notifyDirty() with per-path signals in four rep</a><a href="#release-swamp-club-swamp-v20260918-170808-0-sha-4ba12f2f"><span class="tier A">A</span>resolve workflow data by spec name when instance name differ</a><a href="#release-swamp-club-swamp-v20260918-155612-0-sha-b1ac6226"><span class="tier A">A</span>hot-reload webhook routes from serve.yaml (swamp-club#2234) </a><a href="#release-swamp-club-swamp-v20260918-154106-0-sha-85621c2b"><span class="tier A">A</span>write interactive prompts to stderr (swamp-club#2260) (#2512</a><a href="#release-swamp-club-swamp-v20260918-141950-0-sha-7b3608ba"><span class="tier A">A</span>make .tool-versions the single source of truth for Deno (swa</a><a href="#release-swamp-club-swamp-v20260918-003339-0-sha-a765b344"><span class="tier A">A</span>run worker.prune under the sync gate (swamp-club#2268) (#251</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260921-162703-0-sha-dee9c577"><span class="tier A">A</span>pass vaultsDir to worker token and prune handlers (swamp-clu</a><a href="#release-swamp-club-swamp-v20260921-160939-0-sha-8a577a52"><span class="tier A">A</span>emit per-version dirty signals on data delete for S3 propaga</a><a href="#release-swamp-club-swamp-v20260921-155538-0-sha-9771c637"><span class="tier A">A</span>build HTTP clients lazily and name the CA-store remedy (swam</a><a href="#release-swamp-club-swamp-v20260921-154644-0-sha-ef94a7dc"><span class="tier A">A</span>use proto-safe record construction to preserve __proto__ bin</a><a href="#release-swamp-club-swamp-v20260921-153506-0-sha-5182be2c"><span class="tier A">A</span>report webhook run outcomes honestly (swamp-club#2303) (#251</a><a href="#release-swamp-club-swamp-v20260918-211634-0-sha-bcaa9695"><span class="tier A">A</span>surface dropped swamp-club lifecycle entries (swamp-club#227</a><a href="#release-swamp-club-swamp-v20260918-181015-0-sha-cda6aba2"><span class="tier A">A</span>include createdAt and updatedAt in issue get and search --js</a><a href="#release-swamp-club-swamp-v20260918-171721-0-sha-cc6e1c56"><span class="tier A">A</span>review the provided diff and fail closed on a missing verdic</a><a href="#release-swamp-club-swamp-v20260918-171201-0-sha-1d30d6d3"><span class="tier A">A</span>replace bare notifyDirty() with per-path signals in four rep</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7">
 <h2><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#2446)</h2>
@@ -150,6 +150,172 @@ footer .ver{color:var(--acc)}
 <p>| <code>design/enablers/remote-execution.md</code> | Document the additionalFiles-only policy |</p></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.194129.0-sha.d1808bea" rel="noopener">release v20260902.194129.0-sha.d1808bea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1808bead33f16f9845d428e62e8d6d253214017" rel="noopener">d1808bea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2360" rel="noopener">#2360</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-162703-0-sha-dee9c577">
+<h2><span class="tier A">A</span>pass vaultsDir to worker token and prune handlers (swamp-club#2276) (#2522)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T16:28:50Z">2026-09-21T16:28:50Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): pass vaultsDir to worker token and prune handlers (swamp-club#2276) (#2522)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>Thread <code>vaultsDir</code> through <code>ConnectionContext</code> so server-side <code>handleWorkerTokenCreate</code>, <code>handleWorkerTokenRevoke</code>, and <code>handleWorkerPrune</code> pass the correct vault config directory to their deps factories</li>
+<li>Without it, <code>VaultService.fromRepository</code> fell back to <code>join(repoDir, &quot;vaults&quot;)</code> — wrong under managedConfig — making user-configured vaults invisible while only <code>_token-secrets</code> appeared</li>
+<li>Add architecture fitness test in <code>serve_deps_rules_test.ts</code> to prevent the same omission in future handlers</li>
+</ul>
+<p>Closes swamp-club#2276</p>
+<p>Co-authored-by: Blake Irvin &lt;blakeirvin@me.com&gt;</p>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] Architecture fitness test (<code>serve handlers must pass vaultsDir to createWorker*Deps</code>) passes</li>
+<li>[x] Type checking passes (<code>deno check</code>)</li>
+<li>[x] All existing tests pass</li>
+<li>[x] Build compiles successfully</li>
+<li>[ ] Manual verification on a serve instance with managedConfig + <code>@swamp/1password</code> vault</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.162703.0-sha.dee9c577/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.162703.0-sha.dee9c577/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.162703.0-sha.dee9c577/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.162703.0-sha.dee9c577/swamp-darwin-x86_64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.162703.0-sha.dee9c577" rel="noopener">release v20260921.162703.0-sha.dee9c577</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/dee9c5771aca31eb52bd5096e2cd78a51446649d" rel="noopener">dee9c577</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2522" rel="noopener">#2522</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-160939-0-sha-8a577a52">
+<h2><span class="tier A">A</span>emit per-version dirty signals on data delete for S3 propagation (swamp-club#2277) (#2524)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T16:11:06Z">2026-09-21T16:11:06Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): emit per-version dirty signals on data delete for S3 propagation (swamp-club#2277) (#2524)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>Fix <code>data delete</code> and <code>context.deleteResource</code> silently failing to propagate</li>
+</ul>
+<p>  deletions to S3-backed datastores. The root cause: <code>delete(version=undefined)</code></p>
+<p>  emitted a single data-name-directory <code>markDirty</code> signal that the S3 extension</p>
+<p>  could not match against its file-level index entries — pushChanged skipped the</p>
+<p>  absent directory, leaving S3 objects intact. The next pull restored them.</p>
+<ul>
+<li>Change the full-delete path to emit per-version-directory signals + a latest</li>
+</ul>
+<p>  marker signal, matching the <code>collectGarbage</code> pattern that already works. Falls</p>
+<p>  back to data-name-directory signal if version enumeration fails (lazy hydration).</p>
+<ul>
+<li>Add <code>#recordWrite(dispatch)</code> to <code>DataPlane.#deleteResource</code>, aligning it with</li>
+</ul>
+<p>  <code>#writeResource</code> so the dispatch lifecycle tracks delete mutations.</p>
+<p>Fixes swamp-club#2277</p>
+<p>Co-authored-by: Blake Irvin &lt;blakeirvin@me.com&gt;</p>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] Updated <code>unified_data_repository_test.ts</code> markDirty assertions for delete</li>
+</ul>
+<p>  (latest-marker path instead of data-name directory)</p>
+<ul>
+<li>[x] Added new multi-version delete test verifying per-version signals</li>
+<li>[x] Updated <code>data_plane_test.ts</code> to assert <code>firstWrites</code> on delete</li>
+<li>[x] Updated <code>data_handlers_test.ts</code> markDirty assertion for new signal pattern</li>
+<li>[x] Architecture fitness test (<code>datastore_sync_rules_test.ts</code>) passes — no</li>
+</ul>
+<p>  bare <code>notifyDirty()</code> calls</p>
+<ul>
+<li>[x] Verification:</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.160939.0-sha.8a577a52" rel="noopener">release v20260921.160939.0-sha.8a577a52</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8a577a52bd85ee5cd3735cc7ea583df8f6a74a08" rel="noopener">8a577a52</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2524" rel="noopener">#2524</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-155538-0-sha-9771c637">
+<h2><span class="tier A">A</span>build HTTP clients lazily and name the CA-store remedy (swamp-club#2293) (#2523)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T15:57:17Z">2026-09-21T15:57:17Z</time></span><span>cli</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): build HTTP clients lazily and name the CA-store remedy (swamp-club#2293) (#2523)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>Deno.createHttpClient()</code> reads the platform certificate store, and both</p>
+<p><code>src/cli/remote_run.ts</code> and <code>src/worker/connect.ts</code> built one at module scope.</p>
+<p><code>remote_run.ts</code> sits on the CLI&#39;s import path, so every invocation — including</p>
+<p>offline ones like <code>swamp help</code> and <code>swamp model search</code> — forced that read before</p>
+<p>argument parsing. On a macOS host where the read fails, the process died with an</p>
+<p>uncaught <code>Failed to load platform certificates: SecTrustSettingsCopyCertificates</code>,</p>
+<p>which also blocked the built-in issue-reporting command.</p>
+<p>Both module-scope clients are gone. Construction happens on first use, behind</p>
+<p><code>createTlsHttpClient()</code>, which converts an unreadable store into a <code>UserError</code></p>
+<p>naming <code>DENO_TLS_CA_STORE=mozilla</code> — the override the reporter found. Every</p>
+<p>construction site routes through it, including the CA-certificate paths in</p>
+<p><code>createSocket()</code>, <code>runWorker()</code> and <code>auth server-login</code>: Deno documents <code>caCerts</code></p>
+<p>as used *in addition to* the default roots, so <code>--ca-cert</code> supplements the failing</p>
+<p>store read rather than replacing it, and the message offers it only for a private</p>
+<p>root.</p>
+<p><strong>What this does not do:</strong> commands that actually reach the network still fail on</p>
+<p>a host where the store is unreadable. They now fail with guidance naming the</p>
+<p>working override instead of an uncaught error. Local commands work regardless,</p>
+<p>which is what the issue asks for.</p>
+<h4 class="body-h">Te</h4></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.155538.0-sha.9771c637" rel="noopener">release v20260921.155538.0-sha.9771c637</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9771c63792ca8a92df6ec277d3c3ffe0ce4335f8" rel="noopener">9771c637</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2523" rel="noopener">#2523</a>𝗔 <a href="https://swamp-club.com/lab/2293" rel="noopener">lab#2293</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-154644-0-sha-ef94a7dc">
+<h2><span class="tier A">A</span>use proto-safe record construction to preserve __proto__ bindings (swamp-club#2264) (#2521)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T15:48:26Z">2026-09-21T15:48:26Z</time></span><span>expressions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(expressions): use proto-safe record construction to preserve __proto__ bindings (swamp-club#2264) (#2521)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>Replace Zod v4&#39;s <code>z.record()</code> in <code>DeferredExpressionSchema</code> with a custom <code>protoSafeRecord()</code> helper that copies keys via <code>Object.defineProperty</code> on null-prototype objects — Zod v4 explicitly skips <code>__proto__</code> keys (<code>if (key === &quot;__proto__&quot;) continue</code>)</li>
+<li>Fix six object-rebuild sites that use <code>result[key] = value</code> on plain <code>{}</code> objects: <code>replaceExpressionsRecursive</code>, <code>stripExpressionFields</code>, <code>resolveDeep</code>, <code>coerceBigInts</code>, <code>resolveValue</code>, and <code>deepMerge</code></li>
+<li>Add pinned <code>__proto__</code> test case and targeted unit tests for all affected sites</li>
+</ul>
+<p>Closes swamp-club#2264</p>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] Pinned deterministic test: <code>__proto__</code> binding key survives full round-trip through <code>captureDeferredBindings</code> → <code>JSON.stringify/parse</code> → <code>DeferredExpressionSchema.parse()</code></li>
+<li>[x] <code>replaceExpressions</code> preserves <code>__proto__</code> key in objects</li>
+<li>[x] <code>stripExpressionFields</code> preserves <code>__proto__</code> key for non-expression values</li>
+<li>[x] <code>VaultSecretBag.resolveDeep</code> preserves <code>__proto__</code> key</li>
+<li>[x] <code>coerceBigInts</code> preserves <code>__proto__</code> key in objects</li>
+<li>[x] <code>deepMerge</code> preserves <code>__proto__</code> key from both base and overrides</li>
+<li>[x] Full property test suite passes (fast-check)</li>
+<li>[x] Verification: lint, fmt, type-check, test, compile, code review, adversarial review all pass</li>
+</ul>
+<p>Co-authored-by: skunk-ape &lt;skunk-ape@users.noreply.github.com&gt;</p>
+<p>🤖 Generated with [Claude Code](https://cla</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.154644.0-sha.ef94a7dc" rel="noopener">release v20260921.154644.0-sha.ef94a7dc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ef94a7dce0c69d82ae989482031b7cda6a28dff5" rel="noopener">ef94a7dc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2521" rel="noopener">#2521</a>𝗔 <a href="https://swamp-club.com/lab/2264" rel="noopener">lab#2264</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-153506-0-sha-5182be2c">
+<h2><span class="tier A">A</span>report webhook run outcomes honestly (swamp-club#2303) (#2519)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T15:36:38Z">2026-09-21T15:36:38Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): report webhook run outcomes honestly (swamp-club#2303) (#2519)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>WebhookService</code> captured only the <code>started</code> and <code>completed</code> events from the workflow run stream, so any run that ended another way fell into the success branch: it was logged as completed with an empty run id and emitted <code>webhook_completed</code>, which feeds the <code>completed</code> bucket of the health endpoint&#39;s throughput metrics. Failed webhook runs were inflating health throughput and hiding themselves from operators.</p>
+<p>The scheduled sibling fixed the error-event case in <code>ffcdee12</code> for swamp-club#693; the webhook path never received the same treatment.</p>
+<p>This change captures the <code>error</code>, <code>cancelled</code> and <code>suspended</code> events and requires an explicit <code>succeeded</code> status for success. A cancelled run reports the cancellation, an errored run reports the stream error, and a run suspended on an approval gate logs at info and emits no terminal event — it has not finished, so neither terminal event would be true, and it contributes no health record until it resumes.</p>
+<h4 class="body-h">Scope notes</h4>
+<ul>
+<li>The reporter&#39;s exact scenario, an expression failure in <code>trigger.inputs</code>, already logged a failure correctly: it throws out of <code>executeWorkflowWithLocks</code> before this branch is reached. This change closes the adjacent hole their report exposed and corrects the health metrics, but it does not make a failed run appear in <code>run history</code> — expression failures before the run aggregate exists persist no run record on</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.153506.0-sha.5182be2c" rel="noopener">release v20260921.153506.0-sha.5182be2c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5182be2c4346cad3f25a513ee57cb99bd90c9751" rel="noopener">5182be2c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2519" rel="noopener">#2519</a>𝗔 <a href="https://swamp-club.com/lab/2309" rel="noopener">lab#2309</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260918-211634-0-sha-bcaa9695">
 <h2><span class="tier A">A</span>surface dropped swamp-club lifecycle entries (swamp-club#2279) (#2518)</h2>
@@ -289,7 +455,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.171201.0-sha.1d30d6d3" rel="noopener">release v20260918.171201.0-sha.1d30d6d3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1d30d6d39b1acba979560bf6c48bfac2b0fa5a18" rel="noopener">1d30d6d3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2514" rel="noopener">#2514</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20260918-170808-0-sha-4ba12f2f">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260918-170808-0-sha-4ba12f2f">
 <h2><span class="tier A">A</span>resolve workflow data by spec name when instance name differs (swamp-club#2278) (#2515)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-18T17:09:47Z">2026-09-18T17:09:47Z</time></span><span>data</span><span>fix</span></div>
@@ -386,24 +552,6 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/terminal-output/SKILL.md" rel="noopener">.claude/skills/terminal-output/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/terminal-output/references/logtape.md" rel="noopener">.claude/skills/terminal-output/references/logtape.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.154106.0-sha.85621c2b" rel="noopener">release v20260918.154106.0-sha.85621c2b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/85621c2b158cb966c65c500fccc387f80800bd55" rel="noopener">85621c2b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2512" rel="noopener">#2512</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2507" rel="noopener">#2507</a>𝗔 <a href="https://swamp-club.com/lab/2260" rel="noopener">lab#2260</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20260918-141950-0-sha-7b3608ba">
-<h2><span class="tier A">A</span>make .tool-versions the single source of truth for Deno (swamp-club#1964) (#2511)</h2>
-<p class="lede">`feat` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-18T14:21:25Z">2026-09-18T14:21:25Z</time></span><span>build</span><span>feat</span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(build): make .tool-versions the single source of truth for Deno (swamp-club#1964) (#2511)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Closes swamp-club#1964.</p>
-<p>Deno has no native per-project version pinning, so this repo carried eight independent pins with nothing keeping them in step: six CI steps on a floating <code>v2.9.x</code>, the Dockerfile on an exact tag, and the dead verification container still on 2.8.3.</p>
-<p><code>.tool-versions</code> at the repo root is now the single source of truth. mise reads it natively, and <code>denoland/setup-deno</code> reads the *same file* via its <code>deno-version-file</code> input — already available in the SHA-pinned v2.0.4 the publish workflows use. <strong>CI keeps its existing action and no new third-party action enters the supply chain</strong>; a <code>.mise.toml</code> would have forced <code>jdx/mise-action</code> onto every runner, which is worst on <code>windows-compat.yml</code>. Nothing in CI executes mise — mise is a local developer convenience only.</p>
-<h4 class="body-h">Why this is more than developer convenience</h4>
-<p><code>scripts/download_deno.ts</code> derives the embedded runtime version from <code>deno --version</code> <strong>on the building machine</strong> and bakes that exact release into the compiled binary for user extensions. With <code>release.yml</code> on a floating <code>v2.9.x</code>, consecutive releases could ship different embedded Deno patches with nothing recording which. Pinning exactly makes the shipped artifact reproducible.</p>
-<p>The script now also guards that at its source: it compares the running Deno against the pin, <strong>failing hard under <code>CI</code> and warning locally</strong>. Th</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/AGENTS.md" rel="noopener">AGENTS.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/README.md" rel="noopener">README.md</a></div>
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.141950.0-sha.7b3608ba" rel="noopener">release v20260918.141950.0-sha.7b3608ba</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7b3608ba912ebe38a4cf6bea653eee2db83fddb9" rel="noopener">7b3608ba</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2511" rel="noopener">#2511</a>𝗔 <a href="https://swamp-club.com/lab/2271" rel="noopener">lab#2271</a></div>
-</article>
 <article class="item" id="release-swamp-club-swamp-v20260918-003339-0-sha-a765b344">
 <h2><span class="tier A">A</span>run worker.prune under the sync gate (swamp-club#2268) (#2510)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -443,7 +591,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.003339.0-sha.a765b344" rel="noopener">release v20260918.003339.0-sha.a765b344</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a765b344b79c85a4f56fd3c14d929352ef45e46d" rel="noopener">a765b344</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2510" rel="noopener">#2510</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2509" rel="noopener">#2509</a>𝗔 <a href="https://swamp-club.com/lab/2268" rel="noopener">lab#2268</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260917-233703-0-sha-a3e60933">
+<article class="item" id="release-swamp-club-swamp-v20260917-233703-0-sha-a3e60933">
 <h2><span class="tier A">A</span>reap stale worker records and token bindings from ephemeral fleets (swamp-club#2192) (#2509)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-17T23:38:48Z">2026-09-17T23:38:48Z</time></span><span>workers</span><span>fix</span></div>
@@ -5584,7 +5732,25 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260916.001346.0-sha.600af419" rel="noopener">release v20260916.001346.0-sha.600af419</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/600af41963aebb3ed38f8f476f1c5710b0702163" rel="noopener">600af419</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2466" rel="noopener">#2466</a>𝗔 <a href="https://swamp-club.com/lab/2124" rel="noopener">lab#2124</a></div>
 </article></section>
-<section class="tail"><h2>Tooling</h2><article class="item" id="release-swamp-club-swamp-v20260917-001849-0-sha-1288f64b">
+<section class="tail"><h2>Tooling</h2><article class="item" id="release-swamp-club-swamp-v20260918-141950-0-sha-7b3608ba">
+<h2><span class="tier A">A</span>make .tool-versions the single source of truth for Deno (swamp-club#1964) (#2511)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-18T14:21:25Z">2026-09-18T14:21:25Z</time></span><span>build</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(build): make .tool-versions the single source of truth for Deno (swamp-club#1964) (#2511)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Closes swamp-club#1964.</p>
+<p>Deno has no native per-project version pinning, so this repo carried eight independent pins with nothing keeping them in step: six CI steps on a floating <code>v2.9.x</code>, the Dockerfile on an exact tag, and the dead verification container still on 2.8.3.</p>
+<p><code>.tool-versions</code> at the repo root is now the single source of truth. mise reads it natively, and <code>denoland/setup-deno</code> reads the *same file* via its <code>deno-version-file</code> input — already available in the SHA-pinned v2.0.4 the publish workflows use. <strong>CI keeps its existing action and no new third-party action enters the supply chain</strong>; a <code>.mise.toml</code> would have forced <code>jdx/mise-action</code> onto every runner, which is worst on <code>windows-compat.yml</code>. Nothing in CI executes mise — mise is a local developer convenience only.</p>
+<h4 class="body-h">Why this is more than developer convenience</h4>
+<p><code>scripts/download_deno.ts</code> derives the embedded runtime version from <code>deno --version</code> <strong>on the building machine</strong> and bakes that exact release into the compiled binary for user extensions. With <code>release.yml</code> on a floating <code>v2.9.x</code>, consecutive releases could ship different embedded Deno patches with nothing recording which. Pinning exactly makes the shipped artifact reproducible.</p>
+<p>The script now also guards that at its source: it compares the running Deno against the pin, <strong>failing hard under <code>CI</code> and warning locally</strong>. Th</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/AGENTS.md" rel="noopener">AGENTS.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/README.md" rel="noopener">README.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.141950.0-sha.7b3608ba" rel="noopener">release v20260918.141950.0-sha.7b3608ba</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7b3608ba912ebe38a4cf6bea653eee2db83fddb9" rel="noopener">7b3608ba</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2511" rel="noopener">#2511</a>𝗔 <a href="https://swamp-club.com/lab/2271" rel="noopener">lab#2271</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260917-001849-0-sha-1288f64b">
 <h2><span class="tier A">A</span>pin validate-attestation checkout to PR head commit (swamp-club#2211) (#2487)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-17T00:20:25Z">2026-09-17T00:20:25Z</time></span><span>ci</span><span>fix</span></div>
@@ -5825,7 +5991,79 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.015247.0-sha.c228ef72" rel="noopener">release v20260902.015247.0-sha.c228ef72</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c228ef722408b54501e67b044bd23c2475ad4c0c" rel="noopener">c228ef72</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2345" rel="noopener">#2345</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260917-232152-0-sha-4430c4b1">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260921-173622-0-sha-8ef40537">
+<h2><span class="tier C">C</span>swamp 20260921.173622.0-sha.8ef40537</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T17:38:06Z">2026-09-21T17:38:06Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix: make deno task test deterministic and stop it writing to the developer&#39;s home (#2520)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>deno task test</code> was failing on main (bcaa9695). Investigation turned up five</p>
+<p>distinct defects — three of which only reproduce in particular environments,</p>
+<p>which is why CI stayed green. Filed as swamp-club#2313.</p>
+<p>| Defect | Symptom |</p>
+<p>| --- | --- |</p>
+<p>| ENOTEMPTY race (the report) | A repo init wrote skills into another test file&#39;s temp <code>HOME</code> mid-cleanup |</p>
+<p>| Home clobbering | Every <code>deno run test</code> overwrote the real <code>~/.claude/skills</code>, <code>~/.agents/skills</code>, <code>~/.kiro/skills</code> |</p>
+<p>| <code>__proto__</code> property flake | Failed ~1 run in 6 on a random seed |</p>
+<p>| TTY test | <code>useTerminalSize_test</code> failed 3/3 from any terminal, on any branch |</p>
+<p>| <code>0x0</code> pty | Zero accepted as a usable terminal width |</p>
+<p>The common thread in four of the five: resolving a user-level path or a</p>
+<p>terminal size from ambient state, so behaviour depended on where the suite ran.</p>
+<h4 class="body-h">Root cause of the reported failure</h4>
+<p><code>deno test --parallel</code> runs every test file in ONE process with ONE shared</p>
+<p><code>Deno.env</code> (verified directly: two files, same pid, each observing the other&#39;s</p>
+<p>env writes). <code>RepoService.init</code>/<code>.upgrade</code> resolved their user-level write</p>
+<p>targets from that environment, so a repo init in one file installed bundled</p>
+<p>skills into whatever <code>HOME</code> another file had momentarily assigned.</p>
+<p><code>user_identity_repository_test</code>&#39;s temp <code>HOME</code> received a full skill tree</p>
+<p>mid-teardown and its recursive delete failed with</p>
+<p>`Di</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.173622.0-sha.8ef40537" rel="noopener">release v20260921.173622.0-sha.8ef40537</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8ef40537" rel="noopener">8ef40537</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2520" rel="noopener">#2520</a>𝗔 <a href="https://swamp-club.com/lab/2313" rel="noopener">lab#2313</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-171118-0-sha-652abec2">
+<h2><span class="tier C">C</span>swamp 20260921.171118.0-sha.652abec2</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T17:12:55Z">2026-09-21T17:12:55Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): exempt internal models from remote-only placement check (swamp-club#2307) (#2526)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>Adds a <code>modelRegistry.isInternal()</code> guard before the <code>isRemoteOnlyMode()</code> check in <code>method_execution_service.ts</code> so built-in <code>swamp/*</code> control-plane models (server tokens, enrollment tokens, workers, step leases, etc.) always run in-process on the orchestrator, even when <code>--remote-only</code> is enabled</li>
+<li>Fixes authentication deadlock where the <code>swamp/server-token</code> <code>redeem</code> method was rejected because it has no placement, preventing workers and OAuth sessions from authenticating</li>
+<li>Adds two unit tests verifying the exemption path and the rejection path</li>
+<li>Updates <code>design/primitives/serve.md</code> to document the exemption</li>
+</ul>
+<p>Fixes swamp-club#2307</p>
+<p>Co-authored-by: Blake Irvin &lt;blakeirvin@me.com&gt;</p>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] Unit test: internal model type executes in-process in remote-only mode</li>
+<li>[x] Unit test: non-internal model type without placement throws <code>UserError</code> in remote-only mode</li>
+<li>[x] All 77 tests in <code>method_execution_service_test.ts</code> pass</li>
+<li>[x] <code>deno check</code> clean</li>
+<li>[x] Full verification workflow passed (build + reviews + skills)</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.171118.0-sha.652abec2/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.171118.0-sha.652abec2/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L h</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.171118.0-sha.652abec2" rel="noopener">release v20260921.171118.0-sha.652abec2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/652abec2" rel="noopener">652abec2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2526" rel="noopener">#2526</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260917-232152-0-sha-4430c4b1">
 <h2><span class="tier C">C</span>document how to verify TTY-only behaviour with a pty (#2508)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-17T23:23:31Z">2026-09-17T23:23:31Z</time></span><span>verification</span><span>docs</span></div>
@@ -6049,13 +6287,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260901.012545.0-sha.7d7984ad" rel="noopener">release v20260901.012545.0-sha.7d7984ad</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7d7984adc3a589df883ef460f5bc7e4d10259b13" rel="noopener">7d7984ad</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2332" rel="noopener">#2332</a>𝗔 <a href="https://swamp-club.com/lab/1925" rel="noopener">lab#1925</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>162 items across 1 source(s) in this window:
-3 critical, 151 notable, 2 routine,
-6 minor.</p>
-<ul><li><strong>fix</strong> — 107</li><li><strong>feat</strong> — 47</li><li><strong>docs</strong> — 6</li><li><strong>perf</strong> — 2</li></ul></section>
+<p>169 items across 1 source(s) in this window:
+3 critical, 156 notable, 2 routine,
+8 minor.</p>
+<ul><li><strong>fix</strong> — 112</li><li><strong>feat</strong> — 47</li><li><strong>docs</strong> — 6</li><li><strong>perf</strong> — 2</li><li><strong>changes</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-21T18:08:16.637Z">2026-09-21T18:08:16.637Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-21T19:01:23.893Z">2026-09-21T19:01:23.893Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

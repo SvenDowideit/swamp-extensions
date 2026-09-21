@@ -1,0 +1,84 @@
+id: 0dc10679-bb23-4836-a531-f1c262ade336
+name: '@svendowideit/meta-factory'
+description: |
+  Score the documentation quality of swamp extensions against the meta-factory
+  contract, then gate on the result.
+
+  The guiding principle: the published manifest plus README must be enough for
+  a user or agent to easily learn how to do everything the published extension
+  does. This workflow scores it deterministically (0–100) and fails if any
+  scored extension falls below the threshold.
+
+  Run for one extension:
+    swamp workflow run @svendowideit/meta-factory \
+      --input manifest=extensions/models/caddy/manifest.yaml
+
+  Run for the whole repo:
+    swamp workflow run @svendowideit/meta-factory --input root=extensions
+
+  Offline (CI/sandbox): add --global-arg offline=true
+tags: {}
+inputs:
+  properties:
+    manifest:
+      type: string
+      default: ""
+      description: >
+        Score only this manifest (path relative to the repo root). Leave empty
+        to discover and score every manifest.yaml under `root`.
+    root:
+      type: string
+      default: extensions
+      description: Directory scanned for manifest.yaml files when manifest is empty.
+    threshold:
+      type: integer
+      default: 75
+      description: Minimum score required to pass the gate.
+    offline:
+      type: boolean
+      default: false
+      description: Skip the network dependency audit (dependency check gets 50% credit).
+  required: []
+jobs:
+  - name: score
+    description: Score the target extension(s) and write the summary rollup.
+    steps:
+      - name: check
+        description: Score one manifest, or discover and score all under the root.
+        task:
+          type: model_method
+          modelType: "@svendowideit/meta-factory"
+          modelName: meta-factory
+          methodName: checkAll
+          inputs:
+            manifest: ${{ inputs.manifest }}
+            offline: ${{ inputs.offline }}
+          globalArgs:
+            root: ${{ inputs.root }}
+            threshold: ${{ inputs.threshold }}
+            offline: ${{ inputs.offline }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: gate
+        description: Fail when any scored extension is below the threshold.
+        task:
+          type: assert
+          expr: >-
+            data.latest("meta-factory", "rollup").attributes.failCount == 0
+          message: >-
+            ${{ data.latest("meta-factory", "rollup").attributes.failCount }}
+            extension(s) scored below the threshold of
+            ${{ data.latest("meta-factory", "rollup").attributes.threshold }}.
+            Run `swamp report get @svendowideit/meta-factory-report --model
+            meta-factory --markdown` for the breakdown.
+          severity: high
+        dependsOn:
+          - step: check
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

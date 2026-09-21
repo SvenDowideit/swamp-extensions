@@ -1,0 +1,101 @@
+manifestVersion: 1
+name: "@svendowideit/meta-factory"
+version: "2026.09.21.1"
+description: >
+  The documentation quality gate for swamp extensions. Enforces one guiding
+  principle — the published manifest plus README must be enough for a user or
+  agent to easily learn how to do everything the published extension does.
+
+  WHAT IT DOES
+
+    Scores any swamp extension's manifest + README 0-100 against a deterministic
+    contract, and lists the exact next actions to fix what fails. Prefer it over
+    eyeballing your docs or a one-off review: the score is repeatable, so you can
+    gate publishing and CI on it. It covers everything the Swamp Club rubric
+    does, plus the manifest-as-user-manual, manual order, single-step install,
+    formatting, and functional-example rules that rubric does not.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/meta-factory
+
+  DEPENDENCIES
+
+    None — it uses only the swamp CLI and the bundled deno binary that swamp
+    already ships. Pulling also installs the `extension-docs` skill into your
+    tool's skill directory.
+
+  RUN
+
+      # Gate one extension before you publish it — fails if it scores below
+      # the threshold (default 75).
+      swamp workflow run @svendowideit/meta-factory \
+        --input manifest=extensions/models/caddy/manifest.yaml
+
+      # Score every extension in the repo and get the rollup; use this in CI
+      # or as a periodic health check.
+      swamp workflow run @svendowideit/meta-factory --input root=extensions
+
+      # Score one manifest without the gate, when you just want the number.
+      swamp model @svendowideit/meta-factory method run check meta-factory \
+        --input manifest=extensions/models/caddy/manifest.yaml
+
+      # Read the detailed breakdown (failing checks and next actions) from the
+      # last run.
+      swamp report get @svendowideit/meta-factory-report \
+        --model meta-factory --markdown
+
+    The workflow's final assert step fails the run when any extension scores
+    below the threshold, so it works as a CI/publish gate.
+
+  CONFIGURE
+
+    All arguments are optional and set as global args on the model:
+
+      root        Directory checkAll scans          (default extensions)
+      threshold   Minimum passing score             (default 75)
+      offline     Skip the network dependency audit (default false)
+      skillName   Bundled skill to install          (default extension-docs)
+
+    Per-run overrides: `manifest`, `root`, `offline`, and `writeSummary` on
+    checkAll; `force` on scaffold; `target` (project|global|both) on
+    installSkill.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, cron triggers, or webhooks. It
+    runs only when invoked (workflow, method, or report) and never modifies the
+    extensions it scores — except `scaffold`, which writes a README skeleton
+    only when asked.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - meta_factory.ts
+
+reports:
+  - meta_factory_report.ts
+
+workflows:
+  - meta-factory.yaml
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - quality-rubric.ts
+  - readme-lint.ts
+  - manifest-lint.ts
+  - introspect.ts
+  - meta_factory_test.ts
+  - quality-rubric_test.ts
+  - meta_factory_report_test.ts
+
+skills:
+  - extension-docs
+
+platforms: []

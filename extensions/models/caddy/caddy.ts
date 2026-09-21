@@ -797,6 +797,11 @@ const DNS_PROVIDER_PLUGINS: Record<string, string> = {
   namecheap: "github.com/caddy-dns/namecheap",
 };
 
+/**
+ * Map a DNS provider name to its Caddy plugin module path.
+ *
+ * Throws for an unsupported provider, listing the supported names.
+ */
 export function dnsProviderPlugin(provider: string): string {
   const plugin = DNS_PROVIDER_PLUGINS[provider.toLowerCase()];
   if (!plugin) {
@@ -1300,6 +1305,7 @@ type MethodContext = {
   ) => Promise<Record<string, unknown> | null>;
 };
 
+/** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
   version: "2026.09.20.3",

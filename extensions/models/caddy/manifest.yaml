@@ -4,27 +4,92 @@ version: "2026.09.20.3"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
-  Installs the current Caddy binary, optionally compiling in extra module
-  packages requested from the caddyserver.com download API (e.g.
-  github.com/hairyhenderson/caddy-teapot-module) — no local Go toolchain or
-  xcaddy needed. Writes and manages a systemd *user* service, and drives
-  Caddy live through its admin API: add/remove reverse-proxy routes without a
-  restart, ensure desired-state routes, configure TLS/ACME (including DNS
-  challenge providers for wildcard certs), and auto-proxy swamp-serve
-  instances. Service lifecycle (start/stop/restart), health checks, config
-  snapshot/read, Vault-backed config, and binary upgrades are included.
+  WHAT IT DOES
 
-  Runs unprivileged (plain HTTP on high ports, auto_https off) or as a
-  Let's Encrypt TLS proxy on 80/443. Admin-API routes persist across restarts
-  via Caddy's autosave + --resume.
+    Manages a Caddy reverse proxy on a Linux host with systemd — install the
+    binary, run it as a systemd user service, and drive routes and TLS live
+    through Caddy's admin API. Prefer it over hand-editing a Caddyfile or a Go
+    Caddy plugin when you want routes added and removed without a restart and
+    managed from swamp; no Go toolchain is needed.
 
-  Methods: installCaddy, createService, startService, stopService,
-  restartService, checkHealth, settingsGuidance, storeConfig, syncConfig,
-  getConfig, configureTls, addProxyService, removeProxyService,
-  ensureDnsProxy, autoProxySwampServe, startBackendService,
-  stopBackendService, restartBackendService, upgradeCaddy.
+    It runs unprivileged (plain HTTP on high ports) or as a Let's Encrypt TLS
+    proxy on 80/443, and routes persist across restarts via autosave + --resume.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/caddy
+
+  DEPENDENCIES
+
+    None. It needs only the swamp CLI, a Linux host with systemd user services,
+    and network access to caddyserver.com to download the binary.
+
+  RUN
+
+      swamp model create @svendowideit/caddy my-caddy \
+        --global-arg baseDomain=example.com \
+        --global-arg letsEncryptEmail=admin@example.com
+
+      swamp model method run my-caddy installCaddy
+
+      swamp model method run my-caddy createService
+
+      swamp model method run my-caddy startService
+
+      swamp workflow run caddy-setup
+
+      swamp workflow run caddy-ensure-proxy \
+        --input hostname=foo.example.com --input upstream=127.0.0.1:8080
+
+  CONFIGURE
+
+    All arguments are optional and set as global args when creating/editing the
+    model:
+
+      baseDomain         Base domain for derived hostnames
+      letsEncryptEmail   ACME email (enables automatic HTTPS)
+      autoHttps          on|off|disable_redirects|disable_certs|...
+      listenAddrs        HTTP listen addresses (default [":443",":80"])
+      plugins            Extra Caddy modules to compile in
+      adminApiAddr       Admin API address (or unix//path)
+      vaultName          Vault used by storeConfig
+
+    Override per call with --input, e.g. addProxyService --input serviceName=app
+    --input upstream=127.0.0.1:8080, or configureTls --input
+    dnsProvider=cloudflare --input 'subjects:json=["*.example.com"]'.
+
+  WHAT IT INSTALLS
+
+    A Caddy binary at caddyBinPath (default ~/.local/bin/caddy), a systemd
+    *user* service (default caddy.service), a Caddyfile under ~/.config/caddy,
+    and network-facing reverse-proxy routes via Caddy's admin API. It installs
+    no cron triggers or webhooks.
+
+  METHODS
+
+    @svendowideit/caddy — the model:
+      installCaddy      Install the Caddy binary (with module packages).
+      createService     Write the systemd *user* service + minimal Caddyfile.
+      startService      Start and enable the service; verify the admin API.
+      stopService       Stop the service.
+      restartService    Restart the service.
+      checkHealth       Report service + admin API health.
+      settingsGuidance  Print the minimal Let's Encrypt settings.
+      addProxyService   Add a reverse-proxy route live via the admin API.
+      removeProxyService Remove a route and stop its backend service.
+      ensureDnsProxy    Idempotently ensure a hostname proxies to a backend.
+      startBackendService / stopBackendService / restartBackendService
+                        Manage backend systemd user services by name.
+      storeConfig       Write settings to the swamp Vault.
+      syncConfig        Snapshot the effective config.
+      getConfig         Read the stored config back.
+      configureTls      Configure ACME (optionally DNS-challenge) TLS.
+      autoProxySwampServe Reconcile routes for running swamp-serve services.
+      upgradeCaddy      Replace the binary and restart the service.
 
 repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
 
 paths:
   base: manifest

@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2308"><span class="tier A">A</span>swamp run history reports completed for failed workflow runs</a><a href="#issue-2294"><span class="tier A">A</span>swamp serve daemon enable generates a systemd unit with no H</a><a href="#issue-2330"><span class="tier A">A</span>issue-lifecycle: two ordering deadlocks — ad-hoc fast_forwar</a><a href="#issue-2038"><span class="tier A">A</span>Upgrade/Update causes odd locking issue on swamp deno</a><a href="#issue-2310"><span class="tier A">A</span>Every webhook lifecycle line is logged twice by swamp serve</a><a href="#issue-2315"><span class="tier A">A</span>gcs-datastore: verify generation-precondition support at set</a><a href="#issue-2313"><span class="tier A">A</span>deno task test fails on main: shared-env home writes, TTY as</a><a href="#issue-2312"><span class="tier A">A</span>Property test for deferred bindings fails intermittently on </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2309"><span class="tier A">A</span>Scheduled runs that suspend on an approval gate are logged a</a><a href="#issue-2308"><span class="tier A">A</span>swamp run history reports completed for failed workflow runs</a><a href="#issue-2294"><span class="tier A">A</span>swamp serve daemon enable generates a systemd unit with no H</a><a href="#issue-2330"><span class="tier A">A</span>issue-lifecycle: two ordering deadlocks — ad-hoc fast_forwar</a><a href="#issue-2038"><span class="tier A">A</span>Upgrade/Update causes odd locking issue on swamp deno</a><a href="#issue-2310"><span class="tier A">A</span>Every webhook lifecycle line is logged twice by swamp serve</a><a href="#issue-2315"><span class="tier A">A</span>gcs-datastore: verify generation-precondition support at set</a><a href="#issue-2313"><span class="tier A">A</span>deno task test fails on main: shared-env home writes, TTY as</a></aside><div>
 
 <article class="item" id="issue-2223">
 <h2><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots for current-run reporting</h2>
@@ -100,6 +100,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
+</article>
+<article class="item" id="issue-2309">
+<h2><span class="tier A">A</span>Scheduled runs that suspend on an approval gate are logged as failures</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-21T22:59:05.521Z">2026-09-21T22:59:05.521Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2309" rel="noopener">lab#2309</a></div>
 </article>
 <article class="item" id="issue-2308">
 <h2><span class="tier A">A</span>swamp run history reports completed for failed workflow runs</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2313" rel="noopener">lab#2313</a></div>
 </article>
-<article class="item" id="issue-2312">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2312">
 <h2><span class="tier A">A</span>Property test for deferred bindings fails intermittently on a __proto__ key</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-21T16:40:44.349Z">2026-09-21T16:40:44.349Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2312" rel="noopener">lab#2312</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2300">
+<article class="item" id="issue-2300">
 <h2><span class="tier A">A</span>s3-datastore: verify conditional-write support (If-None-Match / If-Match) at setup and in doctor; a backend that ignores them makes locking silently unsafe</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-09-21T16:13:04.414Z">2026-09-21T16:13:04.414Z</time></span></div>
@@ -1357,6 +1365,14 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
+<article class="item" id="issue-2325">
+<h2><span class="tier B">B</span>SWAMP_SERVER_TOKEN is ignored with --server unless SWAMP_SERVER_URL is also set to the same host (and SWAMP_SERVER_URL rejects wss://)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-21T22:56:30.934Z">2026-09-21T22:56:30.934Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2325" rel="noopener">lab#2325</a></div>
+</article>
 <article class="item" id="issue-2311">
 <h2><span class="tier B">B</span>data.latest().attributes fails with &#39;No such key&#39; in workflow assert steps</h2>
 <p class="lede">Issue in_progress</p>
@@ -1485,29 +1501,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2332">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2320">
+<h2><span class="tier C">C</span>issue-lifecycle: two ordering deadlocks — ad-hoc fast_forward is unreachable, and verify before conformance review parks the lifecycle</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-21T22:23:59.722Z">2026-09-21T22:23:59.722Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2320" rel="noopener">lab#2320</a></div>
+</article>
+<article class="item" id="issue-2329">
+<h2><span class="tier C">C</span>s3/gcs-datastore: clean up data left behind by deletes that silently no-opped before the swamp-club#2249 fix</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-21T22:21:28.707Z">2026-09-21T22:21:28.707Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2329" rel="noopener">lab#2329</a></div>
+</article>
+<article class="item" id="issue-2331">
+<h2><span class="tier C">C</span>Docs: daemon.md reference page does not mention SWAMP_HOME for extension loading</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-21T22:21:15.971Z">2026-09-21T22:21:15.971Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2331" rel="noopener">lab#2331</a></div>
+</article>
+<article class="item" id="issue-2332">
 <h2><span class="tier C">C</span>verify-build: codegen guard expression reads a nonexistent &#39;stdout&#39; attribute, so the workflow fails on every commit</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-09-21T20:57:07.395Z">2026-09-21T20:57:07.395Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2332" rel="noopener">lab#2332</a></div>
-</article>
-<article class="item" id="issue-2331">
-<h2><span class="tier C">C</span>Docs: daemon.md reference page does not mention SWAMP_HOME for extension loading</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-21T20:43:01.340Z">2026-09-21T20:43:01.340Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2331" rel="noopener">lab#2331</a></div>
-</article>
-<article class="item" id="issue-2329">
-<h2><span class="tier C">C</span>s3/gcs-datastore: clean up data left behind by deletes that silently no-opped before the swamp-club#2249 fix</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-21T20:01:14.874Z">2026-09-21T20:01:14.874Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2329" rel="noopener">lab#2329</a></div>
 </article>
 <article class="item" id="issue-2326">
 <h2><span class="tier C">C</span>Expose Swamp as a REST/OpenAPI endpoint (for GPT Actions and other REST clients)</h2>
@@ -1524,14 +1548,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2181" rel="noopener">lab#2181</a></div>
-</article>
-<article class="item" id="issue-2325">
-<h2><span class="tier C">C</span>SWAMP_SERVER_TOKEN is ignored with --server unless SWAMP_SERVER_URL is also set to the same host (and SWAMP_SERVER_URL rejects wss://)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-21T18:58:09.317Z">2026-09-21T18:58:09.317Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2325" rel="noopener">lab#2325</a></div>
 </article>
 <article class="item" id="issue-2323">
 <h2><span class="tier C">C</span>Promote CodeBuddy and WorkBuddy from custom-tool configs to first-class Swamp clients</h2>
@@ -1557,14 +1573,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2321" rel="noopener">lab#2321</a></div>
 </article>
-<article class="item" id="issue-2320">
-<h2><span class="tier C">C</span>issue-lifecycle: two ordering deadlocks — ad-hoc fast_forward is unreachable, and verify before conformance review parks the lifecycle</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-21T17:45:59.125Z">2026-09-21T17:45:59.125Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2320" rel="noopener">lab#2320</a></div>
-</article>
 <article class="item" id="issue-2316">
 <h2><span class="tier C">C</span>verify-build: codegen-verify guard reads .attributes.stdout on a file-type log, so every run fails with InvalidExpressionError</h2>
 <p class="lede">Open issue</p>
@@ -1580,14 +1588,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2314" rel="noopener">lab#2314</a></div>
-</article>
-<article class="item" id="issue-2309">
-<h2><span class="tier C">C</span>Scheduled runs that suspend on an approval gate are logged as failures</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-21T15:01:53.205Z">2026-09-21T15:01:53.205Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2309" rel="noopener">lab#2309</a></div>
 </article>
 <article class="item" id="issue-2301">
 <h2><span class="tier C">C</span>Explore: track release velocity, and let more than one person turn the crank</h2>
@@ -2527,12 +2527,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>307 items across 1 source(s) in this window:
-4 critical, 157 notable, 16 routine,
-130 minor.</p>
+4 critical, 158 notable, 17 routine,
+128 minor.</p>
 <ul><li><strong>issues</strong> — 307</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-21T22:02:34.781Z">2026-09-21T22:02:34.781Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-21T23:01:49.240Z">2026-09-21T23:01:49.240Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

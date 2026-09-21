@@ -286,7 +286,14 @@ yesterday's route is suppressed more than one from a fortnight ago.
   resource stores the rotated refresh token with `z.meta({ sensitive: true })`,
   so swamp keeps the value in the vault, not in the resource file.
 - A refresh token is preferred over a password, and once stored, the password is
-  no longer needed.
+  no longer needed. If the stored token is ever rejected (for example after a
+  Zwift client change), the model silently falls back to the password grant and
+  re-persists a fresh token, so a scheduled run keeps working unattended.
+- Auth uses Zwift's mobile client id (`Zwift_Mobile_Link`). A token minted for
+  any other client is accepted at sign-in but rejected by the profile API with
+  HTTP 403, so this is not configurable.
+- Activity history is paged (Zwift caps a page at 50 activities); the model
+  pages until it has `maxActivities` rides or the history is exhausted.
 - Error messages surface Keycloak's own reason and never include the credential.
 - The model is read-only against Zwift.
 

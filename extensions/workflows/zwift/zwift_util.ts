@@ -54,12 +54,16 @@ export interface LocalParts {
 /**
  * Break an epoch-ms instant into local calendar fields.
  *
- * An empty `timeZone` means "use the host's local timezone" — which is the
- * behaviour a single-user Zwift history wants. A named IANA zone makes the
- * result reproducible on a server that runs in UTC.
+ * An empty `timeZone` (or the `"system"` sentinel a model writes when none was
+ * configured) means "use the host's local timezone" — which is the behaviour a
+ * single-user Zwift history wants. A named IANA zone makes the result
+ * reproducible on a server that runs in UTC.
  */
 export function localParts(ms: number, timeZone = ""): LocalParts {
-  const tz = timeZone.trim() === "" ? undefined : timeZone.trim();
+  const name = timeZone.trim();
+  // `Intl.DateTimeFormat` rejects "system" as an unknown zone, so normalise it
+  // (and the empty string) to `undefined` — its "use the host zone" signal.
+  const tz = name === "" || name.toLowerCase() === "system" ? undefined : name;
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
     hour12: false,

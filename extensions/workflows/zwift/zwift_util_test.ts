@@ -60,6 +60,17 @@ Deno.test("localParts reports ISO weekday 1=Mon .. 7=Sun", () => {
   assertEquals(sunday.isoDayOfWeek, 7);
 });
 
+Deno.test("localParts treats the 'system' sentinel as host-local", () => {
+  // The rider model persists `timeZone: "system"` when none is configured;
+  // `Intl.DateTimeFormat` rejects that string, so the helper must normalise it.
+  const parts = localParts(Date.parse("2026-09-21T07:00:00Z"), "system");
+  assertEquals(parts.timeZone, "system");
+  assertEquals(typeof parts.hour, "number");
+  // An empty zone means the same thing and must also not throw.
+  const empty = localParts(Date.parse("2026-09-21T07:00:00Z"), "");
+  assertEquals(typeof empty.hour, "number");
+});
+
 Deno.test("decayWeight halves every half-life and never goes negative", () => {
   const day = 86_400_000;
   assertEquals(decayWeight(0, 21), 1);

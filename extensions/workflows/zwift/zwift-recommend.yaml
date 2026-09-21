@@ -79,8 +79,8 @@ jobs:
         task:
           type: assert
           expr: >-
-            data.latest("${{ inputs.riderName }}", "ability-current") != null
-            && data.latest("${{ inputs.eventsName }}", "upcoming") != null
+            data.latest(inputs.riderName, "ability-current") != null
+            && data.latest(inputs.eventsName, "upcoming") != null
           message: >-
             Missing synced data. Run 'swamp workflow run @svendowideit/zwift-sync'
             first (or check its schedule) so zwift-rider has an ability-current
@@ -115,7 +115,7 @@ jobs:
         task:
           type: assert
           expr: >-
-            data.latest("${{ inputs.recommenderName }}", "current").attributes.candidatesScored
+            data.latest(inputs.recommenderName, "current").attributes.candidatesScored
             > 0
           message: >-
             No event subgroups were scored. The schedule may be empty or all

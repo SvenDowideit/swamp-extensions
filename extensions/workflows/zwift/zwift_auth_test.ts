@@ -52,7 +52,7 @@ Deno.test("getAccessToken performs a password grant and shapes the result", asyn
   );
   const body = String(captured.init?.body);
   assertEquals(body.includes("grant_type=password"), true);
-  assertEquals(body.includes("client_id=Developer+Client"), true);
+  assertEquals(body.includes("client_id=Zwift_Mobile_Link"), true);
   assertEquals(body.includes("username=rider%40example.com"), true);
 });
 

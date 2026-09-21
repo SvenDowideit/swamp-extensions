@@ -2,7 +2,7 @@
  * Shared Zwift authentication for the `@svendowideit/zwift` extension.
  *
  * Zwift's backend is undocumented. Authentication is a Keycloak password or
- * refresh-token grant against the `Developer Client` client, which yields a
+ * refresh-token grant against Zwift's mobile client, which yields a
  * short-lived access token plus a long-lived refresh token. This module owns
  * that exchange so both models (`zwift-rider` and `zwift-events`) share one
  * implementation and one error surface.
@@ -21,10 +21,17 @@ export const DEFAULT_AUTH_BASE = "https://secure.zwift.com";
 /** Base URL of Zwift's REST API gateway. */
 export const DEFAULT_API_BASE = "https://us-or-rly101.zwift.com";
 
-/** Client id the Zwift companion/mobile app authenticates as. */
-export const PUBLIC_CLIENT_ID = "Developer Client";
+/**
+ * Client id Zwift's own mobile app authenticates as.
+ *
+ * This must be `Zwift_Mobile_Link`. Tokens minted for other clients (e.g.
+ * `Developer Client`) are accepted by Keycloak but lack the role that
+ * `/api/profiles/me` requires, so the API answers HTTP 403 even though sign-in
+ * succeeded. Every working community client uses this id.
+ */
+export const PUBLIC_CLIENT_ID = "Zwift_Mobile_Link";
 
-/** The legacy password-grant endpoint. Still accepts `Developer Client`. */
+/** The legacy password-grant endpoint, still accepted by the mobile client. */
 const LEGACY_TOKEN_PATH = "/auth/realms/zwift/tokens/access/codes";
 
 /** Result of a successful token exchange. Tokens must never be logged. */

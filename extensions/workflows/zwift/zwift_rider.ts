@@ -373,7 +373,7 @@ export function normalizeActivity(
   halfLifeDays: number,
   nowMs: number,
 ): Activity | null {
-  const id = pickString(raw, "id", "activityId", "stravaId") ||
+  const id = pickString(raw, "id_str", "id", "activityId", "stravaId") ||
     String(pickNumber(raw, "id", "activityId") ?? "");
   const startMs = parseTimeMs(
     raw.startDate ?? raw.startTime ?? raw.date ?? raw.startTimestamp ??
@@ -383,10 +383,20 @@ export function normalizeActivity(
 
   const local: LocalParts = localParts(startMs, tz);
   const distanceMeters = pickNumber(raw, "distanceInMeters", "distance") ?? 0;
-  const durationSeconds =
-    pickNumber(raw, "durationInSeconds", "duration", "elapsedTime") ?? 0;
-  const movingSeconds =
-    pickNumber(raw, "movingTimeInSeconds", "movingTime", "activeTime") ??
+  // Zwift's activity `duration` is whole MINUTES; other sources give seconds.
+  // `movingTimeInMs` is milliseconds. Normalise everything to seconds.
+  const explicitSeconds = pickNumber(raw, "durationInSeconds", "elapsedTime");
+  const durationMinutes = pickNumber(raw, "duration");
+  const durationSeconds = explicitSeconds ??
+    (durationMinutes !== null ? durationMinutes * 60 : 0);
+  const movingMs = pickNumber(
+    raw,
+    "movingTimeInMs",
+    "movingTimeInMilliseconds",
+  );
+  const movingSeconds = movingMs !== null
+    ? Math.round(movingMs / 1000)
+    : pickNumber(raw, "movingTimeInSeconds", "movingTime", "activeTime") ??
       durationSeconds;
   const avgSpeedKph =
     pickNumber(raw, "avgSpeedInKph", "averageSpeed", "avgSpeed") ??
@@ -410,8 +420,13 @@ export function normalizeActivity(
       0,
     durationSeconds,
     movingSeconds,
-    avgPower: pickNumber(raw, "avgPower", "averagePower", "power"),
-    avgHeartRate: pickNumber(raw, "avgHeartRate", "averageHeartRate"),
+    avgPower: pickNumber(raw, "avgWatts", "avgPower", "averagePower", "power"),
+    avgHeartRate: pickNumber(
+      raw,
+      "avgHeartRate",
+      "averageHeartRate",
+      "heartRateAvg",
+    ),
     avgCadence: pickNumber(raw, "avgCadence", "averageCadence"),
     avgSpeedKph,
     calories: pickNumber(raw, "calories"),
@@ -443,14 +458,37 @@ async function apiGet(
     },
   });
   if (!res.ok) {
+    // 403/401 from the API gateway almost always means the access token was
+    // minted for the wrong Keycloak client (accepted at sign-in, but without
+    // the role these endpoints require). Point at the fix rather than leaving
+    // a bare status.
+    if (res.status === 403 || res.status === 401) {
+      throw new Error(
+        `GET ${path} failed (HTTP ${res.status}) — the access token was ` +
+          `rejected by Zwift's API. This usually means a stale refresh token ` +
+          `from an older client is being reused. Delete the cached session ` +
+          `and re-authenticate with your password: ` +
+          `swamp data delete zwift-rider session-auth --yes`,
+      );
+    }
     throw new Error(`GET ${path} failed (HTTP ${res.status})`);
   }
   return await res.json();
 }
 
-/** Extract the athlete id from a profile payload. */
+/**
+ * Extract the athlete id Zwift's API path expects.
+ *
+ * `/api/profiles/me` returns both a numeric `id` and a UUID `publicId`. The
+ * activities endpoint is addressed by the **numeric** id — passing the UUID
+ * yields HTTP 404 — so the numeric value wins. It is returned as a string
+ * because it can exceed Number.MAX_SAFE_INTEGER.
+ */
 function profileIdOf(profile: Record<string, unknown>): string {
-  return pickString(profile, "id", "playerId", "publicId");
+  const asString = pickString(profile, "id_str", "playerId");
+  if (asString) return asString;
+  const asNumber = pickNumber(profile, "id", "playerId");
+  return asNumber === null ? "" : String(asNumber);
 }
 
 /** Pull an array of activities out of either response shape Zwift returns. */
@@ -462,6 +500,44 @@ function activitiesOf(payload: unknown): Record<string, unknown>[] {
     if (Array.isArray(list)) return list as Record<string, unknown>[];
   }
   return [];
+}
+
+/**
+ * Largest page Zwift's activities endpoint accepts. A larger `limit` is
+ * rejected with `{"message":"limit.too.large"}` (HTTP 400), so the history
+ * must be paged rather than requested in one call.
+ */
+export const ACTIVITIES_PAGE_LIMIT = 50;
+
+/**
+ * Fetch up to `maxActivities` activities, paging at {@link ACTIVITIES_PAGE_LIMIT}.
+ *
+ * Stops early when a short page arrives (the history is exhausted) and caps the
+ * total at `maxActivities` so a very long history cannot balloon the run.
+ */
+async function fetchActivities(
+  riderId: string,
+  maxActivities: number,
+  accessToken: string,
+  apiBase: string,
+  fetchImpl: typeof fetch,
+): Promise<Record<string, unknown>[]> {
+  const out: Record<string, unknown>[] = [];
+  const pageSize = Math.min(ACTIVITIES_PAGE_LIMIT, Math.max(1, maxActivities));
+  for (let start = 0; out.length < maxActivities; start += pageSize) {
+    const page = activitiesOf(
+      await apiGet(
+        `/api/profiles/${encodeURIComponent(riderId)}/activities` +
+          `?start=${start}&limit=${pageSize}`,
+        accessToken,
+        apiBase,
+        fetchImpl,
+      ),
+    );
+    out.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return out.slice(0, maxActivities);
 }
 
 /**
@@ -581,15 +657,42 @@ async function resolveAuth(
     );
   }
 
-  const tokens = await getAccessToken({
-    username,
-    password,
-    refreshToken: refreshToken || undefined,
-    authBase: g.authBase,
-  });
+  // Try the stored/explicit refresh token first, but fall back to the password
+  // grant when it is rejected. A token minted for a different client (or an
+  // expired/rotated-away one) fails at the token endpoint with `invalid_grant`;
+  // silently re-authenticating keeps a scheduled run working without a human
+  // clearing the cached session.
+  let tokens: ZwiftTokens;
+  let via: string;
+  if (refreshToken) {
+    try {
+      tokens = await getAccessToken({
+        refreshToken,
+        authBase: g.authBase,
+      });
+      via = "refresh token";
+    } catch (err) {
+      if (!(username && password)) throw err;
+      ctx.logger.warning(
+        "Stored refresh token was rejected ({err}); falling back to password grant",
+        { err: (err as Error).message },
+      );
+      tokens = await getAccessToken({
+        username,
+        password,
+        authBase: g.authBase,
+      });
+      via = "password grant (refresh token rejected)";
+    }
+  } else {
+    tokens = await getAccessToken({
+      username,
+      password,
+      authBase: g.authBase,
+    });
+    via = "password grant";
+  }
 
-  // A persisted token is reused across runs; the password path is the fallback.
-  const via = refreshToken ? "refresh token" : "password grant";
   return { tokens, via };
 }
 
@@ -827,11 +930,14 @@ export const model = {
         }
 
         const rawWeight = pickNumber(rawProfile, "weight");
-        const weightKg = rawWeight !== null && rawWeight > 1
-          // Zwift stores weight in grams.
-          ? rawWeight / 1000
+        // Zwift stores weight in grams (85300 = 85.3 kg). A plausible kilogram
+        // value is well under 1000, so anything larger is grams.
+        const weightKg = rawWeight !== null && rawWeight > 1000
+          ? Math.round(rawWeight / 100) / 10
           : rawWeight;
         const profileFtp = pickNumber(rawProfile, "ftp", "ftpWatts");
+        // `achievementLevel` is the level multiplied by 100 (e.g. 5432 => 54).
+        const rawLevel = pickNumber(rawProfile, "achievementLevel");
         const profile = {
           id: riderId,
           firstName: pickString(rawProfile, "firstName"),
@@ -841,8 +947,12 @@ export const model = {
           wPerKg: profileFtp !== null && weightKg !== null && weightKg > 0
             ? Math.round((profileFtp / weightKg) * 100) / 100
             : null,
-          level: pickNumber(rawProfile, "achievementLevel"),
-          totalDistanceKm: pickNumber(rawProfile, "totalDistance"),
+          level: rawLevel === null ? null : Math.floor(rawLevel / 100),
+          totalDistanceKm: (() => {
+            // `totalDistance` is metres.
+            const m = pickNumber(rawProfile, "totalDistance");
+            return m === null ? null : Math.round(m / 100) / 10;
+          })(),
           totalClimbedM: pickNumber(rawProfile, "totalDistanceClimbed"),
           totalTimeMinutes: pickNumber(rawProfile, "totalTimeInMinutes"),
           totalXp: pickNumber(rawProfile, "totalExperiencePoints"),
@@ -854,14 +964,12 @@ export const model = {
           profile,
         );
 
-        const rawActivities = activitiesOf(
-          await apiGet(
-            `/api/profiles/${encodeURIComponent(riderId)}/activities` +
-              `?start=0&limit=${maxActivities}`,
-            tokens.accessToken,
-            g.apiBase,
-            fetchImpl,
-          ),
+        const rawActivities = await fetchActivities(
+          riderId,
+          maxActivities,
+          tokens.accessToken,
+          g.apiBase,
+          fetchImpl,
         );
 
         const cutoff = nowMs - windowDays * 86_400_000;

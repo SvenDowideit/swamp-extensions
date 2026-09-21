@@ -57,6 +57,40 @@ Deno.test("normalizeActivity derives speed when Zwift omits it", () => {
   assertEquals(activity?.avgSpeedKph, 16);
 });
 
+Deno.test("normalizeActivity maps the live Zwift activity shape", () => {
+  // Field names and units exactly as `GET /api/profiles/{id}/activities`
+  // returns them: `id_str` for the big id, `duration` in MINUTES, `avgWatts`,
+  // and `movingTimeInMs`.
+  const activity = normalizeActivity(
+    {
+      id_str: "2231928433636622384",
+      id: 2231928433636622300,
+      startDate: "2026-09-21T07:20:20.929+0000",
+      endDate: "2026-09-21T07:58:48.818+0000",
+      sport: "CYCLING",
+      name: "Zwift - Volcano Flat in Watopia",
+      distanceInMeters: 20705.3,
+      duration: "38",
+      movingTimeInMs: 2301130,
+      totalElevation: 59.6254,
+      avgWatts: 131.348,
+      calories: 289.283,
+      worldId: 1,
+    },
+    TZ,
+    21,
+    NOW,
+  );
+
+  assertEquals(activity?.id, "2231928433636622384");
+  // `duration` (minutes) becomes seconds.
+  assertEquals(activity?.durationSeconds, 38 * 60);
+  assertEquals(activity?.movingSeconds, 2301);
+  assertEquals(activity?.avgPower, 131.348);
+  assertEquals(activity?.calories, 289.283);
+  assertEquals(activity?.elevationMeters, 59.6254);
+});
+
 Deno.test("normalizeActivity weight decays with age", () => {
   const today = normalizeActivity(
     {

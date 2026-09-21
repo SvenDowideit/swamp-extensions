@@ -1,0 +1,132 @@
+id: 606c09ab-12b8-4100-8b42-c78e36d3afdc
+name: "@svendowideit/zwift-recommend"
+description: |
+  Recommend which Zwift events to enter, from the rider's own history.
+
+  Consumes the two data sets the zwift-sync workflow produces, wired in with CEL
+  expressions so nothing is re-fetched:
+
+    ability     ← zwift-rider   ability-current  (decayed w/kg + habit profile)
+    recentRides ← zwift-rider   history-current  (rides, each with a decay weight)
+    schedule    ← zwift-events  upcoming         (every event in the next 10 days)
+
+  Each event subgroup is scored on ability fit (race category / w-kg pace band),
+  recency-decayed habit fit (the local hour and duration the rider actually
+  rides), route/event freshness (a repeat penalty), availability, and a race-vs-
+  ride bias. Every component is written to the output so a pick can be audited.
+
+  Scheduled 30 minutes after each zwift-sync run (06:30, 12:30, 15:30 local), so
+  it always ranks against freshly synced data.
+
+  Manual run:
+    swamp workflow run @svendowideit/zwift-recommend
+    swamp workflow run @svendowideit/zwift-recommend --input raceBias=1 --input topN=8
+    swamp workflow run @svendowideit/zwift-recommend --input includeGroupRides=false
+tags:
+  domain: fitness
+trigger:
+  schedule: "30 6,12,15 * * *"
+  inputs: {}
+inputs:
+  properties:
+    riderName:
+      type: string
+      default: zwift-rider
+      description: Rider model instance name to read the ability/history from.
+    eventsName:
+      type: string
+      default: zwift-events
+      description: Events model instance name to read the schedule from.
+    recommenderName:
+      type: string
+      default: zwift-recommender
+      description: Recommender model instance name used in the workflow.
+    topN:
+      type: integer
+      default: 12
+      description: How many recommendations to return.
+    raceBias:
+      type: number
+      default: 0.6
+      description: >
+        Preference for racing over group rides: 0.5 is neutral, 1 strongly
+        prefers races, 0 strongly prefers group rides.
+    includeGroupRides:
+      type: boolean
+      default: true
+      description: When false, only races and time trials are recommended.
+    horizonDays:
+      type: number
+      default: 10
+      description: Only recommend events starting within this many days.
+    halfLifeDays:
+      type: number
+      default: 21
+      description: Recency half-life used when scoring habit fit.
+    explain:
+      type: boolean
+      default: true
+      description: Attach a human-readable reason to each recommendation.
+  required: []
+jobs:
+  - name: recommend
+    description: Rank the upcoming schedule against the rider's decayed profile.
+    steps:
+      - name: assert-inputs
+        description: >
+          Fail fast with a clear message when the sync workflow has not produced
+          the ability/history/schedule data this run needs.
+        task:
+          type: assert
+          expr: >-
+            data.latest("${{ inputs.riderName }}", "ability-current") != null
+            && data.latest("${{ inputs.eventsName }}", "upcoming") != null
+          message: >-
+            Missing synced data. Run 'swamp workflow run @svendowideit/zwift-sync'
+            first (or check its schedule) so zwift-rider has an ability-current
+            resource and zwift-events has an upcoming schedule.
+          severity: high
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: recommend
+        description: Score every event subgroup and write the ranked top N.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-recommender"
+          modelName: ${{ inputs.recommenderName }}
+          methodName: recommend
+          inputs:
+            ability: ${{ data.latest(inputs.riderName, "ability-current").attributes }}
+            schedule: ${{ data.latest(inputs.eventsName, "upcoming").attributes }}
+            recentRides: ${{ data.latest(inputs.riderName, "history-current").?attributes.?rides.orValue([]) }}
+            topN: ${{ inputs.topN }}
+            horizonDays: ${{ inputs.horizonDays }}
+            includeGroupRides: ${{ inputs.includeGroupRides }}
+            explain: ${{ inputs.explain }}
+        dependsOn:
+          - step: assert-inputs
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: has-recommendations
+        description: Warn (as a recorded assertion) when no event in the window scored.
+        task:
+          type: assert
+          expr: >-
+            data.latest("${{ inputs.recommenderName }}", "current").attributes.candidatesScored
+            > 0
+          message: >-
+            No event subgroups were scored. The schedule may be empty or all
+            events fell outside the horizon — try a larger --input horizonDays.
+          severity: medium
+        dependsOn:
+          - step: recommend
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

@@ -1,0 +1,114 @@
+manifestVersion: 1
+name: "@svendowideit/zwift"
+version: "2026.09.21.1"
+description: |
+  Recommend which Zwift events to enter, from your own ride history.
+
+  WHAT IT DOES
+
+    Zwift's calendar makes you scan hundreds of events by hand, and it does not
+    know that you are a Cat C rider who normally trains for an hour at 6am. This
+    extension reads your own Zwift history, weights recent rides more heavily
+    than old ones (a configurable 21-day half-life), and ranks the upcoming
+    calendar against that profile. Each event subgroup is scored on ability fit
+    (race category / w/kg pace band), habit fit (the local hour and duration you
+    actually ride), route/event freshness, availability, and a race-vs-ride
+    bias — and every score component is written out with a human-readable
+    reason, so a pick can be audited rather than merely trusted. It also keeps
+    your ride history and the event calendar in swamp so other models can use
+    them. Read-only: it never writes to your Zwift account.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/zwift
+
+  DEPENDENCIES
+
+    None. It uses only Deno's built-in fetch and the bundled deno binary that
+    swamp already ships. The workflows auto-create their model instances on
+    first run — no manual 'swamp model create' is needed.
+
+  RUN
+
+      # Store your Zwift credentials once in a vault. Your ride history is
+      # private, so there is no way to read it without this. Use a refresh
+      # token instead of a password if you prefer:
+      #   swamp vault put zwift-secrets ZWIFT_REFRESH_TOKEN
+      swamp vault put zwift-secrets ZWIFT_USERNAME
+      swamp vault put zwift-secrets ZWIFT_PASSWORD
+
+      # Verify credentials/config and see exactly what is missing (read-only).
+      swamp model @svendowideit/zwift-rider method run setup zwift-rider
+
+      # Sync 120 days of history, derive the ability profile, and fetch 10 days
+      # of events. Scheduled 06:00, 12:00 and 15:00 local time.
+      swamp workflow run @svendowideit/zwift-sync
+
+      # Rank the upcoming calendar and write the top 12 picks. Scheduled 30
+      # minutes after each sync.
+      swamp workflow run @svendowideit/zwift-recommend
+
+      # Read the picks, with the reason for each.
+      swamp data get zwift-recommender current --json \
+        | jq '.content.recommendations[] | {rank, score, eventName, reason}'
+
+  CONFIGURE
+
+    Set optional values on the model instance (recommended — scheduled runs have
+    no --input), or override per run. Common overrides:
+
+      # A rider coming back from injury: shorter history, faster decay.
+      swamp workflow run @svendowideit/zwift-sync --input historyDays=180 --input halfLifeDays=14
+
+      # Races only, top 8, two-week window.
+      swamp workflow run @svendowideit/zwift-recommend \
+        --input includeGroupRides=false --input topN=8 --input horizonDays=14
+
+      # A rider in another timezone than the host running 'swamp serve'.
+      swamp workflow run @svendowideit/zwift-sync --input timezone=Australia/Brisbane
+
+    See every setting, its default and its current value:
+
+      swamp model @svendowideit/zwift-rider method run setup zwift-rider
+
+    Scheduled workflows fire in the LOCAL timezone of the 'swamp serve' host.
+    swamp has no per-workflow timezone field, so set TZ in the service
+    environment (e.g. Environment=TZ=Australia/Brisbane) when serving on a
+    server. The models' 'timezone' argument separately controls which local hour
+    a ride or event is bucketed into.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, or webhooks. Two cron triggers
+    are registered while 'swamp serve' runs: zwift-sync at 0 6,12,15 * * * and
+    zwift-recommend at 30 6,12,15 * * *. All state lives in swamp resources;
+    credentials live in the vault (including the rotated refresh token).
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - zwift_auth.ts
+  - zwift_util.ts
+  - zwift_rider.ts
+  - zwift_events.ts
+  - zwift_recommender.ts
+
+workflows:
+  - zwift-sync.yaml
+  - zwift-recommend.yaml
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - zwift_auth_test.ts
+  - zwift_util_test.ts
+  - zwift_rider_test.ts
+  - zwift_events_test.ts
+  - zwift_recommender_test.ts
+
+platforms: []

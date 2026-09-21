@@ -1,0 +1,110 @@
+id: 4c48a0c6-0b12-4989-bfe9-ba16c1ac831d
+name: "@svendowideit/zwift-sync"
+description: |
+  Refresh the rider's Zwift history and the upcoming event calendar.
+
+  Two independent jobs run in parallel:
+
+    rider-history   signs in to Zwift, pulls the athlete profile and recent
+                    activities, persists each ride, and derives the decayed
+                    ability + habit profile the recommender reads.
+    upcoming-events pulls every race/group event over the next N days from the
+                    public calendar, expanding the event series the capped feed
+                    references.
+
+  Scheduled three times a day in the HOST's local timezone — 06:00, 12:00 and
+  15:00 — which is what "based on the user's local time, not UTC" requires.
+  swamp's scheduler (Deno.cron, via swamp serve) has no per-workflow timezone
+  field, so local-time firing is achieved by running swamp serve in the user's
+  timezone (set TZ in the service environment, or run it on the user's own
+  machine). See the README.
+
+  Credentials live in a vault (default zwift-secrets: ZWIFT_USERNAME +
+  ZWIFT_PASSWORD, or a ZWIFT_REFRESH_TOKEN). The first successful sign-in
+  persists the rotated refresh token, so later runs reuse it.
+
+  Manual run:
+    swamp workflow run @svendowideit/zwift-sync
+    swamp workflow run @svendowideit/zwift-sync --input historyDays=180
+    swamp workflow run @svendowideit/zwift-sync --input horizonDays=14
+tags:
+  domain: fitness
+trigger:
+  schedule: "0 6,12,15 * * *"
+  inputs: {}
+inputs:
+  properties:
+    riderName:
+      type: string
+      default: zwift-rider
+      description: Rider model instance name used in the workflow.
+    eventsName:
+      type: string
+      default: zwift-events
+      description: Events model instance name used in the workflow.
+    historyDays:
+      type: integer
+      default: 120
+      description: How many days of ride history to keep.
+    halfLifeDays:
+      type: number
+      default: 21
+      description: >
+        Recency half-life for the decayed habit profile — a ride this many days
+        old counts half as much as one from today.
+    horizonDays:
+      type: number
+      default: 10
+      description: How many days ahead to collect events.
+    timezone:
+      type: string
+      default: ""
+      description: >
+        IANA timezone (e.g. Australia/Brisbane) used to bucket ride and event
+        start times. Empty uses the host's local timezone.
+    sport:
+      type: string
+      default: ""
+      description: Only keep rides of this sport (CYCLING or RUNNING); empty = all.
+  required: []
+jobs:
+  - name: rider-history
+    description: Sign in to Zwift, sync ride history, derive the ability profile.
+    steps:
+      - name: sync
+        description: >
+          Fetch the profile + activities, persist each ride, and write the
+          decayed ability/habit profile. Rotates and stores the refresh token.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-rider"
+          modelName: ${{ inputs.riderName }}
+          methodName: sync
+          inputs:
+            historyDays: ${{ inputs.historyDays }}
+            includeAbility: true
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+  - name: upcoming-events
+    description: Collect races and group events over the next horizon days.
+    steps:
+      - name: fetch
+        description: >
+          Fetch the public event calendar and expand every referenced series,
+          then keep only events inside the horizon.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-events"
+          modelName: ${{ inputs.eventsName }}
+          methodName: fetch
+          inputs:
+            horizonDays: ${{ inputs.horizonDays }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

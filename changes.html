@@ -67,8 +67,56 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html" class="active">Changes</a><a href="releases.html">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-extensions-3a16448844cdad2c0b2a6c43ffbfdda04bf29cf1"><span class="tier A">A</span>add 7 enrichment methods for governance workflow models (#29</a><a href="#commit-swamp-club-swamp-extensions-acb3aa65a2716a1518d31d174d0a0dbd6b6b7e7d"><span class="tier A">A</span>add inventory_findings for SCC v2 location-scoped snapshots </a><a href="#commit-swamp-club-swamp-extensions-eff582df1305966ff41af73503b567395583f38c"><span class="tier A">A</span>add manage_account enrichment for deterministic service acco</a><a href="#commit-swamp-club-swamp-388ccad013874f2fb83dda4d902b908c4e1a24d9"><span class="tier A">A</span>persist authored provenance with evaluated caches (swamp-clu</a><a href="#commit-swamp-club-swamp-bdd824dfa34af8726d57294c9bc2dca8981e8d06"><span class="tier A">A</span>preserve legacy files during auto-resolution (#2503)</a><a href="#commit-swamp-club-swamp-cb78dc60de482a6bf011132538941b066a45aa98"><span class="tier A">A</span>preserve parent scope for parent-authored runtime expression</a><a href="#commit-swamp-club-swamp-extensions-f1c9c66295777075c0de7f6eb97a50cf83b62612"><span class="tier A">A</span>compare-and-swap merges for shard and _meta.json writes (#22</a><a href="#commit-swamp-club-swamp-d2b999d62d6407229ef4dc87867faaa99ef47104"><span class="tier A">A</span>push token and data mutations to remote datastore after writ</a><a href="#commit-swamp-club-swamp-efbabca16baa2eeac35ab76b6b7e02f846520f60"><span class="tier A">A</span>evaluate only author-written expressions after CEL substitut</a><a href="#commit-swamp-club-swamp-extensions-84b53f83914fa96b28ee6b24aba22a7d8bf42d46"><span class="tier A">A</span>honor subdirs-scoped pullChanged in s3 and gcs (swamp-club #</a><a href="#commit-swamp-club-swamp-extensions-db34423a4ee39b1c033aa2de96054f40bb9af6f6"><span class="tier A">A</span>add put_events method to event-bus model (#288)</a><a href="#commit-swamp-club-swamp-6b9d8c1e6a1ac801ea11fe2ead025830f3e55481"><span class="tier A">A</span>push data mutations to the remote datastore (swamp-club#2240</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-dee9c5771aca31eb52bd5096e2cd78a51446649d"><span class="tier A">A</span>pass vaultsDir to worker token and prune handlers (swamp-clu</a><a href="#commit-swamp-club-swamp-8a577a52bd85ee5cd3735cc7ea583df8f6a74a08"><span class="tier A">A</span>emit per-version dirty signals on data delete for S3 propaga</a><a href="#commit-swamp-club-swamp-9771c63792ca8a92df6ec277d3c3ffe0ce4335f8"><span class="tier A">A</span>build HTTP clients lazily and name the CA-store remedy (swam</a><a href="#commit-swamp-club-swamp-extensions-ca90b375217b5bc191f961986a109a968ff16414"><span class="tier A">A</span>probe conditional-write support during verification (#299)</a><a href="#commit-swamp-club-swamp-ef94a7dce0c69d82ae989482031b7cda6a28dff5"><span class="tier A">A</span>use proto-safe record construction to preserve __proto__ bin</a><a href="#commit-swamp-club-swamp-5182be2c4346cad3f25a513ee57cb99bd90c9751"><span class="tier A">A</span>report webhook run outcomes honestly (swamp-club#2303) (#251</a><a href="#commit-swamp-club-swamp-extensions-3a16448844cdad2c0b2a6c43ffbfdda04bf29cf1"><span class="tier A">A</span>add 7 enrichment methods for governance workflow models (#29</a><a href="#commit-swamp-club-swamp-extensions-acb3aa65a2716a1518d31d174d0a0dbd6b6b7e7d"><span class="tier A">A</span>add inventory_findings for SCC v2 location-scoped snapshots </a><a href="#commit-swamp-club-swamp-extensions-eff582df1305966ff41af73503b567395583f38c"><span class="tier A">A</span>add manage_account enrichment for deterministic service acco</a><a href="#commit-swamp-club-swamp-388ccad013874f2fb83dda4d902b908c4e1a24d9"><span class="tier A">A</span>persist authored provenance with evaluated caches (swamp-clu</a><a href="#commit-swamp-club-swamp-bdd824dfa34af8726d57294c9bc2dca8981e8d06"><span class="tier A">A</span>preserve legacy files during auto-resolution (#2503)</a><a href="#commit-swamp-club-swamp-cb78dc60de482a6bf011132538941b066a45aa98"><span class="tier A">A</span>preserve parent scope for parent-authored runtime expression</a></aside><div>
 
+<article class="item" id="commit-swamp-club-swamp-dee9c5771aca31eb52bd5096e2cd78a51446649d">
+<h2><span class="tier A">A</span>pass vaultsDir to worker token and prune handlers (swamp-club#2276) (#2522)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T16:26:46Z">2026-09-21T16:26:46Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><p>fix(serve): pass vaultsDir to worker token and prune handlers (swamp-club#2276) (#2522)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/dee9c5771aca31eb52bd5096e2cd78a51446649d" rel="noopener">dee9c577</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2522" rel="noopener">#2522</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-8a577a52bd85ee5cd3735cc7ea583df8f6a74a08">
+<h2><span class="tier A">A</span>emit per-version dirty signals on data delete for S3 propagation (swamp-club#2277) (#2524)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T16:09:23Z">2026-09-21T16:09:23Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><p>fix(datastore): emit per-version dirty signals on data delete for S3 propagation (swamp-club#2277) (#2524)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8a577a52bd85ee5cd3735cc7ea583df8f6a74a08" rel="noopener">8a577a52</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2524" rel="noopener">#2524</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-9771c63792ca8a92df6ec277d3c3ffe0ce4335f8">
+<h2><span class="tier A">A</span>build HTTP clients lazily and name the CA-store remedy (swamp-club#2293) (#2523)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T15:55:26Z">2026-09-21T15:55:26Z</time></span><span>cli</span><span>fix</span></div>
+<div class="body"><p>fix(cli): build HTTP clients lazily and name the CA-store remedy (swamp-club#2293) (#2523)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9771c63792ca8a92df6ec277d3c3ffe0ce4335f8" rel="noopener">9771c637</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2523" rel="noopener">#2523</a>𝗔 <a href="https://swamp-club.com/lab/2293" rel="noopener">lab#2293</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-ca90b375217b5bc191f961986a109a968ff16414">
+<h2><span class="tier A">A</span>probe conditional-write support during verification (#299)</h2>
+<p class="lede">`feat` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-09-21T15:52:31Z">2026-09-21T15:52:31Z</time></span><span>s3-datastore</span><span>feat</span></div>
+<div class="body"><p>feat(s3-datastore): probe conditional-write support during verification (#299)</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/main/datastore/s3/README.md" rel="noopener">datastore/s3/README.md</a></div>
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/ca90b375217b5bc191f961986a109a968ff16414" rel="noopener">ca90b375</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/299" rel="noopener">#299</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-ef94a7dce0c69d82ae989482031b7cda6a28dff5">
+<h2><span class="tier A">A</span>use proto-safe record construction to preserve __proto__ bindings (swamp-club#2264) (#2521)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T15:46:30Z">2026-09-21T15:46:30Z</time></span><span>expressions</span><span>fix</span></div>
+<div class="body"><p>fix(expressions): use proto-safe record construction to preserve __proto__ bindings (swamp-club#2264) (#2521)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ef94a7dce0c69d82ae989482031b7cda6a28dff5" rel="noopener">ef94a7dc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2521" rel="noopener">#2521</a>𝗔 <a href="https://swamp-club.com/lab/2264" rel="noopener">lab#2264</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-5182be2c4346cad3f25a513ee57cb99bd90c9751">
+<h2><span class="tier A">A</span>report webhook run outcomes honestly (swamp-club#2303) (#2519)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T15:34:51Z">2026-09-21T15:34:51Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><p>fix(serve): report webhook run outcomes honestly (swamp-club#2303) (#2519)</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></div>
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5182be2c4346cad3f25a513ee57cb99bd90c9751" rel="noopener">5182be2c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2519" rel="noopener">#2519</a></div>
+</article>
 <article class="item" id="commit-swamp-club-swamp-extensions-3a16448844cdad2c0b2a6c43ffbfdda04bf29cf1">
 <h2><span class="tier A">A</span>add 7 enrichment methods for governance workflow models (#293)</h2>
 <p class="lede">`feat` change · swamp-club/swamp-extensions</p>
@@ -117,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cb78dc60de482a6bf011132538941b066a45aa98" rel="noopener">cb78dc60</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2501" rel="noopener">#2501</a></div>
 </article>
-<article class="item" id="commit-swamp-club-swamp-extensions-f1c9c66295777075c0de7f6eb97a50cf83b62612">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-extensions-f1c9c66295777075c0de7f6eb97a50cf83b62612">
 <h2><span class="tier A">A</span>compare-and-swap merges for shard and _meta.json writes (#2245) (#290)</h2>
 <p class="lede">`fix` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-09-17T19:13:36Z">2026-09-17T19:13:36Z</time></span><span>datastore</span><span>fix</span></div>
@@ -165,7 +213,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6b9d8c1e6a1ac801ea11fe2ead025830f3e55481" rel="noopener">6b9d8c1e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2496" rel="noopener">#2496</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-extensions-d5cccbebc05b6022696cf429b609add7d044f040">
+<article class="item" id="commit-swamp-club-swamp-extensions-d5cccbebc05b6022696cf429b609add7d044f040">
 <h2><span class="tier A">A</span>add inventoryHygieneMetadata for cross-project secret/version metadata snapshots (#287)</h2>
 <p class="lede">`feat` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-09-17T17:08:28Z">2026-09-17T17:08:28Z</time></span><span>gcp-sm</span><span>feat</span></div>
@@ -494,13 +542,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/63ec7ea66cb4284e2cd125b1d7d57a4120bfb016" rel="noopener">63ec7ea6</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/253" rel="noopener">#253</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>53 items across 2 source(s) in this window:
-0 critical, 30 notable, 23 routine,
+<p>59 items across 2 source(s) in this window:
+0 critical, 36 notable, 23 routine,
 0 minor.</p>
-<ul><li><strong>chore</strong> — 23</li><li><strong>fix</strong> — 20</li><li><strong>feat</strong> — 10</li></ul></section>
+<ul><li><strong>fix</strong> — 25</li><li><strong>chore</strong> — 23</li><li><strong>feat</strong> — 11</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-21T16:07:32.292Z">2026-09-21T16:07:32.292Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-21T17:01:22.073Z">2026-09-21T17:01:22.073Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

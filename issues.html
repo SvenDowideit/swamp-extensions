@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2293"><span class="tier A">A</span>CLI crashes while loading macOS platform certificates</a><a href="#issue-2291"><span class="tier A">A</span>Subscription-end email wrongly says &#39;trial ended&#39; after paid</a><a href="#issue-2264"><span class="tier A">A</span>DeferredExpression durable bindings lose a binding named __p</a><a href="#issue-2279"><span class="tier A">A</span>issue-lifecycle: lifecycle entries whose payload contains a </a><a href="#issue-2265"><span class="tier A">A</span>verification harness: code review reviews the wrong diff, an</a><a href="#issue-2234"><span class="tier A">A</span>Hot-reload serve.yaml webhook routes (like trigger overrides</a><a href="#issue-2260"><span class="tier A">A</span>Interactive prompts write to stdout, corrupting commands who</a><a href="#issue-2268"><span class="tier A">A</span>main is red: handleWorkerPrune pushes outside the sync gate,</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2312"><span class="tier A">A</span>Property test for deferred bindings fails intermittently on </a><a href="#issue-2300"><span class="tier A">A</span>s3-datastore: verify conditional-write support (If-None-Matc</a><a href="#issue-2293"><span class="tier A">A</span>CLI crashes while loading macOS platform certificates</a><a href="#issue-2291"><span class="tier A">A</span>Subscription-end email wrongly says &#39;trial ended&#39; after paid</a><a href="#issue-2264"><span class="tier A">A</span>DeferredExpression durable bindings lose a binding named __p</a><a href="#issue-2279"><span class="tier A">A</span>issue-lifecycle: lifecycle entries whose payload contains a </a><a href="#issue-2265"><span class="tier A">A</span>verification harness: code review reviews the wrong diff, an</a><a href="#issue-2234"><span class="tier A">A</span>Hot-reload serve.yaml webhook routes (like trigger overrides</a></aside><div>
 
 <article class="item" id="issue-2223">
 <h2><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots for current-run reporting</h2>
@@ -100,6 +100,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
+</article>
+<article class="item" id="issue-2312">
+<h2><span class="tier A">A</span>Property test for deferred bindings fails intermittently on a __proto__ key</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-21T16:40:44.349Z">2026-09-21T16:40:44.349Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2312" rel="noopener">lab#2312</a></div>
+</article>
+<article class="item" id="issue-2300">
+<h2><span class="tier A">A</span>s3-datastore: verify conditional-write support (If-None-Match / If-Match) at setup and in doctor; a backend that ignores them makes locking silently unsafe</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-21T16:13:04.414Z">2026-09-21T16:13:04.414Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2300" rel="noopener">lab#2300</a></div>
 </article>
 <article class="item" id="issue-2293">
 <h2><span class="tier A">A</span>CLI crashes while loading macOS platform certificates</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2234" rel="noopener">lab#2234</a></div>
 </article>
-<article class="item" id="issue-2260">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2260">
 <h2><span class="tier A">A</span>Interactive prompts write to stdout, corrupting commands whose stdout carries a value</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-18T15:45:06.774Z">2026-09-18T15:45:06.774Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2268" rel="noopener">lab#2268</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2192">
+<article class="item" id="issue-2192">
 <h2><span class="tier A">A</span>Ephemeral worker fleets accumulate worker records and token bindings that are never reaped</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-17T23:41:05.802Z">2026-09-17T23:41:05.802Z</time></span></div>
@@ -1293,14 +1309,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
-<article class="item" id="issue-2300">
-<h2><span class="tier B">B</span>s3-datastore: verify conditional-write support (If-None-Match / If-Match) at setup and in doctor; a backend that ignores them makes locking silently unsafe</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-21T15:19:24.766Z">2026-09-21T15:19:24.766Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2300" rel="noopener">lab#2300</a></div>
-</article>
 <article class="item" id="issue-2250">
 <h2><span class="tier B">B</span>verify-build fails on the codegen-verify guard: &#39;No such key: stdout&#39;</h2>
 <p class="lede">Issue triaged</p>
@@ -1444,14 +1452,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2313" rel="noopener">lab#2313</a></div>
-</article>
-<article class="item" id="issue-2312">
-<h2><span class="tier C">C</span>Property test for deferred bindings fails intermittently on a __proto__ key</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-21T15:10:35.400Z">2026-09-21T15:10:35.400Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2312" rel="noopener">lab#2312</a></div>
 </article>
 <article class="item" id="issue-2311">
 <h2><span class="tier C">C</span>data.latest().attributes fails with &#39;No such key&#39; in workflow assert steps</h2>
@@ -2447,12 +2447,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>297 items across 1 source(s) in this window:
-4 critical, 149 notable, 15 routine,
-129 minor.</p>
+4 critical, 151 notable, 14 routine,
+128 minor.</p>
 <ul><li><strong>issues</strong> — 297</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-21T16:07:32.292Z">2026-09-21T16:07:32.292Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-21T17:01:22.073Z">2026-09-21T17:01:22.073Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

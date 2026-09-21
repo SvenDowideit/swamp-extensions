@@ -26,18 +26,22 @@ description: >
 
   RUN
 
+      # Create the model, choosing your public domain and ACME contact address.
       swamp model create @svendowideit/caddy my-caddy \
         --global-arg baseDomain=example.com \
         --global-arg letsEncryptEmail=admin@example.com
 
+      # Download the Caddy binary to caddyBinPath (run once per host).
       swamp model method run my-caddy installCaddy
 
+      # Write and start the systemd user service (run once, or after an upgrade).
       swamp model method run my-caddy createService
-
       swamp model method run my-caddy startService
 
+      # Do the whole setup idempotently in one command.
       swamp workflow run caddy-setup
 
+      # Point a hostname at a backend, creating the route if it is missing.
       swamp workflow run caddy-ensure-proxy \
         --input hostname=foo.example.com --input upstream=127.0.0.1:8080
 
@@ -64,28 +68,6 @@ description: >
     *user* service (default caddy.service), a Caddyfile under ~/.config/caddy,
     and network-facing reverse-proxy routes via Caddy's admin API. It installs
     no cron triggers or webhooks.
-
-  METHODS
-
-    @svendowideit/caddy — the model:
-      installCaddy      Install the Caddy binary (with module packages).
-      createService     Write the systemd *user* service + minimal Caddyfile.
-      startService      Start and enable the service; verify the admin API.
-      stopService       Stop the service.
-      restartService    Restart the service.
-      checkHealth       Report service + admin API health.
-      settingsGuidance  Print the minimal Let's Encrypt settings.
-      addProxyService   Add a reverse-proxy route live via the admin API.
-      removeProxyService Remove a route and stop its backend service.
-      ensureDnsProxy    Idempotently ensure a hostname proxies to a backend.
-      startBackendService / stopBackendService / restartBackendService
-                        Manage backend systemd user services by name.
-      storeConfig       Write settings to the swamp Vault.
-      syncConfig        Snapshot the effective config.
-      getConfig         Read the stored config back.
-      configureTls      Configure ACME (optionally DNS-challenge) TLS.
-      autoProxySwampServe Reconcile routes for running swamp-serve services.
-      upgradeCaddy      Replace the binary and restart the service.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

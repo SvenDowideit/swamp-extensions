@@ -18,6 +18,7 @@ import {
   findRouteByHost,
   listProxyServices,
   mergeTlsConfig,
+  model,
   parseAdminAddr,
   parseCaddyVersion,
   parseUpstream,
@@ -34,6 +35,72 @@ import {
   validateBaseDomain,
   validateEmail,
 } from "./caddy.ts";
+
+// Minimal global args for exercising the pre-flight checks.
+function checkArgs(overrides: Record<string, unknown> = {}) {
+  return {
+    caddyBinPath: "~/.local/bin/caddy",
+    adminApiAddr: "localhost:2019",
+    configPath: "~/.config/caddy/Caddyfile",
+    autoHttps: "on",
+    listenAddrs: [":443", ":80"],
+    serviceName: "caddy",
+    plugins: [],
+    ...overrides,
+    // deno-lint-ignore no-explicit-any
+  } as any;
+}
+
+Deno.test("valid-config check passes a well-formed config", () => {
+  const result = model.checks["valid-config"].execute({
+    globalArgs: checkArgs({
+      baseDomain: "example.com",
+      letsEncryptEmail: "admin@example.com",
+    }),
+    methodName: "installCaddy",
+  });
+  assertEquals(result.pass, true);
+});
+
+Deno.test("valid-config check rejects a malformed base domain and email", () => {
+  const result = model.checks["valid-config"].execute({
+    globalArgs: checkArgs({
+      baseDomain: "https://example.com/path",
+      letsEncryptEmail: "not-an-email",
+    }),
+    methodName: "installCaddy",
+  });
+  assertEquals(result.pass, false);
+  assertEquals(result.errors?.length, 2);
+});
+
+Deno.test("valid-config check rejects empty listen addresses", () => {
+  const result = model.checks["valid-config"].execute({
+    globalArgs: checkArgs({ listenAddrs: [] }),
+    methodName: "startService",
+  });
+  assertEquals(result.pass, false);
+  assertStringIncludes(result.errors?.[0] ?? "", "listenAddrs");
+});
+
+Deno.test("platform-supported check passes on this Linux host", async () => {
+  const result = await model.checks["platform-supported"].execute({
+    globalArgs: checkArgs(),
+    methodName: "installCaddy",
+  });
+  assertEquals(result.pass, true);
+});
+
+Deno.test("pre-flight checks declare labels and appliesTo", () => {
+  for (const [name, check] of Object.entries(model.checks)) {
+    assertEquals(Array.isArray(check.labels), true, `${name} needs labels`);
+    assertEquals(
+      Array.isArray(check.appliesTo) && check.appliesTo.length > 0,
+      true,
+      `${name} needs appliesTo`,
+    );
+  }
+});
 
 Deno.test("expandHome expands a leading ~ to the home directory", () => {
   assertEquals(expandHome("~", "/home/alice"), "/home/alice");
@@ -337,23 +404,20 @@ Deno.test("addRouteToConfig adds a route and detects conflicts", () => {
   assertEquals(threw, true);
 });
 
-Deno.test("removeRouteFromConfig removes a route and errors when absent", () => {
+Deno.test("removeRouteFromConfig removes a route and is idempotent", () => {
   const config = baseConfig();
   const next = addRouteToConfig(
     config,
     buildRoute("foo.example.com", { dial: "127.0.0.1:8080", https: false }),
   );
   const removed = removeRouteFromConfig(next, "foo.example.com");
-  assertEquals(findRouteByHost(removed, "foo.example.com"), null);
+  assertEquals(removed.changed, true);
+  assertEquals(findRouteByHost(removed.config, "foo.example.com"), null);
 
-  let threw = false;
-  try {
-    removeRouteFromConfig(removed, "foo.example.com");
-  } catch (err) {
-    threw = true;
-    assertStringIncludes(String(err), "No route found");
-  }
-  assertEquals(threw, true);
+  // Removing an already-absent route is a no-op, not an error.
+  const again = removeRouteFromConfig(removed.config, "foo.example.com");
+  assertEquals(again.changed, false);
+  assertEquals(again.config, removed.config);
 });
 
 Deno.test("renderDomainConflictError includes guidance", () => {
@@ -636,4 +700,165 @@ Deno.test("ensureRoute updates the route when the upstream changed", () => {
   assertEquals(changed, true);
   const route = findRouteByHost(next, "foo.example.com")?.route;
   assertEquals(routeUpstream(route ?? {}), "127.0.0.1:9999");
+});
+
+// ---------------------------------------------------------------------------
+// Method-level tests (execute functions, with mocked fetch/command)
+// ---------------------------------------------------------------------------
+
+import {
+  createModelTestContext,
+  withMockedCommand,
+  withMockedFetch,
+} from "jsr:@swamp-club/swamp-testing@^0.3.0";
+
+// deno-lint-ignore no-explicit-any
+async function runMethod(name: string, opts: any = {}) {
+  const ctx = createModelTestContext({
+    globalArgs: checkArgs(opts.globalArgs ?? {}),
+    methodName: name,
+    storedResources: opts.storedResources ?? {},
+  });
+  // deno-lint-ignore no-explicit-any
+  const result = await (model.methods as any)[name].execute(
+    opts.args ?? {},
+    // deno-lint-ignore no-explicit-any
+    ctx.context as any,
+  );
+  return { result, ctx };
+}
+
+Deno.test("settingsGuidance writes the guidance resource", async () => {
+  const { ctx } = await runMethod("settingsGuidance", {
+    globalArgs: {
+      baseDomain: "example.com",
+      letsEncryptEmail: "admin@example.com",
+    },
+  });
+  const written = ctx.getWrittenResources();
+  assertEquals(written.length, 1);
+  assertEquals(written[0].specName, "guidance");
+  assertEquals(written[0].data.baseDomain, "example.com");
+  assertStringIncludes(String(written[0].data.guidance), "example.com");
+});
+
+Deno.test("syncConfig snapshots global args into the config resource", async () => {
+  const { ctx } = await runMethod("syncConfig", {
+    globalArgs: {
+      baseDomain: "example.com",
+      letsEncryptEmail: "admin@example.com",
+      vaultName: "caddy-secrets",
+    },
+  });
+  const written = ctx.getWrittenResources();
+  assertEquals(written[0].specName, "config");
+  assertEquals(written[0].data.baseDomain, "example.com");
+  assertEquals(written[0].data.vaultName, "caddy-secrets");
+});
+
+Deno.test("getConfig throws when no config has been stored", async () => {
+  let threw = false;
+  try {
+    await runMethod("getConfig");
+  } catch (err) {
+    threw = true;
+    assertStringIncludes(String(err), "No stored config");
+  }
+  assertEquals(threw, true);
+});
+
+Deno.test("getConfig reads back the stored config", async () => {
+  const { ctx } = await runMethod("getConfig", {
+    storedResources: {
+      config: {
+        baseDomain: "example.com",
+        letsEncryptEmail: "admin@example.com",
+        adminApiAddr: "localhost:2019",
+        adminApiTokenSet: true,
+        vaultName: "caddy-secrets",
+      },
+    },
+  });
+  const written = ctx.getWrittenResources();
+  assertEquals(written[0].specName, "config");
+  assertEquals(written[0].data.baseDomain, "example.com");
+  assertEquals(written[0].data.adminApiTokenSet, true);
+});
+
+Deno.test("storeConfig throws when no vault name is configured", async () => {
+  let threw = false;
+  try {
+    await runMethod("storeConfig", {
+      args: { baseDomain: "example.com" },
+    });
+  } catch (err) {
+    threw = true;
+    assertStringIncludes(String(err), "vaultName is required");
+  }
+  assertEquals(threw, true);
+});
+
+Deno.test("storeConfig rejects a too-short admin API token", async () => {
+  let threw = false;
+  try {
+    await runMethod("storeConfig", {
+      globalArgs: { vaultName: "caddy-secrets" },
+      args: { adminApiToken: "short" },
+    });
+  } catch (err) {
+    threw = true;
+    assertStringIncludes(String(err), "at least 8 characters");
+  }
+  assertEquals(threw, true);
+});
+
+Deno.test("storeConfig rejects an empty request", async () => {
+  let threw = false;
+  try {
+    await runMethod("storeConfig", {
+      globalArgs: { vaultName: "caddy-secrets" },
+    });
+  } catch (err) {
+    threw = true;
+    assertStringIncludes(String(err), "Nothing to store");
+  }
+  assertEquals(threw, true);
+});
+
+Deno.test("ensureDnsProxy adds a route via the admin API", async () => {
+  const { result } = await withMockedFetch((req) => {
+    if (req.method === "GET") {
+      return new Response("not found", { status: 404 });
+    }
+    return new Response("{}", { status: 200 });
+  }, () =>
+    runMethod("ensureDnsProxy", {
+      args: { hostname: "foo.example.com", upstream: "127.0.0.1:8080" },
+    }));
+  const written = result.ctx.getWrittenResources();
+  assertEquals(written[0].specName, "ensureProxy");
+  assertEquals(written[0].data.changed, true);
+  assertEquals(written[0].data.upstream, "127.0.0.1:8080");
+});
+
+Deno.test("removeProxyService is a no-op when the route is already gone", async () => {
+  const { result } = await withMockedCommand([
+    { stdout: "inactive", stderr: "", code: 3 },
+  ], () =>
+    withMockedFetch((req) => {
+      if (req.method === "GET") {
+        // Empty base config — the route to remove does not exist.
+        return Response.json({ apps: { http: { servers: { srv0: {} } } } });
+      }
+      return new Response("{}", { status: 200 });
+    }, () =>
+      runMethod("removeProxyService", {
+        globalArgs: { baseDomain: "example.com" },
+        args: { serviceName: "my-app" },
+      })));
+  const written = result.result.ctx.getWrittenResources();
+  assertEquals(written[0].specName, "proxyServices");
+  // No route was present, so nothing was removed and no POST was needed.
+  // deno-lint-ignore no-explicit-any
+  assertEquals((written[0].data.services as any[]).length, 0);
 });

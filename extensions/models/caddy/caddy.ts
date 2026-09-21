@@ -656,20 +656,26 @@ export function addRouteToConfig(
   return next;
 }
 
-/** Remove a route for a hostname, throwing if it is not found. */
+/**
+ * Remove a route for a hostname.
+ *
+ * Idempotent: when no route exists the config is returned unchanged with
+ * `changed: false`, so a delete of an already-gone route succeeds rather than
+ * throwing.
+ */
 export function removeRouteFromConfig(
   config: CaddyConfig,
   hostname: string,
-): CaddyConfig {
+): { config: CaddyConfig; changed: boolean } {
   const existing = findRouteByHost(config, hostname);
   if (!existing) {
-    throw new Error(`No route found for domain '${hostname}'`);
+    return { config, changed: false };
   }
   const next = structuredClone(config);
   const routes = getRoutes(next);
   routes.splice(existing.index, 1);
   setRoutes(next, routes);
-  return next;
+  return { config: next, changed: true };
 }
 
 /** Extract the list of proxy services (name/hostname/upstream) from a config. */
@@ -1040,7 +1046,18 @@ async function downloadCaddy(
   }
   const bytes = new Uint8Array(await resp.arrayBuffer());
   await Deno.mkdir(dirnameOf(binPath), { recursive: true });
-  await Deno.writeFile(binPath, bytes, { mode: 0o755 });
+
+  // Write to a temp file and rename into place, so an interrupted download
+  // never leaves a truncated binary at the live path. Rename is atomic on the
+  // same filesystem.
+  const tmpPath = `${binPath}.download-${crypto.randomUUID()}`;
+  try {
+    await Deno.writeFile(tmpPath, bytes, { mode: 0o755 });
+    await Deno.rename(tmpPath, binPath);
+  } catch (err) {
+    await Deno.remove(tmpPath).catch(() => {});
+    throw err;
+  }
 }
 
 /** Verify the installed binary: `caddy version` and `caddy list-modules`. */
@@ -1305,11 +1322,100 @@ type MethodContext = {
   ) => Promise<Record<string, unknown> | null>;
 };
 
+/** Context available to pre-flight checks (no data writers). */
+type CheckContext = {
+  globalArgs: GlobalArgs;
+  methodName: string;
+  logger?: {
+    info: (msg: string, props?: Record<string, unknown>) => void;
+  };
+};
+
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.09.20.3",
+  version: "2026.09.21.1",
   globalArguments: GlobalArgsSchema,
+  checks: {
+    "valid-config": {
+      description:
+        "Validate base domain, ACME email, and listen addresses before mutating Caddy",
+      labels: ["policy"],
+      appliesTo: [
+        "installCaddy",
+        "createService",
+        "startService",
+        "stopService",
+        "restartService",
+        "checkHealth",
+        "storeConfig",
+        "configureTls",
+        "addProxyService",
+        "removeProxyService",
+        "ensureDnsProxy",
+        "autoProxySwampServe",
+        "upgradeCaddy",
+      ],
+      execute: (
+        context: CheckContext,
+      ): { pass: boolean; errors?: string[] } => {
+        const g = context.globalArgs;
+        const errors: string[] = [];
+        if (g.baseDomain) {
+          try {
+            validateBaseDomain(g.baseDomain);
+          } catch (err) {
+            errors.push((err as Error).message);
+          }
+        }
+        if (g.letsEncryptEmail) {
+          try {
+            validateEmail(g.letsEncryptEmail);
+          } catch (err) {
+            errors.push((err as Error).message);
+          }
+        }
+        if (!g.listenAddrs || g.listenAddrs.length === 0) {
+          errors.push("listenAddrs must not be empty");
+        }
+        return errors.length > 0 ? { pass: false, errors } : { pass: true };
+      },
+    },
+    "platform-supported": {
+      description:
+        "Ensure the host is Linux with systemd available (skip with --skip-check-label live)",
+      labels: ["live"],
+      appliesTo: [
+        "installCaddy",
+        "createService",
+        "startService",
+        "upgradeCaddy",
+      ],
+      execute: async (
+        _context: CheckContext,
+      ): Promise<{ pass: boolean; errors?: string[] }> => {
+        const errors: string[] = [];
+        if (Deno.build.os !== "linux") {
+          errors.push(
+            `This extension manages a systemd user service and only supports Linux (host is ${Deno.build.os})`,
+          );
+        } else {
+          const result = await runCmd("systemctl", [
+            "--user",
+            "is-system-running",
+          ]);
+          // `systemctl --user` exits non-zero for degraded/running states too;
+          // treat a command-not-found (127) as the only hard failure.
+          if (result.code === 127) {
+            errors.push(
+              "systemctl --user is not available on this host (systemd user services required)",
+            );
+          }
+        }
+        return errors.length > 0 ? { pass: false, errors } : { pass: true };
+      },
+    },
+  },
   upgrades: [
     {
       toVersion: "2026.09.20.1",
@@ -1330,6 +1436,12 @@ export const model = {
       toVersion: "2026.09.20.3",
       description:
         "Documentation only: expanded README and manifest description, with examples for the caddy-teapot-module and multi-package plugin config. Schema unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.21.1",
+      description:
+        "Robustness: downloads write to a temp file and rename atomically (no truncated binary on failure); removeProxyService is now idempotent (removing an absent route is a no-op). Adds valid-config and platform-supported pre-flight checks. Schema unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1659,12 +1771,18 @@ export const model = {
           g.listenAddrs,
           g.autoHttps,
         );
-        const next = removeRouteFromConfig(config, hostname); // throws if not found
-        await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+        // Idempotent: removing an already-absent route is a no-op, not an error.
+        const removal = removeRouteFromConfig(config, hostname);
+        const next = removal.config;
+        if (removal.changed) {
+          await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+        }
 
         const services = listProxyServices(next, baseDomain);
         context.logger?.info(
-          "Removed proxy service {serviceName} ({hostname})",
+          removal.changed
+            ? "Removed proxy service {serviceName} ({hostname})"
+            : "Proxy service {serviceName} ({hostname}) already absent — nothing to remove",
           { serviceName: args.serviceName, hostname },
         );
 
@@ -1930,8 +2048,9 @@ export const model = {
           }
         }
         for (const hostname of toRemove) {
-          next = removeRouteFromConfig(next, hostname);
-          changed = true;
+          const removal = removeRouteFromConfig(next, hostname);
+          next = removal.config;
+          if (removal.changed) changed = true;
         }
         if (changed) {
           await writeConfig(g.adminApiAddr, next, g.adminApiToken);

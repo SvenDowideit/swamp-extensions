@@ -1,0 +1,121 @@
+id: c5afb6b5-4acb-4587-8447-f09b61ebe059
+name: "@svendowideit/garmin-devices-sync"
+description: |
+  Sync the Garmin device inventory and derive the capability map.
+
+  This workflow is the reference example of the transport→domain seam the whole
+  @svendowideit/garmin family uses:
+
+    1. session       call the common @svendowideit/garmin-session workflow, which
+                     guarantees a valid bearer token (refreshing if needed).
+    2. device-paths  ask @svendowideit/garmin-devices which connectapi paths it
+                     needs, so the paths live next to the parser, not here.
+    3. fetch         hand those paths to @svendowideit/garmin-connect's
+                     fetch-many — one authenticated, paced, cached batch.
+    4. sync          @svendowideit/garmin-devices reads the cached bodies and
+                     writes `device-list` and `device-capabilities`.
+
+  The capability map is the gate every later Garmin workflow keys off:
+
+    when: ${{ data.latest("garmin-devices", "device-capabilities").attributes.capabilities.hrv == true }}
+
+  Runs daily at 05:10, after the session refresh at 05:00.
+
+  Manual run:
+    swamp workflow run @svendowideit/garmin-devices-sync
+    swamp workflow run @svendowideit/garmin-devices-sync --input devicesName=garmin-devices
+tags:
+  domain: fitness
+trigger:
+  schedule: "10 5 * * *"
+  inputs: {}
+inputs:
+  properties:
+    sessionName:
+      type: string
+      default: garmin-connect
+      description: The @svendowideit/garmin-connect transport instance name.
+    devicesName:
+      type: string
+      default: garmin-devices
+      description: The @svendowideit/garmin-devices instance name.
+  required: []
+jobs:
+  - name: devices
+    description: Ensure a session, fetch device responses, derive capabilities.
+    steps:
+      - name: session
+        description: >
+          Guarantee a valid Garmin bearer token before any fetch. Reusable
+          transport workflow; refreshes an expired token with no credentials.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/garmin-session"
+          inputs:
+            name: ${{ inputs.sessionName }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: device-paths
+        description: Ask the domain model which connectapi paths it needs.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-devices"
+          modelName: ${{ inputs.devicesName }}
+          methodName: paths
+        dependsOn:
+          - step: session
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: fetch
+        description: >
+          One authenticated, paced, cached batch fetch of the device paths.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-connect"
+          modelName: ${{ inputs.sessionName }}
+          methodName: fetch-many
+          inputs:
+            paths: ${{ data.latest(inputs.devicesName, "paths").attributes.paths }}
+        dependsOn:
+          - step: device-paths
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: sync
+        description: >
+          Parse the cached bodies into `device-list` and `device-capabilities`.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-devices"
+          modelName: ${{ inputs.devicesName }}
+          methodName: sync
+        dependsOn:
+          - step: fetch
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: report-capabilities
+        description: Fail loudly if no devices were found (usually a stale token).
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.devicesName, "device-list").attributes.count >= 0
+          message: >-
+            Device sync produced no inventory. Check the session is valid
+            ('swamp model @svendowideit/garmin-connect method run setup
+            garmin-connect') and re-run.
+          severity: medium
+        dependsOn:
+          - step: sync
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

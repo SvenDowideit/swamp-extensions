@@ -250,3 +250,33 @@ guard/assert behaviour.
 
 Add the device-inventory model and its derived capability map, then the first
 parent workflow that gates domain jobs on those capabilities.
+
+## 13. Phase 2 status (complete)
+
+Shipped in the `@svendowideit/garmin` package (renamed from
+`@svendowideit/garmin-connect` in Phase 2, matching §5):
+
+- `garmin_cache.ts` — extracted the shared on-disk cache (key scheme, layout,
+  `readCachedByPath`) so the transport writes and every domain model reads
+  through one contract.
+- `garmin_devices.ts` — the `@svendowideit/garmin-devices` model. Methods:
+  `setup`, `paths`, `sync`. Resources: `devices` → `device-list`,
+  `capabilities` → `device-capabilities`, `paths`, `setup`. Derives a
+  capability map from the device inventory + user settings, with
+  `capabilityOverrides` for correction and `confidence`/`unknownProducts` for
+  auditability.
+- `garmin-devices-sync.yaml` — the **reference transport→domain seam**:
+  `garmin-session` → `garmin-devices.paths` → `garmin-connect.fetch-many` →
+  `garmin-devices.sync` → assert. Cron `10 5 * * *`.
+- 11 new device/capability unit tests (36 total).
+- Package renamed to `@svendowideit/garmin`; README rewritten as a package-level
+  doc; manifest lists both model types and both workflows.
+
+Verified: the nested workflow ran end to end against a synthetic cache (all
+transport calls cache-hits), deriving watch+cycling capabilities across two
+devices.
+
+### Next: Phase 3 — `garmin-activities` + `garmin-download`
+
+Activity list, per-activity detail, and FIT/TCX/GPX orchestration built on the
+transport's `download`.

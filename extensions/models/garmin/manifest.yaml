@@ -1,34 +1,35 @@
 manifestVersion: 1
-name: "@svendowideit/garmin-connect"
+name: "@svendowideit/garmin"
 version: "2026.09.22.1"
 description: |
-  Authenticated transport for Garmin Connect — one login, one token rotation,
-  one rate-limit budget, shared by every Garmin data model you build on top.
+  Sync a Garmin Connect account into swamp: one authenticated transport, plus
+  domain models that read its cached responses — starting with devices and the
+  capability map that gates the rest.
 
-  Garmin Connect has no public API. It needs a signed OAuth1 handshake to mint
-  a rotating OAuth2 bearer token, it rate-limits aggressively, and every data
-  model would otherwise repeat that fragile login. This extension owns all of it
-  once: `login` runs the SSO → OAuth1 → OAuth2 chain (MFA-aware, tokens stored
-  in a vault, never logged), `import-tokens` seeds a session from a `garth`
-  token store so no password is ever handled, `ensure` refreshes an expired
-  bearer with no credentials, `fetch` / `fetch-many` make cached, paced,
-  authenticated GETs, and `download` stores a FIT/TCX/GPX/KML/CSV export as a
-  swamp file. Domain models then read the cached body and parse it instead of
-  calling Garmin themselves — the same seam as web-cache → wikidata.
+  Garmin Connect has no public API. It needs a signed OAuth1 handshake to mint a
+  rotating OAuth2 bearer token, it rate-limits aggressively, and every data
+  domain would otherwise repeat that fragile login. This extension does it once:
+  `@svendowideit/garmin-connect` owns login, token refresh, authenticated cached
+  GETs and binary downloads, while domain models (devices first; activities,
+  health, body, performance to follow) declare the `connectapi` paths they need
+  and parse the cached bodies. The seam is a workflow: transport `fetch-many` →
+  domain `sync`. Because Garmin features depend on the devices an account owns,
+  `@svendowideit/garmin-devices` derives a capability map so later workflows can
+  gate on it instead of failing on data a device cannot produce.
 
   WHAT IT DOES
 
-    It gives a swamp repo a single, correct, reusable Garmin Connect session so
-    the models that sync activities, daily wellness, body composition,
-    performance metrics and devices never touch credentials or OAuth again. A
-    refresh token lasts weeks, so an unattended scheduled run keeps working with
-    no password; responses are cached on disk so a rate-limited or offline run
-    degrades to last-known data rather than failing, and binary activity exports
-    land as first-class swamp files.
+    It turns a fragile, undocumented fitness API into composable swamp data. One
+    model owns the whole auth chain (SSO → OAuth1 → OAuth2), a refresh token
+    lasts weeks so unattended runs keep working with no password, responses are
+    cached on disk so a rate-limited or offline run degrades to last-known data,
+    and the derived capability map means a workflow only asks for golf, solar,
+    HRV or SpO2 when the account actually has a device that supports it. Binary
+    activity exports land as first-class swamp files.
 
   INSTALL
 
-      swamp extension pull @svendowideit/garmin-connect
+      swamp extension pull @svendowideit/garmin
 
   DEPENDENCIES
 
@@ -55,6 +56,14 @@ description: |
       # Guarantee a usable session (refresh if needed) and record its readiness.
       swamp workflow run @svendowideit/garmin-session
 
+      # Sync the device inventory and derive the capability map. Runs the whole
+      # transport → domain seam: session → paths → fetch-many → sync.
+      swamp workflow run @svendowideit/garmin-devices-sync
+
+      # Read what the account can do, e.g. for a workflow guard.
+      swamp data get garmin-devices device-capabilities --json \
+        | jq '.content.capabilities'
+
       # Authenticated GET of one connectapi path, cached under ~/.swamp/garmin-cache.
       swamp model @svendowideit/garmin-connect method run fetch garmin-connect \
         --input path=/userprofile-service/socialProfile
@@ -68,23 +77,25 @@ description: |
     All optional, set on the model instance (recommended — scheduled runs have
     no --input) or overridden per call with --input:
 
-      domain            Region domain (default garmin.com; garmin.cn for China)
-      vaultName         Vault for credentials + session (default garmin-secrets)
-      cacheDir          Shared response cache (default ~/.swamp/garmin-cache)
-      requestDelayMs    Minimum delay between origin requests (default 500)
-      maxRetries        Retries after 429/5xx (default 2)
-      maxFetchesPerCall Origin-fetch cap per fetch-many call (default 100)
+      domain               Region domain (default garmin.com; garmin.cn for China)
+      vaultName            Vault for credentials + session (default garmin-secrets)
+      cacheDir             Shared response cache (default ~/.swamp/garmin-cache)
+      requestDelayMs       Minimum delay between origin requests (default 500)
+      maxRetries           Retries after 429/5xx (default 2)
+      maxFetchesPerCall    Origin-fetch cap per fetch-many call (default 100)
+      capabilityOverrides  Force capabilities true/false when detection misses
 
     See every setting and its current value:
       swamp model @svendowideit/garmin-connect method run setup garmin-connect
+      swamp model @svendowideit/garmin-devices method run setup garmin-devices
 
   WHAT IT INSTALLS
 
-    Nothing on the host — no services, daemons, or webhooks. One cron trigger is
-    registered while 'swamp serve' runs: @svendowideit/garmin-session at
-    0 5 * * *, which refreshes the token daily so data-sync workflows always
-    start from a valid session. All state lives in swamp resources; the session
-    tokens live in the vault (marked sensitive).
+    Nothing on the host — no services, daemons, or webhooks. Two cron triggers
+    are registered while 'swamp serve' runs: @svendowideit/garmin-session at
+    0 5 * * * (refresh the token) and @svendowideit/garmin-devices-sync at
+    10 5 * * * (sync devices + capabilities). All state lives in swamp resources;
+    the session tokens live in the vault (marked sensitive).
 
 repository: https://github.com/svendowideit/swamp-extensions
 
@@ -96,10 +107,13 @@ paths:
 models:
   - oauth1.ts
   - garmin_auth.ts
+  - garmin_cache.ts
   - garmin_connect.ts
+  - garmin_devices.ts
 
 workflows:
   - garmin-session.yaml
+  - garmin-devices-sync.yaml
 
 additionalFiles:
   - README.md
@@ -109,5 +123,6 @@ additionalFiles:
   - oauth1_test.ts
   - garmin_auth_test.ts
   - garmin_connect_test.ts
+  - garmin_devices_test.ts
 
 platforms: []

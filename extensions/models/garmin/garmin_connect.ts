@@ -43,6 +43,29 @@ import {
   redact,
   type TokenPair,
 } from "./garmin_auth.ts";
+import {
+  type CacheEntry,
+  cacheKey,
+  expandHome,
+  isFresh,
+  loadBody,
+  loadEntry,
+  markRequestAt,
+  normalizePath,
+  readLastRequestAt,
+  sleep,
+  storeEntry,
+} from "./garmin_cache.ts";
+
+export {
+  type CacheEntry,
+  cacheKey,
+  expandHome,
+  fnv1a,
+  isFresh,
+  normalizePath,
+  readCachedByPath,
+} from "./garmin_cache.ts";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -283,141 +306,6 @@ type MethodContext = {
     get(vaultName: string, secretKey: string, caller?: string): Promise<string>;
   };
 };
-
-// ---------------------------------------------------------------------------
-// Cache helpers (shared, FNV-1a keyed — same scheme as @svendowideit/web-cache)
-// ---------------------------------------------------------------------------
-
-/** Expand a leading `~` to the home directory. */
-export function expandHome(raw: string): string {
-  if (raw.startsWith("~")) {
-    const home = Deno.env.get("HOME") ?? "~";
-    return raw === "~" ? home : `${home}${raw.slice(1)}`;
-  }
-  return raw;
-}
-
-/** Deterministic 32-bit FNV-1a hash, stable across runs. */
-export function fnv1a(input: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return (h >>> 0).toString(16).padStart(8, "0");
-}
-
-/**
- * Canonicalise a `connectapi` path so two spellings of the same request share
- * one cache key: query params sorted, fragment dropped, host fixed.
- */
-export function normalizePath(path: string): string {
-  const u = new URL(path, `https://${CONNECTAPI_HOST}`);
-  u.hash = "";
-  const entries = [...u.searchParams.entries()].sort((a, b) => {
-    if (a[0] !== b[0]) return a[0] < b[0] ? -1 : 1;
-    return a[1] < b[1] ? -1 : 1;
-  });
-  const sp = new URLSearchParams();
-  for (const [k, v] of entries) sp.append(k, v);
-  u.search = sp.toString();
-  return `${u.pathname}${u.search}`;
-}
-
-/** Filesystem-safe cache key for a `connectapi` path. */
-export function cacheKey(path: string): string {
-  const normalized = normalizePath(path);
-  const safe = normalized
-    .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-  return `${safe}-${fnv1a(normalized)}`;
-}
-
-/** Persisted cache metadata for one response. */
-export interface CacheEntry {
-  key: string;
-  path: string;
-  url: string;
-  status: number;
-  ok: boolean;
-  fetchedAt: string;
-  contentType: string | null;
-  size: number;
-}
-
-/** Read cache metadata, or null when absent. */
-async function loadEntry(
-  dir: string,
-  key: string,
-): Promise<CacheEntry | null> {
-  try {
-    return JSON.parse(
-      await Deno.readTextFile(`${dir}/${key}/meta.json`),
-    ) as CacheEntry;
-  } catch {
-    return null;
-  }
-}
-
-/** Read a cached body, or null when absent. */
-async function loadBody(dir: string, key: string): Promise<string | null> {
-  try {
-    return await Deno.readTextFile(`${dir}/${key}/body`);
-  } catch {
-    return null;
-  }
-}
-
-/** Write a cache entry (metadata + body). */
-async function storeEntry(
-  dir: string,
-  entry: CacheEntry,
-  body: string,
-): Promise<void> {
-  await Deno.mkdir(`${dir}/${entry.key}`, { recursive: true });
-  await Deno.writeTextFile(
-    `${dir}/${entry.key}/meta.json`,
-    JSON.stringify(entry),
-  );
-  await Deno.writeTextFile(`${dir}/${entry.key}/body`, body);
-}
-
-/** Read the persisted last-request time (epoch ms), for cross-run pacing. */
-async function readLastRequestAt(dir: string): Promise<number> {
-  try {
-    const t = parseInt(await Deno.readTextFile(`${dir}/.last-request`), 10);
-    return Number.isNaN(t) ? 0 : t;
-  } catch {
-    return 0;
-  }
-}
-
-/** Persist the last-request time. */
-async function markRequestAt(dir: string): Promise<void> {
-  try {
-    await Deno.writeTextFile(`${dir}/.last-request`, String(Date.now()));
-  } catch {
-    // Best-effort pacing state.
-  }
-}
-
-/** Sleep for `ms`. */
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-/** True when a cached entry is still within its freshness window. */
-export function isFresh(
-  entry: CacheEntry,
-  maxAgeMs: number,
-  nowMs: number,
-): boolean {
-  if (maxAgeMs <= 0) return true;
-  const fetched = Date.parse(entry.fetchedAt);
-  if (Number.isNaN(fetched)) return true;
-  return nowMs - fetched < maxAgeMs;
-}
 
 // ---------------------------------------------------------------------------
 // Token/session helpers

@@ -1,36 +1,36 @@
-# @svendowideit/garmin-connect
+# @svendowideit/garmin
 
-The authenticated transport layer under the `@svendowideit/garmin` extension
-family. It owns the single hardest part of talking to Garmin Connect — the
-signed OAuth1 login, the rotating OAuth2 bearer token, and the rate limits — so
-that every Garmin data model you build reads a cached response instead of
-re-implementing authentication.
+Sync a Garmin Connect account into swamp. One authenticated transport, plus
+domain models that read its cached responses — starting with devices and the
+capability map that gates the rest.
 
-This is **Phase 1** of the plan in [`PLAN.md`](./PLAN.md). It ships the
-transport model and the common session workflow; the domain models
-(`garmin-activities`, `garmin-health`, `garmin-devices`, …) come next and will
-depend on this extension.
+`@svendowideit/garmin` is a **package of several model types** (like
+`@svendowideit/news`): the transport type `@svendowideit/garmin-connect`, and
+domain types such as `@svendowideit/garmin-devices`. Activities, daily health,
+body composition and performance metrics are planned next (see
+[`PLAN.md`](./PLAN.md)).
 
 ## What it does
 
 Garmin Connect has no public API. Gaining access requires an SSO login, an
 OAuth1-signed exchange, and an OAuth2 bearer token that expires within hours;
 the API also rate-limits (HTTP 429) and sits behind Cloudflare. Doing that once
-per data domain is fragile and wasteful. This extension does it once and exposes
-safe, cache-first primitives:
+per data domain is fragile and wasteful, and Garmin's features vary by device —
+golf, solar, HRV, SpO2 and the rest only exist when the account owns a device
+that supports them.
 
-- **`login`** — the full SSO → OAuth1 → OAuth2 chain, MFA-aware, credentials
-  read from a vault, tokens persisted marked `sensitive` (so swamp keeps them in
-  the vault).
-- **`import-tokens`** — seed a session from a base64 `garth` token store, so an
-  unattended host never handles a password.
-- **`ensure`** — reuse a valid bearer token, or refresh it from the stored OAuth1
-  token with **no credentials**; writes a `status` resource a workflow can guard
-  on.
-- **`fetch` / `fetch-many`** — cached, paced, authenticated GETs of `connectapi`
-  paths. A rate-limited or offline run degrades to last-known cached data.
-- **`download`** — store an activity export (FIT/TCX/GPX/KML/CSV) as a swamp
-  file artefact, with size and sha256 recorded.
+This extension solves both problems with a layered design:
+
+- **One transport owns auth.** `@svendowideit/garmin-connect` runs the login
+  chain (MFA-aware), refreshes the bearer token with no credentials, makes
+  cached, paced, authenticated GETs, and downloads binary exports as swamp
+  files. Credentials and tokens live in a vault; tokens are marked `sensitive`.
+- **Domain models only parse.** `@svendowideit/garmin-devices` declares the
+  `connectapi` paths it needs and reads the transport's cached responses. It
+  writes a normalised device inventory and a **capability map** that later
+  workflows guard on, so a workflow never asks for data a device cannot produce.
+- **The seam is a workflow.** The transport's `fetch-many` fetches a batch, the
+  domain model's `sync` parses it. Parsing stays pure and unit-testable.
 
 It never writes to a Garmin account. It only reads, and it caches everything it
 reads.
@@ -38,14 +38,16 @@ reads.
 ## Install
 
 ```sh
-swamp extension pull @svendowideit/garmin-connect
+swamp extension pull @svendowideit/garmin
 ```
 
 ## Configuration
 
-Set these global arguments when creating a model
-(`swamp model create @svendowideit/garmin-connect garmin-connect --global-arg key=value`),
-or override per call with `--input key=value` where a method exposes it.
+Global arguments per model. Set them when creating a model
+(`swamp model create <type> <name> --global-arg key=value`) or override per call
+with `--input key=value` where a method exposes it.
+
+### `@svendowideit/garmin-connect`
 
 | Argument | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
@@ -64,6 +66,13 @@ or override per call with `--input key=value` where a method exposes it.
 | `maxFetchesPerCall` | integer | `100` | Origin fetches a single `fetch-many` makes (cached hits are free). |
 | `defaultMaxAgeMs` | integer | `0` | Default freshness window for cached responses (`0` = always prefer cache). |
 
+### `@svendowideit/garmin-devices`
+
+| Argument | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `cacheDir` | string | `"~/.swamp/garmin-cache"` | Shared cache the transport writes to; must match `garmin-connect`. |
+| `capabilityOverrides` | object | `{}` | Force capabilities true/false, overriding detection (e.g. `{"golf": false}`). |
+
 ## Examples
 
 ```sh
@@ -76,8 +85,8 @@ swamp model @svendowideit/garmin-connect method run setup garmin-connect
 swamp vault put garmin-secrets GARMIN_TOKEN_STORE
 swamp model @svendowideit/garmin-connect method run import-tokens garmin-connect
 
-- **Or log in** with credentials. If Garmin returns an MFA challenge, re-run with
-  the one-time code.
+# Or sign in with credentials. If Garmin returns an MFA challenge, re-run with
+# the one-time code.
 swamp vault put garmin-secrets GARMIN_EMAIL
 swamp vault put garmin-secrets GARMIN_PASSWORD
 swamp model @svendowideit/garmin-connect method run login garmin-connect
@@ -95,6 +104,14 @@ swamp model @svendowideit/garmin-connect method run login garmin-connect --input
 # with no credentials, and fails with a precise fix when none exists.
 swamp workflow run @svendowideit/garmin-session
 
+# Sync the device inventory and derive the capability map — the whole
+# transport → domain seam in one run. Run after any device change.
+swamp workflow run @svendowideit/garmin-devices-sync
+
+# Read the capability map; use it as a workflow guard rather than guessing.
+swamp data get garmin-devices device-capabilities --json \
+  | jq '.content.capabilities | to_entries | map(select(.value)) | map(.key)'
+
 # Fetch one connectapi path; the raw body is cached so a domain model can parse
 # it without calling Garmin again.
 swamp model @svendowideit/garmin-connect method run fetch garmin-connect \
@@ -108,17 +125,21 @@ swamp model @svendowideit/garmin-connect method run fetch-many garmin-connect \
 # Download an activity's original (ZIP-wrapped) FIT file as a swamp file.
 swamp model @svendowideit/garmin-connect method run download garmin-connect \
   --input activityId=1234567890 --input format=fit
+
+# Correct a capability when detection misses your device, without editing code.
+swamp model @svendowideit/garmin-devices method run sync garmin-devices \
+  --input 'overrides={"golf":false,"spo2":true}'
 ```
 
 ## Details
 
-### Model and methods
+### Model types and methods
 
-One model type, `@svendowideit/garmin-connect`. Every method it exposes:
+**`@svendowideit/garmin-connect`** — the authenticated transport:
 
 | Method | Arguments | Produces |
 | ------ | --------- | -------- |
-| `setup` | — | A `setup` report of region, vault keys set/unset, and session state, with the exact commands to fix gaps. Read-only. |
+| `setup` | — | A `setup` report of region, vault keys set/unset, and session state, with exact fix commands. Read-only. |
 | `import-tokens` | `tokenStore` (optional; else vault) | A `session` resource seeded from a base64 `garth` token store. |
 | `login` | `interactiveMfa` (optional) | A `session` resource from the full SSO → OAuth1 → OAuth2 login; raises an actionable error when MFA is required. |
 | `ensure` | — | A `status` resource (`ready`, `reason`, `bearerValid`, `refreshValid`, `refreshed`, `expiresAt`); refreshes an expired bearer. |
@@ -126,33 +147,61 @@ One model type, `@svendowideit/garmin-connect`. Every method it exposes:
 | `fetch-many` | `paths[]`, `maxFetches`, `maxAgeMs`, `forceRefresh` | One `fetch` resource per path plus a `batch` summary. |
 | `download` | `activityId`, `format` (`fit`\|`tcx`\|`gpx`\|`kml`\|`csv`) | An `export` file artefact plus a `download` metadata resource (bytes, sha256). |
 
+**`@svendowideit/garmin-devices`** — inventory + capabilities:
+
+| Method | Arguments | Produces |
+| ------ | --------- | -------- |
+| `setup` | — | A `setup` report of cache state and override configuration. Read-only. |
+| `paths` | — | A `paths` resource listing the `connectapi` paths this model needs. |
+| `sync` | `overrides` (optional) | A `devices` resource (normalised inventory) and a `capabilities` resource (the capability map). |
+
 ### Workflows
 
 | Workflow | Trigger | Purpose |
 | -------- | ------- | ------- |
 | `@svendowideit/garmin-session` | `0 5 * * *` | Ensure a usable session: `ensure` → (guarded) `login` → `verify` → `require-session` assert. Reusable by any Garmin data workflow via `type: workflow`. |
+| `@svendowideit/garmin-devices-sync` | `10 5 * * *` | The reference transport→domain seam: call `garmin-session` → `garmin-devices.paths` → `garmin-connect.fetch-many` → `garmin-devices.sync` → assert. |
+
+### The capability map
+
+`@svendowideit/garmin-devices` classifies each device by product line (watch,
+cycling, handheld, golf, fitness, scale, dive, aviation) from its name, product
+SKU and application key, then unions the feature sets of those lines. A `fenix`
+yields the wearable wellness set plus `solar`, `golf` and `maps`; an `Edge` adds
+`cycling`, `ftp` and `powerZones`. Account-level settings add `menstrual` and
+`nutrition`; `measurementSystem` records metric/imperial.
+
+Derivation is conservative and auditable: `confidence` marks each capability
+`derived` or `override`, `unknownProducts` lists devices that matched no known
+line, and `capabilityOverrides` (global or per-run) let a user correct anything
+without editing code. A workflow gates a job like so:
+
+```yaml
+when: ${{ data.latest("garmin-devices", "device-capabilities").attributes.capabilities.hrv == true }}
+```
 
 ### Resources (data contract)
 
 `session-auth` (spec `session`) holds the OAuth1 + OAuth2 tokens, each token
 field marked `z.meta({ sensitive: true })` — swamp stores the values in the
-vault and substitutes `${{ vault.get(...) }}` references in the resource file, so
-the tokens are never written in clear. `session-status` (spec `status`) is the
-guardable readiness record. `fetch` resources hold raw response bodies;
-`batch` summarises a `fetch-many`; `download` describes a stored `export` file.
+vault and substitutes `${{ vault.get(...) }}` references in the resource file.
+`session-status` (spec `status`) is the guardable readiness record. `device-list`
+(spec `devices`) and `device-capabilities` (spec `capabilities`) are the domain
+outputs. `fetch` resources hold raw response bodies; `batch` summarises a
+`fetch-many`; `download` describes a stored `export` file.
 
 ### How the seam works
 
 Domain models do **not** call Garmin. A workflow runs `fetch`/`fetch-many` for
-the paths a domain needs, then the domain model reads the cached body (from the
-shared `cacheDir`, keyed by the same FNV-1a `cacheKey` scheme as
-`@svendowideit/web-cache`) and parses it. This keeps parsing pure and
+the paths a domain declares, then the domain model reads the cached body from the
+shared `cacheDir` — keyed by the same FNV-1a scheme as
+`@svendowideit/web-cache` — and parses it. This keeps parsing pure and
 unit-testable, and means one model owns authentication and rate limiting.
 
 ### Auth internals
 
 - **OAuth1 (RFC 5849) HMAC-SHA1** is implemented in `oauth1.ts` on WebCrypto —
-  no npm OAuth library. It is tested against the RFC 5849 §3.4.1.1 vector and an
+  no npm OAuth library. Tested against the RFC 5849 §3.4.1.1 vector and an
   independently computed signature.
 - **Login** primes SSO cookies, `POST`s credentials to
   `sso.garmin.com/mobile/api/login` (Android client id `GCM_ANDROID_DARK`),
@@ -172,8 +221,11 @@ extensions/models/garmin/
   manifest.yaml
   oauth1.ts            # RFC 5849 HMAC-SHA1 signer (pure)
   garmin_auth.ts       # SSO → OAuth1 → OAuth2, MFA, refresh, redaction
-  garmin_connect.ts    # @svendowideit/garmin-connect model
+  garmin_cache.ts      # shared on-disk response cache (writer + readers)
+  garmin_connect.ts    # @svendowideit/garmin-connect (transport)
+  garmin_devices.ts    # @svendowideit/garmin-devices (inventory + capabilities)
   garmin-session.yaml  # @svendowideit/garmin-session workflow
+  garmin-devices-sync.yaml  # @svendowideit/garmin-devices-sync workflow
   login.ts             # standalone interactive login + token-store helper
   *_test.ts            # unit tests (no network, no credentials)
   README.md
@@ -183,17 +235,19 @@ extensions/models/garmin/
 
 ### Extending and testing
 
-Add a method by adding a key to `methods` in `garmin_connect.ts`, giving it a Zod
-`arguments` schema, and documenting it here and in the manifest. Keep network
-calls in small helpers and decision logic in exported pure functions so it can
-be tested without an account.
+To add a domain model, follow `garmin_devices.ts`: export a `DEVICE_PATHS`-style
+constant of the `connectapi` paths you need, a `paths` method that returns them,
+and a `sync` method that reads them via `readCachedByPath` and writes resources.
+Then add a workflow that calls `garmin-session` → your `paths` →
+`garmin-connect.fetch-many` → your `sync`. Keep decision logic in exported pure
+functions so it can be tested without an account.
 
 ```sh
-# Unit tests: OAuth1 vectors, the mocked full login flow, cache keys, downloads.
+# Unit tests: OAuth1 vectors, the mocked full login flow, devices/capabilities.
 ~/.swamp/deno/deno test --allow-net=jsr.io --allow-env --allow-read --allow-write=/tmp
 
 # Type-check one file.
-~/.swamp/deno/deno check garmin_connect.ts
+~/.swamp/deno/deno check garmin_devices.ts
 
 # Docs contract: manifest + README must score at or above the threshold.
 swamp workflow run @svendowideit/meta-factory \
@@ -204,9 +258,12 @@ swamp workflow run @svendowideit/meta-factory \
 
 - A **live login** (credentials + any MFA) is required once to create the
   session; the tests cover the flow with a mocked network, not a real account.
+- **Capability detection is heuristic.** It recognises the common product lines
+  but Garmin's naming drifts; unrecognised devices are listed in
+  `unknownProducts` and every flag can be corrected with `capabilityOverrides`.
 - Garmin is an **unofficial, undocumented** API and may change; the extension is
   read-only and surfaces Garmin's own error text.
 - **Cloudflare** can challenge logins from unusual IPs; the transport reports a
   clear message rather than retrying blindly.
-- Domain models are **not yet shipped** — this is the transport only. See
-  `PLAN.md` for the phased build.
+- Activities, daily health, body composition and performance models are **not yet
+  shipped** — see `PLAN.md` for the phased build.

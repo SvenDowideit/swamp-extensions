@@ -49,3 +49,50 @@ the full tree, and `swamp help model method run` scopes to a subtree.
   ALWAYS use that to run `deno test` / `deno check` / `deno bundle` — never
   install a separate Deno (e.g. via `curl ... | sh`). Verify with
   `~/.swamp/deno/deno --version`.
+
+## Extension documentation contract
+
+Any work on a swamp extension (`extensions/**/manifest.yaml` + `README.md`)
+must follow the `extension-docs` skill's contract:
+
+> The published manifest plus README must be enough for a user or agent to
+> easily learn how to do everything the published extension does.
+
+Two audiences:
+
+- **The manifest `description:` is the user manual.** It must present, in this
+  order — `WHAT IT DOES` (a **short pitch**: the problem it solves and why it
+  is the better option, *not* a method list), `INSTALL`, `DEPENDENCIES`, `RUN`,
+  `CONFIGURE`, and `WHAT IT INSTALLS` **last**. Do **not** add a `METHODS`
+  section to the manifest: swamp-club generates a formatted method reference at
+  publish time. **Installing must be a single `swamp extension pull`** — a
+  multi-step install loses 13% of the score. Format it like
+  `extensions/models/web-cache/manifest.yaml`: a literal block (`>`), blank
+  lines between sections, embedded commands indented 4+ spaces, and
+  blank-line-separated top-level keys.
+- **The README is the extender/maintainer doc.** It must carry visible
+  `## What it does`, `## Install`, `## Configuration` (argument table),
+  `## Examples`, and `## Details` (every model + method named), plus enough
+  structure for someone extending or fixing the extension. README and LICENSE
+  must be in `additionalFiles:`.
+
+Both the manifest and the README must contain **functional examples** — at
+least three distinct runnable `swamp …` commands, with no `<name>` /
+`example.com` placeholders — and must **explain each one**: every non-install
+command needs a comment or sentence saying why or when to run it (the
+one-line `swamp extension pull` is exempt). A bare command list is not
+documentation.
+
+Verify deterministically (never eyeball it):
+
+```sh
+swamp workflow run @svendowideit/meta-factory \
+  --input manifest=extensions/<type>/<name>/manifest.yaml
+```
+
+Scores 0–100; the workflow fails if any scored extension is below the
+threshold (default 75). Refresh the bundled skill with
+`swamp model @svendowideit/meta-factory method run installSkill meta-factory
+--input target=both`.
+
+

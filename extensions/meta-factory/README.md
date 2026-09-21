@@ -156,8 +156,14 @@ touching orchestration:
 | `readme-lint.ts` | README structural lint (canonical sections, heading levels, config table, code blocks). |
 | `manifest-lint.ts` | Manifest structural lint (required fields, CalVer, manual coverage, artifact existence). |
 | `introspect.ts` | Filesystem discovery of manifests, model types, and method keys. |
-| `meta_factory.ts` | Orchestration only: subprocesses (`swamp`, `deno`), data writes, skill install. |
+| `meta_factory.ts` | Orchestration only: subprocesses (`swamp`, `deno`), data writes, skill install. The subprocess runner (`run`) takes a bounded timeout and is injectable via `_run` for tests. |
 | `meta_factory_report.ts` | Markdown/JSON rendering of the score and rollup. |
+
+All `score` resources share one canonical instance key — the manifest path
+relative to the repo root — so `check` and `checkAll` address the same
+extension. Only `check`/`checkAll` write `score`/`summary`; `scaffold` and
+`installSkill` write no data, so a scaffolded README never appears as a real
+`F` score.
 
 To add a scored check: add a `check*` function returning `CheckResult`, add its
 weight to `WEIGHTS`, and include it in the `checks` array in `scoreExtension`.
@@ -171,7 +177,8 @@ contract: edit `SECTIONS`.
 # Type-check everything.
 ~/.swamp/deno/deno check *.ts
 
-# Run the unit tests (scorer, linters, discovery, report).
+# Run the unit tests (scorer, linters, discovery, report renderers, and
+# execute-level model-method tests with stubbed subprocesses).
 ~/.swamp/deno/deno test --allow-read --allow-write --allow-run --allow-env
 
 # Slow-type lint (must be empty for the fast-types check).

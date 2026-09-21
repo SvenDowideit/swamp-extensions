@@ -33,8 +33,8 @@ import {
   scoreExtension,
   type ScoreResult,
 } from "./quality-rubric.ts";
-import { lintManifest, renderManifestLint } from "./manifest-lint.ts";
-import { lintReadme, renderReadmeLint } from "./readme-lint.ts";
+import { lintManifest } from "./manifest-lint.ts";
+import { lintReadme } from "./readme-lint.ts";
 import {
   discoverManifests,
   extractMethodKeysFromSource,
@@ -173,23 +173,43 @@ const SummarySchema = z.object({
   checkedAt: z.string(),
 });
 
-/** Union of every resource spec this model can write. */
+/**
+ * Shape of the primary `score` resource this model writes.
+ *
+ * Exported for consumers/tests; derived from the runtime schema so it cannot
+ * drift.
+ */
 export type MetaFactoryData = z.infer<typeof ScoreSchema>;
 
 // ---------------------------------------------------------------------------
 // Subprocess helpers
 // ---------------------------------------------------------------------------
 
-interface CmdResult {
+/** Default wall-clock budget for any spawned subprocess. */
+export const CMD_TIMEOUT_MS = 120_000;
+
+/** Captured result of a spawned subprocess. */
+export interface CmdResult {
+  /** Decoded standard output. */
   stdout: string;
+  /** Decoded standard error (or the failure/timeout description). */
   stderr: string;
+  /** Process exit code; `124` on timeout, `127` when the binary could not run. */
   code: number;
 }
 
-async function run(
+/**
+ * Run a subprocess to completion, bounded by a timeout.
+ *
+ * `AbortSignal.timeout` ensures a hung `swamp` or `deno` invocation cannot hold
+ * the model lock forever. A timeout is reported as exit code `124`; a spawn
+ * failure (binary missing) as `127`.
+ */
+export async function run(
   bin: string,
   args: string[],
   cwd?: string,
+  timeoutMs: number = CMD_TIMEOUT_MS,
 ): Promise<CmdResult> {
   try {
     const proc = new Deno.Command(bin, {
@@ -197,6 +217,7 @@ async function run(
       cwd,
       stdout: "piped",
       stderr: "piped",
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const out = await proc.output();
     return {
@@ -205,6 +226,14 @@ async function run(
       code: out.code,
     };
   } catch (err) {
+    const name = err instanceof Error ? err.name : "";
+    if (name === "TimeoutError" || name === "AbortError") {
+      return {
+        stdout: "",
+        stderr: `timed out after ${timeoutMs}ms`,
+        code: 124,
+      };
+    }
     return {
       stdout: "",
       stderr: err instanceof Error ? err.message : String(err),
@@ -213,13 +242,20 @@ async function run(
   }
 }
 
+/** A subprocess runner, injectable so tests can stub external commands. */
+export type RunFn = (
+  bin: string,
+  args: string[],
+  cwd?: string,
+) => Promise<CmdResult>;
+
 /**
  * Resolve the bundled deno binary path via `swamp doctor extensions --json`.
  *
  * Falls back to the documented install location when the probe fails.
  */
-export async function resolveDenoPath(): Promise<string> {
-  const res = await run("swamp", ["doctor", "extensions", "--json"]);
+export async function resolveDenoPath(runFn: RunFn = run): Promise<string> {
+  const res = await runFn("swamp", ["doctor", "extensions", "--json"]);
   if (res.code === 0) {
     try {
       const parsed = JSON.parse(res.stdout) as { denoPath?: string };
@@ -240,11 +276,26 @@ export async function resolveDenoPath(): Promise<string> {
 interface ScoreDeps {
   denoPath: string;
   offline: boolean;
+  /** Injectable subprocess runner (defaults to the real {@link run}). */
+  run?: RunFn;
 }
 
 /** Resolve a manifest path to an absolute path. */
 function absManifest(path: string, cwd: string): string {
   return resolve(cwd, path);
+}
+
+/**
+ * Canonical resource instance name for a manifest.
+ *
+ * Every method keys `score` resources the same way — the manifest path relative
+ * to the repo root — so `check` and `checkAll` address the same extension rather
+ * than leaving two divergent records.
+ */
+function scoreInstanceName(repoDir: string, manifestPath: string): string {
+  return sanitizeInstanceName(
+    relativeTo(repoDir, resolve(manifestPath)),
+  );
 }
 
 /**
@@ -289,6 +340,7 @@ async function runDenoDoc(
   manifest: Manifest,
   manifestDir: string,
 ): Promise<{ docJson: unknown; lintStdout: string }> {
+  const runCmd = deps.run ?? run;
   const entrypoints: string[] = [];
   for (
     const file of [
@@ -302,7 +354,7 @@ async function runDenoDoc(
   }
   if (entrypoints.length === 0) return { docJson: undefined, lintStdout: "" };
 
-  const json = await run(deps.denoPath, ["doc", "--json", ...entrypoints]);
+  const json = await runCmd(deps.denoPath, ["doc", "--json", ...entrypoints]);
   let docJson: unknown;
   if (json.code === 0 && json.stdout.trim()) {
     try {
@@ -311,29 +363,65 @@ async function runDenoDoc(
       docJson = undefined;
     }
   }
-  const lint = await run(deps.denoPath, ["doc", "--lint", ...entrypoints]);
+  const lint = await runCmd(deps.denoPath, ["doc", "--lint", ...entrypoints]);
   return { docJson, lintStdout: lint.stdout };
 }
 
-/** Optionally run `swamp extension quality` for the dependency-trust signal. */
+/** Outcome of the optional `swamp extension quality` dependency-trust audit. */
+interface AuditResult {
+  /** True when a report was obtained (even if it reported a failure). */
+  audited: boolean;
+  /** True only when the audit ran and reported no blocking issues. */
+  passed: boolean;
+  /** Human-readable explanation of the outcome. */
+  detail: string;
+}
+
+/**
+ * Optionally run `swamp extension quality` for the dependency-trust signal.
+ *
+ * A report that runs and reports blocking issues is `audited: true, passed:
+ * false` (a real fail). A report that could not be obtained at all — offline,
+ * spawn failure, timeout, empty/unparseable stdout, or a response missing the
+ * `dependencyTrust` field — is `audited: false`, which the scorer treats as a
+ * skipped audit (partial credit) rather than a pass.
+ */
 async function runQualityAudit(
   deps: ScoreDeps,
   manifestPath: string,
-): Promise<{ audited: boolean; passed: boolean; detail: string }> {
+): Promise<AuditResult> {
   if (deps.offline) {
     return { audited: false, passed: false, detail: "offline mode" };
   }
-  const res = await run("swamp", [
+  const runCmd = deps.run ?? run;
+  const res = await runCmd("swamp", [
     "extension",
     "quality",
     manifestPath,
     "--json",
   ], dirname(manifestPath));
-  if (res.code !== 0 || !res.stdout.trim()) {
+  if (res.code === 124) {
+    return {
+      audited: false,
+      passed: false,
+      detail: "`swamp extension quality` timed out",
+    };
+  }
+  // A non-zero exit WITH stdout still carries a report: parse it and let the
+  // dependencyTrust verdict decide pass/fail. A non-zero exit with no output is
+  // an unavailable audit, not a failure.
+  if (res.code !== 0 && !res.stdout.trim()) {
     return {
       audited: false,
       passed: false,
       detail: "`swamp extension quality` did not return a report",
+    };
+  }
+  if (!res.stdout.trim()) {
+    return {
+      audited: false,
+      passed: false,
+      detail: "`swamp extension quality` returned empty output",
     };
   }
   try {
@@ -346,7 +434,7 @@ async function runQualityAudit(
       return {
         audited: false,
         passed: false,
-        detail: "no dependencyTrust field",
+        detail: "no dependencyTrust field in the quality report",
       };
     }
     const errors = Array.isArray(dt.errors) ? dt.errors.length : 0;
@@ -481,12 +569,13 @@ export const model = {
         "Score one extension manifest (0–100) and write the breakdown",
       arguments: CheckArgsSchema,
       execute: async (
-        args: z.infer<typeof CheckArgsSchema>,
+        args: z.infer<typeof CheckArgsSchema> & { _run?: RunFn },
         context: ExecContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const deps: ScoreDeps = {
-          denoPath: await resolveDenoPath(),
+          denoPath: await resolveDenoPath(args._run),
           offline: args.offline ?? context.globalArgs.offline,
+          run: args._run,
         };
         const path = absManifest(args.manifest, context.repoDir);
         context.logger?.info("Scoring {path}", { path });
@@ -495,7 +584,7 @@ export const model = {
 
         const handle = await context.writeResource(
           "score",
-          sanitizeInstanceName(result.manifest),
+          scoreInstanceName(context.repoDir, path),
           {
             ...result,
             wellDocumented,
@@ -518,12 +607,13 @@ export const model = {
         "Discover and score every extension manifest under the root; write a summary rollup",
       arguments: CheckAllArgsSchema,
       execute: async (
-        args: z.infer<typeof CheckAllArgsSchema>,
+        args: z.infer<typeof CheckAllArgsSchema> & { _run?: RunFn },
         context: ExecContext,
       ): Promise<{ dataHandles: Array<{ name: string }> }> => {
         const deps: ScoreDeps = {
-          denoPath: await resolveDenoPath(),
+          denoPath: await resolveDenoPath(args._run),
           offline: args.offline ?? context.globalArgs.offline,
+          run: args._run,
         };
         const root = resolve(context.repoDir, context.globalArgs.root);
         const entries: ManifestEntry[] = args.manifest
@@ -552,7 +642,7 @@ export const model = {
           const wellDocumented = result.score >= context.globalArgs.threshold;
           const handle = await context.writeResource(
             "score",
-            sanitizeInstanceName(entry.relative),
+            scoreInstanceName(context.repoDir, entry.path),
             {
               ...result,
               wellDocumented,
@@ -631,7 +721,7 @@ export const model = {
       execute: async (
         args: z.infer<typeof ScaffoldArgsSchema>,
         context: ExecContext,
-      ): Promise<{ dataHandles: [{ name: string }] }> => {
+      ): Promise<{ dataHandles: [] }> => {
         const path = absManifest(args.manifest, context.repoDir);
         const manifest = parseManifest(await Deno.readTextFile(path));
         const target = join(dirname(path), "README.md");
@@ -645,31 +735,10 @@ export const model = {
         }
         await Deno.writeTextFile(target, renderReadmeTemplate(manifest));
         context.logger?.info("Wrote README scaffold to {target}", { target });
-
-        const handle = await context.writeResource(
-          "score",
-          sanitizeInstanceName(relativeTo(context.repoDir, target)),
-          {
-            name: manifest.name ?? "(unnamed)",
-            manifest: target,
-            score: 0,
-            grade: "F",
-            earned: 0,
-            earnedMax: 1,
-            wellDocumented: false,
-            checks: [],
-            coverage: [],
-            examples: [],
-            missing: [],
-            nextActions: [
-              "Fill in the README sections with real content, then run `check`.",
-            ],
-            manifestLint: [],
-            readmeLint: [],
-            checkedAt: new Date().toISOString(),
-          },
-        );
-        return { dataHandles: [handle] };
+        // Scaffolding writes no `score` resource: the README is unwritten, so
+        // any score would be a misleading placeholder. Run `check` once the
+        // README has real content.
+        return { dataHandles: [] };
       },
     },
 
@@ -680,7 +749,7 @@ export const model = {
       execute: async (
         args: z.infer<typeof InstallSkillArgsSchema>,
         context: ExecContext,
-      ): Promise<{ dataHandles: [{ name: string }] }> => {
+      ): Promise<{ dataHandles: [] }> => {
         const skillName = context.globalArgs.skillName;
         const home = Deno.env.get("HOME") ?? "";
         const targets: string[] = [];
@@ -696,30 +765,13 @@ export const model = {
           context.repoDir,
           skillName,
         );
-        const written: string[] = [];
         for (const target of targets) {
           await copyDir(sourceDir, target, args.force);
-          written.push(target);
           context.logger?.info("Installed skill to {target}", { target });
         }
-
-        const handle = await context.writeResource("summary", "skill-install", {
-          root: context.repoDir,
-          threshold: context.globalArgs.threshold,
-          count: written.length,
-          averageScore: 0,
-          passCount: written.length,
-          failCount: 0,
-          belowThreshold: [],
-          scores: written.map((w) => ({
-            name: skillName,
-            manifest: w,
-            score: 0,
-            grade: "A",
-          })),
-          checkedAt: new Date().toISOString(),
-        });
-        return { dataHandles: [handle] };
+        // Installing a skill is not a documentation score — no `summary` is
+        // written, so it cannot be confused with a real checkAll rollup.
+        return { dataHandles: [] };
       },
     },
   },
@@ -783,6 +835,3 @@ async function resolveBundledSkillDir(
       `Expected <extension dir>/.agents/skills/${skillName}/SKILL.md.`,
   );
 }
-
-/** Re-export lint renderers so reports/tests can use them. */
-export { renderManifestLint, renderReadmeLint };

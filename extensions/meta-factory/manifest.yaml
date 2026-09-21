@@ -92,6 +92,7 @@ additionalFiles:
   - manifest-lint.ts
   - introspect.ts
   - meta_factory_test.ts
+  - meta_factory_methods_test.ts
   - quality-rubric_test.ts
   - meta_factory_report_test.ts
 

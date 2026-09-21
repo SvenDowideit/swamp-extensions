@@ -12,7 +12,7 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { createModelTestContext } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 
-import { type CmdResult, model } from "./meta_factory.ts";
+import { type CmdResult, model, run } from "./meta_factory.ts";
 
 type RunArgs = string[];
 
@@ -23,6 +23,8 @@ function stubRunner(opts: {
   qualityStderr?: string;
   docStdout?: string;
   docLintStdout?: string;
+  docLintStderr?: string;
+  docLintCode?: number;
 } = {}) {
   const calls: RunArgs[] = [];
   const runner = (bin: string, args: string[]): Promise<CmdResult> => {
@@ -44,8 +46,8 @@ function stubRunner(opts: {
     if (bin === "/stub/deno" && args[0] === "doc" && args[1] === "--lint") {
       return Promise.resolve({
         stdout: opts.docLintStdout ?? "",
-        stderr: "",
-        code: 0,
+        stderr: opts.docLintStderr ?? "",
+        code: opts.docLintCode ?? 0,
       });
     }
     if (bin === "/stub/deno" && args[0] === "doc") {
@@ -276,6 +278,67 @@ Deno.test("check gives partial credit when the audit is unavailable", async () =
       { id: string; status: string }
     >;
     assertEquals(checks.find((c) => c.id === "deps")?.status, "partial");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("run strips ANSI escapes from subprocess output", async () => {
+  // `deno` colorizes when writing to a pipe; run() must normalise it.
+  const proc = await run(
+    "printf",
+    ["\\033[1;31merror[private-type-ref]\\033[0m: x"],
+  );
+  assertEquals(proc.stdout, "error[private-type-ref]: x");
+  assertEquals(proc.stdout.includes("\u001b"), false);
+});
+
+Deno.test("check fails fast-types on stderr slow-type diagnostics", async () => {
+  const root = await makeExtension();
+  try {
+    const { runner } = stubRunner({
+      qualityStdout: JSON.stringify({
+        dependencyTrust: { passed: true, errors: [] },
+      }),
+      // deno doc --lint writes diagnostics to stderr and exits non-zero.
+      docLintCode: 1,
+      docLintStderr:
+        "error[missing-return-type]: exported function is missing an explicit return type annotation",
+    });
+    const { ctx } = await runMethod(
+      "check",
+      { manifest: "extensions/my-ext/manifest.yaml", _run: runner },
+      { repoDir: root, globalArgs: { threshold: 75 } },
+    );
+    const checks = ctx.getWrittenResources()[0].data.checks as Array<
+      { id: string; status: string }
+    >;
+    assertEquals(checks.find((c) => c.id === "fasttypes")?.status, "fail");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("check passes fast-types when the lint exit is clean", async () => {
+  const root = await makeExtension();
+  try {
+    const { runner } = stubRunner({
+      qualityStdout: JSON.stringify({
+        dependencyTrust: { passed: true, errors: [] },
+      }),
+      // A clean run still prints "Checked N files" to stderr, but exits 0.
+      docLintCode: 0,
+      docLintStderr: "Checked 1 file",
+    });
+    const { ctx } = await runMethod(
+      "check",
+      { manifest: "extensions/my-ext/manifest.yaml", _run: runner },
+      { repoDir: root, globalArgs: { threshold: 75 } },
+    );
+    const checks = ctx.getWrittenResources()[0].data.checks as Array<
+      { id: string; status: string }
+    >;
+    assertEquals(checks.find((c) => c.id === "fasttypes")?.status, "pass");
   } finally {
     await Deno.remove(root, { recursive: true });
   }

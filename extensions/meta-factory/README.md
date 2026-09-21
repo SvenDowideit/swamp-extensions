@@ -35,7 +35,8 @@ extension `0–100`).
   `## What it does` / `## Install` / `## Configuration` / `## Examples` /
   `## Details` sections, name every model and method, and explain how the
   extension is built and changed;
-- source JSDoc symbol coverage, clean `deno doc --lint` (no slow types), and
+- source JSDoc symbol coverage, no slow-type diagnostics from `deno doc --lint`,
+  and
   dependency trust.
 
 Every result is written as swamp data, rendered as a readable report, and the
@@ -141,9 +142,11 @@ manifest (5)**, single-step install (13), manifest formatting (5), functional
 examples (7), explained examples (7), canonical README sections (5), README
 substance (3), README + LICENSE packaging (6), platforms/repository/license
 metadata (4), declared artifacts (4), README coverage of every model and method
-(6), JSDoc symbol coverage (6), clean `deno doc --lint` (3), and dependency
-trust (3). Grades: A ≥ 90, B ≥ 75, C ≥ 60, D ≥ 40, else F. The full breakdown
-is in the bundled skill's `references/rubric.md`.
+(6), JSDoc symbol coverage (6), no slow-type diagnostics from `deno doc --lint`
+(3, filtered to the rubric's slow-type codes so JSDoc warnings are not
+double-counted), and dependency trust (3). Grades: A ≥ 90, B ≥ 75, C ≥ 60,
+D ≥ 40, else F. The full breakdown is in the bundled skill's
+`references/rubric.md`.
 
 ### Extending this extension
 
@@ -181,9 +184,12 @@ contract: edit `SECTIONS`.
 # execute-level model-method tests with stubbed subprocesses).
 ~/.swamp/deno/deno test --allow-read --allow-write --allow-run --allow-env
 
-# Slow-type lint (must be empty for the fast-types check).
-~/.swamp/deno/deno doc --lint meta_factory.ts meta_factory_report.ts \
-  quality-rubric.ts readme-lint.ts manifest-lint.ts introspect.ts
+# Slow-type lint: the declared entrypoints must report no slow-type codes
+# (`deno doc --lint` writes them to stderr and exits non-zero). The
+# fast-types check filters to the rubric's slow-type codes, so a
+# `missing-jsdoc` warning (covered separately by the symbols check) does not
+# cost the point.
+~/.swamp/deno/deno doc --lint meta_factory.ts meta_factory_report.ts
 
 # Format and lint to the swamp extension style.
 swamp extension fmt manifest.yaml --json

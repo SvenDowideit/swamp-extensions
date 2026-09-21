@@ -39,7 +39,7 @@ weighted checks. The maximum is always 100.
 | `artifacts` | Declares shipped artifacts | 4 | ≥1 model/vault/datastore/report/workflow/skill |
 | `coverage` | README documents every model and method | 6 | 30% for types named, 70% for methods named |
 | `symbols` | Source symbols documented (JSDoc) | 6 | scaled by `documented / total` exported declarations |
-| `fasttypes` | No slow types (`deno doc --lint`) | 3 | lint stdout empty |
+| `fasttypes` | No slow types (`deno doc --lint`) | 3 | no slow-type diagnostics on stderr |
 | `deps` | Dependency trust | 3 | full on a passing audit, ~50% when skipped offline |
 
 ## No methods section in the manifest

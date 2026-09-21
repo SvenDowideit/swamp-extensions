@@ -206,7 +206,7 @@ detail in [references/rubric.md](references/rubric.md); the weights:
 | Artifacts declared | 4 | at least one model/report/etc. |
 | README documents every method | 6 | coverage of model types and method names |
 | Source symbols documented | 6 | JSDoc coverage via `deno doc --json` |
-| No slow types | 3 | `deno doc --lint` clean |
+| No slow types | 3 | no slow-type codes in `deno doc --lint` stderr |
 | Dependency trust | 3 | `swamp extension quality` audit (partial when offline) |
 
 Maximum 100. `≥90` A, `≥75` B, `≥60` C, `≥40` D, else F. The default

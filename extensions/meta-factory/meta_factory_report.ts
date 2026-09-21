@@ -32,16 +32,16 @@ type MethodReportContext = {
 };
 
 /** One row of the score card's check table. */
-interface Check {
+export type Check = {
   id: string;
   label: string;
   earned: number;
   max: number;
   status: string;
   note?: string;
-}
+};
 /** Shape of the `score` resource this report renders. */
-interface ScoreData {
+export type ScoreData = {
   name: string;
   manifest: string;
   score: number;
@@ -60,9 +60,9 @@ interface ScoreData {
   nextActions: string[];
   manifestLint: { severity: string; rule: string; message: string }[];
   readmeLint: { severity: string; rule: string; message: string }[];
-}
+};
 /** Shape of the `rollup` summary resource this report renders. */
-interface SummaryData {
+export type SummaryData = {
   root: string;
   threshold: number;
   count: number;
@@ -76,7 +76,7 @@ interface SummaryData {
     topIssues: string[];
   }[];
   scores: { name: string; manifest: string; score: number; grade: string }[];
-}
+};
 
 /** Report definition rendering the meta-factory documentation score. */
 export const report = {

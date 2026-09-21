@@ -173,20 +173,18 @@ const SummarySchema = z.object({
   checkedAt: z.string(),
 });
 
-/**
- * Shape of the primary `score` resource this model writes.
- *
- * Exported for consumers/tests; derived from the runtime schema so it cannot
- * drift.
- */
-export type MetaFactoryData = z.infer<typeof ScoreSchema>;
-
 // ---------------------------------------------------------------------------
 // Subprocess helpers
 // ---------------------------------------------------------------------------
 
 /** Default wall-clock budget for any spawned subprocess. */
 export const CMD_TIMEOUT_MS = 120_000;
+
+/** Strip ANSI SGR sequences so subprocess output is safe to pattern-match. */
+export function stripAnsi(text: string): string {
+  // deno-lint-ignore no-control-regex
+  return text.replace(/\u001b\[[0-9;]*m/g, "");
+}
 
 /** Captured result of a spawned subprocess. */
 export interface CmdResult {
@@ -220,9 +218,11 @@ export async function run(
       signal: AbortSignal.timeout(timeoutMs),
     });
     const out = await proc.output();
+    // `deno`/`swamp` colorize their output when attached to a pipe; strip the
+    // ANSI escapes so downstream parsers see plain text.
     return {
-      stdout: new TextDecoder().decode(out.stdout),
-      stderr: new TextDecoder().decode(out.stderr),
+      stdout: stripAnsi(new TextDecoder().decode(out.stdout)),
+      stderr: stripAnsi(new TextDecoder().decode(out.stderr)),
       code: out.code,
     };
   } catch (err) {
@@ -364,7 +364,14 @@ async function runDenoDoc(
     }
   }
   const lint = await runCmd(deps.denoPath, ["doc", "--lint", ...entrypoints]);
-  return { docJson, lintStdout: lint.stdout };
+  // `deno doc --lint` writes diagnostics to stderr and signals failure through
+  // its exit code; stdout is empty. Report the diagnostics only when the command
+  // actually failed, so a clean run (which still prints "Checked N files" to
+  // stderr) is not mistaken for a violation.
+  const diagnostics = lint.code === 0
+    ? ""
+    : [lint.stderr, lint.stdout].filter((s) => s.trim().length > 0).join("\n");
+  return { docJson, lintStdout: diagnostics };
 }
 
 /** Outcome of the optional `swamp extension quality` dependency-trust audit. */
@@ -455,7 +462,7 @@ async function runQualityAudit(
 }
 
 /** Score a single manifest, performing all discovery and subprocess work. */
-export async function scoreManifest(
+async function scoreManifest(
   manifestPath: string,
   deps: ScoreDeps,
 ): Promise<ScoreResult & { lint: { manifest: unknown; readme: unknown } }> {

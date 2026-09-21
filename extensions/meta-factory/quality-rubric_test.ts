@@ -7,6 +7,7 @@ import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
   checkExamples,
   checkExplain,
+  checkFastTypes,
   checkFormat,
   checkInstallStep,
   checkManifest,
@@ -31,6 +32,8 @@ import {
   sectionBody,
   sectionPresent,
   SECTIONS,
+  SLOW_TYPE_CODES,
+  slowTypeCodes,
   WEIGHTS,
 } from "./quality-rubric.ts";
 
@@ -558,6 +561,50 @@ Deno.test("scoreExtension flags an undocumented method", () => {
   const missing = result.coverage.filter((c) => !c.documented);
   assertEquals(missing.map((c) => c.name), ["unlistedMethod"]);
   assertEquals(result.nextActions.some((a) => a.startsWith("coverage")), true);
+});
+
+Deno.test("slowTypeCodes extracts only slow-type codes", () => {
+  const diags = [
+    "error[missing-jsdoc]: exported symbol is missing JSDoc documentation",
+    "error[private-type-ref]: public type 'x' references private type 'Y'",
+    "error[missing-return-type]: exported function is missing a return type",
+  ].join("\n");
+  assertEquals(slowTypeCodes(diags), [
+    "missing-return-type",
+    "private-type-ref",
+  ]);
+  assertEquals(slowTypeCodes("error[missing-jsdoc]: only jsdoc"), []);
+  assertEquals(SLOW_TYPE_CODES.has("private-type-ref"), true);
+  assertEquals(SLOW_TYPE_CODES.has("missing-jsdoc"), false);
+});
+
+Deno.test("slowTypeCodes tolerates ANSI-colored diagnostics", () => {
+  // `deno` colorizes output; the ESC sequences must not hide the codes.
+  const ansi = "\u001b[0m\u001b[1m\u001b[31merror[private-type-ref]\u001b[0m:" +
+    " public type 'x'";
+  assertEquals(slowTypeCodes(ansi), ["private-type-ref"]);
+  assertEquals(checkFastTypes(ansi).status, "fail");
+});
+
+Deno.test("checkFastTypes passes on empty diagnostics", () => {
+  assertEquals(checkFastTypes("").status, "pass");
+});
+
+Deno.test("checkFastTypes ignores jsdoc-only diagnostics", () => {
+  const check = checkFastTypes(
+    "error[missing-jsdoc]: exported symbol is missing JSDoc documentation",
+  );
+  assertEquals(check.status, "pass");
+  assertEquals(check.earned, WEIGHTS.fasttypes);
+});
+
+Deno.test("checkFastTypes fails on a slow-type diagnostic", () => {
+  const check = checkFastTypes(
+    "error[private-type-ref]: public type 'x' references private type 'Y'",
+  );
+  assertEquals(check.status, "fail");
+  assertEquals(check.earned, 0);
+  assertStringIncludes(check.note ?? "", "private-type-ref");
 });
 
 Deno.test("renderReadmeTemplate produces every canonical section", () => {

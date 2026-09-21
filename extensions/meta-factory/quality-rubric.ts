@@ -1512,18 +1512,63 @@ function extractDocNodes(docJson: unknown): DocDeclaration[] {
   return out;
 }
 
-/** Fast-type check: `deno doc --lint` output must be empty. */
-export function checkFastTypes(lintStdout: string): CheckResult {
+/**
+ * Slow-type diagnostic codes emitted by `deno doc --lint`.
+ *
+ * The canonical list from the Swamp Club quality rubric. Only these codes count
+ * against the fast-types check — `missing-jsdoc` is scored separately by the
+ * symbols check, so counting it here would double-penalise the same problem.
+ */
+export const SLOW_TYPE_CODES: ReadonlySet<string> = new Set([
+  "missing-return-type",
+  "missing-explicit-type",
+  "private-type-ref",
+  "unsupported-ambient-module",
+  "unsupported-complex-reference",
+  "unsupported-default-export-expr",
+  "unsupported-destructuring",
+  "unsupported-global-module",
+  "unsupported-require",
+  "unsupported-ts-export-assignment",
+  "unsupported-ts-instantiation-expression",
+  "unsupported-ts-namespace-export",
+  "unsupported-using-stmt",
+]);
+
+/**
+ * Extract the distinct slow-type diagnostic codes present in `deno doc --lint`
+ * output. Unknown/other diagnostics (e.g. `missing-jsdoc`) are ignored.
+ */
+export function slowTypeCodes(diagnostics: string): string[] {
+  // Strip ANSI SGR sequences: `deno` colorizes diagnostics, and the escape
+  // codes would otherwise sit between `]` and `:` and hide the code.
+  // deno-lint-ignore no-control-regex
+  const plain = diagnostics.replace(/\u001b\[[0-9;]*m/g, "");
+  const found = new Set<string>();
+  for (const match of plain.matchAll(/error\[([a-z0-9-]+)\]:/g)) {
+    if (SLOW_TYPE_CODES.has(match[1])) found.add(match[1]);
+  }
+  return [...found].sort();
+}
+
+/**
+ * Fast-type check: `deno doc --lint` must report no slow-type diagnostics.
+ *
+ * `deno doc --lint` writes diagnostics to stderr and signals failure through its
+ * exit code, so callers pass the captured diagnostics (empty when the command
+ * succeeded). Only {@link SLOW_TYPE_CODES} are counted.
+ */
+export function checkFastTypes(lintDiagnostics: string): CheckResult {
   const max = WEIGHTS.fasttypes;
-  const diagnostics = lintStdout.trim();
-  if (diagnostics.length === 0) {
+  const codes = slowTypeCodes(lintDiagnostics);
+  if (codes.length === 0) {
     return {
       id: "fasttypes",
       label: "No slow types (deno doc --lint)",
       earned: max,
       max,
       status: "pass",
-      note: "clean",
+      note: "no slow-type diagnostics",
     };
   }
   return {
@@ -1532,7 +1577,7 @@ export function checkFastTypes(lintStdout: string): CheckResult {
     earned: 0,
     max,
     status: "fail",
-    note: diagnostics.split("\n").slice(0, 6).join("; "),
+    note: `${codes.length} slow-type code(s): ${codes.join(", ")}`,
   };
 }
 

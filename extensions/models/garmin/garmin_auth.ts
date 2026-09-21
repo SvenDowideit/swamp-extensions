@@ -94,7 +94,7 @@ export interface MfaChallenge {
 }
 
 /** A minimal cookie jar, scoped per host. */
-class CookieJar {
+export class CookieJar {
   #byHost = new Map<string, Map<string, string>>();
 
   /** Capture `Set-Cookie` headers from a response. */
@@ -116,6 +116,25 @@ class CookieJar {
     if (!jar || jar.size === 0) return "";
     return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
   }
+
+  /**
+   * Serialise the jar to a plain object. Cookies are session material, so a
+   * caller that persists this must treat it as sensitive.
+   */
+  toJSON(): Record<string, Record<string, string>> {
+    const out: Record<string, Record<string, string>> = {};
+    for (const [host, jar] of this.#byHost) out[host] = Object.fromEntries(jar);
+    return out;
+  }
+
+  /** Rebuild a jar from {@link toJSON} output. */
+  static fromJSON(data: Record<string, Record<string, string>>): CookieJar {
+    const jar = new CookieJar();
+    for (const [host, cookies] of Object.entries(data ?? {})) {
+      jar.#byHost.set(host, new Map(Object.entries(cookies)));
+    }
+    return jar;
+  }
 }
 
 /** Injected dependencies, so the flow is testable without the network. */
@@ -126,6 +145,8 @@ export interface AuthDeps {
   consumer?: OAuthConsumer;
   /** Clock override (tests). */
   now?: () => number;
+  /** Restored cookie state, so an MFA challenge can be resumed in a new run. */
+  cookieJar?: Record<string, Record<string, string>>;
 }
 
 /** Fetch the public OAuth consumer key/secret. */
@@ -191,7 +212,7 @@ export async function createSession(
   const fetchImpl = deps.fetchImpl ?? fetch;
   const consumer = deps.consumer ?? await fetchConsumer(fetchImpl);
   return {
-    jar: new CookieJar(),
+    jar: deps.cookieJar ? CookieJar.fromJSON(deps.cookieJar) : new CookieJar(),
     consumer,
     domain,
     fetchImpl,
@@ -508,6 +529,83 @@ export function bearerUsable(
 ): boolean {
   return Boolean(token.access_token) &&
     token.expires_at - skewSeconds > nowSeconds;
+}
+
+/** A completed token pair. */
+export interface TokenPair {
+  /** OAuth1 token (needed to refresh). */
+  oauth1: OAuth1Token;
+  /** OAuth2 bearer token (used for API calls). */
+  oauth2: OAuth2Token;
+}
+
+/**
+ * Exchange a service ticket for a full token pair.
+ *
+ * This is the tail of a fresh login: ticket → OAuth1 → OAuth2 (with the DI
+ * audience). Kept separate so the same tail serves both a direct login and an
+ * MFA resume.
+ */
+export async function completeLogin(
+  session: AuthSession,
+  ticket: string,
+): Promise<TokenPair> {
+  const oauth1 = await getOAuth1Token(session, ticket);
+  const oauth2 = await exchangeOAuth2(session, oauth1, true);
+  return { oauth1, oauth2 };
+}
+
+/**
+ * Import a `garth`-style token store, so no password is ever handled.
+ *
+ * `garth` serialises the pair as base64(JSON([oauth1, oauth2])) via
+ * `Client.dumps()`. The OAuth1 token needs `domain`; if absent it defaults to
+ * `garmin.com`. Expiry fields are recomputed from the current time when the
+ * store predates them, so a stale access token simply triggers a refresh.
+ */
+export function importTokenStore(
+  encoded: string,
+  nowSeconds: number,
+  domain = "garmin.com",
+): TokenPair {
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(atob(encoded.trim()));
+  } catch {
+    throw new GarminAuthError(
+      "token store is not valid base64-encoded JSON (garth Client.dumps format)",
+    );
+  }
+  if (!Array.isArray(decoded) || decoded.length < 2) {
+    throw new GarminAuthError(
+      "token store must be a 2-element [oauth1, oauth2]",
+    );
+  }
+  const raw1 = decoded[0] as Record<string, unknown>;
+  const raw2 = decoded[1] as Record<string, unknown>;
+  if (!raw1.oauth_token || !raw2.access_token) {
+    throw new GarminAuthError("token store missing oauth_token/access_token");
+  }
+  const oauth1: OAuth1Token = {
+    oauth_token: String(raw1.oauth_token),
+    oauth_token_secret: String(raw1.oauth_token_secret ?? ""),
+    domain: typeof raw1.domain === "string" ? raw1.domain : domain,
+  };
+  const expiresIn = Number(raw2.expires_in ?? 0);
+  const refreshExpiresIn = Number(raw2.refresh_token_expires_in ?? 0);
+  const oauth2: OAuth2Token = {
+    scope: String(raw2.scope ?? ""),
+    token_type: String(raw2.token_type ?? "Bearer"),
+    access_token: String(raw2.access_token),
+    refresh_token: String(raw2.refresh_token ?? ""),
+    expires_in: expiresIn,
+    // Prefer the stored absolute expiry; otherwise recompute from now.
+    expires_at: Number(raw2.expires_at ?? 0) || nowSeconds + expiresIn,
+    refresh_token_expires_in: refreshExpiresIn,
+    refresh_token_expires_at: Number(raw2.refresh_token_expires_at ?? 0) ||
+      nowSeconds + refreshExpiresIn,
+  };
+  return { oauth1, oauth2 };
 }
 
 /** Keys whose values must never reach a log, an error, or stored data. */

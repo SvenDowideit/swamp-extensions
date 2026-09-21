@@ -215,10 +215,38 @@ when: ${{ data.latest("garmin-devices", "capabilities").attributes.hrv == true }
 
 ## 11. Phase 0 spike artefacts
 
-- `spike/oauth1.ts` — OAuth1 HMAC-SHA1 signer (RFC 5849), pure and testable.
-- `spike/oauth1_test.ts` — RFC 5849 known-answer vector + determinism tests.
-- `spike/garmin_auth.ts` — SSO login → service ticket → OAuth1 → OAuth2;
-  token refresh; `connectapi` GET with `Authorization: Bearer`.
-- `spike/login.ts` — CLI: `--mfa <code>` / `--token-store <dir>`; stores
-  tokens to disk; verifies by fetching the social profile.
-- `spike/README.md` — how to run, what it proves, what is still unverified.
+> **Promoted in Phase 1.** `oauth1.ts`, `garmin_auth.ts` and their tests moved
+> up to the extension root and are now shipped. `login.ts` remained as the
+> standalone token-store bootstrap helper. The `spike/` directory is gone.
+
+- `oauth1.ts` — OAuth1 HMAC-SHA1 signer (RFC 5849), pure and testable.
+- `oauth1_test.ts` — RFC 5849 known-answer vector + determinism tests.
+- `garmin_auth.ts` — SSO login → service ticket → OAuth1 → OAuth2; token
+  refresh; `connectapi` GET with `Authorization: Bearer`.
+- `login.ts` — CLI: prompts/reads credentials, handles MFA, writes tokens, and
+  can print a base64 token store for the vault.
+
+## 12. Phase 1 status (complete)
+
+Shipped as the `@svendowideit/garmin-connect` extension (doc score 99/100):
+
+- `garmin_connect.ts` — the transport model, methods: `setup`, `import-tokens`,
+  `login`, `ensure`, `fetch`, `fetch-many`, `download`. Resources: `session`
+  (tokens sensitive), `fetch`, `batch`, `download`, `setup`, `status`; file spec
+  `export`.
+- `garmin-session.yaml` — the common session workflow
+  (`ensure → guarded login → verify → require-session`), cron `0 5 * * *`,
+  reusable by later data workflows via `type: workflow`.
+- On-disk cache/pacing under `~/.swamp/garmin-cache`, keyed by the same FNV-1a
+  scheme as `@svendowideit/web-cache`.
+- 25 unit tests (OAuth1 vectors, mocked full login flow, MFA, refresh, cache
+  keys, downloads, token-store import) — all network-free.
+
+Verified live: SSO reachability, an authenticated request (401 on a fake token,
+degrading gracefully), sensitive-field vault masking, and the workflow's
+guard/assert behaviour.
+
+### Next: Phase 2 — `garmin-devices` + capabilities
+
+Add the device-inventory model and its derived capability map, then the first
+parent workflow that gates domain jobs on those capabilities.

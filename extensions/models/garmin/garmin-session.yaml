@@ -1,0 +1,103 @@
+id: 9d7331e0-4842-4573-9ff6-2592f50b0e30
+name: "@svendowideit/garmin-session"
+description: |
+  Ensure an authenticated Garmin Connect session before any Garmin data sync.
+
+  This is the common transport workflow the other @svendowideit/garmin workflows
+  call. It never fetches Garmin data itself — it only guarantees that
+  @svendowideit/garmin-connect holds a usable bearer token:
+
+    1. `ensure`  reuses a valid stored token, or refreshes an expired one with
+                 the stored OAuth1 token (no credentials needed), and writes a
+                 `status` resource.
+    2. `login`   runs the SSO → OAuth1 → OAuth2 chain, but only when the session
+                 is not already ready. Needs credentials (or a token store) in
+                 the vault. A missing credential does not fail the run — the
+                 closing assert reports it clearly.
+    3. `verify`  re-runs `ensure` so the `status` resource reflects the login.
+    4. `require-session`  asserts the session is ready, with the exact command
+                 to fix it when it is not.
+
+  Manual run:
+    swamp workflow run @svendowideit/garmin-session
+    swamp workflow run @svendowideit/garmin-session --input name=garmin-connect
+tags:
+  domain: fitness
+trigger:
+  schedule: "0 5 * * *"
+  inputs: {}
+inputs:
+  properties:
+    name:
+      type: string
+      default: garmin-connect
+      description: The @svendowideit/garmin-connect model instance to ensure.
+  required: []
+jobs:
+  - name: session
+    description: Guarantee a usable Garmin bearer token.
+    steps:
+      - name: ensure
+        description: >
+          Reuse or refresh the stored session; writes a `status` resource.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-connect"
+          modelName: ${{ inputs.name }}
+          methodName: ensure
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: login
+        description: >
+          Run the login chain only when the session is not already ready. Missing
+          credentials are tolerated here and surfaced by the closing assert.
+        guard: ${{ data.latest(inputs.name, "session-status").attributes.ready }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-connect"
+          modelName: ${{ inputs.name }}
+          methodName: login
+        dependsOn:
+          - step: ensure
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+      - name: verify
+        description: Re-run ensure so `status` reflects the outcome of login.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-connect"
+          modelName: ${{ inputs.name }}
+          methodName: ensure
+        dependsOn:
+          - step: login
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: require-session
+        description: Fail with a precise fix when no usable session exists.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.name, "session-status").attributes.ready == true
+          message: >-
+            No usable Garmin session. Import a token store (preferred):
+            'swamp vault put garmin-secrets GARMIN_TOKEN_STORE', or store
+            credentials: 'swamp vault put garmin-secrets GARMIN_EMAIL' and
+            'swamp vault put garmin-secrets GARMIN_PASSWORD'. Then re-run this
+            workflow, or run
+            'swamp model @svendowideit/garmin-connect method run login garmin-connect'
+            (add '--input interactiveMfa=<code>' if Garmin asks for MFA).
+          severity: high
+        dependsOn:
+          - step: verify
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

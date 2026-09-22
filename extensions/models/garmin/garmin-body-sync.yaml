@@ -1,0 +1,135 @@
+id: 6366638a-7096-4a93-bc7e-f20475a6f298
+name: "@svendowideit/garmin-body-sync"
+description: |
+  Sync weight and body composition from Garmin Connect.
+
+  The simplest transport→domain seam of the family, because the weight
+  endpoints need no display name:
+
+    1. session     guarantee a valid bearer token.
+    2. body-paths  @svendowideit/garmin-body builds the weigh-in paths for the
+                   window — one range request by default, or one day-view
+                   request per day when a date may hold several weigh-ins.
+    3. fetch       one fetch-many caches them.
+    4. sync        parse into `weigh-in-<date>` resources and a `body-range`
+                   roll-up, keeping the latest sample per day and recording
+                   whether body composition was present at all.
+
+  Body composition (fat %, water, muscle, bone, visceral fat, metabolic age)
+  only appears when a compatible scale is paired; a weight-only scale reports
+  weight alone, and `body-range.hasBodyComposition` says which you have.
+
+  Default window is yesterday. Widen it for a backfill.
+
+  Runs daily at 05:40, last of the daily syncs.
+
+  Manual run:
+    swamp workflow run @svendowideit/garmin-body-sync
+    swamp workflow run @svendowideit/garmin-body-sync --input startDate=2025-01-01 --input endDate=2026-01-31
+    swamp workflow run @svendowideit/garmin-body-sync --input mode=daily --input date=2026-01-02
+tags:
+  domain: fitness
+trigger:
+  schedule: "40 5 * * *"
+  inputs: {}
+inputs:
+  properties:
+    sessionName:
+      type: string
+      default: garmin-connect
+      description: The @svendowideit/garmin-connect transport instance name.
+    bodyName:
+      type: string
+      default: garmin-body
+      description: The @svendowideit/garmin-body instance name.
+    startDate:
+      type: string
+      default: ""
+      description: Window start, YYYY-MM-DD; empty = yesterday.
+    endDate:
+      type: string
+      default: ""
+      description: Window end, YYYY-MM-DD; empty = start date.
+    mode:
+      type: string
+      default: range
+      description: "range = one request for the whole window; daily = one per day."
+  required: []
+jobs:
+  - name: body
+    description: Ensure a session, fetch weigh-in paths, parse into resources.
+    steps:
+      - name: session
+        description: Guarantee a valid Garmin bearer token before any fetch.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/garmin-session"
+          inputs:
+            name: ${{ inputs.sessionName }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: body-paths
+        description: Build the weigh-in paths for the window and mode.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-body"
+          modelName: ${{ inputs.bodyName }}
+          methodName: paths
+          inputs:
+            startDate: ${{ inputs.startDate }}
+            endDate: ${{ inputs.endDate }}
+            mode: ${{ inputs.mode }}
+        dependsOn:
+          - step: session
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: fetch
+        description: One authenticated, paced, cached batch fetch of the paths.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-connect"
+          modelName: ${{ inputs.sessionName }}
+          methodName: fetch-many
+          inputs:
+            paths: ${{ data.latest(inputs.bodyName, "body-paths").attributes.paths }}
+        dependsOn:
+          - step: body-paths
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: sync
+        description: Parse into `weigh-in-<date>` resources and a `body-range`.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-body"
+          modelName: ${{ inputs.bodyName }}
+          methodName: sync
+        dependsOn:
+          - step: fetch
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: report
+        description: Confirm the roll-up exists so the run is auditable.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.bodyName, "body-range").attributes.count >= 0
+          message: >-
+            No body roll-up produced. Check the session is valid and the window
+            is correct, then re-run.
+          severity: medium
+        dependsOn:
+          - step: sync
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

@@ -2,13 +2,14 @@
 
 Sync a Garmin Connect account into swamp. One authenticated transport, plus
 domain models that read its cached responses — devices with a capability map
-that gates the rest, and the activity history with FIT/TCX/GPX downloads.
+that gates the rest, the activity history with FIT/TCX/GPX downloads, daily
+wellness, and weight/body composition.
 
 `@svendowideit/garmin` is a **package of several model types** (like
 `@svendowideit/news`): the transport type `@svendowideit/garmin-connect`, and
-domain types `@svendowideit/garmin-devices` and
-`@svendowideit/garmin-activities`. Daily health, body composition and
-performance metrics are planned next (see [`PLAN.md`](./PLAN.md)).
+domain types `@svendowideit/garmin-devices`, `@svendowideit/garmin-activities`,
+`@svendowideit/garmin-health` and `@svendowideit/garmin-body` (see
+[`PLAN.md`](./PLAN.md)).
 
 ## What it does
 
@@ -32,7 +33,10 @@ This extension solves both problems with a layered design:
   `@svendowideit/garmin-activities` does the same for the activity history, and
   because per-activity detail (splits, weather, HR zones) is one request per
   activity, it fans the whole set into a **single** transport batch instead of N
-  contended calls.
+  contended calls. `@svendowideit/garmin-health` covers daily wellness and drops
+  the device-gated metrics (HRV, SpO2, respiration, body battery) the account's
+  devices cannot record; `@svendowideit/garmin-body` covers weight and body
+  composition.
 - **The seam is a workflow.** The transport's `fetch-many` / `download-many`
   fetches a batch, the domain model's `sync` parses it. Parsing stays pure and
   unit-testable.
@@ -86,6 +90,21 @@ with `--input key=value` where a method exposes it.
 | `detailKinds` | string[] | `["detail","splits","weather"]` | Per-activity sub-resources to fetch (`detail`, `splits`, `splitSummaries`, `weather`, `hrTimeInZones`, `powerTimeInZones`, `exerciseSets`, `details`). |
 | `timezone` | string | `""` | IANA zone for bucketing start times; empty uses Garmin's local fields. |
 
+### `@svendowideit/garmin-health`
+
+| Argument | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `cacheDir` | string | `"~/.swamp/garmin-cache"` | Shared cache the transport writes to; must match `garmin-connect`. |
+| `metrics` | string[] | summary, sleep, stress, heartRate, restingHeartRate, bodyBattery, stepsChart | Wellness metrics to fetch. Also: `respiration`, `spo2`, `hrv`, `intensityMinutes`, `floors`. |
+| `respectCapabilities` | boolean | `true` | Drop device-gated metrics the account's devices do not support. |
+
+### `@svendowideit/garmin-body`
+
+| Argument | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `cacheDir` | string | `"~/.swamp/garmin-cache"` | Shared cache the transport writes to; must match `garmin-connect`. |
+| `unit` | string | `"kg"` | Display unit for the normalised `weight` field (`kg` or `lb`); exact grams are always kept. |
+
 ## Examples
 
 ```sh
@@ -129,6 +148,23 @@ swamp data get garmin-devices device-capabilities --json \
 # so the history stays current. Widen the window or filter by sport as needed.
 swamp workflow run @svendowideit/garmin-activities-sync
 swamp workflow run @svendowideit/garmin-activities-sync --input days=90 --input activityType=cycling
+
+# Sync daily wellness (default: yesterday — the last complete day). Device-gated
+# metrics are fetched only when the capability map says the account can record
+# them; widen the window to backfill.
+swamp workflow run @svendowideit/garmin-health-sync
+swamp workflow run @svendowideit/garmin-health-sync --input startDate=2026-01-01 --input endDate=2026-01-31
+
+# Sync weight and body composition (default: yesterday). Body composition only
+# appears when a compatible scale is paired.
+swamp workflow run @svendowideit/garmin-body-sync
+swamp workflow run @svendowideit/garmin-body-sync --input startDate=2025-01-01 --input endDate=2026-01-31
+
+# Read the wellness roll-up and the weight trend with body composition.
+swamp data get garmin-health health-range --json \
+  | jq '.content.summaries[] | {date, steps, sleepScore, avgStress, hrvLastNightAvg}'
+swamp data get garmin-body body-range --json \
+  | jq '.content.weighIns[] | {date, weight, bmi, bodyFatPercent}'
 
 # Download original activity files for the synced list. FIT is the default;
 # re-runs skip files already downloaded, and `limit` spreads a backlog.
@@ -196,6 +232,22 @@ swamp model @svendowideit/garmin-activities method run detail-paths garmin-activ
 | `detail-paths` | `ids` (optional), `kinds` (optional), `useLastList` | A `paths` resource with every per-activity detail path, for one `fetch-many`. |
 | `sync` | `ids` (optional), `includeDetails` | An `activity-list` resource, one `activity-<id>` per activity, and `detail-<id>-<kind>` per cached detail response. |
 
+**`@svendowideit/garmin-health`** — daily wellness:
+
+| Method | Arguments | Produces |
+| ------ | --------- | -------- |
+| `setup` | — | A `setup` report of the configured metrics, gating, and display-name state. Read-only. |
+| `paths` | `date`/`startDate`/`endDate`, `metrics`, `capabilities`, `displayName`, `maxDays` | A `paths` resource for every date × metric, plus `skipped` (metrics dropped by gating). |
+| `sync` | `date`/`startDate`/`endDate`, `metrics`, `displayName` | One `daily-<date>` per day (summary + raw metric bodies) and a `health-range` roll-up. |
+
+**`@svendowideit/garmin-body`** — weight and body composition:
+
+| Method | Arguments | Produces |
+| ------ | --------- | -------- |
+| `setup` | — | A `setup` report of unit and whether body composition has been seen. Read-only. |
+| `paths` | `date`/`startDate`/`endDate`, `mode`, `maxDays` | A `paths` resource — one range request, or one day-view request per day. |
+| `sync` | `date`/`startDate`/`endDate` | One `weigh-in-<date>` per weigh-in (latest sample per day) and a `body-range` roll-up with `hasBodyComposition`. |
+
 ### Workflows
 
 | Workflow | Trigger | Purpose |
@@ -203,6 +255,8 @@ swamp model @svendowideit/garmin-activities method run detail-paths garmin-activ
 | `@svendowideit/garmin-session` | `0 5 * * *` | Ensure a usable session: `ensure` → (guarded) `login` → `verify` → `require-session` assert. Reusable by any Garmin data workflow via `type: workflow`. |
 | `@svendowideit/garmin-devices-sync` | `10 5 * * *` | The reference transport→domain seam: call `garmin-session` → `garmin-devices.paths` → `garmin-connect.fetch-many` → `garmin-devices.sync` → assert. |
 | `@svendowideit/garmin-activities-sync` | `20 5 * * *` | High-volume variant: `garmin-session` → `garmin-activities.activity-list-path` → `detail-paths` → `fetch-many` (list) → `fetch-many` (details) → `sync` → assert. Details are built from the previous run's list (two-pass). |
+| `@svendowideit/garmin-health-sync` | `30 5 * * *` | `garmin-session` → transport `profile` (display name) → `garmin-health.paths` (gated by `garmin-devices` capabilities) → `fetch-many` → `sync` → assert. |
+| `@svendowideit/garmin-body-sync` | `40 5 * * *` | `garmin-session` → `garmin-body.paths` → `fetch-many` → `sync` → assert. |
 | `@svendowideit/garmin-download` | on demand | Download activity exports for the synced list: `garmin-session` → assert list exists → `garmin-connect.download-many` → assert. |
 
 ### The capability map
@@ -232,7 +286,10 @@ vault and substitutes `${{ vault.get(...) }}` references in the resource file.
 (spec `devices`) and `device-capabilities` (spec `capabilities`) are the device
 outputs. `activity-list` (spec `list`) is the whole window in one resource;
 `activity-<id>` (spec `activity`) is one normalised activity; `detail-<id>-<kind>`
-(spec `detail`) is one per-activity detail body. `fetch` resources hold raw
+(spec `detail`) is one per-activity detail body. `daily-<date>` (spec `daily`) is
+one day's wellness summary plus its raw metric bodies; `health-range` (spec
+`range`) is the window roll-up. `weigh-in-<date>` (spec `weighIn`) and
+`body-range` (spec `range`) do the same for weight. `fetch` resources hold raw
 response bodies; `batch` summarises a `fetch-many`; `download`/`downloads`
 describe stored `export` files.
 
@@ -271,9 +328,13 @@ extensions/models/garmin/
   garmin_connect.ts    # @svendowideit/garmin-connect (transport)
   garmin_devices.ts    # @svendowideit/garmin-devices (inventory + capabilities)
   garmin_activities.ts # @svendowideit/garmin-activities (history + detail)
+  garmin_health.ts     # @svendowideit/garmin-health (daily wellness)
+  garmin_body.ts       # @svendowideit/garmin-body (weight + body composition)
   garmin-session.yaml             # @svendowideit/garmin-session
   garmin-devices-sync.yaml        # @svendowideit/garmin-devices-sync
   garmin-activities-sync.yaml     # @svendowideit/garmin-activities-sync
+  garmin-health-sync.yaml         # @svendowideit/garmin-health-sync
+  garmin-body-sync.yaml           # @svendowideit/garmin-body-sync
   garmin-download.yaml            # @svendowideit/garmin-download
   login.ts             # standalone interactive login + token-store helper
   *_test.ts            # unit tests (no network, no credentials)
@@ -284,14 +345,23 @@ extensions/models/garmin/
 
 ### Extending and testing
 
-To add a domain model, follow `garmin_devices.ts` / `garmin_activities.ts`:
-export a constant of the `connectapi` paths you need (and pure path builders), a
-`paths`-style method that returns them, and a `sync` method that reads them via
-`readCachedByPath` and writes resources. Then add a workflow that calls
-`garmin-session` → your path builder(s) → `garmin-connect.fetch-many` → your
-`sync`. Keep decision logic in exported pure functions so it can be tested
-without an account, and fan per-item paths into one `fetch-many` rather than N
-parallel `fetch` calls (the per-model lock makes N calls contend).
+To add a domain model, follow `garmin_devices.ts` / `garmin_activities.ts` /
+`garmin_health.ts`: export a constant of the `connectapi` paths you need (and
+pure path builders), a `paths`-style method that returns them, and a `sync`
+method that reads them via `readCachedByPath` and writes resources. Then add a
+workflow that calls `garmin-session` → your path builder(s) →
+`garmin-connect.fetch-many` → your `sync`. Keep decision logic in exported pure
+functions so it can be tested without an account, and fan per-item paths into one
+`fetch-many` rather than N parallel `fetch` calls (the per-model lock makes N
+calls contend).
+
+Two conventions worth copying: a domain model **never reads another model's
+resource** (that is what workflow CEL wiring is for) — it reads cached bodies
+from `cacheDir`, and takes cross-model values like the capability map or the
+display name as **method arguments** wired in by the workflow. And any field
+that may legitimately be absent (a metric a device did not record, a body-fat
+reading a weight-only scale cannot give) is `null`, never `0`, with an explicit
+`hasBodyComposition`-style flag where a consumer needs to tell them apart.
 
 ```sh
 # Unit tests: OAuth1 vectors, the mocked full login flow, devices, activities.
@@ -315,9 +385,16 @@ swamp workflow run @svendowideit/meta-factory \
 - **Activity detail is two-pass.** Per-activity detail is built from the previous
   run's list, because ids are not known until the list is synced. The first run
   fetches the list; the next adds detail. Downloads likewise run after a sync.
+- **Wellness metrics depend on devices.** HRV, SpO2, respiration and body battery
+  are only fetched when the capability map says a device records them; a metric
+  that is genuinely absent for a day is `null`, and `health-range.metricsSkipped`
+  records what gating removed.
+- **Body composition needs a compatible scale.** A weight-only scale reports
+  weight alone; `body-range.hasBodyComposition` says which you have, and the
+  per-weigh-in composition fields are `null` when not measured.
 - Garmin is an **unofficial, undocumented** API and may change; the extension is
   read-only and surfaces Garmin's own error text.
 - **Cloudflare** can challenge logins from unusual IPs; the transport reports a
   clear message rather than retrying blindly.
-- Daily health, body composition and performance models are **not yet shipped** —
-  see `PLAN.md` for the phased build.
+- Performance metrics (training status/readiness, VO2max, race predictions) are
+  **not yet shipped** — see `PLAN.md` for the phased build.

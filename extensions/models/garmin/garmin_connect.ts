@@ -203,6 +203,12 @@ const SetupArgsSchema = z.object({});
 
 const EnsureArgsSchema = z.object({});
 
+const ProfileArgsSchema = z.object({
+  displayName: z.string().optional().describe(
+    "Set the display name directly, skipping the network call",
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Resource schemas
 // ---------------------------------------------------------------------------
@@ -282,6 +288,21 @@ const DownloadBatchSchema = z.object({
   truncated: z.boolean(),
   /** Ids that failed this call, so a later run can retry just those. */
   failedIds: z.array(z.string()),
+});
+
+/**
+ * The account's social profile. Several Garmin endpoints are addressed by the
+ * user's *display name* (e.g. the wellness daily summary and heart-rate
+ * endpoints), so those paths cannot be built until it is known. Keeping it here
+ * means every domain model reads it from one place instead of re-fetching it.
+ */
+const ProfileSchema = z.object({
+  displayName: z.string(),
+  /** `encodeURIComponent(displayName)` — what the path builders need. */
+  displayNameEncoded: z.string(),
+  fullName: z.string(),
+  profileId: z.string().nullable(),
+  fetchedAt: z.string(),
 });
 
 const SetupSchema = z.object({ report: z.string() });
@@ -715,6 +736,14 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 20,
     },
+    profile: {
+      description:
+        "The account's social profile, including the display name several " +
+        "Garmin wellness endpoints are addressed by",
+      schema: ProfileSchema,
+      lifetime: "infinite",
+      garbageCollection: 3,
+    },
     setup: {
       description: "Configuration-readiness report",
       schema: SetupSchema,
@@ -911,6 +940,63 @@ export const model = {
         });
         ctx.logger.info("Garmin session ready ({how})", {
           how: refreshed ? "refreshed" : "valid",
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    profile: {
+      description:
+        "Fetch the account's social profile and write the `profile` resource. " +
+        "Several Garmin wellness endpoints are addressed by the user's display " +
+        "name; domain models read it from here (with `displayNameEncoded` ready " +
+        "for a URL path) instead of re-fetching it. Cache-first, like `fetch`. " +
+        "Pass `displayName` to set it directly without a network call.",
+      arguments: ProfileArgsSchema,
+      execute: async (
+        args: z.infer<typeof ProfileArgsSchema>,
+        ctx: MethodContext,
+      ) => {
+        // An explicit display name skips the network entirely — useful when the
+        // endpoint is unreachable or the value is known.
+        let displayName = args.displayName?.trim() ?? "";
+        let raw: Record<string, unknown> = {};
+        if (!displayName) {
+          const { session, oauth2 } = await authedSession(ctx);
+          const out = await cachedFetch(
+            ctx,
+            session,
+            oauth2,
+            "/userprofile-service/socialProfile",
+            {},
+          );
+          if (out.body === null) {
+            throw new Error(
+              "Could not fetch the Garmin social profile (no cached copy and " +
+                "the request failed). Pass `displayName` to set it directly.",
+            );
+          }
+          try {
+            raw = JSON.parse(out.body) as Record<string, unknown>;
+          } catch {
+            throw new Error("Garmin social profile response was not JSON");
+          }
+          displayName = String(raw.displayName ?? raw.userName ?? "");
+        }
+        if (!displayName) {
+          throw new Error(
+            "Garmin social profile has no displayName; several wellness " +
+              "endpoints cannot be addressed without it.",
+          );
+        }
+        const handle = await ctx.writeResource("profile", "profile", {
+          displayName,
+          displayNameEncoded: encodeURIComponent(displayName),
+          fullName: String(raw.fullName ?? ""),
+          profileId: raw.profileId != null ? String(raw.profileId) : null,
+          fetchedAt: new Date().toISOString(),
+        });
+        ctx.logger.info("Recorded Garmin profile for {name}", {
+          name: displayName,
         });
         return { dataHandles: [handle] };
       },

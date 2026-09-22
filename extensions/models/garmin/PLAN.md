@@ -321,3 +321,53 @@ in `failedIds`.
 
 Daily wellness (summary, sleep, stress, HR, body battery, SpO2, respiration,
 HRV) and weight/body composition, both gated by the device capability map.
+
+## 15. Phase 4 status (complete)
+
+Shipped in the `@svendowideit/garmin` package:
+
+- `garmin_connect.ts` extended with a `profile` method + `profile` resource:
+  several wellness endpoints are addressed by the user's **display name**, so
+  the transport records it once (`displayName` + `displayNameEncoded`) for the
+  health model to consume. Cache-first, with a `displayName` override arg.
+- `garmin_health.ts` — the `@svendowideit/garmin-health` model. Methods:
+  `setup`, `paths`, `sync`. Resources: `daily` → `daily-<date>`, `range` →
+  `health-range`, `paths`, `setup`. A metric registry (13 metrics) with per-
+  metric path builders, display-name handling, and capability gating via
+  `selectMetrics`. `mergeMetric` defensively folds each metric body into one
+  per-day summary.
+- `garmin_body.ts` — the `@svendowideit/garmin-body` model. Methods: `setup`,
+  `paths`, `sync`. Resources: `weighIn` → `weigh-in-<date>`, `range` →
+  `body-range`, `paths`, `setup`. Range or per-day modes; grams→display-unit
+  normalisation; keeps the latest sample per day; `hasBodyComposition` flag.
+- `garmin-health-sync.yaml` (cron `30 5 * * *`) and `garmin-body-sync.yaml`
+  (cron `40 5 * * *`).
+- 28 new unit tests (75 total).
+
+Design notes:
+
+- **A domain model never reads another model's resource.** The health model needs
+  the capability map and the display name, which live on other models; it takes
+  them as **method arguments** wired in by the workflow via CEL, falling back to
+  the cached social profile for the display name. `setup`, which runs standalone,
+  reads the cached profile and shows the ungated metric set with a note.
+- **Gating is bidirectional and visible.** `selectMetrics` returns both the
+  selected and skipped metrics so the workflow logs *why* a metric is absent.
+- **Absent ≠ zero.** Every optional wellness/body field is `null` when not
+  recorded, with an explicit `hasBodyComposition` flag for body data.
+
+Two real bugs were found by the tests and fixed: Garmin stores weight in **grams
+regardless of `unitKey`** (the community libraries all divide by 1000), and
+Garmin timestamps are naive strings that JS parses as *local* time, shifting the
+calendar date — the date is now taken from the string's own date part.
+
+Verified: both workflows ran end to end against a synthetic cache. Health
+produced 4 metrics with no capability map and **7 with it** (sleep score 82
+extracted from the nested shape); body produced 2 weigh-ins where the
+composition-bearing one carried fat %/metabolic age and the weight-only one
+correctly showed `null`, with `hasBodyComposition: true` for the range.
+
+### Next: Phase 5 — `garmin-performance`
+
+Training status/readiness, VO2max, race predictions, FTP and personal records,
+gated by the capability map.

@@ -1,14 +1,14 @@
 # @svendowideit/garmin
 
 Sync a Garmin Connect account into swamp. One authenticated transport, plus
-domain models that read its cached responses — starting with devices and the
-capability map that gates the rest.
+domain models that read its cached responses — devices with a capability map
+that gates the rest, and the activity history with FIT/TCX/GPX downloads.
 
 `@svendowideit/garmin` is a **package of several model types** (like
 `@svendowideit/news`): the transport type `@svendowideit/garmin-connect`, and
-domain types such as `@svendowideit/garmin-devices`. Activities, daily health,
-body composition and performance metrics are planned next (see
-[`PLAN.md`](./PLAN.md)).
+domain types `@svendowideit/garmin-devices` and
+`@svendowideit/garmin-activities`. Daily health, body composition and
+performance metrics are planned next (see [`PLAN.md`](./PLAN.md)).
 
 ## What it does
 
@@ -29,8 +29,13 @@ This extension solves both problems with a layered design:
   `connectapi` paths it needs and reads the transport's cached responses. It
   writes a normalised device inventory and a **capability map** that later
   workflows guard on, so a workflow never asks for data a device cannot produce.
-- **The seam is a workflow.** The transport's `fetch-many` fetches a batch, the
-  domain model's `sync` parses it. Parsing stays pure and unit-testable.
+  `@svendowideit/garmin-activities` does the same for the activity history, and
+  because per-activity detail (splits, weather, HR zones) is one request per
+  activity, it fans the whole set into a **single** transport batch instead of N
+  contended calls.
+- **The seam is a workflow.** The transport's `fetch-many` / `download-many`
+  fetches a batch, the domain model's `sync` parses it. Parsing stays pure and
+  unit-testable.
 
 It never writes to a Garmin account. It only reads, and it caches everything it
 reads.
@@ -73,6 +78,14 @@ with `--input key=value` where a method exposes it.
 | `cacheDir` | string | `"~/.swamp/garmin-cache"` | Shared cache the transport writes to; must match `garmin-connect`. |
 | `capabilityOverrides` | object | `{}` | Force capabilities true/false, overriding detection (e.g. `{"golf": false}`). |
 
+### `@svendowideit/garmin-activities`
+
+| Argument | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `cacheDir` | string | `"~/.swamp/garmin-cache"` | Shared cache the transport writes to; must match `garmin-connect`. |
+| `detailKinds` | string[] | `["detail","splits","weather"]` | Per-activity sub-resources to fetch (`detail`, `splits`, `splitSummaries`, `weather`, `hrTimeInZones`, `powerTimeInZones`, `exerciseSets`, `details`). |
+| `timezone` | string | `""` | IANA zone for bucketing start times; empty uses Garmin's local fields. |
+
 ## Examples
 
 ```sh
@@ -112,6 +125,20 @@ swamp workflow run @svendowideit/garmin-devices-sync
 swamp data get garmin-devices device-capabilities --json \
   | jq '.content.capabilities | to_entries | map(select(.value)) | map(.key)'
 
+# Sync the activity history for a window. Run it before downloading, and daily
+# so the history stays current. Widen the window or filter by sport as needed.
+swamp workflow run @svendowideit/garmin-activities-sync
+swamp workflow run @svendowideit/garmin-activities-sync --input days=90 --input activityType=cycling
+
+# Download original activity files for the synced list. FIT is the default;
+# re-runs skip files already downloaded, and `limit` spreads a backlog.
+swamp workflow run @svendowideit/garmin-download
+swamp workflow run @svendowideit/garmin-download --input format=tcx --input limit=50
+
+# Read the synced history — the whole array is in one resource for easy piping.
+swamp data get garmin-activities activity-list --json \
+  | jq '.content.activities[] | {name, typeKey, distanceMeters, aerobicTrainingEffect}'
+
 # Fetch one connectapi path; the raw body is cached so a domain model can parse
 # it without calling Garmin again.
 swamp model @svendowideit/garmin-connect method run fetch garmin-connect \
@@ -122,13 +149,17 @@ swamp model @svendowideit/garmin-connect method run fetch garmin-connect \
 swamp model @svendowideit/garmin-connect method run fetch-many garmin-connect \
   --input 'paths=["/userprofile-service/socialProfile","/device-service/deviceregistration/devices"]'
 
-# Download an activity's original (ZIP-wrapped) FIT file as a swamp file.
+# Download one activity's original (ZIP-wrapped) FIT file as a swamp file.
 swamp model @svendowideit/garmin-connect method run download garmin-connect \
   --input activityId=1234567890 --input format=fit
 
 # Correct a capability when detection misses your device, without editing code.
 swamp model @svendowideit/garmin-devices method run sync garmin-devices \
   --input 'overrides={"golf":false,"spo2":true}'
+
+# Pull more per-activity detail (HR and power time-in-zones) on the next sync.
+swamp model @svendowideit/garmin-activities method run detail-paths garmin-activities \
+  --input 'kinds=["detail","hrTimeInZones","powerTimeInZones"]'
 ```
 
 ## Details
@@ -146,6 +177,7 @@ swamp model @svendowideit/garmin-devices method run sync garmin-devices \
 | `fetch` | `path`, `maxAgeMs`, `forceRefresh` | One `fetch` resource (keyed by cache key) with the raw body, status, and cache state. |
 | `fetch-many` | `paths[]`, `maxFetches`, `maxAgeMs`, `forceRefresh` | One `fetch` resource per path plus a `batch` summary. |
 | `download` | `activityId`, `format` (`fit`\|`tcx`\|`gpx`\|`kml`\|`csv`) | An `export` file artefact plus a `download` metadata resource (bytes, sha256). |
+| `download-many` | `activityIds[]`, `format`, `maxDownloads`, `skipExisting` | One `export` file + `download` per id, plus a `downloads` batch summary (`downloaded`/`skipped`/`failed`/`failedIds`). Skips existing, caps a backlog, continues past one failure. |
 
 **`@svendowideit/garmin-devices`** — inventory + capabilities:
 
@@ -155,12 +187,23 @@ swamp model @svendowideit/garmin-devices method run sync garmin-devices \
 | `paths` | — | A `paths` resource listing the `connectapi` paths this model needs. |
 | `sync` | `overrides` (optional) | A `devices` resource (normalised inventory) and a `capabilities` resource (the capability map). |
 
+**`@svendowideit/garmin-activities`** — activity history:
+
+| Method | Arguments | Produces |
+| ------ | --------- | -------- |
+| `setup` | — | A `setup` report of the configured window and detail kinds. Read-only. |
+| `activity-list-path` | `days`, `startDate`, `endDate`, `activityType`, `limit`, `sortOrder` | A `paths` resource with the one date-ranged, paged list path. |
+| `detail-paths` | `ids` (optional), `kinds` (optional), `useLastList` | A `paths` resource with every per-activity detail path, for one `fetch-many`. |
+| `sync` | `ids` (optional), `includeDetails` | An `activity-list` resource, one `activity-<id>` per activity, and `detail-<id>-<kind>` per cached detail response. |
+
 ### Workflows
 
 | Workflow | Trigger | Purpose |
 | -------- | ------- | ------- |
 | `@svendowideit/garmin-session` | `0 5 * * *` | Ensure a usable session: `ensure` → (guarded) `login` → `verify` → `require-session` assert. Reusable by any Garmin data workflow via `type: workflow`. |
 | `@svendowideit/garmin-devices-sync` | `10 5 * * *` | The reference transport→domain seam: call `garmin-session` → `garmin-devices.paths` → `garmin-connect.fetch-many` → `garmin-devices.sync` → assert. |
+| `@svendowideit/garmin-activities-sync` | `20 5 * * *` | High-volume variant: `garmin-session` → `garmin-activities.activity-list-path` → `detail-paths` → `fetch-many` (list) → `fetch-many` (details) → `sync` → assert. Details are built from the previous run's list (two-pass). |
+| `@svendowideit/garmin-download` | on demand | Download activity exports for the synced list: `garmin-session` → assert list exists → `garmin-connect.download-many` → assert. |
 
 ### The capability map
 
@@ -186,9 +229,12 @@ when: ${{ data.latest("garmin-devices", "device-capabilities").attributes.capabi
 field marked `z.meta({ sensitive: true })` — swamp stores the values in the
 vault and substitutes `${{ vault.get(...) }}` references in the resource file.
 `session-status` (spec `status`) is the guardable readiness record. `device-list`
-(spec `devices`) and `device-capabilities` (spec `capabilities`) are the domain
-outputs. `fetch` resources hold raw response bodies; `batch` summarises a
-`fetch-many`; `download` describes a stored `export` file.
+(spec `devices`) and `device-capabilities` (spec `capabilities`) are the device
+outputs. `activity-list` (spec `list`) is the whole window in one resource;
+`activity-<id>` (spec `activity`) is one normalised activity; `detail-<id>-<kind>`
+(spec `detail`) is one per-activity detail body. `fetch` resources hold raw
+response bodies; `batch` summarises a `fetch-many`; `download`/`downloads`
+describe stored `export` files.
 
 ### How the seam works
 
@@ -224,8 +270,11 @@ extensions/models/garmin/
   garmin_cache.ts      # shared on-disk response cache (writer + readers)
   garmin_connect.ts    # @svendowideit/garmin-connect (transport)
   garmin_devices.ts    # @svendowideit/garmin-devices (inventory + capabilities)
-  garmin-session.yaml  # @svendowideit/garmin-session workflow
-  garmin-devices-sync.yaml  # @svendowideit/garmin-devices-sync workflow
+  garmin_activities.ts # @svendowideit/garmin-activities (history + detail)
+  garmin-session.yaml             # @svendowideit/garmin-session
+  garmin-devices-sync.yaml        # @svendowideit/garmin-devices-sync
+  garmin-activities-sync.yaml     # @svendowideit/garmin-activities-sync
+  garmin-download.yaml            # @svendowideit/garmin-download
   login.ts             # standalone interactive login + token-store helper
   *_test.ts            # unit tests (no network, no credentials)
   README.md
@@ -235,19 +284,21 @@ extensions/models/garmin/
 
 ### Extending and testing
 
-To add a domain model, follow `garmin_devices.ts`: export a `DEVICE_PATHS`-style
-constant of the `connectapi` paths you need, a `paths` method that returns them,
-and a `sync` method that reads them via `readCachedByPath` and writes resources.
-Then add a workflow that calls `garmin-session` → your `paths` →
-`garmin-connect.fetch-many` → your `sync`. Keep decision logic in exported pure
-functions so it can be tested without an account.
+To add a domain model, follow `garmin_devices.ts` / `garmin_activities.ts`:
+export a constant of the `connectapi` paths you need (and pure path builders), a
+`paths`-style method that returns them, and a `sync` method that reads them via
+`readCachedByPath` and writes resources. Then add a workflow that calls
+`garmin-session` → your path builder(s) → `garmin-connect.fetch-many` → your
+`sync`. Keep decision logic in exported pure functions so it can be tested
+without an account, and fan per-item paths into one `fetch-many` rather than N
+parallel `fetch` calls (the per-model lock makes N calls contend).
 
 ```sh
-# Unit tests: OAuth1 vectors, the mocked full login flow, devices/capabilities.
+# Unit tests: OAuth1 vectors, the mocked full login flow, devices, activities.
 ~/.swamp/deno/deno test --allow-net=jsr.io --allow-env --allow-read --allow-write=/tmp
 
 # Type-check one file.
-~/.swamp/deno/deno check garmin_devices.ts
+~/.swamp/deno/deno check garmin_activities.ts
 
 # Docs contract: manifest + README must score at or above the threshold.
 swamp workflow run @svendowideit/meta-factory \
@@ -261,9 +312,12 @@ swamp workflow run @svendowideit/meta-factory \
 - **Capability detection is heuristic.** It recognises the common product lines
   but Garmin's naming drifts; unrecognised devices are listed in
   `unknownProducts` and every flag can be corrected with `capabilityOverrides`.
+- **Activity detail is two-pass.** Per-activity detail is built from the previous
+  run's list, because ids are not known until the list is synced. The first run
+  fetches the list; the next adds detail. Downloads likewise run after a sync.
 - Garmin is an **unofficial, undocumented** API and may change; the extension is
   read-only and surfaces Garmin's own error text.
 - **Cloudflare** can challenge logins from unusual IPs; the transport reports a
   clear message rather than retrying blindly.
-- Activities, daily health, body composition and performance models are **not yet
-  shipped** — see `PLAN.md` for the phased build.
+- Daily health, body composition and performance models are **not yet shipped** —
+  see `PLAN.md` for the phased build.

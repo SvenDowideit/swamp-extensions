@@ -280,3 +280,44 @@ devices.
 
 Activity list, per-activity detail, and FIT/TCX/GPX orchestration built on the
 transport's `download`.
+
+## 14. Phase 3 status (complete)
+
+Shipped in the `@svendowideit/garmin` package:
+
+- `garmin_connect.ts` extended: `download` refactored onto a shared
+  `downloadOne` helper, plus a new fan-out **`download-many`** (skips existing,
+  caps a backlog via `maxDownloads`, continues past one failure, reports
+  `downloaded`/`skipped`/`failed`/`failedIds`). New `downloads` batch resource.
+- `garmin_activities.ts` — the `@svendowideit/garmin-activities` model. Methods:
+  `setup`, `activity-list-path`, `detail-paths`, `sync`. Resources: `activity`
+  → `activity-<id>`, `list` → `activity-list`, `detail` → `detail-<id>-<kind>`,
+  `paths`, `setup`. Pure path builders + defensive normalisation (common and
+  strength-specific fields).
+- `garmin-activities-sync.yaml` — high-volume seam: session → list path →
+  detail paths → `fetch-many` (list) → `fetch-many` (detail) → sync → assert.
+  Cron `20 5 * * *`.
+- `garmin-download.yaml` — on-demand: session → assert list → `download-many` →
+  assert.
+- 11 new activity unit tests (47 total).
+
+Design notes:
+
+- **Per-activity detail fans into one `fetch-many`**, not N parallel `fetch`
+  calls — one per-model lock acquisition (repository fan-out rule).
+- **`detail-paths` reads its own previous `activity-list`** when `ids` is
+  omitted, so the workflow needs no fragile CEL and behaves on the first run
+  (empty result → guarded fetch skip). Detail sync is therefore two-pass, which
+  is documented.
+- **`download-many` is idempotent and interruptible**: `skipExisting` makes
+  re-runs cheap, and the per-call cap spreads a large backfill across runs.
+
+Verified: the full workflow ran against a synthetic cache — 3 activities across
+cycling/running/strength normalised correctly, 9 detail responses parsed from
+cache, and `download-many` continued past two failed downloads and reported them
+in `failedIds`.
+
+### Next: Phase 4 — `garmin-health` + `garmin-body`
+
+Daily wellness (summary, sleep, stress, HR, body battery, SpO2, respiration,
+HRV) and weight/body composition, both gated by the device capability map.

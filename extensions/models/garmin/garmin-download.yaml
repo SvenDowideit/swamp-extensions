@@ -1,0 +1,111 @@
+id: e40db117-34fb-443a-b3a8-abbbfd9ca2c6
+name: "@svendowideit/garmin-download"
+description: |
+  Download original activity files (FIT by default) for a synced date window.
+
+  Sits on top of the activities sync and the transport's fan-out download:
+
+    1. session      guarantee a valid bearer token.
+    2. activity-ids read the ids from @svendowideit/garmin-activities'
+                    `activity-list` (synced by garmin-activities-sync).
+    3. download-all @svendowideit/garmin-connect's download-many stores each
+                    export as a swamp file artefact in ONE call. Ids already
+                    downloaded are skipped, so re-runs are cheap; a per-call cap
+                    spreads a large backlog across runs.
+
+  Run garmin-activities-sync first so there is a list to draw ids from. A `fit`
+  download is Garmin's original ZIP-wrapped FIT file; `tcx`, `gpx`, `kml` and
+  `csv` (splits) are also available.
+
+  Manual run:
+    swamp workflow run @svendowideit/garmin-download
+    swamp workflow run @svendowideit/garmin-download --input format=tcx
+    swamp workflow run @svendowideit/garmin-download --input limit=50
+tags:
+  domain: fitness
+inputs:
+  properties:
+    sessionName:
+      type: string
+      default: garmin-connect
+      description: The @svendowideit/garmin-connect transport instance name.
+    activitiesName:
+      type: string
+      default: garmin-activities
+      description: The @svendowideit/garmin-activities instance holding the list.
+    format:
+      type: string
+      default: fit
+      description: Export format — fit, tcx, gpx, kml, or csv.
+    limit:
+      type: integer
+      default: 100
+      description: Maximum activities to download this run (cap on a backlog).
+  required: []
+jobs:
+  - name: download
+    description: Ensure a session and download activity exports in one batch.
+    steps:
+      - name: session
+        description: Guarantee a valid Garmin bearer token before downloading.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/garmin-session"
+          inputs:
+            name: ${{ inputs.sessionName }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: require-list
+        description: Fail with a clear fix when the activity list is missing.
+        task:
+          type: assert
+          expr: data.latest(inputs.activitiesName, "activity-list") != null
+          message: >-
+            No activity list to download from. Run
+            'swamp workflow run @svendowideit/garmin-activities-sync' first.
+          severity: high
+        dependsOn:
+          - step: session
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: download-all
+        description: >
+          Download every listed activity's export in one fan-out call. Skips
+          existing files and caps downloads per run.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-connect"
+          modelName: ${{ inputs.sessionName }}
+          methodName: download-many
+          inputs:
+            activityIds: ${{ data.latest(inputs.activitiesName, "activity-list").attributes.activities.map(a, string(a.id)) }}
+            format: ${{ inputs.format }}
+            maxDownloads: ${{ inputs.limit }}
+        dependsOn:
+          - step: require-list
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: report
+        description: Confirm the batch summary exists so the run is auditable.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.sessionName, "download-many").attributes.downloaded
+            >= 0
+          message: >-
+            The download batch produced no summary — check the transport logs.
+          severity: medium
+        dependsOn:
+          - step: download-all
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

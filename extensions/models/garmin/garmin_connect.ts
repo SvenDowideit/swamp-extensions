@@ -182,6 +182,23 @@ const DownloadArgsSchema = z.object({
   ),
 });
 
+const DownloadManyArgsSchema = z.object({
+  activityIds: z.array(z.string()).min(1).describe(
+    "Activity ids to download. Already-downloaded ids are skipped, so a " +
+      "backlog drains across runs.",
+  ),
+  format: z.enum(["fit", "tcx", "gpx", "kml", "csv"]).default("fit").describe(
+    "Export format applied to every id",
+  ),
+  maxDownloads: z.number().int().positive().optional().describe(
+    "Cap on downloads this call (omit = global maxFetchesPerCall). Ids beyond " +
+      "the cap are left for a later run.",
+  ),
+  skipExisting: z.boolean().default(true).describe(
+    "Skip ids whose export is already stored, so re-runs are cheap",
+  ),
+});
+
 const SetupArgsSchema = z.object({});
 
 const EnsureArgsSchema = z.object({});
@@ -252,6 +269,19 @@ const DownloadResultSchema = z.object({
   sha256: z.string(),
   contentType: z.string().nullable(),
   downloadedAt: z.string(),
+});
+
+/** Summary of a `download-many` call. */
+const DownloadBatchSchema = z.object({
+  requested: z.number().int().nonnegative(),
+  downloaded: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  remaining: z.number().int().nonnegative(),
+  maxDownloads: z.number().int().positive(),
+  truncated: z.boolean(),
+  /** Ids that failed this call, so a later run can retry just those. */
+  failedIds: z.array(z.string()),
 });
 
 const SetupSchema = z.object({ report: z.string() });
@@ -576,6 +606,74 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
     .join("");
 }
 
+/** Metadata recorded for one stored export. */
+interface DownloadMeta {
+  activityId: string;
+  format: string;
+  path: string;
+  url: string;
+  bytes: number;
+  sha256: string;
+  contentType: string | null;
+  downloadedAt: string;
+  /** Resource payloads are open maps at the swamp boundary. */
+  [key: string]: unknown;
+}
+
+/**
+ * Download one export and store it as a file artefact + metadata resource.
+ *
+ * Shared by `download` and `download-many` so both record identical metadata.
+ * Returns `null` (rather than throwing) so a fan-out can continue past one bad
+ * id; the caller decides whether a null is fatal.
+ */
+async function downloadOne(
+  ctx: MethodContext,
+  session: Awaited<ReturnType<typeof createSession>>,
+  oauth2: OAuth2Token,
+  activityId: string,
+  format: string,
+): Promise<{ meta: DownloadMeta; handles: ResDataHandle[] } | null> {
+  const g = ctx.globalArgs;
+  const path = downloadPath(activityId, format);
+  const url = `https://${CONNECTAPI_HOST}${path}`;
+
+  const res = await session.fetchImpl(url, {
+    headers: {
+      "User-Agent": API_USER_AGENT,
+      Authorization: `Bearer ${oauth2.access_token}`,
+      Accept: "application/octet-stream",
+    },
+    signal: AbortSignal.timeout(g.requestTimeoutMs),
+  });
+  if (!res.ok) {
+    ctx.logger.warn?.("Download {id}.{fmt} failed HTTP {status}", {
+      id: activityId,
+      fmt: format,
+      status: res.status,
+    });
+    return null;
+  }
+
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  const digest = await sha256Hex(bytes);
+  const instance = `${activityId}-${format}`;
+  const writer = ctx.createFileWriter("export", instance);
+  const fileHandle = await writer.writeAll(bytes);
+  const meta: DownloadMeta = {
+    activityId,
+    format,
+    path,
+    url,
+    bytes: bytes.byteLength,
+    sha256: digest,
+    contentType: res.headers.get("content-type"),
+    downloadedAt: new Date().toISOString(),
+  };
+  const metaHandle = await ctx.writeResource("download", instance, meta);
+  return { meta, handles: [fileHandle, metaHandle] };
+}
+
 // ---------------------------------------------------------------------------
 // Model definition
 // ---------------------------------------------------------------------------
@@ -608,6 +706,12 @@ export const model = {
     download: {
       description: "Metadata for a downloaded binary activity export",
       schema: DownloadResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    downloads: {
+      description: "Summary of a download-many call",
+      schema: DownloadBatchSchema,
       lifetime: "infinite",
       garbageCollection: 20,
     },
@@ -1013,48 +1117,113 @@ export const model = {
         ctx: MethodContext,
       ) => {
         const { session, oauth2 } = await authedSession(ctx);
-        const g = ctx.globalArgs;
-        const path = downloadPath(args.activityId, args.format);
-        const url = `https://${CONNECTAPI_HOST}${path}`;
-
-        const res = await session.fetchImpl(url, {
-          headers: {
-            "User-Agent": API_USER_AGENT,
-            Authorization: `Bearer ${oauth2.access_token}`,
-            Accept: "application/octet-stream",
-          },
-          signal: AbortSignal.timeout(g.requestTimeoutMs),
-        });
-        if (!res.ok) {
+        const result = await downloadOne(
+          ctx,
+          session,
+          oauth2,
+          args.activityId,
+          args.format,
+        );
+        if (!result) {
           throw new Error(
-            `Download ${args.activityId}.${args.format} failed (HTTP ${res.status})`,
+            `Download ${args.activityId}.${args.format} failed — see the ` +
+              `warning above for the HTTP status.`,
           );
         }
-        const bytes = new Uint8Array(await res.arrayBuffer());
-        const digest = await sha256Hex(bytes);
-        const instance = `${args.activityId}-${args.format}`;
-        const writer = ctx.createFileWriter("export", instance);
-        const handle = await writer.writeAll(bytes);
-        const metaHandle = await ctx.writeResource("download", instance, {
-          activityId: args.activityId,
-          format: args.format,
-          path,
-          url,
-          bytes: bytes.byteLength,
-          sha256: digest,
-          contentType: res.headers.get("content-type"),
-          downloadedAt: new Date().toISOString(),
-        });
         ctx.logger.info(
           "Downloaded activity {id} as {format} ({bytes} bytes, {sha})",
           {
             id: args.activityId,
             format: args.format,
-            bytes: bytes.byteLength,
-            sha: digest.slice(0, 12),
+            bytes: result.meta.bytes,
+            sha: result.meta.sha256.slice(0, 12),
           },
         );
-        return { dataHandles: [handle, metaHandle] };
+        return { dataHandles: result.handles };
+      },
+    },
+    "download-many": {
+      description:
+        "Download many activity exports in one call, storing each as a file " +
+        "artefact. Skips ids already downloaded, caps downloads per call so a " +
+        "backlog drains across runs, and continues past a single failure. " +
+        "Prefer this over fanning out parallel download calls — one per-model " +
+        "lock acquisition and one summary.",
+      arguments: DownloadManyArgsSchema,
+      execute: async (
+        args: z.infer<typeof DownloadManyArgsSchema>,
+        ctx: MethodContext,
+      ) => {
+        const { session, oauth2 } = await authedSession(ctx);
+        const maxDownloads = args.maxDownloads ??
+          ctx.globalArgs.maxFetchesPerCall;
+        const handles: ResDataHandle[] = [];
+        let downloaded = 0;
+        let skipped = 0;
+        let failed = 0;
+        let processed = 0;
+        let capped = false;
+        const failedIds: string[] = [];
+
+        for (const id of args.activityIds) {
+          if (!id || id.trim() === "") {
+            skipped += 1;
+            processed += 1;
+            continue;
+          }
+          if (args.skipExisting) {
+            const existing = await ctx.readResource(`${id}-${args.format}`);
+            if (existing) {
+              skipped += 1;
+              processed += 1;
+              continue;
+            }
+          }
+          if (downloaded >= maxDownloads) {
+            capped = true;
+            break;
+          }
+          const result = await downloadOne(
+            ctx,
+            session,
+            oauth2,
+            id,
+            args.format,
+          );
+          processed += 1;
+          if (result) {
+            handles.push(...result.handles);
+            downloaded += 1;
+          } else {
+            failed += 1;
+            failedIds.push(id);
+          }
+        }
+
+        const summary = {
+          requested: args.activityIds.length,
+          downloaded,
+          skipped,
+          failed,
+          remaining: args.activityIds.length - processed,
+          maxDownloads,
+          truncated: capped,
+          failedIds,
+        };
+        const summaryHandle = await ctx.writeResource(
+          "downloads",
+          "download-many",
+          summary,
+        );
+        handles.push(summaryHandle);
+        ctx.logger.info(
+          "Downloaded {downloaded}, skipped {skipped}, failed {failed}, {remaining} left{cap}",
+          {
+            ...summary,
+            cap: capped ? ` (cap ${maxDownloads})` : "",
+          },
+        );
+        return { dataHandles: handles };
       },
     },
   },

@@ -1,0 +1,182 @@
+id: f45bd969-6ef9-4ada-8b85-359d153150db
+name: "@svendowideit/garmin-activities-sync"
+description: |
+  Sync the Garmin activity history for a date window.
+
+  Same transport→domain seam as garmin-devices-sync, scaled to a high-volume
+  domain:
+
+    1. session          guarantee a valid bearer token (transport workflow).
+    2. list-path        @svendowideit/garmin-activities builds the date-ranged,
+                        paged activity list path for the window.
+    3. detail-paths      turn the ids returned by the previous run's list into
+                        per-activity detail paths (splits, weather, HR zones), so
+                        all detail is fetched in ONE fetch-many call rather than
+                        N contended fetch calls.
+    4. fetch            @svendowideit/garmin-connect fetch-many caches the list
+                        and every detail path in one paced batch.
+    5. sync             parse the cached bodies into `activity-list`, one
+                        `activity-<id>` per activity, and `detail-<id>-<kind>`.
+
+  On the first run the detail fan-out has no ids yet, so only the list is
+  fetched; the next run adds details. This two-pass behaviour is deliberate — it
+  avoids guessing ids before they are known.
+
+  Runs daily at 05:20, after the session refresh and the device sync.
+
+  Manual run:
+    swamp workflow run @svendowideit/garmin-activities-sync
+    swamp workflow run @svendowideit/garmin-activities-sync --input days=90
+    swamp workflow run @svendowideit/garmin-activities-sync --input activityType=cycling
+tags:
+  domain: fitness
+trigger:
+  schedule: "20 5 * * *"
+  inputs: {}
+inputs:
+  properties:
+    sessionName:
+      type: string
+      default: garmin-connect
+      description: The @svendowideit/garmin-connect transport instance name.
+    activitiesName:
+      type: string
+      default: garmin-activities
+      description: The @svendowideit/garmin-activities instance name.
+    days:
+      type: integer
+      default: 30
+      description: How many days back to list (ignored when startDate is set).
+    startDate:
+      type: string
+      default: ""
+      description: Explicit window start, YYYY-MM-DD (overrides days).
+    activityType:
+      type: string
+      default: ""
+      description: Only list this Garmin activity type (e.g. cycling); empty = all.
+    includeDetails:
+      type: boolean
+      default: true
+      description: Also fetch per-activity detail for ids from the previous run.
+  required: []
+jobs:
+  - name: activities
+    description: Ensure a session, fetch the list + details, parse into resources.
+    steps:
+      - name: session
+        description: Guarantee a valid Garmin bearer token before any fetch.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/garmin-session"
+          inputs:
+            name: ${{ inputs.sessionName }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: list-path
+        description: Build the date-ranged activity list path for the window.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-activities"
+          modelName: ${{ inputs.activitiesName }}
+          methodName: activity-list-path
+          inputs:
+            days: ${{ inputs.days }}
+            startDate: ${{ inputs.startDate }}
+            activityType: ${{ inputs.activityType }}
+        dependsOn:
+          - step: session
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: detail-paths
+        description: >
+          Build per-activity detail paths from the ids the previous run synced.
+          Omit `ids` so the model reads its own last `activity-list` — no fragile
+          CEL here. On the first run there is no list, so the result is empty.
+        guard: ${{ inputs.includeDetails == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-activities"
+          modelName: ${{ inputs.activitiesName }}
+          methodName: detail-paths
+        dependsOn:
+          - step: list-path
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: fetch-list
+        description: Fetch (and cache) the activity list in one call.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-connect"
+          modelName: ${{ inputs.sessionName }}
+          methodName: fetch-many
+          inputs:
+            paths: ${{ data.latest(inputs.activitiesName, "activity-paths").attributes.paths }}
+        dependsOn:
+          - step: detail-paths
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: fetch-details
+        description: >
+          Fetch (and cache) every per-activity detail path in one batch. Guarded
+          so it is skipped when there are no detail paths (first run, or
+          includeDetails=false).
+        guard: >-
+          ${{ data.latest(inputs.activitiesName, "detail-paths") == null
+              || data.latest(inputs.activitiesName, "detail-paths").attributes.paths.size() == 0 }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-connect"
+          modelName: ${{ inputs.sessionName }}
+          methodName: fetch-many
+          inputs:
+            paths: ${{ data.latest(inputs.activitiesName, "detail-paths").attributes.paths }}
+        dependsOn:
+          - step: fetch-list
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: sync
+        description: >
+          Parse the cached list and detail bodies into `activity-list`,
+          `activity-<id>` and `detail-<id>-<kind>` resources.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-activities"
+          modelName: ${{ inputs.activitiesName }}
+          methodName: sync
+          inputs:
+            includeDetails: ${{ inputs.includeDetails }}
+        dependsOn:
+          - step: fetch-details
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: report
+        description: Fail loudly if the window produced no activities at all.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.activitiesName, "activity-list").attributes.cached == true
+          message: >-
+            No cached activity list. Check the session is valid and the window
+            has activities, then re-run.
+          severity: medium
+        dependsOn:
+          - step: sync
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

@@ -340,8 +340,9 @@ unit-testable, and means one model owns authentication and rate limiting.
 ### Auth internals
 
 - **OAuth1 (RFC 5849) HMAC-SHA1** is implemented in `oauth1.ts` on WebCrypto —
-  no npm OAuth library. Tested against the RFC 5849 §3.4.1.1 vector and an
-  independently computed signature.
+  no npm OAuth library. Tested against the RFC 5849 signature-base-string worked
+  example (the published HMAC-SHA1 known-answer vector) and an independently
+  computed signature.
 - **Login** primes SSO cookies, `POST`s credentials to
   `sso.garmin.com/mobile/api/login` (Android client id `GCM_ANDROID_DARK`),
   exchanges the service ticket for an OAuth1 token, then for the DI OAuth2

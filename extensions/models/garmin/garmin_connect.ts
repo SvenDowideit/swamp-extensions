@@ -92,15 +92,17 @@ const GlobalArgsSchema = z.object({
   usernameKey: z.string().default("GARMIN_EMAIL").describe(
     "Vault key holding the Garmin account email",
   ),
-  passwordKey: z.string().default("GARMIN_PASSWORD").describe(
-    "Vault key holding the Garmin account password",
-  ),
+  passwordKey: z.string().default("GARMIN_PASSWORD")
+    .meta({ sensitive: false })
+    .describe("Vault key holding the Garmin account password"),
   mfaCodeKey: z.string().default("GARMIN_MFA_CODE").describe(
     "Vault key holding a one-time MFA code for a non-interactive first login",
   ),
-  tokenStoreKey: z.string().default("GARMIN_TOKEN_STORE").describe(
-    "Vault key holding a base64 `garth` token store (preferred: no password)",
-  ),
+  tokenStoreKey: z.string().default("GARMIN_TOKEN_STORE")
+    .meta({ sensitive: false })
+    .describe(
+      "Vault key holding a base64 `garth` token store (preferred: no password)",
+    ),
   username: z.string().optional().describe(
     "Garmin email; normally left empty and read from the vault",
   ),
@@ -158,8 +160,8 @@ const LoginArgsSchema = z.object({
   ),
 });
 
-const ImportTokensArgsSchema = z.object({
-  tokenStore: z.string().optional().describe(
+const SeedSessionArgsSchema = z.object({
+  tokenStore: z.string().optional().meta({ sensitive: true }).describe(
     "Base64 `garth` token store; omit to read it from the vault",
   ),
 });
@@ -223,7 +225,7 @@ const SessionSchema = z.object({
   domain: z.string(),
   displayName: z.string().nullable(),
   expiresAt: z.string().nullable(),
-  refreshTokenExpiresAt: z.string().nullable(),
+  refreshTokenExpiresAt: z.string().nullable().meta({ sensitive: false }),
   hasRefreshToken: z.boolean(),
   oauth1: z.object({
     oauth_token: z.string().meta({ sensitive: true }),
@@ -232,7 +234,7 @@ const SessionSchema = z.object({
   }),
   oauth2: z.object({
     scope: z.string(),
-    token_type: z.string(),
+    token_type: z.string().meta({ sensitive: false }),
     access_token: z.string().meta({ sensitive: true }),
     refresh_token: z.string().meta({ sensitive: true }),
     expires_in: z.number(),
@@ -877,9 +879,9 @@ export const model = {
       description:
         "Seed the session from a base64 `garth` token store (Client.dumps " +
         "format), so no password is ever handled. Preferred for scheduled use.",
-      arguments: ImportTokensArgsSchema,
+      arguments: SeedSessionArgsSchema,
       execute: async (
-        args: z.infer<typeof ImportTokensArgsSchema>,
+        args: z.infer<typeof SeedSessionArgsSchema>,
         ctx: MethodContext,
       ) => {
         const g = ctx.globalArgs;

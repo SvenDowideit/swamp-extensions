@@ -1,0 +1,161 @@
+id: b6de792b-225e-4061-aa7a-2fcd08324701
+name: "@svendowideit/garmin-performance-sync"
+description: |
+  Sync training and performance metrics from Garmin Connect.
+
+  The same transport→domain seam as the health sync, with a mixed metric set:
+
+    1. session      guarantee a valid bearer token.
+    2. profile      fetch the account display name (race predictions and
+                    personal records are addressed by it).
+    3. perf-paths   @svendowideit/garmin-performance builds the paths — one per
+                    day for date-keyed metrics, one total for the latest metrics
+                    (FTP, personal records) — dropping device-gated metrics the
+                    account cannot compute.
+    4. fetch        one fetch-many caches every path.
+    5. sync         parse into `metrics-<date>` per day, a `performance-range`
+                    roll-up, and a `records` resource (FTP, personal records,
+                    and the bests seen across the window).
+
+  Default window is yesterday — Garmin often has no performance data for today.
+  Widen it for a trend, or pass latestOnly=true for a cheap FTP + PR refresh.
+
+  Runs daily at 05:50, last of the daily syncs.
+
+  Manual run:
+    swamp workflow run @svendowideit/garmin-performance-sync
+    swamp workflow run @svendowideit/garmin-performance-sync --input startDate=2026-01-01 --input endDate=2026-01-31
+    swamp workflow run @svendowideit/garmin-performance-sync --input latestOnly=true
+tags:
+  domain: fitness
+trigger:
+  schedule: "50 5 * * *"
+  inputs: {}
+inputs:
+  properties:
+    sessionName:
+      type: string
+      default: garmin-connect
+      description: The @svendowideit/garmin-connect transport instance name.
+    performanceName:
+      type: string
+      default: garmin-performance
+      description: The @svendowideit/garmin-performance instance name.
+    devicesName:
+      type: string
+      default: garmin-devices
+      description: >
+        The @svendowideit/garmin-devices instance holding the capability map;
+        used to gate device-computed metrics.
+    startDate:
+      type: string
+      default: ""
+      description: Window start, YYYY-MM-DD; empty = yesterday.
+    endDate:
+      type: string
+      default: ""
+      description: Window end, YYYY-MM-DD; empty = start date.
+    latestOnly:
+      type: boolean
+      default: false
+      description: Fetch only the latest (non-date) metrics — a cheap refresh.
+  required: []
+jobs:
+  - name: performance
+    description: Ensure a session, fetch performance paths, parse into resources.
+    steps:
+      - name: session
+        description: Guarantee a valid Garmin bearer token before any fetch.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/garmin-session"
+          inputs:
+            name: ${{ inputs.sessionName }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: profile
+        description: >
+          Fetch the account display name — race predictions and personal records
+          are addressed by it.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-connect"
+          modelName: ${{ inputs.sessionName }}
+          methodName: profile
+        dependsOn:
+          - step: session
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: perf-paths
+        description: >
+          Build daily and latest metric paths, gated by the device capability map.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-performance"
+          modelName: ${{ inputs.performanceName }}
+          methodName: paths
+          inputs:
+            startDate: ${{ inputs.startDate }}
+            endDate: ${{ inputs.endDate }}
+            latestOnly: ${{ inputs.latestOnly }}
+            displayName: ${{ data.latest(inputs.sessionName, "profile").attributes.displayName }}
+            capabilities: ${{ data.latest(inputs.devicesName, "device-capabilities").?attributes.?capabilities.orValue({}) }}
+        dependsOn:
+          - step: profile
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: fetch
+        description: One authenticated, paced, cached batch fetch of all paths.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-connect"
+          modelName: ${{ inputs.sessionName }}
+          methodName: fetch-many
+          inputs:
+            paths: ${{ data.latest(inputs.performanceName, "performance-paths").attributes.paths }}
+        dependsOn:
+          - step: perf-paths
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: sync
+        description: >
+          Parse into `metrics-<date>`, a `performance-range`, and `records`.
+        task:
+          type: model_method
+          modelType: "@svendowideit/garmin-performance"
+          modelName: ${{ inputs.performanceName }}
+          methodName: sync
+          inputs:
+            displayName: ${{ data.latest(inputs.sessionName, "profile").attributes.displayName }}
+        dependsOn:
+          - step: fetch
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: report
+        description: Confirm the roll-up exists so the run is auditable.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.performanceName, "performance-range").attributes.days > 0
+          message: >-
+            No performance days were parsed. Check the session is valid and the
+            window is correct, then re-run.
+          severity: medium
+        dependsOn:
+          - step: sync
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

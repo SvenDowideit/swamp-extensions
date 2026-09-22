@@ -3,13 +3,13 @@
 Sync a Garmin Connect account into swamp. One authenticated transport, plus
 domain models that read its cached responses — devices with a capability map
 that gates the rest, the activity history with FIT/TCX/GPX downloads, daily
-wellness, and weight/body composition.
+wellness, weight/body composition, and training + performance metrics.
 
 `@svendowideit/garmin` is a **package of several model types** (like
 `@svendowideit/news`): the transport type `@svendowideit/garmin-connect`, and
 domain types `@svendowideit/garmin-devices`, `@svendowideit/garmin-activities`,
-`@svendowideit/garmin-health` and `@svendowideit/garmin-body` (see
-[`PLAN.md`](./PLAN.md)).
+`@svendowideit/garmin-health`, `@svendowideit/garmin-body` and
+`@svendowideit/garmin-performance` (see [`PLAN.md`](./PLAN.md)).
 
 ## What it does
 
@@ -36,7 +36,9 @@ This extension solves both problems with a layered design:
   contended calls. `@svendowideit/garmin-health` covers daily wellness and drops
   the device-gated metrics (HRV, SpO2, respiration, body battery) the account's
   devices cannot record; `@svendowideit/garmin-body` covers weight and body
-  composition.
+  composition; `@svendowideit/garmin-performance` covers training and
+  performance metrics (training status/readiness, VO2max, race predictions,
+  endurance and hill score, FTP, personal records), likewise gated.
 - **The seam is a workflow.** The transport's `fetch-many` / `download-many`
   fetches a batch, the domain model's `sync` parses it. Parsing stays pure and
   unit-testable.
@@ -105,6 +107,14 @@ with `--input key=value` where a method exposes it.
 | `cacheDir` | string | `"~/.swamp/garmin-cache"` | Shared cache the transport writes to; must match `garmin-connect`. |
 | `unit` | string | `"kg"` | Display unit for the normalised `weight` field (`kg` or `lb`); exact grams are always kept. |
 
+### `@svendowideit/garmin-performance`
+
+| Argument | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `cacheDir` | string | `"~/.swamp/garmin-cache"` | Shared cache the transport writes to; must match `garmin-connect`. |
+| `metrics` | string[] | trainingStatus, trainingReadiness, vo2max, racePredictions, ftp, personalRecords | Metrics to fetch. Also: `enduranceScore`, `hillScore`, `fitnessAge`. |
+| `respectCapabilities` | boolean | `true` | Drop device-gated metrics the account's devices do not support. |
+
 ## Examples
 
 ```sh
@@ -160,11 +170,23 @@ swamp workflow run @svendowideit/garmin-health-sync --input startDate=2026-01-01
 swamp workflow run @svendowideit/garmin-body-sync
 swamp workflow run @svendowideit/garmin-body-sync --input startDate=2025-01-01 --input endDate=2026-01-31
 
-# Read the wellness roll-up and the weight trend with body composition.
+# Sync training and performance metrics (default: yesterday — Garmin often has
+# no data for today yet). Device-gated metrics are only fetched when the
+# capability map says the account can compute them; latestOnly is a cheap
+# FTP + personal-records refresh.
+swamp workflow run @svendowideit/garmin-performance-sync
+swamp workflow run @svendowideit/garmin-performance-sync --input startDate=2026-01-01 --input endDate=2026-01-31
+swamp workflow run @svendowideit/garmin-performance-sync --input latestOnly=true
+
+# Read the wellness roll-up, the weight trend, and the performance records.
 swamp data get garmin-health health-range --json \
   | jq '.content.summaries[] | {date, steps, sleepScore, avgStress, hrvLastNightAvg}'
 swamp data get garmin-body body-range --json \
   | jq '.content.weighIns[] | {date, weight, bmi, bodyFatPercent}'
+swamp data get garmin-performance records --json \
+  | jq '.content | {ftp, best, personalRecords}'
+swamp data get garmin-performance metrics-<date> --json \
+  | jq '.content | {trainingStatus, trainingReadiness, vo2maxRunning, racePrediction5k}'
 
 # Download original activity files for the synced list. FIT is the default;
 # re-runs skip files already downloaded, and `limit` spreads a backlog.
@@ -248,6 +270,14 @@ swamp model @svendowideit/garmin-activities method run detail-paths garmin-activ
 | `paths` | `date`/`startDate`/`endDate`, `mode`, `maxDays` | A `paths` resource — one range request, or one day-view request per day. |
 | `sync` | `date`/`startDate`/`endDate` | One `weigh-in-<date>` per weigh-in (latest sample per day) and a `body-range` roll-up with `hasBodyComposition`. |
 
+**`@svendowideit/garmin-performance`** — training and performance metrics:
+
+| Method | Arguments | Produces |
+| ------ | --------- | -------- |
+| `setup` | — | A `setup` report of the configured metrics, split into daily and latest. Read-only. |
+| `paths` | `date`/`startDate`/`endDate`, `metrics`, `capabilities`, `displayName`, `latestOnly`, `maxDays` | A `paths` resource — one per day for date-keyed metrics, one total for latest metrics (FTP, PRs) — plus `skipped`. |
+| `sync` | `date`/`startDate`/`endDate`, `displayName` | One `metrics-<date>` per day, a `performance-range` roll-up, and a `records` resource (FTP, personal records, bests seen). |
+
 ### Workflows
 
 | Workflow | Trigger | Purpose |
@@ -257,6 +287,7 @@ swamp model @svendowideit/garmin-activities method run detail-paths garmin-activ
 | `@svendowideit/garmin-activities-sync` | `20 5 * * *` | High-volume variant: `garmin-session` → `garmin-activities.activity-list-path` → `detail-paths` → `fetch-many` (list) → `fetch-many` (details) → `sync` → assert. Details are built from the previous run's list (two-pass). |
 | `@svendowideit/garmin-health-sync` | `30 5 * * *` | `garmin-session` → transport `profile` (display name) → `garmin-health.paths` (gated by `garmin-devices` capabilities) → `fetch-many` → `sync` → assert. |
 | `@svendowideit/garmin-body-sync` | `40 5 * * *` | `garmin-session` → `garmin-body.paths` → `fetch-many` → `sync` → assert. |
+| `@svendowideit/garmin-performance-sync` | `50 5 * * *` | `garmin-session` → transport `profile` → `garmin-performance.paths` (gated) → `fetch-many` → `sync` → assert. |
 | `@svendowideit/garmin-download` | on demand | Download activity exports for the synced list: `garmin-session` → assert list exists → `garmin-connect.download-many` → assert. |
 
 ### The capability map
@@ -289,9 +320,12 @@ outputs. `activity-list` (spec `list`) is the whole window in one resource;
 (spec `detail`) is one per-activity detail body. `daily-<date>` (spec `daily`) is
 one day's wellness summary plus its raw metric bodies; `health-range` (spec
 `range`) is the window roll-up. `weigh-in-<date>` (spec `weighIn`) and
-`body-range` (spec `range`) do the same for weight. `fetch` resources hold raw
-response bodies; `batch` summarises a `fetch-many`; `download`/`downloads`
-describe stored `export` files.
+`body-range` (spec `range`) do the same for weight. `metrics-<date>` (spec
+`metrics`) is one day of performance data, `performance-range` (spec `range`) is
+the window roll-up, and `records` (spec `records`) holds the latest values (FTP,
+personal records) plus the bests seen. `fetch` resources hold raw response
+bodies; `batch` summarises a `fetch-many`; `download`/`downloads` describe
+stored `export` files.
 
 ### How the seam works
 
@@ -330,11 +364,13 @@ extensions/models/garmin/
   garmin_activities.ts # @svendowideit/garmin-activities (history + detail)
   garmin_health.ts     # @svendowideit/garmin-health (daily wellness)
   garmin_body.ts       # @svendowideit/garmin-body (weight + body composition)
+  garmin_performance.ts # @svendowideit/garmin-performance (training + metrics)
   garmin-session.yaml             # @svendowideit/garmin-session
   garmin-devices-sync.yaml        # @svendowideit/garmin-devices-sync
   garmin-activities-sync.yaml     # @svendowideit/garmin-activities-sync
   garmin-health-sync.yaml         # @svendowideit/garmin-health-sync
   garmin-body-sync.yaml           # @svendowideit/garmin-body-sync
+  garmin-performance-sync.yaml    # @svendowideit/garmin-performance-sync
   garmin-download.yaml            # @svendowideit/garmin-download
   login.ts             # standalone interactive login + token-store helper
   *_test.ts            # unit tests (no network, no credentials)
@@ -385,10 +421,12 @@ swamp workflow run @svendowideit/meta-factory \
 - **Activity detail is two-pass.** Per-activity detail is built from the previous
   run's list, because ids are not known until the list is synced. The first run
   fetches the list; the next adds detail. Downloads likewise run after a sync.
-- **Wellness metrics depend on devices.** HRV, SpO2, respiration and body battery
-  are only fetched when the capability map says a device records them; a metric
-  that is genuinely absent for a day is `null`, and `health-range.metricsSkipped`
-  records what gating removed.
+- **Wellness and performance metrics depend on devices.** HRV, SpO2, respiration
+  and body battery (wellness) and VO2max, training status/readiness and the
+  scores (performance) are only fetched when the capability map says a device
+  computes them; a metric genuinely absent for a day is `null`, and
+  `health-range.metricsSkipped` / `performance-range.metricsSkipped` record what
+  gating removed.
 - **Body composition needs a compatible scale.** A weight-only scale reports
   weight alone; `body-range.hasBodyComposition` says which you have, and the
   per-weigh-in composition fields are `null` when not measured.
@@ -396,5 +434,3 @@ swamp workflow run @svendowideit/meta-factory \
   read-only and surfaces Garmin's own error text.
 - **Cloudflare** can challenge logins from unusual IPs; the transport reports a
   clear message rather than retrying blindly.
-- Performance metrics (training status/readiness, VO2max, race predictions) are
-  **not yet shipped** — see `PLAN.md` for the phased build.

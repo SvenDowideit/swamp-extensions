@@ -371,3 +371,43 @@ correctly showed `null`, with `hasBodyComposition: true` for the range.
 
 Training status/readiness, VO2max, race predictions, FTP and personal records,
 gated by the capability map.
+
+## 16. Phase 5 status (complete)
+
+Shipped in the `@svendowideit/garmin` package:
+
+- `garmin_performance.ts` — the `@svendowideit/garmin-performance` model.
+  Methods: `setup`, `paths`, `sync`. Resources: `metrics` → `metrics-<date>`,
+  `range` → `performance-range`, `records`, `paths`, `setup`. A metric registry
+  (9 metrics) split into **daily** (training status/readiness, VO2max, race
+  predictions, endurance/hill score, fitness age) and **latest** (FTP, personal
+  records). `mergeMetric` handles the differently-shaped responses; `parseFtp`
+  and `parsePersonalRecords` extract the date-less values; `sync` also records
+  window bests.
+- `garmin-performance-sync.yaml` — session → `profile` → `performance.paths`
+  (gated) → `fetch-many` → `sync` → assert. Cron `50 5 * * *`.
+- 18 new unit tests (93 total).
+
+Design notes:
+
+- **Two metric kinds share one model.** Daily metrics expand to one path per day;
+  latest metrics contribute exactly one path. `latestOnly` drops the daily paths
+  for a cheap refresh.
+- **Shapes differ**, so parsing is per-metric: training status nests per device,
+  training readiness is a list of snapshots (the newest wins), VO2max is one
+  level down per sport (`generic`/`cycling`), and race predictions arrive as
+  either seconds or clock strings — all normalised.
+- **`records` is separate from `range`** because FTP and personal records have no
+  calendar date, so they cannot live in a date-keyed row.
+
+Verified: the workflow ran end to end against a synthetic cache. With no cycling
+capability, FTP was correctly skipped (4 daily + 1 latest path); with gating off
+it fetched and parsed FTP 285, endurance 6500 and hill 72 alongside VO2max 45.3
+(running) / 52.1 (cycling), training status PRODUCTIVE, and a 5K personal
+record.
+
+### Remaining
+
+Optional/feature-gated packs (`garmin-golf`, `garmin-nutrition`,
+`garmin-menstrual`) and a `garmin-summary` report remain, per §5/§6. The core
+domain models planned in §5 are now all shipped.

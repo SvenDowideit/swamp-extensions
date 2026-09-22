@@ -5,7 +5,7 @@ description: |
   Sync a Garmin Connect account into swamp: one authenticated transport, plus
   domain models that read its cached responses — devices with a capability map
   that gates the rest, the activity history with FIT/TCX/GPX downloads, daily
-  wellness, and weight/body composition.
+  wellness, weight/body composition, and training + performance metrics.
 
   Garmin Connect has no public API. It needs a signed OAuth1 handshake to mint a
   rotating OAuth2 bearer token, it rate-limits aggressively, and every data
@@ -15,10 +15,9 @@ description: |
   they need and parse the cached bodies. The seam is a workflow: transport fetch
   → domain sync. Because Garmin features depend on the devices an account owns,
   the devices model derives a capability map so later workflows can gate on it
-  instead of failing on data a device cannot produce; the activities model fans
-  per-activity detail into ONE transport batch rather than N contended calls;
-  and the wellness model drops HRV, SpO2 and respiration for accounts whose
-  devices do not record them.
+  instead of failing on data a device cannot produce; and the wellness and
+  performance models drop metrics (HRV, SpO2, VO2max, FTP) whose devices are
+  absent.
 
   WHAT IT DOES
 
@@ -29,8 +28,10 @@ description: |
     and every domain fetch is one paced batch. You get a normalised activity
     history with per-activity splits and weather plus original activity files as
     first-class swamp files; a per-day wellness roll-up (steps, sleep and sleep
-    score, stress, heart rate, body battery, intensity minutes); and weight with
-    body composition, all gated by a device capability map.
+    score, stress, heart rate, body battery); weight with body composition; and
+    training + performance metrics (training status and readiness, VO2max per
+    sport, race predictions, endurance and hill score, FTP, personal records),
+    all gated by a device capability map.
 
   INSTALL
 
@@ -58,25 +59,28 @@ description: |
       swamp vault put garmin-secrets GARMIN_PASSWORD
       swamp model @svendowideit/garmin-connect method run login garmin-connect
 
-      # Refresh the session, devices + capabilities, then the daily data. These
-      # four run in sequence on their own schedule once 'swamp serve' is up.
+      # Refresh the session then sync each domain; these run in sequence on
+      # their own schedule once 'swamp serve' is up.
       swamp workflow run @svendowideit/garmin-session
       swamp workflow run @svendowideit/garmin-devices-sync
       swamp workflow run @svendowideit/garmin-activities-sync
       swamp workflow run @svendowideit/garmin-health-sync
       swamp workflow run @svendowideit/garmin-body-sync
+      swamp workflow run @svendowideit/garmin-performance-sync
 
-      # Backfill a wider window (any of the domain syncs accept a date range).
-      swamp workflow run @svendowideit/garmin-health-sync --input startDate=2026-01-01 --input endDate=2026-01-31
+      # Backfill a wider window (any domain sync accepts a date range).
+      swamp workflow run @svendowideit/garmin-performance-sync --input startDate=2026-01-01 --input endDate=2026-01-31
 
       # Download original activity files (FIT by default) for the synced list.
       swamp workflow run @svendowideit/garmin-download --input format=tcx --input limit=50
 
-      # Read the data: wellness summaries, or weight trend with body composition.
+      # Read the data: wellness, weight, or performance and records.
       swamp data get garmin-health health-range --json \
-        | jq '.content.summaries[] | {date, steps, sleepScore, avgStress, hrvLastNightAvg}'
-      swamp data get garmin-body body-range --json \
-        | jq '.content.weighIns[] | {date, weight, bmi, bodyFatPercent}'
+        | jq '.content.summaries[] | {date, steps, sleepScore, avgStress}'
+      swamp data get garmin-performance records --json \
+        | jq '.content | {ftp, best, personalRecords}'
+      swamp data get garmin-performance metrics-<date> --json \
+        | jq '.content | {trainingStatus, trainingReadiness, vo2maxRunning}'
 
   CONFIGURE
 
@@ -91,8 +95,8 @@ description: |
       maxFetchesPerCall    Origin-fetch cap per fetch-many/download-many (default 100)
       capabilityOverrides  Force capabilities true/false when detection misses
       detailKinds          Per-activity detail to fetch (default detail, splits, weather)
-      metrics              Wellness metrics to fetch (default summary, sleep, stress, heartRate, restingHeartRate, bodyBattery, stepsChart)
-      respectCapabilities  Drop device-gated wellness metrics (default true)
+      metrics              Wellness and performance metrics to fetch (see README)
+      respectCapabilities  Drop device-gated metrics (default true)
       unit                 Body display unit: kg or lb (default kg; grams always kept)
 
     See every setting and its current value:
@@ -101,15 +105,17 @@ description: |
       swamp model @svendowideit/garmin-activities method run setup garmin-activities
       swamp model @svendowideit/garmin-health method run setup garmin-health
       swamp model @svendowideit/garmin-body method run setup garmin-body
+      swamp model @svendowideit/garmin-performance method run setup garmin-performance
 
   WHAT IT INSTALLS
 
-    Nothing on the host — no services, daemons, or webhooks. Five cron triggers
+    Nothing on the host — no services, daemons, or webhooks. Six cron triggers
     are registered while 'swamp serve' runs, staggered through the morning:
     garmin-session at 0 5 * * *, garmin-devices-sync at 10 5 * * *,
-    garmin-activities-sync at 20 5 * * *, garmin-health-sync at 30 5 * * *, and
-    garmin-body-sync at 40 5 * * *. Downloads run on demand. All state lives in
-    swamp resources; the session tokens live in the vault (marked sensitive).
+    garmin-activities-sync at 20 5 * * *, garmin-health-sync at 30 5 * * *,
+    garmin-body-sync at 40 5 * * *, and garmin-performance-sync at 50 5 * * *.
+    Downloads run on demand. All state lives in swamp resources; the session
+    tokens live in the vault (marked sensitive).
 
 repository: https://github.com/svendowideit/swamp-extensions
 
@@ -127,6 +133,7 @@ models:
   - garmin_activities.ts
   - garmin_health.ts
   - garmin_body.ts
+  - garmin_performance.ts
 
 workflows:
   - garmin-session.yaml
@@ -135,6 +142,7 @@ workflows:
   - garmin-download.yaml
   - garmin-health-sync.yaml
   - garmin-body-sync.yaml
+  - garmin-performance-sync.yaml
 
 additionalFiles:
   - README.md
@@ -148,5 +156,6 @@ additionalFiles:
   - garmin_activities_test.ts
   - garmin_health_test.ts
   - garmin_body_test.ts
+  - garmin_performance_test.ts
 
 platforms: []

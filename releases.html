@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260922-162335-0-sha-1ac2f012"><span class="tier A">A</span>update datastores.md for scoped config poller extension relo</a><a href="#release-swamp-club-swamp-v20260922-161340-0-sha-7fe4c0fc"><span class="tier A">A</span>pass markDirtyHook to auto-definition repos so pushChanged s</a><a href="#release-swamp-club-swamp-v20260922-160736-0-sha-e6d53943"><span class="tier A">A</span>scope config poller extension reload to extension-only chang</a><a href="#release-swamp-club-swamp-v20260922-011324-0-sha-2e949db5"><span class="tier A">A</span>document --remote-only in serve and remote-execution guides </a><a href="#release-swamp-club-swamp-v20260922-004416-0-sha-c37113c2"><span class="tier A">A</span>document SWAMP_SERVER_URL requirement for SWAMP_SERVER_TOKEN</a><a href="#release-swamp-club-swamp-v20260922-004038-0-sha-c37113c2"><span class="tier A">A</span>document SWAMP_SERVER_URL requirement for SWAMP_SERVER_TOKEN</a><a href="#release-swamp-club-swamp-v20260922-003004-0-sha-d899465b"><span class="tier A">A</span>pass correct config key for interactive 1Password migration </a><a href="#release-swamp-club-swamp-v20260921-235005-0-sha-704b7227"><span class="tier A">A</span>converge server URL normalization and warn on missing SWAMP_</a><a href="#release-swamp-club-swamp-v20260921-232400-0-sha-5193b0b7"><span class="tier A">A</span>document memory contract for pullChanged and add heap diagno</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260922-185723-0-sha-33229b53"><span class="tier A">A</span>apply --ca-cert to the dispatch data plane (swamp-club#2193)</a><a href="#release-swamp-club-swamp-v20260922-183711-0-sha-fe318bfb"><span class="tier A">A</span>content-address extension bundle imports so hot-reload stops</a><a href="#release-swamp-club-swamp-v20260922-174258-0-sha-47ee85e8"><span class="tier A">A</span>describe skipped helper modules instead of implying a load f</a><a href="#release-swamp-club-swamp-v20260922-162335-0-sha-1ac2f012"><span class="tier A">A</span>update datastores.md for scoped config poller extension relo</a><a href="#release-swamp-club-swamp-v20260922-161340-0-sha-7fe4c0fc"><span class="tier A">A</span>pass markDirtyHook to auto-definition repos so pushChanged s</a><a href="#release-swamp-club-swamp-v20260922-160736-0-sha-e6d53943"><span class="tier A">A</span>scope config poller extension reload to extension-only chang</a><a href="#release-swamp-club-swamp-v20260922-011324-0-sha-2e949db5"><span class="tier A">A</span>document --remote-only in serve and remote-execution guides </a><a href="#release-swamp-club-swamp-v20260922-004416-0-sha-c37113c2"><span class="tier A">A</span>document SWAMP_SERVER_URL requirement for SWAMP_SERVER_TOKEN</a><a href="#release-swamp-club-swamp-v20260922-004038-0-sha-c37113c2"><span class="tier A">A</span>document SWAMP_SERVER_URL requirement for SWAMP_SERVER_TOKEN</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7">
 <h2><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#2446)</h2>
@@ -150,6 +150,96 @@ footer .ver{color:var(--acc)}
 <p>| <code>design/enablers/remote-execution.md</code> | Document the additionalFiles-only policy |</p></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.194129.0-sha.d1808bea" rel="noopener">release v20260902.194129.0-sha.d1808bea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1808bead33f16f9845d428e62e8d6d253214017" rel="noopener">d1808bea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2360" rel="noopener">#2360</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260922-185723-0-sha-33229b53">
+<h2><span class="tier A">A</span>apply --ca-cert to the dispatch data plane (swamp-club#2193) (#2551)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T18:58:57Z">2026-09-22T18:58:57Z</time></span><span>worker</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(worker): apply --ca-cert to the dispatch data plane (swamp-club#2193) (#2551)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp worker connect --ca-cert</code> / <code>SWAMP_CA_CERT</code> only reached the worker&#39;s control socket. Each dispatch runner built its <code>DataPlaneClient</code> on the global <code>fetch</code>, so against an orchestrator with a private CA the worker enrolled and then every dispatch failed with <code>fetch failed</code> unless <code>DENO_CERT</code> was set.</p>
+<ul>
+<li><strong>Carry the CA to the runner.</strong> <code>RunnerBootstrapParams</code> gains optional <code>caCerts</code> (PEM contents). <code>runWorker</code> passes its certificates to the dispatch handler, and the new <code>buildRunnerBootstrapParams</code> puts them in the bootstrap frame. They travel in that frame rather than the spawn environment, which the orchestrator&#39;s environment snapshot can overlay.</li>
+<li><strong>Trust it on every data-plane request.</strong> New <code>createDataPlaneFetch</code> binds all of the runner&#39;s data-plane requests to one <code>Deno.HttpClient</code> built with those certificates via the existing <code>createTlsHttpClient</code>. The runner now builds its client inside the existing <code>try</code>, so a TLS client failure fails the dispatch instead of crashing the runner.</li>
+<li><strong>Design doc.</strong> <code>design/enablers/remote-execution.md</code> now says <code>--ca-cert</code> covers both planes and lists the new bootstrap field.</li>
+<li><strong>Unrelated test fix.</strong> In <code>extension_loader_test.ts</code>, the stub deno path moves from <code>/usr/bin/deno</code> to a path that never exists. On hosts with a distro-packaged deno there, the &quot;indexOnly records bundling failures&quot; test spawned a real den</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.185723.0-sha.33229b53" rel="noopener">release v20260922.185723.0-sha.33229b53</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/33229b5304b25c3e0c1bcf49688a0e25c5b665cf" rel="noopener">33229b53</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2551" rel="noopener">#2551</a>𝗔 <a href="https://swamp-club.com/lab/2193" rel="noopener">lab#2193</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260922-183711-0-sha-fe318bfb">
+<h2><span class="tier A">A</span>content-address extension bundle imports so hot-reload stops leaking heap (swamp-club#2340) (#2549)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T18:38:51Z">2026-09-22T18:38:51Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): content-address extension bundle imports so hot-reload stops leaking heap (swamp-club#2340) (#2549)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Every <code>swamp serve</code> hot-reload (SIGHUP, or the config poller seeing changed pulled-extension files) bumped a process-global reload generation and re-imported <strong>every</strong> pulled extension bundle under a fresh <code>?gen=N</code> URL. The ES module registry keys modules by URL and never evicts them, so each reload stacked a full copy of every extension on the heap until V8 hit its heap limit.</p>
+<ul>
+<li>Import URLs are now content-addressed: <code>?fp=&lt;source fingerprint&gt;&amp;h=&lt;sha256 of bundle bytes&gt;</code> via a new <code>bundleImportUrl</code> helper in <code>src/domain/extensions/extension_loader.ts</code>, used by both <code>importBundleByPath</code> and <code>importBundle</code>.</li>
+<li>Unchanged bundles map to the same URL and reuse their cached module. A re-bundled extension gets a new URL, so changed code still runs after reload (keeps the swamp-club#1140 fix).</li>
+<li>Removed <code>reloadGeneration</code> / <code>incrementReloadGeneration</code> and its libswamp re-export. Its only consumer was <code>reloadPulledExtensions</code>.</li>
+<li>Updated <code>design/primitives/serve.md</code> and <code>design/enablers/remote-execution.md</code>. The remaining limitation: V8 can&#39;t evict ES modules, so the heap grows once per genuinely changed bundle, not once per reload.</li>
+</ul>
+<p>Hashing costs about 1.7 ms per bundle (187 ms for all 112 <code>@swamp/aws/ec2</code> bundles, 118 MB). That is well below the V8 parse and compile an unchanged bundle no longer pays on each reload.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit te</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.183711.0-sha.fe318bfb" rel="noopener">release v20260922.183711.0-sha.fe318bfb</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fe318bfbcd1a114a6f81b66616002ce764e7eeae" rel="noopener">fe318bfb</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2549" rel="noopener">#2549</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260922-174258-0-sha-47ee85e8">
+<h2><span class="tier A">A</span>describe skipped helper modules instead of implying a load failure (swamp-club#2318) (#2548)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T17:44:47Z">2026-09-22T17:44:47Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): describe skipped helper modules instead of implying a load failure (swamp-club#2318) (#2548)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2318.</p>
+<p>Operators running <code>swamp serve -v</code> saw one line per helper module in an</p>
+<p>extension:</p>
+<p>```</p>
+<p>system │ Skipping &quot;honeycomb/lib/burn_alerts.ts&quot; (no &quot;model&quot; export found)</p>
+<p>```</p>
+<p>The line is already <code>debug</code>, but serve&#39;s <code>system │</code> formatter drops the level,</p>
+<p>so it read like a load failure. Helper modules imported by a model are expected</p>
+<p>under <code>models/</code> and can&#39;t be moved, so the line was noise that looked like a</p>
+<p>problem.</p>
+<p>This rewords it (the reporter&#39;s option 3) to say what the file is:</p>
+<p>```</p>
+<p>system │ Treating &quot;demo/lib/helper.ts&quot; as a helper module (no &quot;model&quot; export, so not a &quot;model&quot; entry point)</p>
+<p>```</p>
+<ul>
+<li><code>ExtensionLoader</code>: both call sites (indexOnly and full-load paths) now share</li>
+</ul>
+<p>  a private <code>logHelperModuleSkip()</code>. Level, logger category and loading</p>
+<p>  behaviour are unchanged.</p>
+<ul>
+<li>Swamp skill troubleshooting entry updated to match: the line is harmless for</li>
+</ul>
+<p>  helper files; if the file was meant to be a model, add <code>export const model</code></p>
+<p>  or <code>export const extension</code>.</p>
+<p>Serve output formatting is intentionally left unchanged.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>New unit tests in <code>extension_loader_test.ts</code> for both load paths: a models</li>
+</ul>
+<p>  dir holding only a helper file loads nothing, fails nothing, and emits exactly</p>
+<p>  one debug record with the new wording.</p>
+<ul>
+<li>Manually reproduced in a scratch repo: default level prints nothing;</li>
+</ul>
+<p>  <code>serve -v</code> after a cat</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/troubleshooting.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.174258.0-sha.47ee85e8" rel="noopener">release v20260922.174258.0-sha.47ee85e8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/47ee85e80fd080f4a7f1373b8994798b9ff5c780" rel="noopener">47ee85e8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2548" rel="noopener">#2548</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260922-162335-0-sha-1ac2f012">
 <h2><span class="tier A">A</span>update datastores.md for scoped config poller extension reload (swamp-club#2346) (#2547)</h2>
@@ -382,7 +472,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.004038.0-sha.c37113c2" rel="noopener">release v20260922.004038.0-sha.c37113c2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c37113c2023a8eb3f95a296925e992f01e05c874" rel="noopener">c37113c2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2540" rel="noopener">#2540</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2541" rel="noopener">#2541</a>𝗔 <a href="https://swamp-club.com/lab/2334" rel="noopener">lab#2334</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20260922-003004-0-sha-d899465b">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260922-003004-0-sha-d899465b">
 <h2><span class="tier A">A</span>pass correct config key for interactive 1Password migration (swamp-club#2148) (#2539)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-22T00:31:48Z">2026-09-22T00:31:48Z</time></span><span>vaults</span><span>fix</span></div>
@@ -476,7 +566,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.232400.0-sha.5193b0b7" rel="noopener">release v20260921.232400.0-sha.5193b0b7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5193b0b7d1ec787e60f69add6629dd2a88fa9d88" rel="noopener">5193b0b7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2536" rel="noopener">#2536</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260921-225454-0-sha-0ed2f8c7">
+<article class="item" id="release-swamp-club-swamp-v20260921-225454-0-sha-0ed2f8c7">
 <h2><span class="tier A">A</span>handle suspended scheduled runs without logging a failure (#2535)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-21T22:56:28Z">2026-09-21T22:56:28Z</time></span><span>serve</span><span>fix</span></div>
@@ -6697,53 +6787,10 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.015247.0-sha.c228ef72" rel="noopener">release v20260902.015247.0-sha.c228ef72</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c228ef722408b54501e67b044bd23c2475ad4c0c" rel="noopener">c228ef72</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2345" rel="noopener">#2345</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260922-185723-0-sha-33229b53">
-<h2><span class="tier C">C</span>swamp 20260922.185723.0-sha.33229b53</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T18:58:57Z">2026-09-22T18:58:57Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(worker): apply --ca-cert to the dispatch data plane (swamp-club#2193) (#2551)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>swamp worker connect --ca-cert</code> / <code>SWAMP_CA_CERT</code> only reached the worker&#39;s control socket. Each dispatch runner built its <code>DataPlaneClient</code> on the global <code>fetch</code>, so against an orchestrator with a private CA the worker enrolled and then every dispatch failed with <code>fetch failed</code> unless <code>DENO_CERT</code> was set.</p>
-<ul>
-<li><strong>Carry the CA to the runner.</strong> <code>RunnerBootstrapParams</code> gains optional <code>caCerts</code> (PEM contents). <code>runWorker</code> passes its certificates to the dispatch handler, and the new <code>buildRunnerBootstrapParams</code> puts them in the bootstrap frame. They travel in that frame rather than the spawn environment, which the orchestrator&#39;s environment snapshot can overlay.</li>
-<li><strong>Trust it on every data-plane request.</strong> New <code>createDataPlaneFetch</code> binds all of the runner&#39;s data-plane requests to one <code>Deno.HttpClient</code> built with those certificates via the existing <code>createTlsHttpClient</code>. The runner now builds its client inside the existing <code>try</code>, so a TLS client failure fails the dispatch instead of crashing the runner.</li>
-<li><strong>Design doc.</strong> <code>design/enablers/remote-execution.md</code> now says <code>--ca-cert</code> covers both planes and lists the new bootstrap field.</li>
-<li><strong>Unrelated test fix.</strong> In <code>extension_loader_test.ts</code>, the stub deno path moves from <code>/usr/bin/deno</code> to a path that never exists. On hosts with a distro-packaged deno there, the &quot;indexOnly records bundling failures&quot; test spawned a real den</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.185723.0-sha.33229b53" rel="noopener">release v20260922.185723.0-sha.33229b53</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/33229b53" rel="noopener">33229b53</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2551" rel="noopener">#2551</a>𝗔 <a href="https://swamp-club.com/lab/2193" rel="noopener">lab#2193</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-183711-0-sha-fe318bfb">
-<h2><span class="tier C">C</span>swamp 20260922.183711.0-sha.fe318bfb</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T18:38:51Z">2026-09-22T18:38:51Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): content-address extension bundle imports so hot-reload stops leaking heap (swamp-club#2340) (#2549)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Every <code>swamp serve</code> hot-reload (SIGHUP, or the config poller seeing changed pulled-extension files) bumped a process-global reload generation and re-imported <strong>every</strong> pulled extension bundle under a fresh <code>?gen=N</code> URL. The ES module registry keys modules by URL and never evicts them, so each reload stacked a full copy of every extension on the heap until V8 hit its heap limit.</p>
-<ul>
-<li>Import URLs are now content-addressed: <code>?fp=&lt;source fingerprint&gt;&amp;h=&lt;sha256 of bundle bytes&gt;</code> via a new <code>bundleImportUrl</code> helper in <code>src/domain/extensions/extension_loader.ts</code>, used by both <code>importBundleByPath</code> and <code>importBundle</code>.</li>
-<li>Unchanged bundles map to the same URL and reuse their cached module. A re-bundled extension gets a new URL, so changed code still runs after reload (keeps the swamp-club#1140 fix).</li>
-<li>Removed <code>reloadGeneration</code> / <code>incrementReloadGeneration</code> and its libswamp re-export. Its only consumer was <code>reloadPulledExtensions</code>.</li>
-<li>Updated <code>design/primitives/serve.md</code> and <code>design/enablers/remote-execution.md</code>. The remaining limitation: V8 can&#39;t evict ES modules, so the heap grows once per genuinely changed bundle, not once per reload.</li>
-</ul>
-<p>Hashing costs about 1.7 ms per bundle (187 ms for all 112 <code>@swamp/aws/ec2</code> bundles, 118 MB). That is well below the V8 parse and compile an unchanged bundle no longer pays on each reload.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>Unit te</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.183711.0-sha.fe318bfb" rel="noopener">release v20260922.183711.0-sha.fe318bfb</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fe318bfb" rel="noopener">fe318bfb</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2549" rel="noopener">#2549</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-182354-0-sha-ddf27305">
-<h2><span class="tier C">C</span>swamp 20260922.182354.0-sha.ddf27305</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T18:25:43Z">2026-09-22T18:25:43Z</time></span></div>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260922-182354-0-sha-ddf27305">
+<h2><span class="tier C">C</span>document cross-model access APIs in the extension model reference (swamp-club#2317) (#2550)</h2>
+<p class="lede">`docs` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T18:25:43Z">2026-09-22T18:25:43Z</time></span><span>skill</span><span>docs</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>docs(skill): document cross-model access APIs in the extension model reference (swamp-club#2317) (#2550)</li>
@@ -6760,55 +6807,8 @@ footer .ver{color:var(--acc)}
 <li><strong><code>design/primitives/models.md</code> correction:</strong> it told check authors to use <code>readModelData</code>, but checks never receive it (only <code>InProcessExecutor</code> adds it). It also said <code>dataRepository</code> needs a UUID, but <code>buildMethodContext</code> resolves definition names.</li>
 <li>**`design/</li>
 </ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.182354.0-sha.ddf27305" rel="noopener">release v20260922.182354.0-sha.ddf27305</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ddf27305" rel="noopener">ddf27305</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2550" rel="noopener">#2550</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-174258-0-sha-47ee85e8">
-<h2><span class="tier C">C</span>swamp 20260922.174258.0-sha.47ee85e8</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T17:44:47Z">2026-09-22T17:44:47Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): describe skipped helper modules instead of implying a load failure (swamp-club#2318) (#2548)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2318.</p>
-<p>Operators running <code>swamp serve -v</code> saw one line per helper module in an</p>
-<p>extension:</p>
-<p>```</p>
-<p>system │ Skipping &quot;honeycomb/lib/burn_alerts.ts&quot; (no &quot;model&quot; export found)</p>
-<p>```</p>
-<p>The line is already <code>debug</code>, but serve&#39;s <code>system │</code> formatter drops the level,</p>
-<p>so it read like a load failure. Helper modules imported by a model are expected</p>
-<p>under <code>models/</code> and can&#39;t be moved, so the line was noise that looked like a</p>
-<p>problem.</p>
-<p>This rewords it (the reporter&#39;s option 3) to say what the file is:</p>
-<p>```</p>
-<p>system │ Treating &quot;demo/lib/helper.ts&quot; as a helper module (no &quot;model&quot; export, so not a &quot;model&quot; entry point)</p>
-<p>```</p>
-<ul>
-<li><code>ExtensionLoader</code>: both call sites (indexOnly and full-load paths) now share</li>
-</ul>
-<p>  a private <code>logHelperModuleSkip()</code>. Level, logger category and loading</p>
-<p>  behaviour are unchanged.</p>
-<ul>
-<li>Swamp skill troubleshooting entry updated to match: the line is harmless for</li>
-</ul>
-<p>  helper files; if the file was meant to be a model, add <code>export const model</code></p>
-<p>  or <code>export const extension</code>.</p>
-<p>Serve output formatting is intentionally left unchanged.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>New unit tests in <code>extension_loader_test.ts</code> for both load paths: a models</li>
-</ul>
-<p>  dir holding only a helper file loads nothing, fails nothing, and emits exactly</p>
-<p>  one debug record with the new wording.</p>
-<ul>
-<li>Manually reproduced in a scratch repo: default level prints nothing;</li>
-</ul>
-<p>  <code>serve -v</code> after a cat</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.174258.0-sha.47ee85e8" rel="noopener">release v20260922.174258.0-sha.47ee85e8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/47ee85e8" rel="noopener">47ee85e8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2548" rel="noopener">#2548</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/reference.md" rel="noopener">.claude/skills/swamp/references/extension/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/models.md" rel="noopener">design/primitives/models.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.182354.0-sha.ddf27305" rel="noopener">release v20260922.182354.0-sha.ddf27305</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ddf27305306bccd26b67e163eb82a5e59671372d" rel="noopener">ddf27305</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2550" rel="noopener">#2550</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-232152-0-sha-4430c4b1">
 <h2><span class="tier C">C</span>document how to verify TTY-only behaviour with a pty (#2508)</h2>
@@ -7035,12 +7035,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>191 items across 1 source(s) in this window:
-3 critical, 176 notable, 2 routine,
-10 minor.</p>
-<ul><li><strong>fix</strong> — 131</li><li><strong>feat</strong> — 48</li><li><strong>docs</strong> — 6</li><li><strong>changes</strong> — 4</li><li><strong>perf</strong> — 2</li></ul></section>
+3 critical, 179 notable, 2 routine,
+7 minor.</p>
+<ul><li><strong>fix</strong> — 134</li><li><strong>feat</strong> — 48</li><li><strong>docs</strong> — 7</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-22T20:02:48.469Z">2026-09-22T20:02:48.469Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-22T21:01:48.263Z">2026-09-22T21:01:48.263Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

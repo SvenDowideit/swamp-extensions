@@ -67,8 +67,16 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2347"><span class="tier A">A</span>serve dashboard: 2.6 MB uncompressed per page (no permessage</a><a href="#issue-2337"><span class="tier A">A</span>s3-datastore: since the #2300 conditional-write change, ever</a><a href="#issue-2372"><span class="tier A">A</span>design/primitives/extensions.md describes the pre-#2354 bund</a><a href="#issue-2354"><span class="tier A">A</span>Pulled extensions log a false &#39;bundle could not be regenerat</a><a href="#issue-2193"><span class="tier A">A</span>worker connect --ca-cert is not applied to the data plane; d</a><a href="#issue-2298"><span class="tier A">A</span>s3-datastore: a transient S3 read error during a heartbeat s</a><a href="#issue-2334"><span class="tier A">A</span>Docs: serve skill guide does not mention SWAMP_SERVER_URL is</a><a href="#issue-2325"><span class="tier A">A</span>SWAMP_SERVER_TOKEN is ignored with --server unless SWAMP_SER</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2375"><span class="tier A">A</span>Flaky test: resolveCachePath fails when parallel tests delet</a><a href="#issue-2347"><span class="tier A">A</span>serve dashboard: 2.6 MB uncompressed per page (no permessage</a><a href="#issue-2337"><span class="tier A">A</span>s3-datastore: since the #2300 conditional-write change, ever</a><a href="#issue-2372"><span class="tier A">A</span>design/primitives/extensions.md describes the pre-#2354 bund</a><a href="#issue-2354"><span class="tier A">A</span>Pulled extensions log a false &#39;bundle could not be regenerat</a><a href="#issue-2193"><span class="tier A">A</span>worker connect --ca-cert is not applied to the data plane; d</a><a href="#issue-2298"><span class="tier A">A</span>s3-datastore: a transient S3 read error during a heartbeat s</a></aside><div>
 
+<article class="item" id="issue-2384">
+<h2><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation principal can clear a manual_approval gate meant for a human</h2>
+<p class="lede">Security-related change</p>
+<div class="meta"><span><time datetime="2026-09-22T22:37:44.793Z">2026-09-22T22:37:44.793Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2384" rel="noopener">lab#2384</a></div>
+</article>
 <article class="item" id="issue-2223">
 <h2><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots for current-run reporting</h2>
 <p class="lede">Security-related change</p>
@@ -100,6 +108,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
+</article>
+<article class="item" id="issue-2375">
+<h2><span class="tier A">A</span>Flaky test: resolveCachePath fails when parallel tests delete HOME</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-22T22:15:21.515Z">2026-09-22T22:15:21.515Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2375" rel="noopener">lab#2375</a></div>
 </article>
 <article class="item" id="issue-2347">
 <h2><span class="tier A">A</span>serve dashboard: 2.6 MB uncompressed per page (no permessage-deflate, unpaginated workflow/run search); 15 s WS close stall; serve.config rejected</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2298" rel="noopener">lab#2298</a></div>
 </article>
-<article class="item" id="issue-2334">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2334">
 <h2><span class="tier A">A</span>Docs: serve skill guide does not mention SWAMP_SERVER_URL is required with SWAMP_SERVER_TOKEN</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-22T00:43:30.215Z">2026-09-22T00:43:30.215Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2325" rel="noopener">lab#2325</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2311">
+<article class="item" id="issue-2311">
 <h2><span class="tier A">A</span>data.latest().attributes fails with &#39;No such key&#39; in workflow assert steps</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-21T23:20:35.238Z">2026-09-21T23:20:35.238Z</time></span></div>
@@ -1437,18 +1453,18 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
-<article class="item" id="issue-2375">
-<h2><span class="tier B">B</span>Flaky test: resolveCachePath fails when parallel tests delete HOME</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-22T21:59:51.651Z">2026-09-22T21:59:51.651Z</time></span></div>
+<article class="item" id="issue-2378">
+<h2><span class="tier B">B</span>auth server-login hangs after device-flow authorization is approved in browser; never completes or times out</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-22T22:23:48.243Z">2026-09-22T22:23:48.243Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2375" rel="noopener">lab#2375</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2378" rel="noopener">lab#2378</a></div>
 </article>
 <article class="item" id="issue-2357">
 <h2><span class="tier B">B</span>serve dashboard: Workflows view shows 0 steps for every workflow</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-09-22T21:41:52.779Z">2026-09-22T21:41:52.779Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-22T22:13:07.842Z">2026-09-22T22:13:07.842Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2357" rel="noopener">lab#2357</a></div>
@@ -1565,7 +1581,63 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2362">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2383">
+<h2><span class="tier C">C</span>serve: minting a token for an unsupported principal kind (e.g. agent:) succeeds, then every connection 500s in parsePrincipal</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-22T22:30:01.928Z">2026-09-22T22:30:01.928Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2383" rel="noopener">lab#2383</a></div>
+</article>
+<article class="item" id="issue-2382">
+<h2><span class="tier C">C</span>model delete resolves auto-definitions from repo-local .swamp instead of the datastore cache</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-22T22:26:53.040Z">2026-09-22T22:26:53.040Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2382" rel="noopener">lab#2382</a></div>
+</article>
+<article class="item" id="issue-2381">
+<h2><span class="tier C">C</span>Workflow runs write outputs and evaluated definitions to repo-local .swamp instead of the remote datastore</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-22T22:26:50.225Z">2026-09-22T22:26:50.225Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2381" rel="noopener">lab#2381</a></div>
+</article>
+<article class="item" id="issue-2363">
+<h2><span class="tier C">C</span>Flaky integration tests: cel_data_access and webhook_payload_inputs race on SWAMP_TEST_2172_AUTHORED env var</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-22T22:26:10.097Z">2026-09-22T22:26:10.097Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2363" rel="noopener">lab#2363</a></div>
+</article>
+<article class="item" id="issue-2380">
+<h2><span class="tier C">C</span>deno run build-dashboard fails locally: vite cannot resolve under deno task</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-22T22:17:49.455Z">2026-09-22T22:17:49.455Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2380" rel="noopener">lab#2380</a></div>
+</article>
+<article class="item" id="issue-2379">
+<h2><span class="tier C">C</span>Let a method inside serve start a workflow run: context.runWorkflow</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-22T22:14:40.375Z">2026-09-22T22:14:40.375Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2379" rel="noopener">lab#2379</a></div>
+</article>
+<article class="item" id="issue-2377">
+<h2><span class="tier C">C</span>dashboard: an approved run never resumes and the dashboard cannot resume it (workflow.resume is never called)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-22T22:09:13.532Z">2026-09-22T22:09:13.532Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2377" rel="noopener">lab#2377</a></div>
+</article>
+<article class="item" id="issue-2362">
 <h2><span class="tier C">C</span>doctor datastores: report local mirror files the remote no longer has</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-09-22T21:40:00.497Z">2026-09-22T21:40:00.497Z</time></span></div>
@@ -1652,14 +1724,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2352" rel="noopener">lab#2352</a></div>
-</article>
-<article class="item" id="issue-2363">
-<h2><span class="tier C">C</span>Flaky integration tests: cel_data_access and webhook_payload_inputs race on SWAMP_TEST_2172_AUTHORED env var</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-22T20:10:05.088Z">2026-09-22T20:10:05.088Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2363" rel="noopener">lab#2363</a></div>
 </article>
 <article class="item" id="issue-2360">
 <h2><span class="tier C">C</span>workflow run and model method run reject --ca-cert, but their TLS error tells users to pass it</h2>
@@ -2766,13 +2830,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1903" rel="noopener">lab#1903</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>337 items across 1 source(s) in this window:
-4 critical, 167 notable, 16 routine,
-150 minor.</p>
-<ul><li><strong>issues</strong> — 337</li></ul></section>
+<p>345 items across 1 source(s) in this window:
+5 critical, 168 notable, 16 routine,
+156 minor.</p>
+<ul><li><strong>issues</strong> — 345</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-22T22:02:40.908Z">2026-09-22T22:02:40.908Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-22T23:01:57.365Z">2026-09-22T23:01:57.365Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

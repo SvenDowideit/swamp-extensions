@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260921-162703-0-sha-dee9c577"><span class="tier A">A</span>pass vaultsDir to worker token and prune handlers (swamp-clu</a><a href="#release-swamp-club-swamp-v20260921-160939-0-sha-8a577a52"><span class="tier A">A</span>emit per-version dirty signals on data delete for S3 propaga</a><a href="#release-swamp-club-swamp-v20260921-155538-0-sha-9771c637"><span class="tier A">A</span>build HTTP clients lazily and name the CA-store remedy (swam</a><a href="#release-swamp-club-swamp-v20260921-154644-0-sha-ef94a7dc"><span class="tier A">A</span>use proto-safe record construction to preserve __proto__ bin</a><a href="#release-swamp-club-swamp-v20260921-153506-0-sha-5182be2c"><span class="tier A">A</span>report webhook run outcomes honestly (swamp-club#2303) (#251</a><a href="#release-swamp-club-swamp-v20260918-211634-0-sha-bcaa9695"><span class="tier A">A</span>surface dropped swamp-club lifecycle entries (swamp-club#227</a><a href="#release-swamp-club-swamp-v20260918-181015-0-sha-cda6aba2"><span class="tier A">A</span>include createdAt and updatedAt in issue get and search --js</a><a href="#release-swamp-club-swamp-v20260918-171721-0-sha-cc6e1c56"><span class="tier A">A</span>review the provided diff and fail closed on a missing verdic</a><a href="#release-swamp-club-swamp-v20260918-171201-0-sha-1d30d6d3"><span class="tier A">A</span>replace bare notifyDirty() with per-path signals in four rep</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260921-225454-0-sha-0ed2f8c7"><span class="tier A">A</span>handle suspended scheduled runs without logging a failure (#</a><a href="#release-swamp-club-swamp-v20260921-224221-0-sha-dd2053be"><span class="tier A">A</span>explain a data.latest() lookup that found no record (swamp-c</a><a href="#release-swamp-club-swamp-v20260921-212309-0-sha-325c3c3b"><span class="tier A">A</span>resolve model grants by extension type, not just instance na</a><a href="#release-swamp-club-swamp-v20260921-211856-0-sha-79a41ce7"><span class="tier A">A</span>make server token auth read-only (#2533)</a><a href="#release-swamp-club-swamp-v20260921-211448-0-sha-79cbf1dd"><span class="tier A">A</span>set SWAMP_HOME in generated systemd unit for extension loadi</a><a href="#release-swamp-club-swamp-v20260921-210635-0-sha-67afb1df"><span class="tier A">A</span>report the run outcome in the run tracker (swamp-club#2308) </a><a href="#release-swamp-club-swamp-v20260921-205353-0-sha-d89170e3"><span class="tier A">A</span>reconcile the installed version against the lockfile pin (sw</a><a href="#release-swamp-club-swamp-v20260921-204847-0-sha-77faad43"><span class="tier A">A</span>resolve two ordering deadlocks and widen resolve_findings (s</a><a href="#release-swamp-club-swamp-v20260921-192445-0-sha-9533db34"><span class="tier A">A</span>deduplicate webhook lifecycle logging (swamp-club#2310) (#25</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7">
 <h2><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#2446)</h2>
@@ -150,6 +150,387 @@ footer .ver{color:var(--acc)}
 <p>| <code>design/enablers/remote-execution.md</code> | Document the additionalFiles-only policy |</p></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.194129.0-sha.d1808bea" rel="noopener">release v20260902.194129.0-sha.d1808bea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1808bead33f16f9845d428e62e8d6d253214017" rel="noopener">d1808bea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2360" rel="noopener">#2360</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-225454-0-sha-0ed2f8c7">
+<h2><span class="tier A">A</span>handle suspended scheduled runs without logging a failure (#2535)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T22:56:28Z">2026-09-21T22:56:28Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): handle suspended scheduled runs without logging a failure (#2535)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li><code>ScheduledExecutionService</code> did not handle the <code>suspended</code> workflow run event — when a scheduled workflow hit an approval gate, the run was misreported as a failure and the health endpoint counted it in the failed bucket</li>
+<li>Add a <code>schedule_suspended</code> event variant and handle the <code>suspended</code> run stream event, matching the webhook handler pattern from swamp-club#2303</li>
+<li>Suspended scheduled runs now log at info level and contribute no health metric until the run resumes</li>
+</ul>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] Unit test: <code>ScheduledExecutionService: emits schedule_suspended when workflow yields suspended event</code> — mocks a workflow emitting <code>started</code> then <code>suspended</code>, asserts <code>schedule_suspended</code> is emitted and <code>schedule_failed</code> is not</li>
+<li>[x] Type check passes — <code>serve.ts</code> switch handles the new <code>schedule_suspended</code> event variant</li>
+<li>[x] All existing scheduled execution tests pass (26/26)</li>
+<li>[x] Verification workflow green at <code>fe189bcb</code>: build 9/9, code-review and adversarial-review both <code>GATE_VERDICT: pass</code> with 0 findings, UX review pass. Attestation <code>f3d04e77-cc95-464a-83e7-f1a3368d5b0d</code>.</li>
+</ul>
+<p>Fixes swamp-club#2309</p>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.225454.0-sha.0ed2f8c7/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.225454.0-sha.0ed2f8c7/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/l</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.225454.0-sha.0ed2f8c7" rel="noopener">release v20260921.225454.0-sha.0ed2f8c7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0ed2f8c75a8346f4b1de43503a14e95b381c348e" rel="noopener">0ed2f8c7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2535" rel="noopener">#2535</a>𝗔 <a href="https://swamp-club.com/lab/2309" rel="noopener">lab#2309</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-224221-0-sha-dd2053be">
+<h2><span class="tier A">A</span>explain a data.latest() lookup that found no record (swamp-club#2311) (#2534)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T22:43:58Z">2026-09-21T22:43:58Z</time></span><span>cel</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cel): explain a data.latest() lookup that found no record (swamp-club#2311) (#2534)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Closes swamp-club#2311.</p>
+<p><code>data.latest()</code> and <code>data.version()</code> return <code>null</code> when no record matches, and a</p>
+<p>plain <code>.</code> select off that null raises cel-js&#39;s generic <code>No such key: attributes</code></p>
+<p>with the caret under the field. The caret blames the traversal and hides the real</p>
+<p>cause — the record is missing. <code>attributes</code> is always present on a <code>DataRecord</code>,</p>
+<p>so the field was never the problem.</p>
+<p>The issue reported this as an asymmetry between workflow <code>assert</code> steps and</p>
+<p><code>model_method</code> inputs. <strong>That asymmetry does not exist</strong> — both paths construct</p>
+<p>the same <code>CelEvaluator</code> and fail identically. Reproduced in a scratch repo:</p>
+<p>| Expression | assert step | model_method input |</p>
+<p>| --- | --- | --- |</p>
+<p>| <code>data.latest(&quot;echo-hi&quot;,&quot;result&quot;).attributes.exitCode == 0</code> | passes | — |</p>
+<p>| <code>...attributes.stdout.split(&quot; &quot;).all(w, w.size() &gt; 0)</code> | passes | — |</p>
+<p>| <code>data.latest(&quot;echo-hi&quot;,&quot;nope&quot;).attributes.exitCode</code> | <code>No such key: attributes</code> | <code>No such key: attributes</code> |</p>
+<h4 class="body-h">What changed</h4>
+<p><code>CelDataNamespace</code> records lookups that resolved to no record, threading the note</p>
+<p>through the promise so it lands before cel-js selects a field off the result.</p>
+<p><code>CelEvaluator</code> reads that back in its catch and <strong>appends</strong> an explanation below</p>
+<p>cel-js&#39;s own snippet, so the caret survives:</p>
+<p>```</p>
+<p>Invalid expression: No such key: attributes</p>
+<p>&gt;    1 | data.latest(&quot;echo-hi&quot;, &quot;nope&quot;).attributes.exitCode == 0</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/data/references/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/data/references/troubleshooting.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.224221.0-sha.dd2053be" rel="noopener">release v20260921.224221.0-sha.dd2053be</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/dd2053beeaaa0da02fe396c0106363d369f66bf3" rel="noopener">dd2053be</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2534" rel="noopener">#2534</a>𝗔 <a href="https://swamp-club.com/lab/2311" rel="noopener">lab#2311</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-212309-0-sha-325c3c3b">
+<h2><span class="tier A">A</span>resolve model grants by extension type, not just instance name (swamp-club#2302) (#2527)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T21:24:46Z">2026-09-21T21:24:46Z</time></span><span>access</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(access): resolve model grants by extension type, not just instance name (swamp-club#2302) (#2527)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>Extend <code>grantMatchesResource</code> in <code>GrantBasedAccessDecisionService</code> to also match model resources by extension type (<code>fields.modelType</code>) when the instance name doesn&#39;t match the grant pattern. This makes namespace-scoped grants like <code>model:@scope/*</code> functional at runtime for non-admin users.</li>
+<li>Fix the <code>@</code> prefix stripping in the <code>typeArg</code> secondary authorization check in <code>handleModelMethodRun</code> — the normalized form preserves <code>@</code>, so grants written with <code>@</code> now match correctly for direct execution.</li>
+<li>Echo the <code>method</code> field in <code>can-i</code> JSON responses so callers can confirm method-scoped evaluation was performed.</li>
+<li>Update <code>design/enablers/access-control.md</code> to document dual-identity matching and method echo.</li>
+</ul>
+<p>Fixes swamp-club#2302. Reported by <code>ds_xero</code>.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>8 new unit tests in <code>grant_based_access_decision_service_test.ts</code> covering: wildcard extension type grants, exact extension type grants, deny grants on extension types, existing instance name grants (backwards compat), non-model resource fallback exclusion, missing modelType field, method-scoped grants via extension type, and the <code>explain</code> path</li>
+<li>2 new renderer tests for method echo in <code>access_can_i_test.ts</code></li>
+<li>Updated connection test for <code>@</code> preservation in typeArg authorization</li>
+<li>All 511 existing access/connection tests pass</li>
+<li>Build verification passed (9/9 steps)</li>
+<li>Adversaria</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.212309.0-sha.325c3c3b" rel="noopener">release v20260921.212309.0-sha.325c3c3b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/325c3c3bfd3c5b13c5cd1964e586e0bcd1548b15" rel="noopener">325c3c3b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2527" rel="noopener">#2527</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-211856-0-sha-79a41ce7">
+<h2><span class="tier A">A</span>make server token auth read-only (#2533)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T21:20:33Z">2026-09-21T21:20:33Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): make server token auth read-only (#2533)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>Authenticate server tokens with direct read-only token and vault reads instead of redeem model runs.</li>
+<li>Preserve explicit redeem lifecycle writes and add secret-free token-use and creation audit context.</li>
+<li>Add unit, integration, and scratch-repository regression coverage.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>verify-build workflow</li>
+<li>verify-reviews workflow</li>
+<li>verify-skills workflow</li>
+<li>compiled-binary scratch reproduction</li>
+</ul>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-darwin-x86_64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>Linux (x86_64):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-linux-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-linux-x86_64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>Linux (aarch64):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-linux-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-linux-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>Windows (x86_64):</strong></p>
+<p>```powershell</p>
+<p>Invoke-WebRequest -Uri <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-windows-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-windows-x86_64</a></p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-audit.md" rel="noopener">design/enablers/serve-audit.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.211856.0-sha.79a41ce7" rel="noopener">release v20260921.211856.0-sha.79a41ce7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/79a41ce7c60705cc667cdf1f4d15645153fa9128" rel="noopener">79a41ce7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2533" rel="noopener">#2533</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-211448-0-sha-79cbf1dd">
+<h2><span class="tier A">A</span>set SWAMP_HOME in generated systemd unit for extension loading (#2532)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T21:16:32Z">2026-09-21T21:16:32Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): set SWAMP_HOME in generated systemd unit for extension loading (#2532)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li><code>swamp serve daemon enable</code> generates a systemd unit that sets neither <code>HOME</code></li>
+</ul>
+<p>  nor <code>SWAMP_HOME</code>, silently disabling extension loading in the daemon — every</p>
+<p>  scheduled workflow referencing an extension fails with &quot;Unknown model type&quot;</p>
+<ul>
+<li>Resolve <code>getSwampDataDir()</code> at enable time and bake it into the unit as</li>
+</ul>
+<p>  <code>Environment=SWAMP_HOME=&lt;path&gt;</code> — the plumbing in <code>ServiceConfig.env</code> and</p>
+<p>  <code>buildServeService</code> already supported this</p>
+<ul>
+<li>Update the <code>serveCommand</code> help text to note that <code>daemon enable</code> now handles</li>
+</ul>
+<p>  this automatically</p>
+<p>Closes swamp-club#2294</p>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] New unit test: <code>buildServeService</code> includes <code>SWAMP_HOME</code> when passed via env</li>
+<li>[x] All existing <code>systemd_service_scheduler_test.ts</code> tests pass (20/20)</li>
+<li>[x] <code>deno check src/cli/commands/serve.ts</code> passes</li>
+<li>[x] Full verification: lint, fmt, type-check, tests, compile, code review,</li>
+</ul>
+<p>  adversarial review, UX review — all green</p>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211448.0-sha.79cbf1dd/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211448.0-sha.79cbf1dd/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211448.0-sha.79cbf1dd/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211448.0-sha.79cbf1dd/swamp-darwin-x86_64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.211448.0-sha.79cbf1dd" rel="noopener">release v20260921.211448.0-sha.79cbf1dd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/79cbf1ddc616f6da23b7de925285c7eed8193888" rel="noopener">79cbf1dd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2532" rel="noopener">#2532</a>𝗔 <a href="https://swamp-club.com/lab/2294" rel="noopener">lab#2294</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-210635-0-sha-67afb1df">
+<h2><span class="tier A">A</span>report the run outcome in the run tracker (swamp-club#2308) (#2531)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T21:08:17Z">2026-09-21T21:08:17Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): report the run outcome in the run tracker (swamp-club#2308) (#2531)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp run history</code> reported <code>completed</code> for workflow runs that actually failed, contradicting <code>swamp workflow history search</code> for the same run id.</p>
+<p>The run tracker was marked <code>completed</code> on the normal exit path *before* <code>run.complete()</code> derived the outcome from the step results, so a run whose steps failed still wrote <code>completed</code>. The tracker meant &quot;the process finished&quot;, while the field it exposes is named <code>status</code>. The resume path repeated the same pattern.</p>
+<p>Both completion paths now call <code>run.complete()</code> first and map the aggregate status through <code>trackerStatusForRun()</code> — an exhaustive switch over all seven <code>WorkflowRun</code> statuses with no <code>default</code>, so a status added later fails the type check rather than being read as success.</p>
+<p>Not a regression: the line has read <code>&quot;completed&quot;</code> since the run tracker landed in <code>fe08c4dc</code>.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit tests in <code>execution_service_test.ts</code>: a failing workflow records <code>failed</code>, a succeeding one still records <code>completed</code>, a resume that fails after approval records <code>suspended</code> then <code>failed</code>, and a table test covers all seven mapping arms.</li>
+<li>Reproduced and verified end to end in a scratch repo against the compiled binary. For a one-step workflow exiting 3, both commands now agree on <code>failed</code>; a passing workflow still reports <code>completed</code>.</li>
+<li>Verification workflow green at <code>ba379c49</code>: build 9/9, code-review and adversarial-r</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.210635.0-sha.67afb1df" rel="noopener">release v20260921.210635.0-sha.67afb1df</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/67afb1df223eea4674f1833f362bd61ba74742ed" rel="noopener">67afb1df</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2531" rel="noopener">#2531</a>𝗔 <a href="https://swamp-club.com/lab/2308" rel="noopener">lab#2308</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-205353-0-sha-d89170e3">
+<h2><span class="tier A">A</span>reconcile the installed version against the lockfile pin (swamp-club#2150) (#2529)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T20:55:33Z">2026-09-21T20:55:33Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): reconcile the installed version against the lockfile pin (swamp-club#2150) (#2529)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp extension install</code> decided an entry was satisfied from file presence, layout generation, and — only when the entry carried one — the recorded <code>filesChecksum</code>. A different version&#39;s files already sitting in the per-extension subtree, e.g. left by <code>doctor extensions</code> resolving a missing type, therefore passed as <code>up_to_date</code> on any entry written before <code>filesChecksum</code> tracking. The pin never took effect and nothing said so.</p>
+<p>Install now compares the pinned version against the version in the installed <code>manifest.yaml</code> before the content check. A constraint pin (<code>&gt;=</code>, <code>^</code>, <code>~</code>) and a missing or malformed manifest yield no comparison, so neither re-pulls on every run. The lockfile-supplied entry name is validated with <code>assertContainedPath</code> before either check touches the disk.</p>
+<p><code>doctor extensions --repair</code> re-pulled with <code>version: null</code>, resolving registry latest and rewriting the entry — the other way a pin was lost. It now restores the pinned version; extensions with no lockfile entry still resolve latest. <strong>Behaviour change:</strong> a pinned version that is yanked or unavailable now fails the repair operation instead of silently recovering to latest. The lockfile is the intended authority, so that ordering is deliberate.</p>
+<p>Also documents the reconciliation rule in <code>design/primitives/extensions.md</code>, next to the existing integrity-anchor contract.</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.205353.0-sha.d89170e3" rel="noopener">release v20260921.205353.0-sha.d89170e3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d89170e351b10c5818e8fd23c807a59a6f27f003" rel="noopener">d89170e3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2529" rel="noopener">#2529</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-204847-0-sha-77faad43">
+<h2><span class="tier A">A</span>resolve two ordering deadlocks and widen resolve_findings (swamp-club#2320) (#2530)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T20:50:25Z">2026-09-21T20:50:25Z</time></span><span>lifecycle</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(lifecycle): resolve two ordering deadlocks and widen resolve_findings (swamp-club#2320) (#2530)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li><strong>Deadlock 1 — <code>fast_forward</code> unreachable</strong>: <code>fast_forward</code> now accepts the <code>classified</code> phase (not just <code>triaging</code>) and transitions upstream through <code>triaged</code> before <code>in_progress</code>, so freshly filed issues don&#39;t get rejected by swamp-club</li>
+<li><strong>Deadlock 2 — <code>verify</code> before conformance review strands lifecycle</strong>: New <code>conformance-review-required</code> pre-flight check on <code>verify</code> catches the ordering mistake before the phase advances to <code>verifying</code></li>
+<li><strong><code>resolve_findings</code> too narrow</strong>: Now also allowed from the <code>approved</code> phase so findings can be annotated after approval</li>
+<li>Model version bumped to <code>2026.09.21.1</code> with upgrade entry</li>
+</ul>
+<p>Fixes swamp-club#2320</p>
+<p>Co-authored-by: skunk-ape &lt;skunk-ape@users.noreply.github.com&gt;</p>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] Schema transition tests updated for <code>fast_forward</code> and <code>resolve_findings</code></li>
+<li>[x] New <code>conformance-review-required</code> check: reject (no review) and pass (review exists) tests</li>
+<li>[x] Model exposure test for new check</li>
+<li>[x] Version pinning test updated</li>
+<li>[x] All 81 tests pass (12 schema + 69 lifecycle)</li>
+<li>[x] Build verification: lint, fmt, type-check, vuln-scan, tests, compile all pass</li>
+<li>[x] Code review: GATE_VERDICT pass, no findings</li>
+<li>[x] Attestation posted: 1efe996b-9805-446c-8172-d690d25e4c90</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L h</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.204847.0-sha.77faad43" rel="noopener">release v20260921.204847.0-sha.77faad43</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/77faad433babf710e12e310ffdeac451acd8ce20" rel="noopener">77faad43</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2530" rel="noopener">#2530</a>𝗔 <a href="https://swamp-club.com/lab/2320" rel="noopener">lab#2320</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-192445-0-sha-9533db34">
+<h2><span class="tier A">A</span>deduplicate webhook lifecycle logging (swamp-club#2310) (#2528)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T19:26:21Z">2026-09-21T19:26:21Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): deduplicate webhook lifecycle logging (swamp-club#2310) (#2528)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>Remove four duplicate <code>logger</code> calls from <code>WebhookService</code> in <code>src/serve/webhook.ts</code> that produced identical output to the <code>WebhookEvent</code> handler in <code>src/cli/commands/serve.ts</code></li>
+<li>The event handler already branches on log vs json output mode, making it the correct single logging owner</li>
+<li>Non-duplicate logs (abort, suspend, verifier warnings, queue errors) are preserved</li>
+</ul>
+<p>Fixes swamp-club#2310</p>
+<p>Co-authored-by: David Hammer &lt;hammz@myclanprofile.com&gt;</p>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-darwin-x86_64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>Linux (x86_64):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-linux-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-linux-x86_64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>Linux (aarch64):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-linux-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-linux-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>Windows (x86_64):</strong></p>
+<p>```po</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.192445.0-sha.9533db34" rel="noopener">release v20260921.192445.0-sha.9533db34</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9533db344cd317f232af4713c69cd9e347f84cf2" rel="noopener">9533db34</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2528" rel="noopener">#2528</a>𝗔 <a href="https://swamp-club.com/lab/2310" rel="noopener">lab#2310</a></div>
+</article>
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260921-173622-0-sha-8ef40537">
+<h2><span class="tier A">A</span>make deno task test deterministic and stop it writing to the developer&#39;s home (#2520)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T17:38:06Z">2026-09-21T17:38:06Z</time></span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix: make deno task test deterministic and stop it writing to the developer&#39;s home (#2520)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>deno task test</code> was failing on main (bcaa9695). Investigation turned up five</p>
+<p>distinct defects — three of which only reproduce in particular environments,</p>
+<p>which is why CI stayed green. Filed as swamp-club#2313.</p>
+<p>| Defect | Symptom |</p>
+<p>| --- | --- |</p>
+<p>| ENOTEMPTY race (the report) | A repo init wrote skills into another test file&#39;s temp <code>HOME</code> mid-cleanup |</p>
+<p>| Home clobbering | Every <code>deno run test</code> overwrote the real <code>~/.claude/skills</code>, <code>~/.agents/skills</code>, <code>~/.kiro/skills</code> |</p>
+<p>| <code>__proto__</code> property flake | Failed ~1 run in 6 on a random seed |</p>
+<p>| TTY test | <code>useTerminalSize_test</code> failed 3/3 from any terminal, on any branch |</p>
+<p>| <code>0x0</code> pty | Zero accepted as a usable terminal width |</p>
+<p>The common thread in four of the five: resolving a user-level path or a</p>
+<p>terminal size from ambient state, so behaviour depended on where the suite ran.</p>
+<h4 class="body-h">Root cause of the reported failure</h4>
+<p><code>deno test --parallel</code> runs every test file in ONE process with ONE shared</p>
+<p><code>Deno.env</code> (verified directly: two files, same pid, each observing the other&#39;s</p>
+<p>env writes). <code>RepoService.init</code>/<code>.upgrade</code> resolved their user-level write</p>
+<p>targets from that environment, so a repo init in one file installed bundled</p>
+<p>skills into whatever <code>HOME</code> another file had momentarily assigned.</p>
+<p><code>user_identity_repository_test</code>&#39;s temp <code>HOME</code> received a full skill tree</p>
+<p>mid-teardown and its recursive delete failed with</p>
+<p>`Di</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.173622.0-sha.8ef40537" rel="noopener">release v20260921.173622.0-sha.8ef40537</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8ef405371c1e4762ebf972efcd081b5aab441a76" rel="noopener">8ef40537</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2520" rel="noopener">#2520</a>𝗔 <a href="https://swamp-club.com/lab/2313" rel="noopener">lab#2313</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260921-171118-0-sha-652abec2">
+<h2><span class="tier A">A</span>exempt internal models from remote-only placement check (swamp-club#2307) (#2526)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-21T17:12:55Z">2026-09-21T17:12:55Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): exempt internal models from remote-only placement check (swamp-club#2307) (#2526)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>Adds a <code>modelRegistry.isInternal()</code> guard before the <code>isRemoteOnlyMode()</code> check in <code>method_execution_service.ts</code> so built-in <code>swamp/*</code> control-plane models (server tokens, enrollment tokens, workers, step leases, etc.) always run in-process on the orchestrator, even when <code>--remote-only</code> is enabled</li>
+<li>Fixes authentication deadlock where the <code>swamp/server-token</code> <code>redeem</code> method was rejected because it has no placement, preventing workers and OAuth sessions from authenticating</li>
+<li>Adds two unit tests verifying the exemption path and the rejection path</li>
+<li>Updates <code>design/primitives/serve.md</code> to document the exemption</li>
+</ul>
+<p>Fixes swamp-club#2307</p>
+<p>Co-authored-by: Blake Irvin &lt;blakeirvin@me.com&gt;</p>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] Unit test: internal model type executes in-process in remote-only mode</li>
+<li>[x] Unit test: non-internal model type without placement throws <code>UserError</code> in remote-only mode</li>
+<li>[x] All 77 tests in <code>method_execution_service_test.ts</code> pass</li>
+<li>[x] <code>deno check</code> clean</li>
+<li>[x] Full verification workflow passed (build + reviews + skills)</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.171118.0-sha.652abec2/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.171118.0-sha.652abec2/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L h</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.171118.0-sha.652abec2" rel="noopener">release v20260921.171118.0-sha.652abec2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/652abec2bc4864daa74e8cfa967e8c227111c8ec" rel="noopener">652abec2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2526" rel="noopener">#2526</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260921-162703-0-sha-dee9c577">
 <h2><span class="tier A">A</span>pass vaultsDir to worker token and prune handlers (swamp-club#2276) (#2522)</h2>
@@ -455,7 +836,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.171201.0-sha.1d30d6d3" rel="noopener">release v20260918.171201.0-sha.1d30d6d3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1d30d6d39b1acba979560bf6c48bfac2b0fa5a18" rel="noopener">1d30d6d3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2514" rel="noopener">#2514</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260918-170808-0-sha-4ba12f2f">
+<article class="item" id="release-swamp-club-swamp-v20260918-170808-0-sha-4ba12f2f">
 <h2><span class="tier A">A</span>resolve workflow data by spec name when instance name differs (swamp-club#2278) (#2515)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-18T17:09:47Z">2026-09-18T17:09:47Z</time></span><span>data</span><span>fix</span></div>
@@ -5991,388 +6372,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.015247.0-sha.c228ef72" rel="noopener">release v20260902.015247.0-sha.c228ef72</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c228ef722408b54501e67b044bd23c2475ad4c0c" rel="noopener">c228ef72</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2345" rel="noopener">#2345</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260921-225454-0-sha-0ed2f8c7">
-<h2><span class="tier C">C</span>swamp 20260921.225454.0-sha.0ed2f8c7</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-21T22:56:28Z">2026-09-21T22:56:28Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): handle suspended scheduled runs without logging a failure (#2535)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<ul>
-<li><code>ScheduledExecutionService</code> did not handle the <code>suspended</code> workflow run event — when a scheduled workflow hit an approval gate, the run was misreported as a failure and the health endpoint counted it in the failed bucket</li>
-<li>Add a <code>schedule_suspended</code> event variant and handle the <code>suspended</code> run stream event, matching the webhook handler pattern from swamp-club#2303</li>
-<li>Suspended scheduled runs now log at info level and contribute no health metric until the run resumes</li>
-</ul>
-<h4 class="body-h">Test plan</h4>
-<ul>
-<li>[x] Unit test: <code>ScheduledExecutionService: emits schedule_suspended when workflow yields suspended event</code> — mocks a workflow emitting <code>started</code> then <code>suspended</code>, asserts <code>schedule_suspended</code> is emitted and <code>schedule_failed</code> is not</li>
-<li>[x] Type check passes — <code>serve.ts</code> switch handles the new <code>schedule_suspended</code> event variant</li>
-<li>[x] All existing scheduled execution tests pass (26/26)</li>
-<li>[x] Verification workflow green at <code>fe189bcb</code>: build 9/9, code-review and adversarial-review both <code>GATE_VERDICT: pass</code> with 0 findings, UX review pass. Attestation <code>f3d04e77-cc95-464a-83e7-f1a3368d5b0d</code>.</li>
-</ul>
-<p>Fixes swamp-club#2309</p>
-<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
-<p>---</p>
-<h4 class="body-h">Installation</h4>
-<p><strong>macOS (Apple Silicon):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.225454.0-sha.0ed2f8c7/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.225454.0-sha.0ed2f8c7/swamp-darwin-aarch64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/l</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.225454.0-sha.0ed2f8c7" rel="noopener">release v20260921.225454.0-sha.0ed2f8c7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0ed2f8c7" rel="noopener">0ed2f8c7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2535" rel="noopener">#2535</a>𝗔 <a href="https://swamp-club.com/lab/2309" rel="noopener">lab#2309</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260921-224221-0-sha-dd2053be">
-<h2><span class="tier C">C</span>swamp 20260921.224221.0-sha.dd2053be</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-21T22:43:58Z">2026-09-21T22:43:58Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(cel): explain a data.latest() lookup that found no record (swamp-club#2311) (#2534)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Closes swamp-club#2311.</p>
-<p><code>data.latest()</code> and <code>data.version()</code> return <code>null</code> when no record matches, and a</p>
-<p>plain <code>.</code> select off that null raises cel-js&#39;s generic <code>No such key: attributes</code></p>
-<p>with the caret under the field. The caret blames the traversal and hides the real</p>
-<p>cause — the record is missing. <code>attributes</code> is always present on a <code>DataRecord</code>,</p>
-<p>so the field was never the problem.</p>
-<p>The issue reported this as an asymmetry between workflow <code>assert</code> steps and</p>
-<p><code>model_method</code> inputs. <strong>That asymmetry does not exist</strong> — both paths construct</p>
-<p>the same <code>CelEvaluator</code> and fail identically. Reproduced in a scratch repo:</p>
-<p>| Expression | assert step | model_method input |</p>
-<p>| --- | --- | --- |</p>
-<p>| <code>data.latest(&quot;echo-hi&quot;,&quot;result&quot;).attributes.exitCode == 0</code> | passes | — |</p>
-<p>| <code>...attributes.stdout.split(&quot; &quot;).all(w, w.size() &gt; 0)</code> | passes | — |</p>
-<p>| <code>data.latest(&quot;echo-hi&quot;,&quot;nope&quot;).attributes.exitCode</code> | <code>No such key: attributes</code> | <code>No such key: attributes</code> |</p>
-<h4 class="body-h">What changed</h4>
-<p><code>CelDataNamespace</code> records lookups that resolved to no record, threading the note</p>
-<p>through the promise so it lands before cel-js selects a field off the result.</p>
-<p><code>CelEvaluator</code> reads that back in its catch and <strong>appends</strong> an explanation below</p>
-<p>cel-js&#39;s own snippet, so the caret survives:</p>
-<p>```</p>
-<p>Invalid expression: No such key: attributes</p>
-<p>&gt;    1 | data.latest(&quot;echo-hi&quot;, &quot;nope&quot;).attributes.exitCode == 0</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.224221.0-sha.dd2053be" rel="noopener">release v20260921.224221.0-sha.dd2053be</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/dd2053be" rel="noopener">dd2053be</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2534" rel="noopener">#2534</a>𝗔 <a href="https://swamp-club.com/lab/2311" rel="noopener">lab#2311</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260921-212309-0-sha-325c3c3b">
-<h2><span class="tier C">C</span>swamp 20260921.212309.0-sha.325c3c3b</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-21T21:24:46Z">2026-09-21T21:24:46Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(access): resolve model grants by extension type, not just instance name (swamp-club#2302) (#2527)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<ul>
-<li>Extend <code>grantMatchesResource</code> in <code>GrantBasedAccessDecisionService</code> to also match model resources by extension type (<code>fields.modelType</code>) when the instance name doesn&#39;t match the grant pattern. This makes namespace-scoped grants like <code>model:@scope/*</code> functional at runtime for non-admin users.</li>
-<li>Fix the <code>@</code> prefix stripping in the <code>typeArg</code> secondary authorization check in <code>handleModelMethodRun</code> — the normalized form preserves <code>@</code>, so grants written with <code>@</code> now match correctly for direct execution.</li>
-<li>Echo the <code>method</code> field in <code>can-i</code> JSON responses so callers can confirm method-scoped evaluation was performed.</li>
-<li>Update <code>design/enablers/access-control.md</code> to document dual-identity matching and method echo.</li>
-</ul>
-<p>Fixes swamp-club#2302. Reported by <code>ds_xero</code>.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>8 new unit tests in <code>grant_based_access_decision_service_test.ts</code> covering: wildcard extension type grants, exact extension type grants, deny grants on extension types, existing instance name grants (backwards compat), non-model resource fallback exclusion, missing modelType field, method-scoped grants via extension type, and the <code>explain</code> path</li>
-<li>2 new renderer tests for method echo in <code>access_can_i_test.ts</code></li>
-<li>Updated connection test for <code>@</code> preservation in typeArg authorization</li>
-<li>All 511 existing access/connection tests pass</li>
-<li>Build verification passed (9/9 steps)</li>
-<li>Adversaria</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.212309.0-sha.325c3c3b" rel="noopener">release v20260921.212309.0-sha.325c3c3b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/325c3c3b" rel="noopener">325c3c3b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2527" rel="noopener">#2527</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260921-211856-0-sha-79a41ce7">
-<h2><span class="tier C">C</span>swamp 20260921.211856.0-sha.79a41ce7</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-21T21:20:33Z">2026-09-21T21:20:33Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): make server token auth read-only (#2533)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<ul>
-<li>Authenticate server tokens with direct read-only token and vault reads instead of redeem model runs.</li>
-<li>Preserve explicit redeem lifecycle writes and add secret-free token-use and creation audit context.</li>
-<li>Add unit, integration, and scratch-repository regression coverage.</li>
-</ul>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>verify-build workflow</li>
-<li>verify-reviews workflow</li>
-<li>verify-skills workflow</li>
-<li>compiled-binary scratch reproduction</li>
-</ul>
-<p>---</p>
-<h4 class="body-h">Installation</h4>
-<p><strong>macOS (Apple Silicon):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-darwin-aarch64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>macOS (Intel):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-darwin-x86_64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>Linux (x86_64):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-linux-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-linux-x86_64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>Linux (aarch64):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-linux-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-linux-aarch64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>Windows (x86_64):</strong></p>
-<p>```powershell</p>
-<p>Invoke-WebRequest -Uri <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-windows-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211856.0-sha.79a41ce7/swamp-windows-x86_64</a></p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.211856.0-sha.79a41ce7" rel="noopener">release v20260921.211856.0-sha.79a41ce7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/79a41ce7" rel="noopener">79a41ce7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2533" rel="noopener">#2533</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260921-211448-0-sha-79cbf1dd">
-<h2><span class="tier C">C</span>swamp 20260921.211448.0-sha.79cbf1dd</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-21T21:16:32Z">2026-09-21T21:16:32Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): set SWAMP_HOME in generated systemd unit for extension loading (#2532)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<ul>
-<li><code>swamp serve daemon enable</code> generates a systemd unit that sets neither <code>HOME</code></li>
-</ul>
-<p>  nor <code>SWAMP_HOME</code>, silently disabling extension loading in the daemon — every</p>
-<p>  scheduled workflow referencing an extension fails with &quot;Unknown model type&quot;</p>
-<ul>
-<li>Resolve <code>getSwampDataDir()</code> at enable time and bake it into the unit as</li>
-</ul>
-<p>  <code>Environment=SWAMP_HOME=&lt;path&gt;</code> — the plumbing in <code>ServiceConfig.env</code> and</p>
-<p>  <code>buildServeService</code> already supported this</p>
-<ul>
-<li>Update the <code>serveCommand</code> help text to note that <code>daemon enable</code> now handles</li>
-</ul>
-<p>  this automatically</p>
-<p>Closes swamp-club#2294</p>
-<h4 class="body-h">Test plan</h4>
-<ul>
-<li>[x] New unit test: <code>buildServeService</code> includes <code>SWAMP_HOME</code> when passed via env</li>
-<li>[x] All existing <code>systemd_service_scheduler_test.ts</code> tests pass (20/20)</li>
-<li>[x] <code>deno check src/cli/commands/serve.ts</code> passes</li>
-<li>[x] Full verification: lint, fmt, type-check, tests, compile, code review,</li>
-</ul>
-<p>  adversarial review, UX review — all green</p>
-<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
-<p>---</p>
-<h4 class="body-h">Installation</h4>
-<p><strong>macOS (Apple Silicon):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211448.0-sha.79cbf1dd/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211448.0-sha.79cbf1dd/swamp-darwin-aarch64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>macOS (Intel):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.211448.0-sha.79cbf1dd/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.211448.0-sha.79cbf1dd/swamp-darwin-x86_64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.211448.0-sha.79cbf1dd" rel="noopener">release v20260921.211448.0-sha.79cbf1dd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/79cbf1dd" rel="noopener">79cbf1dd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2532" rel="noopener">#2532</a>𝗔 <a href="https://swamp-club.com/lab/2294" rel="noopener">lab#2294</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260921-210635-0-sha-67afb1df">
-<h2><span class="tier C">C</span>swamp 20260921.210635.0-sha.67afb1df</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-21T21:08:17Z">2026-09-21T21:08:17Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): report the run outcome in the run tracker (swamp-club#2308) (#2531)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>swamp run history</code> reported <code>completed</code> for workflow runs that actually failed, contradicting <code>swamp workflow history search</code> for the same run id.</p>
-<p>The run tracker was marked <code>completed</code> on the normal exit path *before* <code>run.complete()</code> derived the outcome from the step results, so a run whose steps failed still wrote <code>completed</code>. The tracker meant &quot;the process finished&quot;, while the field it exposes is named <code>status</code>. The resume path repeated the same pattern.</p>
-<p>Both completion paths now call <code>run.complete()</code> first and map the aggregate status through <code>trackerStatusForRun()</code> — an exhaustive switch over all seven <code>WorkflowRun</code> statuses with no <code>default</code>, so a status added later fails the type check rather than being read as success.</p>
-<p>Not a regression: the line has read <code>&quot;completed&quot;</code> since the run tracker landed in <code>fe08c4dc</code>.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>Unit tests in <code>execution_service_test.ts</code>: a failing workflow records <code>failed</code>, a succeeding one still records <code>completed</code>, a resume that fails after approval records <code>suspended</code> then <code>failed</code>, and a table test covers all seven mapping arms.</li>
-<li>Reproduced and verified end to end in a scratch repo against the compiled binary. For a one-step workflow exiting 3, both commands now agree on <code>failed</code>; a passing workflow still reports <code>completed</code>.</li>
-<li>Verification workflow green at <code>ba379c49</code>: build 9/9, code-review and adversarial-r</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.210635.0-sha.67afb1df" rel="noopener">release v20260921.210635.0-sha.67afb1df</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/67afb1df" rel="noopener">67afb1df</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2531" rel="noopener">#2531</a>𝗔 <a href="https://swamp-club.com/lab/2308" rel="noopener">lab#2308</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260921-205353-0-sha-d89170e3">
-<h2><span class="tier C">C</span>swamp 20260921.205353.0-sha.d89170e3</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-21T20:55:33Z">2026-09-21T20:55:33Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): reconcile the installed version against the lockfile pin (swamp-club#2150) (#2529)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>swamp extension install</code> decided an entry was satisfied from file presence, layout generation, and — only when the entry carried one — the recorded <code>filesChecksum</code>. A different version&#39;s files already sitting in the per-extension subtree, e.g. left by <code>doctor extensions</code> resolving a missing type, therefore passed as <code>up_to_date</code> on any entry written before <code>filesChecksum</code> tracking. The pin never took effect and nothing said so.</p>
-<p>Install now compares the pinned version against the version in the installed <code>manifest.yaml</code> before the content check. A constraint pin (<code>&gt;=</code>, <code>^</code>, <code>~</code>) and a missing or malformed manifest yield no comparison, so neither re-pulls on every run. The lockfile-supplied entry name is validated with <code>assertContainedPath</code> before either check touches the disk.</p>
-<p><code>doctor extensions --repair</code> re-pulled with <code>version: null</code>, resolving registry latest and rewriting the entry — the other way a pin was lost. It now restores the pinned version; extensions with no lockfile entry still resolve latest. <strong>Behaviour change:</strong> a pinned version that is yanked or unavailable now fails the repair operation instead of silently recovering to latest. The lockfile is the intended authority, so that ordering is deliberate.</p>
-<p>Also documents the reconciliation rule in <code>design/primitives/extensions.md</code>, next to the existing integrity-anchor contract.</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.205353.0-sha.d89170e3" rel="noopener">release v20260921.205353.0-sha.d89170e3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d89170e3" rel="noopener">d89170e3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2529" rel="noopener">#2529</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260921-204847-0-sha-77faad43">
-<h2><span class="tier C">C</span>swamp 20260921.204847.0-sha.77faad43</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-21T20:50:25Z">2026-09-21T20:50:25Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(lifecycle): resolve two ordering deadlocks and widen resolve_findings (swamp-club#2320) (#2530)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<ul>
-<li><strong>Deadlock 1 — <code>fast_forward</code> unreachable</strong>: <code>fast_forward</code> now accepts the <code>classified</code> phase (not just <code>triaging</code>) and transitions upstream through <code>triaged</code> before <code>in_progress</code>, so freshly filed issues don&#39;t get rejected by swamp-club</li>
-<li><strong>Deadlock 2 — <code>verify</code> before conformance review strands lifecycle</strong>: New <code>conformance-review-required</code> pre-flight check on <code>verify</code> catches the ordering mistake before the phase advances to <code>verifying</code></li>
-<li><strong><code>resolve_findings</code> too narrow</strong>: Now also allowed from the <code>approved</code> phase so findings can be annotated after approval</li>
-<li>Model version bumped to <code>2026.09.21.1</code> with upgrade entry</li>
-</ul>
-<p>Fixes swamp-club#2320</p>
-<p>Co-authored-by: skunk-ape &lt;skunk-ape@users.noreply.github.com&gt;</p>
-<h4 class="body-h">Test plan</h4>
-<ul>
-<li>[x] Schema transition tests updated for <code>fast_forward</code> and <code>resolve_findings</code></li>
-<li>[x] New <code>conformance-review-required</code> check: reject (no review) and pass (review exists) tests</li>
-<li>[x] Model exposure test for new check</li>
-<li>[x] Version pinning test updated</li>
-<li>[x] All 81 tests pass (12 schema + 69 lifecycle)</li>
-<li>[x] Build verification: lint, fmt, type-check, vuln-scan, tests, compile all pass</li>
-<li>[x] Code review: GATE_VERDICT pass, no findings</li>
-<li>[x] Attestation posted: 1efe996b-9805-446c-8172-d690d25e4c90</li>
-</ul>
-<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
-<p>---</p>
-<h4 class="body-h">Installation</h4>
-<p><strong>macOS (Apple Silicon):</strong></p>
-<p>```bash</p>
-<p>curl -L h</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.204847.0-sha.77faad43" rel="noopener">release v20260921.204847.0-sha.77faad43</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/77faad43" rel="noopener">77faad43</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2530" rel="noopener">#2530</a>𝗔 <a href="https://swamp-club.com/lab/2320" rel="noopener">lab#2320</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260921-192445-0-sha-9533db34">
-<h2><span class="tier C">C</span>swamp 20260921.192445.0-sha.9533db34</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-21T19:26:21Z">2026-09-21T19:26:21Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): deduplicate webhook lifecycle logging (swamp-club#2310) (#2528)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<ul>
-<li>Remove four duplicate <code>logger</code> calls from <code>WebhookService</code> in <code>src/serve/webhook.ts</code> that produced identical output to the <code>WebhookEvent</code> handler in <code>src/cli/commands/serve.ts</code></li>
-<li>The event handler already branches on log vs json output mode, making it the correct single logging owner</li>
-<li>Non-duplicate logs (abort, suspend, verifier warnings, queue errors) are preserved</li>
-</ul>
-<p>Fixes swamp-club#2310</p>
-<p>Co-authored-by: David Hammer &lt;hammz@myclanprofile.com&gt;</p>
-<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
-<p>---</p>
-<h4 class="body-h">Installation</h4>
-<p><strong>macOS (Apple Silicon):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-darwin-aarch64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>macOS (Intel):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-darwin-x86_64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>Linux (x86_64):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-linux-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-linux-x86_64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>Linux (aarch64):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-linux-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.192445.0-sha.9533db34/swamp-linux-aarch64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>Windows (x86_64):</strong></p>
-<p>```po</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.192445.0-sha.9533db34" rel="noopener">release v20260921.192445.0-sha.9533db34</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9533db34" rel="noopener">9533db34</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2528" rel="noopener">#2528</a>𝗔 <a href="https://swamp-club.com/lab/2310" rel="noopener">lab#2310</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260921-173622-0-sha-8ef40537">
-<h2><span class="tier C">C</span>swamp 20260921.173622.0-sha.8ef40537</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-21T17:38:06Z">2026-09-21T17:38:06Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix: make deno task test deterministic and stop it writing to the developer&#39;s home (#2520)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>deno task test</code> was failing on main (bcaa9695). Investigation turned up five</p>
-<p>distinct defects — three of which only reproduce in particular environments,</p>
-<p>which is why CI stayed green. Filed as swamp-club#2313.</p>
-<p>| Defect | Symptom |</p>
-<p>| --- | --- |</p>
-<p>| ENOTEMPTY race (the report) | A repo init wrote skills into another test file&#39;s temp <code>HOME</code> mid-cleanup |</p>
-<p>| Home clobbering | Every <code>deno run test</code> overwrote the real <code>~/.claude/skills</code>, <code>~/.agents/skills</code>, <code>~/.kiro/skills</code> |</p>
-<p>| <code>__proto__</code> property flake | Failed ~1 run in 6 on a random seed |</p>
-<p>| TTY test | <code>useTerminalSize_test</code> failed 3/3 from any terminal, on any branch |</p>
-<p>| <code>0x0</code> pty | Zero accepted as a usable terminal width |</p>
-<p>The common thread in four of the five: resolving a user-level path or a</p>
-<p>terminal size from ambient state, so behaviour depended on where the suite ran.</p>
-<h4 class="body-h">Root cause of the reported failure</h4>
-<p><code>deno test --parallel</code> runs every test file in ONE process with ONE shared</p>
-<p><code>Deno.env</code> (verified directly: two files, same pid, each observing the other&#39;s</p>
-<p>env writes). <code>RepoService.init</code>/<code>.upgrade</code> resolved their user-level write</p>
-<p>targets from that environment, so a repo init in one file installed bundled</p>
-<p>skills into whatever <code>HOME</code> another file had momentarily assigned.</p>
-<p><code>user_identity_repository_test</code>&#39;s temp <code>HOME</code> received a full skill tree</p>
-<p>mid-teardown and its recursive delete failed with</p>
-<p>`Di</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.173622.0-sha.8ef40537" rel="noopener">release v20260921.173622.0-sha.8ef40537</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8ef40537" rel="noopener">8ef40537</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2520" rel="noopener">#2520</a>𝗔 <a href="https://swamp-club.com/lab/2313" rel="noopener">lab#2313</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260921-171118-0-sha-652abec2">
-<h2><span class="tier C">C</span>swamp 20260921.171118.0-sha.652abec2</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-21T17:12:55Z">2026-09-21T17:12:55Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): exempt internal models from remote-only placement check (swamp-club#2307) (#2526)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<ul>
-<li>Adds a <code>modelRegistry.isInternal()</code> guard before the <code>isRemoteOnlyMode()</code> check in <code>method_execution_service.ts</code> so built-in <code>swamp/*</code> control-plane models (server tokens, enrollment tokens, workers, step leases, etc.) always run in-process on the orchestrator, even when <code>--remote-only</code> is enabled</li>
-<li>Fixes authentication deadlock where the <code>swamp/server-token</code> <code>redeem</code> method was rejected because it has no placement, preventing workers and OAuth sessions from authenticating</li>
-<li>Adds two unit tests verifying the exemption path and the rejection path</li>
-<li>Updates <code>design/primitives/serve.md</code> to document the exemption</li>
-</ul>
-<p>Fixes swamp-club#2307</p>
-<p>Co-authored-by: Blake Irvin &lt;blakeirvin@me.com&gt;</p>
-<h4 class="body-h">Test plan</h4>
-<ul>
-<li>[x] Unit test: internal model type executes in-process in remote-only mode</li>
-<li>[x] Unit test: non-internal model type without placement throws <code>UserError</code> in remote-only mode</li>
-<li>[x] All 77 tests in <code>method_execution_service_test.ts</code> pass</li>
-<li>[x] <code>deno check</code> clean</li>
-<li>[x] Full verification workflow passed (build + reviews + skills)</li>
-</ul>
-<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
-<p>---</p>
-<h4 class="body-h">Installation</h4>
-<p><strong>macOS (Apple Silicon):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260921.171118.0-sha.652abec2/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260921.171118.0-sha.652abec2/swamp-darwin-aarch64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>macOS (Intel):</strong></p>
-<p>```bash</p>
-<p>curl -L h</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260921.171118.0-sha.652abec2" rel="noopener">release v20260921.171118.0-sha.652abec2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/652abec2" rel="noopener">652abec2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2526" rel="noopener">#2526</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260917-232152-0-sha-4430c4b1">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260917-232152-0-sha-4430c4b1">
 <h2><span class="tier C">C</span>document how to verify TTY-only behaviour with a pty (#2508)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-17T23:23:31Z">2026-09-17T23:23:31Z</time></span><span>verification</span><span>docs</span></div>
@@ -6597,12 +6597,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>178 items across 1 source(s) in this window:
-3 critical, 156 notable, 2 routine,
-17 minor.</p>
-<ul><li><strong>fix</strong> — 112</li><li><strong>feat</strong> — 47</li><li><strong>changes</strong> — 11</li><li><strong>docs</strong> — 6</li><li><strong>perf</strong> — 2</li></ul></section>
+3 critical, 167 notable, 2 routine,
+6 minor.</p>
+<ul><li><strong>fix</strong> — 123</li><li><strong>feat</strong> — 47</li><li><strong>docs</strong> — 6</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-22T00:02:54.964Z">2026-09-22T00:02:54.964Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-22T01:01:54.074Z">2026-09-22T01:01:54.074Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

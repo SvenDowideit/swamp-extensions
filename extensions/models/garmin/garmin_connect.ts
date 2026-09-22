@@ -308,6 +308,26 @@ const ProfileSchema = z.object({
 const SetupSchema = z.object({ report: z.string() });
 
 /**
+ * A login suspended on MFA.
+ *
+ * Garmin's `/mobile/api/mfa/verifyCode` must be called on the *same* SSO
+ * session the password step established — the cookie jar carries that session.
+ * `garth` keeps one in-memory client across both calls, but swamp runs each
+ * method in a fresh process, so the jar is persisted here between the challenge
+ * and the resume run. The whole jar is one sensitive field, so swamp stores it
+ * in the vault.
+ */
+const PendingMfaSchema = z.object({
+  challengedAt: z.string(),
+  domain: z.string(),
+  method: z.string(),
+  /** `JSON.stringify` of the SSO cookie jar; sensitive session material. */
+  cookieJar: z.string().meta({ sensitive: true }),
+  /** Whether the session was already consumed by a successful resume. */
+  consumed: z.boolean(),
+});
+
+/**
  * Session readiness after an `ensure` call. Written even when the session is
  * absent, so a workflow can guard on `ready` and assert on `reason`.
  */
@@ -758,6 +778,14 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 3,
     },
+    pendingMfa: {
+      description:
+        "A login suspended on MFA: the SSO cookie jar needed to call " +
+        "verifyCode on the resume run",
+      schema: PendingMfaSchema,
+      lifetime: "infinite",
+      garbageCollection: 3,
+    },
   },
   files: {
     export: {
@@ -811,6 +839,19 @@ export const model = {
           lines.push(`  account: ${session?.displayName ?? "(unknown)"}`);
         } else {
           lines.push("Session: none — log in first.");
+        }
+        const pending = await ctx.readResource("pending-mfa");
+        if (pending && pending.consumed !== true && pending.cookieJar) {
+          lines.push("");
+          lines.push(
+            `Pending MFA challenge (raised ${pending.challengedAt}, method ` +
+              `${pending.method}). Codes expire quickly — if it is older than ` +
+              `a few minutes, start a fresh login instead of resuming.`,
+          );
+          lines.push(
+            "  swamp model @svendowideit/garmin-connect method run login " +
+              "garmin-connect --input interactiveMfa=<code>",
+          );
         }
         lines.push("");
         lines.push("To fix a gap:");
@@ -1004,22 +1045,51 @@ export const model = {
     login: {
       description:
         "Run the Garmin SSO → OAuth1 → OAuth2 login and persist the session. " +
-        "If Garmin requires MFA, the run suspends with a challenge message; " +
-        "re-run with interactiveMfa set to the one-time code. Credentials and " +
-        "tokens are never logged.",
+        "If Garmin requires MFA, the run fails with a challenge message and " +
+        "persists the SSO cookies needed to finish; re-run with interactiveMfa " +
+        "set to the one-time code. Credentials and tokens are never logged.",
       arguments: LoginArgsSchema,
       execute: async (
         args: z.infer<typeof LoginArgsSchema>,
         ctx: MethodContext,
       ) => {
         const g = ctx.globalArgs;
-        const session = await createSession(g.domain);
+        let session = await createSession(g.domain);
         const nowMs = Date.now();
 
         let ticket: string;
         if (args.interactiveMfa) {
-          ctx.logger.info("Completing MFA challenge");
-          ticket = await completeMfa(session, args.interactiveMfa);
+          // MFA resume needs the SSO cookies from the password step — they are
+          // the session `verifyCode` acts on. Restore them, or fail with a
+          // clear instruction rather than a confusing auth error.
+          const pending = await ctx.readResource("pending-mfa");
+          const jarJson = typeof pending?.cookieJar === "string"
+            ? pending.cookieJar
+            : "";
+          if (!jarJson) {
+            throw new Error(
+              "No suspended MFA login to resume. MFA codes expire quickly, " +
+                "so start again with a fresh login and pass the code from the " +
+                "new challenge: swamp model @svendowideit/garmin-connect " +
+                "method run login garmin-connect",
+            );
+          }
+          let jar: Record<string, Record<string, string>>;
+          try {
+            jar = JSON.parse(jarJson) as Record<string, Record<string, string>>;
+          } catch {
+            throw new Error(
+              "Stored MFA session is unreadable. Start a fresh login.",
+            );
+          }
+          session = await createSession(g.domain, { cookieJar: jar });
+          const method = typeof pending?.method === "string"
+            ? pending.method
+            : "email";
+          ctx.logger.info("Completing MFA challenge (method: {method})", {
+            method,
+          });
+          ticket = await completeMfa(session, args.interactiveMfa, method);
         } else {
           const username = g.username?.trim() ||
             await readVaultSecret(ctx, g.usernameKey);
@@ -1038,16 +1108,26 @@ export const model = {
           });
           const result = await beginLogin(session, username, password);
           if (typeof result !== "string") {
+            // Persist the cookie jar so the resume run can finish this exact
+            // SSO session, then either use a configured code or surface it.
+            await ctx.writeResource("pendingMfa", "pending-mfa", {
+              challengedAt: new Date(nowMs).toISOString(),
+              domain: g.domain,
+              method: result.method,
+              cookieJar: JSON.stringify(session.jar.toJSON()),
+              consumed: false,
+            });
             const mfa = Deno.env.get("GARMIN_MFA_CODE")?.trim() ||
-              g.mfaCodeKey && await readVaultSecret(ctx, g.mfaCodeKey);
+              (g.mfaCodeKey && await readVaultSecret(ctx, g.mfaCodeKey));
             if (mfa) {
               ctx.logger.info("MFA_REQUIRED — using the configured MFA code");
               ticket = await completeMfa(session, mfa, result.method);
             } else {
               throw new Error(
                 `Garmin requires MFA (method: ${result.method}). Re-run with ` +
-                  `the one-time code: swamp model @svendowideit/garmin-connect ` +
-                  `method run login garmin-connect --input interactiveMfa=<code>`,
+                  `the one-time code from this challenge (it expires ` +
+                  `quickly): swamp model @svendowideit/garmin-connect method ` +
+                  `run login garmin-connect --input interactiveMfa=<code>`,
               );
             }
           } else {
@@ -1072,6 +1152,14 @@ export const model = {
           displayName,
           nowMs,
         );
+        // A successful login invalidates any suspended challenge.
+        await ctx.writeResource("pendingMfa", "pending-mfa", {
+          challengedAt: new Date(nowMs).toISOString(),
+          domain: g.domain,
+          method: "none",
+          cookieJar: "",
+          consumed: true,
+        });
         ctx.logger.info(
           "Signed in to Garmin as {who}; session persisted (tokens redacted)",
           { who: displayName ?? "(unknown)", redacted: redact(pair.oauth2) },

@@ -128,7 +128,9 @@ swamp vault put garmin-secrets GARMIN_TOKEN_STORE
 swamp model @svendowideit/garmin-connect method run import-tokens garmin-connect
 
 # Or sign in with credentials. If Garmin returns an MFA challenge, re-run with
-# the one-time code.
+# the one-time code (it is emailed/texted to you). The challenge's SSO cookies
+# are persisted automatically, so the resume works — do it promptly, as the code
+# and its cookies expire within minutes.
 swamp vault put garmin-secrets GARMIN_EMAIL
 swamp vault put garmin-secrets GARMIN_PASSWORD
 swamp model @svendowideit/garmin-connect method run login garmin-connect
@@ -344,6 +346,13 @@ unit-testable, and means one model owns authentication and rate limiting.
   `sso.garmin.com/mobile/api/login` (Android client id `GCM_ANDROID_DARK`),
   exchanges the service ticket for an OAuth1 token, then for the DI OAuth2
   bearer. The public consumer key/secret come from `garth`'s published file.
+- **MFA spans two runs.** If Garmin demands a second factor, the challenge's SSO
+  cookie jar is persisted in the `pending-mfa` resource (sensitive, so it lives
+  in the vault) and the run stops with the code prompt. The resume run restores
+  that jar before calling `verifyCode`, because Garmin acts on the session the
+  password step established — a fresh session without the cookies fails. Codes
+  and their cookies expire within minutes; if a resume says no challenge is
+  pending, start a fresh login. A successful login clears `pending-mfa`.
 - **Refresh** re-runs the OAuth2 exchange with the stored OAuth1 token and no
   audience — no password, no MFA. A refresh token lasts days–weeks, which is
   what makes scheduled runs unattended.
@@ -430,7 +439,11 @@ swamp workflow run @svendowideit/meta-factory \
 - **Body composition needs a compatible scale.** A weight-only scale reports
   weight alone; `body-range.hasBodyComposition` says which you have, and the
   per-weigh-in composition fields are `null` when not measured.
+- **Cloudflare** can challenge logins from unusual IPs, and Garmin **rate-limits**
+  repeated login attempts (HTTP 429). The transport detects both and reports what
+  happened and what to do — including how long to wait when Garmin sends a
+  `Retry-After` header. If you see a 429, stop retrying (fast repeats lengthen
+  the block); wait, then try once. A token store via `import-tokens` sidesteps the
+  login endpoint entirely and is the most reliable path on a shared host.
 - Garmin is an **unofficial, undocumented** API and may change; the extension is
   read-only and surfaces Garmin's own error text.
-- **Cloudflare** can challenge logins from unusual IPs; the transport reports a
-  clear message rather than retrying blindly.

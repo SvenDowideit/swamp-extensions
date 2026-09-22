@@ -152,6 +152,7 @@ additionalFiles:
   - oauth1_test.ts
   - garmin_auth_test.ts
   - garmin_connect_test.ts
+  - garmin_connect_login_test.ts
   - garmin_devices_test.ts
   - garmin_activities_test.ts
   - garmin_health_test.ts

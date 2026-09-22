@@ -93,6 +93,104 @@ export interface MfaChallenge {
   method: string;
 }
 
+/**
+ * Parse an HTTP `Retry-After` header into a whole number of seconds.
+ *
+ * The header may be a delay in seconds (`"120"`) or an HTTP-date. Returns null
+ * when absent or unparseable. Used to tell a rate-limited user how long to wait.
+ */
+export function parseRetryAfterSeconds(
+  value: string | null,
+  nowMs = Date.now(),
+): number | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) return parseInt(trimmed, 10);
+  const when = Date.parse(trimmed);
+  if (Number.isNaN(when)) return null;
+  return Math.max(0, Math.ceil((when - nowMs) / 1000));
+}
+
+/** Render a whole number of seconds as a short human duration. */
+export function humanDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds} second${seconds === 1 ? "" : "s"}`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  const h = `${hours} hour${hours === 1 ? "" : "s"}`;
+  return rem === 0 ? h : `${h} ${rem} minute${rem === 1 ? "" : "s"}`;
+}
+
+/**
+ * Turn a non-OK Garmin response into an actionable {@link GarminAuthError}.
+ *
+ * Garmin's SSO is fronted by Cloudflare and rate-limits repeated login
+ * attempts. The status alone is unhelpful, so this names the likely cause and,
+ * when the response carries `Retry-After`, says how long to wait. `phase`
+ * describes the step (e.g. "Garmin sign-in"), and `body` is a short excerpt
+ * already read from the response (may be empty).
+ */
+export function ssoHttpError(
+  phase: string,
+  res: Response,
+  body = "",
+): GarminAuthError {
+  const status = res.status;
+  const isLogin = /sign-in|SSO|login|MFA|preauthorized|token exchange/i.test(
+    phase,
+  );
+  if (status === 429) {
+    const retryAfter = parseRetryAfterSeconds(res.headers.get("retry-after"));
+    const wait = retryAfter === null
+      ? "Garmin did not say how long to wait; try again in 15-30 minutes."
+      : `Garmin asked to wait about ${humanDuration(retryAfter)}.`;
+    const cause = isLogin
+      ? "Too many login attempts were made in a short time"
+      : "Too many API requests were made in a short time";
+    const remedy = isLogin
+      ? "If you are not retrying, a stored token store (GARMIN_TOKEN_STORE, " +
+        "via 'import-tokens') avoids the login endpoint entirely."
+      : "Re-runs use the on-disk cache for anything already fetched; raise " +
+        "requestDelayMs or lower maxFetchesPerCall to pace more gently.";
+    return new GarminAuthError(
+      `${phase} was rate-limited by Garmin (HTTP 429). ${cause}. ${wait} ` +
+        `Then retry — and avoid repeated fast attempts, which lengthen the ` +
+        `block. ${remedy}`,
+      status,
+    );
+  }
+  if (status === 403) {
+    return new GarminAuthError(
+      `${phase} was blocked (HTTP 403) — typically a Cloudflare bot challenge ` +
+        `triggered by unusual traffic. Wait a few minutes and retry from the ` +
+        `same host.`,
+      status,
+    );
+  }
+  if (status === 401 && isLogin) {
+    return new GarminAuthError(
+      `${phase} was rejected (HTTP 401) — the username or password is likely ` +
+        `wrong, or the account is temporarily locked. Verify the credentials ` +
+        `stored in the vault.`,
+      status,
+    );
+  }
+  if (status === 401) {
+    return new GarminAuthError(
+      `${phase} was rejected (HTTP 401) — the access token was refused. It ` +
+        `may have expired; run 'ensure' (or the garmin-session workflow) to ` +
+        `refresh it, then retry.`,
+      status,
+    );
+  }
+  const detail = body.trim() ? ` — ${body.trim().slice(0, 160)}` : "";
+  return new GarminAuthError(
+    `${phase} failed (HTTP ${status})${detail}`,
+    status,
+  );
+}
+
 /** A minimal cookie jar, scoped per host. */
 export class CookieJar {
   #byHost = new Map<string, Map<string, string>>();
@@ -249,6 +347,9 @@ export async function beginLogin(
     throw new GarminAuthError(`SSO priming failed: ${(err as Error).message}`);
   });
   session.jar.capture(signInUrl, prime);
+  if (!prime.ok) {
+    throw ssoHttpError("Garmin SSO sign-in page", prime, await prime.text());
+  }
 
   // 2. Submit credentials.
   const loginUrl = `https://${SSO_HOST}/mobile/api/login?${
@@ -277,6 +378,15 @@ export async function beginLogin(
   session.jar.capture(loginUrl, res);
 
   const text = await res.text();
+
+  // A non-OK status is checked *before* parsing: a 429 or 403 often returns an
+  // HTML body, which would otherwise be mis-reported as a "Cloudflare / changed
+  // endpoint" problem. Garmin also returns 200 with a `responseStatus` for a
+  // rejected credential, so this only fires for transport-level failures.
+  if (!res.ok) {
+    throw ssoHttpError("Garmin sign-in", res, text);
+  }
+
   let json: {
     responseStatus?: { type?: string; message?: string };
     serviceTicketId?: string;
@@ -293,12 +403,6 @@ export async function beginLogin(
   }
 
   const type = json.responseStatus?.type;
-  if (!res.ok && !type) {
-    throw new GarminAuthError(
-      `SSO login failed (HTTP ${res.status})`,
-      res.status,
-    );
-  }
   if (type === "MFA_REQUIRED") {
     return {
       status: "mfa_required",
@@ -344,14 +448,28 @@ export async function completeMfa(
   });
   session.jar.capture(url, res);
 
-  const json = await res.json() as {
+  const text = await res.text();
+  if (!res.ok) {
+    throw ssoHttpError("Garmin MFA verification", res, text);
+  }
+  let json: {
     responseStatus?: { type?: string; message?: string };
     serviceTicketId?: string;
-  };
+  } = {};
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new GarminAuthError(
+      `MFA returned non-JSON (HTTP ${res.status}): ${text.slice(0, 160)}`,
+      res.status,
+    );
+  }
   if (json.responseStatus?.type !== "SUCCESSFUL" || !json.serviceTicketId) {
     throw new GarminAuthError(
       `MFA rejected: ${json.responseStatus?.message ?? "unknown"} ` +
-        `(HTTP ${res.status})`,
+        `(HTTP ${res.status})`.replace(/ \(HTTP 200\)$/, "") +
+        ` — the code may be wrong or expired. Start a fresh login and use the ` +
+        `new code promptly.`,
       res.status,
     );
   }
@@ -391,10 +509,7 @@ export async function getOAuth1Token(
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new GarminAuthError(
-      `OAuth1 preauthorized failed (HTTP ${res.status}): ${text.slice(0, 160)}`,
-      res.status,
-    );
+    throw ssoHttpError("Garmin OAuth1 preauthorized", res, text);
   }
   const parsed = parseForm(text);
   if (!parsed.oauth_token || !parsed.oauth_token_secret) {
@@ -472,10 +587,7 @@ export async function exchangeOAuth2(
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new GarminAuthError(
-      `OAuth2 exchange failed (HTTP ${res.status}): ${text.slice(0, 160)}`,
-      res.status,
-    );
+    throw ssoHttpError("Garmin OAuth2 token exchange", res, text);
   }
   const raw = JSON.parse(text) as {
     expires_in: number;
@@ -509,10 +621,7 @@ export async function connectapiGet(
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new GarminAuthError(
-      `GET ${path} failed (HTTP ${res.status}): ${text.slice(0, 200)}`,
-      res.status,
-    );
+    throw ssoHttpError(`GET ${path}`, res, text);
   }
   try {
     return JSON.parse(text);

@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2409"><span class="tier A">A</span>workflow resume: retry the failed steps of a failed run with</a><a href="#issue-2442"><span class="tier A">A</span>vault not-found errors suggest &#39;vault create&#39; for names vaul</a><a href="#issue-2438"><span class="tier A">A</span>serve: one unresolvable username in `auth.admins` stops the </a><a href="#issue-2437"><span class="tier A">A</span>control-plane vault init failures are swallowed; `access tok</a><a href="#issue-2428"><span class="tier A">A</span>Remote indicator prints the full --server URL, including a ?</a><a href="#issue-2412"><span class="tier A">A</span>Definitions with no typeVersion get the entire upgrade chain</a><a href="#issue-2425"><span class="tier A">A</span>serve: vault annotate --label over --server is rejected (CLI</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2446"><span class="tier A">A</span>serve: make the datastore poll interval configurable (--data</a><a href="#issue-2288"><span class="tier A">A</span>data.latest() exposes no path/filePath key for file-kind dat</a><a href="#issue-2452"><span class="tier A">A</span>Hide --vault on access token mint and rotate now that it alw</a><a href="#issue-2321"><span class="tier A">A</span>issue-lifecycle: contributor check compares swamp-club handl</a><a href="#issue-2409"><span class="tier A">A</span>workflow resume: retry the failed steps of a failed run with</a><a href="#issue-2442"><span class="tier A">A</span>vault not-found errors suggest &#39;vault create&#39; for names vaul</a><a href="#issue-2438"><span class="tier A">A</span>serve: one unresolvable username in `auth.admins` stops the </a></aside><div>
 
 <article class="item" id="issue-2384">
 <h2><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation principal can clear a manual_approval gate meant for a human</h2>
@@ -109,6 +109,38 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
 </article>
+<article class="item" id="issue-2446">
+<h2><span class="tier A">A</span>serve: make the datastore poll interval configurable (--datastore-poll-interval)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-23T22:56:26.738Z">2026-09-23T22:56:26.738Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2446" rel="noopener">lab#2446</a></div>
+</article>
+<article class="item" id="issue-2288">
+<h2><span class="tier A">A</span>data.latest() exposes no path/filePath key for file-kind data — forces deprecated model.&lt;name&gt;.file.&lt;spec&gt;.&lt;instance&gt;.path</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-23T22:44:06.338Z">2026-09-23T22:44:06.338Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2288" rel="noopener">lab#2288</a></div>
+</article>
+<article class="item" id="issue-2452">
+<h2><span class="tier A">A</span>Hide --vault on access token mint and rotate now that it always errors</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-23T22:37:58.322Z">2026-09-23T22:37:58.322Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2452" rel="noopener">lab#2452</a></div>
+</article>
+<article class="item" id="issue-2321">
+<h2><span class="tier A">A</span>issue-lifecycle: contributor check compares swamp-club handles against GitHub logins, so every author reads as external</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-23T22:04:18.830Z">2026-09-23T22:04:18.830Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2321" rel="noopener">lab#2321</a></div>
+</article>
 <article class="item" id="issue-2409">
 <h2><span class="tier A">A</span>workflow resume: retry the failed steps of a failed run without --from</h2>
 <p class="lede">Shipped feature</p>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2438" rel="noopener">lab#2438</a></div>
 </article>
-<article class="item" id="issue-2437">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2437">
 <h2><span class="tier A">A</span>control-plane vault init failures are swallowed; `access token reveal` says &quot;Vault &#39;_token-secrets&#39; not found&quot;</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-23T20:52:31.503Z">2026-09-23T20:52:31.503Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2425" rel="noopener">lab#2425</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2427">
+<article class="item" id="issue-2427">
 <h2><span class="tier A">A</span>Lab tab title goes stale on client-side navigation between issues</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-23T20:19:09.147Z">2026-09-23T20:19:09.147Z</time></span></div>
@@ -1613,6 +1645,30 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
+<article class="item" id="issue-2460">
+<h2><span class="tier B">B</span>main fails type check: datastore_sync_rules_test.ts uses assertPinnedSet without importing it</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-23T22:59:24.899Z">2026-09-23T22:59:24.899Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2460" rel="noopener">lab#2460</a></div>
+</article>
+<article class="item" id="issue-2429">
+<h2><span class="tier B">B</span>managedConfig: serve extension handlers disagree on the pulled-extensions root, and lockfile files[] are repo-relative</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-23T22:15:46.411Z">2026-09-23T22:15:46.411Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2429" rel="noopener">lab#2429</a></div>
+</article>
+<article class="item" id="issue-2432">
+<h2><span class="tier B">B</span>workflow resume prints unexpected errors as a fatal stack trace, and --json returns them unclassified with the stack</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-23T22:08:33.203Z">2026-09-23T22:08:33.203Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2432" rel="noopener">lab#2432</a></div>
+</article>
 <article class="item" id="issue-2397">
 <h2><span class="tier B">B</span>Failing CEL expression in a method argument is silently passed through as literal text</h2>
 <p class="lede">Issue in_progress</p>
@@ -1620,22 +1676,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2397" rel="noopener">lab#2397</a></div>
-</article>
-<article class="item" id="issue-2446">
-<h2><span class="tier B">B</span>serve: make the datastore poll interval configurable (--datastore-poll-interval)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-09-23T21:54:26.257Z">2026-09-23T21:54:26.257Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2446" rel="noopener">lab#2446</a></div>
-</article>
-<article class="item" id="issue-2321">
-<h2><span class="tier B">B</span>issue-lifecycle: contributor check compares swamp-club handles against GitHub logins, so every author reads as external</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-23T21:37:55.369Z">2026-09-23T21:37:55.369Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2321" rel="noopener">lab#2321</a></div>
 </article>
 <article class="item" id="issue-2430">
 <h2><span class="tier B">B</span>workflow resume: Ctrl-C leaves the run &#39;running&#39; with nothing driving it, and it can no longer be resumed</h2>
@@ -1653,14 +1693,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2431" rel="noopener">lab#2431</a></div>
 </article>
-<article class="item" id="issue-2432">
-<h2><span class="tier B">B</span>workflow resume prints unexpected errors as a fatal stack trace, and --json returns them unclassified with the stack</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-09-23T19:35:48.968Z">2026-09-23T19:35:48.968Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2432" rel="noopener">lab#2432</a></div>
-</article>
 <article class="item" id="issue-2415">
 <h2><span class="tier B">B</span>serve: remove the remaining no-path markDirty() calls that force full-cache datastore pushes</h2>
 <p class="lede">Issue in_progress</p>
@@ -1668,14 +1700,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2415" rel="noopener">lab#2415</a></div>
-</article>
-<article class="item" id="issue-2288">
-<h2><span class="tier B">B</span>data.latest() exposes no path/filePath key for file-kind data — forces deprecated model.&lt;name&gt;.file.&lt;spec&gt;.&lt;instance&gt;.path</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-23T13:34:45.169Z">2026-09-23T13:34:45.169Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2288" rel="noopener">lab#2288</a></div>
 </article>
 <article class="item" id="issue-2249">
 <h2><span class="tier B">B</span>s3-datastore: data &#39;latest&#39; pointer objects are never indexed, so deleting a data item leaves an orphaned latest object in S3</h2>
@@ -1781,29 +1805,125 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2452">
-<h2><span class="tier C">C</span>Hide --vault on access token mint and rotate now that it always errors</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2455">
+<h2><span class="tier C">C</span>self.globalArguments.X returns the unevaluated expression text when the global argument is itself an expression</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T22:00:43.377Z">2026-09-23T22:00:43.377Z</time></span></div>
+<div class="meta"><span><time datetime="2026-09-23T22:59:06.721Z">2026-09-23T22:59:06.721Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2452" rel="noopener">lab#2452</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2455" rel="noopener">lab#2455</a></div>
+</article>
+<article class="item" id="issue-2459">
+<h2><span class="tier C">C</span>Docs: document --datastore-poll-interval and the timer duration maximum in serve-flags.md</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:44:23.527Z">2026-09-23T22:44:23.527Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2459" rel="noopener">lab#2459</a></div>
+</article>
+<article class="item" id="issue-2458">
+<h2><span class="tier C">C</span>datastore config migrate skips setting managedConfig when the datastore is already migrated</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:39:10.149Z">2026-09-23T22:39:10.149Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2458" rel="noopener">lab#2458</a></div>
+</article>
+<article class="item" id="issue-2456">
+<h2><span class="tier C">C</span>Docs: access token mint/rotate --vault removed (swamp-club#2452)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:35:42.011Z">2026-09-23T22:35:42.011Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2456" rel="noopener">lab#2456</a></div>
+</article>
+<article class="item" id="issue-2331">
+<h2><span class="tier C">C</span>Docs: daemon.md reference page does not mention SWAMP_HOME for extension loading</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:33:40.816Z">2026-09-23T22:33:40.816Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2331" rel="noopener">lab#2331</a></div>
+</article>
+<article class="item" id="issue-2335">
+<h2><span class="tier C">C</span>Docs: manual serve-flags page does not mention SWAMP_SERVER_URL is required with SWAMP_SERVER_TOKEN</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:33:38.264Z">2026-09-23T22:33:38.264Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2335" rel="noopener">lab#2335</a></div>
+</article>
+<article class="item" id="issue-2352">
+<h2><span class="tier C">C</span>manual: extension model reference documents context.runModel with the wrong signature, error shape and remote behavior</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:33:35.905Z">2026-09-23T22:33:35.905Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2352" rel="noopener">lab#2352</a></div>
+</article>
+<article class="item" id="issue-2385">
+<h2><span class="tier C">C</span>Docs: workflow search --json example in the manual is stale</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:33:33.897Z">2026-09-23T22:33:33.897Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2385" rel="noopener">lab#2385</a></div>
+</article>
+<article class="item" id="issue-2391">
+<h2><span class="tier C">C</span>Docs: CEL expressions manual page - steps.&lt;name&gt;.outputs semantics and non-existent startedAt/completedAt fields</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:33:31.773Z">2026-09-23T22:33:31.773Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2391" rel="noopener">lab#2391</a></div>
+</article>
+<article class="item" id="issue-2393">
+<h2><span class="tier C">C</span>Docs: dashboard resume and opt-in auto-resume for manual approval gates (follow-up to #2377)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:33:29.671Z">2026-09-23T22:33:29.671Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2393" rel="noopener">lab#2393</a></div>
+</article>
+<article class="item" id="issue-2399">
+<h2><span class="tier C">C</span>Docs: document approve-requires-explicit-grant and the implied approve marker</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:33:27.573Z">2026-09-23T22:33:27.573Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2399" rel="noopener">lab#2399</a></div>
+</article>
+<article class="item" id="issue-2401">
+<h2><span class="tier C">C</span>Docs: --principal valid kinds for access token mint, and the invalid-principal 401 reason</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:33:25.323Z">2026-09-23T22:33:25.323Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2401" rel="noopener">lab#2401</a></div>
+</article>
+<article class="item" id="issue-2402">
+<h2><span class="tier C">C</span>Docs: CEL expressions manual page - document DataRecord.path and point model.*.file at data.latest().path</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:33:21.195Z">2026-09-23T22:33:21.195Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2402" rel="noopener">lab#2402</a></div>
+</article>
+<article class="item" id="issue-2407">
+<h2><span class="tier C">C</span>Docs: manual does not document issue submission redaction or --no-redact</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T22:33:19.071Z">2026-09-23T22:33:19.071Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2407" rel="noopener">lab#2407</a></div>
 </article>
 <article class="item" id="issue-2451">
 <h2><span class="tier C">C</span>Docs: access-commands manual page describes --vault and control-plane failures incorrectly after #2437</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T21:59:05.180Z">2026-09-23T21:59:05.180Z</time></span></div>
+<div class="meta"><span><time datetime="2026-09-23T22:33:00.317Z">2026-09-23T22:33:00.317Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2451" rel="noopener">lab#2451</a></div>
-</article>
-<article class="item" id="issue-2455">
-<h2><span class="tier C">C</span>self.globalArguments.X returns the unevaluated expression text when the global argument is itself an expression</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T21:22:09.641Z">2026-09-23T21:22:09.641Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2455" rel="noopener">lab#2455</a></div>
 </article>
 <article class="item" id="issue-2453">
 <h2><span class="tier C">C</span>Streamed process output renders curly braces doubled in log output</h2>
@@ -1917,14 +2037,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2433" rel="noopener">lab#2433</a></div>
 </article>
-<article class="item" id="issue-2429">
-<h2><span class="tier C">C</span>managedConfig: serve extension handlers disagree on the pulled-extensions root, and lockfile files[] are repo-relative</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T18:43:06.501Z">2026-09-23T18:43:06.501Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2429" rel="noopener">lab#2429</a></div>
-</article>
 <article class="item" id="issue-2426">
 <h2><span class="tier C">C</span>serve: vault edit over --server opens an editor on the server host and ignores the managedConfig vaults dir</h2>
 <p class="lede">Open issue</p>
@@ -1997,14 +2109,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2410" rel="noopener">lab#2410</a></div>
 </article>
-<article class="item" id="issue-2407">
-<h2><span class="tier C">C</span>Docs: manual does not document issue submission redaction or --no-redact</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T15:18:19.889Z">2026-09-23T15:18:19.889Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2407" rel="noopener">lab#2407</a></div>
-</article>
 <article class="item" id="issue-2398">
 <h2><span class="tier C">C</span>Mark manual approval gates decided by a non-interactive principal</h2>
 <p class="lede">Open issue</p>
@@ -2012,30 +2116,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2398" rel="noopener">lab#2398</a></div>
-</article>
-<article class="item" id="issue-2402">
-<h2><span class="tier C">C</span>Docs: CEL expressions manual page - document DataRecord.path and point model.*.file at data.latest().path</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T13:50:38.902Z">2026-09-23T13:50:38.902Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2402" rel="noopener">lab#2402</a></div>
-</article>
-<article class="item" id="issue-2399">
-<h2><span class="tier C">C</span>Docs: document approve-requires-explicit-grant and the implied approve marker</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T13:50:31.502Z">2026-09-23T13:50:31.502Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2399" rel="noopener">lab#2399</a></div>
-</article>
-<article class="item" id="issue-2401">
-<h2><span class="tier C">C</span>Docs: --principal valid kinds for access token mint, and the invalid-principal 401 reason</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T13:50:22.418Z">2026-09-23T13:50:22.418Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2401" rel="noopener">lab#2401</a></div>
 </article>
 <article class="item" id="issue-2400">
 <h2><span class="tier C">C</span>Windows compat CI is red on main: handleDataDelete markDirty relPath assertion fails on Windows</h2>
@@ -2045,14 +2125,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2400" rel="noopener">lab#2400</a></div>
 </article>
-<article class="item" id="issue-2393">
-<h2><span class="tier C">C</span>Docs: dashboard resume and opt-in auto-resume for manual approval gates (follow-up to #2377)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T11:52:58.865Z">2026-09-23T11:52:58.865Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2393" rel="noopener">lab#2393</a></div>
-</article>
 <article class="item" id="issue-2287">
 <h2><span class="tier C">C</span>Make Compute Routes list usable without create-only global arguments</h2>
 <p class="lede">Open issue</p>
@@ -2060,14 +2132,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2287" rel="noopener">lab#2287</a></div>
-</article>
-<article class="item" id="issue-2391">
-<h2><span class="tier C">C</span>Docs: CEL expressions manual page - steps.&lt;name&gt;.outputs semantics and non-existent startedAt/completedAt fields</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T07:08:08.086Z">2026-09-23T07:08:08.086Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2391" rel="noopener">lab#2391</a></div>
 </article>
 <article class="item" id="issue-2388">
 <h2><span class="tier C">C</span>build-attestation hashes workflow files at the commit, not the workflow each run evaluated</h2>
@@ -2116,14 +2180,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2290" rel="noopener">lab#2290</a></div>
-</article>
-<article class="item" id="issue-2385">
-<h2><span class="tier C">C</span>Docs: workflow search --json example in the manual is stale</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-22T23:20:08.666Z">2026-09-22T23:20:08.666Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2385" rel="noopener">lab#2385</a></div>
 </article>
 <article class="item" id="issue-2382">
 <h2><span class="tier C">C</span>model delete resolves auto-definitions from repo-local .swamp instead of the datastore cache</h2>
@@ -2245,14 +2301,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2371" rel="noopener">lab#2371</a></div>
 </article>
-<article class="item" id="issue-2352">
-<h2><span class="tier C">C</span>manual: extension model reference documents context.runModel with the wrong signature, error shape and remote behavior</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-22T20:25:30.933Z">2026-09-22T20:25:30.933Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2352" rel="noopener">lab#2352</a></div>
-</article>
 <article class="item" id="issue-2360">
 <h2><span class="tier C">C</span>workflow run and model method run reject --ca-cert, but their TLS error tells users to pass it</h2>
 <p class="lede">Open issue</p>
@@ -2333,14 +2381,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2333" rel="noopener">lab#2333</a></div>
 </article>
-<article class="item" id="issue-2335">
-<h2><span class="tier C">C</span>Docs: manual serve-flags page does not mention SWAMP_SERVER_URL is required with SWAMP_SERVER_TOKEN</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-22T00:48:21.747Z">2026-09-22T00:48:21.747Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2335" rel="noopener">lab#2335</a></div>
-</article>
 <article class="item" id="issue-2320">
 <h2><span class="tier C">C</span>issue-lifecycle: two ordering deadlocks — ad-hoc fast_forward is unreachable, and verify before conformance review parks the lifecycle</h2>
 <p class="lede">Open issue</p>
@@ -2356,14 +2396,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2329" rel="noopener">lab#2329</a></div>
-</article>
-<article class="item" id="issue-2331">
-<h2><span class="tier C">C</span>Docs: daemon.md reference page does not mention SWAMP_HOME for extension loading</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-21T22:21:15.971Z">2026-09-21T22:21:15.971Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2331" rel="noopener">lab#2331</a></div>
 </article>
 <article class="item" id="issue-2332">
 <h2><span class="tier C">C</span>verify-build: codegen guard expression reads a nonexistent &#39;stdout&#39; attribute, so the workflow fails on every commit</h2>
@@ -3278,13 +3310,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1903" rel="noopener">lab#1903</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>401 items across 1 source(s) in this window:
-5 critical, 188 notable, 21 routine,
-187 minor.</p>
-<ul><li><strong>issues</strong> — 401</li></ul></section>
+<p>405 items across 1 source(s) in this window:
+5 critical, 192 notable, 20 routine,
+188 minor.</p>
+<ul><li><strong>issues</strong> — 405</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-23T22:01:48.048Z">2026-09-23T22:01:48.048Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-23T23:01:45.125Z">2026-09-23T23:01:45.125Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

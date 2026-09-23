@@ -63,7 +63,15 @@ export const report = {
       return { markdown: "Audit data not found.", json: {} };
     }
 
-    const r = JSON.parse(new TextDecoder().decode(raw)) as AuditOutput;
+    // The stored bytes are written by this extension, but a report must not
+    // throw a raw SyntaxError if they are ever corrupt — a throw is advisory to
+    // swamp but hides the reason from the operator. Degrade to a clear message.
+    let r: AuditOutput;
+    try {
+      r = JSON.parse(new TextDecoder().decode(raw)) as AuditOutput;
+    } catch {
+      return { markdown: "Audit data could not be parsed.", json: {} };
+    }
     return {
       markdown: formatReport(r),
       json: {

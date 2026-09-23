@@ -1,9 +1,63 @@
 manifestVersion: 1
 name: "@svendowideit/disk-auditor"
-version: "2026.07.17.1"
-description: "Recursively audits which directories and files are consuming disk space under a path — cross-OS (Linux/macOS/Windows) via Deno runtime APIs, no du/find."
+version: "2026.09.24.1"
+description: >
+  Answers "what is eating my disk space?" for any local path. It walks the
+  whole tree, classifies every file by content type, and reports semantic
+  findings — not just a total.
+
+  WHAT IT DOES
+
+    Recursively measures disk usage under a path and tells you what is taking
+    the space. Unlike `df`, which only reports per-mount free space, it walks
+    the entire tree, classifies each file (video, audio, audiobooks, ebooks,
+    docker, VM images, parquet, databases, archives, code, node_modules, …),
+    and produces grouped findings such as "Docker: 3 storage dirs, 12 GiB" or
+    "Books (audiobooks + ebooks): 22570 files, 27.7 GiB". There is no depth or
+    top-N setting — output adapts to what it finds, so one command covers both
+    a shallow video hoard and a deep `node_modules` nest. It is cross-platform
+    (Deno runtime APIs only, no `du`/`find`/PowerShell), iterative rather than
+    recursive so millions of files do not overflow the stack, and errors on
+    unreadable paths are collected rather than aborting the walk.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/disk-auditor
+
+  DEPENDENCIES
+
+    None — it uses only Deno runtime APIs and the bundled deno binary that
+    swamp already ships. No services, credentials, or network access.
+
+  RUN
+
+      # Create a model for the path you want to audit.
+      swamp model create @svendowideit/disk-auditor home-disk \
+        --global-arg path=/home
+
+      # The path may also be passed at run time, with no model definition.
+      swamp model @svendowideit/disk-auditor method run audit home-disk \
+        --input path=/home
+
+      # Read the structured JSON result of the last run for scripting.
+      swamp data get home-disk current --json
+
+  CONFIGURE
+
+    Set the `path` global argument when creating the model (required). The
+    `audit` method takes optional `--input` overrides: `excludePatterns`
+    (array, default `[".git", ".swamp"]`), `followSymlinks` (boolean, default
+    false), and `minNotableBytes` (integer, default 1048576).
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, cron triggers, or webhooks. It
+    only reads the local filesystem under the configured `path` and writes an
+    `audit` resource.
 
 repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
 
 paths:
   base: manifest
@@ -17,5 +71,7 @@ reports:
 additionalFiles:
   - README.md
   - LICENSE.txt
+  - disk_auditor_test.ts
+  - disk_audit_report_test.ts
 
 platforms: []

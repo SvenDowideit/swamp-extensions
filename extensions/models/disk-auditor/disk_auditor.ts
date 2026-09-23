@@ -212,6 +212,18 @@ const DOCKER_DIR_NAMES = new Set([
   "diff",
 ]);
 
+/**
+ * Match a path inside Docker's storage layout.
+ *
+ * A file under `<...>/docker/<storage>/...` (or the storage dir directly) is
+ * image/container data. Matched on path components so a file merely named
+ * `docker` or `image` elsewhere is not misclassified, and anchored to the
+ * storage dir names rather than the bare word `docker` so a user's
+ * `docker-compose.yml` in an unrelated directory stays `other`.
+ */
+const DOCKER_STORAGE_PATH =
+  /(?:^|[\\/])docker[\\/](?:overlay2|aufs|devicemapper|containers|volumes|image|buildkit|snapshots)[\\/]/;
+
 /** Audiobook path keywords. */
 const AUDIOBOOK_PATH_KEYWORDS = [
   "audiobook",
@@ -237,6 +249,11 @@ function fileExtension(name: string): string {
 function classifyFile(ext: string, fullPath: string): Category {
   // Extension-based first
   let cat: Category = EXT_CATEGORY[ext] ?? "other";
+
+  // Docker image/container storage is recognised by path, not extension, so a
+  // blob with no useful extension under docker's storage layout is still
+  // attributed to docker rather than "other".
+  if (DOCKER_STORAGE_PATH.test(fullPath)) return "docker";
 
   // Path-based refinement: if m4a/m4b/aax is under an audiobook path → audiobook,
   // if under a music path → audio. If mp3 is under audiobook path → audiobook.
@@ -1025,17 +1042,25 @@ function buildFindings(
     });
   }
 
-  // 3. Docker images — group docker-category dirs/files
+  // 3. Docker images — group docker-category data
   const dockerBytes =
     categories.find((c) => c.category === "docker")?.totalBytes ?? 0;
-  const dockerDirs = notableDirs.filter((d) => d.dominantCategory === "docker");
+  // Count real storage dirs (overlay2, containers, volumes, …) rather than the
+  // `docker` root or an ancestor that inherited the category, so the count is
+  // meaningful.
+  const dockerDirs = notableDirs.filter(
+    (d) =>
+      d.dominantCategory === "docker" &&
+      DOCKER_DIR_NAMES.has(d.name) &&
+      d.name !== "docker",
+  );
   if (dockerBytes > 0 || dockerDirs.length > 0) {
     const dockerCount = dockerDirs.length || 1;
     findings.push({
       kind: "docker",
-      title: `Docker: ${dockerCount} image${dockerCount > 1 ? "s" : ""}, ${
-        humanSize(dockerBytes)
-      }`,
+      title: `Docker: ${dockerCount} storage dir${
+        dockerCount > 1 ? "s" : ""
+      }, ${humanSize(dockerBytes)}`,
       category: "docker",
       totalBytes: dockerBytes,
       count: dockerCount,
@@ -1111,8 +1136,16 @@ function buildFindings(
 /** Model definition for auditing local disk usage. */
 export const model = {
   type: "@svendowideit/disk-auditor",
-  version: "2026.07.17.1",
+  version: "2026.09.24.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.24.1",
+      description:
+        "Documentation only: expanded the manifest description into the full user manual and restructured the README to the canonical sections. Global arguments and method arguments are unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     audit: {
       description: "Disk usage audit for a path",
@@ -1174,7 +1207,15 @@ export const model = {
         const expanded = rawPath.startsWith("~")
           ? resolvePath(Deno.env.get("HOME") ?? "~", rawPath.slice(1))
           : resolvePath(rawPath);
-        const root = Deno.realPathSync(expanded);
+        let root: string;
+        try {
+          root = Deno.realPathSync(expanded);
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : String(err);
+          throw new Error(
+            `Path does not exist or is not accessible: ${expanded} (${detail})`,
+          );
+        }
         logger?.info("Auditing disk usage under {root}", { root });
 
         const result = await auditDisk({

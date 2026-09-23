@@ -1,7 +1,7 @@
 import { assertEquals, assertExists } from "jsr:@std/assert@1";
 import { dirname, join } from "jsr:@std/path@1";
 
-import { auditDisk, humanSize } from "./disk_auditor.ts";
+import { auditDisk, humanSize, model } from "./disk_auditor.ts";
 
 async function makeTree(
   root: string,
@@ -82,7 +82,9 @@ Deno.test("auditDisk combines audiobooks and ebooks into books finding", async (
       followSymlinks: false,
       minNotableBytes: 1,
     });
-    const audiobookCat = result.categories.find((c) => c.category === "audiobook");
+    const audiobookCat = result.categories.find((c) =>
+      c.category === "audiobook"
+    );
     assertExists(audiobookCat);
     assertEquals(audiobookCat.totalBytes, 8000);
 
@@ -91,7 +93,9 @@ Deno.test("auditDisk combines audiobooks and ebooks into books finding", async (
     assertEquals(ebookCat.totalBytes, 3000);
 
     // Combined books finding
-    const booksFinding = result.findings.find((f) => f.kind === "books-combined");
+    const booksFinding = result.findings.find((f) =>
+      f.kind === "books-combined"
+    );
     assertExists(booksFinding);
     assertEquals(booksFinding.count, 4);
     assertEquals(booksFinding.totalBytes, 11000);
@@ -117,9 +121,60 @@ Deno.test("auditDisk detects docker directories by name", async () => {
     const dockerDir = result.notableDirs.find((d) => d.name === "docker");
     assertExists(dockerDir);
     assertEquals(dockerDir.dominantCategory, "docker");
-    // Docker finding should exist
+    // Docker finding should exist AND carry the real bytes, not 0 — docker
+    // storage files are classified by path, not extension.
     const dockerFinding = result.findings.find((f) => f.kind === "docker");
     assertExists(dockerFinding);
+    assertEquals(dockerFinding.totalBytes, 6000);
+    assertEquals(
+      result.categories.find((c) => c.category === "docker")?.totalBytes,
+      6000,
+    );
+  } finally {
+    await Deno.remove(tmp, { recursive: true });
+  }
+});
+
+Deno.test("auditDisk reports docker storage bytes in a realistic layout", async () => {
+  const tmp = await Deno.makeTempDir();
+  try {
+    await makeTree(tmp, {
+      "var/lib/docker/overlay2/layer1/blob.bin": "x".repeat(5000),
+      "var/lib/docker/volumes/v1/v.bin": "y".repeat(2000),
+      "unrelated.bin": "z".repeat(100),
+    });
+    const result = await auditDisk({
+      root: tmp,
+      excludePatterns: [],
+      followSymlinks: false,
+      minNotableBytes: 1,
+    });
+    const finding = result.findings.find((f) => f.kind === "docker");
+    assertExists(finding);
+    assertEquals(finding.totalBytes, 7000);
+    // The count is storage dirs (overlay2, volumes), not their ancestors.
+    assertEquals(finding.count, 2);
+  } finally {
+    await Deno.remove(tmp, { recursive: true });
+  }
+});
+
+Deno.test("auditDisk does not misclassify a stray docker-named file", async () => {
+  const tmp = await Deno.makeTempDir();
+  try {
+    await makeTree(tmp, {
+      "notes/docker-compose.yml": "x".repeat(5000),
+    });
+    const result = await auditDisk({
+      root: tmp,
+      excludePatterns: [],
+      followSymlinks: false,
+      minNotableBytes: 1,
+    });
+    assertEquals(
+      result.categories.find((c) => c.category === "docker"),
+      undefined,
+    );
   } finally {
     await Deno.remove(tmp, { recursive: true });
   }
@@ -259,9 +314,59 @@ Deno.test("humanSize formats bytes with binary suffixes", () => {
   assertEquals(humanSize(1048576), "1.0 MiB");
   assertEquals(humanSize(1073741824), "1.0 GiB");
   assertEquals(humanSize(1099511627776), "1.0 TiB");
-  assertEquals(humanSize(1024 * 1024 * 1024 * 42 + 512 * 1024 * 1024), "42.5 GiB");
+  assertEquals(
+    humanSize(1024 * 1024 * 1024 * 42 + 512 * 1024 * 1024),
+    "42.5 GiB",
+  );
 });
 
 Deno.test("humanSize handles negative as zero", () => {
   assertEquals(humanSize(-1), "0 B");
+});
+
+Deno.test("model audit rejects a nonexistent path with a clear message", async () => {
+  let threw: Error | null = null;
+  try {
+    await model.methods.audit.execute(
+      {
+        excludePatterns: [],
+        followSymlinks: false,
+        minNotableBytes: 1024,
+      } as Parameters<typeof model.methods.audit.execute>[0],
+      {
+        globalArgs: { path: "/nonexistent/xyz-123" },
+        logger: { info: () => {} },
+        writeResource: () => Promise.resolve({ name: "current" }),
+      } as unknown as Parameters<typeof model.methods.audit.execute>[1],
+    );
+  } catch (e) {
+    threw = e as Error;
+  }
+  assertExists(threw);
+  assertEquals(
+    threw!.message.includes("does not exist or is not accessible"),
+    true,
+  );
+});
+
+Deno.test("model audit requires a path", async () => {
+  let threw: Error | null = null;
+  try {
+    await model.methods.audit.execute(
+      {
+        excludePatterns: [],
+        followSymlinks: false,
+        minNotableBytes: 1024,
+      } as Parameters<typeof model.methods.audit.execute>[0],
+      {
+        globalArgs: { path: "" },
+        logger: { info: () => {} },
+        writeResource: () => Promise.resolve({ name: "current" }),
+      } as unknown as Parameters<typeof model.methods.audit.execute>[1],
+    );
+  } catch (e) {
+    threw = e as Error;
+  }
+  assertExists(threw);
+  assertEquals(threw!.message.includes("Missing required input: path"), true);
 });

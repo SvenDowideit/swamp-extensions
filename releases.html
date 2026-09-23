@@ -7291,7 +7291,445 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.015247.0-sha.c228ef72" rel="noopener">release v20260902.015247.0-sha.c228ef72</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c228ef722408b54501e67b044bd23c2475ad4c0c" rel="noopener">c228ef72</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2345" rel="noopener">#2345</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260923-175541-0-sha-1da85ec8">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260923-213824-0-sha-edd0e85e">
+<h2><span class="tier C">C</span>swamp 20260923.213824.0-sha.edd0e85e</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T21:40:03Z">2026-09-23T21:40:03Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>docs(design): use a valid CalVer typeVersion in the inputs example (swamp-club#2444) (#2591)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The swamp-side part of swamp-club#2444. The manual pages the issue names live in swamp-club and are handled there separately.</p>
+<p>The model example in <code>design/enablers/inputs.md</code> recorded <code>typeVersion: 1</code>. Since swamp-club#2412 a <code>typeVersion</code> that is not CalVer is malformed: a method run against the definition fails with <code>malformed_type_version</code>, and <code>swamp model validate</code> reports a failed <code>Type version</code> item. The example now records <code>2026.02.09.1</code>.</p>
+<p>A sweep of <code>design/</code>, <code>contributing/</code> and <code>.claude/skills/</code> on main found no other stale <code>typeVersion</code> guidance. The skill&#39;s <code>upgrades.md</code> and the design doc&#39;s Absent, Present and Malformed section were already updated in #2584 and #2577.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Docs-only, one-line change.</li>
+<li>verify-build, verify-reviews and verify-skills passed on 96ce3dfa (8/8, 5 guarded skips); attestation e0047ebc posted.</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260923.213824.0-sha.edd0e85e/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260923.213824.0-sha.edd0e85e/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260923.213824.0-sha.edd0e85e/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260923.213824.0-sha.edd0e85e/swamp-darwin-x86_64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p>**Linux (x8</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.213824.0-sha.edd0e85e" rel="noopener">release v20260923.213824.0-sha.edd0e85e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/edd0e85e" rel="noopener">edd0e85e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2591" rel="noopener">#2591</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2584" rel="noopener">#2584</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2577" rel="noopener">#2577</a>𝗔 <a href="https://swamp-club.com/lab/2412" rel="noopener">lab#2412</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-213015-0-sha-80a44e55">
+<h2><span class="tier C">C</span>swamp 20260923.213015.0-sha.80a44e55</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T21:31:56Z">2026-09-23T21:31:56Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): run syncs take the sync gate so a poller pull cannot prune their index entries (swamp-club#2405) (#2588)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2405. On a serve with an S3 datastore, a runtime data poller pull could overlap a workflow run&#39;s push, prune the index entries that push had just committed, and CAS-write the pruned shard. The objects stayed in S3, but the index stopped listing them, so <code>data get</code> reported &quot;Data not found&quot;.</p>
+<p>The sync gate from swamp-club#2247 serialized poller pulls against handler mutations, but every run path pushed outside it: the per-step model-lock flush, and the post-run and post-resume pushes. The fitness test missed this because it only matched literal <code>pushChanged</code> calls, and the step pushes go through <code>acquireModelLocks</code>&#39; flush.</p>
+<ul>
+<li><strong>Read/write gate.</strong> The sync gate is now a FIFO read/write lock (<code>ReadWriteLock</code>, next to <code>Semaphore</code>). Handler mutation units and poller pulls hold it exclusively. Run push units and step-start pulls hold it shared (<code>withSharedSyncGate</code>), so they exclude pulls but keep uploading in parallel with each other.</li>
+<li><strong><code>acquireModelLocks</code> gets a <code>wrapSync</code> hook.</strong> It wraps only the sync calls, never the model-lock wait. <code>createStepLockHook</code>, <code>executeWorkflowWithLocks</code> and <code>WebhookService</code> take the gate as a <strong>required</strong> parameter, so the compiler catches a forgotten one, including the scheduler call site outside <code>src/serve</code>.</li>
+<li><strong>Pollers never make runs wait.</strong> A poller takes the gate only when it</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.213015.0-sha.80a44e55" rel="noopener">release v20260923.213015.0-sha.80a44e55</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/80a44e55" rel="noopener">80a44e55</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2588" rel="noopener">#2588</a>𝗔 <a href="https://swamp-club.com/lab/2247" rel="noopener">lab#2247</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-212700-0-sha-853cf43c">
+<h2><span class="tier C">C</span>swamp 20260923.212700.0-sha.853cf43c</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T21:28:35Z">2026-09-23T21:28:35Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(vaults): only suggest vault create for names it accepts (swamp-club#2442) (#2590)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2442. When a vault was missing and no vaults were configured, <code>vault read-secret</code>, <code>list-keys</code>, <code>put</code> and <code>delete</code> told the user to run <code>swamp vault create &lt;type&gt; &lt;name&gt;</code> with the name they typed, even when <code>vault create</code> rejects that name. The advice then failed with <code>Invalid vault name</code>. The most visible case was the reserved control-plane vault <code>_token-secrets</code>. <code>VaultService.requireProvider</code> had the same flaw in both of its not-found branches.</p>
+<ul>
+<li><strong>Shared name rule.</strong> The vault-name rule moves out of the create generator into <code>src/domain/vaults/vault_name.ts</code>. <code>vault create</code> and every not-found hint now use the same check, and the <code>vault create</code> error text is unchanged.</li>
+<li><strong>Reserved names.</strong> Names starting with <code>_</code> are explained as reserved for swamp&#39;s internal vaults. For <code>_token-secrets</code> the message points to <code>swamp access token reveal &lt;name&gt;</code>. This applies whether or not other vaults are configured, matching what <code>requireProvider</code> already did for <code>_token-secrets</code>.</li>
+<li><strong>Other invalid names</strong> (e.g. <code>MyVault</code>) get the naming rule and the placeholder <code>swamp vault create &lt;type&gt; &lt;name&gt;</code>.</li>
+<li><strong>Valid names</strong> keep the existing suggestion.</li>
+<li><strong>Docs.</strong> The vault troubleshooting reference in the swamp skill gains a &quot;reserved <code>_</code> names&quot; cause under &quot;Vault not found&quot;.</li>
+</ul>
+<p>Before:</p>
+<p>```</p>
+<p>$ swamp vault read-secret _token-secrets k</p>
+<p>Error: Vault not found: &#39;_</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.212700.0-sha.853cf43c" rel="noopener">release v20260923.212700.0-sha.853cf43c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/853cf43c" rel="noopener">853cf43c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2590" rel="noopener">#2590</a>𝗔 <a href="https://swamp-club.com/lab/2442" rel="noopener">lab#2442</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-212020-0-sha-01690c72">
+<h2><span class="tier C">C</span>swamp 20260923.212020.0-sha.01690c72</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T21:21:35Z">2026-09-23T21:21:35Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): keep serve URL credentials out of .swamp.yaml and CLI output (swamp-club#2448, swamp-club#2449) (#2589)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2448 and swamp-club#2449.</p>
+<p><code>swamp repo init --server &lt;url&gt;</code> wrote the URL into <code>.swamp.yaml</code> exactly as</p>
+<p>given. If the URL had a username and password before the host, a token query</p>
+<p>parameter or a fragment, the credential ended up in a file that is usually</p>
+<p>committed. The CLI never used those parts: remote commands connect through</p>
+<p><code>toWebSocketUrl</code>, which rebuilds the URL from scheme, host, port and path. The</p>
+<p>token only comes from <code>--token</code>, <code>SWAMP_SERVER_TOKEN</code>, <code>SWAMP_SERVER_TOKEN_FILE</code></p>
+<p>or <code>servers.json</code>. So storing the credential did nothing except leak it.</p>
+<ul>
+<li><strong><code>repo init --server</code> refuses a credential-bearing URL.</strong> The new domain</li>
+</ul>
+<p>  check <code>assertStorableServerAddress</code> (<code>src/domain/repo/server_address.ts</code>)</p>
+<p>  refuses a URL with a userinfo part, a query string or a fragment. It also</p>
+<p>  refuses a URL that isn&#39;t http, https, ws or wss with a host. The check runs</p>
+<p>  first in <code>RepoService.init</code>, so a refused init leaves the directory untouched</p>
+<p>  and a refused <code>--force</code> leaves the existing marker as it was. The error shows</p>
+<p>  the URL only through <code>redactServerUrl</code>, never repeats an unparseable value,</p>
+<p>  and points to <code>--token</code>, <code>SWAMP_SERVER_TOKEN</code> and <code>swamp auth server-login</code>.</p>
+<ul>
+<li><strong><code>auth whoami</code> no longer prints the credential (swamp-club#2449).</strong> The</li>
+</ul>
+<p>  <code>Serve:</code> line and the JSON <code>effectiveServeUrl</code> field printed the effec</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.212020.0-sha.01690c72" rel="noopener">release v20260923.212020.0-sha.01690c72</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/01690c72" rel="noopener">01690c72</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2589" rel="noopener">#2589</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-211049-0-sha-00469925">
+<h2><span class="tier C">C</span>swamp 20260923.211049.0-sha.00469925</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T21:12:22Z">2026-09-23T21:12:22Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): skip unknown OAuth usernames at startup, add serve check-config (swamp-club#2438, swamp-club#2440) (#2587)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>One unknown username in <code>auth.admins</code> or <code>auth.allowed-users</code> stopped</p>
+<p><code>swamp serve --auth-mode oauth</code> at startup, and under Kubernetes it crash-looped.</p>
+<p>Closes swamp-club#2438 and swamp-club#2440.</p>
+<p><strong>Startup (swamp-club#2438)</strong></p>
+<ul>
+<li>A username the provider reports as not found (HTTP 404) is skipped with an</li>
+</ul>
+<p>  ERROR log, and serve starts with the rest.</p>
+<ul>
+<li>Any other lookup error (5xx, timeout, network) still aborts startup. Dropping</li>
+</ul>
+<p>  an existing admin would make <code>materializeAdmins</code> revoke their grant, so a</p>
+<p>  provider outage must never shrink the list.</p>
+<ul>
+<li>Serve refuses to start if no admin resolves, or if every allowed-user is</li>
+</ul>
+<p>  skipped and no collectives are set. <code>checkAdmission</code> admits everyone when both</p>
+<p>  lists are empty.</p>
+<ul>
+<li>A skipped name is recorded and stays skipped across restarts and edits to</li>
+</ul>
+<p>  other entries. It is never looked up again on its own, so someone who</p>
+<p>  registers a typo&#39;d admin name cannot become an admin. Removing the name drops</p>
+<p>  its record, and adding it back looks it up fresh.</p>
+<ul>
+<li>A name that resolved before keeps its cached subject (with a WARN) if the</li>
+</ul>
+<p>  provider later returns 404, so one bad answer cannot revoke a grant.</p>
+<p>The resolution logic moves out of the serve action into</p>
+<p><code>src/serve/oauth_access_list_resolution.ts</code>, with the lookup injected.</p>
+<p><code>resolveUsername</code> throws a typed <code>UsernameNotFoundError</code> on 404.</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.211049.0-sha.00469925" rel="noopener">release v20260923.211049.0-sha.00469925</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/00469925" rel="noopener">00469925</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2587" rel="noopener">#2587</a>𝗔 <a href="https://swamp-club.com/lab/2438" rel="noopener">lab#2438</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-205006-0-sha-acbfdbfa">
+<h2><span class="tier C">C</span>swamp 20260923.205006.0-sha.acbfdbfa</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T20:51:26Z">2026-09-23T20:51:26Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(access): surface control-plane vault init failures instead of swallowing them (swamp-club#2437) (#2586)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2437. When the <code>_token-secrets</code> control-plane vault could not</p>
+<p>initialize (bad or expired datastore credentials, an unreachable bucket, a</p>
+<p>damaged local key), swamp logged a warning and carried on:</p>
+<ul>
+<li><code>swamp access token reveal</code> reported <code>Vault &#39;_token-secrets&#39; not found</code> and</li>
+</ul>
+<p>  told the user to run <code>swamp vault create &lt;type&gt; _token-secrets</code>. That is the</p>
+<p>  wrong cause and a fix that cannot work.</p>
+<ul>
+<li><code>access token mint</code>, <code>rotate</code> and <code>worker token create</code> quietly fell back to a</li>
+</ul>
+<p>  user vault. Serve only reads token secrets from <code>_token-secrets</code>, so those</p>
+<p>  tokens never authenticate.</p>
+<p>Now all four commands fail with the real cause and a next step, matching serve,</p>
+<p>which already refuses to boot on the same failure:</p>
+<p>```</p>
+<p>Error: Failed to initialize the _token-secrets control-plane vault (remote datastore): S3 headBucket failed HTTP 403 (check AWS credentials — …)</p>
+<p>Check the datastore credentials and endpoint, then rerun.</p>
+<p>```</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong><code>initializeControlPlaneVault</code></strong> (<code>src/domain/vaults/control_plane_vault_init.ts</code>)</li>
+</ul>
+<p>  either registers the vault or throws a <code>UserError</code> naming the vault, whether</p>
+<p>  the control plane is remote or local, the cause, and a hint. The original</p>
+<p>  error is logged at debug level. A failed init never replaces an</p>
+<p>  already-registered provider.</p>
+<ul>
+<li><strong><code>initializeControlPlaneVaultForCli</code></strong> (`src/cli/control_pl</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.205006.0-sha.acbfdbfa" rel="noopener">release v20260923.205006.0-sha.acbfdbfa</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acbfdbfa" rel="noopener">acbfdbfa</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2586" rel="noopener">#2586</a>𝗔 <a href="https://swamp-club.com/lab/2437" rel="noopener">lab#2437</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-204211-0-sha-403e2114">
+<h2><span class="tier C">C</span>swamp 20260923.204211.0-sha.403e2114</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T20:43:51Z">2026-09-23T20:43:51Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): hide credentials in the --server URL in CLI output (swamp-club#2428) (#2585)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2428. Every <code>--server</code> command writes a <code>Remote &lt;url&gt;</code> line to stderr, and it printed the URL unchanged. serve accepts a token as a <code>?token=</code> query parameter, so <code>--server &#39;http://host:9000/?token=…&#39;</code> put the token on stderr, where it ends up in CI logs, scrollback and screen shares. The same happened with <code>user:pass@</code> userinfo.</p>
+<p>Before:</p>
+<p>```</p>
+<p>     Remote   <a href="http://alice:hunter2@127.0.0.1:59999/?token=FAKE.secretvalue#frag" rel="noopener">http://alice:hunter2@127.0.0.1:59999/?token=FAKE.secretvalue#frag</a></p>
+<p>```</p>
+<p>After:</p>
+<p>```</p>
+<p>     Remote   <a href="http://127.0.0.1:59999" rel="noopener">http://127.0.0.1:59999</a></p>
+<p>```</p>
+<h4 class="body-h">What changed</h4>
+<ul>
+<li><strong><code>redactServerUrl</code></strong> in <code>src/domain/auth/server_url.ts</code>, next to <code>normalizeServerUrl</code>. It keeps the scheme, host, port and path as given, and drops the userinfo, query string and fragment. For input that does not parse as a URL with a host it returns <code>undefined</code>, so callers never fall back to printing the raw value.</li>
+<li><strong>It is used everywhere the CLI names the server in output:</strong></li>
+<li>the Remote line (<code>writeRemoteIndicator</code>), which covers every <code>--server</code> command</li>
+<li>the <code>Invalid --server URL</code> errors in <code>toWebSocketUrl</code> and <code>auth server-login</code></li>
+<li>the <code>Could not connect</code> error in <code>workflow cancel</code></li>
+<li>the per-input-set <code>via &lt;server&gt;</code> lines in <code>workflow run</code> and <code>model method run</code></li>
+<li>the wrong-scheme error in <code>worker connect</code></li>
+<li><strong><code>workflow cancel --server</code></strong> now builds its request URL from the normalized server URL instead of adding a path to the</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.204211.0-sha.403e2114" rel="noopener">release v20260923.204211.0-sha.403e2114</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/403e2114" rel="noopener">403e2114</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2585" rel="noopener">#2585</a>𝗔 <a href="https://swamp-club.com/lab/2428" rel="noopener">lab#2428</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-203315-0-sha-4ae1cfd9">
+<h2><span class="tier C">C</span>swamp 20260923.203315.0-sha.4ae1cfd9</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T20:34:52Z">2026-09-23T20:34:52Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(workflows): retry the failed steps of a failed run with resume --run (swamp-club#2409) (#2582)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Implements swamp-club#2409. <code>swamp workflow resume &lt;workflow&gt; --run &lt;id&gt;</code> on a <strong>failed</strong> run now retries its failed steps without <code>--from</code>. Every failed step and everything downstream of it runs again in the same run (same id and <code>startedAt</code>), and independent steps that succeeded keep their results. A failed run prints the command:</p>
+<p>```</p>
+<p>To retry failed steps:  swamp workflow resume retry-demo --run 23114abb-… --repo-dir .</p>
+<p>```</p>
+<p>This is the first durable-execution step from the issue. It reuses the existing <code>--from</code> reset and resume executor, and adds no new run type, repository, checkpoint format or execution engine.</p>
+<h4 class="body-h">Changes</h4>
+<p><strong>Domain</strong></p>
+<ul>
+<li><code>WorkflowRun.failedSteps()</code> lists failed steps that were not allowed to fail, with their job, <code>forEachTemplate</code>, and whether the step is a rejected approval.</li>
+<li><code>selectRetryTemplates()</code> (new <code>failed_step_retry.ts</code>) returns the distinct entry templates, or refuses the retry and names the job or step plus <code>swamp workflow history logs &lt;id&gt;</code>. It refuses when:</li>
+<li>a failed step is a rejected approval (suggests <code>--from &lt;gate&gt;</code>);</li>
+<li>any step or job is unfinished (a pending step suggests <code>--from &lt;step&gt;</code>);</li>
+<li>a failed job has no failed step;</li>
+<li>a failed step is no longer a step of its job (suggests only a new run, because <code>--from</code> fails on a renamed step and skips a moved one);</li>
+<li>step names repeat across jobs o</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.203315.0-sha.4ae1cfd9" rel="noopener">release v20260923.203315.0-sha.4ae1cfd9</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4ae1cfd9" rel="noopener">4ae1cfd9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2582" rel="noopener">#2582</a>𝗔 <a href="https://swamp-club.com/lab/2409" rel="noopener">lab#2409</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-202222-0-sha-155e8fdc">
+<h2><span class="tier C">C</span>swamp 20260923.202222.0-sha.155e8fdc</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T20:24:04Z">2026-09-23T20:24:04Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(models): stop applying the upgrade chain to unstamped definitions (swamp-club#2412) (#2584)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2412.</p>
+<p><code>DefinitionUpgradeService</code> read an absent <code>typeVersion</code> as &quot;predates every upgrade, apply the whole chain&quot;. For a definition whose global arguments are already in the shape the current version expects — a hand-written file under <code>models/</code>, which is git-tracked source — that transforms them a second time and corrupts them.</p>
+<p>Reproduced against <code>1da85ec8</code> before writing the fix: a definition recording <code>fields: [name, path, digest]</code>, against a chain whose one upgrade appends <code>digest</code>, comes out as <code>[name, path, digest, digest]</code>, and <code>executeWorkflow</code> persists that back to the file.</p>
+<p>swamp-club#900 removed the persistence restamp that had been masking this, so the case is now reachable. Absence cannot distinguish the two populations, so it stops being read as a version at all.</p>
+<h4 class="body-h">The rule</h4>
+<p><code>typeVersion</code> gets three readings, deliberately not collapsed into each other:</p>
+<p>| Value | Behaviour |</p>
+<p>| --- | --- |</p>
+<p>| absent | The chain does not run and nothing is stamped. A method run warns when the type declares a chain, so the skip is visible. |</p>
+<p>| valid CalVer | Unchanged. |</p>
+<p>| anything else | Malformed. <code>UserError</code>, rather than a silent skip. |</p>
+<p>Someone who wrote a malformed value stated an intent and got the format wrong; ignoring what they wrote is the same defect as silently corrupting.</p>
+<p>The rule now appears at three layers with three</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.202222.0-sha.155e8fdc" rel="noopener">release v20260923.202222.0-sha.155e8fdc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/155e8fdc" rel="noopener">155e8fdc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2584" rel="noopener">#2584</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/203" rel="noopener">#203</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/230" rel="noopener">#230</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2444" rel="noopener">#2444</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/416" rel="noopener">#416</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/417" rel="noopener">#417</a>𝗔 <a href="https://swamp-club.com/lab/2412" rel="noopener">lab#2412</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-201818-0-sha-b95cb3c7">
+<h2><span class="tier C">C</span>swamp 20260923.201818.0-sha.b95cb3c7</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T20:19:51Z">2026-09-23T20:19:51Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): carry vault annotate labels as a key-value map over --server (swamp-club#2425) (#2583)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2425. <code>swamp vault annotate &lt;vault&gt; &lt;key&gt; --label k=v --server &lt;url&gt;</code> failed with:</p>
+<p>```</p>
+<p>invalid_request: payload.labels: expected array, received object</p>
+<p>```</p>
+<p>The CLI sent labels as a map (<code>{ &quot;team&quot;: &quot;infra&quot; }</code>). The <code>vault.annotate</code> wire contract declared <code>labels: string[]</code>, and its zod schema enforced that. The server handler then turned each array entry into a label with an <strong>empty value</strong>, so even a request the schema accepted lost every value (<code>[&quot;team=infra&quot;]</code> was stored as <code>&quot;team=infra&quot;: &quot;&quot;</code>). Every other layer already uses a map: the <code>VaultAnnotation</code> value object, libswamp&#39;s <code>VaultAnnotateInput</code>, and the sibling <code>VaultPutPayload</code>. This contract was the only exception. The mismatch has existed since <code>--server</code> support was added to this command (#1717), so labels over <code>--server</code> never worked.</p>
+<p><strong>What changed</strong></p>
+<ul>
+<li><code>VaultAnnotatePayload.labels</code> is now <code>Record&lt;string, string&gt;</code> in both <code>src/serve/protocol.ts</code> and <code>packages/client/protocol.ts</code>.</li>
+<li><code>VaultAnnotateRequestSchema</code> validates it with <code>z.record(z.string().min(1), z.string())</code>, the same validator <code>vault.put</code> uses. <code>handleVaultAnnotate</code> passes it through unchanged.</li>
+<li>The CLI&#39;s <code>--server</code> payload is pinned with <code>satisfies VaultAnnotatePayload</code>. <code>requestServerResponse</code> types payloads as <code>unknown</code>, which is how this mismatch compiled.</li>
+<li>Flag parsing and the <code>--clear</code> / no-fie</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.201818.0-sha.b95cb3c7" rel="noopener">release v20260923.201818.0-sha.b95cb3c7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b95cb3c7" rel="noopener">b95cb3c7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2583" rel="noopener">#2583</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1717" rel="noopener">#1717</a>𝗔 <a href="https://swamp-club.com/lab/2425" rel="noopener">lab#2425</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-191817-0-sha-4c426154">
+<h2><span class="tier C">C</span>swamp 20260923.191817.0-sha.4c426154</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T19:19:59Z">2026-09-23T19:19:59Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>docs(design): rewrite design docs in plain English (swamp-club#2423) (#2579)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Rewrites all 25 docs under <code>design/</code> in plain English and removes AI-isms. Closes swamp-club#2423.</p>
+<p>The docs were written in a dense, clause-stacked style: long sentences with em-dash asides, source paths in the middle of sentences, metaphors (&quot;dials home&quot;, &quot;owns the durable world&quot;), rationale repeated across sections, and stock phrasing (&quot;deliberately&quot;, &quot;first-class&quot;, &quot;load-bearing&quot;, &quot;This is deliberate.&quot;).</p>
+<p><strong>What changed</strong></p>
+<ul>
+<li>Long sentences split; em-dash asides and nested parentheticals removed</li>
+<li>Metaphor replaced with literal wording</li>
+<li>Source-path citations moved to the end of sentences</li>
+<li>Each rationale stated once; long table cells shortened</li>
+<li>Intensifiers, buzzwords, colon punchlines and emphasis used only for rhythm removed</li>
+<li>A short <strong>Writing style</strong> section added to <code>design/README.md</code> so new docs stay plain</li>
+</ul>
+<p><strong>What did not change</strong></p>
+<ul>
+<li>File layout</li>
+<li>Frontmatter. <code>last-verified</code> is not bumped, because claims were not re-checked against code; this is a style edit, not an accuracy pass</li>
+<li>Every heading. About 226 links across the repo point at heading anchors</li>
+<li>Every fenced code block</li>
+<li>Every backticked identifier and every link</li>
+</ul>
+<p>| Measure (prose only) | Before | After |</p>
+<p>| --- | --- | --- |</p>
+<p>| Words (whole docs) | 84,857 | 77,707 |</p>
+<p>| Em-dashes | 898 | 2 |</p>
+<p>| Sentences over 35 words | 212 | 0 |</p>
+<p>| Intensifiers | 123 | 10 |</p>
+<p>| Buzzwords | 33 | 0 |</p>
+<p>The word count only</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.191817.0-sha.4c426154" rel="noopener">release v20260923.191817.0-sha.4c426154</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4c426154" rel="noopener">4c426154</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2579" rel="noopener">#2579</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-184131-0-sha-89746641">
+<h2><span class="tier C">C</span>swamp 20260923.184131.0-sha.89746641</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T18:43:08Z">2026-09-23T18:43:08Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): decide colour before Cliffy parses, and honour a piped stdout (swamp-club#2414) (#2581)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp --version | cat</code> wrote bold and bright-blue escapes into whatever captured</p>
+<p>it, and <code>--no-color</code> did nothing about it. Only <code>NO_COLOR</code> worked, and only by</p>
+<p>accident — the colours module reads that variable itself, without the CLI&#39;s</p>
+<p>involvement.</p>
+<p>The version flag is a Cliffy standalone option, answered while arguments are</p>
+<p>parsed. Every colour decision lived in <code>.globalAction()</code>, which that path exits</p>
+<p>before reaching, so the code that reads <code>--no-color</code> never ran for the one</p>
+<p>command whose output a caller is most likely to capture.</p>
+<p><code>scripts/build_attestation.ts</code> recorded the escapes as</p>
+<p><code>environment.swampVersion</code> in the verification attestation, a document CI parses.</p>
+<p>Colour is now decided once, at the top of <code>runCli</code>, as soon as the arguments are</p>
+<p>final: <code>applyColorPolicy</code> in <code>src/cli/context.ts</code> reads the flag, the environment</p>
+<p>and whether stdout is a terminal, then disables colour before Cliffy exists.</p>
+<p>That covers everything Cliffy prints without reaching the action — the version</p>
+<p>option, help, and its own parse errors — and adds the second half of the report:</p>
+<p>a non-terminal stdout turns colour off on its own.</p>
+<p>Three things worth a reviewer&#39;s attention:</p>
+<ul>
+<li><strong>The policy only ever disables.</strong> <code>@std/fmt</code> applies <code>NO_COLOR</code> when it loads</li>
+</ul>
+<p>  and refuses to re-enable afterwards, so calling the switch with <code>true</code> would</p>
+<p>  override a disable this code did</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.184131.0-sha.89746641" rel="noopener">release v20260923.184131.0-sha.89746641</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/89746641" rel="noopener">89746641</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2581" rel="noopener">#2581</a>𝗔 <a href="https://swamp-club.com/lab/2414" rel="noopener">lab#2414</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-183207-0-sha-3c1062bb">
+<h2><span class="tier C">C</span>swamp 20260923.183207.0-sha.3c1062bb</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T18:33:57Z">2026-09-23T18:33:57Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): stop the OAuth login mint from forcing a full-cache push (swamp-club#2408) (#2580)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes <a href="https://swamp-club.com/lab/2408" rel="noopener">swamp-club#2408</a>. A server login against</p>
+<p>a serve with a large remote datastore took up to 90 s, and most of that was the</p>
+<p>device-token poll that mints the server token.</p>
+<p><code>mintServerTokenImpl</code> called <code>syncService.markDirty()</code> with no path before</p>
+<p><code>pushChanged</code>. In the S3 and GCS datastore extensions a bare mark sets</p>
+<p><code>bulkInvalidated</code>, so the push ignored the per-path dirty set, rebuilt the index</p>
+<p>from every remote shard, and walked and hashed every cached file. All that to</p>
+<p>upload the 4 files a login writes. #2459 removed the same call from the model</p>
+<p>and workflow handlers.</p>
+<p>On a 25k-file serve cache (MinIO, <code>@swamp/s3-datastore</code>), the mint&#39;s push drops</p>
+<p>from about 5.5 s to about 0.2 s. The login round trip drops from about 6.2 s to</p>
+<p>about 0.9 s. A full-walk push forced afterwards finds nothing left to upload.</p>
+<h4 class="body-h">The race the bare mark was covering</h4>
+<p>The repositories mark a path dirty *before* they write it. Serve&#39;s post-run and</p>
+<p>post-resume pushes are ungated, so one can land between the mark and the write.</p>
+<p>It finds the path absent, reads that as a delete, and clears the mark. The mint&#39;s</p>
+<p>push then uploads nothing, and the new token is lost on the next pod restart.</p>
+<p>The full walk hid this.</p>
+<p>After both writes, the mint now re-marks the token&#39;s definition file and its</p>
+<p><code>token-main</code> data folder by path, just before `pushCha</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.183207.0-sha.3c1062bb" rel="noopener">release v20260923.183207.0-sha.3c1062bb</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3c1062bb" rel="noopener">3c1062bb</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2580" rel="noopener">#2580</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2459" rel="noopener">#2459</a>𝗔 <a href="https://swamp-club.com/lab/2408" rel="noopener">lab#2408</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-182830-0-sha-c1c46004">
+<h2><span class="tier C">C</span>swamp 20260923.182830.0-sha.c1c46004</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T18:30:10Z">2026-09-23T18:30:10Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>chore(ci): run verification and CI reviews on Claude Opus 5.5 (swamp-club#2374) (#2559)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Moves every review model pin from <code>claude-opus-4-6</code> / <code>claude-sonnet-4-6</code> to <code>claude-opus-5-5</code> (swamp-club#2374).</p>
+<ul>
+<li><strong>Local verification</strong> (<code>verification/workflow-verify-reviews.yaml</code>): code, adversarial, CI security, and UX reviews. The UX review was previously on Sonnet 4.6.</li>
+<li><strong>CI</strong> (<code>.github/workflows/ci.yml</code>): CI security review and review integrity steps.</li>
+<li><strong>Adversarial review action</strong>: <code>model</code> input default and its README.</li>
+<li><strong>Docs</strong> (<code>agent-constraints/verification-conventions.md</code>): review model table and example attestation.</li>
+<li><strong>Skill trigger evals</strong>: the promptfoo <code>opus</code> alias now targets <code>claude-opus-5-5</code>. Opus 5.5 rejects <code>temperature</code> and forced <code>tool_choice</code> with a 400, so the alias uses adaptive thinking with no forced tool choice — the same shape as the existing <code>fable</code> alias. Cost-estimate pricing corrected to $4/$20 per MTok.</li>
+</ul>
+<p>The eval <code>sonnet</code> alias (<code>claude-sonnet-4-5</code>) is intentionally unchanged as a comparison model.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Verification passed on <code>e47a6356</code> (attestation <code>7497afff</code>): lint, fmt, type-check, 12398 tests, deps audit, compile + smoke all green.</li>
+<li>Code review and CI security review both ran on <code>claude-opus-5-5</code> via <code>claude -p</code> and returned <code>VERDICT: pass</code> with 0 findings — first live runs on the new model.</li>
+<li>Skill review passed (swamp 96%, swamp-getting-started 98%).</li>
+<li>The skill trigger eval skipped the Opus run</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c46004" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-175541-0-sha-1da85ec8">
 <h2><span class="tier C">C</span>swamp 20260923.175541.0-sha.1da85ec8</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-23T17:57:10Z">2026-09-23T17:57:10Z</time></span></div>
@@ -7730,13 +8168,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260901.012545.0-sha.7d7984ad" rel="noopener">release v20260901.012545.0-sha.7d7984ad</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7d7984adc3a589df883ef460f5bc7e4d10259b13" rel="noopener">7d7984ad</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2332" rel="noopener">#2332</a>𝗔 <a href="https://swamp-club.com/lab/1925" rel="noopener">lab#1925</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>219 items across 1 source(s) in this window:
+<p>233 items across 1 source(s) in this window:
 3 critical, 199 notable, 2 routine,
-15 minor.</p>
-<ul><li><strong>fix</strong> — 151</li><li><strong>feat</strong> — 51</li><li><strong>docs</strong> — 8</li><li><strong>changes</strong> — 7</li><li><strong>perf</strong> — 2</li></ul></section>
+29 minor.</p>
+<ul><li><strong>fix</strong> — 151</li><li><strong>feat</strong> — 51</li><li><strong>changes</strong> — 21</li><li><strong>docs</strong> — 8</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-23T21:02:47.632Z">2026-09-23T21:02:47.632Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-23T22:01:48.048Z">2026-09-23T22:01:48.048Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

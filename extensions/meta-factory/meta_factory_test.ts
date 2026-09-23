@@ -229,6 +229,23 @@ Deno.test("model exposes the five documented methods", () => {
   assertEquals(typeof model.type, "string");
 });
 
+Deno.test("model has an upgrade entry for its current version", () => {
+  const upgrades = model.upgrades ?? [];
+  const entry = upgrades.find((u) => u.toVersion === model.version);
+  assertEquals(entry !== undefined, true);
+  // The upgrade seeds the two globals added in this version with their defaults.
+  const migrated = entry!.upgradeAttributes({ root: "extensions" });
+  assertEquals(migrated.definitionsRoot, ".");
+  assertEquals(migrated.auditHours, 168);
+  // It must not clobber an existing value.
+  const kept = entry!.upgradeAttributes({
+    definitionsRoot: "src",
+    auditHours: 5,
+  });
+  assertEquals(kept.definitionsRoot, "src");
+  assertEquals(kept.auditHours, 5);
+});
+
 Deno.test("report renders a score card", () => {
   const md = renderScore({
     name: "@me/tool",

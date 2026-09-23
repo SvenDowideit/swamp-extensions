@@ -553,6 +553,28 @@ function scoreInstanceName(repoDir: string, manifestPath: string): string {
 }
 
 /**
+ * Build the `score` resource body from an internal score result.
+ *
+ * The internal result carries a `lint` scratch field used while assembling the
+ * resource; it is deliberately not part of `ScoreSchema`, so it must be dropped
+ * here — the same data is written under `manifestLint`/`readmeLint`. Keeping
+ * this in one place guarantees the written object matches the schema exactly.
+ */
+function scoreResource(
+  result: ScoreResult & { lint: { manifest: unknown; readme: unknown } },
+  wellDocumented: boolean,
+): Record<string, unknown> {
+  const { lint, ...rest } = result;
+  return {
+    ...rest,
+    wellDocumented,
+    manifestLint: lint.manifest,
+    readmeLint: lint.readme,
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+/**
  * Read declared model files, extracting each model `type` and its method names.
  *
  * Returns the union of declared artifact-type strings plus per-type methods,
@@ -812,6 +834,18 @@ export const model = {
   type: "@svendowideit/meta-factory",
   version: "2026.09.23.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.23.1",
+      description:
+        'Add the definition-config lint and the audit cross-reference. Two global arguments are added with defaults: `definitionsRoot` (".") — the directory `lintDefinitions` scans — and `auditHours` (168) — how much `swamp audit` history the creation-command check consults; 0 disables it. A second report (scoreboard) and workflow are added. Existing instances are seeded with both defaults.',
+      upgradeAttributes: (old: Record<string, unknown>) => ({
+        ...old,
+        definitionsRoot: old.definitionsRoot ?? ".",
+        auditHours: old.auditHours ?? 168,
+      }),
+    },
+  ],
   resources: {
     score: {
       description: "Documentation score for a single extension manifest",
@@ -860,13 +894,7 @@ export const model = {
         const handle = await context.writeResource(
           "score",
           scoreInstanceName(context.repoDir, path),
-          {
-            ...result,
-            wellDocumented,
-            manifestLint: result.lint.manifest,
-            readmeLint: result.lint.readme,
-            checkedAt: new Date().toISOString(),
-          },
+          scoreResource(result, wellDocumented),
         );
         context.logger?.info("Score {score}/100 ({grade}) for {name}", {
           score: result.score,
@@ -931,13 +959,7 @@ export const model = {
           const handle = await context.writeResource(
             "score",
             scoreInstanceName(context.repoDir, entry.path),
-            {
-              ...result,
-              wellDocumented,
-              manifestLint: result.lint.manifest,
-              readmeLint: result.lint.readme,
-              checkedAt: new Date().toISOString(),
-            },
+            scoreResource(result, wellDocumented),
           );
           handles.push(handle);
           scores.push({

@@ -1,9 +1,60 @@
 manifestVersion: 1
 name: "@svendowideit/systemd-creds"
-version: "2026.08.12.1"
-description: "Vault backend that stores secrets encrypted at rest using systemd-creds --user (AES256-GCM, bound to UID + machine-id). Requires systemd v256+."
+version: "2026.09.23.1"
+description: >
+  A swamp vault backend that stores secrets encrypted at rest with
+  `systemd-creds --user`, so the encrypted files are useless without your UID
+  and this machine's id. No root, no desktop keychain daemon, no unlock step.
+
+  WHAT IT DOES
+
+    Stores swamp vault secrets in a directory of AES256-GCM-encrypted `.cred`
+    files via `systemd-creds --user`. Prefer it over a plaintext file or a
+    keychain-daemon vault when you want secrets that stay encrypted on disk and
+    are bound to your Linux user and host: a `.cred` file copied to another
+    machine, or to another user, will not decrypt. It protects data at rest
+    only — a live compromise of your user session can still decrypt secrets.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/systemd-creds
+
+  DEPENDENCIES
+
+    None on swamp's side. Requires systemd v256+ on the host, because the
+    `--user` flag was added in v256. It shells out to the `systemd-creds`
+    binary; nothing else is needed.
+
+  RUN
+
+      # Create a named vault instance backed by this extension.
+      swamp vault create @svendowideit/systemd-creds my-vault
+
+      # Store a secret — encrypted before it reaches the filesystem.
+      swamp vault put my-vault MY_API_KEY
+
+      # Read a stored secret back (prompts before revealing it).
+      swamp vault read-secret my-vault MY_API_KEY
+
+      # List the stored key names without exposing any value.
+      swamp vault list-keys my-vault
+
+  CONFIGURE
+
+    Set the optional `credstoreDir` when creating the vault, or in `.swamp.yaml`
+    as `vault.config.credstoreDir` (default `~/.config/credstore`). Per-command
+    overrides use the standard swamp vault options; this backend takes no other
+    arguments.
+
+  WHAT IT INSTALLS
+
+    No services, daemons, triggers, or webhooks. It writes encrypted `.cred`
+    files into `credstoreDir` when you store a secret, and reads them back on
+    request.
 
 repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
 
 paths:
   base: manifest

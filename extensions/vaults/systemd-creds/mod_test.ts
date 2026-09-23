@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
-import { vault } from "./mod.ts";
+import { assertSafeSecretKey, vault } from "./mod.ts";
 
 type RunResult = { stdout: string; stderr: string; code: number };
 type RunCommand = (args: string[], stdin?: string) => Promise<RunResult>;
@@ -145,4 +145,102 @@ Deno.test("tilde expansion in credstoreDir", () => {
   };
   const provider = vault.createProvider("test-vault", { credstoreDir: "~/my-creds" }, runCommand);
   assertEquals(provider.getName(), "test-vault");
+});
+
+Deno.test("assertSafeSecretKey accepts ordinary keys", () => {
+  for (const k of ["MY_API_KEY", "garmin-secrets", "a.b.c", "key_123"]) {
+    assertSafeSecretKey(k);
+  }
+});
+
+Deno.test("assertSafeSecretKey rejects path-traversal and separators", () => {
+  for (const k of ["../escape", "a/b", "a\\b", "", "nul\0byte", ".."]) {
+    let threw = false;
+    try {
+      assertSafeSecretKey(k);
+    } catch {
+      threw = true;
+    }
+    assertEquals(threw, true, `expected ${JSON.stringify(k)} to be rejected`);
+  }
+});
+
+Deno.test("put rejects a traversal key before touching the filesystem", async () => {
+  let ran = false;
+  const runCommand: RunCommand = async () => {
+    ran = true;
+    return { stdout: "", stderr: "", code: 0 };
+  };
+  const provider = vault.createProvider(
+    "test-vault",
+    { credstoreDir: "/tmp/test-credstore" },
+    runCommand,
+  );
+  await assertRejects(
+    () => provider.put("../../escape", "secret"),
+    Error,
+    "Invalid secret key",
+  );
+  assertEquals(ran, false);
+});
+
+Deno.test("get rejects a traversal key", async () => {
+  const runCommand: RunCommand = async () => {
+    return { stdout: "leaked", stderr: "", code: 0 };
+  };
+  const provider = vault.createProvider(
+    "test-vault",
+    { credstoreDir: "/tmp/test-credstore" },
+    runCommand,
+  );
+  await assertRejects(
+    () => provider.get("../../escape"),
+    Error,
+    "Invalid secret key",
+  );
+});
+
+Deno.test("defaultRunCommand swallows a broken pipe and returns systemd's exit", async () => {
+  // `true` exits immediately without reading stdin, so a large write raises
+  // BrokenPipe. The runner must swallow it, still reap the child, and return
+  // the real exit code — not reject with an opaque BrokenPipe.
+  const { defaultRunCommand } = await import("./mod.ts");
+  const result = await defaultRunCommand(
+    ["encrypt", "-", "/tmp/x.cred"],
+    "a".repeat(5_000_000),
+    "true",
+  );
+  assertEquals(result.code, 0);
+  assertEquals(result.stdout, "");
+});
+
+Deno.test("defaultRunCommand reports systemd's failure and stderr", async () => {
+  const { defaultRunCommand } = await import("./mod.ts");
+  // `false` exits 1 without reading stdin; the failure code and stderr survive.
+  const result = await defaultRunCommand(
+    ["encrypt", "-", "/tmp/x.cred"],
+    "value",
+    "false",
+  );
+  assertEquals(result.code, 1);
+});
+
+Deno.test("provider surfaces systemd's message, not BrokenPipe, on early exit", async () => {
+  const { vault } = await import("./mod.ts");
+  // The injected runner models systemd-creds failing before reading stdin.
+  const runCommand: RunCommand = async () => ({
+    stdout: "",
+    stderr: "Plaintext too long for credential (allowed size: 1048576).",
+    code: 1,
+  });
+  const provider = vault.createProvider(
+    "test-vault",
+    { credstoreDir: "/tmp/test-credstore" },
+    runCommand,
+  );
+  await assertRejects(
+    () => provider.put("big", "x"),
+    Error,
+    "Plaintext too long",
+  );
 });

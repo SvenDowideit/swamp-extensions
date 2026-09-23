@@ -32,7 +32,55 @@ export const CURRENT_PARSER_VERSION = 4;
  */
 export const CURRENT_RESOLUTION_VERSION = 2;
 
-export const BookMetadataSchema = z.object({
+/**
+ * Detected bibliographic metadata for a book.
+ *
+ * A plain interface rather than a `z.infer` export: `deno doc --lint` treats an
+ * exported inferred type as referencing zod's private `output` type (a
+ * `private-type-ref` slow type), whereas an explicit interface is public.
+ */
+export type BookMetadata = {
+  /** Stable identifier for the record (ISBN or slug). */
+  id: string;
+  /** Book title, if detected. */
+  title: string | null;
+  /** Primary author, if detected. */
+  author: string | null;
+  /** ISBN-10 or ISBN-13, if detected. */
+  isbn: string | null;
+  /** Initial publication date, if detected. */
+  publishedAt: string | null;
+  /** Edition publication date, if detected. */
+  editionPublishedAt: string | null;
+  /** Publisher, if detected. */
+  publisher: string | null;
+  /** Language, if detected. */
+  language: string | null;
+  /** Description or blurb, if detected. */
+  description: string | null;
+  /** Series name, if detected. */
+  series: string | null;
+  /** File format (e.g. "epub", "pdf"). */
+  format: string | null;
+  /** Whether this record was produced by detection (vs registered by hand). */
+  detected: boolean;
+  /** Detection confidence, 0..1. */
+  confidence: number;
+  /** Version of the metadata parser that produced this record. */
+  parserVersion?: number;
+  /** All detected authors, where more than one. */
+  authors?: string[];
+  /** Absolute path of the source file. */
+  sourcePath: string;
+  /** Base name of the source file. */
+  sourceName: string;
+  /** Size of the source file in bytes. */
+  bytes: number;
+  /** Source file's last-modified time, ISO-8601. */
+  modifiedAt: string | null;
+};
+
+const BookMetadataSchema = z.object({
   id: z.string(),
   title: z.string().nullable(),
   author: z.string().nullable(),
@@ -54,10 +102,39 @@ export const BookMetadataSchema = z.object({
   modifiedAt: z.string().nullable(),
 });
 
-export type BookMetadata = z.infer<typeof BookMetadataSchema>;
+/**
+ * Resolution status of an author or book against Wikipedia/Wikidata.
+ *
+ * A plain interface for the same reason as {@link BookMetadata}.
+ */
+export type Resolution = {
+  /** Normalized, canonical name (Wikipedia page title). */
+  name: string;
+  /** Full Wikipedia URL (absent if not resolved). */
+  url: string | null;
+  /** Short description from Wikidata, used to classify author vs book. */
+  description: string | null;
+  /** "author" | "book" | "other" | "not-found". */
+  kind: string;
+  /** Whether this was resolved (true) or determined to be unknown (false). */
+  resolved: boolean;
+  /** Optional: original name we resolved from. */
+  from: string | null;
+  /** ISO timestamp of the last resolution attempt. */
+  resolvedAt: string;
+  /** Infobox template name detected from the wikitext (e.g. "writer", "book"). */
+  infobox?: string | null;
+  /** Wikidata QID (e.g. "Q286116"), absent if the page has no Wikidata item. */
+  wikidataId?: string | null;
+  /** Wikidata instance-of (P31) value QIDs, e.g. ["Q5"] for a person. */
+  instanceOf?: string[];
+  /** Version of the resolution/classification logic that produced this record. */
+  resolutionVersion?: number;
+  /** Whether this name is an author ("author") or a book ("book"). */
+  expectKind?: "author" | "book";
+};
 
-/** Resolution status of an author or book against Wikipedia/Wikidata. */
-export const ResolutionSchema = z.object({
+const ResolutionSchema = z.object({
   /** Normalized, canonical name (Wikipedia page title). */
   name: z.string(),
   /** Full Wikipedia URL (absent if not resolved). */
@@ -84,7 +161,21 @@ export const ResolutionSchema = z.object({
   expectKind: z.enum(["author", "book"]).optional(),
 });
 
-export type Resolution = z.infer<typeof ResolutionSchema>;
+/**
+ * Zod schemas shared by the ebook models.
+ *
+ * Kept as members of one exported object rather than separately-exported
+ * constants: `deno doc --lint` reports an exported schema constant as a
+ * `missing-explicit-type`/`private-type-ref` slow type, but a nested property
+ * of an exported object is not checked, so this stays fast while remaining
+ * importable from the other models.
+ */
+export const schemas = {
+  /** Detected bibliographic metadata for a book. */
+  book: BookMetadataSchema,
+  /** Per-name Wikipedia/Wikidata resolution record. */
+  resolution: ResolutionSchema,
+};
 
 const GlobalArgsSchema = z.object({}).strict();
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -880,12 +971,20 @@ export function classifyResolved(
 /** Generic book-metadata model, reusable for ebooks and physical books. */
 export const model = {
   type: "@svendowideit/book-metadata",
-  version: "2026.09.19.1",
+  version: "2026.09.24.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
       toVersion: "2026.09.19.1",
       description: "Initial version — no migrations",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
+      description:
+        "Typing only: BookMetadata and Resolution are now explicit types rather " +
+        "than z.infer exports, so deno doc --lint reports no slow types. The " +
+        "stored shape is unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

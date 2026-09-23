@@ -1,14 +1,19 @@
 # @svendowideit/ebooks
 
 Incrementally scans the local filesystem for ebook files, detects bibliographic
-metadata for each, and renders an HTML page linking to each file's location.
+metadata for each, resolves authors/titles against Wikipedia + Wikidata, and
+renders an HTML page linking to each file's location.
 
 ## What it does
+
+Turns a filesystem full of ebooks into a catalogued, browsable library.
 
 - **Resumable scan** — every `scan-disk` run picks up where the previous one left
   off. The scan state (a breadth-first directory frontier plus the discovered
   ebooks) is persisted as swamp data, so a run never re-enumerates directories it
-  has already visited until the whole tree is covered.
+  has already visited until the whole tree is covered. Symbolic links are **not**
+  followed, so a link loop cannot recurse and a file reachable by both a real
+  path and a link is recorded once.
 - **Self-terminating** — each `scan-disk` / `detect-metadata` run enforces a
   wall-clock budget (`maxDurationMs`, default 5 minutes) and stops when it is
   exhausted, handing control back to the caller so the next step can run without
@@ -40,71 +45,111 @@ metadata for each, and renders an HTML page linking to each file's location.
   listing only ebooks with a detected author, grouped under a section titled by
   the author.
 
-## Quick Start
+Side effects: it reads the filesystem under `root` and the shared web-cache, and
+writes swamp data plus the two HTML files named by `outputPath` and
+`authorsOutputPath`.
 
-```bash
-swamp extension pull @svendowideit/web-cache
+## Install
+
+```sh
 swamp extension pull @svendowideit/ebooks
-
-# Run the bundled workflow (auto-registers the "ebooks" model on first run):
-swamp workflow run @svendowideit/ebook-scan
-swamp workflow run @svendowideit/ebook-scan --input root=/home/me/books
 ```
 
-Re-run the workflow to continue a long scan in 5-minute increments; the page
-regenerates each time.
+A single pull also installs the declared dependencies
+(`@svendowideit/web-cache`, `@svendowideit/wikipedia`, `@svendowideit/wikidata`).
+Nothing is installed on the host.
 
-### Skip the directory scan
+## Configuration
 
-To re-process the already-discovered ebook paths without re-walking the
-filesystem (e.g. after changing the metadata detection or rendering), skip the
-scan step:
+Workflow inputs (all optional):
 
-```bash
+| Key | Default | Description |
+| --- | ------- | ----------- |
+| `root` | `~` | Root path to scan |
+| `outputPath` | `~/.swamp/ebooks/ebooks.html` | Where to write the HTML listing |
+| `authorsOutputPath` | `~/.swamp/ebooks/index.html` | Where to write the author index |
+| `title` | `Ebooks` | Page title |
+| `cacheDir` | `~/.swamp/web-cache` | Shared web-cache dir (must match web-cache + ebooks) |
+| `maxFetches` | `20` | Cap on origin fetches per `web-cache.get-many` call (cached hits don't count) |
+| `skipScan` | `false` | Skip the directory scan; only re-detect metadata and render |
+
+Global arguments on the ebooks model:
+
+| Key | Default | Description |
+| --- | ------- | ----------- |
+| `root` | `~` | Root path to scan |
+| `outputPath` | `~/.swamp/ebooks/ebooks.html` | Where to write the HTML listing |
+| `authorsOutputPath` | `~/.swamp/ebooks/index.html` | Where to write the author index |
+| `extensions` | epub, mobi, azw, azw3, fb2, lit, djvu, pdf | Ebook extensions to match |
+| `excludePatterns` | `.git`, `.swamp`, `node_modules`, `.cache`, `.Trash` | Dir names to skip |
+| `cacheDir` | `~/.swamp/web-cache` | Shared web-cache dir to read resolution responses from |
+
+## Examples
+
+Run the bundled workflow, which auto-registers the `ebooks` model on first run:
+
+```sh
+# Scan $HOME, detect metadata, resolve names, and render the pages.
+swamp workflow run @svendowideit/ebook-scan
+```
+
+Point the scan at a specific directory, or a different output path:
+
+```sh
+# Scan a books directory instead of $HOME.
+swamp workflow run @svendowideit/ebook-scan --input root=/home/me/books
+
+# Write the HTML listing somewhere else.
+swamp workflow run @svendowideit/ebook-scan --input outputPath=/srv/ebooks.html
+```
+
+Re-process the already-discovered paths without re-walking the filesystem —
+use this after changing metadata detection or rendering:
+
+```sh
 swamp workflow run @svendowideit/ebook-scan --input skipScan=true
 ```
 
-This runs only `detect-metadata -> … -> render-html-list -> render-html-authors`
-against the ebook paths already recorded in `state`.
+Tune the resolution fetch rate. `maxFetches` caps origin fetches per
+`web-cache.get-many` call (cached hits don't count); lower it to keep each run
+short, raise it to drain the backlog faster:
 
-### Tune the fetch rate
-
-Resolution fetching is delegated to `@svendowideit/web-cache`, whose `get-many`
-calls are capped by `maxFetches` (origin fetches per call — cached hits don't
-count). Lower it to keep each run short; raise it to drain the backlog faster:
-
-```bash
+```sh
 swamp workflow run @svendowideit/ebook-scan --input maxFetches=50
 ```
 
-## Models
+Re-run the workflow to continue a long scan in five-minute increments; the page
+regenerates each time.
 
-### @svendowideit/ebooks
+## Details
 
-| Method                 | Description |
-| ---------------------- | ----------- |
-| `scan-disk`            | Start/resume the filesystem scan (arg: `maxDurationMs`). |
-| `detect-metadata`      | Detect metadata for one file (`file`) or all discovered ebooks, up to `maxDurationMs`. |
-| `plan-resolution`      | Emit the authors/titles that still need resolving, capped at `maxNames`. Does no fetching. |
-| `pick-candidate`       | Choose one name's canonical candidate from its already-parsed search + page-props results (per name). |
-| `classify`             | Classify one name (author/book) from its infobox + Wikidata P31 and write the `resolution` record (per name). |
-| `resolve-wikipedia`    | DEPRECATED — back-compat; emits the name list (same as `plan-resolution`). |
-| `render-html-list`     | Render the full HTML listing (arg: `title`). |
-| `render-html-authors`  | Render an author-grouped index of ebooks with a detected author (arg: `title`). |
+### Models
 
-### @svendowideit/book-metadata
+`@svendowideit/ebooks` — the scanner + decision engine:
 
-A generic, reusable metadata model (usable for physical books too):
+| Method | Description |
+| ------ | ----------- |
+| `scan-disk` | Start/resume the filesystem scan (arg: `maxDurationMs`). |
+| `detect-metadata` | Detect metadata for one file (`file`) or all discovered ebooks, up to `maxDurationMs`. |
+| `plan-resolution` | Emit the authors/titles that still need resolving, capped at `maxNames`. Does no fetching. |
+| `pick-candidate` | Choose one name's canonical candidate from its already-parsed search + page-props results (per name). |
+| `classify` | Classify one name (author/book) from its infobox + Wikidata P31 and write the `resolution` record (per name). |
+| `resolve-wikipedia` | DEPRECATED — back-compat; emits the name list (same as `plan-resolution`). |
+| `render-html-list` | Render the full HTML listing (arg: `title`). |
+| `render-html-authors` | Render an author-grouped index of ebooks with a detected author (arg: `title`). |
 
-| Method     | Description |
-| ---------- | ----------- |
-| `detect`   | Detect metadata from a file (`file`) and store a book record keyed by ISBN/slug. |
+`@svendowideit/book-metadata` — a generic, reusable metadata model (usable for
+physical books too):
+
+| Method | Description |
+| ------ | ----------- |
+| `detect` | Detect metadata from a file (`file`) and store a book record keyed by ISBN/slug. |
 | `register` | Store metadata you already have (title, author, ISBN, dates, publisher, …). |
 
 Both share the same `BookMetadata` shape, so ebook-detected metadata and
 physical-book metadata are interchangeable.
 
-## Resolution pipeline
+### Resolution pipeline
 
 Resolution is a fetch-free decision pipeline driven by workflows, with all
 network I/O delegated (transitively) to `@svendowideit/web-cache`:
@@ -126,30 +171,7 @@ bodies web-cache has already fetched and cached. The ebook model shares the same
 `cacheDir` and URL-normalizing cache-key scheme as web-cache, so cache-hit vs
 fetch is invisible here.
 
-## Workflow inputs
-
-| Key                 | Default                        | Description                            |
-| ------------------- | ------------------------------ | -------------------------------------- |
-| `root`              | `~`                            | Root path to scan                      |
-| `outputPath`        | `~/.swamp/ebooks/ebooks.html`  | Where to write the HTML listing        |
-| `authorsOutputPath` | `~/.swamp/ebooks/index.html`   | Where to write the author index        |
-| `title`             | `Ebooks`                       | Page title                             |
-| `cacheDir`          | `~/.swamp/web-cache`           | Shared web-cache dir (must match web-cache + ebooks) |
-| `maxFetches`        | `20`                           | Cap on origin fetches per `web-cache.get-many` call (cached hits don't count) |
-| `skipScan`          | `false`                        | Skip the directory scan; only re-detect metadata and render |
-
-## Global arguments (ebooks model)
-
-| Key               | Default                        | Description                            |
-| ----------------- | ------------------------------ | -------------------------------------- |
-| `root`            | `~`                            | Root path to scan                      |
-| `outputPath`      | `~/.swamp/ebooks/ebooks.html`  | Where to write the HTML listing        |
-| `authorsOutputPath` | `~/.swamp/ebooks/index.html` | Where to write the author index        |
-| `extensions`      | epub, mobi, azw, azw3, fb2, lit, djvu, pdf | Ebook extensions to match |
-| `excludePatterns` | `.git`, `.swamp`, `node_modules`, `.cache`, `.Trash` | Dir names to skip |
-| `cacheDir`        | `~/.swamp/web-cache`           | Shared web-cache dir to read resolution responses from |
-
-## Data
+### Data
 
 - `state` — resumable scan state (frontier, seen dirs, discovered ebooks).
 - `metadata` — detected book metadata keyed by ebook path.
@@ -162,3 +184,24 @@ fetch is invisible here.
   `instance-of` values (the raw bodies are cached by web-cache).
 - `page` — result of the last HTML page generation (path, count, timestamp).
 - `book` — a single detected/registered book record (book-metadata model).
+
+### Extending and testing
+
+The scan/decision logic lives in `ebooks.ts`; the book-metadata type, detection
+and classification helpers live in `book_metadata.ts`; the HTML/author-index
+rendering is in `ebooks.ts` (`renderHtml`, `renderAuthorsHtml`). Workflows are
+the three YAML files listed in the manifest.
+
+```sh
+# Type-check and run the unit tests.
+~/.swamp/deno/deno check ebooks.ts book_metadata.ts
+~/.swamp/deno/deno test --allow-read --allow-write --allow-env ebooks_test.ts book_metadata_test.ts
+```
+
+`ebooks_test.ts` covers the scan state machine, name keying, planning, and the
+HTML renderers; `book_metadata_test.ts` covers detection parsing and the
+author/book classifier.
+
+## License
+
+MIT — see LICENSE.txt.

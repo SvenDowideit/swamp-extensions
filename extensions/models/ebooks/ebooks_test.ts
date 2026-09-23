@@ -880,3 +880,38 @@ Deno.test("render-html-list throws a descriptive error on an unwritable path", a
 });
 
 
+
+Deno.test("scan-disk does not follow symlinked directories", async () => {
+  const root = await Deno.makeTempDir({ prefix: "ebooks-symlink-" });
+  try {
+    await Deno.mkdir(`${root}/real`);
+    await Deno.writeTextFile(`${root}/real/book.epub`, "x");
+    // A symlink to the real dir, plus one into a self-referential loop.
+    await Deno.symlink(`${root}/real`, `${root}/linked`, { type: "dir" });
+    await Deno.mkdir(`${root}/books`);
+    await Deno.symlink(root, `${root}/books/loop`, { type: "dir" });
+
+    const ctx = createModelTestContext({
+      globalArgs: { root, extensions: ["epub"], excludePatterns: [] },
+      methodName: "scan-disk",
+    });
+    await model.methods["scan-disk"].execute(
+      { maxDurationMs: 30_000 },
+      // deno-lint-ignore no-explicit-any
+      ctx.context as any,
+    );
+    const state = ctx.getWrittenResources().find((r) =>
+      r.specName === "state"
+    )!.data as { ebooks: { path: string }[]; seenDirs: string[] };
+
+    // The file is recorded once, via its real path — not again through the
+    // `linked` symlink — and the loop is not walked.
+    assertEquals(state.ebooks.map((e) => e.path), [`${root}/real/book.epub`]);
+    assertEquals(
+      state.seenDirs.some((d) => d.includes("linked") || d.includes("loop")),
+      false,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

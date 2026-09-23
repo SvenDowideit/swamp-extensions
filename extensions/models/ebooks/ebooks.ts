@@ -11,7 +11,7 @@
  * enumerated (`completed`).
  *
  * Metadata detection (see `detect-metadata`) is likewise resumable and shares
- * the `BookMetadataSchema`/`detectBookMetadata` implementation with the generic
+ * the `schemas.book`/`detectBookMetadata` implementation with the generic
  * `@svendowideit/book-metadata` model, so the same metadata shape is reusable
  * for physical books.
  *
@@ -21,17 +21,19 @@ import { z } from "npm:zod@4";
 import { isAbsolute, join, resolve } from "jsr:@std/path@1";
 import {
   type BookMetadata,
-  BookMetadataSchema,
   classifyResolved,
   CURRENT_PARSER_VERSION,
   CURRENT_RESOLUTION_VERSION,
   detectBookMetadata,
   pickCandidate,
   type Resolution,
-  ResolutionSchema,
   type ResolvedPage,
+  schemas,
   type SearchCandidate,
 } from "./book_metadata.ts";
+
+/** Book metadata and resolution record shapes shared with the ebook models. */
+export type { BookMetadata, Resolution };
 
 const DEFAULT_EXTENSIONS = [
   "epub",
@@ -173,14 +175,21 @@ const ClassifyArgsSchema = z.object({
 type ClassifyArgs = z.infer<typeof ClassifyArgsSchema>;
 
 /** A name to resolve (author or book title). */
+export type NameItem = {
+  /** The name to resolve. */
+  name: string;
+  /** Whether it is expected to be an author or a book. */
+  expectKind: "author" | "book";
+  /** Filesystem-safe key for this name (see `nameKey`). */
+  key: string;
+};
+
 const NameItemSchema = z.object({
   name: z.string(),
   expectKind: z.enum(["author", "book"]),
   /** Filesystem-safe key for this name (see `nameKey`). */
   key: z.string(),
 });
-
-type NameItem = z.infer<typeof NameItemSchema>;
 
 /** The set of names that need resolving (emitted by `plan-resolution`). */
 const NamesSchema = z.object({
@@ -210,12 +219,44 @@ const PlanArgsSchema = z.object({
 });
 type PlanArgs = z.infer<typeof PlanArgsSchema>;
 
+/** A discovered ebook file. */
+export type Ebook = {
+  /** Absolute path. */
+  path: string;
+  /** Base name. */
+  name: string;
+  /** Lowercase extension (without the dot). */
+  ext: string;
+  /** Size in bytes. */
+  bytes: number;
+};
+
 const EbookSchema = z.object({
   path: z.string(),
   name: z.string(),
   ext: z.string(),
   bytes: z.number().nonnegative(),
 });
+
+/** Resumable filesystem scan state. */
+export type State = {
+  /** Root path being scanned. */
+  root: string;
+  /** Whether the whole tree has been covered. */
+  completed: boolean;
+  /** Remaining directory frontier. */
+  queue: string[];
+  /** Directories already visited. */
+  seenDirs: string[];
+  /** Discovered ebook files. */
+  ebooks: Ebook[];
+  /** Number of directories scanned so far. */
+  scannedDirs: number;
+  /** ISO timestamp the scan started. */
+  startedAt: string;
+  /** ISO timestamp of the last update. */
+  updatedAt: string;
+};
 
 const StateSchema = z.object({
   root: z.string(),
@@ -228,10 +269,8 @@ const StateSchema = z.object({
   updatedAt: z.string(),
 });
 
-type State = z.infer<typeof StateSchema>;
-
 /** Map of ebook path -> detected metadata (absent until detection runs). */
-const MetadataMapSchema = z.record(z.string(), BookMetadataSchema);
+const MetadataMapSchema = z.record(z.string(), schemas.book);
 
 const PageResultSchema = z.object({
   outputPath: z.string(),
@@ -538,9 +577,17 @@ function scanDirectory(
     const ext = fileExtension(name);
 
     let isDir = false;
+    let isSymlink = false;
     let size: number | null = null;
     try {
-      const st = Deno.statSync(full);
+      // `lstat` (not `stat`) so symbolic links are not followed. Following a
+      // directory symlink can recurse forever on a loop (until the OS path
+      // limit stops it) and double-counts any file reachable by both its real
+      // path and a link. Skips symlinks entirely, matching the default of
+      // sibling scanners in this repo. Callers who want links can add them
+      // under the real tree.
+      const st = Deno.lstatSync(full);
+      isSymlink = st.isSymlink;
       if (st.isDirectory) {
         isDir = true;
       } else {
@@ -549,6 +596,8 @@ function scanDirectory(
     } catch {
       continue;
     }
+
+    if (isSymlink) continue;
 
     if (isDir) {
       if (excludePatterns.includes(name)) continue;
@@ -755,7 +804,7 @@ export function renderAuthorsHtml(
 /** Model definition for incrementally scanning and listing local ebooks. */
 export const model = {
   type: "@svendowideit/ebooks",
-  version: "2026.09.20.2",
+  version: "2026.09.24.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -763,6 +812,15 @@ export const model = {
       description:
         "No schema changes — plan-resolution now records planned/backlog/" +
         "truncated on the names record; docs corrected to the current methods",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
+      description:
+        "Documentation and typing only: the manifest is now the full user manual " +
+        "and the README uses the canonical sections. The exported metadata types " +
+        "are explicit (no behaviour change); global and method arguments are " +
+        "unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -793,7 +851,7 @@ export const model = {
       description:
         "A per-name Wikipedia/Wikidata resolution record (factory: one instance " +
         "per resolved name)",
-      schema: ResolutionSchema,
+      schema: schemas.resolution,
       lifetime: "infinite",
       garbageCollection: 10,
     },

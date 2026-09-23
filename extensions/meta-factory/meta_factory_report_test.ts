@@ -4,7 +4,11 @@
  * @module
  */
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
-import { renderScore, renderSummary } from "./meta_factory_report.ts";
+import {
+  renderDefinitions,
+  renderScore,
+  renderSummary,
+} from "./meta_factory_report.ts";
 
 Deno.test("renderScore marks a below-threshold extension", () => {
   const md = renderScore({
@@ -40,12 +44,62 @@ Deno.test("renderScore marks a below-threshold extension", () => {
       rule: "heading-levels",
       message: "jump",
     }],
+    definitionIssues: [{
+      severity: "error",
+      rule: "id-duplicate",
+      message: "copied",
+      path: "models/copy.yaml",
+    }],
   });
   assertStringIncludes(md, "below threshold");
   assertStringIncludes(md, "Undocumented methods");
   assertStringIncludes(md, "@me/bad.sync");
   assertStringIncludes(md, "Structure issues");
+  assertStringIncludes(md, "definition/id-duplicate");
   assertStringIncludes(md, "Next actions");
+});
+
+Deno.test("renderDefinitions marks a failed scan and lists the fix", () => {
+  const md = renderDefinitions({
+    root: "/repo",
+    scanned: 2,
+    errorCount: 1,
+    warningCount: 0,
+    auditAvailable: true,
+    auditHours: 168,
+    confirmedCount: 1,
+    definitions: [{
+      path: "models/copy.yaml",
+      kind: "model",
+      name: "copy",
+      id: "4f616d26-21d2-466d-b5a6-78d0b9065f71",
+      expectedCommand: "swamp model create @me/tool copy",
+      ok: false,
+    }],
+    issues: [{
+      path: "models/copy.yaml",
+      severity: "error",
+      rule: "id-duplicate",
+      message: "already used",
+    }],
+  });
+  assertStringIncludes(md, "FAILED");
+  assertStringIncludes(md, "id-duplicate");
+  assertStringIncludes(md, "swamp model create @me/tool copy");
+  assertStringIncludes(md, "confirmed a creation command for **1**");
+});
+
+Deno.test("renderDefinitions notes when the audit timeline is unavailable", () => {
+  const md = renderDefinitions({
+    root: "/repo",
+    scanned: 1,
+    errorCount: 0,
+    warningCount: 0,
+    auditAvailable: false,
+    definitions: [],
+    issues: [],
+  });
+  assertStringIncludes(md, "timeline unavailable");
 });
 
 Deno.test("renderSummary sorts lowest score first", () => {

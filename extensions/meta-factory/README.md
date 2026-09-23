@@ -35,6 +35,15 @@ extension `0–100`).
   `## What it does` / `## Install` / `## Configuration` / `## Examples` /
   `## Details` sections, name every model and method, and explain how the
   extension is built and changed;
+- **definitions are generated, not copied** — a model, workflow, or vault
+  config must be created with the matching swamp command (`swamp model create`,
+  `swamp workflow create`, `swamp vault create`), so it carries a fresh,
+  unique `id`. A hand-written config (no `id`), a fabricated one (non-UUID), or
+  a copy (duplicate `id`) fails the `creation` check. `lintDefinitions`
+  additionally cross-references the `swamp audit` timeline: a definition
+  *created* in the window with no matching create command is flagged
+  `create-unconfirmed` — advisory only, since the audit timeline is best-effort
+  evidence and never costs points;
 - source JSDoc symbol coverage, no slow-type diagnostics from `deno doc --lint`,
   and
   dependency trust.
@@ -59,8 +68,8 @@ tool's skill directory, so agents pick up the contract automatically. To refresh
 the skill after editing the extension:
 
 ```sh
-swamp model @svendowideit/meta-factory method run installSkill \
-  --global-arg root=. --input target=both
+swamp model @svendowideit/meta-factory method run installSkill meta-factory \
+  --input target=both
 ```
 
 ## Configuration
@@ -75,6 +84,8 @@ Global arguments are set at model creation (`swamp model create
 | `threshold` | integer | `75` | Minimum score for an extension to count as "well documented". |
 | `offline` | boolean | `false` | Skip the network dependency audit; the dependency check then gets 50% credit. |
 | `skillName` | string | `"extension-docs"` | Name of the bundled skill directory installed by `installSkill`. |
+| `definitionsRoot` | string | `"."` | Repository directory scanned for hand-written or copied model/workflow/vault definitions. |
+| `auditHours` | integer | `168` | Hours of `swamp audit` history to cross-reference for the creation-command check; `0` disables the audit confirmation. |
 
 ## Examples
 
@@ -91,11 +102,22 @@ Score every extension in the repo:
 swamp workflow run @svendowideit/meta-factory --input root=extensions
 ```
 
+Print the scoreboard — a text table of every **git-tracked** extension with the
+reasons each is not 100/100. Pulled or generated copies under `.swamp/` are
+excluded, so the table always reflects the repo's own extensions:
+
+```sh
+swamp workflow run @svendowideit/meta-factory-scoreboard
+
+swamp report get @svendowideit/meta-factory-scoreboard \
+  --workflow @svendowideit/meta-factory-scoreboard --markdown
+```
+
 Run the model directly and read the report:
 
 ```sh
-swamp model @svendowideit/meta-factory method run check \
-  --global-arg root=. --input manifest=extensions/models/caddy/manifest.yaml
+swamp model @svendowideit/meta-factory method run check meta-factory \
+  --input manifest=extensions/models/caddy/manifest.yaml
 
 swamp report get @svendowideit/meta-factory-report \
   --model @svendowideit/meta-factory --markdown
@@ -105,48 +127,84 @@ Run offline (CI, sandboxes) — the dependency check reports `partial`:
 
 ```sh
 swamp workflow run @svendowideit/meta-factory \
-  --input root=extensions --global-arg offline=true
+  --input root=extensions --input offline=true
 ```
 
 Scaffold a contract-conformant README for a new extension:
 
 ```sh
-swamp model @svendowideit/meta-factory method run scaffold \
-  --global-arg root=. --input manifest=extensions/models/my-extension/manifest.yaml
+swamp model @svendowideit/meta-factory method run scaffold meta-factory \
+  --input manifest=extensions/models/my-extension/manifest.yaml
+```
+
+Lint every model/workflow/vault definition for hand-written or copied configs
+(no documentation score — useful as its own CI gate). The audit window can be
+narrowed for a fast check or widened to look further back:
+
+```sh
+# Default: confirm against the last 168h of `swamp audit` history.
+swamp model @svendowideit/meta-factory method run lintDefinitions meta-factory
+
+# Look back two weeks instead.
+swamp model @svendowideit/meta-factory method run lintDefinitions meta-factory \
+  --input auditHours=336
+
+swamp report get @svendowideit/meta-factory-report \
+  --model @svendowideit/meta-factory --markdown
 ```
 
 ## Details
 
 `@svendowideit/meta-factory` ships one model type (`@svendowideit/meta-factory`),
-one report (`@svendowideit/meta-factory-report`), one workflow
-(`@svendowideit/meta-factory`), and the `extension-docs` skill. Every method:
+two reports (`@svendowideit/meta-factory-report`, `@svendowideit/meta-factory-scoreboard`),
+two workflows (`@svendowideit/meta-factory`, `@svendowideit/meta-factory-scoreboard`),
+and the `extension-docs` skill. Every method:
 
 | Method | Arguments | Produces |
 | ------ | --------- | -------- |
 | `check` | `manifest` (string, required), `offline` (boolean, optional) | a `score` resource for one extension |
-| `checkAll` | `manifest` (optional), `offline` (optional), `writeSummary` (boolean, default true) | one `score` resource per extension plus a `rollup` summary |
+| `checkAll` | `manifest` (optional), `offline` (optional), `writeSummary` (boolean, default true), `gitOnly` (boolean, default false) | one `score` resource per extension plus a `rollup` summary |
 | `scaffold` | `manifest` (string, required), `force` (boolean, default false) | writes `README.md` beside the manifest |
+| `lintDefinitions` | `scanRoot` (string, optional; defaults to the `definitionsRoot` global arg), `auditHours` (integer, optional; defaults to the global arg) | a `definitions` resource listing every model/workflow/vault config, its `id`, and its audit-confirmation status |
 | `installSkill` | `target` (`project`\|`global`\|`both`), `force` (boolean, default true) | copies the bundled skill into the target skill directories |
 
 Resources:
 
 - `score` — the full score card for one extension: total, grade, the checks,
-  per-method coverage, manifest/README lint issues, and next actions.
+  per-method coverage, manifest/README/definition lint issues, and next actions.
 - `rollup` — the summary written by `checkAll`: counts, average score, and every
   extension below the threshold with its top issues.
+- `definitions` — the standalone creation-command lint written by
+  `lintDefinitions`: every config found, its kind, expected creation command,
+  its audit-confirmation status, and the issues with their severity.
 
-The score is the weighted sum of seventeen checks (maximum 100): manifest name
-and description (4), short `WHAT IT DOES` pitch (6), manifest-as-user-manual
+Reports and workflows:
+
+- `@svendowideit/meta-factory-report` — renders the full score card for one
+  extension, the `checkAll` rollup, or the `lintDefinitions` result.
+- `@svendowideit/meta-factory-scoreboard` — a workflow-scope report that renders
+  a compact text table of every scored extension, lowest score first, with the
+  reasons each is not 100/100 (drawn from the score card's `nextActions`). It is
+  emitted by the `@svendowideit/meta-factory-scoreboard` workflow and reads its
+  input from the `score` resources that step produced.
+- `@svendowideit/meta-factory` workflow — scores and gates; fails when any
+  extension is below the threshold.
+- `@svendowideit/meta-factory-scoreboard` workflow — scores only git-tracked
+  extensions (`checkAll gitOnly=true`) and prints the scoreboard, without
+  gating.
+
+The score is the weighted sum of eighteen checks (maximum 100): manifest name
+and description (4), short `WHAT IT DOES` pitch (5), manifest-as-user-manual
 (8), manual section order, installs last (5), **no methods section in the
 manifest (5)**, single-step install (13), manifest formatting (5), functional
-examples (7), explained examples (7), canonical README sections (5), README
+examples (6), explained examples (6), canonical README sections (5), README
 substance (3), README + LICENSE packaging (6), platforms/repository/license
 metadata (4), declared artifacts (4), README coverage of every model and method
-(6), JSDoc symbol coverage (6), no slow-type diagnostics from `deno doc --lint`
-(3, filtered to the rubric's slow-type codes so JSDoc warnings are not
-double-counted), and dependency trust (3). Grades: A ≥ 90, B ≥ 75, C ≥ 60,
-D ≥ 40, else F. The full breakdown is in the bundled skill's
-`references/rubric.md`.
+(5), **definitions created by swamp creation commands (5)**, JSDoc symbol
+coverage (5), no slow-type diagnostics from `deno doc --lint` (3, filtered to
+the rubric's slow-type codes so JSDoc warnings are not double-counted), and
+dependency trust (3). Grades: A ≥ 90, B ≥ 75, C ≥ 60, D ≥ 40, else F. The full
+breakdown is in the bundled skill's `references/rubric.md`.
 
 ### Extending this extension
 
@@ -158,21 +216,33 @@ touching orchestration:
 | `quality-rubric.ts` | The contract and scorer: `SECTIONS`, `MANUAL_ELEMENTS`, `WEIGHTS`, every `check*` function (including `checkFormat` and `checkExamples`), and `scoreExtension`. Pure — manifests are parsed from YAML text, README from markdown text. |
 | `readme-lint.ts` | README structural lint (canonical sections, heading levels, config table, code blocks). |
 | `manifest-lint.ts` | Manifest structural lint (required fields, CalVer, manual coverage, artifact existence). |
-| `introspect.ts` | Filesystem discovery of manifests, model types, and method keys. |
-| `meta_factory.ts` | Orchestration only: subprocesses (`swamp`, `deno`), data writes, skill install. The subprocess runner (`run`) takes a bounded timeout and is injectable via `_run` for tests. |
-| `meta_factory_report.ts` | Markdown/JSON rendering of the score and rollup. |
+| `definitions-lint.ts` | Creation-command lint: classifies each model/workflow/vault config, checks its `id` is generated, valid, and unique, and cross-references the `swamp audit` timeline (`parseCreationCommands`) to flag a recent definition no create command confirms. Pure per-source; `lintDefinitions` only walks the filesystem. |
+| `introspect.ts` | Filesystem discovery of manifests, model types, and method keys, plus `manifestsFromGitList` (parses `git ls-files` output into manifest entries). |
+| `meta_factory.ts` | Orchestration only: subprocesses (`swamp`, `deno`, `git`), data writes, skill install. The subprocess runner (`run`) takes a bounded timeout and is injectable via `_run` for tests. |
+| `meta_factory_report.ts` | Markdown/JSON rendering of the score, rollup, and definitions lint. |
+| `meta_factory_scoreboard.ts` | The workflow-scope scoreboard report: `buildScoreboard` / `renderScoreboard` turn the run's `score` resources into the text table and its reasons. Pure renderers, unit-tested directly. |
 
 All `score` resources share one canonical instance key — the manifest path
 relative to the repo root — so `check` and `checkAll` address the same
 extension. Only `check`/`checkAll` write `score`/`summary`; `scaffold` and
 `installSkill` write no data, so a scaffolded README never appears as a real
-`F` score.
+`F` score. `lintDefinitions` writes a separate `definitions` resource, so it is
+never confused with a documentation score.
+
+The `creation` check's audit cross-reference reads only the public
+`swamp audit --json` output through the injectable subprocess runner — it never
+depends on how or where the audit timeline is stored, so that storage can change
+without touching this extension. The matching is deliberately conservative: it
+judges only definitions *created* inside the window, treats a
+timeline that starts after the definition as unverifiable, and downgrades an
+unresolved create command to "no verdict" rather than a false accusation.
 
 To add a scored check: add a `check*` function returning `CheckResult`, add its
 weight to `WEIGHTS`, and include it in the `checks` array in `scoreExtension`.
-To change what the manifest manual must contain: edit `MANUAL_ELEMENTS` (both
-the scorer and `manifest-lint.ts` consume it). To change the README section
-contract: edit `SECTIONS`.
+Keep `Object.values(WEIGHTS)` summing to 100 — rebalance existing weights when
+adding one. To change what the manifest manual must contain: edit
+`MANUAL_ELEMENTS` (both the scorer and `manifest-lint.ts` consume it). To change
+the README section contract: edit `SECTIONS`.
 
 ### Developing and testing
 

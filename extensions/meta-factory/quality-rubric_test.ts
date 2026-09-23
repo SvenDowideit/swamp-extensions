@@ -5,6 +5,7 @@
  */
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
+  checkDefinitions,
   checkExamples,
   checkExplain,
   checkFastTypes,
@@ -341,7 +342,7 @@ Deno.test("checkSymbols scores JSDoc coverage fraction", () => {
     },
   };
   const check = checkSymbols(docJson);
-  assertEquals(check.earned, WEIGHTS.symbols / 2);
+  assertEquals(check.earned, Math.round(WEIGHTS.symbols / 2));
   assertEquals(check.status, "partial");
 });
 
@@ -514,6 +515,36 @@ models:
   const { check, examples } = checkExamples(manifest, "");
   assertEquals(check.status, "fail");
   assertEquals(examples[0].functional, false);
+});
+
+Deno.test("checkDefinitions passes with no issues", () => {
+  const check = checkDefinitions([]);
+  assertEquals(check.earned, WEIGHTS.creation);
+  assertEquals(check.status, "pass");
+});
+
+Deno.test("checkDefinitions fails on a copied or hand-written definition", () => {
+  const check = checkDefinitions([
+    {
+      severity: "error",
+      rule: "id-duplicate",
+      message: "copied",
+      path: "models/copy.yaml",
+    },
+  ]);
+  assertEquals(check.earned, 0);
+  assertEquals(check.status, "fail");
+  assertStringIncludes(check.note ?? "", "swamp model create");
+});
+
+Deno.test("checkDefinitions does not penalise advisory warnings", () => {
+  const check = checkDefinitions([
+    { severity: "warning", rule: "create-unconfirmed", message: "no command" },
+    { severity: "warning", rule: "name-missing", message: "no name" },
+  ]);
+  assertEquals(check.earned, WEIGHTS.creation);
+  assertEquals(check.status, "pass");
+  assertStringIncludes(check.note ?? "", "advisory");
 });
 
 Deno.test("gradeFor maps score bands", () => {

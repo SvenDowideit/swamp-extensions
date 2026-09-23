@@ -60,6 +60,12 @@ export type ScoreData = {
   nextActions: string[];
   manifestLint: { severity: string; rule: string; message: string }[];
   readmeLint: { severity: string; rule: string; message: string }[];
+  definitionIssues?: {
+    severity: string;
+    rule: string;
+    message: string;
+    path?: string;
+  }[];
 };
 /** Shape of the `rollup` summary resource this report renders. */
 export type SummaryData = {
@@ -78,10 +84,32 @@ export type SummaryData = {
   scores: { name: string; manifest: string; score: number; grade: string }[];
 };
 
+/** Shape of the `definitions` resource this report renders. */
+export type DefinitionsData = {
+  root: string;
+  scanned: number;
+  errorCount: number;
+  warningCount: number;
+  auditAvailable?: boolean;
+  auditHours?: number;
+  confirmedCount?: number;
+  definitions: {
+    path: string;
+    kind: string;
+    name?: string;
+    id?: string;
+    expectedCommand?: string;
+    ok: boolean;
+    createConfirmed?: boolean;
+  }[];
+  issues: { path: string; severity: string; rule: string; message: string }[];
+};
+
 /** Report definition rendering the meta-factory documentation score. */
 export const report = {
   name: "@svendowideit/meta-factory-report",
-  description: "Render the extension documentation score and its breakdown",
+  description:
+    "Render the extension documentation score, definition-config lint, and their breakdowns",
   scope: "method",
   labels: ["meta-factory", "docs", "quality"],
   execute: async (
@@ -92,6 +120,22 @@ export const report = {
         markdown: `# Meta-factory failed\n\n${context.errorMessage ?? ""}\n`,
         json: { error: true, message: context.errorMessage },
       };
+    }
+
+    const definitionsHandle = context.dataHandles.find(
+      (h) => h.specName === "definitions",
+    );
+    if (definitionsHandle) {
+      const definitions = await readJson<DefinitionsData>(
+        context,
+        definitionsHandle,
+      );
+      if (definitions) {
+        return {
+          markdown: renderDefinitions(definitions),
+          json: definitions as unknown as Record<string, unknown>,
+        };
+      }
     }
 
     const summaryHandle = context.dataHandles.find(
@@ -204,6 +248,9 @@ export function renderScore(s: ScoreData): string {
   const issues = [
     ...(s.manifestLint ?? []).map((i) => `manifest/${i.rule}: ${i.message}`),
     ...(s.readmeLint ?? []).map((i) => `readme/${i.rule}: ${i.message}`),
+    ...(s.definitionIssues ?? []).map((i) =>
+      `definition/${i.rule}${i.path ? ` (${i.path})` : ""}: ${i.message}`
+    ),
   ];
   if (issues.length > 0) {
     lines.push("");
@@ -249,6 +296,63 @@ export function renderSummary(s: SummaryData): string {
       lines.push("");
       for (const issue of b.topIssues) lines.push(`- ${issue}`);
       lines.push("");
+    }
+  }
+  return lines.join("\n");
+}
+
+/** Render the standalone definition-config (creation-command) lint. */
+export function renderDefinitions(d: DefinitionsData): string {
+  const lines: string[] = [];
+  const failed = d.errorCount > 0;
+  lines.push(
+    `# Definition configs — ${failed ? "❌ FAILED" : "✅ OK"}`,
+  );
+  lines.push("");
+  lines.push(
+    `Scanned **${d.scanned}** definition config(s) under \`${d.root}\`: ` +
+      `**${d.errorCount}** error(s), **${d.warningCount}** warning(s).`,
+  );
+  if (d.auditAvailable) {
+    lines.push("");
+    lines.push(
+      `\`swamp audit\` confirmed a creation command for **${
+        d.confirmedCount ?? 0
+      }**` +
+        ` of ${d.scanned} definition(s) modified in the last ${d.auditHours}h` +
+        ` window. Unconfirmed definitions were flagged \`create-unconfirmed\`.`,
+    );
+  } else {
+    lines.push("");
+    lines.push(
+      "_`swamp audit` timeline unavailable — create-command confirmation was skipped._",
+    );
+  }
+  if (d.issues.length > 0) {
+    lines.push("");
+    lines.push("## Issues");
+    lines.push("");
+    lines.push("| Definition | Rule | Severity | Detail |");
+    lines.push("| ---------- | ---- | -------- | ------ |");
+    for (const i of d.issues) {
+      lines.push(
+        `| \`${i.path}\` | ${i.rule} | ${i.severity} | ${i.message} |`,
+      );
+    }
+  }
+  const broken = d.definitions.filter((x) => !x.ok);
+  if (broken.length > 0) {
+    lines.push("");
+    lines.push("## Regenerate with");
+    lines.push("");
+    for (const b of broken) {
+      lines.push(
+        `- \`${b.path}\` (${b.kind}): ${
+          b.expectedCommand
+            ? `\`${b.expectedCommand}\``
+            : "a swamp creation command"
+        }`,
+      );
     }
   }
   return lines.join("\n");

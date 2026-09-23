@@ -14,6 +14,10 @@
  *                       `summary` rollup.
  *   - `scaffold`      — write a contract-conformant README skeleton beside a
  *                       manifest (never overwrites unless `force`).
+ *   - `lintDefinitions` — check every model/workflow/vault config was created
+ *                       by its swamp creation command (generated, unique `id`)
+ *                       rather than hand-written or copied; writes a
+ *                       `definitions` resource.
  *   - `installSkill`  — install/refresh the bundled `extension-docs` skill into
  *                       the project (`<repo>/.agents/skills`) and/or the user's
  *                       global skill directory.
@@ -36,12 +40,26 @@ import {
 import { lintManifest } from "./manifest-lint.ts";
 import { lintReadme } from "./readme-lint.ts";
 import {
+  type AuditEntry,
+  type AuditEvidence,
+  type CreationCommand,
+  lintDefinitions,
+  parseCreationCommands,
+} from "./definitions-lint.ts";
+
+export type { AuditEvidence, CreationCommand };
+
+import { type DefinitionIssueSummary } from "./quality-rubric.ts";
+import {
   discoverManifests,
   extractMethodKeysFromSource,
   extractTypeFromSource,
   type ManifestEntry,
+  manifestsFromGitList,
   sanitizeInstanceName,
 } from "./introspect.ts";
+
+export type { ManifestEntry };
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -60,6 +78,12 @@ const GlobalArgsSchema = z.object({
   skillName: z.string().default("extension-docs").describe(
     "Name of the bundled skill directory installed by `installSkill`",
   ),
+  definitionsRoot: z.string().default(".").describe(
+    "Repository directory scanned by the creation-command check for hand-written or copied definition configs",
+  ),
+  auditHours: z.number().int().min(0).default(168).describe(
+    "Hours of `swamp audit` history to cross-reference; 0 disables the audit confirmation",
+  ),
 });
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -76,6 +100,9 @@ const CheckAllArgsSchema = z.object({
   offline: z.boolean().optional().describe("Override the global offline flag"),
   writeSummary: z.boolean().default(true).describe(
     "Also write the `summary` rollup resource",
+  ),
+  gitOnly: z.boolean().default(false).describe(
+    "Score only git-tracked extension manifests, excluding pulled/generated copies",
   ),
 });
 
@@ -94,6 +121,15 @@ const InstallSkillArgsSchema = z.object({
   ),
   force: z.boolean().default(true).describe(
     "Overwrite an existing installed skill",
+  ),
+});
+
+const LintDefinitionsArgsSchema = z.object({
+  scanRoot: z.string().optional().describe(
+    "Override the directory scanned for definition configs (default: the global `definitionsRoot`)",
+  ),
+  auditHours: z.number().int().min(0).optional().describe(
+    "Override the hours of `swamp audit` history to cross-reference (default: the global `auditHours`; 0 disables)",
   ),
 });
 
@@ -147,6 +183,12 @@ const ScoreSchema = z.object({
     rule: z.string(),
     message: z.string(),
   })),
+  definitionIssues: z.array(z.object({
+    severity: z.enum(["error", "warning"]),
+    rule: z.string(),
+    message: z.string(),
+    path: z.string().optional(),
+  })).default([]),
   checkedAt: z.string(),
 });
 
@@ -169,6 +211,33 @@ const SummarySchema = z.object({
     manifest: z.string(),
     score: z.number(),
     grade: z.string(),
+  })),
+  checkedAt: z.string(),
+});
+
+/** Resource schema for the standalone definition-config lint. */
+const DefinitionsSchema = z.object({
+  root: z.string(),
+  scanned: z.number(),
+  errorCount: z.number(),
+  warningCount: z.number(),
+  auditAvailable: z.boolean().default(false),
+  auditHours: z.number().default(0),
+  confirmedCount: z.number().default(0),
+  definitions: z.array(z.object({
+    path: z.string(),
+    kind: z.string(),
+    name: z.string().optional(),
+    id: z.string().optional(),
+    expectedCommand: z.string().optional(),
+    ok: z.boolean(),
+    createConfirmed: z.boolean().optional(),
+  })),
+  issues: z.array(z.object({
+    path: z.string(),
+    severity: z.enum(["error", "warning"]),
+    rule: z.string(),
+    message: z.string(),
   })),
   checkedAt: z.string(),
 });
@@ -268,6 +337,132 @@ export async function resolveDenoPath(runFn: RunFn = run): Promise<string> {
   return join(home, ".swamp", "deno", "deno");
 }
 
+/**
+ * Gather definition-creation evidence from the `swamp audit` timeline.
+ *
+ * `swamp audit --hours <n> --json` returns the commands that ran in the window,
+ * each tagged with a `source` and a `summary`. The factory only consumes that
+ * public output — it never inspects where or how the timeline is stored, so the
+ * storage format can change freely.
+ *
+ * Failure is non-fatal: a missing timeline (no audit hook, empty log, or a
+ * non-zero exit) yields `available: false`, and no `create-unconfirmed` warning
+ * is raised, because the absence of a log is not evidence that a command did
+ * not run. `noise` is disabled (`--all`) so every create command is visible.
+ */
+export async function runAuditTimeline(
+  runFn: RunFn,
+  hours: number,
+  cwd?: string,
+): Promise<AuditEvidence> {
+  const res = await runFn(
+    "swamp",
+    ["audit", "--hours", String(hours), "--all", "--json"],
+    cwd,
+  );
+  if (res.code === 124) {
+    return {
+      available: false,
+      hours,
+      commands: [],
+      detail: "`swamp audit` timed out",
+    };
+  }
+  if (!res.stdout.trim()) {
+    return {
+      available: false,
+      hours,
+      commands: [],
+      detail: "no `swamp audit` timeline available",
+    };
+  }
+  try {
+    const parsed = JSON.parse(res.stdout) as {
+      entries?: AuditEntry[];
+      message?: string;
+    };
+    const entries = Array.isArray(parsed.entries) ? parsed.entries : [];
+    if (entries.length === 0) {
+      return {
+        available: false,
+        hours,
+        commands: [],
+        detail: parsed.message ?? "audit timeline is empty",
+      };
+    }
+    // The judgeable window is the overlap of "the last `hours`" with "what the
+    // timeline actually covers". The audit returns only its retained entries, so
+    // asking for more hours than are retained must not widen the window past the
+    // oldest entry — a definition created before the timeline starts is
+    // unverifiable, not suspicious, and widening would produce false positives.
+    const requestedStart = Date.now() - hours * 3600_000;
+    const entryTimes = entries
+      .map((e) => Date.parse(e.timestamp ?? ""))
+      .filter((t) => Number.isFinite(t));
+    const earliestEntry = entryTimes.length > 0
+      ? Math.min(...entryTimes)
+      : requestedStart;
+    return {
+      available: true,
+      hours,
+      windowStartMs: Math.max(requestedStart, earliestEntry),
+      commands: parseCreationCommands(entries),
+      detail: `${entries.length} audit entries`,
+    };
+  } catch {
+    return {
+      available: false,
+      hours,
+      commands: [],
+      detail: "unparseable `swamp audit` output",
+    };
+  }
+}
+
+/**
+ * List the git-tracked extension manifests under `root`.
+ *
+ * Uses `git ls-files`, so only files committed to the repository are returned
+ * — an extension that was pulled or generated into the working tree (for
+ * example under `.swamp/`) is deliberately excluded. Returns `null` when the
+ * directory is not a git repository or `git` is unavailable, so callers can
+ * fall back to a filesystem walk rather than reporting zero extensions.
+ *
+ * @param root Absolute directory to list, relative to the git top level.
+ */
+export async function discoverGitManifests(
+  runFn: RunFn,
+  root: string,
+): Promise<ManifestEntry[] | null> {
+  const res = await runFn(
+    "git",
+    ["ls-files", "--", "*manifest.yaml"],
+    root,
+  );
+  if (res.code !== 0) return null;
+  const listed = res.stdout.split("\n").filter((l) => l.trim().length > 0);
+  return manifestsFromGitList(root, listed);
+}
+
+/**
+ * Discover extension manifests for `checkAll`.
+ *
+ * With `gitOnly`, only git-tracked manifests are scored (pulled/generated
+ * copies are excluded); when git is unavailable the filesystem walk is used so
+ * the run still produces a result rather than silently scoring nothing.
+ */
+async function discoverEntries(
+  gitOnly: boolean,
+  runFn: RunFn,
+  root: string,
+): Promise<ManifestEntry[]> {
+  if (gitOnly) {
+    const tracked = await discoverGitManifests(runFn, root);
+    if (tracked !== null) return tracked;
+  }
+  return await discoverManifests(root);
+}
+
 // ---------------------------------------------------------------------------
 // Core scoring
 // ---------------------------------------------------------------------------
@@ -276,8 +471,67 @@ export async function resolveDenoPath(runFn: RunFn = run): Promise<string> {
 interface ScoreDeps {
   denoPath: string;
   offline: boolean;
+  /** Root scanned once for definition-config issues (creation-command rule). */
+  definitionsRoot: string;
+  /** Hours of `swamp audit` history to cross-reference (0 disables the audit). */
+  auditHours: number;
+  /** Cached repo definition scan, shared across every manifest scored. */
+  definitionsCache?: DefinitionScanCache;
   /** Injectable subprocess runner (defaults to the real {@link run}). */
   run?: RunFn;
+}
+
+/** Lazily-computed repo-wide definition scan, shared across a `checkAll`. */
+interface DefinitionScanCache {
+  promise: Promise<Awaited<ReturnType<typeof lintDefinitions>>>;
+}
+
+/**
+ * Build (once) or reuse the repo-wide definition scan for a set of deps.
+ *
+ * The scan is identical for every manifest an extension `checkAll` scores, so
+ * caching it on `deps` avoids rescanning the whole repo N times. The `swamp
+ * audit` timeline is fetched once here and shared with the scan.
+ */
+function definitionsScan(deps: ScoreDeps): DefinitionScanCache {
+  if (!deps.definitionsCache) {
+    deps.definitionsCache = {
+      promise: (async () => {
+        const audit = deps.auditHours > 0
+          ? await runAuditTimeline(
+            deps.run ?? run,
+            deps.auditHours,
+            deps.definitionsRoot,
+          )
+          : { available: false, hours: 0, commands: [] };
+        return await lintDefinitions(deps.definitionsRoot, { audit });
+      })(),
+    };
+  }
+  return deps.definitionsCache;
+}
+
+/**
+ * Definition-config issues for the files owned by one extension.
+ *
+ * Only issues whose path sits under the manifest's directory are attributed to
+ * the extension, so scoring one extension never reports another's problems.
+ */
+async function definitionIssuesFor(
+  deps: ScoreDeps,
+  manifestDir: string,
+): Promise<DefinitionIssueSummary[]> {
+  const scan = await definitionsScan(deps).promise;
+  const prefix = relativeTo(deps.definitionsRoot, resolve(manifestDir));
+  const under = prefix.length > 0 ? `${prefix}/` : "";
+  return scan.issues
+    .filter((i) => i.path === prefix || i.path.startsWith(under))
+    .map(({ severity, rule, message, path }) => ({
+      severity,
+      rule,
+      message,
+      path,
+    }));
 }
 
 /** Resolve a manifest path to an absolute path. */
@@ -485,6 +739,7 @@ async function scoreManifest(
   );
   const { docJson, lintStdout } = await runDenoDoc(deps, manifest, manifestDir);
   const audit = await runQualityAudit(deps, path);
+  const definitionIssues = await definitionIssuesFor(deps, manifestDir);
 
   const result = scoreExtension({
     manifest,
@@ -495,6 +750,7 @@ async function scoreManifest(
     methodsByType,
     docJson,
     lintStdout,
+    definitionIssues,
     depsAudited: audit.audited,
     depsPassed: audit.passed,
     depsDetail: audit.detail,
@@ -554,7 +810,7 @@ type ExecContext = {
 /** Model definition for the extension documentation meta-factory. */
 export const model = {
   type: "@svendowideit/meta-factory",
-  version: "2026.09.21.1",
+  version: "2026.09.23.1",
   globalArguments: GlobalArgsSchema,
   resources: {
     score: {
@@ -566,6 +822,13 @@ export const model = {
     summary: {
       description: "Rollup across every extension scored by checkAll",
       schema: SummarySchema,
+      lifetime: "30d",
+      garbageCollection: 10,
+    },
+    definitions: {
+      description:
+        "Creation-command lint for model/workflow/vault definition configs",
+      schema: DefinitionsSchema,
       lifetime: "30d",
       garbageCollection: 10,
     },
@@ -582,6 +845,11 @@ export const model = {
         const deps: ScoreDeps = {
           denoPath: await resolveDenoPath(args._run),
           offline: args.offline ?? context.globalArgs.offline,
+          definitionsRoot: resolve(
+            context.repoDir,
+            context.globalArgs.definitionsRoot ?? ".",
+          ),
+          auditHours: context.globalArgs.auditHours ?? 0,
           run: args._run,
         };
         const path = absManifest(args.manifest, context.repoDir);
@@ -620,6 +888,11 @@ export const model = {
         const deps: ScoreDeps = {
           denoPath: await resolveDenoPath(args._run),
           offline: args.offline ?? context.globalArgs.offline,
+          definitionsRoot: resolve(
+            context.repoDir,
+            context.globalArgs.definitionsRoot ?? ".",
+          ),
+          auditHours: context.globalArgs.auditHours ?? 0,
           run: args._run,
         };
         const root = resolve(context.repoDir, context.globalArgs.root);
@@ -629,10 +902,18 @@ export const model = {
             dir: dirname(absManifest(args.manifest, context.repoDir)),
             relative: args.manifest,
           }]
-          : await discoverManifests(root);
+          : await discoverEntries(
+            args.gitOnly,
+            args._run ?? run,
+            root,
+          );
 
         if (entries.length === 0) {
-          throw new Error(`No manifest.yaml found under ${root}`);
+          throw new Error(
+            args.gitOnly
+              ? `No git-tracked manifest.yaml found under ${root}`
+              : `No manifest.yaml found under ${root}`,
+          );
         }
 
         const handles: Array<{ name: string }> = [];
@@ -746,6 +1027,65 @@ export const model = {
         // any score would be a misleading placeholder. Run `check` once the
         // README has real content.
         return { dataHandles: [] };
+      },
+    },
+
+    lintDefinitions: {
+      description:
+        "Check model/workflow/vault definition configs were created by swamp creation commands, not hand-written or copied",
+      arguments: LintDefinitionsArgsSchema,
+      execute: async (
+        args: z.infer<typeof LintDefinitionsArgsSchema> & { _run?: RunFn },
+        context: ExecContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const root = resolve(
+          context.repoDir,
+          args.scanRoot ?? context.globalArgs.definitionsRoot ?? ".",
+        );
+        const audit = await runAuditTimeline(
+          args._run ?? run,
+          args.auditHours ?? context.globalArgs.auditHours ?? 0,
+          root,
+        );
+        const scan = await lintDefinitions(root, { audit });
+        const errorCount =
+          scan.issues.filter((i) => i.severity === "error").length;
+        const warningCount =
+          scan.issues.filter((i) => i.severity === "warning").length;
+        const handle = await context.writeResource("definitions", "repo", {
+          root,
+          scanned: scan.scanned,
+          errorCount,
+          warningCount,
+          auditAvailable: audit.available,
+          auditHours: audit.hours,
+          confirmedCount: scan.definitions.filter((d) =>
+            d.createConfirmed === true
+          )
+            .length,
+          definitions: scan.definitions.map((d) => ({
+            path: d.path,
+            kind: d.kind,
+            name: d.name,
+            id: d.id,
+            expectedCommand: d.expectedCommand,
+            ok: d.ok,
+            createConfirmed: d.createConfirmed,
+          })),
+          issues: scan.issues,
+          checkedAt: new Date().toISOString(),
+        });
+        context.logger?.info(
+          "Scanned {scanned} definition config(s): {errors} error(s), {warnings} warning(s), {confirmed} confirmed by audit",
+          {
+            scanned: scan.scanned,
+            errors: errorCount,
+            warnings: warningCount,
+            confirmed:
+              scan.definitions.filter((d) => d.createConfirmed === true).length,
+          },
+        );
+        return { dataHandles: [handle] };
       },
     },
 

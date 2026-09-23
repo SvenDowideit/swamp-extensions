@@ -12,7 +12,12 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { createModelTestContext } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 
-import { type CmdResult, model, run } from "./meta_factory.ts";
+import {
+  type CmdResult,
+  model,
+  run,
+  runAuditTimeline,
+} from "./meta_factory.ts";
 
 type RunArgs = string[];
 
@@ -25,15 +30,35 @@ function stubRunner(opts: {
   docLintStdout?: string;
   docLintStderr?: string;
   docLintCode?: number;
+  auditStdout?: string;
+  auditStderr?: string;
+  auditCode?: number;
+  gitStdout?: string;
+  gitStderr?: string;
+  gitCode?: number;
 } = {}) {
   const calls: RunArgs[] = [];
   const runner = (bin: string, args: string[]): Promise<CmdResult> => {
     calls.push([bin, ...args]);
+    if (bin === "git") {
+      return Promise.resolve({
+        stdout: opts.gitStdout ?? "",
+        stderr: opts.gitStderr ?? "",
+        code: opts.gitCode ?? 0,
+      });
+    }
     if (bin === "swamp" && args[0] === "doctor") {
       return Promise.resolve({
         stdout: JSON.stringify({ denoPath: "/stub/deno" }),
         stderr: "",
         code: 0,
+      });
+    }
+    if (bin === "swamp" && args[0] === "audit") {
+      return Promise.resolve({
+        stdout: opts.auditStdout ?? "",
+        stderr: opts.auditStderr ?? "",
+        code: opts.auditCode ?? 0,
       });
     }
     if (bin === "swamp" && args[0] === "extension" && args[1] === "quality") {
@@ -390,6 +415,163 @@ Deno.test("scaffold refuses to overwrite without force", async () => {
   }
 });
 
+Deno.test("lintDefinitions writes a definitions resource and flags copies", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(`${root}/models/@me/tool`, { recursive: true });
+    const def = `type: '@me/tool'
+typeVersion: 2026.09.21.1
+id: 4f616d26-21d2-466d-b5a6-78d0b9065f71
+name: my-tool
+version: 1
+tags: {}
+globalArguments: {}
+methods: {}
+`;
+    await Deno.writeTextFile(`${root}/models/@me/tool/one.yaml`, def);
+    await Deno.writeTextFile(`${root}/models/@me/tool/two.yaml`, def);
+
+    const { runner } = stubRunner({
+      auditStdout: JSON.stringify({ entries: [] }),
+    });
+    const { ctx } = await runMethod(
+      "lintDefinitions",
+      { _run: runner },
+      { repoDir: root, globalArgs: { definitionsRoot: "models" } },
+    );
+    const written = ctx.getWrittenResources();
+    assertEquals(written.length, 1);
+    assertEquals(written[0].specName, "definitions");
+    const d = written[0].data as Record<string, unknown>;
+    assertEquals(d.scanned, 2);
+    assertEquals(d.errorCount, 1);
+    const issues = d.issues as Array<{ rule: string }>;
+    assertEquals(issues.some((i) => i.rule === "id-duplicate"), true);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("lintDefinitions flags a recent definition with no create command", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(`${root}/models/@me/tool`, { recursive: true });
+    await Deno.writeTextFile(
+      `${root}/models/@me/tool/my-tool.yaml`,
+      `type: '@me/tool'
+typeVersion: 2026.09.21.1
+id: 4f616d26-21d2-466d-b5a6-78d0b9065f71
+name: my-tool
+version: 1
+tags: {}
+globalArguments: {}
+methods: {}
+`,
+    );
+    const { runner, calls } = stubRunner({
+      auditStdout: JSON.stringify({
+        entries: [{
+          timestamp: new Date(Date.now() - 3600_000).toISOString(),
+          source: "swamp",
+          summary: "swamp model list --json",
+        }],
+      }),
+    });
+    const { ctx } = await runMethod(
+      "lintDefinitions",
+      { scanRoot: "models", auditHours: 24, _run: runner },
+      { repoDir: root, globalArgs: {} },
+    );
+    // The audit command was actually invoked.
+    assertEquals(
+      calls.some((c) => c[0] === "swamp" && c[1] === "audit"),
+      true,
+    );
+    const d = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+    assertEquals(d.auditAvailable, true);
+    assertEquals(d.confirmedCount, 0);
+    const issues = d.issues as Array<{ rule: string }>;
+    assertEquals(issues.some((i) => i.rule === "create-unconfirmed"), true);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("lintDefinitions confirms a definition with a matching create command", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(`${root}/models/@me/tool`, { recursive: true });
+    await Deno.writeTextFile(
+      `${root}/models/@me/tool/my-tool.yaml`,
+      `type: '@me/tool'
+typeVersion: 2026.09.21.1
+id: 4f616d26-21d2-466d-b5a6-78d0b9065f71
+name: my-tool
+version: 1
+tags: {}
+globalArguments: {}
+methods: {}
+`,
+    );
+    const { runner } = stubRunner({
+      auditStdout: JSON.stringify({
+        entries: [{
+          timestamp: new Date(Date.now() - 3600_000).toISOString(),
+          source: "swamp",
+          summary: "swamp model create @me/tool my-tool --json",
+        }],
+      }),
+    });
+    const { ctx } = await runMethod(
+      "lintDefinitions",
+      { scanRoot: "models", auditHours: 24, _run: runner },
+      { repoDir: root, globalArgs: {} },
+    );
+    const d = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+    assertEquals(d.auditAvailable, true);
+    assertEquals(d.confirmedCount, 1);
+    const issues = d.issues as Array<{ rule: string }>;
+    assertEquals(issues.some((i) => i.rule === "create-unconfirmed"), false);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("lintDefinitions skips confirmation when the audit is empty", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(`${root}/models/@me/tool`, { recursive: true });
+    await Deno.writeTextFile(
+      `${root}/models/@me/tool/my-tool.yaml`,
+      `type: '@me/tool'
+typeVersion: 2026.09.21.1
+id: 4f616d26-21d2-466d-b5a6-78d0b9065f71
+name: my-tool
+version: 1
+tags: {}
+globalArguments: {}
+methods: {}
+`,
+    );
+    const { runner } = stubRunner({
+      auditStdout: JSON.stringify({
+        message: "No audit data found. Run 'swamp repo init --force'…",
+      }),
+    });
+    const { ctx } = await runMethod(
+      "lintDefinitions",
+      { scanRoot: "models", auditHours: 24, _run: runner },
+      { repoDir: root, globalArgs: {} },
+    );
+    const d = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+    assertEquals(d.auditAvailable, false);
+    const issues = d.issues as Array<{ rule: string }>;
+    assertEquals(issues.some((i) => i.rule === "create-unconfirmed"), false);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 Deno.test("checkAll throws when no manifests match the root", async () => {
   const root = await Deno.makeTempDir();
   await Deno.mkdir(`${root}/extensions`, { recursive: true });
@@ -406,6 +588,194 @@ Deno.test("checkAll throws when no manifests match the root", async () => {
       assertStringIncludes(String(err), "No manifest.yaml found");
     }
     assertEquals(threw, true);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("runAuditTimeline parses entries and computes a now-based window", async () => {
+  const { runner } = stubRunner({
+    auditStdout: JSON.stringify({
+      entries: [
+        {
+          timestamp: "2026-09-20T10:00:00.000Z",
+          source: "swamp",
+          summary: "swamp model create @me/tool my-tool --json",
+        },
+        {
+          timestamp: "2026-09-21T11:00:00.000Z",
+          source: "swamp",
+          summary: "swamp workflow create @me/flow --json",
+        },
+      ],
+    }),
+  });
+  const before = Date.now();
+  const evidence = await runAuditTimeline(runner, 48);
+  const after = Date.now();
+  assertEquals(evidence.available, true);
+  assertEquals(evidence.hours, 48);
+  assertEquals(evidence.commands.length, 2);
+  // The window start is `now - hours`, bounded by the call's start and end.
+  assertEquals(
+    evidence.windowStartMs !== undefined &&
+      evidence.windowStartMs >= before - 48 * 3600_000 &&
+      evidence.windowStartMs <= after - 48 * 3600_000,
+    true,
+  );
+});
+
+Deno.test("runAuditTimeline reports unavailable when the timeline is empty", async () => {
+  const { runner } = stubRunner({
+    auditStdout: JSON.stringify({ message: "No audit data found." }),
+  });
+  const evidence = await runAuditTimeline(runner, 24);
+  assertEquals(evidence.available, false);
+  assertEquals(evidence.commands, []);
+});
+
+Deno.test("runAuditTimeline survives a failed audit command", async () => {
+  const { runner } = stubRunner({ auditCode: 1, auditStdout: "" });
+  const evidence = await runAuditTimeline(runner, 24);
+  assertEquals(evidence.available, false);
+});
+
+Deno.test("checkAll gitOnly scores only git-tracked manifests", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const dir = `${root}/extensions`;
+    for (const name of ["tracked", "untracked"]) {
+      await Deno.mkdir(`${dir}/${name}`, { recursive: true });
+      await Deno.writeTextFile(
+        `${dir}/${name}/manifest.yaml`,
+        `manifestVersion: 1
+name: "@me/${name}"
+version: "2026.09.21.1"
+description: >
+  A tool.
+
+  WHAT IT DOES
+
+    Does a thing for someone, so they do not have to.
+
+  INSTALL
+
+      swamp extension pull @me/${name}
+
+  DEPENDENCIES
+
+    None.
+
+  RUN
+
+      swamp model method run my-tool run
+
+  CONFIGURE
+
+    Set --global-arg path=/tmp.
+
+  WHAT IT INSTALLS
+
+    Nothing.
+
+repository: https://github.com/me/${name}
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+models:
+  - tool.ts
+`,
+      );
+      await Deno.writeTextFile(`${dir}/${name}/README.md`, "# x\n");
+      await Deno.writeTextFile(`${dir}/${name}/tool.ts`, "");
+    }
+    const { runner } = stubRunner({
+      // Only `tracked` is git-tracked; `untracked` exists on disk but is not.
+      gitStdout: "tracked/manifest.yaml\n",
+      qualityStdout: JSON.stringify({
+        dependencyTrust: { passed: true, errors: [] },
+      }),
+      auditStdout: JSON.stringify({ entries: [] }),
+    });
+    const { ctx } = await runMethod(
+      "checkAll",
+      { gitOnly: true, _run: runner },
+      { repoDir: root, globalArgs: { root: "extensions", threshold: 75 } },
+    );
+    const scoreNames = ctx.getWrittenResources()
+      .filter((r) => r.specName === "score")
+      .map((r) => r.name);
+    assertEquals(scoreNames, ["extensions-tracked-manifest.yaml"]);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("checkAll gitOnly falls back to a walk when git fails", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const dir = `${root}/extensions/only`;
+    await Deno.mkdir(dir, { recursive: true });
+    await Deno.writeTextFile(
+      `${dir}/manifest.yaml`,
+      `manifestVersion: 1
+name: "@me/only"
+version: "2026.09.21.1"
+description: >
+  A tool.
+
+  WHAT IT DOES
+
+    Does a thing for someone, so they do not have to.
+
+  INSTALL
+
+      swamp extension pull @me/only
+
+  DEPENDENCIES
+
+    None.
+
+  RUN
+
+      swamp model method run my-tool run
+
+  CONFIGURE
+
+    Set --global-arg path=/tmp.
+
+  WHAT IT INSTALLS
+
+    Nothing.
+
+repository: https://github.com/me/only
+
+additionalFiles:
+  - README.md
+
+models:
+  - tool.ts
+`,
+    );
+    const { runner } = stubRunner({
+      gitCode: 128,
+      gitStderr: "fatal: not a git repository",
+      qualityStdout: JSON.stringify({
+        dependencyTrust: { passed: true, errors: [] },
+      }),
+      auditStdout: JSON.stringify({ entries: [] }),
+    });
+    const { ctx } = await runMethod(
+      "checkAll",
+      { gitOnly: true, _run: runner },
+      { repoDir: root, globalArgs: { root: "extensions", threshold: 75 } },
+    );
+    const scoreNames = ctx.getWrittenResources()
+      .filter((r) => r.specName === "score")
+      .map((r) => r.name);
+    assertEquals(scoreNames, ["extensions-only-manifest.yaml"]);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

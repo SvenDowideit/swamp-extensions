@@ -1,0 +1,59 @@
+id: 0a234127-384e-4e2a-8207-6d6f8bf109b1
+name: '@svendowideit/meta-factory-scoreboard'
+description: |
+  Print a text table of every git-tracked swamp extension's documentation
+  score, with the reasons each one is not a perfect 100/100.
+
+  Only extensions committed to this git repository are scored — anything pulled
+  or generated into the working tree (for example under `.swamp/`) is excluded,
+  so the table always reflects the repo's own extensions.
+
+  Run it read-only for the whole repo:
+    swamp workflow run @svendowideit/meta-factory-scoreboard
+
+  Score a different directory:
+    swamp workflow run @svendowideit/meta-factory-scoreboard \
+      --input root=extensions/models
+tags: {}
+inputs:
+  properties:
+    root:
+      type: string
+      default: extensions
+      description: Directory scanned for git-tracked manifest.yaml files.
+    threshold:
+      type: integer
+      default: 75
+      description: Minimum passing score; shown in the log, does not gate.
+    offline:
+      type: boolean
+      default: false
+      description: Skip the network dependency audit (dependency check gets 50% credit).
+  required: []
+jobs:
+  - name: scoreboard
+    description: Score every git-tracked extension and print the scoreboard table.
+    steps:
+      - name: score
+        description: Score all git-tracked extension manifests under the root.
+        task:
+          type: model_method
+          modelType: "@svendowideit/meta-factory"
+          modelName: meta-factory
+          methodName: checkAll
+          inputs:
+            gitOnly: true
+            offline: ${{ inputs.offline }}
+          globalArgs:
+            root: ${{ inputs.root }}
+            threshold: ${{ inputs.threshold }}
+            offline: ${{ inputs.offline }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+reports:
+  require:
+    - "@svendowideit/meta-factory-scoreboard"
+version: 1

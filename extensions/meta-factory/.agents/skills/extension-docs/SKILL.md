@@ -150,8 +150,8 @@ present, `## Examples` is required.
 3. **Scaffold the README** (new extension, or one missing sections):
 
    ```sh
-   swamp model @svendowideit/meta-factory method run scaffold \
-     --global-arg root=. --input manifest=extensions/<type>/<name>/manifest.yaml
+   swamp model @svendowideit/meta-factory method run scaffold meta-factory \
+     --input manifest=extensions/<type>/<name>/manifest.yaml
    ```
 
 4. **Document every method.** The README `## Details` section (or `## Examples`)
@@ -168,8 +168,8 @@ present, `## Examples` is required.
    Or, for a single manifest without the workflow:
 
    ```sh
-   swamp model @svendowideit/meta-factory method run check \
-     --global-arg root=. --input manifest=extensions/<type>/<name>/manifest.yaml
+   swamp model @svendowideit/meta-factory method run check meta-factory \
+     --input manifest=extensions/<type>/<name>/manifest.yaml
    swamp report get @svendowideit/meta-factory-report \
      --model @svendowideit/meta-factory --markdown
    ```
@@ -183,34 +183,84 @@ present, `## Examples` is required.
    swamp workflow run @svendowideit/meta-factory --input root=extensions
    ```
 
+8. **Print the scoreboard.** For a table of every git-tracked extension and the
+   reasons each is not 100/100 (pulled/generated copies excluded):
+
+   ```sh
+   swamp workflow run @svendowideit/meta-factory-scoreboard
+   ```
+
 ## What the score measures
 
-The 0-100 score is the weighted sum of seventeen deterministic checks. Full
+The 0-100 score is the weighted sum of eighteen deterministic checks. Full
 detail in [references/rubric.md](references/rubric.md); the weights:
 
 | Check | Points | What it verifies |
 | ----- | ------ | ---------------- |
 | Manifest name + description | 4 | `@collective/name`, non-placeholder description |
-| **`WHAT IT DOES` is a short pitch** | **6** | 20–140 words, not a method dump |
+| **`WHAT IT DOES` is a short pitch** | **5** | 20–140 words, not a method dump |
 | Manifest-as-user-manual | 8 | all six manual elements, 300+ chars |
 | **Manual order (installs last)** | **5** | sections in canonical priority order |
 | **No methods section in the manifest** | **5** | swamp-club generates the method reference at publish |
 | **Single-step install** | **13** | one `swamp extension pull`, no extra setup |
 | Manifest formatting | 5 | literal block, blank-line sections, indented commands |
-| Functional examples | 7 | ≥3 distinct runnable `swamp …` commands, no placeholders |
-| **Explained examples** | **7** | every non-install command says why/when to run it |
+| Functional examples | 6 | ≥3 distinct runnable `swamp …` commands, no placeholders |
+| **Explained examples** | **6** | every non-install command says why/when to run it |
 | Canonical README sections | 5 | the five visible sections above |
 | README substance | 3 | ≥1200 chars, ≥1 table |
 | README + LICENSE packaged | 6 | both listed in `additionalFiles:` |
 | Platforms / repository / license | 4 | declared metadata |
 | Artifacts declared | 4 | at least one model/report/etc. |
-| README documents every method | 6 | coverage of model types and method names |
-| Source symbols documented | 6 | JSDoc coverage via `deno doc --json` |
+| README documents every method | 5 | coverage of model types and method names |
+| **Definitions created by swamp** | **5** | model/workflow/vault configs carry a generated, unique `id` — not hand-written or copied; `lintDefinitions` additionally flags a recent definition the `swamp audit` timeline does not confirm |
+| Source symbols documented | 5 | JSDoc coverage via `deno doc --json` |
 | No slow types | 3 | no slow-type codes in `deno doc --lint` stderr |
 | Dependency trust | 3 | `swamp extension quality` audit (partial when offline) |
 
 Maximum 100. `≥90` A, `≥75` B, `≥60` C, `≥40` D, else F. The default
 "well documented" threshold is 75.
+
+## Use the swamp creation command for every definition
+
+A swamp **definition** — a model, workflow, or vault config YAML — must be
+created with the matching command, never hand-written or copied from another
+extension. These commands assign a fresh `id:` (and, for models, a
+`typeVersion:`); a copied file instead carries the source's `id:`, and a
+hand-written file has none or a fabricated one. The `creation` check (5 pts)
+fails on those structural symptoms:
+
+| Definition | Create it with |
+| ---------- | -------------- |
+| Model | `swamp model create <type> <name> --json` |
+| Workflow | `swamp workflow create <name> --json` |
+| Vault | `swamp vault create <type> <name> --json` |
+
+```sh
+# Create a model definition, then edit the scaffold at the returned path.
+swamp model create @mycollective/my-extension my-model --json
+
+# Create a workflow definition instead of copying an existing one.
+swamp workflow create @mycollective/my-sync --json
+```
+
+`swamp model method run @<type>` auto-creates a definition on first use, which
+is preferred for ephemeral runs; use an explicit `create` when the definition is
+version-controlled or reused across workflows.
+
+`lintDefinitions` also cross-references the `swamp audit` timeline: a definition
+*created* inside the audit window (`--global-arg auditHours`, default 168h) with
+no matching `swamp … create` command is reported as `create-unconfirmed`. This
+is a **warning**, not an error — it catches a hand-written or copied file even
+when it carries a plausible id, but the audit hook must be active for it to fire.
+A definition older than the window, or one whose create command the parser could
+not resolve, is left unjudged rather than flagged.
+
+Score definitions across the repo without scoring documentation:
+
+```sh
+# Lint every model/workflow/vault config for hand-written or copied ids.
+swamp model @svendowideit/meta-factory method run lintDefinitions meta-factory
+```
 
 ## Installing this skill
 
@@ -218,8 +268,8 @@ The skill ships inside the `@svendowideit/meta-factory` extension. Refresh the
 project-local copy after the extension changes:
 
 ```sh
-swamp model @svendowideit/meta-factory method run installSkill \
-  --global-arg root=. --input target=both
+swamp model @svendowideit/meta-factory method run installSkill meta-factory \
+  --input target=both
 ```
 
 Project installs land at `.agents/skills/extension-docs/`; global installs at
@@ -241,3 +291,8 @@ skill is re-scanned.
    test it.
 6. **Run the workflow, don't eyeball it.** The score is deterministic for a
    reason: a human guess is not a verification.
+7. **Never hand-write or copy a definition config.** Create models, workflows,
+   and vaults with `swamp model create` / `swamp workflow create` /
+   `swamp vault create` so swamp assigns a fresh `id`; a copied `id`, a missing
+   one, or a recent definition the `swamp audit` timeline cannot confirm fails
+   or warns via the `creation` check and `lintDefinitions`.

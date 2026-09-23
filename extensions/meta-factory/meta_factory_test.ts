@@ -10,10 +10,11 @@ import {
   discoverManifests,
   extractMethodKeysFromSource,
   extractTypeFromSource,
+  manifestsFromGitList,
   sanitizeInstanceName,
 } from "./introspect.ts";
 import { parseManifest } from "./quality-rubric.ts";
-import { model } from "./meta_factory.ts";
+import { discoverGitManifests, model, type RunFn } from "./meta_factory.ts";
 import { renderScore, renderSummary, report } from "./meta_factory_report.ts";
 
 const GOOD_README = `# @me/tool
@@ -217,11 +218,12 @@ Deno.test("discoverManifests finds manifests under a fixtures tree", async () =>
   }
 });
 
-Deno.test("model exposes the four documented methods", () => {
+Deno.test("model exposes the five documented methods", () => {
   assertEquals(Object.keys(model.methods).sort(), [
     "check",
     "checkAll",
     "installSkill",
+    "lintDefinitions",
     "scaffold",
   ]);
   assertEquals(typeof model.type, "string");
@@ -248,6 +250,7 @@ Deno.test("report renders a score card", () => {
     nextActions: [],
     manifestLint: [],
     readmeLint: [],
+    definitionIssues: [],
   });
   assertStringIncludes(md, "@me/tool — 88/100 (B)");
   assertStringIncludes(md, "well documented");
@@ -280,4 +283,46 @@ Deno.test("report renders a summary rollup", () => {
   assertStringIncludes(md, "average **80/100**");
   assertStringIncludes(md, "Below threshold (1)");
   assertEquals(typeof report.name, "string");
+});
+
+Deno.test("manifestsFromGitList keeps only manifest.yaml paths", () => {
+  const entries = manifestsFromGitList("/repo", [
+    "extensions/meta-factory/manifest.yaml",
+    "extensions/meta-factory/README.md",
+    ".swamp/pulled-extensions/@me/tool/manifest.yaml",
+    "extensions/models/tool/manifest.yaml",
+    "",
+  ]);
+  assertEquals(
+    entries.map((e) => e.relative),
+    [
+      "extensions/meta-factory/manifest.yaml",
+      "extensions/models/tool/manifest.yaml",
+    ],
+  );
+  assertEquals(entries[0].path, "/repo/extensions/meta-factory/manifest.yaml");
+  assertEquals(entries[0].dir, "/repo/extensions/meta-factory");
+});
+
+Deno.test("discoverGitManifests returns null when git fails", async () => {
+  const runner: RunFn = () =>
+    Promise.resolve({ stdout: "", stderr: "not a git repo", code: 128 });
+  assertEquals(await discoverGitManifests(runner, "/repo"), null);
+});
+
+Deno.test("discoverGitManifests parses git ls-files output", async () => {
+  const runner: RunFn = (_bin, _args, cwd) => {
+    assertEquals(cwd, "/repo");
+    return Promise.resolve({
+      stdout:
+        "extensions/models/a/manifest.yaml\nextensions/models/b/manifest.yaml\n",
+      stderr: "",
+      code: 0,
+    });
+  };
+  const entries = await discoverGitManifests(runner, "/repo");
+  assertEquals(entries?.map((e) => e.relative), [
+    "extensions/models/a/manifest.yaml",
+    "extensions/models/b/manifest.yaml",
+  ]);
 });

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/meta-factory"
-version: "2026.09.21.1"
+version: "2026.09.23.1"
 description: >
   The documentation quality gate for swamp extensions. Enforces one guiding
   principle — the published manifest plus README must be enough for a user or
@@ -13,7 +13,13 @@ description: >
     eyeballing your docs or a one-off review: the score is repeatable, so you can
     gate publishing and CI on it. It covers everything the Swamp Club rubric
     does, plus the manifest-as-user-manual, manual order, single-step install,
-    formatting, and functional-example rules that rubric does not.
+    formatting, functional-example, and creation-command rules that rubric does
+    not — so `swamp model create` / `swamp workflow create` / `swamp vault
+    create` are used instead of hand-writing or copying definition configs. The
+    `lintDefinitions` method also cross-references the `swamp audit` timeline,
+    so a recent definition with no matching create command is flagged even when
+    it carries a plausible id. A second workflow prints a scoreboard — a text
+    table of every git-tracked extension with the reasons each is not 100/100.
 
   INSTALL
 
@@ -40,13 +46,23 @@ description: >
       swamp model @svendowideit/meta-factory method run check meta-factory \
         --input manifest=extensions/models/caddy/manifest.yaml
 
+      # Lint every model/workflow/vault definition for hand-written or copied
+      # configs — a definition must be created by its swamp creation command,
+      # which the `swamp audit` timeline is cross-referenced to confirm.
+      swamp model @svendowideit/meta-factory method run lintDefinitions meta-factory
+
+      # Score every git-tracked extension and print a text table of each score
+      # with the reasons it is not 100/100 — excludes pulled/generated copies.
+      swamp workflow run @svendowideit/meta-factory-scoreboard
+
       # Read the detailed breakdown (failing checks and next actions) from the
       # last run.
       swamp report get @svendowideit/meta-factory-report \
         --model meta-factory --markdown
 
     The workflow's final assert step fails the run when any extension scores
-    below the threshold, so it works as a CI/publish gate.
+    below the threshold, so it works as a CI/publish gate. The scoreboard
+    workflow never gates — it is a read-only report.
 
   CONFIGURE
 
@@ -56,10 +72,14 @@ description: >
       threshold   Minimum passing score             (default 75)
       offline     Skip the network dependency audit (default false)
       skillName   Bundled skill to install          (default extension-docs)
+      definitionsRoot  Directory lintDefinitions scans (default .)
+      auditHours  Hours of `swamp audit` history to cross-reference for the
+                  creation-command check             (default 168; 0 disables)
 
-    Per-run overrides: `manifest`, `root`, `offline`, and `writeSummary` on
-    checkAll; `force` on scaffold; `target` (project|global|both) on
-    installSkill.
+    Per-run overrides: `manifest`, `root`, `offline`, `writeSummary`, and
+    `gitOnly` (score only git-tracked manifests) on checkAll; `force` on
+    scaffold; `target` (project|global|both) on installSkill; `scanRoot` and
+    `auditHours` on lintDefinitions.
 
   WHAT IT INSTALLS
 
@@ -80,9 +100,11 @@ models:
 
 reports:
   - meta_factory_report.ts
+  - meta_factory_scoreboard.ts
 
 workflows:
   - meta-factory.yaml
+  - meta-factory-scoreboard.yaml
 
 additionalFiles:
   - README.md
@@ -90,11 +112,14 @@ additionalFiles:
   - quality-rubric.ts
   - readme-lint.ts
   - manifest-lint.ts
+  - definitions-lint.ts
   - introspect.ts
   - meta_factory_test.ts
   - meta_factory_methods_test.ts
   - quality-rubric_test.ts
+  - definitions-lint_test.ts
   - meta_factory_report_test.ts
+  - meta_factory_scoreboard_test.ts
 
 skills:
   - extension-docs

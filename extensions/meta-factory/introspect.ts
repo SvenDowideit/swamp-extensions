@@ -51,6 +51,33 @@ export async function discoverManifests(
 }
 
 /**
+ * Turn `git ls-files` output into extension manifest entries.
+ *
+ * Only paths ending in `manifest.yaml` are kept, so a repo-managed tree
+ * (tracked in git) is scored while pulled/generated copies under `.swamp/` are
+ * excluded — the caller supplies the list, which keeps this pure and testable.
+ * `.swamp/` and `node_modules/` paths are dropped as defence in depth, matching
+ * the filesystem walk's exclusions even if a caller's git pathspec is broader.
+ *
+ * @param root Absolute directory the relative paths are resolved against.
+ * @param listed One `git ls-files` path per line, relative to `root`.
+ */
+export function manifestsFromGitList(
+  root: string,
+  listed: string[],
+): ManifestEntry[] {
+  const out: ManifestEntry[] = [];
+  for (const rel of listed) {
+    const trimmed = rel.trim();
+    if (!trimmed || !/(^|\/)manifest\.yaml$/.test(trimmed)) continue;
+    if (/(^|\/)(\.swamp|node_modules)\//.test(trimmed)) continue;
+    const path = join(root, trimmed);
+    out.push({ path, dir: dirname(path), relative: relative(root, path) });
+  }
+  return out.sort((a, b) => a.relative.localeCompare(b.relative));
+}
+
+/**
  * Extract the model/extension type string from a source file.
  *
  * Looks for the first `type: "@collective/name"` literal — the canonical shape

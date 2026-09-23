@@ -1,0 +1,169 @@
+id: 191d9c23-353c-4433-af63-2f22c6b9670d
+name: '@svendowideit/bom-weather'
+description: |
+  Fetch and print the 9-day BOM forecast for one location, plus the current
+  observations, the 72-hour hourly forecast and any active warnings. The final
+  step prints today and tomorrow with the issue_time / next_issue_time.
+
+  Location is chosen by any one of name, postcode, state, geohash or id — set
+  the defaults on the `bom` model, or override per run with --input. The cron
+  trigger polls four times daily, and the daily sync records the Bureau's own
+  issue_time so callers can detect a genuinely new forecast.
+
+  Steps: sync → (observe, sync-hourly, warnings) → print
+tags: {}
+trigger:
+  schedule: "30 6,12,18,0 * * *"
+  inputs:
+    name: Penrith
+    state: NSW
+inputs:
+  properties:
+    name:
+      type: string
+      default: Penrith
+      description: Suburb/town name to forecast (e.g. 'Penrith'). Overrides the model default.
+    postcode:
+      type: string
+      default: ""
+      description: Australian postcode (e.g. '2750'). Takes precedence over name.
+    state:
+      type: string
+      default: NSW
+      description: State/territory code (NSW, VIC, QLD, SA, WA, TAS, NT, ACT) to disambiguate a name.
+    geohash:
+      type: string
+      default: ""
+      description: Six-character BOM geohash (e.g. 'r650hv8'). Highest precedence selector.
+    id:
+      type: string
+      default: ""
+      description: BOM location id (e.g. 'Penrith-r650hv8'). The geohash is extracted from it.
+    warningScope:
+      type: string
+      enum:
+        - location
+        - national
+      default: location
+      description: Whether the warnings step covers just this location or the whole country.
+    hourlyHours:
+      type: number
+      default: 12
+      description: How many hourly rows the print step logs (0 = all 72).
+    warningsDetail:
+      type: boolean
+      default: false
+      description: Print each warning's full message text, not just its title.
+  required: []
+jobs:
+  - name: main
+    description: Sync the daily forecast and supplementary sources, then print today/tomorrow.
+    steps:
+      - name: sync
+        description: >-
+          Resolve the selector and fetch the 9-day daily forecast. Records
+          issue_time and next_issue_time; the snapshot advances whenever the
+          Bureau issues a new forecast.
+        task:
+          type: model_method
+          modelType: "@svendowideit/bom-weather"
+          modelName: bom
+          methodName: sync
+          inputs:
+            name: ${{ inputs.name }}
+            postcode: ${{ inputs.postcode }}
+            state: ${{ inputs.state }}
+            geohash: ${{ inputs.geohash }}
+            id: ${{ inputs.id }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: observe
+        description: >-
+          Fetch the latest observed conditions from the nearest BOM station.
+          Non-fatal: the observations feed is supplementary to the forecast.
+        task:
+          type: model_method
+          modelType: "@svendowideit/bom-weather"
+          modelName: bom
+          methodName: observe
+          inputs:
+            name: ${{ inputs.name }}
+            postcode: ${{ inputs.postcode }}
+            state: ${{ inputs.state }}
+            geohash: ${{ inputs.geohash }}
+            id: ${{ inputs.id }}
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+      - name: sync-hourly
+        description: >-
+          Fetch the 72-hour hourly forecast (temperature, wind, rain chance).
+          Non-fatal: it complements the daily précis rather than replacing it.
+        task:
+          type: model_method
+          modelType: "@svendowideit/bom-weather"
+          modelName: bom
+          methodName: sync-hourly
+          inputs:
+            name: ${{ inputs.name }}
+            postcode: ${{ inputs.postcode }}
+            state: ${{ inputs.state }}
+            geohash: ${{ inputs.geohash }}
+            id: ${{ inputs.id }}
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+      - name: warnings
+        description: >-
+          List active warnings for the location (or nationally). Non-fatal:
+          most runs have no warnings, and a warnings outage must not suppress
+          the forecast print.
+        task:
+          type: model_method
+          modelType: "@svendowideit/bom-weather"
+          modelName: bom
+          methodName: warnings
+          inputs:
+            scope: ${{ inputs.warningScope }}
+            detail: ${{ inputs.warningsDetail }}
+            name: ${{ inputs.name }}
+            postcode: ${{ inputs.postcode }}
+            state: ${{ inputs.state }}
+            geohash: ${{ inputs.geohash }}
+            id: ${{ inputs.id }}
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+      - name: print
+        description: >-
+          Print a consolidated view: today and tomorrow with issue_time /
+          next_issue_time, the latest observation, the next hours, and any
+          active warnings. Always the last step.
+        task:
+          type: model_method
+          modelType: "@svendowideit/bom-weather"
+          modelName: bom
+          methodName: print
+          inputs:
+            dataName: forecast
+            hourlyHours: ${{ inputs.hourlyHours }}
+            warningsDetail: ${{ inputs.warningsDetail }}
+        dependsOn:
+          - step: sync
+            condition:
+              type: succeeded
+          - step: observe
+            condition:
+              type: always
+          - step: sync-hourly
+            condition:
+              type: always
+          - step: warnings
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

@@ -1,0 +1,103 @@
+manifestVersion: 1
+name: "@svendowideit/bom-weather"
+
+version: "2026.09.23.2"
+
+description: >
+  Get the Australian Bureau of Meteorology's 9-day forecast for any suburb or
+  town, plus current observations, a 72-hour hourly forecast and active
+  warnings — and know exactly when to poll for the next revision.
+
+  WHAT IT DOES
+
+    Resolves a location from any one of five selectors — name, postcode,
+    state, geohash or id — then reads from the Bureau's public API: the 9-day
+    daily forecast (min/max temperature, rain chance and range, UV, fire
+    danger, sunrise/sunset, précis text), the latest station observations
+    (temperature, feels-like, humidity, wind, gust, rain since 9am), the
+    72-hour hourly forecast (wind, dew point, humidity, UV per hour), and
+    active weather warnings with their full text. The daily response's own
+    issue_time and next_issue_time are captured, so a scheduled workflow can
+    poll on the Bureau's real cadence (a new forecast roughly every six hours)
+    instead of a guessed interval, and can print today and tomorrow on demand.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/bom-weather
+
+  DEPENDENCIES
+
+    None — it needs only the swamp CLI and outbound network access to
+    api.weather.bom.gov.au.
+
+  RUN
+
+      # End-to-end: sync the daily forecast, observations, hourly forecast and
+      # warnings, then print a consolidated view — today/tomorrow with the
+      # issue cadence, the latest reading, the next hours and any warnings.
+      # Override the location per run with --input.
+      swamp workflow run @svendowideit/bom-weather \
+        --input name=Bathurst --input state=NSW
+
+      # Log all 72 hours and each warning's full message text.
+      swamp workflow run @svendowideit/bom-weather \
+        --input hourlyHours=0 --input warningsDetail=true
+
+      # Read one source on its own — observations, hourly or warnings.
+      swamp model @svendowideit/bom-weather method run observe bom \
+        --input postcode=2750
+
+      # Every active warning nationally, filtered to one state by the caller
+      # (the API ignores query filters, so this model filters client-side).
+      swamp model @svendowideit/bom-weather method run warnings bom \
+        --input scope=national --input state=NSW
+
+      # Just resolve a selector, to see how an ambiguous name maps to a place.
+      swamp model @svendowideit/bom-weather method run resolve bom \
+        --input postcode=2750
+
+  CONFIGURE
+
+    All selectors are optional and resolved in the order geohash > id >
+    postcode > name; `state` narrows a search and disambiguates places that
+    share a name. Each selector can be set either as a model global argument
+    (the default every run uses) or as a workflow input (a per-run override).
+    Pass a selector as `--input` on any command to override the global:
+
+      # Create the model with Penrith, NSW as its default location.
+      swamp model create @svendowideit/bom-weather bom \
+        --global-arg name=Penrith --global-arg state=NSW
+
+      # One run against a different location, without changing the default.
+      swamp model @svendowideit/bom-weather method run sync bom \
+        --input name=Bathurst --input state=NSW
+
+    On the bundled workflow, the same selectors are workflow inputs:
+
+      swamp workflow run @svendowideit/bom-weather \
+        --input geohash=r1r0fup
+
+  WHAT IT INSTALLS
+
+    Nothing on the host. The bundled workflow declares a cron trigger
+    (four times daily) that fires when the workflow is run under
+    `swamp serve`; it writes no services, files, or webhooks.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - bom_weather.ts
+
+workflows:
+  - bom-weather.yaml
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

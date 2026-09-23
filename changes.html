@@ -67,8 +67,40 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html" class="active">Changes</a><a href="releases.html">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-extensions-c47093989b373e7b4b9f230e9e8550c8907de5b3"><span class="tier A">A</span>keep compare-and-swap working on endpoints that reject quote</a><a href="#commit-swamp-club-swamp-4957bcbd414aee9f4e36822346def52e83414a86"><span class="tier A">A</span>keep a failing shell step&#39;s output instead of discarding it </a><a href="#commit-swamp-club-swamp-d75ade65d7fe729bd3a523c7a20d536d3c773731"><span class="tier A">A</span>accept resume --from and other stripped request fields (swam</a><a href="#commit-swamp-club-swamp-ea89067d30dbeaecbeefdd2f130a57eba0dbec27"><span class="tier A">A</span>stop false &#39;bundle could not be regenerated&#39; warning for pul</a><a href="#commit-swamp-club-swamp-cd12d9b57528c2743ab4522763c849aef4508d01"><span class="tier A">A</span>stop a loader test depending on where Deno is installed (swa</a><a href="#commit-swamp-club-swamp-extensions-4ee3e18a8e0c45b9bfc9c1691e079cb804b58bf5"><span class="tier A">A</span>stop the lock heartbeat abandoning a lock it still holds (sw</a><a href="#commit-swamp-club-swamp-1ac2f0120d70367303f0edd2a921806b094eea03"><span class="tier A">A</span>update datastores.md for scoped config poller extension relo</a><a href="#commit-swamp-club-swamp-7fe4c0fce6166f25016b5ac78d7cdb842d93dbef"><span class="tier A">A</span>pass markDirtyHook to auto-definition repos so pushChanged s</a><a href="#commit-swamp-club-swamp-e6d53943fed08e25ee4b0343faa3afca4361ae09"><span class="tier A">A</span>scope config poller extension reload to extension-only chang</a><a href="#commit-swamp-club-swamp-c37113c2023a8eb3f95a296925e992f01e05c874"><span class="tier A">A</span>document SWAMP_SERVER_URL requirement for SWAMP_SERVER_TOKEN</a><a href="#commit-swamp-club-swamp-bb9a42a54c89d0bd222255b915c0aef307d12d4b"><span class="tier A">A</span>scope run log capture to owning run via runId filter (swamp-</a><a href="#commit-swamp-club-swamp-d899465b7c8b69b638b58f8614bd72ce427da1b2"><span class="tier A">A</span>pass correct config key for interactive 1Password migration </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-31ce589d3985763655aaecfb4b3f578621555020"><span class="tier A">A</span>resume approved runs from the dashboard and opt-in auto-resu</a><a href="#commit-swamp-club-swamp-d8aed81976ff40113ffcd76a8c0b8eb1cd3115a1"><span class="tier A">A</span>add scheduled flaky-test detection with deno --repeats (swam</a><a href="#commit-swamp-club-swamp-5d5a308198c151169f41305876002283daa0532b"><span class="tier A">A</span>populate steps.&lt;name&gt;.outputs from the datastore (swamp-club</a><a href="#commit-swamp-club-swamp-extensions-8ff97ae323c2d97d844fb5a5fdc1b1e022f6f8a4"><span class="tier A">A</span>read every shard a dirty directory&#39;s files live in on scoped</a><a href="#commit-swamp-club-swamp-extensions-c47093989b373e7b4b9f230e9e8550c8907de5b3"><span class="tier A">A</span>keep compare-and-swap working on endpoints that reject quote</a><a href="#commit-swamp-club-swamp-4957bcbd414aee9f4e36822346def52e83414a86"><span class="tier A">A</span>keep a failing shell step&#39;s output instead of discarding it </a><a href="#commit-swamp-club-swamp-d75ade65d7fe729bd3a523c7a20d536d3c773731"><span class="tier A">A</span>accept resume --from and other stripped request fields (swam</a><a href="#commit-swamp-club-swamp-ea89067d30dbeaecbeefdd2f130a57eba0dbec27"><span class="tier A">A</span>stop false &#39;bundle could not be regenerated&#39; warning for pul</a><a href="#commit-swamp-club-swamp-cd12d9b57528c2743ab4522763c849aef4508d01"><span class="tier A">A</span>stop a loader test depending on where Deno is installed (swa</a><a href="#commit-swamp-club-swamp-extensions-4ee3e18a8e0c45b9bfc9c1691e079cb804b58bf5"><span class="tier A">A</span>stop the lock heartbeat abandoning a lock it still holds (sw</a><a href="#commit-swamp-club-swamp-1ac2f0120d70367303f0edd2a921806b094eea03"><span class="tier A">A</span>update datastores.md for scoped config poller extension relo</a><a href="#commit-swamp-club-swamp-7fe4c0fce6166f25016b5ac78d7cdb842d93dbef"><span class="tier A">A</span>pass markDirtyHook to auto-definition repos so pushChanged s</a></aside><div>
 
+<article class="item" id="commit-swamp-club-swamp-31ce589d3985763655aaecfb4b3f578621555020">
+<h2><span class="tier A">A</span>resume approved runs from the dashboard and opt-in auto-resume (swamp-club#2377) (#2569)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T11:48:47Z">2026-09-23T11:48:47Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><p>fix(serve): resume approved runs from the dashboard and opt-in auto-resume (swamp-club#2377) (#2569)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/31ce589d3985763655aaecfb4b3f578621555020" rel="noopener">31ce589d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2569" rel="noopener">#2569</a>𝗔 <a href="https://swamp-club.com/lab/2377" rel="noopener">lab#2377</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-d8aed81976ff40113ffcd76a8c0b8eb1cd3115a1">
+<h2><span class="tier A">A</span>add scheduled flaky-test detection with deno --repeats (swamp-club#2282) (#2568)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T11:20:00Z">2026-09-23T11:20:00Z</time></span><span>ci</span><span>feat</span></div>
+<div class="body"><p>feat(ci): add scheduled flaky-test detection with deno --repeats (swamp-club#2282) (#2568)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d8aed81976ff40113ffcd76a8c0b8eb1cd3115a1" rel="noopener">d8aed819</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2568" rel="noopener">#2568</a>𝗔 <a href="https://swamp-club.com/lab/2282" rel="noopener">lab#2282</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-5d5a308198c151169f41305876002283daa0532b">
+<h2><span class="tier A">A</span>populate steps.&lt;name&gt;.outputs from the datastore (swamp-club#2386) (#2567)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T11:14:19Z">2026-09-23T11:14:19Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><p>fix(workflows): populate steps.&lt;name&gt;.outputs from the datastore (swamp-club#2386) (#2567)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5d5a308198c151169f41305876002283daa0532b" rel="noopener">5d5a3081</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2567" rel="noopener">#2567</a>𝗔 <a href="https://swamp-club.com/lab/2386" rel="noopener">lab#2386</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-8ff97ae323c2d97d844fb5a5fdc1b1e022f6f8a4">
+<h2><span class="tier A">A</span>read every shard a dirty directory&#39;s files live in on scoped push (swamp-club #2353) (#308)</h2>
+<p class="lede">`fix` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-09-23T07:10:41Z">2026-09-23T07:10:41Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><p>fix(datastore): read every shard a dirty directory&#39;s files live in on scoped push (swamp-club #2353) (#308)</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/main/datastore/gcs/README.md" rel="noopener">datastore/gcs/README.md</a>, <a href="https://github.com/swamp-club/swamp-extensions/blob/main/datastore/s3/README.md" rel="noopener">datastore/s3/README.md</a></div>
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/8ff97ae323c2d97d844fb5a5fdc1b1e022f6f8a4" rel="noopener">8ff97ae3</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/308" rel="noopener">#308</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2353" rel="noopener">#2353</a></div>
+</article>
 <article class="item" id="commit-swamp-club-swamp-extensions-c47093989b373e7b4b9f230e9e8550c8907de5b3">
 <h2><span class="tier A">A</span>keep compare-and-swap working on endpoints that reject quoted If-Match ETags (swamp-club #2337) (#306)</h2>
 <p class="lede">`fix` change · swamp-club/swamp-extensions</p>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7fe4c0fce6166f25016b5ac78d7cdb842d93dbef" rel="noopener">7fe4c0fc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2546" rel="noopener">#2546</a></div>
 </article>
-<article class="item" id="commit-swamp-club-swamp-e6d53943fed08e25ee4b0343faa3afca4361ae09">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-e6d53943fed08e25ee4b0343faa3afca4361ae09">
 <h2><span class="tier A">A</span>scope config poller extension reload to extension-only changes (swamp-club#2341) (#2545)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-22T16:07:20Z">2026-09-22T16:07:20Z</time></span><span>serve</span><span>fix</span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d899465b7c8b69b638b58f8614bd72ce427da1b2" rel="noopener">d899465b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2539" rel="noopener">#2539</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-extensions-3571a406d9b4e0ca55af566d1a0c892d714a7d14">
+<article class="item" id="commit-swamp-club-swamp-extensions-3571a406d9b4e0ca55af566d1a0c892d714a7d14">
 <h2><span class="tier A">A</span>stream pullFile downloads and hash comparisons to reduce heap retention (#302)</h2>
 <p class="lede">`fix` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-09-22T00:23:16Z">2026-09-22T00:23:16Z</time></span><span>datastore</span><span>fix</span></div>
@@ -493,6 +525,14 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/9d2c71aa3fe3c205041d4d2039bc1a5a482be3d4" rel="noopener">9d2c71aa</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/1913" rel="noopener">#1913</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/251" rel="noopener">#251</a></div>
 </article>
+<article class="item" id="commit-swamp-club-swamp-extensions-49bb0f6b62afc6465fc0cc8179770f83d705aa27">
+<h2><span class="tier B">B</span>regenerate models from upstream schemas (#307)</h2>
+<p class="lede">`chore` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-09-23T07:14:10Z">2026-09-23T07:14:10Z</time></span><span>chore</span></div>
+<div class="body"><p>chore: regenerate models from upstream schemas (#307)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/49bb0f6b62afc6465fc0cc8179770f83d705aa27" rel="noopener">49bb0f6b</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/307" rel="noopener">#307</a></div>
+</article>
 <article class="item" id="commit-swamp-club-swamp-extensions-e580248feb83d23c3a27a631e783a5ac8d48d527">
 <h2><span class="tier B">B</span>regenerate models from upstream schemas (#303)</h2>
 <p class="lede">`chore` change · swamp-club/swamp-extensions</p>
@@ -686,13 +726,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/63ec7ea66cb4284e2cd125b1d7d57a4120bfb016" rel="noopener">63ec7ea6</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/253" rel="noopener">#253</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>77 items across 2 source(s) in this window:
-0 critical, 53 notable, 24 routine,
+<p>82 items across 2 source(s) in this window:
+0 critical, 57 notable, 25 routine,
 0 minor.</p>
-<ul><li><strong>fix</strong> — 41</li><li><strong>chore</strong> — 24</li><li><strong>feat</strong> — 12</li></ul></section>
+<ul><li><strong>fix</strong> — 44</li><li><strong>chore</strong> — 25</li><li><strong>feat</strong> — 13</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-23T11:02:42.401Z">2026-09-23T11:02:42.401Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-23T12:01:46.053Z">2026-09-23T12:01:46.053Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

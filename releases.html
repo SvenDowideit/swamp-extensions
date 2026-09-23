@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260922-204047-0-sha-4957bcbd"><span class="tier A">A</span>keep a failing shell step&#39;s output instead of discarding it </a><a href="#release-swamp-club-swamp-v20260922-203653-0-sha-d75ade65"><span class="tier A">A</span>accept resume --from and other stripped request fields (swam</a><a href="#release-swamp-club-swamp-v20260922-203322-0-sha-ea89067d"><span class="tier A">A</span>stop false &#39;bundle could not be regenerated&#39; warning for pul</a><a href="#release-swamp-club-swamp-v20260922-200837-0-sha-cd12d9b5"><span class="tier A">A</span>stop a loader test depending on where Deno is installed (swa</a><a href="#release-swamp-club-swamp-v20260922-185723-0-sha-33229b53"><span class="tier A">A</span>apply --ca-cert to the dispatch data plane (swamp-club#2193)</a><a href="#release-swamp-club-swamp-v20260922-183711-0-sha-fe318bfb"><span class="tier A">A</span>content-address extension bundle imports so hot-reload stops</a><a href="#release-swamp-club-swamp-v20260922-174258-0-sha-47ee85e8"><span class="tier A">A</span>describe skipped helper modules instead of implying a load f</a><a href="#release-swamp-club-swamp-v20260922-162335-0-sha-1ac2f012"><span class="tier A">A</span>update datastores.md for scoped config poller extension relo</a><a href="#release-swamp-club-swamp-v20260922-161340-0-sha-7fe4c0fc"><span class="tier A">A</span>pass markDirtyHook to auto-definition repos so pushChanged s</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260923-001003-0-sha-0c3a78cb"><span class="tier A">A</span>retry the racing setup fetch and bind attestations to the ex</a><a href="#release-swamp-club-swamp-v20260923-000153-0-sha-ac6111f8"><span class="tier A">A</span>resolve a nested workflow target and steps.* at step time (s</a><a href="#release-swamp-club-swamp-v20260922-235155-0-sha-a17eea0a"><span class="tier A">A</span>remove the dead container sandbox and its stale instructions</a><a href="#release-swamp-club-swamp-v20260922-233424-0-sha-02a3d17b"><span class="tier A">A</span>stop server-login waiting on the browser it launched (swamp-</a><a href="#release-swamp-club-swamp-v20260922-231031-0-sha-2e75cd0d"><span class="tier A">A</span>accept every data accessor in a global argument (#2543)</a><a href="#release-swamp-club-swamp-v20260922-230507-0-sha-6e5a4087"><span class="tier A">A</span>show real step counts on the dashboard Workflows view (swamp</a><a href="#release-swamp-club-swamp-v20260922-225336-0-sha-4a73afbd"><span class="tier A">A</span>defer a guarded step task target to step time (#2538)</a><a href="#release-swamp-club-swamp-v20260922-221433-0-sha-48ea15b0"><span class="tier A">A</span>stop unit tests mutating HOME under --parallel (swamp-club#2</a><a href="#release-swamp-club-swamp-v20260922-215510-0-sha-0aaf8eb8"><span class="tier A">A</span>generate the attestation, and give it a schema (swamp-club#2</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7">
 <h2><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#2446)</h2>
@@ -150,6 +150,298 @@ footer .ver{color:var(--acc)}
 <p>| <code>design/enablers/remote-execution.md</code> | Document the additionalFiles-only policy |</p></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.194129.0-sha.d1808bea" rel="noopener">release v20260902.194129.0-sha.d1808bea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1808bead33f16f9845d428e62e8d6d253214017" rel="noopener">d1808bea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2360" rel="noopener">#2360</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-001003-0-sha-0c3a78cb">
+<h2><span class="tier A">A</span>retry the racing setup fetch and bind attestations to the executed workflow (swamp-club#2387, swamp-club#2388) (#2566)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T00:11:41Z">2026-09-23T00:11:41Z</time></span><span>verification</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(verification): retry the racing setup fetch and bind attestations to the executed workflow (swamp-club#2387, swamp-club#2388) (#2566)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Two fixes to the verification harness. Both touch trust-root paths (<code>verification/**</code>, <code>scripts/build_attestation.ts</code>, <code>agent-constraints/verification-conventions.md</code>), so here&#39;s what changed and why.</p>
+<h4 class="body-h">1. Retry the setup fetch that races under parallel runs (fixes swamp-club#2387)</h4>
+<p><code>verify-reviews</code> and <code>verify-skills</code> both run <code>git fetch origin main</code> in their setup step, and the conventions launch them together. Every worktree shares <code>refs/remotes/origin/main</code>. When main has moved since the last fetch, both fetches try to advance the ref from the same old value. The loser fails with <code>incorrect old value provided</code>, <code>set -e</code> fails setup, and the run reports what looks like a skills or review failure.</p>
+<p>Both setup steps now run:</p>
+<p>```sh</p>
+<p>git fetch origin main || { sleep 1; git fetch origin main; }</p>
+<p>```</p>
+<p>By the time the retry runs, the ref is already current, so it has nothing to write. The one-second pause covers a winner that still holds the ref lock. A fetch that fails twice still fails the step. The two setup steps stay identical in shape, and <code>verify-build</code> is unchanged because it doesn&#39;t fetch.</p>
+<h4 class="body-h">2. Refuse attestations for runs of a different workflow (fixes swamp-club#2388)</h4>
+<p><code>build_attestation.ts</code> pinned each workflow&#39;s hash at the verified commit, but the commit is only an input the run was handed. W</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.001003.0-sha.0c3a78cb" rel="noopener">release v20260923.001003.0-sha.0c3a78cb</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0c3a78cbc3726b7dc09cea0e44cc1d762b7d29a5" rel="noopener">0c3a78cb</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2566" rel="noopener">#2566</a>𝗔 <a href="https://swamp-club.com/lab/2388" rel="noopener">lab#2388</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-000153-0-sha-ac6111f8">
+<h2><span class="tier A">A</span>resolve a nested workflow target and steps.* at step time (swamp-club#2351) (#2565)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T00:03:38Z">2026-09-23T00:03:38Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): resolve a nested workflow target and steps.* at step time (swamp-club#2351) (#2565)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A driver step that picks the next workflow from a record an earlier step of the same run wrote never saw that record. The nested step&#39;s <code>workflowIdOrName</code> was evaluated once at run start, before the write. It silently took its <code>orValue</code> fallback on a first run and a previous run&#39;s value afterwards. An input sharing the target&#39;s text got the same stale value, because run-start substitution is keyed on the raw expression text.</p>
+<ul>
+<li><strong><code>workflowIdOrName</code> is a task target</strong>, alongside <code>modelIdOrName</code> and <code>modelName</code> (#2538). It defers past run start when it reads step output or its step carries a guard. <code>runWorkflowStep</code> resolves it after the guard has decided, with the same <code>resolveScalarExpression</code> the model path uses.</li>
+<li><strong>One deferral rule for run and evaluate.</strong> The guarded-step and target rule moves into <code>createTaskTargetDeferral</code>, so <code>swamp workflow evaluate</code> (whose cache <code>--last-evaluated</code> replays) leaves the same targets raw as a run.</li>
+<li><strong>Interpolated targets.</strong> <code>resolveScalarExpression</code> now resolves a target that interpolates a deferred expression into literal text (<code>stage-${{ data.latest(...) }}</code>), which previously reached the lookup raw. This applies to model targets too. It still refuses any expression that was not written in the source.</li>
+<li>**<code>steps.*</code> at run start.** A <code>steps.*</code> reference is now left raw at run start, like <code>run.*</code>. The nam</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.000153.0-sha.ac6111f8" rel="noopener">release v20260923.000153.0-sha.ac6111f8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ac6111f88f7b2c5c09097cd113bee16952f64444" rel="noopener">ac6111f8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2565" rel="noopener">#2565</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2538" rel="noopener">#2538</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1960" rel="noopener">#1960</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/275" rel="noopener">#275</a>𝗔 <a href="https://swamp-club.com/lab/2379" rel="noopener">lab#2379</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260922-235155-0-sha-a17eea0a">
+<h2><span class="tier A">A</span>remove the dead container sandbox and its stale instructions (swamp-club#2271) (#2564)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T23:53:38Z">2026-09-22T23:53:38Z</time></span><span>verification</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(verification): remove the dead container sandbox and its stale instructions (swamp-club#2271) (#2564)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2271.</p>
+<p>Pre-PR verification runs as three host workflows — <code>verify-build</code>,</p>
+<p><code>verify-reviews</code>, <code>verify-skills</code> — each in a fresh <code>git worktree</code> at the</p>
+<p>verified commit. That is what <code>agent-constraints/verification-conventions.md</code></p>
+<p>documents. But <code>AGENTS.md</code> told agents to run verification &quot;in the container</p>
+<p>sandbox&quot; and to find &quot;the docker command&quot; in that file, which contains no</p>
+<p>docker command. The same wording had spread to the <code>github-pr</code> and</p>
+<p><code>issue-lifecycle</code> skills and to the <code>@swamp/issue-lifecycle</code> <code>verify</code> method</p>
+<p>description, and <code>issue-lifecycle/references/verification.md</code> told agents to run</p>
+<p><code>./verification/container/build.sh</code> before verifying.</p>
+<p><code>verification/container/</code> itself was referenced by nothing but its own</p>
+<p><code>build.sh</code>, and its Deno pin had drifted to 2.8.3.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li>Delete <code>verification/container/</code> (<code>Containerfile</code>, <code>build.sh</code>, <code>.containerignore</code>)</li>
+<li><code>AGENTS.md</code>: name the three host workflows and what each covers; point at</li>
+</ul>
+<p>  <code>verification-conventions.md</code> for the commands</p>
+<ul>
+<li><code>issue-lifecycle</code> skill (<code>SKILL.md</code>, <code>references/verification.md</code>,</li>
+</ul>
+<p>  <code>references/implementation.md</code>) and <code>github-pr</code> skill: drop the container</p>
+<p>  sandbox and <code>build.sh</code> references</p>
+<ul>
+<li><code>@swamp/issue-lifecycle</code>: reword the <code>verify</code> description; bump to</li>
+</ul>
+<p>  <code>2026.09.23.1</code> with an identity upgrade (description-only change)</p>
+<ul>
+<li>`integration/toolchai</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/github-pr/SKILL.md" rel="noopener">.claude/skills/github-pr/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/issue-lifecycle/SKILL.md" rel="noopener">.claude/skills/issue-lifecycle/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/issue-lifecycle/references/implementation.md" rel="noopener">.claude/skills/issue-lifecycle/references/implementation.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/issue-lifecycle/references/verification.md" rel="noopener">.claude/skills/issue-lifecycle/references/verification.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/AGENTS.md" rel="noopener">AGENTS.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.235155.0-sha.a17eea0a" rel="noopener">release v20260922.235155.0-sha.a17eea0a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a17eea0a6eec5161fae5f6cf12620d1dd175722f" rel="noopener">a17eea0a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2564" rel="noopener">#2564</a>𝗔 <a href="https://swamp-club.com/lab/2271" rel="noopener">lab#2271</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260922-233424-0-sha-02a3d17b">
+<h2><span class="tier A">A</span>stop server-login waiting on the browser it launched (swamp-club#2378) (#2563)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T23:36:06Z">2026-09-22T23:36:06Z</time></span><span>auth</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(auth): stop server-login waiting on the browser it launched (swamp-club#2378) (#2563)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2378. <code>swamp auth server-login</code> hung forever after the user approved the code in the browser. It printed <code>Opening browser...</code> and nothing else, and it never timed out.</p>
+<p><strong>Root cause.</strong> <code>openBrowser</code> awaited <code>Deno.Command.output()</code>, which waits for the launcher to exit *and* for its stdout/stderr pipes to close. On sway, xdg-open&#39;s generic path runs the default browser in the foreground when it isn&#39;t already open, so <code>xdg-open</code> doesn&#39;t return until the browser quits. <code>serverLogin</code> waited for that before its polling loop, and the 300 s timeout only covered the fetches, so nothing ended the wait. When the browser was already running, the same command finished in 0.76 s.</p>
+<p><strong>Changes</strong></p>
+<ul>
+<li><strong><code>openBrowser</code></strong> (<code>src/infrastructure/process/browser.ts</code>): spawns the launcher with null stdio, so no browser process can hold a pipe to swamp open. It waits for the launcher&#39;s exit for up to <code>BROWSER_LAUNCH_GRACE_MS</code> (2 s):</li>
+<li>exits 0: success;</li>
+<li>exits non-zero, or fails to spawn: the existing &quot;Could not open a browser&quot; <code>UserError</code>;</li>
+<li>still running at 2 s: treated as launched, <code>unref()</code>&#39;d and not awaited.</li>
+</ul>
+<p>  The timer is cleared in a <code>finally</code>. Spawning is injectable, so the tests use fakes. This also fixes <code>swamp auth login</code>, the mailto handoff in <code>issue submit</code>, and the extension report dispatcher, which share the helper.</p>
+<ul>
+<li><strong><code>serverLogin</code></strong> (`src/li</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.233424.0-sha.02a3d17b" rel="noopener">release v20260922.233424.0-sha.02a3d17b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/02a3d17bb15ec0f8fa7f211b4bfdeb97bfefcdf1" rel="noopener">02a3d17b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2563" rel="noopener">#2563</a>𝗔 <a href="https://swamp-club.com/lab/2378" rel="noopener">lab#2378</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260922-231031-0-sha-2e75cd0d">
+<h2><span class="tier A">A</span>accept every data accessor in a global argument (#2543)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T23:11:50Z">2026-09-22T23:11:50Z</time></span><span>expressions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(expressions): accept every data accessor in a global argument (#2543)</li>
+</ul>
+<p>The workflow-path expression validator kept its own hand-written list of data</p>
+<p>accessors, and it fell behind the namespace. <code>data.query</code> and <code>data.findBySpec</code></p>
+<p>were rejected in model global arguments long after they worked everywhere else,</p>
+<p>with an error claiming the expression &quot;does not contain valid model, self, or</p>
+<p>env references&quot;.</p>
+<h4 class="body-h">What changed</h4>
+<ul>
+<li>One exported constant, <code>DATA_NAMESPACE_ACCESSORS</code>, is now the single list of</li>
+</ul>
+<p>  accessors the CEL data namespace exposes. The validator&#39;s allow-list and the</p>
+<p>  detection predicate both derive from it instead of restating it.</p>
+<ul>
+<li>An architecture fitness test pins that constant to <strong>both</strong> surfaces that</li>
+</ul>
+<p>  define the namespace: the cel-js registrations, which decide what an</p>
+<p>  expression can call, and the <code>DataNamespace</code> interface, which declares the</p>
+<p>  contract. Set equality in both corners, never subset containment, so an</p>
+<p>  extraction that silently matches nothing after a reformat fails loudly rather</p>
+<p>  than passing vacuously. Names are pinned; arities deliberately are not.</p>
+<ul>
+<li><code>extractDependencies</code> and its narrower pattern are unchanged, and that pattern</li>
+</ul>
+<p>  now carries a comment explaining why it must stay narrow.</p>
+<h4 class="body-h">Behaviour change worth knowing</h4>
+<p>This makes previously-failing definitions run, and it invites a migration that</p>
+<p>exposes an asymmetry. Accessors whose first argument names a model contribute an</p>
+<p>implicit dependency edge; <code>query</code> and `</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/data-chaining.md" rel="noopener">.claude/skills/swamp/references/workflow/references/data-chaining.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.231031.0-sha.2e75cd0d" rel="noopener">release v20260922.231031.0-sha.2e75cd0d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2e75cd0df80fa32c32dcce5dce9f82c17c1dd970" rel="noopener">2e75cd0d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2543" rel="noopener">#2543</a>𝗔 <a href="https://swamp-club.com/lab/2295" rel="noopener">lab#2295</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260922-230507-0-sha-6e5a4087">
+<h2><span class="tier A">A</span>show real step counts on the dashboard Workflows view (swamp-club#2357) (#2562)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T23:06:45Z">2026-09-22T23:06:45Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): show real step counts on the dashboard Workflows view (swamp-club#2357) (#2562)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2357: the serve dashboard Workflows view showed <strong>0 steps</strong> on every card.</p>
+<p><strong>Cause.</strong> <code>Workflows.tsx</code> summed <code>jobs[].steps.length</code>, but <code>workflow.search</code> returns the libswamp <code>WorkflowSearchItem</code> projection, which has <code>jobCount</code> and no <code>jobs</code> array. <code>w.jobs</code> was always undefined, so the count always fell through to 0. It has never worked: the dashboard shipped (#2208) calling the same projection.</p>
+<ul>
+<li><code>WorkflowSearchItem</code> gains <code>stepCount</code>, derived from the already-loaded <code>Workflow</code> aggregate beside <code>jobCount</code>. <code>WorkflowSearchDeps</code> now types each job as having <code>steps</code>, which <code>Workflow.jobs</code> / <code>Job.steps</code> already satisfy, so all three callers (CLI search, CLI edit picker, serve handler) are unchanged.</li>
+<li>The dashboard card renders <code>w.stepCount</code> and drops its client-side reducer. <code>WorkflowDetail</code> is untouched, as it uses <code>workflow.get</code>.</li>
+</ul>
+<p>Also fixes swamp-club#2380, found while verifying this change: <strong><code>deno run build-dashboard</code> never produced a build.</strong> <code>deno task</code> intercepts a literal <code>npm run &lt;script&gt;</code> and runs the <code>package.json</code> script itself, where vite fails to resolve under Deno&#39;s npm cache (<code>Could not find referrer npm package ... vite@6.4.3</code>). The task is now <code>npm --prefix packages/dashboard run build</code>, which <code>deno task</code> passes to npm unchanged. This matters beyond convenience: <code>tsc -b</code> inside that build is the only type-check `pac</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.230507.0-sha.6e5a4087" rel="noopener">release v20260922.230507.0-sha.6e5a4087</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6e5a40875c40d6244a0e378957bef14cee04fc53" rel="noopener">6e5a4087</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2562" rel="noopener">#2562</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2208" rel="noopener">#2208</a>𝗔 <a href="https://swamp-club.com/lab/2357" rel="noopener">lab#2357</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260922-225336-0-sha-4a73afbd">
+<h2><span class="tier A">A</span>defer a guarded step task target to step time (#2538)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T22:54:55Z">2026-09-22T22:54:55Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): defer a guarded step task target to step time (#2538)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A step with a <code>guard</code> that evaluates true never runs, but swamp still</p>
+<p>evaluated its task target when the run started. A dynamic</p>
+<p><code>task.modelIdOrName</code> resolving to an empty string then failed <code>StepTask</code></p>
+<p>validation while the evaluated workflow was rebuilt, killing the entire run</p>
+<p>before any step executed — and recording no run at all, so</p>
+<p><code>workflow history</code> showed nothing to diagnose.</p>
+<p>The deferral list had grown one field at a time — <code>task.inputs</code>, assert</p>
+<p>messages, guards — and the task target was never added. It has never worked;</p>
+<p>guards only made it reachable.</p>
+<p>The target now defers for either of two independent reasons:</p>
+<ul>
+<li><strong>it reads step output</strong>, so the data it names does not exist yet — the</li>
+</ul>
+<p>  same reason <code>task.inputs</code> defers;</p>
+<ul>
+<li><strong>its step carries a guard</strong>, so the step may not run at all, and</li>
+</ul>
+<p>  resolving a target for a step that will skip is the defect itself.</p>
+<p>An unguarded target with no step-output dependency still resolves at run</p>
+<p>start, so a mistyped name keeps failing where the error is cheapest.</p>
+<p>Deferring only on a step-output dependency would have left the reported</p>
+<p>symptom reachable through a plain <code>inputs</code> reference, which is why the rule</p>
+<p>is a union rather than the narrower condition.</p>
+<p>Resolution happens in <code>executeModelMethod</code>, after the guard has decided —</p>
+<p><code>runStep</code> returns early on a guarded skip and never reaches the executor.</p>
+<p>One thing the tests caught that th</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.225336.0-sha.4a73afbd" rel="noopener">release v20260922.225336.0-sha.4a73afbd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4a73afbd6be3f9adae63b29d06b926913754b5f6" rel="noopener">4a73afbd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2538" rel="noopener">#2538</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260922-221433-0-sha-48ea15b0">
+<h2><span class="tier A">A</span>stop unit tests mutating HOME under --parallel (swamp-club#2375) (#2561)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T22:16:10Z">2026-09-22T22:16:10Z</time></span><span>tests</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(tests): stop unit tests mutating HOME under --parallel (swamp-club#2375) (#2561)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2375: <code>resolveCachePath: undefined return routes to repoId-keyed default</code> flaked in verify-build with <code>Cannot determine home directory (HOME/USERPROFILE not set)</code>.</p>
+<p><code>deno test --parallel</code> runs every test file in one process, and <code>Deno.env</code> is process-wide. <code>paths_test.ts</code>, <code>load_identity_test.ts</code> and <code>input_parser_test.ts</code> deleted or overwrote <code>HOME</code>, <code>USERPROFILE</code>, <code>SWAMP_HOME</code> and <code>XDG_CONFIG_HOME</code> directly, so any test in another file that reached <code>getSwampDataDir()</code> / <code>getSwampConfigDir()</code> at the same moment could throw, or compute a different path (<code>paths_test</code> sets <code>HOME=/home/testuser</code>).</p>
+<ul>
+<li>Add <code>withMockedEnv(overrides, fn)</code> to <code>src/infrastructure/persistence/path_test_helpers.ts</code>. It replaces <code>Deno.env.get</code> for the current test worker only and never writes the real environment. It restores on return, throw, or promise settle.</li>
+<li>Convert the 20 env-dependent tests in <code>paths_test.ts</code>, the <code>loadIdentity</code> test, and the two <code>~/</code> expansion tests in <code>input_parser_test.ts</code>. Assertions are unchanged.</li>
+<li>Each <code>paths_test</code> case now overrides every home variable that can change its result, so an ambient <code>SWAMP_HOME</code> / <code>XDG_CONFIG_HOME</code> on a runner can no longer leak in.</li>
+</ul>
+<p>No production code changes.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><strong>Reproduced before the fix:</strong> a probe test calling the real <code>getSwampDataDir()</code> in a loop under <code>--parallel</code>, next to the three files,</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.221433.0-sha.48ea15b0" rel="noopener">release v20260922.221433.0-sha.48ea15b0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/48ea15b09c6096186a732ba19aee740a90636ef4" rel="noopener">48ea15b0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2561" rel="noopener">#2561</a>𝗔 <a href="https://swamp-club.com/lab/2375" rel="noopener">lab#2375</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260922-215510-0-sha-0aaf8eb8">
+<h2><span class="tier A">A</span>generate the attestation, and give it a schema (swamp-club#2376) (#2560)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T21:56:47Z">2026-09-22T21:56:47Z</time></span><span>verification</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(verification): generate the attestation, and give it a schema (swamp-club#2376) (#2560)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The attestation&#39;s shape was real long before anything enforced it. <code>.github/workflows/ci.yml</code> reads about two dozen specific paths out of it with <code>jq</code>, and <code>verification-conventions.md</code> spent seventy lines telling an agent how to produce each one. Between those two, nothing checked anything: <code>post_attestation</code> took a string, <code>JSON.parse</code>d it, posted whatever came back, and then read <code>(parsed.subject as Record&lt;string, unknown&gt;)?.commit</code> with an unchecked cast.</p>
+<p><code>AttestationSchema</code> is that shape written down once. The generator produces documents satisfying it and <code>post_attestation</code> refuses ones that don&#39;t, so the contract is enforced where the document is made and again where it leaves the machine — rather than in bash on the far side, after the PR is public.</p>
+<p>Demonstrated on this branch, posting a document with <code>subject</code> removed:</p>
+<p>```</p>
+<p>Error: attestation does not match AttestationSchema:</p>
+<p>  subject: Invalid input: expected object, received undefined</p>
+<p>```</p>
+<p>On <code>main</code> that same document posts cleanly and logs <code>commit=undefined</code>.</p>
+<h4 class="body-h">The generator</h4>
+<p><code>scripts/build_attestation.ts</code> takes the three <code>verify-*</code> run ids in any order and reads each record&#39;s own <code>workflowName</code> to tell them apart, so mislabelling one is not a mistake that can be made. <code>buildAttestation()</code> is pure — every field is a function of the run records, the workflow definitions at the verified</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.215510.0-sha.0aaf8eb8" rel="noopener">release v20260922.215510.0-sha.0aaf8eb8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0aaf8eb86a16e303f62282ae133731a7b1ef15eb" rel="noopener">0aaf8eb8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2560" rel="noopener">#2560</a></div>
+</article>
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260922-213037-0-sha-eae73d0f">
+<h2><span class="tier A">A</span>accept dashboard System requests, page workflow searches, gzip large WS frames (swamp-club#2347) (#2556)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T21:32:16Z">2026-09-22T21:32:16Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): accept dashboard System requests, page workflow searches, gzip large WS frames (swamp-club#2347) (#2556)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2347: the serve dashboard was slow off-LAN, and its System view never loaded.</p>
+<p><strong>Rejected request types.</strong> <code>cluster.instances</code>, <code>serve.config</code> and <code>doctor.datastores</code> had handlers but no entry in <code>ServerRequestSchema</code>, so validation rejected them as <code>invalid_request</code> before dispatch. Because of this the dashboard System view and <code>swamp doctor datastores --server</code> have never worked over WebSocket.</p>
+<ul>
+<li>Added the three schemas.</li>
+<li>Tightened the schema-less pin in <code>src/serve/connection_schema_parity_test.ts</code> (added upstream in #2554) from these three types to <code>never</code>, so <code>deno check</code> fails if a <code>ServerRequest</code> type is ever added without a schema. This closes swamp-club#2361.</li>
+<li><code>cluster.instances</code> and <code>serve.config</code> now require <code>admin</code> on <code>access:*</code> over WebSocket, matching their REST routes. Fixing the schema alone would have exposed both to read-only principals.</li>
+</ul>
+<p><strong>Paging.</strong> <code>workflow.search</code> and <code>workflow.run.search</code> accept <code>offset</code> and <code>limit</code>, and return <code>total</code> beside <code>data</code>. <code>data</code> keeps the libswamp shape, so CLI <code>--json</code> output is unchanged.</p>
+<ul>
+<li>Paging runs after the authorization filter, so hidden workflows no longer shorten a page.</li>
+<li>The dashboard Executions and Workflows views now page on the server, using a <code>Pager</code> component pulled out of Executions.</li>
+<li>The published client package (`packages/client/protocol.</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.213037.0-sha.eae73d0f" rel="noopener">release v20260922.213037.0-sha.eae73d0f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/eae73d0fe3c94493da56545c4b8e87f43ab38b24" rel="noopener">eae73d0f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2556" rel="noopener">#2556</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2554" rel="noopener">#2554</a>𝗔 <a href="https://swamp-club.com/lab/2347" rel="noopener">lab#2347</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260922-212158-0-sha-ac265d64">
+<h2><span class="tier A">A</span>persist why a step was skipped (swamp-club#2358) (#2558)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T21:23:26Z">2026-09-22T21:23:26Z</time></span><span>workflows</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(workflows): persist why a step was skipped (swamp-club#2358) (#2558)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A skipped <code>StepRun</code> recorded only its status, so a step a path guard correctly excluded and one whose job never started were the same fact downstream: a bare <code>skipped</code>, counted by CI. The execution service already knew the difference — it yields <code>step_skipped</code> with a <code>reason</code> and, for a guard, the expression — but nothing persisted it, so the distinction died with the event stream.</p>
+<p>This matters most in the verification attestation. <code>reviewConfig</code> is meant to say, per review, whether it ran and why not; today an agent types that by hand because the run record cannot answer it.</p>
+<h4 class="body-h">What changed</h4>
+<p><code>StepRun.skip</code> now takes a <code>StepSkipReason</code> (<code>dependency</code>, <code>guarded</code> with the evaluated expression, or <code>job_skipped</code> for the cascade from <code>JobRun.skip</code>), persisted through <code>toData</code>/<code>fromData</code> and cleared on <code>resetToPending</code>. The run view exposes it, <code>workflow history get</code> prints it in log mode, and the verification report surfaces both a per-step reason and a <code>gate.skippedByKind</code> breakdown.</p>
+<p>A skip with no recorded reason reads as <code>reason not recorded</code> rather than a bare <code>skipped</code>. Runs persisted before this field are legitimately silent, and saying so beats inviting the reader to assume a guard.</p>
+<p><strong>The reason is a discriminated union</strong>, not one object with an optional <code>expression</code>. Only a guard has an expression to report, and a flat shape validates `{ kind: &quot;dependency&quot;, expres</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.212158.0-sha.ac265d64" rel="noopener">release v20260922.212158.0-sha.ac265d64</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ac265d647b1dc96e1aa732472654423ff1e7718e" rel="noopener">ac265d64</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2558" rel="noopener">#2558</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260922-204047-0-sha-4957bcbd">
 <h2><span class="tier A">A</span>keep a failing shell step&#39;s output instead of discarding it (swamp-club#2364) (#2555)</h2>
@@ -411,7 +703,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.161340.0-sha.7fe4c0fc" rel="noopener">release v20260922.161340.0-sha.7fe4c0fc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7fe4c0fce6166f25016b5ac78d7cdb842d93dbef" rel="noopener">7fe4c0fc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2546" rel="noopener">#2546</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260922-160736-0-sha-e6d53943">
+<article class="item" id="release-swamp-club-swamp-v20260922-160736-0-sha-e6d53943">
 <h2><span class="tier A">A</span>scope config poller extension reload to extension-only changes (swamp-club#2341) (#2545)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-22T16:09:22Z">2026-09-22T16:09:22Z</time></span><span>serve</span><span>fix</span></div>
@@ -6882,302 +7174,10 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.015247.0-sha.c228ef72" rel="noopener">release v20260902.015247.0-sha.c228ef72</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c228ef722408b54501e67b044bd23c2475ad4c0c" rel="noopener">c228ef72</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2345" rel="noopener">#2345</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260923-001003-0-sha-0c3a78cb">
-<h2><span class="tier C">C</span>swamp 20260923.001003.0-sha.0c3a78cb</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-23T00:11:41Z">2026-09-23T00:11:41Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(verification): retry the racing setup fetch and bind attestations to the executed workflow (swamp-club#2387, swamp-club#2388) (#2566)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Two fixes to the verification harness. Both touch trust-root paths (<code>verification/**</code>, <code>scripts/build_attestation.ts</code>, <code>agent-constraints/verification-conventions.md</code>), so here&#39;s what changed and why.</p>
-<h4 class="body-h">1. Retry the setup fetch that races under parallel runs (fixes swamp-club#2387)</h4>
-<p><code>verify-reviews</code> and <code>verify-skills</code> both run <code>git fetch origin main</code> in their setup step, and the conventions launch them together. Every worktree shares <code>refs/remotes/origin/main</code>. When main has moved since the last fetch, both fetches try to advance the ref from the same old value. The loser fails with <code>incorrect old value provided</code>, <code>set -e</code> fails setup, and the run reports what looks like a skills or review failure.</p>
-<p>Both setup steps now run:</p>
-<p>```sh</p>
-<p>git fetch origin main || { sleep 1; git fetch origin main; }</p>
-<p>```</p>
-<p>By the time the retry runs, the ref is already current, so it has nothing to write. The one-second pause covers a winner that still holds the ref lock. A fetch that fails twice still fails the step. The two setup steps stay identical in shape, and <code>verify-build</code> is unchanged because it doesn&#39;t fetch.</p>
-<h4 class="body-h">2. Refuse attestations for runs of a different workflow (fixes swamp-club#2388)</h4>
-<p><code>build_attestation.ts</code> pinned each workflow&#39;s hash at the verified commit, but the commit is only an input the run was handed. W</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.001003.0-sha.0c3a78cb" rel="noopener">release v20260923.001003.0-sha.0c3a78cb</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0c3a78cb" rel="noopener">0c3a78cb</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2566" rel="noopener">#2566</a>𝗔 <a href="https://swamp-club.com/lab/2388" rel="noopener">lab#2388</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260923-000153-0-sha-ac6111f8">
-<h2><span class="tier C">C</span>swamp 20260923.000153.0-sha.ac6111f8</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-23T00:03:38Z">2026-09-23T00:03:38Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): resolve a nested workflow target and steps.* at step time (swamp-club#2351) (#2565)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>A driver step that picks the next workflow from a record an earlier step of the same run wrote never saw that record. The nested step&#39;s <code>workflowIdOrName</code> was evaluated once at run start, before the write. It silently took its <code>orValue</code> fallback on a first run and a previous run&#39;s value afterwards. An input sharing the target&#39;s text got the same stale value, because run-start substitution is keyed on the raw expression text.</p>
-<ul>
-<li><strong><code>workflowIdOrName</code> is a task target</strong>, alongside <code>modelIdOrName</code> and <code>modelName</code> (#2538). It defers past run start when it reads step output or its step carries a guard. <code>runWorkflowStep</code> resolves it after the guard has decided, with the same <code>resolveScalarExpression</code> the model path uses.</li>
-<li><strong>One deferral rule for run and evaluate.</strong> The guarded-step and target rule moves into <code>createTaskTargetDeferral</code>, so <code>swamp workflow evaluate</code> (whose cache <code>--last-evaluated</code> replays) leaves the same targets raw as a run.</li>
-<li><strong>Interpolated targets.</strong> <code>resolveScalarExpression</code> now resolves a target that interpolates a deferred expression into literal text (<code>stage-${{ data.latest(...) }}</code>), which previously reached the lookup raw. This applies to model targets too. It still refuses any expression that was not written in the source.</li>
-<li>**<code>steps.*</code> at run start.** A <code>steps.*</code> reference is now left raw at run start, like <code>run.*</code>. The nam</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.000153.0-sha.ac6111f8" rel="noopener">release v20260923.000153.0-sha.ac6111f8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ac6111f8" rel="noopener">ac6111f8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2565" rel="noopener">#2565</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2538" rel="noopener">#2538</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1960" rel="noopener">#1960</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/275" rel="noopener">#275</a>𝗔 <a href="https://swamp-club.com/lab/2379" rel="noopener">lab#2379</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-235155-0-sha-a17eea0a">
-<h2><span class="tier C">C</span>swamp 20260922.235155.0-sha.a17eea0a</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T23:53:38Z">2026-09-22T23:53:38Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(verification): remove the dead container sandbox and its stale instructions (swamp-club#2271) (#2564)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2271.</p>
-<p>Pre-PR verification runs as three host workflows — <code>verify-build</code>,</p>
-<p><code>verify-reviews</code>, <code>verify-skills</code> — each in a fresh <code>git worktree</code> at the</p>
-<p>verified commit. That is what <code>agent-constraints/verification-conventions.md</code></p>
-<p>documents. But <code>AGENTS.md</code> told agents to run verification &quot;in the container</p>
-<p>sandbox&quot; and to find &quot;the docker command&quot; in that file, which contains no</p>
-<p>docker command. The same wording had spread to the <code>github-pr</code> and</p>
-<p><code>issue-lifecycle</code> skills and to the <code>@swamp/issue-lifecycle</code> <code>verify</code> method</p>
-<p>description, and <code>issue-lifecycle/references/verification.md</code> told agents to run</p>
-<p><code>./verification/container/build.sh</code> before verifying.</p>
-<p><code>verification/container/</code> itself was referenced by nothing but its own</p>
-<p><code>build.sh</code>, and its Deno pin had drifted to 2.8.3.</p>
-<h4 class="body-h">Changes</h4>
-<ul>
-<li>Delete <code>verification/container/</code> (<code>Containerfile</code>, <code>build.sh</code>, <code>.containerignore</code>)</li>
-<li><code>AGENTS.md</code>: name the three host workflows and what each covers; point at</li>
-</ul>
-<p>  <code>verification-conventions.md</code> for the commands</p>
-<ul>
-<li><code>issue-lifecycle</code> skill (<code>SKILL.md</code>, <code>references/verification.md</code>,</li>
-</ul>
-<p>  <code>references/implementation.md</code>) and <code>github-pr</code> skill: drop the container</p>
-<p>  sandbox and <code>build.sh</code> references</p>
-<ul>
-<li><code>@swamp/issue-lifecycle</code>: reword the <code>verify</code> description; bump to</li>
-</ul>
-<p>  <code>2026.09.23.1</code> with an identity upgrade (description-only change)</p>
-<ul>
-<li>`integration/toolchai</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.235155.0-sha.a17eea0a" rel="noopener">release v20260922.235155.0-sha.a17eea0a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a17eea0a" rel="noopener">a17eea0a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2564" rel="noopener">#2564</a>𝗔 <a href="https://swamp-club.com/lab/2271" rel="noopener">lab#2271</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-233424-0-sha-02a3d17b">
-<h2><span class="tier C">C</span>swamp 20260922.233424.0-sha.02a3d17b</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T23:36:06Z">2026-09-22T23:36:06Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(auth): stop server-login waiting on the browser it launched (swamp-club#2378) (#2563)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2378. <code>swamp auth server-login</code> hung forever after the user approved the code in the browser. It printed <code>Opening browser...</code> and nothing else, and it never timed out.</p>
-<p><strong>Root cause.</strong> <code>openBrowser</code> awaited <code>Deno.Command.output()</code>, which waits for the launcher to exit *and* for its stdout/stderr pipes to close. On sway, xdg-open&#39;s generic path runs the default browser in the foreground when it isn&#39;t already open, so <code>xdg-open</code> doesn&#39;t return until the browser quits. <code>serverLogin</code> waited for that before its polling loop, and the 300 s timeout only covered the fetches, so nothing ended the wait. When the browser was already running, the same command finished in 0.76 s.</p>
-<p><strong>Changes</strong></p>
-<ul>
-<li><strong><code>openBrowser</code></strong> (<code>src/infrastructure/process/browser.ts</code>): spawns the launcher with null stdio, so no browser process can hold a pipe to swamp open. It waits for the launcher&#39;s exit for up to <code>BROWSER_LAUNCH_GRACE_MS</code> (2 s):</li>
-<li>exits 0: success;</li>
-<li>exits non-zero, or fails to spawn: the existing &quot;Could not open a browser&quot; <code>UserError</code>;</li>
-<li>still running at 2 s: treated as launched, <code>unref()</code>&#39;d and not awaited.</li>
-</ul>
-<p>  The timer is cleared in a <code>finally</code>. Spawning is injectable, so the tests use fakes. This also fixes <code>swamp auth login</code>, the mailto handoff in <code>issue submit</code>, and the extension report dispatcher, which share the helper.</p>
-<ul>
-<li><strong><code>serverLogin</code></strong> (`src/li</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.233424.0-sha.02a3d17b" rel="noopener">release v20260922.233424.0-sha.02a3d17b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/02a3d17b" rel="noopener">02a3d17b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2563" rel="noopener">#2563</a>𝗔 <a href="https://swamp-club.com/lab/2378" rel="noopener">lab#2378</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-231031-0-sha-2e75cd0d">
-<h2><span class="tier C">C</span>swamp 20260922.231031.0-sha.2e75cd0d</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T23:11:50Z">2026-09-22T23:11:50Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(expressions): accept every data accessor in a global argument (#2543)</li>
-</ul>
-<p>The workflow-path expression validator kept its own hand-written list of data</p>
-<p>accessors, and it fell behind the namespace. <code>data.query</code> and <code>data.findBySpec</code></p>
-<p>were rejected in model global arguments long after they worked everywhere else,</p>
-<p>with an error claiming the expression &quot;does not contain valid model, self, or</p>
-<p>env references&quot;.</p>
-<h4 class="body-h">What changed</h4>
-<ul>
-<li>One exported constant, <code>DATA_NAMESPACE_ACCESSORS</code>, is now the single list of</li>
-</ul>
-<p>  accessors the CEL data namespace exposes. The validator&#39;s allow-list and the</p>
-<p>  detection predicate both derive from it instead of restating it.</p>
-<ul>
-<li>An architecture fitness test pins that constant to <strong>both</strong> surfaces that</li>
-</ul>
-<p>  define the namespace: the cel-js registrations, which decide what an</p>
-<p>  expression can call, and the <code>DataNamespace</code> interface, which declares the</p>
-<p>  contract. Set equality in both corners, never subset containment, so an</p>
-<p>  extraction that silently matches nothing after a reformat fails loudly rather</p>
-<p>  than passing vacuously. Names are pinned; arities deliberately are not.</p>
-<ul>
-<li><code>extractDependencies</code> and its narrower pattern are unchanged, and that pattern</li>
-</ul>
-<p>  now carries a comment explaining why it must stay narrow.</p>
-<h4 class="body-h">Behaviour change worth knowing</h4>
-<p>This makes previously-failing definitions run, and it invites a migration that</p>
-<p>exposes an asymmetry. Accessors whose first argument names a model contribute an</p>
-<p>implicit dependency edge; <code>query</code> and `</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.231031.0-sha.2e75cd0d" rel="noopener">release v20260922.231031.0-sha.2e75cd0d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2e75cd0d" rel="noopener">2e75cd0d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2543" rel="noopener">#2543</a>𝗔 <a href="https://swamp-club.com/lab/2295" rel="noopener">lab#2295</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-230507-0-sha-6e5a4087">
-<h2><span class="tier C">C</span>swamp 20260922.230507.0-sha.6e5a4087</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T23:06:45Z">2026-09-22T23:06:45Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): show real step counts on the dashboard Workflows view (swamp-club#2357) (#2562)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2357: the serve dashboard Workflows view showed <strong>0 steps</strong> on every card.</p>
-<p><strong>Cause.</strong> <code>Workflows.tsx</code> summed <code>jobs[].steps.length</code>, but <code>workflow.search</code> returns the libswamp <code>WorkflowSearchItem</code> projection, which has <code>jobCount</code> and no <code>jobs</code> array. <code>w.jobs</code> was always undefined, so the count always fell through to 0. It has never worked: the dashboard shipped (#2208) calling the same projection.</p>
-<ul>
-<li><code>WorkflowSearchItem</code> gains <code>stepCount</code>, derived from the already-loaded <code>Workflow</code> aggregate beside <code>jobCount</code>. <code>WorkflowSearchDeps</code> now types each job as having <code>steps</code>, which <code>Workflow.jobs</code> / <code>Job.steps</code> already satisfy, so all three callers (CLI search, CLI edit picker, serve handler) are unchanged.</li>
-<li>The dashboard card renders <code>w.stepCount</code> and drops its client-side reducer. <code>WorkflowDetail</code> is untouched, as it uses <code>workflow.get</code>.</li>
-</ul>
-<p>Also fixes swamp-club#2380, found while verifying this change: <strong><code>deno run build-dashboard</code> never produced a build.</strong> <code>deno task</code> intercepts a literal <code>npm run &lt;script&gt;</code> and runs the <code>package.json</code> script itself, where vite fails to resolve under Deno&#39;s npm cache (<code>Could not find referrer npm package ... vite@6.4.3</code>). The task is now <code>npm --prefix packages/dashboard run build</code>, which <code>deno task</code> passes to npm unchanged. This matters beyond convenience: <code>tsc -b</code> inside that build is the only type-check `pac</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.230507.0-sha.6e5a4087" rel="noopener">release v20260922.230507.0-sha.6e5a4087</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6e5a4087" rel="noopener">6e5a4087</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2562" rel="noopener">#2562</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2208" rel="noopener">#2208</a>𝗔 <a href="https://swamp-club.com/lab/2357" rel="noopener">lab#2357</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-225336-0-sha-4a73afbd">
-<h2><span class="tier C">C</span>swamp 20260922.225336.0-sha.4a73afbd</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T22:54:55Z">2026-09-22T22:54:55Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): defer a guarded step task target to step time (#2538)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>A step with a <code>guard</code> that evaluates true never runs, but swamp still</p>
-<p>evaluated its task target when the run started. A dynamic</p>
-<p><code>task.modelIdOrName</code> resolving to an empty string then failed <code>StepTask</code></p>
-<p>validation while the evaluated workflow was rebuilt, killing the entire run</p>
-<p>before any step executed — and recording no run at all, so</p>
-<p><code>workflow history</code> showed nothing to diagnose.</p>
-<p>The deferral list had grown one field at a time — <code>task.inputs</code>, assert</p>
-<p>messages, guards — and the task target was never added. It has never worked;</p>
-<p>guards only made it reachable.</p>
-<p>The target now defers for either of two independent reasons:</p>
-<ul>
-<li><strong>it reads step output</strong>, so the data it names does not exist yet — the</li>
-</ul>
-<p>  same reason <code>task.inputs</code> defers;</p>
-<ul>
-<li><strong>its step carries a guard</strong>, so the step may not run at all, and</li>
-</ul>
-<p>  resolving a target for a step that will skip is the defect itself.</p>
-<p>An unguarded target with no step-output dependency still resolves at run</p>
-<p>start, so a mistyped name keeps failing where the error is cheapest.</p>
-<p>Deferring only on a step-output dependency would have left the reported</p>
-<p>symptom reachable through a plain <code>inputs</code> reference, which is why the rule</p>
-<p>is a union rather than the narrower condition.</p>
-<p>Resolution happens in <code>executeModelMethod</code>, after the guard has decided —</p>
-<p><code>runStep</code> returns early on a guarded skip and never reaches the executor.</p>
-<p>One thing the tests caught that th</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.225336.0-sha.4a73afbd" rel="noopener">release v20260922.225336.0-sha.4a73afbd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4a73afbd" rel="noopener">4a73afbd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2538" rel="noopener">#2538</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-221433-0-sha-48ea15b0">
-<h2><span class="tier C">C</span>swamp 20260922.221433.0-sha.48ea15b0</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T22:16:10Z">2026-09-22T22:16:10Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(tests): stop unit tests mutating HOME under --parallel (swamp-club#2375) (#2561)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2375: <code>resolveCachePath: undefined return routes to repoId-keyed default</code> flaked in verify-build with <code>Cannot determine home directory (HOME/USERPROFILE not set)</code>.</p>
-<p><code>deno test --parallel</code> runs every test file in one process, and <code>Deno.env</code> is process-wide. <code>paths_test.ts</code>, <code>load_identity_test.ts</code> and <code>input_parser_test.ts</code> deleted or overwrote <code>HOME</code>, <code>USERPROFILE</code>, <code>SWAMP_HOME</code> and <code>XDG_CONFIG_HOME</code> directly, so any test in another file that reached <code>getSwampDataDir()</code> / <code>getSwampConfigDir()</code> at the same moment could throw, or compute a different path (<code>paths_test</code> sets <code>HOME=/home/testuser</code>).</p>
-<ul>
-<li>Add <code>withMockedEnv(overrides, fn)</code> to <code>src/infrastructure/persistence/path_test_helpers.ts</code>. It replaces <code>Deno.env.get</code> for the current test worker only and never writes the real environment. It restores on return, throw, or promise settle.</li>
-<li>Convert the 20 env-dependent tests in <code>paths_test.ts</code>, the <code>loadIdentity</code> test, and the two <code>~/</code> expansion tests in <code>input_parser_test.ts</code>. Assertions are unchanged.</li>
-<li>Each <code>paths_test</code> case now overrides every home variable that can change its result, so an ambient <code>SWAMP_HOME</code> / <code>XDG_CONFIG_HOME</code> on a runner can no longer leak in.</li>
-</ul>
-<p>No production code changes.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li><strong>Reproduced before the fix:</strong> a probe test calling the real <code>getSwampDataDir()</code> in a loop under <code>--parallel</code>, next to the three files,</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.221433.0-sha.48ea15b0" rel="noopener">release v20260922.221433.0-sha.48ea15b0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/48ea15b0" rel="noopener">48ea15b0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2561" rel="noopener">#2561</a>𝗔 <a href="https://swamp-club.com/lab/2375" rel="noopener">lab#2375</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-215510-0-sha-0aaf8eb8">
-<h2><span class="tier C">C</span>swamp 20260922.215510.0-sha.0aaf8eb8</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T21:56:47Z">2026-09-22T21:56:47Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(verification): generate the attestation, and give it a schema (swamp-club#2376) (#2560)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>The attestation&#39;s shape was real long before anything enforced it. <code>.github/workflows/ci.yml</code> reads about two dozen specific paths out of it with <code>jq</code>, and <code>verification-conventions.md</code> spent seventy lines telling an agent how to produce each one. Between those two, nothing checked anything: <code>post_attestation</code> took a string, <code>JSON.parse</code>d it, posted whatever came back, and then read <code>(parsed.subject as Record&lt;string, unknown&gt;)?.commit</code> with an unchecked cast.</p>
-<p><code>AttestationSchema</code> is that shape written down once. The generator produces documents satisfying it and <code>post_attestation</code> refuses ones that don&#39;t, so the contract is enforced where the document is made and again where it leaves the machine — rather than in bash on the far side, after the PR is public.</p>
-<p>Demonstrated on this branch, posting a document with <code>subject</code> removed:</p>
-<p>```</p>
-<p>Error: attestation does not match AttestationSchema:</p>
-<p>  subject: Invalid input: expected object, received undefined</p>
-<p>```</p>
-<p>On <code>main</code> that same document posts cleanly and logs <code>commit=undefined</code>.</p>
-<h4 class="body-h">The generator</h4>
-<p><code>scripts/build_attestation.ts</code> takes the three <code>verify-*</code> run ids in any order and reads each record&#39;s own <code>workflowName</code> to tell them apart, so mislabelling one is not a mistake that can be made. <code>buildAttestation()</code> is pure — every field is a function of the run records, the workflow definitions at the verified</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.215510.0-sha.0aaf8eb8" rel="noopener">release v20260922.215510.0-sha.0aaf8eb8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0aaf8eb8" rel="noopener">0aaf8eb8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2560" rel="noopener">#2560</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-213037-0-sha-eae73d0f">
-<h2><span class="tier C">C</span>swamp 20260922.213037.0-sha.eae73d0f</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T21:32:16Z">2026-09-22T21:32:16Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): accept dashboard System requests, page workflow searches, gzip large WS frames (swamp-club#2347) (#2556)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2347: the serve dashboard was slow off-LAN, and its System view never loaded.</p>
-<p><strong>Rejected request types.</strong> <code>cluster.instances</code>, <code>serve.config</code> and <code>doctor.datastores</code> had handlers but no entry in <code>ServerRequestSchema</code>, so validation rejected them as <code>invalid_request</code> before dispatch. Because of this the dashboard System view and <code>swamp doctor datastores --server</code> have never worked over WebSocket.</p>
-<ul>
-<li>Added the three schemas.</li>
-<li>Tightened the schema-less pin in <code>src/serve/connection_schema_parity_test.ts</code> (added upstream in #2554) from these three types to <code>never</code>, so <code>deno check</code> fails if a <code>ServerRequest</code> type is ever added without a schema. This closes swamp-club#2361.</li>
-<li><code>cluster.instances</code> and <code>serve.config</code> now require <code>admin</code> on <code>access:*</code> over WebSocket, matching their REST routes. Fixing the schema alone would have exposed both to read-only principals.</li>
-</ul>
-<p><strong>Paging.</strong> <code>workflow.search</code> and <code>workflow.run.search</code> accept <code>offset</code> and <code>limit</code>, and return <code>total</code> beside <code>data</code>. <code>data</code> keeps the libswamp shape, so CLI <code>--json</code> output is unchanged.</p>
-<ul>
-<li>Paging runs after the authorization filter, so hidden workflows no longer shorten a page.</li>
-<li>The dashboard Executions and Workflows views now page on the server, using a <code>Pager</code> component pulled out of Executions.</li>
-<li>The published client package (`packages/client/protocol.</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.213037.0-sha.eae73d0f" rel="noopener">release v20260922.213037.0-sha.eae73d0f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/eae73d0f" rel="noopener">eae73d0f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2556" rel="noopener">#2556</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2554" rel="noopener">#2554</a>𝗔 <a href="https://swamp-club.com/lab/2347" rel="noopener">lab#2347</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-212158-0-sha-ac265d64">
-<h2><span class="tier C">C</span>swamp 20260922.212158.0-sha.ac265d64</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T21:23:26Z">2026-09-22T21:23:26Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(workflows): persist why a step was skipped (swamp-club#2358) (#2558)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>A skipped <code>StepRun</code> recorded only its status, so a step a path guard correctly excluded and one whose job never started were the same fact downstream: a bare <code>skipped</code>, counted by CI. The execution service already knew the difference — it yields <code>step_skipped</code> with a <code>reason</code> and, for a guard, the expression — but nothing persisted it, so the distinction died with the event stream.</p>
-<p>This matters most in the verification attestation. <code>reviewConfig</code> is meant to say, per review, whether it ran and why not; today an agent types that by hand because the run record cannot answer it.</p>
-<h4 class="body-h">What changed</h4>
-<p><code>StepRun.skip</code> now takes a <code>StepSkipReason</code> (<code>dependency</code>, <code>guarded</code> with the evaluated expression, or <code>job_skipped</code> for the cascade from <code>JobRun.skip</code>), persisted through <code>toData</code>/<code>fromData</code> and cleared on <code>resetToPending</code>. The run view exposes it, <code>workflow history get</code> prints it in log mode, and the verification report surfaces both a per-step reason and a <code>gate.skippedByKind</code> breakdown.</p>
-<p>A skip with no recorded reason reads as <code>reason not recorded</code> rather than a bare <code>skipped</code>. Runs persisted before this field are legitimately silent, and saying so beats inviting the reader to assume a guard.</p>
-<p><strong>The reason is a discriminated union</strong>, not one object with an optional <code>expression</code>. Only a guard has an expression to report, and a flat shape validates `{ kind: &quot;dependency&quot;, expres</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.212158.0-sha.ac265d64" rel="noopener">release v20260922.212158.0-sha.ac265d64</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ac265d64" rel="noopener">ac265d64</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2558" rel="noopener">#2558</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260922-210919-0-sha-0e4cc7b5">
-<h2><span class="tier C">C</span>swamp 20260922.210919.0-sha.0e4cc7b5</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-22T21:10:57Z">2026-09-22T21:10:57Z</time></span></div>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260922-210919-0-sha-0e4cc7b5">
+<h2><span class="tier C">C</span>describe the three bundle-cache cases after #2354 (swamp-club#2372) (#2557)</h2>
+<p class="lede">`docs` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-22T21:10:57Z">2026-09-22T21:10:57Z</time></span><span>design</span><span>docs</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>docs(design): describe the three bundle-cache cases after #2354 (swamp-club#2372) (#2557)</li>
@@ -7197,8 +7197,8 @@ footer .ver{color:var(--acc)}
 <li>A pulled extension is <code>trusted-pulled</code> only when its bundle exists and either <code>trustPulledCache</code> is set or the failure would be expected.</li>
 </ul>
 <p>The rationale for fingerprint preservatio</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.210919.0-sha.0e4cc7b5" rel="noopener">release v20260922.210919.0-sha.0e4cc7b5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0e4cc7b5" rel="noopener">0e4cc7b5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2557" rel="noopener">#2557</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2553" rel="noopener">#2553</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/265" rel="noopener">#265</a>𝗔 <a href="https://swamp-club.com/lab/2372" rel="noopener">lab#2372</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260922.210919.0-sha.0e4cc7b5" rel="noopener">release v20260922.210919.0-sha.0e4cc7b5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0e4cc7b583267896982ba31f6c614cac122643e3" rel="noopener">0e4cc7b5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2557" rel="noopener">#2557</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2553" rel="noopener">#2553</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/265" rel="noopener">#265</a>𝗔 <a href="https://swamp-club.com/lab/2372" rel="noopener">lab#2372</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260922-182354-0-sha-ddf27305">
 <h2><span class="tier C">C</span>document cross-model access APIs in the extension model reference (swamp-club#2317) (#2550)</h2>
@@ -7448,12 +7448,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>207 items across 1 source(s) in this window:
-3 critical, 183 notable, 2 routine,
-19 minor.</p>
-<ul><li><strong>fix</strong> — 138</li><li><strong>feat</strong> — 48</li><li><strong>changes</strong> — 12</li><li><strong>docs</strong> — 7</li><li><strong>perf</strong> — 2</li></ul></section>
+3 critical, 194 notable, 2 routine,
+8 minor.</p>
+<ul><li><strong>fix</strong> — 147</li><li><strong>feat</strong> — 50</li><li><strong>docs</strong> — 8</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-23T02:08:20.433Z">2026-09-23T02:08:20.433Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-23T03:01:53.123Z">2026-09-23T03:01:53.123Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

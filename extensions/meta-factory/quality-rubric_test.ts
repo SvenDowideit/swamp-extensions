@@ -644,3 +644,37 @@ Deno.test("renderReadmeTemplate produces every canonical section", () => {
     assertStringIncludes(md, `## ${spec.heading}`);
   }
 });
+
+Deno.test("checkManual accepts a vault RUN command as a runnable example", () => {
+  const check = checkManual(
+    parseManifest(`name: "@me/vault"
+description: >
+  Stores secrets.
+
+  WHAT IT DOES
+
+    Stores encrypted secrets so they survive restarts.
+
+  INSTALL
+
+      swamp extension pull @me/vault
+
+  DEPENDENCIES
+
+    None.
+
+  RUN
+
+      swamp vault create @me/vault my-vault
+
+  CONFIGURE
+
+    Set --config credstoreDir.
+
+  WHAT IT INSTALLS
+
+    Nothing.
+`),
+  );
+  assertEquals(check.status, "pass");
+});

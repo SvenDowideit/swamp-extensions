@@ -169,7 +169,8 @@ export const MANUAL_ELEMENTS: ManualElement[] = [
     order: 3,
     headingName: "RUN",
     label: "how to run it (a `swamp …` command)",
-    pattern: /swamp (workflow run|model method run|model create|model @)/i,
+    pattern:
+      /swamp\s+(workflow run|model method run|model @|model create|vault (create|put|get|read-secret|list-keys)|report (run|get)|data (get|query)|datastore setup)/i,
     heading:
       /^\s*(run|usage|getting started|quick start|use it|how to run)\s*:?\s*$/i,
   },

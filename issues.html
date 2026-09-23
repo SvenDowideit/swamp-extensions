@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2377"><span class="tier A">A</span>dashboard: an approved run never resumes and the dashboard c</a><a href="#issue-2282"><span class="tier A">A</span>Eliminate test flakiness: detect flaky tests with deno --rep</a><a href="#issue-2386"><span class="tier A">A</span>steps.&lt;name&gt;.outputs is never populated for model_method ste</a><a href="#issue-2295"><span class="tier A">A</span>Model definitions run inside a workflow reject data.query() </a><a href="#issue-2271"><span class="tier A">A</span>Remove dead verification/container/ and fix the stale AGENTS</a><a href="#issue-2378"><span class="tier A">A</span>auth server-login hangs after device-flow authorization is a</a><a href="#issue-2357"><span class="tier A">A</span>serve dashboard: Workflows view shows 0 steps for every work</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2383"><span class="tier A">A</span>serve: minting a token for an unsupported principal kind (e.</a><a href="#issue-2377"><span class="tier A">A</span>dashboard: an approved run never resumes and the dashboard c</a><a href="#issue-2282"><span class="tier A">A</span>Eliminate test flakiness: detect flaky tests with deno --rep</a><a href="#issue-2386"><span class="tier A">A</span>steps.&lt;name&gt;.outputs is never populated for model_method ste</a><a href="#issue-2295"><span class="tier A">A</span>Model definitions run inside a workflow reject data.query() </a><a href="#issue-2271"><span class="tier A">A</span>Remove dead verification/container/ and fix the stale AGENTS</a><a href="#issue-2378"><span class="tier A">A</span>auth server-login hangs after device-flow authorization is a</a></aside><div>
 
 <article class="item" id="issue-2384">
 <h2><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation principal can clear a manual_approval gate meant for a human</h2>
@@ -108,6 +108,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
+</article>
+<article class="item" id="issue-2383">
+<h2><span class="tier A">A</span>serve: minting a token for an unsupported principal kind (e.g. agent:) succeeds, then every connection 500s in parsePrincipal</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-23T13:46:49.912Z">2026-09-23T13:46:49.912Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2383" rel="noopener">lab#2383</a></div>
 </article>
 <article class="item" id="issue-2377">
 <h2><span class="tier A">A</span>dashboard: an approved run never resumes and the dashboard cannot resume it (workflow.resume is never called)</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2378" rel="noopener">lab#2378</a></div>
 </article>
-<article class="item" id="issue-2357">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2357">
 <h2><span class="tier A">A</span>serve dashboard: Workflows view shows 0 steps for every workflow</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-22T23:09:40.797Z">2026-09-22T23:09:40.797Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2357" rel="noopener">lab#2357</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2375">
+<article class="item" id="issue-2375">
 <h2><span class="tier A">A</span>Flaky test: resolveCachePath fails when parallel tests delete HOME</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-22T22:15:21.515Z">2026-09-22T22:15:21.515Z</time></span></div>
@@ -1509,18 +1517,26 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
-<article class="item" id="issue-2383">
-<h2><span class="tier B">B</span>serve: minting a token for an unsupported principal kind (e.g. agent:) succeeds, then every connection 500s in parsePrincipal</h2>
+<article class="item" id="issue-2394">
+<h2><span class="tier B">B</span>planning-conventions: docs gaps are filed with gh issue create on swamp-club/swamp-club, which has issues disabled</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-23T12:54:48.899Z">2026-09-23T12:54:48.899Z</time></span></div>
+<div class="meta"><span><time datetime="2026-09-23T13:59:25.568Z">2026-09-23T13:59:25.568Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2383" rel="noopener">lab#2383</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2394" rel="noopener">lab#2394</a></div>
+</article>
+<article class="item" id="issue-2396">
+<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-23T13:37:00.202Z">2026-09-23T13:37:00.202Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2396" rel="noopener">lab#2396</a></div>
 </article>
 <article class="item" id="issue-2288">
 <h2><span class="tier B">B</span>data.latest() exposes no path/filePath key for file-kind data — forces deprecated model.&lt;name&gt;.file.&lt;spec&gt;.&lt;instance&gt;.path</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-09-23T12:43:00.777Z">2026-09-23T12:43:00.777Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-23T13:34:45.169Z">2026-09-23T13:34:45.169Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2288" rel="noopener">lab#2288</a></div>
@@ -1629,13 +1645,45 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2396">
-<h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2398">
+<h2><span class="tier C">C</span>Mark manual approval gates decided by a non-interactive principal</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T12:54:43.904Z">2026-09-23T12:54:43.904Z</time></span></div>
+<div class="meta"><span><time datetime="2026-09-23T13:50:52.502Z">2026-09-23T13:50:52.502Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2396" rel="noopener">lab#2396</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2398" rel="noopener">lab#2398</a></div>
+</article>
+<article class="item" id="issue-2402">
+<h2><span class="tier C">C</span>Docs: CEL expressions manual page - document DataRecord.path and point model.*.file at data.latest().path</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T13:50:38.902Z">2026-09-23T13:50:38.902Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2402" rel="noopener">lab#2402</a></div>
+</article>
+<article class="item" id="issue-2399">
+<h2><span class="tier C">C</span>Docs: document approve-requires-explicit-grant and the implied approve marker</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T13:50:31.502Z">2026-09-23T13:50:31.502Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2399" rel="noopener">lab#2399</a></div>
+</article>
+<article class="item" id="issue-2401">
+<h2><span class="tier C">C</span>Docs: --principal valid kinds for access token mint, and the invalid-principal 401 reason</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T13:50:22.418Z">2026-09-23T13:50:22.418Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2401" rel="noopener">lab#2401</a></div>
+</article>
+<article class="item" id="issue-2400">
+<h2><span class="tier C">C</span>Windows compat CI is red on main: handleDataDelete markDirty relPath assertion fails on Windows</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T13:29:14.139Z">2026-09-23T13:29:14.139Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2400" rel="noopener">lab#2400</a></div>
 </article>
 <article class="item" id="issue-2397">
 <h2><span class="tier C">C</span>Failing CEL expression in a method argument is silently passed through as literal text</h2>
@@ -1652,14 +1700,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2393" rel="noopener">lab#2393</a></div>
-</article>
-<article class="item" id="issue-2394">
-<h2><span class="tier C">C</span>planning-conventions: docs gaps are filed with gh issue create on swamp-club/swamp-club, which has issues disabled</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T11:41:15.369Z">2026-09-23T11:41:15.369Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2394" rel="noopener">lab#2394</a></div>
 </article>
 <article class="item" id="issue-2287">
 <h2><span class="tier C">C</span>Make Compute Routes list usable without create-only global arguments</h2>
@@ -2894,13 +2934,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1903" rel="noopener">lab#1903</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>353 items across 1 source(s) in this window:
-5 critical, 175 notable, 15 routine,
-158 minor.</p>
-<ul><li><strong>issues</strong> — 353</li></ul></section>
+<p>358 items across 1 source(s) in this window:
+5 critical, 176 notable, 16 routine,
+161 minor.</p>
+<ul><li><strong>issues</strong> — 358</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-23T13:01:45.190Z">2026-09-23T13:01:45.190Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-23T14:03:17.416Z">2026-09-23T14:03:17.416Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

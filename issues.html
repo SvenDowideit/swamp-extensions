@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2497"><span class="tier A">A</span>model validate blames foreign {{ ... }} text for an unclosed</a><a href="#issue-2433"><span class="tier A">A</span>workflow resume --from: a step moved or renamed since the ru</a><a href="#issue-2485"><span class="tier A">A</span>CLI: show API key fingerprints in auth whoami and auth token</a><a href="#issue-2479"><span class="tier A">A</span>swamp-extensions verify-build: codegen guards read stdout fr</a><a href="#issue-2432"><span class="tier A">A</span>workflow resume prints unexpected errors as a fatal stack tr</a><a href="#issue-2415"><span class="tier A">A</span>serve: remove the remaining no-path markDirty() calls that f</a><a href="#issue-2381"><span class="tier A">A</span>Workflow runs write outputs and evaluated definitions to rep</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2476"><span class="tier A">A</span>swamp serve does not register webhook schemes from pulled ex</a><a href="#issue-2494"><span class="tier A">A</span>Install rollback recursively deletes pre-existing skill dirs</a><a href="#issue-2491"><span class="tier A">A</span>Foreign CEL like GitHub Actions ${{ github.sha }} in a globa</a><a href="#issue-2497"><span class="tier A">A</span>model validate blames foreign {{ ... }} text for an unclosed</a><a href="#issue-2433"><span class="tier A">A</span>workflow resume --from: a step moved or renamed since the ru</a><a href="#issue-2485"><span class="tier A">A</span>CLI: show API key fingerprints in auth whoami and auth token</a><a href="#issue-2479"><span class="tier A">A</span>swamp-extensions verify-build: codegen guards read stdout fr</a></aside><div>
 
 <article class="item" id="issue-2384">
 <h2><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation principal can clear a manual_approval gate meant for a human</h2>
@@ -109,6 +109,30 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
 </article>
+<article class="item" id="issue-2476">
+<h2><span class="tier A">A</span>swamp serve does not register webhook schemes from pulled extensions; boot fails with misleading &#39;already installed but failed to load&#39;</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-24T21:49:08.072Z">2026-09-24T21:49:08.072Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2476" rel="noopener">lab#2476</a></div>
+</article>
+<article class="item" id="issue-2494">
+<h2><span class="tier A">A</span>Install rollback recursively deletes pre-existing skill dirs that pull merged into</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-24T21:47:57.314Z">2026-09-24T21:47:57.314Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2494" rel="noopener">lab#2494</a></div>
+</article>
+<article class="item" id="issue-2491">
+<h2><span class="tier A">A</span>Foreign CEL like GitHub Actions ${{ github.sha }} in a global argument fails validate and throws when the method reads it</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-24T21:36:40.423Z">2026-09-24T21:36:40.423Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2491" rel="noopener">lab#2491</a></div>
+</article>
 <article class="item" id="issue-2497">
 <h2><span class="tier A">A</span>model validate blames foreign {{ ... }} text for an unclosed ${{ expression</h2>
 <p class="lede">Shipped bug fix</p>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2479" rel="noopener">lab#2479</a></div>
 </article>
-<article class="item" id="issue-2432">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2432">
 <h2><span class="tier A">A</span>workflow resume prints unexpected errors as a fatal stack trace, and --json returns them unclassified with the stack</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-24T14:20:52.322Z">2026-09-24T14:20:52.322Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2381" rel="noopener">lab#2381</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2462">
+<article class="item" id="issue-2462">
 <h2><span class="tier A">A</span>Scheduled flaky-test detection is failing</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-24T07:39:35.367Z">2026-09-24T07:39:35.367Z</time></span></div>
@@ -1749,13 +1773,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
+<article class="item" id="issue-2413">
+<h2><span class="tier B">B</span>serve: ServerTokenGcService is never started, so expired server tokens accumulate forever</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-24T21:50:00.041Z">2026-09-24T21:50:00.041Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2413" rel="noopener">lab#2413</a></div>
+</article>
 <article class="item" id="issue-2475">
 <h2><span class="tier B">B</span>swamp run gc deletes output YAML but orphans every run .log file</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-09-24T20:51:38.748Z">2026-09-24T20:51:38.748Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-24T21:44:47.040Z">2026-09-24T21:44:47.040Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2475" rel="noopener">lab#2475</a></div>
+</article>
+<article class="item" id="issue-2498">
+<h2><span class="tier B">B</span>workflow resume of a suspended run crashes mid-run when the workflow was edited during the approval window</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-24T21:40:01.042Z">2026-09-24T21:40:01.042Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2498" rel="noopener">lab#2498</a></div>
+</article>
+<article class="item" id="issue-2503">
+<h2><span class="tier B">B</span>data.get returns binary file content as a lossily-decoded UTF-8 string, corrupting the bytes</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-24T21:39:26.858Z">2026-09-24T21:39:26.858Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2503" rel="noopener">lab#2503</a></div>
 </article>
 <article class="item" id="issue-2262">
 <h2><span class="tier B">B</span>Step-lease and pending-dispatch records accumulate with no reaping mechanism</h2>
@@ -1764,30 +1812,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2262" rel="noopener">lab#2262</a></div>
-</article>
-<article class="item" id="issue-2476">
-<h2><span class="tier B">B</span>swamp serve does not register webhook schemes from pulled extensions; boot fails with misleading &#39;already installed but failed to load&#39;</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-24T20:25:45.486Z">2026-09-24T20:25:45.486Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2476" rel="noopener">lab#2476</a></div>
-</article>
-<article class="item" id="issue-2494">
-<h2><span class="tier B">B</span>Install rollback recursively deletes pre-existing skill dirs that pull merged into</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-24T20:10:31.641Z">2026-09-24T20:10:31.641Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2494" rel="noopener">lab#2494</a></div>
-</article>
-<article class="item" id="issue-2491">
-<h2><span class="tier B">B</span>Foreign CEL like GitHub Actions ${{ github.sha }} in a global argument fails validate and throws when the method reads it</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-24T18:51:43.389Z">2026-09-24T18:51:43.389Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2491" rel="noopener">lab#2491</a></div>
 </article>
 <article class="item" id="issue-2483">
 <h2><span class="tier B">B</span>managedConfig: fix startup config-base resolution and extension list (prerequisites for swamp-club#2429)</h2>
@@ -1909,21 +1933,45 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2506">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2495">
+<h2><span class="tier C">C</span>managedConfig: extension lockfile writes lose updates, and auto-resolved installs never reach the shared lockfile</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-24T21:53:09.517Z">2026-09-24T21:53:09.517Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2495" rel="noopener">lab#2495</a></div>
+</article>
+<article class="item" id="issue-2505">
+<h2><span class="tier C">C</span>Failed pulled-extension sources are attributed to @local/model, producing a nonsensical &#39;extension pull @local/model --force&#39; hint</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-24T21:40:40.508Z">2026-09-24T21:40:40.508Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2505" rel="noopener">lab#2505</a></div>
+</article>
+<article class="item" id="issue-2510">
+<h2><span class="tier C">C</span>model output data/logs/search can&#39;t find outputs of user extension model types locally</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-24T21:20:46.973Z">2026-09-24T21:20:46.973Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2510" rel="noopener">lab#2510</a></div>
+</article>
+<article class="item" id="issue-2509">
+<h2><span class="tier C">C</span>managedConfig: extension write commands record into a guessed config base (part 4 of swamp-club#2483)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-24T21:18:21.634Z">2026-09-24T21:18:21.634Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2509" rel="noopener">lab#2509</a></div>
+</article>
+<article class="item" id="issue-2506">
 <h2><span class="tier C">C</span>Docs: explain how swamp treats other services&#39; template syntax in the CEL expressions reference</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-09-24T20:29:52.516Z">2026-09-24T20:29:52.516Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2506" rel="noopener">lab#2506</a></div>
-</article>
-<article class="item" id="issue-2505">
-<h2><span class="tier C">C</span>Failed pulled-extension sources are attributed to @local/model, producing a nonsensical &#39;extension pull @local/model --force&#39; hint</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-24T20:24:28.569Z">2026-09-24T20:24:28.569Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2505" rel="noopener">lab#2505</a></div>
 </article>
 <article class="item" id="issue-2504">
 <h2><span class="tier C">C</span>dashboard: Schedules/Webhooks views are empty for non-admins -- the health stream needs admin on access:* and the 403 is swallowed</h2>
@@ -1932,14 +1980,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2504" rel="noopener">lab#2504</a></div>
-</article>
-<article class="item" id="issue-2503">
-<h2><span class="tier C">C</span>data.get returns binary file content as a lossily-decoded UTF-8 string, corrupting the bytes</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-24T19:51:42.595Z">2026-09-24T19:51:42.595Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2503" rel="noopener">lab#2503</a></div>
 </article>
 <article class="item" id="issue-2502">
 <h2><span class="tier C">C</span>workflow resume --input key=value does not coerce the value to the declared input type (workflow run does)</h2>
@@ -1973,14 +2013,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2499" rel="noopener">lab#2499</a></div>
 </article>
-<article class="item" id="issue-2498">
-<h2><span class="tier C">C</span>workflow resume of a suspended run crashes mid-run when the workflow was edited during the approval window</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-24T18:26:25.666Z">2026-09-24T18:26:25.666Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2498" rel="noopener">lab#2498</a></div>
-</article>
 <article class="item" id="issue-2496">
 <h2><span class="tier C">C</span>Direct-execution workflow steps validate evaluated globalArgs, so the CEL concatenation workaround for colliding template names fails</h2>
 <p class="lede">Open issue</p>
@@ -1996,14 +2028,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2493" rel="noopener">lab#2493</a></div>
-</article>
-<article class="item" id="issue-2495">
-<h2><span class="tier C">C</span>managedConfig: extension lockfile writes lose updates, and auto-resolved installs never reach the shared lockfile</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-24T17:04:58.266Z">2026-09-24T17:04:58.266Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2495" rel="noopener">lab#2495</a></div>
 </article>
 <article class="item" id="issue-2480">
 <h2><span class="tier C">C</span>swamp-extensions verify-build: codegen idempotency step runs generate:* without fetching the gitignored schemas</h2>
@@ -2084,14 +2108,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2477" rel="noopener">lab#2477</a></div>
-</article>
-<article class="item" id="issue-2413">
-<h2><span class="tier C">C</span>serve: ServerTokenGcService is never started, so expired server tokens accumulate forever</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-24T11:44:34.359Z">2026-09-24T11:44:34.359Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2413" rel="noopener">lab#2413</a></div>
 </article>
 <article class="item" id="issue-2472">
 <h2><span class="tier C">C</span>serve --hot-reload: a changed trigger override schedule is logged as applied but the built-in cron keeps firing</h2>
@@ -3598,13 +3614,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1903" rel="noopener">lab#1903</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>441 items across 1 source(s) in this window:
-5 critical, 205 notable, 20 routine,
-211 minor.</p>
-<ul><li><strong>issues</strong> — 441</li></ul></section>
+<p>443 items across 1 source(s) in this window:
+5 critical, 208 notable, 20 routine,
+210 minor.</p>
+<ul><li><strong>issues</strong> — 443</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-24T21:01:50.510Z">2026-09-24T21:01:50.510Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-24T22:02:52.709Z">2026-09-24T22:02:52.709Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

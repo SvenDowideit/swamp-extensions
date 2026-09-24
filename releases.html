@@ -8054,7 +8054,72 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.github/actions/adversarial-review/README.md" rel="noopener">.github/actions/adversarial-review/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c4600418b072728920f6df3a97f34c1666ee04" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260923-222724-0-sha-03229b0f">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260924-081251-0-sha-6818f14a">
+<h2><span class="tier C">C</span>swamp 20260924.081251.0-sha.6818f14a</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-24T08:14:29Z">2026-09-24T08:14:29Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(auth): revoke the login key on logout, keep credentials if it can&#39;t be revoked (swamp-club#2392) (#2604)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes the CLI half of swamp-club#2392. <code>swamp auth logout</code> used to delete <code>~/.config/swamp/auth.json</code> without contacting the server, so the login-issued key stayed valid, and its owner could never revoke a leaked copy.</p>
+<p>Logout now <strong>revokes the stored key first</strong>, through swamp-club&#39;s new <code>DELETE /api/v1/me/api-key</code> (a personal key revoking itself; the server takes the key id from the credential). That endpoint is already live. <code>auth.json</code> is deleted only when swamp-club confirms the revoke (2xx with <code>revoked: true</code>) or answers <code>401 {&quot;error&quot;:&quot;Unauthorized&quot;}</code> (the key is already dead). <strong>Any other outcome keeps the credentials and exits non-zero:</strong></p>
+<ul>
+<li><strong>Can be retried</strong> (offline, timeout, 5xx, 429, an unconfirmed 2xx, a 401 or 403 that isn&#39;t swamp-club&#39;s own body): the message says to run logout again.</li>
+<li><strong>Retry cannot help</strong> (404: the server has no endpoint; 403: the credential is not a personal key): the message says to revoke the key in the web UI, then delete the named <code>auth.json</code>.</li>
+</ul>
+<p>There is deliberately no flag to skip revoking.</p>
+<h4 class="body-h">Also in this PR</h4>
+<ul>
+<li><strong>The key only ever goes back to the server that issued it.</strong> Logout ignores <code>SWAMP_API_KEY</code> and <code>SWAMP_CLUB_URL</code>.</li>
+<li><strong><code>saveIdentityCache</code> no longer re-points a stored login key.</strong> Previously, running with <code>SWAMP_API_KEY</code> and a different <code>SWAMP_CLUB_URL</code> rewrote the login file&#39;s `serve</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260924.081251.0-sha.6818f14a" rel="noopener">release v20260924.081251.0-sha.6818f14a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6818f14a" rel="noopener">6818f14a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2604" rel="noopener">#2604</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1248" rel="noopener">#1248</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260924-073627-0-sha-b0da4c30">
+<h2><span class="tier C">C</span>swamp 20260924.073627.0-sha.b0da4c30</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-24T07:38:04Z">2026-09-24T07:38:04Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): make the NO_COLOR and JSON-output env reads injectable as readers (swamp-club#2462) (#2603)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2462: the scheduled flaky-test job has been failing on Linux and macOS. The cause is two <code>applyColorPolicy</code> tests in <code>src/cli/context_test.ts</code>.</p>
+<p>The tests were not flaky. They fail every time <code>NO_COLOR</code> is set, and <code>flaky-tests.yml</code> sets <code>NO_COLOR: &quot;1&quot;</code> for its test step. The tests passed <code>undefined</code> as <code>noColorEnv</code> to mean &quot;unset&quot;. In JavaScript, an explicit <code>undefined</code> falls back to the parameter&#39;s default, <code>Deno.env.get(&quot;NO_COLOR&quot;)</code>. So in that job the value was <code>&quot;1&quot;</code>, colour resolved to off, and the tests&#39; <code>true</code> assertions failed. PR CI does not set <code>NO_COLOR</code>, so the failure only showed up in the scheduled run. The tests came in with #2581.</p>
+<p><code>createContext</code> and <code>getOutputModeFromArgs</code> had the same latent bug for <code>SWAMP_CLI_OUTPUT_JSON</code>. Their log-mode tests fail for anyone who runs the suite with that variable set.</p>
+<ul>
+<li>All three environment parameters are now <strong>reader functions</strong> that default to the <code>Deno.env</code> lookup, the same shape as the existing <code>stdoutIsTerminal</code> probe. A test can now express &quot;unset&quot; as <code>() =&gt; undefined</code>. No production caller passes these arguments, so no call sites change.</li>
+<li><code>context_test.ts</code> passes a reader wherever a result depends on either variable. No expected value changed; only the setup arguments did.</li>
+<li><code>terminal-output/references/logtape.md</code> now lists the <code>NO_COLOR</code> reader among the injecte</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260924.073627.0-sha.b0da4c30" rel="noopener">release v20260924.073627.0-sha.b0da4c30</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b0da4c30" rel="noopener">b0da4c30</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2603" rel="noopener">#2603</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2581" rel="noopener">#2581</a>𝗔 <a href="https://swamp-club.com/lab/2462" rel="noopener">lab#2462</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260924-072024-0-sha-b1aa8810">
+<h2><span class="tier C">C</span>swamp 20260924.072024.0-sha.b1aa8810</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-24T07:22:08Z">2026-09-24T07:22:08Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): give an invalid --server URL a clean error, not a stack trace (swamp-club#2439) (#2602)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2439.</p>
+<p>Passing <code>--server</code> a URL with an unsupported scheme (<code>ftp://…</code>), or a value that isn&#39;t a URL at all, made every remote command crash with <code>[FTL] error: TypeError: Unsupported protocol</code> and a full stack trace, instead of a user-facing error.</p>
+<p><strong>Cause.</strong> All remote commands resolve their token through <code>resolveServerToken</code> in <code>src/cli/remote_run.ts</code>. It reached <code>FileServerCredentialRepository.get</code> before the server URL was validated. <code>get</code> calls the domain <code>normalizeServerUrl</code> unguarded, which throws a <code>TypeError</code> for input outside http/https/ws/wss. The clean <code>UserError</code> in <code>toWebSocketUrl</code> was only reached when <code>--token</code> was passed, because an explicit token returns before the credential lookup. This has been the behaviour since credential storage was added (f0d44775), so it is a plain bug, not a regression.</p>
+<p>A second unguarded call in the same method crashed the same way when <code>SWAMP_SERVER_URL</code> held an invalid URL and <code>SWAMP_SERVER_TOKEN</code> was set, even with a valid <code>--server</code>.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong><code>src/cli/remote_run.ts</code></strong>: the invalid-URL <code>UserError</code> moves out of <code>toWebSocketUrl</code> into a private <code>parseServerFlag</code> helper, with the message unchanged. <code>resolveServerToken</code> calls it first, so every remote command fails cleanly whatever the token source.</li>
+<li><strong><code>src/infrastructure/persistence/server_credential_repository.ts</code></strong>: an inva</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260924.072024.0-sha.b1aa8810" rel="noopener">release v20260924.072024.0-sha.b1aa8810</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b1aa8810" rel="noopener">b1aa8810</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2602" rel="noopener">#2602</a>𝗔 <a href="https://swamp-club.com/lab/2439" rel="noopener">lab#2439</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-222724-0-sha-03229b0f">
 <h2><span class="tier C">C</span>use `tessl review run` for skill reviews (swamp-club#2457) (#2593)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-23T22:28:52Z">2026-09-23T22:28:52Z</time></span><span>docs</span></div>
@@ -8433,13 +8498,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260901.012545.0-sha.7d7984ad" rel="noopener">release v20260901.012545.0-sha.7d7984ad</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7d7984adc3a589df883ef460f5bc7e4d10259b13" rel="noopener">7d7984ad</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2332" rel="noopener">#2332</a>𝗔 <a href="https://swamp-club.com/lab/1925" rel="noopener">lab#1925</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>242 items across 1 source(s) in this window:
+<p>245 items across 1 source(s) in this window:
 3 critical, 224 notable, 4 routine,
-11 minor.</p>
-<ul><li><strong>fix</strong> — 173</li><li><strong>feat</strong> — 54</li><li><strong>docs</strong> — 11</li><li><strong>perf</strong> — 2</li><li><strong>refactor</strong> — 1</li><li><strong>chore</strong> — 1</li></ul></section>
+14 minor.</p>
+<ul><li><strong>fix</strong> — 173</li><li><strong>feat</strong> — 54</li><li><strong>docs</strong> — 11</li><li><strong>changes</strong> — 3</li><li><strong>perf</strong> — 2</li><li><strong>refactor</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-24T10:02:49.581Z">2026-09-24T10:02:49.581Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-24T11:01:53.407Z">2026-09-24T11:01:53.407Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

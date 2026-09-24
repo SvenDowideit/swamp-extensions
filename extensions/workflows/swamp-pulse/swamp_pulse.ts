@@ -22,7 +22,14 @@
 import { z } from "npm:zod@4";
 
 import { celUnescapeDeep } from "./cel_text.ts";
-import { CollectionSchema as ExtensionsCollectionSchema } from "./swamp_ext_registry.ts";
+import {
+  type Collection,
+  type Extension,
+  schemas as registrySchemas,
+} from "./swamp_ext_registry.ts";
+
+/** Registry types shared with the pulse model's ranked output. */
+export type { Collection, Extension };
 import { isDocPath } from "./doc_paths.ts";
 
 export { isDocPath };
@@ -45,7 +52,8 @@ const HALF_LIVES_HOURS: Record<string, number> = {
 
 /** Significance tier ordering, most significant first. */
 const TIER_ORDER = ["S", "A", "B", "C"] as const;
-type Tier = (typeof TIER_ORDER)[number];
+/** A significance tier: S (most) through C (least). */
+export type Tier = "S" | "A" | "B" | "C";
 
 /** Base importance per tier (display score only — never overrides tier order). */
 const TIER_BASE: Record<Tier, number> = { S: 1000, A: 400, B: 150, C: 50 };
@@ -158,7 +166,39 @@ const GlobalArgsSchema = z.object({
   ),
 });
 
-type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
+/** Global arguments for the pulse model. */
+export type GlobalArgs = {
+  /** Directory to write the rendered HTML pages. */
+  outputDir: string;
+  /** Base URL used to build published manual links. */
+  manualBaseUrl: string;
+  /** Activity windows to compute and render. */
+  windows: ("24h" | "7d" | "month")[];
+  /** How many days of merged events to retain in the rolling store. */
+  storeRetentionDays: number;
+  /** Optional extra regex; matching changed paths are treated as documentation. */
+  docPathPattern: string;
+  /** Port the pulse static server listens on (used by ensureServer). */
+  serverPort: number;
+  /** systemd user service name for the pulse static server. */
+  serverServiceName: string;
+  /** Override the path to the bundled pulse-server.ts script. */
+  serverScriptPath?: string;
+  /** Publishing mode. */
+  publishMode: "false" | "caddy" | "github-pages";
+  /** Target repository (owner/name) for publishMode=github-pages. */
+  pagesRepo: string;
+  /** Branch to publish the Pages site to (e.g. gh-pages). */
+  pagesBranch: string;
+  /** Directory within the repository Pages serves from. */
+  pagesPath: "/" | "/docs";
+  /** Optional custom domain to configure for the Pages site. */
+  pagesCname: string;
+  /** Public hostname to serve the pages on for publishMode=caddy. */
+  caddyHostname: string;
+  /** host:port the Caddy reverse proxy points at. */
+  caddyUpstream: string;
+};
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -182,6 +222,18 @@ const DocLinkSchema = z.object({
   manualConfidence: z.number(),
 }).strict();
 
+/** A documentation link attached to a merged item. */
+export type DocLink = {
+  /** Changed file name. */
+  filename: string;
+  /** URL to the source file at the item's commit. */
+  sourceUrl: string;
+  /** URL to the published manual page, when one could be matched. */
+  manualUrl: string;
+  /** Confidence (0..1) in the manual-page match. */
+  manualConfidence: number;
+};
+
 const LabIssueRefSchema = z.object({
   number: z.number(),
   type: z.string(),
@@ -190,6 +242,96 @@ const LabIssueRefSchema = z.object({
   author: z.string(),
   url: z.string(),
 }).strict();
+
+/** A reference to a swamp-club Lab issue. */
+export type LabIssueRef = {
+  /** Lab issue number. */
+  number: number;
+  /** Issue type. */
+  type: string;
+  /** Issue status. */
+  status: string;
+  /** Issue title. */
+  title: string;
+  /** Issue author. */
+  author: string;
+  /** Issue URL. */
+  url: string;
+};
+
+/** A changed file reference. */
+export type Ref = {
+  /** Repository (owner/name). */
+  repo: string;
+  /** Full commit SHA. */
+  sha: string;
+  /** Abbreviated commit SHA. */
+  shortSha: string;
+  /** File path. */
+  filename: string;
+  /** Change status (added/modified/removed). */
+  status: string;
+  /** Lines added. */
+  additions: number;
+  /** Lines deleted. */
+  deletions: number;
+  /** Total lines changed. */
+  changes: number;
+};
+
+/**
+ * One merged, ranked activity item.
+ *
+ * A plain type rather than a `z.infer` export: an exported inferred type
+ * references zod's private `output` type (a `private-type-ref` slow type),
+ * whereas an explicit type is public.
+ */
+export type MergedItem = {
+  /** Stable identity (kind + repo + sha/issue number). */
+  id: string;
+  /** Whether the item is a change (commit/release) or an issue. */
+  kind: "change" | "issue";
+  /** Headline. */
+  title: string;
+  /** One-line summary. */
+  summary: string;
+  /** Repository (owner/name). */
+  repo: string;
+  /** Conventional type (feat/fix/docs/…). */
+  type: string;
+  /** Conventional scope. */
+  scope: string;
+  /** Importance tier. */
+  importance: Tier;
+  /** Numeric score used for ranking. */
+  score: number;
+  /** Item date (ISO-8601). */
+  date: string;
+  /** Why it received its tier. */
+  rationale: string;
+  /** Full commit SHA (empty for issues). */
+  commitSha: string;
+  /** Abbreviated commit SHA. */
+  shortSha: string;
+  /** Commit URL. */
+  commitUrl: string;
+  /** Release tag (empty when none). */
+  releaseTag: string;
+  /** Release URL. */
+  releaseUrl: string;
+  /** Whether the release is a prerelease. */
+  isPrerelease: boolean;
+  /** Associated pull-request numbers. */
+  prNumbers: number[];
+  /** Associated issue numbers. */
+  issueNumbers: number[];
+  /** Linked Lab issue, if any. */
+  labIssue: LabIssueRef | null;
+  /** Changed files. */
+  files: Ref[];
+  /** Documentation links. */
+  docLinks: DocLink[];
+};
 
 const MergedItemSchema = z.object({
   id: z.string(),
@@ -216,6 +358,56 @@ const MergedItemSchema = z.object({
   docLinks: z.array(DocLinkSchema),
 }).strict();
 
+/** One activity window's counts and ranked items. */
+export type RankedWindow = {
+  /** Window key (24h/7d/month). */
+  key: string;
+  /** Human-readable window label. */
+  label: string;
+  /** Window start (ISO-8601). */
+  since: string;
+  /** Window end (ISO-8601). */
+  until: string;
+  /** Number of changes in the window. */
+  changes: number;
+  /** Number of releases in the window. */
+  releases: number;
+  /** Number of issues in the window. */
+  issues: number;
+  /** The ranked items. */
+  items: MergedItem[];
+};
+
+/** Totals across all windows. */
+export type RankedTotals = {
+  /** Total events. */
+  events: number;
+  /** Total commits. */
+  commits: number;
+  /** Total releases. */
+  releases: number;
+  /** Total issues. */
+  issues: number;
+  /** Total documentation changes. */
+  docChanges: number;
+  /** Counts by repository. */
+  byRepo: Record<string, number>;
+};
+
+/** The ranked output the `rank` method writes and `render` reads. */
+export type Ranked = {
+  /** Per-window ranked items. */
+  windows: RankedWindow[];
+  /** Totals across all windows. */
+  totals: RankedTotals;
+  /** Number of manual pages indexed. */
+  manualPages: number;
+  /** Collected extension-registry data, if present. */
+  extensions: Collection | null;
+  /** Generation timestamp (ISO-8601). */
+  generatedAt: string;
+};
+
 const RankedSchema = z.object({
   windows: z.array(
     z.object({
@@ -238,7 +430,7 @@ const RankedSchema = z.object({
     byRepo: z.record(z.string(), z.number()),
   }),
   manualPages: z.number(),
-  extensions: ExtensionsCollectionSchema.nullable(),
+  extensions: registrySchemas.collection.nullable(),
   generatedAt: z.string(),
 }).strict();
 
@@ -253,11 +445,40 @@ const StoreSchema = z.object({
   updatedAt: z.string(),
 }).strict();
 
+/** The rolling event store the `rank` method persists across runs. */
+export type Store = {
+  /** Retained merged events. */
+  events: MergedItem[];
+  /** Per-source incremental cursors. */
+  cursor: {
+    /** Commits fetched since this time. */
+    commitsSince: string;
+    /** Releases fetched since this time. */
+    releasesSince: string;
+    /** Issues fetched since this time. */
+    issuesSince: string;
+    /** When the cursor was last advanced. */
+    updatedAt: string;
+  };
+  /** Store update timestamp (ISO-8601). */
+  updatedAt: string;
+};
+
 const ManualIndexSchema = z.object({
   pages: z.array(z.string()),
   count: z.number(),
   fetchedAt: z.string(),
 }).strict();
+
+/** The published manual-page index used to build documentation links. */
+export type ManualIndex = {
+  /** Known manual page names. */
+  pages: string[];
+  /** Number of pages. */
+  count: number;
+  /** Fetch timestamp (ISO-8601). */
+  fetchedAt: string;
+};
 
 /**
  * Resolved publishing configuration, written by `publishConfig` from the
@@ -291,7 +512,8 @@ const PublishConfigSchema = z.object({
 // Context
 // ---------------------------------------------------------------------------
 
-type MethodContext = {
+/** Method-execution context passed by the engine to each method. */
+export type MethodContext = {
   globalArgs: GlobalArgs;
   repoDir: string;
   definition?: { name?: string };
@@ -524,7 +746,8 @@ export function classifyImportance(item: {
   return { tier, rationale };
 }
 
-type CommitInput = {
+/** A commit row from a `collect_commits` fan-out. */
+export type CommitInput = {
   repo: string;
   sha: string;
   shortSha: string;
@@ -533,7 +756,8 @@ type CommitInput = {
   date: string;
   url: string;
 };
-type ReleaseInput = {
+/** A release row from a `collect_releases` fan-out. */
+export type ReleaseInput = {
   repo: string;
   tagName: string;
   name: string;
@@ -543,7 +767,8 @@ type ReleaseInput = {
   commitSha: string;
   url: string;
 };
-type IssueInput = {
+/** A Lab issue row from `search_lab_issues`. */
+export type IssueInput = {
   number: number;
   type: string;
   status: string;
@@ -553,7 +778,8 @@ type IssueInput = {
   createdAt: string;
   updatedAt: string;
 };
-type FileInput = {
+/** A changed-file row from `collect_doc_changes`. */
+export type FileInput = {
   repo: string;
   sha: string;
   shortSha: string;
@@ -634,19 +860,19 @@ export function mergeEvents(
     manualBaseUrl?: string;
     docPathPattern?: string;
   } = {},
-): z.infer<typeof MergedItemSchema>[] {
+): MergedItem[] {
   const { commits, releases, issues, files } = normalizeInputs(
     celUnescapeDeep(input),
   );
   const manualPages = opts.manualPages ?? [];
   const manualBaseUrl = opts.manualBaseUrl;
-  const items: z.infer<typeof MergedItemSchema>[] = [];
+  const items: MergedItem[] = [];
 
   const issueByNumber = new Map<number, IssueInput>();
   for (const issue of issues) issueByNumber.set(issue.number, issue);
 
   const buildDocLinks = (repo: string, sha: string) => {
-    const links: z.infer<typeof DocLinkSchema>[] = [];
+    const links: DocLink[] = [];
     for (const f of files) {
       if (f.repo !== repo || f.sha !== sha) continue;
       if (!isDocPath(f.filename, opts.docPathPattern)) continue;
@@ -867,9 +1093,9 @@ export function mergeEvents(
 
 /** Keep the newest item for each id. */
 function dedupeById(
-  items: z.infer<typeof MergedItemSchema>[],
-): z.infer<typeof MergedItemSchema>[] {
-  const byId = new Map<string, z.infer<typeof MergedItemSchema>>();
+  items: MergedItem[],
+): MergedItem[] {
+  const byId = new Map<string, MergedItem>();
   for (const item of items) {
     const existing = byId.get(item.id);
     if (!existing || Date.parse(item.date) > Date.parse(existing.date)) {
@@ -881,12 +1107,12 @@ function dedupeById(
 
 /** Merge fresh items into the rolling store, keyed by id, pruned by age. */
 export function mergeStore(
-  existing: z.infer<typeof MergedItemSchema>[],
-  fresh: z.infer<typeof MergedItemSchema>[],
+  existing: MergedItem[],
+  fresh: MergedItem[],
   retentionDays: number,
   now = new Date(),
-): z.infer<typeof MergedItemSchema>[] {
-  const byId = new Map<string, z.infer<typeof MergedItemSchema>>();
+): MergedItem[] {
+  const byId = new Map<string, MergedItem>();
   for (const item of [...existing, ...fresh]) {
     const prev = byId.get(item.id);
     if (!prev || Date.parse(item.date) >= Date.parse(prev.date)) {
@@ -930,10 +1156,10 @@ export function windowBounds(
 
 /** Rank items for one window: tier first, then recency, then score. */
 export function rankItems(
-  items: z.infer<typeof MergedItemSchema>[],
+  items: MergedItem[],
   windowKey: string,
   now = new Date(),
-): z.infer<typeof MergedItemSchema>[] {
+): MergedItem[] {
   const { since, until } = windowBounds(windowKey, now);
   const halfLife = HALF_LIVES_HOURS[windowKey] ?? 72;
 
@@ -1246,7 +1472,7 @@ ${body}
 }
 
 /** Render one merged item as a tour section. */
-export function renderItem(item: z.infer<typeof MergedItemSchema>): string {
+export function renderItem(item: MergedItem): string {
   const id = item.id.replace(/[^a-zA-Z0-9]+/g, "-");
   const refs: string[] = [];
   if (item.releaseTag) {
@@ -1308,7 +1534,7 @@ ${docs}
 export function renderTourPage(
   title: string,
   active: string,
-  items: z.infer<typeof MergedItemSchema>[],
+  items: MergedItem[],
   opts: {
     emptyText: string;
     head?: string;
@@ -1332,23 +1558,22 @@ export function renderTourPage(
   const highlighted = items.slice(0, promote);
   const tailItems = items.slice(promote);
   // Partition (not filter) so an item lands in exactly one tail group.
-  const tooling: z.infer<typeof MergedItemSchema>[] = [];
-  const other: z.infer<typeof MergedItemSchema>[] = [];
-  const hidden: z.infer<typeof MergedItemSchema>[] = [];
+  const tooling: MergedItem[] = [];
+  const other: MergedItem[] = [];
+  const hidden: MergedItem[] = [];
   for (const item of tailItems) {
     if (item.scope === "ci" || item.scope === "build") tooling.push(item);
     else if (item.importance === "A" || item.importance === "B") {
       other.push(item);
     } else hidden.push(item);
   }
-  const tailGroups: Array<[string, z.infer<typeof MergedItemSchema>[]]> = [
+  const tailGroups: Array<[string, MergedItem[]]> = [
     ["Other notable changes", other],
     ["Tooling", tooling],
     ["Hidden gems", hidden],
   ];
 
-  const itemId = (item: z.infer<typeof MergedItemSchema>) =>
-    item.id.replace(/[^a-zA-Z0-9]+/g, "-");
+  const itemId = (item: MergedItem) => item.id.replace(/[^a-zA-Z0-9]+/g, "-");
 
   const toc = highlighted.map((item) =>
     `<a href="#${
@@ -1380,7 +1605,7 @@ ${thoughts}
 
 /** Render the closing "Final thoughts" summary for a window. */
 export function renderFinalThoughts(
-  items: z.infer<typeof MergedItemSchema>[],
+  items: MergedItem[],
 ): string {
   if (items.length === 0) return "";
   const byTier = (t: string) => items.filter((i) => i.importance === t).length;
@@ -1411,7 +1636,7 @@ ${byTier("C")} minor.</p>
  * month" gets exactly that and nothing else.
  */
 export function renderIndexPage(
-  ranked: z.infer<typeof RankedSchema>,
+  ranked: Ranked,
 ): string {
   const widest = ranked.windows[ranked.windows.length - 1];
   const label = widest?.label ?? "";
@@ -1440,7 +1665,7 @@ ${renderDocSection(ranked)}
 
 /** Render the leaderboard page: ranked activity for 24h / 7d / month. */
 export function renderLeaderboardPage(
-  ranked: z.infer<typeof RankedSchema>,
+  ranked: Ranked,
 ): string {
   const cards = `<div class="cards">
 <div class="card"><div class="n">${ranked.totals.events}</div><div class="l">MERGED EVENTS</div></div>
@@ -1486,7 +1711,7 @@ ${sections}
 }
 
 /** Render the labelled reference row for a change (release/commit/PR/issue). */
-export function renderRefs(item: z.infer<typeof MergedItemSchema>): string {
+export function renderRefs(item: MergedItem): string {
   const refs: string[] = [];
   if (item.releaseTag) {
     refs.push(
@@ -1523,7 +1748,7 @@ export type DocFileGroup = {
   manualUrl: string;
   manualConfidence: number;
   latestDate: string;
-  changes: z.infer<typeof MergedItemSchema>[];
+  changes: MergedItem[];
 };
 
 /**
@@ -1535,7 +1760,7 @@ export type DocFileGroup = {
  * changed twice would otherwise appear twice.
  */
 export function groupDocChanges(
-  items: z.infer<typeof MergedItemSchema>[],
+  items: MergedItem[],
 ): DocFileGroup[] {
   const byFile = new Map<string, DocFileGroup>();
   for (const item of items) {
@@ -1607,7 +1832,7 @@ export function renderDocFileCard(group: DocFileGroup): string {
 
 /** Render one registry extension as a compact card. */
 export function renderExtensionCard(
-  ext: z.infer<typeof ExtensionsCollectionSchema>["extensions"][number],
+  ext: Collection["extensions"][number],
   kind: "new" | "updated" | "significant",
 ): string {
   const badge = kind === "new"
@@ -1664,7 +1889,7 @@ ${labels}
  * all-time most pulled (which is not window-scoped, so it is labelled as such).
  */
 export function renderExtensionsPage(
-  ranked: z.infer<typeof RankedSchema>,
+  ranked: Ranked,
 ): string {
   const ext = ranked.extensions;
   if (!ext) {
@@ -1769,7 +1994,7 @@ ${tabBar}
 }
 
 /** Collect and render the documentation entries for the widest window. */
-function renderDocSection(ranked: z.infer<typeof RankedSchema>): string {
+function renderDocSection(ranked: Ranked): string {
   // The windows nest (24h ⊂ 7d ⊂ month), so read the widest one only — the
   // others are strict subsets and would duplicate every entry.
   const widest = ranked.windows[ranked.windows.length - 1];
@@ -2118,7 +2343,7 @@ export const model = {
   // registry extractor parses this file statically; if it cannot read a
   // literal it skips the file and reports the model as removed from the
   // extension. The footer constant below derives from this value.
-  version: "2026.09.18.15",
+  version: "2026.09.24.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -2199,6 +2424,12 @@ export const model = {
       toVersion: "2026.09.18.15",
       description:
         "No schema changes — add a setup method that lists every setting with its valid values, default and current value, validates proposed values, and reports the resolved publishing config; fix logger.warning -> logger.warn so warnings are actually emitted",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
+      description:
+        "No schema changes — docs and typing only: explicit exported types replace z.infer exports and private schema references so deno doc --lint reports no slow types; manifest/README rewritten to the documentation contract. Global and method arguments unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2660,7 +2891,7 @@ export const model = {
       ) => {
         const now = args.now ? new Date(args.now) : new Date();
         const manual = await context.readResource("manualIndex") as
-          | z.infer<typeof ManualIndexSchema>
+          | ManualIndex
           | null;
         const manualPages = manual?.pages ?? [];
 
@@ -2679,7 +2910,7 @@ export const model = {
         );
 
         const prior = await context.readResource("store") as
-          | z.infer<typeof StoreSchema>
+          | Store
           | null;
         const events = mergeStore(
           prior?.events ?? [],
@@ -2712,12 +2943,12 @@ export const model = {
 
         // The registry collector output is optional: a failed or unwired
         // collector must not fail ranking, so parse defensively.
-        const extParsed = ExtensionsCollectionSchema.safeParse(
+        const extParsed = registrySchemas.collection.safeParse(
           celUnescapeDeep(args.extensions ?? {}),
         );
         const extensions = extParsed.success ? extParsed.data : null;
 
-        const ranked: z.infer<typeof RankedSchema> = {
+        const ranked: Ranked = {
           windows,
           totals: {
             events: events.length,
@@ -2761,7 +2992,7 @@ export const model = {
         context: MethodContext,
       ) => {
         const ranked = await context.readResource("ranked") as
-          | z.infer<typeof RankedSchema>
+          | Ranked
           | null;
         if (!ranked) {
           throw new Error("No ranked data — run `rank` before `render`.");
@@ -2868,4 +3099,5 @@ export const model = {
  */
 const EXTENSION_VERSION: string = model.version;
 
+/** Extension identity constants and their values for external reference. */
 export { EXTENSION_NAME, EXTENSION_URL, EXTENSION_VERSION };

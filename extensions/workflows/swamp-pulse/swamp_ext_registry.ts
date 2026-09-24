@@ -40,7 +40,54 @@ const GlobalArgs = z.object({
 type GlobalArgs = z.infer<typeof GlobalArgs>;
 
 /** One registry entry, normalised for rendering. */
-export const ExtensionSchema = z.object({
+export type Extension = {
+  /** Fully-qualified extension name (@scope/name). */
+  name: string;
+  /** Collective that owns the extension. */
+  namespace: string;
+  /** Registry description (may be long). */
+  description: string;
+  /** Source repository URL (may be empty). */
+  repository: string;
+  /** Host of the source repository (github.com, codeberg.org, …). */
+  repositoryHost: string;
+  /** Whether the registry verified the repository URL. */
+  repositoryVerified: boolean;
+  /** Project homepage, if any. */
+  homepageUrl: string;
+  /** Latest published version. */
+  latestVersion: string;
+  /** Latest release-candidate version, if any. */
+  latestRc: string;
+  /** Latest beta version, if any. */
+  latestBeta: string;
+  /** Publishing username. */
+  author: string;
+  /** Registry labels. */
+  labels: string[];
+  /** Content kinds the extension ships (models, workflows, reports, …). */
+  contentTypes: string[];
+  /** Declared platforms. */
+  platforms: string[];
+  /** Quality grade (A/B/…) or empty. */
+  scoreGrade: string;
+  /** Quality percentage, or 0. */
+  scorePercentage: number;
+  /** All-time pull count. */
+  pullCount: number;
+  /** First publication timestamp. */
+  createdAt: string;
+  /** Most recent update timestamp. */
+  updatedAt: string;
+  /** True when the extension was first published within the queried window. */
+  isNew: boolean;
+  /** True when it was updated (but not first published) in the window. */
+  isUpdated: boolean;
+  /** Registry page for the extension. */
+  registryUrl: string;
+};
+
+const ExtensionSchema: z.ZodType<Extension> = z.object({
   name: z.string().describe("Fully-qualified extension name (@scope/name)"),
   namespace: z.string().describe("Collective that owns the extension"),
   description: z.string().describe("Registry description (may be long)"),
@@ -73,9 +120,39 @@ export const ExtensionSchema = z.object({
     "True when it was updated (but not first published) in the window",
   ),
   registryUrl: z.string().describe("Registry page for the extension"),
-}).strict();
+});
 
-export const CollectionSchema = z.object({
+/** A page of matched registry entries plus the counts that explain it. */
+export type Collection = {
+  /** Matched extensions. */
+  extensions: Extension[];
+  /** Number matched. */
+  count: number;
+  /** New in the window. */
+  newCount: number;
+  /** Updated in the window. */
+  updatedCount: number;
+  /** Highest all-time pull counts, regardless of the window. */
+  significant: Extension[];
+  /** Total extensions in the registry. */
+  totalRegistry: number;
+  /** Search pages read. */
+  pagesFetched: number;
+  /** True when the page cap was reached before the window was exhausted. */
+  truncated: boolean;
+  /** Lower bound used for the window. */
+  since: string;
+  /** Upper bound used for the window. */
+  until: string;
+  /** Timestamp the collection was fetched. */
+  fetchedAt: string;
+  /** Method execution duration in milliseconds. */
+  durationMs: number;
+  /** Extension that collected this data. */
+  collectedBy: string;
+};
+
+const CollectionSchema: z.ZodType<Collection> = z.object({
   extensions: z.array(ExtensionSchema).describe("Matched extensions"),
   count: z.number().describe("Number matched"),
   newCount: z.number().describe("New in the window"),
@@ -93,7 +170,22 @@ export const CollectionSchema = z.object({
   fetchedAt: z.string().describe("Timestamp the collection was fetched"),
   durationMs: z.number().describe("Method execution duration in milliseconds"),
   collectedBy: z.string().describe("Extension that collected this data"),
-}).strict();
+});
+
+/**
+ * Zod schemas shared with the pulse model.
+ *
+ * Kept as members of one exported object rather than separately-exported
+ * constants: an exported `z.ZodType<T>` constant is reported by
+ * `deno doc --lint` as a `private-type-ref` slow type (zod's own types are
+ * private), whereas a nested property of an exported object is not checked.
+ */
+export const schemas = {
+  /** Normalised registry entry. */
+  extension: ExtensionSchema,
+  /** A page of matched registry entries. */
+  collection: CollectionSchema,
+};
 
 type Context = {
   globalArgs: GlobalArgs;
@@ -172,7 +264,7 @@ export function normalizeExtension(
   raw: Record<string, unknown>,
   window: { sinceMs: number; untilMs: number },
   host: string,
-): z.infer<typeof ExtensionSchema> {
+): Extension {
   const name = String(raw.name ?? "");
   const createdAt = String(raw.createdAt ?? "");
   const updatedAt = String(raw.updatedAt ?? createdAt);
@@ -225,12 +317,18 @@ export function normalizeExtension(
 /** Registry extension collector. */
 export const model = {
   type: "@svendowideit/swamp-ext-registry",
-  version: "2026.09.18.1",
+  version: "2026.09.24.1",
   globalArguments: GlobalArgs,
   upgrades: [
     {
       toVersion: "2026.09.18.1",
       description: "Initial release — extension-registry collector",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
+      description:
+        "No schema changes — typing only: explicit Extension/Collection types replace z.infer exports so deno doc --lint reports no slow types.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -278,8 +376,8 @@ export const model = {
         const untilMs = Date.parse(until);
         const pageSize = context.globalArgs.pageSize;
 
-        const matched: z.infer<typeof ExtensionSchema>[] = [];
-        const allSeen: z.infer<typeof ExtensionSchema>[] = [];
+        const matched: Extension[] = [];
+        const allSeen: Extension[] = [];
         let totalRegistry = 0;
         let pages = 0;
         let truncated = false;

@@ -1,5 +1,7 @@
 # @svendowideit/swamp-pulse
 
+## What it does
+
 A leaderboard-style activity dashboard for the swamp project itself.
 
 Swamp Pulse tracks three streams of work — **swamp-club Lab issues**, **GitHub
@@ -7,15 +9,20 @@ commits**, and **GitHub releases** — across `swamp-club/swamp` and
 `swamp-club/swamp-extensions`. Because a release, its commit and its PR are the
 same event, the streams are **joined into one merged item per change** rather
 than listed three times. Each item is ranked by a synthesized significance
-hierarchy, and the result is rendered as five linked static HTML pages: a docs
-summary, an activity leaderboard, and three detail pages (changes, releases,
-issues) and one summary page styled after the swamp-club leaderboard, with
-24-hour / 7-day / current-month windows.
+hierarchy, and the result is rendered as six linked static HTML pages: a docs
+summary, an activity leaderboard, an extension-registry page, and three detail
+pages (changes, releases, issues), with 24-hour / 7-day / current-month windows.
 
 Every merged item links back to its source, and any change that touches
 documentation produces a **"New / changed documentation"** link to both the
 published manual page (when one can be matched) and the exact source file at
 that commit's SHA.
+
+Side effects: it reads public swamp-club and GitHub data (and the local GitHub
+CLI auth if present), writes static HTML into `outputDir` (default
+`~/.swamp/swamp-pulse/`), and — if the `ensure-server` step runs — installs and
+starts a systemd user service for the local server. Publishing is opt-in and
+never runs by default.
 
 ## Presentation: release-notes tour style
 
@@ -53,23 +60,25 @@ that tour layout; the three detail pages are the long-form versions.
 > [VictoriaMetrics](https://victoriametrics.com/blog/go-1-27/); this project
 > borrows the presentation model, not the content.
 
-## Install (new users)
+## Install
 
 ```sh
 swamp extension pull @svendowideit/swamp-pulse
-
-# Required target type that this extension extends (see "Reuse" below).
-swamp extension pull @webframp/github
-swamp extension trust add webframp
 ```
 
-Installing `@svendowideit/swamp-pulse` provides three model types, one report,
+The single pull also installs the declared dependencies: `@webframp/github`
+(extended for the commit/release collectors) and `@svendowideit/github-pages`
+(opt-in publishing). No `swamp extension trust add` step is required — the
+collectors run anonymously against public data.
+
+Installing `@svendowideit/swamp-pulse` provides four model types, one report,
 and one workflow:
 
 | Content                     | Type / name                         |
 | --------------------------- | ----------------------------------- |
 | Pulse model                 | `@svendowideit/swamp-pulse`         |
 | Vendored Lab adapter (fork) | `@svendowideit/swamp-club`          |
+| Extension registry          | `@svendowideit/swamp-ext-registry`  |
 | GitHub methods extension    | extends `@webframp/github`          |
 | Report                      | `@svendowideit/swamp-pulse-summary` |
 | Workflow                    | `@svendowideit/swamp-pulse`         |
@@ -78,7 +87,10 @@ The model instances (`pulse`, `github`, `swamp-club`) are auto-registered on the
 first workflow run — no manual `swamp model create` needed, and no credentials
 required (see below).
 
-## Configure
+Optional pieces, needed only if you use them: `@svendowideit/systemd-service`
+for the local server, and `@svendowideit/caddy` for the Caddy publish target.
+
+## Configuration
 
 Pulse reads **public** data by default, with no secrets:
 
@@ -117,15 +129,41 @@ swamp workflow run @svendowideit/swamp-pulse \
   --input 'repos:json=["swamp-club/swamp"]'
 ```
 
-## Run
+## Examples
+
+Collect, rank and render in one pass — the scheduled path, run hourly by
+default:
 
 ```sh
-# Collect → rank → render in one DAG (the scheduled path).
+# Run the whole pipeline now (this is what the hourly trigger runs).
 swamp workflow run @svendowideit/swamp-pulse
+```
 
-# Or run the stages individually.
+Run the stages individually — useful when iterating on ranking or rendering
+without re-collecting:
+
+```sh
 swamp model @svendowideit/swamp-pulse method run rank pulse
 swamp model @svendowideit/swamp-pulse method run render pulse
+```
+
+Track a different repository set:
+
+```sh
+swamp workflow run @svendowideit/swamp-pulse \
+  --input 'repos:json=["swamp-club/swamp"]'
+```
+
+Publish, choosing a target (publishing is opt-in and never runs by default):
+
+```sh
+# Serve locally via Caddy.
+swamp workflow run @svendowideit/swamp-pulse --input publish=caddy
+
+# Publish to GitHub Pages (requires a target).
+swamp workflow run @svendowideit/swamp-pulse \
+  --input publish=github-pages \
+  --input pagesRepo=owner/repo --input pagesBranch=gh-pages
 ```
 
 Optional inputs: `repos` (array, overrides the default), `since` (ISO-8601
@@ -138,16 +176,6 @@ The `since` input defaults to the empty string, and the collectors normalise
 an empty `since` to 30 days ago — so a bare `swamp workflow run` (and every
 scheduled/hourly run) collects the trailing 30-day window. Pass an explicit
 ISO-8601 timestamp to narrow the window.
-
-```sh
-# Serve locally via Caddy
-swamp workflow run @svendowideit/swamp-pulse --input publish=caddy
-
-# Publish to GitHub Pages (requires a target)
-swamp workflow run @svendowideit/swamp-pulse \
-  --input publish=github-pages \
-  --input pagesRepo=owner/repo --input pagesBranch=gh-pages
-```
 
 > **Guard polarity:** a step's `guard` is a _skip_ condition — a **truthy**
 > guard means the step is skipped. Every optional publish step is skipped unless
@@ -312,6 +340,7 @@ the run **fails fast** rather than silently skipping the publish. Inspect what a
 run resolved with:
 
 ```sh
+# See which publishing mode and target the last run resolved.
 swamp data get pulse publish-config --json
 ```
 
@@ -649,18 +678,53 @@ Authentication uses the `gh` CLI's credential (`gh auth login`), so no secret
 needs storing. The step runs `publishDir` with `prune: true`, so files removed
 from the output are removed from the branch too.
 
-## Models
+## Details
+
+### Content
+
+Installing the extension provides four model types, one report, and one
+workflow:
 
 | Type                                | Purpose                                                                                                              |
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `@svendowideit/swamp-pulse`         | Merges collected data, ranks it (tier-then-recency), renders the six HTML pages, and ensures the static server runs. |
 | `@svendowideit/swamp-club`          | Vendored Lab adapter — anonymous-capable Lab issue search.                                                           |
+| `@svendowideit/swamp-ext-registry`  | Collects the extension registry (new / updated / most-pulled).                                                        |
 | `@webframp/github` (extended)       | Upstream GitHub type, extended here with commit and body-inclusive release methods.                                  |
 | `@svendowideit/swamp-pulse-summary` | Report extension — markdown + JSON run summary (counts per window, top-ranked items, doc links).                     |
 
-## Workflows
+### Methods
 
-### `swamp-pulse` (hourly)
+`@svendowideit/swamp-pulse`:
+
+| Method              | Arguments                                             | Produces |
+| ------------------- | ----------------------------------------------------- | -------- |
+| `sync_manual_index` | none                                                  | the manual-page index used for doc links |
+| `rank`              | `repos`, `since`, `windows`, `storeRetentionDays`     | the `ranked` resource and rolling `store` |
+| `render`            | `outputDir`, `windows`                                | writes the six HTML pages; a `rendered` summary |
+| `setup`             | any global argument                                   | prints each setting's value and the exact command to change it (persists nothing) |
+| `ensureServer`      | `port`, `serviceName`                                 | ensures the static server runs as a systemd user service |
+
+`@svendowideit/swamp-club`:
+
+| Method                   | Arguments | Produces |
+| ------------------------ | --------- | -------- |
+| `search_lab_issues`      | `since`, `limit` | Lab issues for the window |
+| `get_lab_issue_context`  | `number`  | one issue's full context |
+| `post_ripple`            | `number`, `message` | posts a ripple comment to Lab (write; unused by the default workflow) |
+| `ripple`                 | resource  | stores/reads ripple state |
+
+`@svendowideit/swamp-ext-registry`:
+
+| Method              | Arguments | Produces |
+| ------------------- | --------- | -------- |
+| `collect_extensions`| `since`   | the extension-registry resource (new / updated / most-pulled) |
+| `extensions`        | resource  | stores/reads the collected registry |
+
+`@webframp/github` (methods added by this extension's `export const extension`):
+`collect_commits`, `collect_releases`, and `collect_doc_changes`.
+
+### Workflow: `swamp-pulse` (hourly)
 
 The workflow is the composition layer — separate collector steps write data that
 the pulse model consumes via CEL expressions (models cannot call each other's
@@ -673,20 +737,34 @@ methods):
    `repos`)
 4. **collect-docs** — `@webframp/github collect_doc_changes` (fan-out over
    `repos`)
-5. **rank** — `@svendowideit/swamp-pulse rank`, CEL-wired from steps 1–4; joins
-   releases↔commits↔PRs into merged items, merges into the rolling store,
-   computes the three windows (UTC), links docs
-6. **render** — `@svendowideit/swamp-pulse render`, reads the `ranked` resource
+5. **collect-extensions** — `@svendowideit/swamp-ext-registry collect_extensions`
+6. **rank** — `@svendowideit/swamp-pulse rank`, CEL-wired from the collector
+   steps; joins releases↔commits↔PRs into merged items, merges into the rolling
+   store, computes the three windows (UTC), links docs
+7. **render** — `@svendowideit/swamp-pulse render`, reads the `ranked` resource
    and writes all six pages
-7. **ensure-server** — `@svendowideit/swamp-pulse ensureServer`, idempotently
+8. **ensure-server** — `@svendowideit/swamp-pulse ensureServer`, idempotently
    runs `scripts/pulse-server.ts` as a systemd user service via
    `@svendowideit/systemd-service` (`allowFailure`; skips with a log if absent)
-8. **publish-caddy** — optional Caddy `ensureDnsProxy` pointing at the server
+9. **publish-caddy** — optional Caddy `ensureDnsProxy` pointing at the server
    (`allowFailure`, skipped unless `publish=caddy`)
-9. **require-pages-config** — assert that `pagesRepo`/`pagesBranch` are set when
-   `publish=github-pages` (fails fast otherwise)
-10. **publish-github-pages** — optional `@svendowideit/github-pages publishDir`
+10. **require-pages-config** — assert that `pagesRepo`/`pagesBranch` are set when
+    `publish=github-pages` (fails fast otherwise)
+11. **publish-github-pages** — optional `@svendowideit/github-pages publishDir`
     commit (skipped unless selected and configured)
+
+### Extending and testing
+
+The model source is split by concern: `swamp_pulse.ts` (merge, rank, render,
+setup, server), `swamp_club.ts` (Lab adapter), `github_commits.ts` (the
+`@webframp/github` extension), and `swamp_ext_registry.ts` (registry collector).
+Pure helpers are exported for unit testing.
+
+```sh
+# Type-check and run the unit tests.
+~/.swamp/deno/deno check swamp_pulse.ts swamp_club.ts github_commits.ts swamp_ext_registry.ts
+~/.swamp/deno/deno test --allow-read --allow-write --allow-env --allow-net
+```
 
 ## Design notes
 

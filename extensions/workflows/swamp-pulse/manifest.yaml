@@ -1,132 +1,86 @@
 # Read-only; regenerate via 'swamp extension pull'
 manifestVersion: 1
 name: "@svendowideit/swamp-pulse"
-version: "2026.09.19.1"
-description: |
-  A leaderboard-style activity dashboard for the swamp project itself. Tracks
-  swamp-club Lab issues, GitHub commits and GitHub releases across
-  swamp-club/swamp and swamp-club/swamp-extensions, joins each release, its
-  commit and its pull request into a single merged item, ranks items by a
-  synthesized significance hierarchy (tier first, recency as tie-break), and
-  renders six linked static HTML pages — a documentation summary, an activity
-  leaderboard, an extension-registry page (new / updated / most-pulled, linked
-  to source repos) and changes, releases and issues detail pages with
-  24h / 7d / current-month windows.
+version: "2026.09.24.1"
+description: >
+  A leaderboard-style activity dashboard for the swamp project itself: it
+  tracks Lab issues, GitHub commits and GitHub releases, merges the three views
+  of one change into a single ranked item, and renders six linked static HTML
+  pages.
 
-  INSTALL (required)
+  WHAT IT DOES
 
+    Turns the raw firehose of swamp-project activity into a ranked, readable
+    dashboard. A release, its commit and its pull request are the same event, so
+    instead of listing them three times Pulse joins them into one merged item
+    and ranks items by a synthesized significance hierarchy (tier first, recency
+    as tie-break). It renders a documentation summary, an activity leaderboard,
+    an extension-registry page (new / updated / most-pulled), and releases,
+    changes and issues detail pages, each with 24-hour, 7-day and current-month
+    windows and every item linked back to its source. Prefer it over reading the
+    commit log or the issue tracker directly: it answers "what shipped, and does
+    it matter?" in one page, and runs hourly.
+
+  INSTALL
+
+      # One pull; the declared dependencies install automatically.
       swamp extension pull @svendowideit/swamp-pulse
-      swamp extension pull @webframp/github
-      swamp extension trust add webframp
 
-  RUN (required)
+  DEPENDENCIES
 
+    `@webframp/github` (extended for the commit/release collectors) and
+    `@svendowideit/github-pages` (opt-in publishing), both declared in
+    `dependencies:` and installed by the single pull above. Serving the pages
+    over HTTP additionally uses `@svendowideit/systemd-service`, and the Caddy
+    publish target uses `@svendowideit/caddy`; both are optional and only needed
+    if you enable those features.
+
+  RUN
+
+      # Collect, rank and render in one pass; scheduled hourly by default.
       swamp workflow run @svendowideit/swamp-pulse
 
-  Scheduled hourly by default. Output lands in ~/.swamp/swamp-pulse/:
-  index.html (documentation summary, current month), leaderboard.html
-  (activity for 24h / 7d / month), extensions.html (registry changes),
-  changes.html, releases.html, issues.html.
+      # Track a specific repository instead of the default set.
+      swamp workflow run @svendowideit/swamp-pulse \
+        --input 'repos:json=["swamp-club/swamp"]'
 
-  Publishing is opt-in and never runs by default. Serve locally as a systemd
-  user service with @svendowideit/systemd-service; or publish to GitHub Pages
-  with @svendowideit/github-pages (requires pagesRepo and pagesBranch).
-
-  CONFIGURE (all optional — public data, no secrets required)
-
-  See every setting, its valid values, its default and its current value:
-
+      # See every setting, its current value, and the exact command to change it.
       swamp model @svendowideit/swamp-pulse method run setup pulse
 
-  Pass any of them to have the value validated and see the exact change to
-  make (this does not persist anything):
+    Output lands in `~/.swamp/swamp-pulse/` (index.html, leaderboard.html,
+    extensions.html, changes.html, releases.html, issues.html). Publishing is
+    opt-in and never runs by default.
 
-      swamp model @svendowideit/swamp-pulse method run setup pulse \
-        --input publishMode=github-pages \
-        --input pagesRepo=owner/repo --input pagesBranch=gh-pages
+  CONFIGURE
 
-  The setup method works before the "pulse" instance exists — running any
-  method creates it with defaults. Note that auto-created instances live in
-  .swamp/auto-definitions/ and are deliberately NOT listed by
-  "swamp model search"/"model list", so those can look empty even while
-  workflows run. "swamp model get pulse" shows it. This is also why
-  "swamp model edit pulse" can report "Model not found" on a fresh install:
-  run setup first, or create the instance explicitly (below).
+    All settings are optional and public data needs no secrets. Configure the
+    `pulse` model instance with global args, or per run with `--input`:
 
-  Publishing is driven by the "pulse" model instance, not by the trigger, so
-  configuring it once makes every scheduled run honour it.
+      publishMode       false | caddy | github-pages   (default false)
+      pagesRepo         owner/repo for github-pages    (required when publishing)
+      pagesBranch       Pages branch                   (required when publishing)
+      pagesPath         / or /docs                     (default /)
+      pagesCname        custom domain
+      caddyHostname / caddyUpstream                    (for caddy mode)
+      outputDir         where the HTML is written      (default ~/.swamp/swamp-pulse)
+      windows           time windows to render         (default 24h, 7d, month)
 
-  Settings:  publishMode (false | caddy | github-pages), pagesRepo,
-             pagesBranch, pagesPath (/ or /docs), pagesCname,
-             caddyHostname, caddyUpstream.
-  Also:      outputDir, windows, serverPort, serverServiceName.
-  Note:      "repos" is a WORKFLOW input, not a model global.
+    Precedence is per-run `--input` > model global arg > schema default, so a
+    bare `swamp workflow run` never overrides a configured instance. The
+    repositories to track are a workflow input (`repos`), not a model global.
 
-  Set them when creating the instance:
+  WHAT IT INSTALLS
 
-      swamp model create @svendowideit/swamp-pulse pulse \
-        --global-arg publishMode=github-pages \
-        --global-arg pagesRepo=owner/repo \
-        --global-arg pagesBranch=gh-pages
-
-  That writes models/@svendowideit/swamp-pulse/pulse.yaml — a normal,
-  committable file listing every setting, safe to edit directly. To change it
-  afterwards, edit that file or run:
-
-      swamp model edit pulse          # opens $EDITOR, save and quit
-      cat models/@svendowideit/swamp-pulse/pulse.yaml | swamp model edit pulse --json
-
-  If the instance does not exist yet, the first run auto-creates it with all
-  defaults (publishing off). Auto-created instances live in
-  .swamp/auto-definitions/ and are not listed by "swamp model search".
-
-  Precedence:  per-run --input  >  model global argument  >  schema default.
-  So an individual run can override the model:
-
-      swamp workflow run @svendowideit/swamp-pulse \
-        --input publish=github-pages \
-        --input pagesRepo=owner/repo --input pagesBranch=gh-pages
-
-  An empty --input publish defers to the model (its default is ""), so a bare
-  "swamp workflow run" never overrides a configured instance.
-
-  Inspect what a run resolved:
-
-      swamp data get pulse publish-config --json
-
-  Serve the pages over HTTP
-
-  The workflow runs the pulse static server as a systemd user service, and
-  needs this extension for that:
-
-      swamp extension pull @svendowideit/systemd-service
-
-  With it installed, the ensure-server step starts the service at boot (via
-  lingering) and keeps it running. Without it, the step is skipped and you run
-  the server by hand:
-
-      ~/.swamp/deno/deno run --allow-net --allow-read --allow-env \
-        scripts/pulse-server.ts --port 8899 --dir ~/.swamp/swamp-pulse
-
-  Tune the service:  --input serverPort=8899 --input serviceName=swamp-pulse-server
-
-  PUBLISH TARGETS (all opt-in; nothing publishes by default)
-
-  GitHub Pages — commits the rendered pages to a repository's Pages site:
-
-      swamp extension pull @svendowideit/github-pages
-
-  Caddy — serves them on a hostname through a reverse proxy:
-
-      swamp extension pull @svendowideit/caddy
-      swamp workflow run @svendowideit/swamp-pulse \
-        --input publish=caddy --input hostname=pulse.example.com
-
-  Both need their target set (pagesRepo/pagesBranch, or caddyHostname) either
-  on the pulse model or per run; see CONFIGURE above. A run that selects a mode
-  without a target fails fast with an actionable error.
+    No services, triggers, or webhooks on the host by default — it writes static
+    HTML into `outputDir` when the workflow runs. If you enable the local server
+    (`ensure-server` step), it installs a systemd *user* service (via
+    `@svendowideit/systemd-service`) and enables lingering so the page is served
+    at boot; publishing to GitHub Pages or Caddy commits/serves the pages only
+    when you explicitly select that mode.
 
 repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
 
 paths:
   base: manifest

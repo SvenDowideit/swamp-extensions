@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260923-225733-0-sha-4e5f2a11"><span class="tier A">A</span>fail a method whose own argument&#39;s CEL failed to evaluate (s</a><a href="#release-swamp-club-swamp-v20260923-225208-0-sha-063bd925"><span class="tier A">A</span>add --datastore-poll-interval and cap timer durations (swamp</a><a href="#release-swamp-club-swamp-v20260923-224808-0-sha-65204770"><span class="tier A">A</span>stop vault, access and extension handlers from forcing full-</a><a href="#release-swamp-club-swamp-v20260923-220016-0-sha-d322ec79"><span class="tier A">A</span>decide contributor thanks from the swamp-club team roster (s</a><a href="#release-swamp-club-swamp-v20260923-213015-0-sha-80a44e55"><span class="tier A">A</span>run syncs take the sync gate so a poller pull cannot prune t</a><a href="#release-swamp-club-swamp-v20260923-212700-0-sha-853cf43c"><span class="tier A">A</span>only suggest vault create for names it accepts (swamp-club#2</a><a href="#release-swamp-club-swamp-v20260923-212020-0-sha-01690c72"><span class="tier A">A</span>keep serve URL credentials out of .swamp.yaml and CLI output</a><a href="#release-swamp-club-swamp-v20260923-211049-0-sha-00469925"><span class="tier A">A</span>skip unknown OAuth usernames at startup, add serve check-con</a><a href="#release-swamp-club-swamp-v20260923-205006-0-sha-acbfdbfa"><span class="tier A">A</span>surface control-plane vault init failures instead of swallow</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260923-231117-0-sha-ad0aa46d"><span class="tier A">A</span>restore assertPinnedSet import in datastore sync rules (swam</a><a href="#release-swamp-club-swamp-v20260923-230736-0-sha-2ebf013c"><span class="tier A">A</span>restore the assertPinnedSet import in datastore sync rules (</a><a href="#release-swamp-club-swamp-v20260923-230324-0-sha-20b7797a"><span class="tier A">A</span>make workflow recover usable (swamp-club#2431) (#2599)</a><a href="#release-swamp-club-swamp-v20260923-225733-0-sha-4e5f2a11"><span class="tier A">A</span>fail a method whose own argument&#39;s CEL failed to evaluate (s</a><a href="#release-swamp-club-swamp-v20260923-225208-0-sha-063bd925"><span class="tier A">A</span>add --datastore-poll-interval and cap timer durations (swamp</a><a href="#release-swamp-club-swamp-v20260923-224808-0-sha-65204770"><span class="tier A">A</span>stop vault, access and extension handlers from forcing full-</a><a href="#release-swamp-club-swamp-v20260923-220016-0-sha-d322ec79"><span class="tier A">A</span>decide contributor thanks from the swamp-club team roster (s</a><a href="#release-swamp-club-swamp-v20260923-213015-0-sha-80a44e55"><span class="tier A">A</span>run syncs take the sync gate so a poller pull cannot prune t</a><a href="#release-swamp-club-swamp-v20260923-212700-0-sha-853cf43c"><span class="tier A">A</span>only suggest vault create for names it accepts (swamp-club#2</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7">
 <h2><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#2446)</h2>
@@ -150,6 +150,105 @@ footer .ver{color:var(--acc)}
 <p>| <code>design/enablers/remote-execution.md</code> | Document the additionalFiles-only policy |</p></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.194129.0-sha.d1808bea" rel="noopener">release v20260902.194129.0-sha.d1808bea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1808bead33f16f9845d428e62e8d6d253214017" rel="noopener">d1808bea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2360" rel="noopener">#2360</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-231117-0-sha-ad0aa46d">
+<h2><span class="tier A">A</span>restore assertPinnedSet import in datastore sync rules (swamp-club#2460) (#2601)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T23:12:55Z">2026-09-23T23:12:55Z</time></span><span>test</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(test): restore assertPinnedSet import in datastore sync rules (swamp-club#2460) (#2601)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2460.</p>
+<p><code>main</code> has failed type checking since 383373d0 (#2595):</p>
+<p>```</p>
+<p>TS2304 [ERROR]: Cannot find name &#39;assertPinnedSet&#39;.</p>
+<p>```</p>
+<p><strong>Cause.</strong> Merge skew between two PRs that each passed against their own base:</p>
+<ul>
+<li>#2596 (65204770) removed the only <code>assertPinnedSet</code> call in <code>integration/datastore_sync_rules_test.ts</code>, and the now-unused import with it.</li>
+<li>#2595 (383373d0), branched before that, added a new <code>assertPinnedSet</code> call for the swamp-club#2430 fitness rule, relying on the import still being there.</li>
+</ul>
+<p>This breaks the Windows Compatibility workflow on every commit since 383373d0, and the type-check step of every <code>verify-build</code> run from <code>main</code>.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li>Restore <code>import { assertPinnedSet } from &quot;./arch_fitness_helpers.ts&quot;;</code> in <code>integration/datastore_sync_rules_test.ts</code>. It is the same line #2596 removed. Nothing else changes.</li>
+</ul>
+<p>Test-only change; no CLI behaviour is affected.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>[x] <code>deno check main.ts &#39;src/**/*.ts&#39; &#39;integration/**/*.ts&#39;</code>: 0 errors (was 1).</li>
+<li>[x] <code>integration/datastore_sync_rules_test.ts</code>: 5/5 rules pass, both once and with <code>--repeats=5</code>.</li>
+<li>[x] Mutation check: with <code>suppressSyncExitOnSignal()</code> removed from <code>workflow_resume.ts</code>, the swamp-club#2430 rule fails. Change reverted.</li>
+<li>[x] <code>verify-build</code>, <code>verify-reviews</code> and <code>verify-skills</code> all pass at 938dae3a. Attestation <code>510af1ce-7452-4ebd-aafb-4ddfbee5c534</code>.</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.231117.0-sha.ad0aa46d" rel="noopener">release v20260923.231117.0-sha.ad0aa46d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ad0aa46d7c3f37a5234c57a8e53253932b2438dc" rel="noopener">ad0aa46d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2601" rel="noopener">#2601</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2595" rel="noopener">#2595</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2596" rel="noopener">#2596</a>𝗔 <a href="https://swamp-club.com/lab/2460" rel="noopener">lab#2460</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-230736-0-sha-2ebf013c">
+<h2><span class="tier A">A</span>restore the assertPinnedSet import in datastore sync rules (swamp-club#2430) (#2600)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T23:09:15Z">2026-09-23T23:09:15Z</time></span><span>test</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(test): restore the assertPinnedSet import in datastore sync rules (swamp-club#2430) (#2600)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Main has not type-checked the integration tests since #2595 merged as <code>383373d0</code>. Windows Compatibility has failed on every main commit since then:</p>
+<p>```</p>
+<p>TS2304 [ERROR]: Cannot find name &#39;assertPinnedSet&#39;.</p>
+<p>    at integration/datastore_sync_rules_test.ts:266:3</p>
+<p>```</p>
+<p>#2595 (swamp-club#2430) added a fitness rule to <code>integration/datastore_sync_rules_test.ts</code> that calls <code>assertPinnedSet</code>. #2596 merged just before it. That PR turned the file&#39;s other pinned list into a plain rule and removed the now-unused import. The two branches didn&#39;t conflict textually, and #2595&#39;s verification ran on a base without #2596, so neither caught it.</p>
+<p>This restores <code>import { assertPinnedSet } from &quot;./arch_fitness_helpers.ts&quot;;</code>. Nothing else changes.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>[x] <code>deno check</code> and <code>deno lint</code> on the file pass, and its 5 rules pass.</li>
+<li>[x] Verification at <code>417ed7cb</code>: build 9/9, including type-check and the full test suite. Code review passes, the other reviews and the skill checks are skipped by their guards, and the attestation is posted.</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260923.230736.0-sha.2ebf013c/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260923.230736.0-sha.2ebf013c/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L ht</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.230736.0-sha.2ebf013c" rel="noopener">release v20260923.230736.0-sha.2ebf013c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2ebf013c6faccb8b7188beabda267466d8fdb855" rel="noopener">2ebf013c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2600" rel="noopener">#2600</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2595" rel="noopener">#2595</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2596" rel="noopener">#2596</a>𝗔 <a href="https://swamp-club.com/lab/2430" rel="noopener">lab#2430</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-230324-0-sha-20b7797a">
+<h2><span class="tier A">A</span>make workflow recover usable (swamp-club#2431) (#2599)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T23:04:59Z">2026-09-23T23:04:59Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): make workflow recover usable (swamp-club#2431) (#2599)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2431.</p>
+<p><code>swamp workflow recover</code> crashed on every invocation, before it looked up the workflow or the run:</p>
+<p>```</p>
+<p>[FTL] error: TypeError: Path must be a string, received &quot;{&quot;telemetry&quot;:true,&quot;color&quot;:true,...}&quot;</p>
+<p>```</p>
+<p>The action passed the whole Cliffy options object to <code>resolveRepoDir</code>, which takes the <code>--repo-dir</code> string. The bug has been there since the command was added in a3123298 (swamp-club#2153). Nothing caught it, because <code>options</code> is typed <code>any</code> and the command had no test file.</p>
+<p>Exercising the action past that line turned up two more defects:</p>
+<ul>
+<li><strong>Every unchanged workflow with an expression was refused as &quot;definition changed&quot;.</strong> At run start, the run plan stored a fingerprint of the *evaluated* workflow, after <code>${{ inputs.greeting }}</code> had been resolved to <code>&quot;howdy&quot;</code>. The drift check compared that with the *raw* definition, so the two matched only when evaluation resolved nothing.</li>
+<li><strong>Workflow IDs were rejected</strong>, although the argument is declared <code>&lt;workflow_id_or_name&gt;</code>.</li>
+</ul>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong>Crash:</strong> pass <code>options.repoDir</code> to <code>resolveRepoDir</code>.</li>
+<li><strong>IDs:</strong> resolve the workflow by name, then by ID, as <code>resume</code>, <code>cancel</code> and <code>evaluate</code> do.</li>
+<li><strong>Like-for-like drift check.</strong> The run plan records a <code>definitionFingerprint</code> of the definition as loaded, before evaluation (<code>execution_service.ts</code>, <code>workflow_run.ts</code>). <code>assessRecoveryForRun</code> compares it with the current de</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.230324.0-sha.20b7797a" rel="noopener">release v20260923.230324.0-sha.20b7797a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/20b7797a1892c03bcc1ee34e37a3f86cf140f556" rel="noopener">20b7797a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2599" rel="noopener">#2599</a>𝗔 <a href="https://swamp-club.com/lab/2431" rel="noopener">lab#2431</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260923-225733-0-sha-4e5f2a11">
 <h2><span class="tier A">A</span>fail a method whose own argument&#39;s CEL failed to evaluate (swamp-club#2397) (#2598)</h2>
@@ -299,7 +398,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/vault/references/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/vault/references/troubleshooting.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.212700.0-sha.853cf43c" rel="noopener">release v20260923.212700.0-sha.853cf43c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/853cf43c52c986e73199ec9d1147ef9bc52dfca0" rel="noopener">853cf43c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2590" rel="noopener">#2590</a>𝗔 <a href="https://swamp-club.com/lab/2442" rel="noopener">lab#2442</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20260923-212020-0-sha-01690c72">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260923-212020-0-sha-01690c72">
 <h2><span class="tier A">A</span>keep serve URL credentials out of .swamp.yaml and CLI output (swamp-club#2448, swamp-club#2449) (#2589)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-23T21:21:35Z">2026-09-23T21:21:35Z</time></span><span>cli</span><span>fix</span></div>
@@ -418,7 +517,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.205006.0-sha.acbfdbfa" rel="noopener">release v20260923.205006.0-sha.acbfdbfa</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acbfdbfa673cb482cdb34d15c965d18fa1fdf3ad" rel="noopener">acbfdbfa</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2586" rel="noopener">#2586</a>𝗔 <a href="https://swamp-club.com/lab/2437" rel="noopener">lab#2437</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260923-204211-0-sha-403e2114">
+<article class="item" id="release-swamp-club-swamp-v20260923-204211-0-sha-403e2114">
 <h2><span class="tier A">A</span>hide credentials in the --server URL in CLI output (swamp-club#2428) (#2585)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-23T20:43:51Z">2026-09-23T20:43:51Z</time></span><span>cli</span><span>fix</span></div>
@@ -7955,106 +8054,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.github/actions/adversarial-review/README.md" rel="noopener">.github/actions/adversarial-review/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c4600418b072728920f6df3a97f34c1666ee04" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260923-231117-0-sha-ad0aa46d">
-<h2><span class="tier C">C</span>swamp 20260923.231117.0-sha.ad0aa46d</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-23T23:12:55Z">2026-09-23T23:12:55Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(test): restore assertPinnedSet import in datastore sync rules (swamp-club#2460) (#2601)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2460.</p>
-<p><code>main</code> has failed type checking since 383373d0 (#2595):</p>
-<p>```</p>
-<p>TS2304 [ERROR]: Cannot find name &#39;assertPinnedSet&#39;.</p>
-<p>```</p>
-<p><strong>Cause.</strong> Merge skew between two PRs that each passed against their own base:</p>
-<ul>
-<li>#2596 (65204770) removed the only <code>assertPinnedSet</code> call in <code>integration/datastore_sync_rules_test.ts</code>, and the now-unused import with it.</li>
-<li>#2595 (383373d0), branched before that, added a new <code>assertPinnedSet</code> call for the swamp-club#2430 fitness rule, relying on the import still being there.</li>
-</ul>
-<p>This breaks the Windows Compatibility workflow on every commit since 383373d0, and the type-check step of every <code>verify-build</code> run from <code>main</code>.</p>
-<h4 class="body-h">Changes</h4>
-<ul>
-<li>Restore <code>import { assertPinnedSet } from &quot;./arch_fitness_helpers.ts&quot;;</code> in <code>integration/datastore_sync_rules_test.ts</code>. It is the same line #2596 removed. Nothing else changes.</li>
-</ul>
-<p>Test-only change; no CLI behaviour is affected.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>[x] <code>deno check main.ts &#39;src/**/*.ts&#39; &#39;integration/**/*.ts&#39;</code>: 0 errors (was 1).</li>
-<li>[x] <code>integration/datastore_sync_rules_test.ts</code>: 5/5 rules pass, both once and with <code>--repeats=5</code>.</li>
-<li>[x] Mutation check: with <code>suppressSyncExitOnSignal()</code> removed from <code>workflow_resume.ts</code>, the swamp-club#2430 rule fails. Change reverted.</li>
-<li>[x] <code>verify-build</code>, <code>verify-reviews</code> and <code>verify-skills</code> all pass at 938dae3a. Attestation <code>510af1ce-7452-4ebd-aafb-4ddfbee5c534</code>.</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.231117.0-sha.ad0aa46d" rel="noopener">release v20260923.231117.0-sha.ad0aa46d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ad0aa46d" rel="noopener">ad0aa46d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2601" rel="noopener">#2601</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2595" rel="noopener">#2595</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2596" rel="noopener">#2596</a>𝗔 <a href="https://swamp-club.com/lab/2460" rel="noopener">lab#2460</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260923-230736-0-sha-2ebf013c">
-<h2><span class="tier C">C</span>swamp 20260923.230736.0-sha.2ebf013c</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-23T23:09:15Z">2026-09-23T23:09:15Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(test): restore the assertPinnedSet import in datastore sync rules (swamp-club#2430) (#2600)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Main has not type-checked the integration tests since #2595 merged as <code>383373d0</code>. Windows Compatibility has failed on every main commit since then:</p>
-<p>```</p>
-<p>TS2304 [ERROR]: Cannot find name &#39;assertPinnedSet&#39;.</p>
-<p>    at integration/datastore_sync_rules_test.ts:266:3</p>
-<p>```</p>
-<p>#2595 (swamp-club#2430) added a fitness rule to <code>integration/datastore_sync_rules_test.ts</code> that calls <code>assertPinnedSet</code>. #2596 merged just before it. That PR turned the file&#39;s other pinned list into a plain rule and removed the now-unused import. The two branches didn&#39;t conflict textually, and #2595&#39;s verification ran on a base without #2596, so neither caught it.</p>
-<p>This restores <code>import { assertPinnedSet } from &quot;./arch_fitness_helpers.ts&quot;;</code>. Nothing else changes.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>[x] <code>deno check</code> and <code>deno lint</code> on the file pass, and its 5 rules pass.</li>
-<li>[x] Verification at <code>417ed7cb</code>: build 9/9, including type-check and the full test suite. Code review passes, the other reviews and the skill checks are skipped by their guards, and the attestation is posted.</li>
-</ul>
-<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
-<p>---</p>
-<h4 class="body-h">Installation</h4>
-<p><strong>macOS (Apple Silicon):</strong></p>
-<p>```bash</p>
-<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20260923.230736.0-sha.2ebf013c/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20260923.230736.0-sha.2ebf013c/swamp-darwin-aarch64</a> -o swamp</p>
-<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
-<p>```</p>
-<p><strong>macOS (Intel):</strong></p>
-<p>```bash</p>
-<p>curl -L ht</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.230736.0-sha.2ebf013c" rel="noopener">release v20260923.230736.0-sha.2ebf013c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2ebf013c" rel="noopener">2ebf013c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2600" rel="noopener">#2600</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2595" rel="noopener">#2595</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2596" rel="noopener">#2596</a>𝗔 <a href="https://swamp-club.com/lab/2430" rel="noopener">lab#2430</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260923-230324-0-sha-20b7797a">
-<h2><span class="tier C">C</span>swamp 20260923.230324.0-sha.20b7797a</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-23T23:04:59Z">2026-09-23T23:04:59Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): make workflow recover usable (swamp-club#2431) (#2599)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2431.</p>
-<p><code>swamp workflow recover</code> crashed on every invocation, before it looked up the workflow or the run:</p>
-<p>```</p>
-<p>[FTL] error: TypeError: Path must be a string, received &quot;{&quot;telemetry&quot;:true,&quot;color&quot;:true,...}&quot;</p>
-<p>```</p>
-<p>The action passed the whole Cliffy options object to <code>resolveRepoDir</code>, which takes the <code>--repo-dir</code> string. The bug has been there since the command was added in a3123298 (swamp-club#2153). Nothing caught it, because <code>options</code> is typed <code>any</code> and the command had no test file.</p>
-<p>Exercising the action past that line turned up two more defects:</p>
-<ul>
-<li><strong>Every unchanged workflow with an expression was refused as &quot;definition changed&quot;.</strong> At run start, the run plan stored a fingerprint of the *evaluated* workflow, after <code>${{ inputs.greeting }}</code> had been resolved to <code>&quot;howdy&quot;</code>. The drift check compared that with the *raw* definition, so the two matched only when evaluation resolved nothing.</li>
-<li><strong>Workflow IDs were rejected</strong>, although the argument is declared <code>&lt;workflow_id_or_name&gt;</code>.</li>
-</ul>
-<h4 class="body-h">Changes</h4>
-<ul>
-<li><strong>Crash:</strong> pass <code>options.repoDir</code> to <code>resolveRepoDir</code>.</li>
-<li><strong>IDs:</strong> resolve the workflow by name, then by ID, as <code>resume</code>, <code>cancel</code> and <code>evaluate</code> do.</li>
-<li><strong>Like-for-like drift check.</strong> The run plan records a <code>definitionFingerprint</code> of the definition as loaded, before evaluation (<code>execution_service.ts</code>, <code>workflow_run.ts</code>). <code>assessRecoveryForRun</code> compares it with the current de</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.230324.0-sha.20b7797a" rel="noopener">release v20260923.230324.0-sha.20b7797a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/20b7797a" rel="noopener">20b7797a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2599" rel="noopener">#2599</a>𝗔 <a href="https://swamp-club.com/lab/2431" rel="noopener">lab#2431</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260923-222724-0-sha-03229b0f">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260923-222724-0-sha-03229b0f">
 <h2><span class="tier C">C</span>use `tessl review run` for skill reviews (swamp-club#2457) (#2593)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-23T22:28:52Z">2026-09-23T22:28:52Z</time></span><span>docs</span></div>
@@ -8434,12 +8434,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>242 items across 1 source(s) in this window:
-3 critical, 221 notable, 4 routine,
-14 minor.</p>
-<ul><li><strong>fix</strong> — 170</li><li><strong>feat</strong> — 54</li><li><strong>docs</strong> — 11</li><li><strong>changes</strong> — 3</li><li><strong>perf</strong> — 2</li><li><strong>refactor</strong> — 1</li></ul></section>
+3 critical, 224 notable, 4 routine,
+11 minor.</p>
+<ul><li><strong>fix</strong> — 173</li><li><strong>feat</strong> — 54</li><li><strong>docs</strong> — 11</li><li><strong>perf</strong> — 2</li><li><strong>refactor</strong> — 1</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-24T03:02:51.147Z">2026-09-24T03:02:51.147Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-24T04:06:50.972Z">2026-09-24T04:06:50.972Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

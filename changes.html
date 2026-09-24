@@ -67,8 +67,48 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html" class="active">Changes</a><a href="releases.html">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-4e5f2a115f3913bccd0a148769f955f7b4e36b87"><span class="tier A">A</span>fail a method whose own argument&#39;s CEL failed to evaluate (s</a><a href="#commit-swamp-club-swamp-063bd92575cf57e644758d8fb09a4610b4bae29d"><span class="tier A">A</span>add --datastore-poll-interval and cap timer durations (swamp</a><a href="#commit-swamp-club-swamp-383373d01ceb167087a002ebc57ce0f7959425f1"><span class="tier A">A</span>record a Ctrl-C&#39;d workflow resume as cancelled (swamp-club#2</a><a href="#commit-swamp-club-swamp-65204770c482c7bb63fafff6046ca81f965238b0"><span class="tier A">A</span>stop vault, access and extension handlers from forcing full-</a><a href="#commit-swamp-club-swamp-d322ec7901348c0688af0d8c7af6a8418af2bb54"><span class="tier A">A</span>decide contributor thanks from the swamp-club team roster (s</a><a href="#commit-swamp-club-swamp-ffc610c97aebeb1f17d0185f405b9f2f3de2f721"><span class="tier A">A</span>opt-in setting so a run grant need not imply approve (swamp-</a><a href="#commit-swamp-club-swamp-819937e2ee0bc1f782e1cc5b1cc8f9b8230f5940"><span class="tier A">A</span>reject unsupported principal kinds at mint and never 500 on </a><a href="#commit-swamp-club-swamp-31ce589d3985763655aaecfb4b3f578621555020"><span class="tier A">A</span>resume approved runs from the dashboard and opt-in auto-resu</a><a href="#commit-swamp-club-swamp-d8aed81976ff40113ffcd76a8c0b8eb1cd3115a1"><span class="tier A">A</span>add scheduled flaky-test detection with deno --repeats (swam</a><a href="#commit-swamp-club-swamp-5d5a308198c151169f41305876002283daa0532b"><span class="tier A">A</span>populate steps.&lt;name&gt;.outputs from the datastore (swamp-club</a><a href="#commit-swamp-club-swamp-extensions-8ff97ae323c2d97d844fb5a5fdc1b1e022f6f8a4"><span class="tier A">A</span>read every shard a dirty directory&#39;s files live in on scoped</a><a href="#commit-swamp-club-swamp-extensions-c47093989b373e7b4b9f230e9e8550c8907de5b3"><span class="tier A">A</span>keep compare-and-swap working on endpoints that reject quote</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-extensions-5ddddf77926b12170f3a7258fa2318958e695124"><span class="tier A">A</span>make verify-build and verify-reviews guards skip the right s</a><a href="#commit-swamp-club-swamp-extensions-35067d4f397bef4dcabe2a008df80bc64b64f18c"><span class="tier A">A</span>decide contributor thanks from the swamp-club team roster (s</a><a href="#commit-swamp-club-swamp-extensions-eed52f8489e72ff41bfa566162664bda825e5f35"><span class="tier A">A</span>count every cycle-override grant, not just the latest (swamp</a><a href="#commit-swamp-club-swamp-5b8a2673d91cc97fe5a8b08163d3d1a82bbe6e84"><span class="tier A">A</span>report workflow resume failures as one classified line (swam</a><a href="#commit-swamp-club-swamp-daa5bb2cdb126a4c240e1496137d3ac4e67b469e"><span class="tier A">A</span>mint server tokens into _token-secrets over --server (swamp-</a><a href="#commit-swamp-club-swamp-4e5f2a115f3913bccd0a148769f955f7b4e36b87"><span class="tier A">A</span>fail a method whose own argument&#39;s CEL failed to evaluate (s</a><a href="#commit-swamp-club-swamp-063bd92575cf57e644758d8fb09a4610b4bae29d"><span class="tier A">A</span>add --datastore-poll-interval and cap timer durations (swamp</a><a href="#commit-swamp-club-swamp-383373d01ceb167087a002ebc57ce0f7959425f1"><span class="tier A">A</span>record a Ctrl-C&#39;d workflow resume as cancelled (swamp-club#2</a><a href="#commit-swamp-club-swamp-65204770c482c7bb63fafff6046ca81f965238b0"><span class="tier A">A</span>stop vault, access and extension handlers from forcing full-</a><a href="#commit-swamp-club-swamp-d322ec7901348c0688af0d8c7af6a8418af2bb54"><span class="tier A">A</span>decide contributor thanks from the swamp-club team roster (s</a><a href="#commit-swamp-club-swamp-ffc610c97aebeb1f17d0185f405b9f2f3de2f721"><span class="tier A">A</span>opt-in setting so a run grant need not imply approve (swamp-</a><a href="#commit-swamp-club-swamp-819937e2ee0bc1f782e1cc5b1cc8f9b8230f5940"><span class="tier A">A</span>reject unsupported principal kinds at mint and never 500 on </a></aside><div>
 
+<article class="item" id="commit-swamp-club-swamp-extensions-5ddddf77926b12170f3a7258fa2318958e695124">
+<h2><span class="tier A">A</span>make verify-build and verify-reviews guards skip the right steps (swamp-club #2479, #2480) (#313)</h2>
+<p class="lede">`fix` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-09-24T15:58:11Z">2026-09-24T15:58:11Z</time></span><span>verification</span><span>fix</span></div>
+<div class="body"><p>fix(verification): make verify-build and verify-reviews guards skip the right steps (swamp-club #2479, #2480) (#313)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/5ddddf77926b12170f3a7258fa2318958e695124" rel="noopener">5ddddf77</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/313" rel="noopener">#313</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2479" rel="noopener">#2479</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2480" rel="noopener">#2480</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-35067d4f397bef4dcabe2a008df80bc64b64f18c">
+<h2><span class="tier A">A</span>decide contributor thanks from the swamp-club team roster (swamp-club #2321) (#311)</h2>
+<p class="lede">`fix` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-09-24T15:35:29Z">2026-09-24T15:35:29Z</time></span><span>issue-lifecycle</span><span>fix</span></div>
+<div class="body"><p>fix(issue-lifecycle): decide contributor thanks from the swamp-club team roster (swamp-club #2321) (#311)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/35067d4f397bef4dcabe2a008df80bc64b64f18c" rel="noopener">35067d4f</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/311" rel="noopener">#311</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2321" rel="noopener">#2321</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-eed52f8489e72ff41bfa566162664bda825e5f35">
+<h2><span class="tier A">A</span>count every cycle-override grant, not just the latest (swamp-club #1487) (#312)</h2>
+<p class="lede">`fix` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-09-24T15:29:40Z">2026-09-24T15:29:40Z</time></span><span>software-factory</span><span>fix</span></div>
+<div class="body"><p>fix(software-factory): count every cycle-override grant, not just the latest (swamp-club #1487) (#312)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/eed52f8489e72ff41bfa566162664bda825e5f35" rel="noopener">eed52f84</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/312" rel="noopener">#312</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/1487" rel="noopener">#1487</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-5b8a2673d91cc97fe5a8b08163d3d1a82bbe6e84">
+<h2><span class="tier A">A</span>report workflow resume failures as one classified line (swamp-club#2432) (#2607)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-24T14:17:37Z">2026-09-24T14:17:37Z</time></span><span>cli</span><span>fix</span></div>
+<div class="body"><p>fix(cli): report workflow resume failures as one classified line (swamp-club#2432) (#2607)</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/execution-semantics.md" rel="noopener">.claude/skills/swamp/references/workflow/references/execution-semantics.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/contributing/libswamp.md" rel="noopener">contributing/libswamp.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5b8a2673d91cc97fe5a8b08163d3d1a82bbe6e84" rel="noopener">5b8a2673</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2607" rel="noopener">#2607</a>𝗔 <a href="https://swamp-club.com/lab/2432" rel="noopener">lab#2432</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-daa5bb2cdb126a4c240e1496137d3ac4e67b469e">
+<h2><span class="tier A">A</span>mint server tokens into _token-secrets over --server (swamp-club#2466) (#2606)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-24T14:07:45Z">2026-09-24T14:07:45Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><p>fix(serve): mint server tokens into _token-secrets over --server (swamp-club#2466) (#2606)</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></div>
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/daa5bb2cdb126a4c240e1496137d3ac4e67b469e" rel="noopener">daa5bb2c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2606" rel="noopener">#2606</a></div>
+</article>
 <article class="item" id="commit-swamp-club-swamp-4e5f2a115f3913bccd0a148769f955f7b4e36b87">
 <h2><span class="tier A">A</span>fail a method whose own argument&#39;s CEL failed to evaluate (swamp-club#2397) (#2598)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -125,21 +165,13 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/819937e2ee0bc1f782e1cc5b1cc8f9b8230f5940" rel="noopener">819937e2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2570" rel="noopener">#2570</a>𝗔 <a href="https://swamp-club.com/lab/2383" rel="noopener">lab#2383</a></div>
 </article>
-<article class="item" id="commit-swamp-club-swamp-31ce589d3985763655aaecfb4b3f578621555020">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-31ce589d3985763655aaecfb4b3f578621555020">
 <h2><span class="tier A">A</span>resume approved runs from the dashboard and opt-in auto-resume (swamp-club#2377) (#2569)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-23T11:48:47Z">2026-09-23T11:48:47Z</time></span><span>serve</span><span>fix</span></div>
 <div class="body"><p>fix(serve): resume approved runs from the dashboard and opt-in auto-resume (swamp-club#2377) (#2569)</p></div>
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/31ce589d3985763655aaecfb4b3f578621555020" rel="noopener">31ce589d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2569" rel="noopener">#2569</a>𝗔 <a href="https://swamp-club.com/lab/2377" rel="noopener">lab#2377</a></div>
-</article>
-<article class="item" id="commit-swamp-club-swamp-d8aed81976ff40113ffcd76a8c0b8eb1cd3115a1">
-<h2><span class="tier A">A</span>add scheduled flaky-test detection with deno --repeats (swamp-club#2282) (#2568)</h2>
-<p class="lede">`feat` change · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-23T11:20:00Z">2026-09-23T11:20:00Z</time></span><span>ci</span><span>feat</span></div>
-<div class="body"><p>feat(ci): add scheduled flaky-test detection with deno --repeats (swamp-club#2282) (#2568)</p></div>
-
-<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d8aed81976ff40113ffcd76a8c0b8eb1cd3115a1" rel="noopener">d8aed819</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2568" rel="noopener">#2568</a>𝗔 <a href="https://swamp-club.com/lab/2282" rel="noopener">lab#2282</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-5d5a308198c151169f41305876002283daa0532b">
 <h2><span class="tier A">A</span>populate steps.&lt;name&gt;.outputs from the datastore (swamp-club#2386) (#2567)</h2>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/c47093989b373e7b4b9f230e9e8550c8907de5b3" rel="noopener">c4709398</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/306" rel="noopener">#306</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2337" rel="noopener">#2337</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-4957bcbd414aee9f4e36822346def52e83414a86">
+<article class="item" id="commit-swamp-club-swamp-4957bcbd414aee9f4e36822346def52e83414a86">
 <h2><span class="tier A">A</span>keep a failing shell step&#39;s output instead of discarding it (swamp-club#2364) (#2555)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-22T20:40:32Z">2026-09-22T20:40:32Z</time></span><span>models</span><span>fix</span></div>
@@ -581,6 +613,22 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/9d2c71aa3fe3c205041d4d2039bc1a5a482be3d4" rel="noopener">9d2c71aa</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/1913" rel="noopener">#1913</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/251" rel="noopener">#251</a></div>
 </article>
+<article class="item" id="commit-swamp-club-swamp-extensions-a595bd5b8dc21ca8c75cae10742c15108a449fc8">
+<h2><span class="tier B">B</span>regenerate models from upstream schemas (#309)</h2>
+<p class="lede">`chore` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-09-24T11:27:28Z">2026-09-24T11:27:28Z</time></span><span>chore</span></div>
+<div class="body"><p>chore: regenerate models from upstream schemas (#309)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/a595bd5b8dc21ca8c75cae10742c15108a449fc8" rel="noopener">a595bd5b</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/309" rel="noopener">#309</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-3597462752146011431d6f80b040a77ca5d126fd">
+<h2><span class="tier B">B</span>regenerate hetzner models from upstream schemas (#310)</h2>
+<p class="lede">`chore` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-09-24T07:50:29Z">2026-09-24T07:50:29Z</time></span><span>chore</span></div>
+<div class="body"><p>chore: regenerate hetzner models from upstream schemas (#310)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/3597462752146011431d6f80b040a77ca5d126fd" rel="noopener">35974627</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/310" rel="noopener">#310</a></div>
+</article>
 <article class="item" id="commit-swamp-club-swamp-901daee6588f104b0012742fc9a58f24f47bc7ca">
 <h2><span class="tier B">B</span>remove --vault from access token mint and rotate (swamp-club#2452) (#2594)</h2>
 <p class="lede">`refactor` change · swamp-club/swamp</p>
@@ -789,6 +837,14 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/63ec7ea66cb4284e2cd125b1d7d57a4120bfb016" rel="noopener">63ec7ea6</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/253" rel="noopener">#253</a></div>
 </article></section>
+<section class="tail"><h2>Tooling</h2><article class="item" id="commit-swamp-club-swamp-d8aed81976ff40113ffcd76a8c0b8eb1cd3115a1">
+<h2><span class="tier A">A</span>add scheduled flaky-test detection with deno --repeats (swamp-club#2282) (#2568)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-23T11:20:00Z">2026-09-23T11:20:00Z</time></span><span>ci</span><span>feat</span></div>
+<div class="body"><p>feat(ci): add scheduled flaky-test detection with deno --repeats (swamp-club#2282) (#2568)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d8aed81976ff40113ffcd76a8c0b8eb1cd3115a1" rel="noopener">d8aed819</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2568" rel="noopener">#2568</a>𝗔 <a href="https://swamp-club.com/lab/2282" rel="noopener">lab#2282</a></div>
+</article></section>
 <section class="tail"><h2>Hidden gems</h2><article class="item" id="commit-swamp-club-swamp-03229b0f0474877160c25b5acd2b1e06abf9274a">
 <h2><span class="tier C">C</span>use `tessl review run` for skill reviews (swamp-club#2457) (#2593)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
@@ -798,13 +854,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/03229b0f0474877160c25b5acd2b1e06abf9274a" rel="noopener">03229b0f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2593" rel="noopener">#2593</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>91 items across 2 source(s) in this window:
-0 critical, 64 notable, 26 routine,
+<p>98 items across 2 source(s) in this window:
+0 critical, 69 notable, 28 routine,
 1 minor.</p>
-<ul><li><strong>fix</strong> — 50</li><li><strong>chore</strong> — 25</li><li><strong>feat</strong> — 14</li><li><strong>refactor</strong> — 1</li><li><strong>docs</strong> — 1</li></ul></section>
+<ul><li><strong>fix</strong> — 55</li><li><strong>chore</strong> — 27</li><li><strong>feat</strong> — 14</li><li><strong>refactor</strong> — 1</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-24T15:02:52.443Z">2026-09-24T15:02:52.443Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-24T16:08:14.396Z">2026-09-24T16:08:14.396Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

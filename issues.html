@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2432"><span class="tier A">A</span>workflow resume prints unexpected errors as a fatal stack tr</a><a href="#issue-2415"><span class="tier A">A</span>serve: remove the remaining no-path markDirty() calls that f</a><a href="#issue-2381"><span class="tier A">A</span>Workflow runs write outputs and evaluated definitions to rep</a><a href="#issue-2462"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-2439"><span class="tier A">A</span>Unsupported --server scheme crashes with an uncaught TypeErr</a><a href="#issue-2397"><span class="tier A">A</span>Failing CEL expression in a method argument is silently pass</a><a href="#issue-2460"><span class="tier A">A</span>main fails type check: datastore_sync_rules_test.ts uses ass</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2479"><span class="tier A">A</span>swamp-extensions verify-build: codegen guards read stdout fr</a><a href="#issue-2432"><span class="tier A">A</span>workflow resume prints unexpected errors as a fatal stack tr</a><a href="#issue-2415"><span class="tier A">A</span>serve: remove the remaining no-path markDirty() calls that f</a><a href="#issue-2381"><span class="tier A">A</span>Workflow runs write outputs and evaluated definitions to rep</a><a href="#issue-2462"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-2439"><span class="tier A">A</span>Unsupported --server scheme crashes with an uncaught TypeErr</a><a href="#issue-2397"><span class="tier A">A</span>Failing CEL expression in a method argument is silently pass</a></aside><div>
 
 <article class="item" id="issue-2384">
 <h2><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation principal can clear a manual_approval gate meant for a human</h2>
@@ -108,6 +108,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
+</article>
+<article class="item" id="issue-2479">
+<h2><span class="tier A">A</span>swamp-extensions verify-build: codegen guards read stdout from the shell log file resource and now fail every run</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-24T15:59:16.585Z">2026-09-24T15:59:16.585Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2479" rel="noopener">lab#2479</a></div>
 </article>
 <article class="item" id="issue-2432">
 <h2><span class="tier A">A</span>workflow resume prints unexpected errors as a fatal stack trace, and --json returns them unclassified with the stack</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2397" rel="noopener">lab#2397</a></div>
 </article>
-<article class="item" id="issue-2460">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2460">
 <h2><span class="tier A">A</span>main fails type check: datastore_sync_rules_test.ts uses assertPinnedSet without importing it</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-23T23:13:44.401Z">2026-09-23T23:13:44.401Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2460" rel="noopener">lab#2460</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2430">
+<article class="item" id="issue-2430">
 <h2><span class="tier A">A</span>workflow resume: Ctrl-C leaves the run &#39;running&#39; with nothing driving it, and it can no longer be resumed</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-23T23:10:29.946Z">2026-09-23T23:10:29.946Z</time></span></div>
@@ -1718,20 +1726,12 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
 <article class="item" id="issue-2483">
-<h2><span class="tier B">B</span>managedConfig: fix startup config-base resolution, extension list, stale catalog rows and rm validation (prerequisites for swamp-club#2429)</h2>
+<h2><span class="tier B">B</span>managedConfig: fix startup config-base resolution and extension list (prerequisites for swamp-club#2429)</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-09-24T14:41:36.996Z">2026-09-24T14:41:36.996Z</time></span></div>
+<div class="meta"><span><time datetime="2026-09-24T15:59:39.805Z">2026-09-24T15:59:39.805Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2483" rel="noopener">lab#2483</a></div>
-</article>
-<article class="item" id="issue-2479">
-<h2><span class="tier B">B</span>swamp-extensions verify-build: codegen guards read stdout from the shell log file resource and now fail every run</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-24T14:27:27.836Z">2026-09-24T14:27:27.836Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2479" rel="noopener">lab#2479</a></div>
 </article>
 <article class="item" id="issue-2262">
 <h2><span class="tier B">B</span>Step-lease and pending-dispatch records accumulate with no reaping mechanism</h2>
@@ -1853,7 +1853,31 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2485">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2490">
+<h2><span class="tier C">C</span>Extension catalog keeps stale rows after install migration and rm; model type describe crashes with ENOENT</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-24T15:59:01.853Z">2026-09-24T15:59:01.853Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2490" rel="noopener">lab#2490</a></div>
+</article>
+<article class="item" id="issue-2487">
+<h2><span class="tier C">C</span>Generated @swamp/aws StateSchemas mark conditional and create-only properties as required, producing schema warnings on every read</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-24T15:30:32.861Z">2026-09-24T15:30:32.861Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2487" rel="noopener">lab#2487</a></div>
+</article>
+<article class="item" id="issue-2486">
+<h2><span class="tier C">C</span>Registry catalog silently drops models whose version is not a literal in the export const model block</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-24T15:22:10.084Z">2026-09-24T15:22:10.084Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2486" rel="noopener">lab#2486</a></div>
+</article>
+<article class="item" id="issue-2485">
 <h2><span class="tier C">C</span>CLI: show API key fingerprints in auth whoami and auth token list/create</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-09-24T14:57:54.274Z">2026-09-24T14:57:54.274Z</time></span></div>
@@ -3446,13 +3470,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1903" rel="noopener">lab#1903</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>422 items across 1 source(s) in this window:
-5 critical, 201 notable, 17 routine,
-199 minor.</p>
-<ul><li><strong>issues</strong> — 422</li></ul></section>
+<p>425 items across 1 source(s) in this window:
+5 critical, 202 notable, 16 routine,
+202 minor.</p>
+<ul><li><strong>issues</strong> — 425</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-24T15:02:52.443Z">2026-09-24T15:02:52.443Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-24T16:08:14.396Z">2026-09-24T16:08:14.396Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

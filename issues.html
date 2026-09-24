@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2446"><span class="tier A">A</span>serve: make the datastore poll interval configurable (--data</a><a href="#issue-2288"><span class="tier A">A</span>data.latest() exposes no path/filePath key for file-kind dat</a><a href="#issue-2452"><span class="tier A">A</span>Hide --vault on access token mint and rotate now that it alw</a><a href="#issue-2321"><span class="tier A">A</span>issue-lifecycle: contributor check compares swamp-club handl</a><a href="#issue-2409"><span class="tier A">A</span>workflow resume: retry the failed steps of a failed run with</a><a href="#issue-2442"><span class="tier A">A</span>vault not-found errors suggest &#39;vault create&#39; for names vaul</a><a href="#issue-2438"><span class="tier A">A</span>serve: one unresolvable username in `auth.admins` stops the </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2397"><span class="tier A">A</span>Failing CEL expression in a method argument is silently pass</a><a href="#issue-2460"><span class="tier A">A</span>main fails type check: datastore_sync_rules_test.ts uses ass</a><a href="#issue-2430"><span class="tier A">A</span>workflow resume: Ctrl-C leaves the run &#39;running&#39; with nothin</a><a href="#issue-2431"><span class="tier A">A</span>workflow recover crashes on every invocation: &#39;Path must be </a><a href="#issue-2446"><span class="tier A">A</span>serve: make the datastore poll interval configurable (--data</a><a href="#issue-2288"><span class="tier A">A</span>data.latest() exposes no path/filePath key for file-kind dat</a><a href="#issue-2452"><span class="tier A">A</span>Hide --vault on access token mint and rotate now that it alw</a></aside><div>
 
 <article class="item" id="issue-2384">
 <h2><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation principal can clear a manual_approval gate meant for a human</h2>
@@ -109,6 +109,38 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
 </article>
+<article class="item" id="issue-2397">
+<h2><span class="tier A">A</span>Failing CEL expression in a method argument is silently passed through as literal text</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-23T23:15:09.902Z">2026-09-23T23:15:09.902Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2397" rel="noopener">lab#2397</a></div>
+</article>
+<article class="item" id="issue-2460">
+<h2><span class="tier A">A</span>main fails type check: datastore_sync_rules_test.ts uses assertPinnedSet without importing it</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-23T23:13:44.401Z">2026-09-23T23:13:44.401Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2460" rel="noopener">lab#2460</a></div>
+</article>
+<article class="item" id="issue-2430">
+<h2><span class="tier A">A</span>workflow resume: Ctrl-C leaves the run &#39;running&#39; with nothing driving it, and it can no longer be resumed</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-23T23:10:29.946Z">2026-09-23T23:10:29.946Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2430" rel="noopener">lab#2430</a></div>
+</article>
+<article class="item" id="issue-2431">
+<h2><span class="tier A">A</span>workflow recover crashes on every invocation: &#39;Path must be a string&#39;</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-23T23:05:38.052Z">2026-09-23T23:05:38.052Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2431" rel="noopener">lab#2431</a></div>
+</article>
 <article class="item" id="issue-2446">
 <h2><span class="tier A">A</span>serve: make the datastore poll interval configurable (--datastore-poll-interval)</h2>
 <p class="lede">Shipped feature</p>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2452" rel="noopener">lab#2452</a></div>
 </article>
-<article class="item" id="issue-2321">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2321">
 <h2><span class="tier A">A</span>issue-lifecycle: contributor check compares swamp-club handles against GitHub logins, so every author reads as external</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-23T22:04:18.830Z">2026-09-23T22:04:18.830Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2438" rel="noopener">lab#2438</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2437">
+<article class="item" id="issue-2437">
 <h2><span class="tier A">A</span>control-plane vault init failures are swallowed; `access token reveal` says &quot;Vault &#39;_token-secrets&#39; not found&quot;</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-23T20:52:31.503Z">2026-09-23T20:52:31.503Z</time></span></div>
@@ -1645,14 +1677,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
-<article class="item" id="issue-2460">
-<h2><span class="tier B">B</span>main fails type check: datastore_sync_rules_test.ts uses assertPinnedSet without importing it</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-09-23T22:59:24.899Z">2026-09-23T22:59:24.899Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2460" rel="noopener">lab#2460</a></div>
-</article>
 <article class="item" id="issue-2429">
 <h2><span class="tier B">B</span>managedConfig: serve extension handlers disagree on the pulled-extensions root, and lockfile files[] are repo-relative</h2>
 <p class="lede">Issue triaged</p>
@@ -1668,30 +1692,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2432" rel="noopener">lab#2432</a></div>
-</article>
-<article class="item" id="issue-2397">
-<h2><span class="tier B">B</span>Failing CEL expression in a method argument is silently passed through as literal text</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-23T21:58:12.469Z">2026-09-23T21:58:12.469Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2397" rel="noopener">lab#2397</a></div>
-</article>
-<article class="item" id="issue-2430">
-<h2><span class="tier B">B</span>workflow resume: Ctrl-C leaves the run &#39;running&#39; with nothing driving it, and it can no longer be resumed</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-23T20:30:31.760Z">2026-09-23T20:30:31.760Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2430" rel="noopener">lab#2430</a></div>
-</article>
-<article class="item" id="issue-2431">
-<h2><span class="tier B">B</span>workflow recover crashes on every invocation: &#39;Path must be a string&#39;</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-23T20:29:20.230Z">2026-09-23T20:29:20.230Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2431" rel="noopener">lab#2431</a></div>
 </article>
 <article class="item" id="issue-2415">
 <h2><span class="tier B">B</span>serve: remove the remaining no-path markDirty() calls that force full-cache datastore pushes</h2>
@@ -1805,7 +1805,55 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2455">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2461">
+<h2><span class="tier C">C</span>Supported vault-write API for extension model methods (per-instance vault target)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T23:19:10.871Z">2026-09-23T23:19:10.871Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2461" rel="noopener">lab#2461</a></div>
+</article>
+<article class="item" id="issue-2439">
+<h2><span class="tier C">C</span>Unsupported --server scheme crashes with an uncaught TypeError and stack trace</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T23:14:13.211Z">2026-09-23T23:14:13.211Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2439" rel="noopener">lab#2439</a></div>
+</article>
+<article class="item" id="issue-2440">
+<h2><span class="tier C">C</span>serve: validate auth access lists without restarting (serve config check)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T23:08:57.594Z">2026-09-23T23:08:57.594Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2440" rel="noopener">lab#2440</a></div>
+</article>
+<article class="item" id="issue-2441">
+<h2><span class="tier C">C</span>Docs: explain what swamp serve does with unknown usernames in auth.admins and auth.allowed-users</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T23:08:43.128Z">2026-09-23T23:08:43.128Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2441" rel="noopener">lab#2441</a></div>
+</article>
+<article class="item" id="issue-2445">
+<h2><span class="tier C">C</span>Flaky test: otel worker correlation sees a fresh trace id under the full suite</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T23:03:24.975Z">2026-09-23T23:03:24.975Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2445" rel="noopener">lab#2445</a></div>
+</article>
+<article class="item" id="issue-2458">
+<h2><span class="tier C">C</span>datastore config migrate skips setting managedConfig when the datastore is already migrated</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-23T23:03:05.368Z">2026-09-23T23:03:05.368Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2458" rel="noopener">lab#2458</a></div>
+</article>
+<article class="item" id="issue-2455">
 <h2><span class="tier C">C</span>self.globalArguments.X returns the unevaluated expression text when the global argument is itself an expression</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-09-23T22:59:06.721Z">2026-09-23T22:59:06.721Z</time></span></div>
@@ -1820,14 +1868,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2459" rel="noopener">lab#2459</a></div>
-</article>
-<article class="item" id="issue-2458">
-<h2><span class="tier C">C</span>datastore config migrate skips setting managedConfig when the datastore is already migrated</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T22:39:10.149Z">2026-09-23T22:39:10.149Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2458" rel="noopener">lab#2458</a></div>
 </article>
 <article class="item" id="issue-2456">
 <h2><span class="tier C">C</span>Docs: access token mint/rotate --vault removed (swamp-club#2452)</h2>
@@ -1965,14 +2005,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2447" rel="noopener">lab#2447</a></div>
 </article>
-<article class="item" id="issue-2445">
-<h2><span class="tier C">C</span>Flaky test: otel worker correlation sees a fresh trace id under the full suite</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T20:25:57.907Z">2026-09-23T20:25:57.907Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2445" rel="noopener">lab#2445</a></div>
-</article>
 <article class="item" id="issue-2443">
 <h2><span class="tier C">C</span>workflow recover: a changed definition leaves the interrupted run with no way to recover or resume</h2>
 <p class="lede">Open issue</p>
@@ -1981,22 +2013,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2443" rel="noopener">lab#2443</a></div>
 </article>
-<article class="item" id="issue-2441">
-<h2><span class="tier C">C</span>Docs: explain what swamp serve does with unknown usernames in auth.admins and auth.allowed-users</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T19:56:11.368Z">2026-09-23T19:56:11.368Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2441" rel="noopener">lab#2441</a></div>
-</article>
-<article class="item" id="issue-2440">
-<h2><span class="tier C">C</span>serve: validate auth access lists without restarting (serve config check)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T19:56:07.393Z">2026-09-23T19:56:07.393Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2440" rel="noopener">lab#2440</a></div>
-</article>
 <article class="item" id="issue-2436">
 <h2><span class="tier C">C</span>serve: boot token-secret migration deletes the source vault item</h2>
 <p class="lede">Open issue</p>
@@ -2004,14 +2020,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2436" rel="noopener">lab#2436</a></div>
-</article>
-<article class="item" id="issue-2439">
-<h2><span class="tier C">C</span>Unsupported --server scheme crashes with an uncaught TypeError and stack trace</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T19:45:10.915Z">2026-09-23T19:45:10.915Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2439" rel="noopener">lab#2439</a></div>
 </article>
 <article class="item" id="issue-2435">
 <h2><span class="tier C">C</span>serve: boot hydration ignores `hydrationStrategy: lazy` and downloads every payload</h2>
@@ -3310,13 +3318,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1903" rel="noopener">lab#1903</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>405 items across 1 source(s) in this window:
-5 critical, 192 notable, 20 routine,
-188 minor.</p>
-<ul><li><strong>issues</strong> — 405</li></ul></section>
+<p>406 items across 1 source(s) in this window:
+5 critical, 196 notable, 16 routine,
+189 minor.</p>
+<ul><li><strong>issues</strong> — 406</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-23T23:01:45.125Z">2026-09-23T23:01:45.125Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-24T00:02:49.089Z">2026-09-24T00:02:49.089Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

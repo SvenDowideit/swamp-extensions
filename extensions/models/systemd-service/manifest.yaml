@@ -1,14 +1,67 @@
 manifestVersion: 1
 name: "@svendowideit/systemd-service"
-version: "2026.09.11.1"
+version: "2026.09.24.1"
 description: >
-  Generic systemd *user* service management. Idempotently creates, starts,
-  stops, and removes a systemd user service unit for any service name and
-  command line. Any other extension can call its methods to stand up a
-  persistent service — e.g. running swamp's bundled Deno to serve dynamic web
-  services and APIs like @svendowideit/news's feedback-server.
+  Generic systemd *user* service management: idempotently create, start, stop,
+  and remove a persistent user service for any command line.
+
+  WHAT IT DOES
+
+    A thin, generic wrapper around `systemctl --user` and unit-file rendering.
+    You give it a service name and the exact command line to run, and it stands
+    up a persistent background service — idempotently, so re-running is safe. It
+    is the reusable building block other extensions call to keep a long-lived
+    process (a web service, an API, a queue server) alive: rather than embedding
+    systemd logic in every extension, they invoke this model's methods. Because
+    these are *user* units, `startService` also enables user lingering so the
+    service starts at boot, not merely at login.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/systemd-service
+
+  DEPENDENCIES
+
+    None. It shells out to `systemctl --user` and `loginctl`, which ship with
+    systemd; no other extension, package, or service is required.
+
+  RUN
+
+      # Create (or update) the unit for feedback-server and start it at boot.
+      swamp model @svendowideit/systemd-service method run createService feedback-server \
+        --input 'serviceName=feedback-server' \
+        --input 'command=~/.swamp/deno/deno run --allow-net scripts/feedback-server.ts' \
+        --input 'workingDirectory=~/.swamp/pulled-extensions/@svendowideit/news/files'
+
+      swamp model @svendowideit/systemd-service method run startService feedback-server \
+        --input 'serviceName=feedback-server'
+
+      # Check it, stop it, or remove it entirely.
+      swamp model @svendowideit/systemd-service method run status feedback-server
+      swamp model @svendowideit/systemd-service method run stopService feedback-server \
+        --input 'serviceName=feedback-server'
+
+  CONFIGURE
+
+    Global arguments (set at model creation with `--global-arg`):
+
+      denoPath   Path to the Deno binary for Deno services  (default ~/.swamp/deno/deno)
+      unitDir    Directory for systemd user unit files     (default ~/.config/systemd/user)
+
+    Per-call overrides on `createService`: `command`, `description`,
+    `workingDirectory`, `environment`, `restart`, `restartSec`, `after`,
+    `wants`, and `force`. `startService` takes `linger` (default true) to
+    control whether user lingering is enabled.
+
+  WHAT IT INSTALLS
+
+    A single systemd *user* unit file per service at `<unitDir>/<name>.service`.
+    `startService` enables the unit and user lingering so it starts at boot.
+    `removeService` deletes the unit file. Nothing else is installed.
 
 repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
 
 paths:
   base: manifest

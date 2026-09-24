@@ -125,6 +125,47 @@ export function expandHome(path: string, home?: string): string {
   return path;
 }
 
+/**
+ * Assert a service name is safe to use as a unit file name.
+ *
+ * The name becomes part of a path (`${unitDir}/${name}.service`), so a `/`, a
+ * `..`, or a null byte would let a caller write or delete a unit file anywhere
+ * on disk. systemd's own unit-name rules also forbid these, so this only
+ * rejects what systemd would reject anyway.
+ */
+export function assertValidServiceName(serviceName: string): void {
+  if (
+    serviceName.length === 0 ||
+    serviceName.includes("/") ||
+    serviceName.includes("\\") ||
+    serviceName.includes("..") ||
+    serviceName.includes("\0") ||
+    serviceName.startsWith(".") ||
+    /\s/.test(serviceName)
+  ) {
+    throw new Error(
+      `Invalid service name '${serviceName}': systemd unit names must not be empty or contain '/', '\\', '..', whitespace, or null bytes`,
+    );
+  }
+}
+
+/**
+ * Reject a value that would inject extra unit directives.
+ *
+ * The unit file is line-oriented: a newline or carriage return inside
+ * `command`, `description`, `workingDirectory`, or an `environment` entry would
+ * start a new directive, so a caller could add `User=root`, `ExecStartPre=…`,
+ * or any other directive. Reject rather than silently strip so the caller knows
+ * their input was not used as intended.
+ */
+export function assertNoNewlines(field: string, value: string): void {
+  if (/[\r\n]/.test(value)) {
+    throw new Error(
+      `Invalid ${field}: must not contain newlines (a newline would inject extra systemd unit directives)`,
+    );
+  }
+}
+
 /** Render a systemd *user* service unit file for an arbitrary command line. */
 export function renderServiceUnit(opts: {
   serviceName: string;
@@ -148,6 +189,15 @@ export function renderServiceUnit(opts: {
     after,
     wants,
   } = opts;
+  assertValidServiceName(serviceName);
+  assertNoNewlines("command", command);
+  if (description !== undefined) assertNoNewlines("description", description);
+  if (workingDirectory !== undefined) {
+    assertNoNewlines("workingDirectory", workingDirectory);
+  }
+  for (const env of environment) assertNoNewlines("environment", env);
+  for (const a of after) assertNoNewlines("after", a);
+  for (const w of wants) assertNoNewlines("wants", w);
   const lines: string[] = [
     `# Managed by @svendowideit/systemd-service — do not edit by hand.`,
     `[Unit]`,
@@ -209,6 +259,23 @@ async function systemctl(
   return await runCmd("systemctl", ["--user", ...args]);
 }
 
+/**
+ * Whether a `systemctl --user stop` failure just means the unit was not loaded.
+ *
+ * Stopping an already-stopped or never-created unit exits 5 with "Unit … not
+ * loaded". Callers treat that as success so `stopService` is idempotent; a
+ * genuine failure (permission, bus error) is distinguished and still throws.
+ */
+export function isAlreadyStopped(result: {
+  stdout: string;
+  stderr: string;
+  code: number;
+}): boolean {
+  if (result.code === 0) return true;
+  return result.code === 5 &&
+    /not loaded|not found/i.test(`${result.stderr}${result.stdout}`);
+}
+
 function dirnameOf(path: string): string {
   const idx = path.lastIndexOf("/");
   return idx === -1 ? "." : path.slice(0, idx);
@@ -260,15 +327,27 @@ type MethodContext = {
   };
 };
 
+/**
+ * Model definition for generic systemd *user* service management.
+ *
+ * Exposes `createService`, `startService`, `stopService`, `removeService`, and
+ * `status`, writing the `create` and `service` resources.
+ */
 export const model = {
   type: "@svendowideit/systemd-service",
-  version: "2026.09.11.1",
+  version: "2026.09.24.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
       toVersion: "2026.09.11.1",
       description:
         "startService now enables user lingering (loginctl enable-linger) by default so user services start at boot; new startService.linger arg. Global args unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.24.1",
+      description:
+        "Security and docs: service names are validated against systemd unit-name rules, and unit-directive injection through command/description/workingDirectory/environment/after/wants is rejected. No schema changes; global and method arguments are unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -418,11 +497,16 @@ export const model = {
       ): Promise<{ dataHandles: [] }> => {
         const stop = await systemctl(["stop", args.serviceName]);
         if (stop.code !== 0) {
-          throw new Error(
-            `systemctl --user stop ${args.serviceName} failed (${stop.code}): ${
-              stop.stderr || stop.stdout
-            }`,
-          );
+          // Stopping an already-stopped or never-created unit exits 5 with
+          // "Unit … not loaded". Treat that as success so `stopService` is
+          // idempotent (a re-run must not fail); any other error still throws.
+          if (!isAlreadyStopped(stop)) {
+            throw new Error(
+              `systemctl --user stop ${args.serviceName} failed (${stop.code}): ${
+                stop.stderr || stop.stdout
+              }`,
+            );
+          }
         }
         context.logger?.info("Stopped service {serviceName}", {
           serviceName: args.serviceName,
@@ -441,6 +525,7 @@ export const model = {
       ): Promise<{ dataHandles: [] }> => {
         const g = context.globalArgs;
         const unitDir = expandHome(g.unitDir);
+        assertValidServiceName(args.serviceName);
         const unitPath = `${unitDir}/${args.serviceName}.service`;
 
         // Best-effort stop/disable: the service may not exist or be running.

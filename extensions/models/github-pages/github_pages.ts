@@ -1217,8 +1217,16 @@ type CheckContext = {
 /** Swamp model definition for GitHub Pages site configuration and publishing. */
 export const model = {
   type: "@svendowideit/github-pages",
-  version: "2026.09.18.1",
+  version: "2026.09.25.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.25.1",
+      description:
+        "Documentation only: the manifest description is now the full user manual and the README uses the canonical sections. Global and method arguments are unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   checks: {
     "valid-target": {
       description:

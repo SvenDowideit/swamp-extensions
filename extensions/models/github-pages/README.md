@@ -1,5 +1,7 @@
 # @svendowideit/github-pages
 
+## What it does
+
 Publish a local directory (and its subdirectories) to a GitHub repository's
 GitHub Pages site, and idempotently set up Pages itself, using the GitHub REST
 API. No `gh-pages` npm package, no extra checkout, no action runner required —
@@ -16,7 +18,11 @@ Two problems this solves:
    domain, HTTPS enforcement) via `GET` + `POST`/`PUT`, so running it twice is a
    no-op.
 
-## Installation
+Side effects: it creates/updates the Pages site and commits to the target
+repository's Pages branch over the API; it writes the `site`, `publish` and
+`sync` resources. Nothing is installed on the host.
+
+## Install
 
 ```sh
 swamp extension pull @svendowideit/github-pages
@@ -27,7 +33,28 @@ The extension shells out to the `gh` CLI for authentication by default, so
 `authToken` global argument or the `GH_TOKEN`/`GITHUB_TOKEN` environment
 variables.
 
-## Usage
+## Configuration
+
+Global arguments (all optional):
+
+| Global argument  | Default                                       | Description                                                      |
+| ---------------- | --------------------------------------------- | ---------------------------------------------------------------- |
+| `repo`           | inferred from git origin                      | `owner/name`.                                                    |
+| `branch`         | `gh-pages`                                    | Branch Pages serves from.                                        |
+| `pagesPath`      | `/`                                           | Source path within the branch (`/` or `/docs`).                  |
+| `buildType`      | `legacy`                                      | `legacy` (build from branch) or `workflow` (Actions).            |
+| `cname`          | unset                                         | Custom domain. Pass `null` to `ensureSite` to remove one.        |
+| `httpsEnforced`  | `true`                                        | Enforce HTTPS on the Pages site.                                 |
+| `authToken`      | unset                                         | Token; otherwise `gh auth token`, `GH_TOKEN`, or `GITHUB_TOKEN`. |
+| `apiBase`        | `https://api.github.com`                      | Override for GitHub Enterprise.                                  |
+| `gitAuthorName`  | `swamp-github-pages`                          | Commit author name.                                              |
+| `gitAuthorEmail` | `swamp-github-pages@users.noreply.github.com` | Commit author email.                                             |
+| `commitMessage`  | `Publish site via swamp`                      | Commit message.                                                  |
+
+Per-run overrides: `dir`, `prune` and `dryRun` on `publishDir`; `files` on
+`publishFiles`; `cname` on `ensureSite`.
+
+## Examples
 
 Create a model, configure the repository, ensure Pages, then publish a
 directory:
@@ -66,7 +93,10 @@ swamp model method run my-site publishFiles \
   --input 'files=[{"source":"./news.html","repoPath":"news/index.html"}]'
 ```
 
-## Methods
+## Details
+
+`@svendowideit/github-pages` ships one model type
+(`@svendowideit/github-pages`) with four methods:
 
 | Method         | Description                                                                                      |
 | -------------- | ------------------------------------------------------------------------------------------------ |
@@ -75,7 +105,7 @@ swamp model method run my-site publishFiles \
 | `publishFiles` | Publish an explicit list of files, optionally remapped to repository paths.                      |
 | `syncSite`     | Read the live Pages site + latest build into a drift snapshot.                                   |
 
-## How it works
+### How it works
 
 - **Blob reuse.** Each local file is hashed with SHA-1 as a git blob
   (`sha1("blob <len>\0" + content)`). Files whose hash matches the remote tree
@@ -91,23 +121,7 @@ swamp model method run my-site publishFiles \
 - **Transient failures.** 429, 5xx, and secondary rate-limit 403 responses are
   retried with exponential backoff.
 
-## Configuration
-
-| Global argument  | Default                                       | Description                                                      |
-| ---------------- | --------------------------------------------- | ---------------------------------------------------------------- |
-| `repo`           | inferred from git origin                      | `owner/name`.                                                    |
-| `branch`         | `gh-pages`                                    | Branch Pages serves from.                                        |
-| `pagesPath`      | `/`                                           | Source path within the branch (`/` or `/docs`).                  |
-| `buildType`      | `legacy`                                      | `legacy` (build from branch) or `workflow` (Actions).            |
-| `cname`          | unset                                         | Custom domain. Pass `null` to `ensureSite` to remove one.        |
-| `httpsEnforced`  | `true`                                        | Enforce HTTPS on the Pages site.                                 |
-| `authToken`      | unset                                         | Token; otherwise `gh auth token`, `GH_TOKEN`, or `GITHUB_TOKEN`. |
-| `apiBase`        | `https://api.github.com`                      | Override for GitHub Enterprise.                                  |
-| `gitAuthorName`  | `swamp-github-pages`                          | Commit author name.                                              |
-| `gitAuthorEmail` | `swamp-github-pages@users.noreply.github.com` | Commit author email.                                             |
-| `commitMessage`  | `Publish site via swamp`                      | Commit message.                                                  |
-
-## Output data
+### Output data
 
 Each method writes a versioned resource that can be referenced from other models
 with CEL:
@@ -122,12 +136,25 @@ changed: ${{ data.latest("my-site", "site").attributes.changed }}
 `publish` records `added`/`modified`/`deleted`/`unchanged` counts and a per-file
 list with statuses; `sync` records the live site status and latest build status.
 
-## Requirements
+### Requirements
 
 - The token needs `repo` scope (classic PAT) or `Contents: read/write` +
   `Pages: read/write` (fine-grained PAT).
 - Network access to `api.github.com` (or the configured `apiBase`).
 
+### Extending and testing
+
+The model lives in `github_pages.ts`; `github_pages_test.ts` exercises the pure
+helpers (blob hashing, path safety, tree building, API reconciliation) with the
+`gh`/HTTP layer stubbed.
+
+```sh
+# Type-check and run the unit tests.
+~/.swamp/deno/deno check github_pages.ts
+~/.swamp/deno/deno test --allow-read --allow-env github_pages_test.ts
+```
+
 ## License
 
 MIT — see LICENSE for details.
+

@@ -1,85 +1,83 @@
 manifestVersion: 1
 name: "@svendowideit/github-pages"
-version: "2026.09.18.1"
-description: |
-  Publish a local directory (and its subdirectories) to a GitHub repository's
-  GitHub Pages site, and idempotently configure Pages itself, using the GitHub
-  REST API. No `gh-pages` package, no extra checkout, no action runner — swamp
-  commits straight to the Pages branch through the Git Data API and reuses
-  unchanged git blobs, so re-running it is cheap and safe.
+version: "2026.09.25.1"
+description: >
+  Publish a local directory to a GitHub repository's Pages site, and
+  idempotently configure Pages itself, straight through the GitHub REST API —
+  no `gh-pages` package, no extra checkout, no action runner.
 
-  ## What it does
+  WHAT IT DOES
 
-  - `ensureSite` idempotently creates or updates the Pages site: source branch,
-    source path (`/` or `/docs`), build type, custom domain, and HTTPS
-    enforcement. Running it twice is a no-op.
-  - `publishDir` walks a directory recursively, uploads only the files whose
-    content changed, and commits the delta as a single commit. If nothing
-    changed, no commit is created.
-  - `publishFiles` publishes an explicit list of files, optionally remapped to
-    repository paths.
-  - `syncSite` reads the live Pages site and latest build into a drift snapshot.
+    Turns "publish this folder to GitHub Pages" into two repeatable commands
+    that are safe to re-run. It walks a directory, hashes each file as a git
+    blob locally, uploads only the blobs that actually changed, and commits the
+    delta as a single commit — so re-publishing a mostly-unchanged site is cheap
+    and creates no commit when nothing changed. It also reconciles the Pages
+    configuration itself (source branch, source path, build type, custom domain,
+    HTTPS enforcement) via GET + POST/PUT, so enabling Pages is no longer a
+    one-way manual step. Prefer it over a `gh-pages` tool or a GitHub Action:
+    everything happens over the API with no local `git` operation, and the
+    directory traversal rejects `..` segments and skips symlinks.
 
-  ## Install
+  INSTALL
 
-  ```sh
-  swamp extension pull @svendowideit/github-pages
-  ```
+      swamp extension pull @svendowideit/github-pages
 
-  Authentication uses the `gh` CLI by default, so run `gh auth login` first. A
-  token can also be supplied via the `authToken` global argument or the
-  `GH_TOKEN` / `GITHUB_TOKEN` environment variables. The token needs `repo`
-  scope (classic PAT) or `Contents: read/write` + `Pages: read/write`
-  (fine-grained PAT).
+  DEPENDENCIES
 
-  ## Run
+    None — it uses the `gh` CLI for authentication (run `gh auth login` first)
+    and the GitHub REST API; no other extension is required. A token can instead
+    be supplied via the `authToken` global argument or the `GH_TOKEN` /
+    `GITHUB_TOKEN` environment variables.
 
-  ```sh
-  # Create a model for the target repository
-  swamp model create @svendowideit/github-pages my-site \
-    --global repo=owner/repo \
-    --global branch=gh-pages
+  RUN
 
-  # Idempotently configure Pages to serve gh-pages at /
-  swamp model method run my-site ensureSite
+      # Create a model for the target repository.
+      swamp model create @svendowideit/github-pages my-site \
+        --global repo=owner/repo \
+        --global branch=gh-pages
 
-  # Publish ./dist (recursively) as one commit
-  swamp model method run my-site publishDir --input dir=./dist
+      # Idempotently configure Pages to serve gh-pages at /.
+      swamp model method run my-site ensureSite
 
-  # Preview changes without committing
-  swamp model method run my-site publishDir --input dir=./dist --input dryRun=true
-  ```
+      # Publish ./dist (recursively) as a single commit.
+      swamp model method run my-site publishDir --input dir=./dist
 
-  Publishing to `main:/docs` instead is a config change, not a code change:
+      # Preview what would change without committing.
+      swamp model method run my-site publishDir --input dir=./dist --input dryRun=true
 
-  ```sh
-  swamp model create @svendowideit/github-pages docs-site \
-    --global repo=owner/repo \
-    --global branch=main \
-    --global pagesPath=/docs
-  swamp model method run docs-site ensureSite
-  swamp model method run docs-site publishDir --input dir=./site --input prune=true
-  ```
+    Publishing to `main:/docs` instead is a configuration change, not a code
+    change: set `--global branch=main --global pagesPath=/docs`, then run
+    `ensureSite` and `publishDir --input prune=true`.
 
-  ## Configure
+  CONFIGURE
 
-  | Global argument  | Default                  | Description                                                 |
-  | ---------------- | ------------------------ | ----------------------------------------------------------- |
-  | `repo`           | inferred from git origin | `owner/name`.                                               |
-  | `branch`         | `gh-pages`               | Branch Pages serves from.                                   |
-  | `pagesPath`      | `/`                      | Source path within the branch (`/` or `/docs`).             |
-  | `buildType`      | `legacy`                 | `legacy` (build from branch) or `workflow` (Actions).       |
-  | `cname`          | unset                    | Custom domain; pass `null` to `ensureSite` to remove one.   |
-  | `httpsEnforced`  | `true`                   | Enforce HTTPS on the Pages site.                            |
-  | `authToken`      | unset                    | Token; otherwise `gh auth token`, `GH_TOKEN`, `GITHUB_TOKEN`. |
-  | `apiBase`        | `https://api.github.com` | Override for GitHub Enterprise.                             |
-  | `commitMessage`  | `Publish site via swamp` | Commit message.                                             |
+    Global arguments (all optional):
 
-  Outputs are versioned resources usable from other models with CEL, e.g.
-  `${{ data.latest("my-site", "publish").attributes.commitSha }}`. See the
-  bundled README for the full method and output reference.
+      repo             owner/name                 (default: inferred from git origin)
+      branch           branch Pages serves from   (default gh-pages)
+      pagesPath        / or /docs                 (default /)
+      buildType        legacy or workflow         (default legacy)
+      cname            custom domain              (pass null to ensureSite to remove)
+      httpsEnforced    enforce HTTPS              (default true)
+      authToken        API token                  (else gh auth token / GH_TOKEN / GITHUB_TOKEN)
+      apiBase          GitHub Enterprise base      (default api.github.com)
+      commitMessage    commit message              (default "Publish site via swamp")
+      gitAuthorName / gitAuthorEmail               commit author identity
+
+    Per-run overrides: `dir`, `prune`, `dryRun` on `publishDir`; `files` on
+    `publishFiles`; `cname` on `ensureSite`.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, cron triggers, or webhooks. It
+    reads and writes files in the target GitHub repository over the REST API and
+    writes swamp resources (`site`, `publish`, `sync`); the only local
+    requirement is the `gh` CLI for authentication.
 
 repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
 
 paths:
   base: manifest

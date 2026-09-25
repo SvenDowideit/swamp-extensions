@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260925-180024-0-sha-e08f1d5b"><span class="tier A">A</span>find datastore extensions on disk (swamp-club#2531) (#2633)</a><a href="#release-swamp-club-swamp-v20260925-163149-0-sha-bea803c9"><span class="tier A">A</span>garbage-collect expired and revoked server tokens (swamp-clu</a><a href="#release-swamp-club-swamp-v20260925-154206-0-sha-0707af8f"><span class="tier A">A</span>default worker token create to _token-secrets and stop count</a><a href="#release-swamp-club-swamp-v20260925-153804-0-sha-f2209d28"><span class="tier A">A</span>scan a direct step&#39;s authored global arguments, not its eval</a><a href="#release-swamp-club-swamp-v20260925-153420-0-sha-940b6cd5"><span class="tier A">A</span>register pulled-extension workflows on a fresh instance with</a><a href="#release-swamp-club-swamp-v20260925-153032-0-sha-9f2f5163"><span class="tier A">A</span>coerce and check workflow resume --input values against the </a><a href="#release-swamp-club-swamp-v20260925-152556-0-sha-7b885e92"><span class="tier A">A</span>load extension types before listing model outputs (swamp-clu</a><a href="#release-swamp-club-swamp-v20260925-145520-0-sha-5e566d4e"><span class="tier A">A</span>buffer startup warnings until logging starts (swamp-club#252</a><a href="#release-swamp-club-swamp-v20260925-013241-0-sha-4489c40d"><span class="tier A">A</span>warn about --group-refresh-interval only when it is set (swa</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260925-215751-0-sha-26fe2956"><span class="tier A">A</span>resolve the managed config base at startup (swamp-club#2483)</a><a href="#release-swamp-club-swamp-v20260925-210952-0-sha-4341e359"><span class="tier A">A</span>read the nested serve.config payload on the System tab (swam</a><a href="#release-swamp-club-swamp-v20260925-203424-0-sha-8ccc459c"><span class="tier A">A</span>read the transitional in-repo auto-resolve lockfile (swamp-c</a><a href="#release-swamp-club-swamp-v20260925-193910-0-sha-c176dde3"><span class="tier A">A</span>name the step on skipped-step lines in run log output (swamp</a><a href="#release-swamp-club-swamp-v20260925-193456-0-sha-752d3384"><span class="tier A">A</span>opt-in external key for _token-secrets so datastore read acc</a><a href="#release-swamp-club-swamp-v20260925-184019-0-sha-c6632fa7"><span class="tier A">A</span>evaluate a forEach step&#39;s dependsOn condition for every iter</a><a href="#release-swamp-club-swamp-v20260925-180024-0-sha-e08f1d5b"><span class="tier A">A</span>find datastore extensions on disk (swamp-club#2531) (#2633)</a><a href="#release-swamp-club-swamp-v20260925-163149-0-sha-bea803c9"><span class="tier A">A</span>garbage-collect expired and revoked server tokens (swamp-clu</a><a href="#release-swamp-club-swamp-v20260925-154206-0-sha-0707af8f"><span class="tier A">A</span>default worker token create to _token-secrets and stop count</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7">
 <h2><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#2446)</h2>
@@ -151,6 +151,168 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.194129.0-sha.d1808bea" rel="noopener">release v20260902.194129.0-sha.d1808bea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1808bead33f16f9845d428e62e8d6d253214017" rel="noopener">d1808bea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2360" rel="noopener">#2360</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20260925-215751-0-sha-26fe2956">
+<h2><span class="tier A">A</span>resolve the managed config base at startup (swamp-club#2483) (#2639)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-25T21:59:28Z">2026-09-25T21:59:28Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): resolve the managed config base at startup (swamp-club#2483) (#2639)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes part 3e of swamp-club#2483: startup now resolves the managed config base before any loader reads a lockfile. It follows swamp-club#2507 (#2614), swamp-club#2508 (#2617), swamp-club#2529 (#2625), swamp-club#2530 (#2632), swamp-club#2531 (#2633) and swamp-club#2532 (#2637), which have merged.</p>
+<p>In a <code>managedConfig</code> repo on an extension-backed datastore (S3, GCS), startup called <code>ensureManagedConfigBase</code> before any datastore loader existed. Resolution failed, so the loaders captured the guessed in-repo <code>.swamp/config/upstream_extensions.json</code> instead of the datastore&#39;s <code>&lt;cache&gt;/&lt;ns&gt;/config/upstream_extensions.json</code>. The missing-source-files warning read the same wrong file, and the registered base changed mid-process once <code>requireInitializedRepo*</code> resolved it.</p>
+<ul>
+<li><strong><code>configureStartupExtensions</code></strong> (<code>src/cli/mod.ts</code>) replaces <code>configureExtensionLoaders</code> and takes an options object. In order, it:</li>
+</ul>
+<p>  1. records the repo&#39;s managed status (the in-repo fallback, marked unresolved);</p>
+<p>  2. installs the on-disk datastore loader for extension-backed repos (swamp-club#2531);</p>
+<p>  3. resolves the base once, installed-only (<code>autoResolve: false</code>): always for filesystem datastores, and for extension-backed ones unless the command is a thin client;</p>
+<p>  4. configures the model, vault, report and webhook loaders (and the datastore loader for other repos) to read the lockfile path wh</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.215751.0-sha.26fe2956" rel="noopener">release v20260925.215751.0-sha.26fe2956</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/26fe2956d01edd7269dc85bb5ac5c71834543fe2" rel="noopener">26fe2956</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2639" rel="noopener">#2639</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2614" rel="noopener">#2614</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2617" rel="noopener">#2617</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2625" rel="noopener">#2625</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2632" rel="noopener">#2632</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2633" rel="noopener">#2633</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2637" rel="noopener">#2637</a>𝗔 <a href="https://swamp-club.com/lab/2483" rel="noopener">lab#2483</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260925-210952-0-sha-4341e359">
+<h2><span class="tier A">A</span>read the nested serve.config payload on the System tab (swamp-club#2519) (#2638)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-25T21:11:31Z">2026-09-25T21:11:31Z</time></span><span>dashboard</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(dashboard): read the nested serve.config payload on the System tab (swamp-club#2519) (#2638)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2519. On every server, the dashboard&#39;s <strong>System</strong> tab showed Port and Auth Mode as <code>—</code> and TLS and Scheduling as <code>disabled</code>, even though <code>serve.config</code> reported them correctly.</p>
+<p>There were two faults, and both were present from the start. The payload shape predates the dashboard (#2183, then #2208), so this is not a regression.</p>
+<p>1. <strong>Wrong level.</strong> <code>handleServeConfig</code> sends <code>{ config: {...} }</code>. The view passed that payload to <code>extractObject</code>, which only unwraps a <code>data</code> key, and then read <code>port</code>, <code>authMode</code>, <code>tls</code> and <code>scheduling</code> off the wrapper.</p>
+<p>2. <strong>Wrong shape.</strong> <code>tls</code>, <code>scheduling</code> and <code>dashboard</code> arrive as <code>{ enabled }</code> objects, and the view tested them for truthiness. Once unwrapped, they would always have read <code>enabled</code>, even when off. <code>Dashboard</code> was hardcoded.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><code>packages/dashboard/src/views/serve_config_rows.ts</code> (new): <code>serveConfigRows(payload)</code> turns the real wire shape into <code>{ label, value, ok }</code> rows. A missing or misshapen field renders as <code>—</code> rather than a plausible <code>disabled</code>, so future drift shows up as unknown. It has no React imports.</li>
+<li><code>System.tsx</code> maps those rows into the existing markup. The panel also shows <strong>Remote Only</strong>, <strong>Auto Resume</strong>, <strong>Hot Reload</strong> and <strong>Trust Proxy</strong>, which the issue asked for because they change how the server behaves.</li>
+<li>The server&#39;s <code>serve.config</code> shape and the clien</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.210952.0-sha.4341e359" rel="noopener">release v20260925.210952.0-sha.4341e359</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4341e3596984970a7b8bce38dd452a9a2b4e2a3e" rel="noopener">4341e359</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2638" rel="noopener">#2638</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2183" rel="noopener">#2183</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2208" rel="noopener">#2208</a>𝗔 <a href="https://swamp-club.com/lab/2519" rel="noopener">lab#2519</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260925-203424-0-sha-8ccc459c">
+<h2><span class="tier A">A</span>read the transitional in-repo auto-resolve lockfile (swamp-club#2532) (#2637)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-25T20:36:08Z">2026-09-25T20:36:08Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): read the transitional in-repo auto-resolve lockfile (swamp-club#2532) (#2637)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2532, part 3d of swamp-club#2483. It follows swamp-club#2529 (#2625), swamp-club#2530 (#2632) and swamp-club#2531 (#2633), which have merged.</p>
+<p>Until swamp-club#2495, a <code>managedConfig</code> repo on an extension-backed datastore (S3, GCS) records auto-resolved installs in the in-repo <code>.swamp/config/upstream_extensions.json</code>, never the datastore&#39;s lockfile, which pulls would overwrite. This change makes the readers see those installs, read-only, next to the resolved (team) lockfile. The team entry always wins on a name clash.</p>
+<ul>
+<li><strong>Merged read</strong> (<code>src/infrastructure/persistence/installed_entries.ts</code>):</li>
+<li><code>readInstalledEntries</code> merges the two lockfiles and reports which names are local only.</li>
+<li>A corrupt in-repo file is skipped with a warning.</li>
+<li>A local entry that isn&#39;t an object is dropped.</li>
+<li><code>transitionalLocalLockfilePath</code> and <code>transitionalInstalledNames</code> decide when the in-repo file applies.</li>
+<li><strong>Readers:</strong></li>
+<li>The loaders read the in-repo lockfile through <code>enumeratePulledExtensionDirs</code>.</li>
+<li>Reconcile (at startup, in <code>doctor extensions</code>, and in the serve doctor handler) doesn&#39;t orphan local-only rows (<code>additionalInstalledNames</code>).</li>
+<li>The startup missing-files check reports auto-resolved entries in their own warning, and skips malformed entries.</li>
+<li><strong>Auto-resolve</strong> (<code>src/cli/auto_resolver_adapters.ts</code>, <code>resolveAutoResolverLockfilePath</code></li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.203424.0-sha.8ccc459c" rel="noopener">release v20260925.203424.0-sha.8ccc459c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8ccc459ccc4333b38ee190e88e7b0424acd8056d" rel="noopener">8ccc459c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2637" rel="noopener">#2637</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2625" rel="noopener">#2625</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2632" rel="noopener">#2632</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2633" rel="noopener">#2633</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/465" rel="noopener">#465</a>𝗔 <a href="https://swamp-club.com/lab/2483" rel="noopener">lab#2483</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260925-193910-0-sha-c176dde3">
+<h2><span class="tier A">A</span>name the step on skipped-step lines in run log output (swamp-club#2538) (#2636)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-25T19:40:48Z">2026-09-25T19:40:48Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): name the step on skipped-step lines in run log output (swamp-club#2538) (#2636)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>In log mode, a skipped step&#39;s line carried only the job label, so with</p>
+<p>several steps in a job there was no way to tell which one was skipped:</p>
+<p>```</p>
+<p>main │ done deploy in 26ms</p>
+<p>main │ skipped (dependency)</p>
+<p>```</p>
+<ul>
+<li>Add <code>PipeWriter.skippedStepLine(name, stepPath, reason?, guard?)</code> in</li>
+</ul>
+<p>  <code>src/presentation/output/console_writer.ts</code>, mirroring the existing</p>
+<p>  <code>failedStepLine</code>/<code>failedJobLine</code> split. <code>skippedLine</code> is unchanged and</p>
+<p>  still renders job skips (<code>notify │ skipped</code>).</p>
+<ul>
+<li>The <code>step_skipped</code> handler in <code>src/presentation/renderers/workflow_run.ts</code></li>
+</ul>
+<p>  uses it. This covers both <code>workflow run</code> and <code>workflow resume</code>, which share</p>
+<p>  the renderer. JSON output and the <code>step_skipped</code> event are unchanged.</p>
+<ul>
+<li>Update the skip-line example in <code>design/primitives/workflows.md</code> and the</li>
+</ul>
+<p>  bundled swamp skill&#39;s workflow reference.</p>
+<p>Fixes swamp-club#2538. Regression from #1963: before it, a step skip was</p>
+<p>logged through a LogTape logger whose category included the step name</p>
+<p>(<code>workflow·run·&lt;wf&gt;·main·rollback: Step skipped</code>), and the pipe renderer that</p>
+<p>replaced it dropped the step.</p>
+<p>Follow-ups filed during triage: swamp-club#2547 (with <code>--json</code>, a</p>
+<p>guarded-skip line lands on stdout or stderr depending on timing) and</p>
+<p>swamp-club#2551 (user manual examples show the old skip-line format).</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>3 new <code>PipeWriter.skippedStepLine</code> unit tests in <code>console_writer_test.ts</code>:</li>
+</ul>
+<p>  wit</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.193910.0-sha.c176dde3" rel="noopener">release v20260925.193910.0-sha.c176dde3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c176dde38e397066c8c19671ae8cc19cff8c7a85" rel="noopener">c176dde3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2636" rel="noopener">#2636</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1963" rel="noopener">#1963</a>𝗔 <a href="https://swamp-club.com/lab/2538" rel="noopener">lab#2538</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260925-193456-0-sha-752d3384">
+<h2><span class="tier A">A</span>opt-in external key for _token-secrets so datastore read access cannot decrypt tokens (swamp-club#2324) (#2635)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-25T19:36:33Z">2026-09-25T19:36:33Z</time></span><span>serve</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(serve): opt-in external key for _token-secrets so datastore read access cannot decrypt tokens (swamp-club#2324) (#2635)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2324. By default the AES-256-GCM key that encrypts serve&#39;s token secrets (<code>_token-secrets</code>) is stored in the same control-plane store as the ciphertext, at <code>_control/token-secrets/encryption-key</code>. With a remote control plane (for example <code>@swamp/s3-datastore</code>), anyone with read access to the bucket can decrypt every server token and authenticate to serve as any principal, including admins.</p>
+<p>This adds an <strong>opt-in</strong> key kept outside the datastore. Operators name a vault and secret in <code>serve.yaml</code>:</p>
+<p>```yaml</p>
+<p>token-secrets:</p>
+<p>  vault: prod-secrets        # any user vault except _token-secrets</p>
+<p>  key: swamp-token-secrets-key</p>
+<p>```</p>
+<p>The operator generates the 32-byte key (hex or base64, for example <code>openssl rand -base64 32</code>); swamp never generates or stores it. <strong>Without the block nothing changes.</strong></p>
+<h4 class="body-h">Behaviour</h4>
+<ul>
+<li><strong>Key source:</strong> the key comes only from local <code>serve.yaml</code>: serve&#39;s <code>--config</code> file, or <code>.swamp/serve.yaml</code> for the local token commands. The control-plane marker&#39;s vault reference appears only in error messages and is never used to fetch a key, because datastore content must not choose the key source.</li>
+<li><strong>Fail closed:</strong> serve refuses to start, and <code>access token mint/rotate/reveal</code> and <code>worker token create</code> fail, if any of these is true:</li>
+<li>the vault or secret is missing</li>
+<li>the value is not a 32-byte</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.193456.0-sha.752d3384" rel="noopener">release v20260925.193456.0-sha.752d3384</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/752d3384d6a5be36eefa7729b769e8e11c5990ae" rel="noopener">752d3384</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2635" rel="noopener">#2635</a>𝗔 <a href="https://swamp-club.com/lab/2539" rel="noopener">lab#2539</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260925-184019-0-sha-c6632fa7">
+<h2><span class="tier A">A</span>evaluate a forEach step&#39;s dependsOn condition for every iteration (swamp-club#2537) (#2634)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-25T18:41:44Z">2026-09-25T18:41:44Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): evaluate a forEach step&#39;s dependsOn condition for every iteration (swamp-club#2537) (#2634)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A forEach step&#39;s own <code>dependsOn</code> condition was never evaluated. Its iterations waited for the dependency, then ran whatever the condition said, while a plain step with the same <code>dependsOn</code> was skipped. So a forEach rollback gated on <code>failed</code> ran on every successful run, and a forEach step gated on <code>succeeded</code> ran after its dependency failed.</p>
+<p><code>WorkflowExecutionService.runStep()</code> called <code>shouldStepRun()</code> only for non-forEach steps. The exemption dates from the original forEach feature (#232).</p>
+<ul>
+<li>Every step now calls <code>shouldStepRun(step, jobRun)</code>. An iteration carries its template <code>Step</code>, so it checks the template&#39;s <code>dependsOn</code>, and since swamp-club#1780 <code>JobRun.getStatus()</code> aggregates a forEach dependency&#39;s iteration statuses.</li>
+<li>An unmet condition skips every iteration with reason <code>dependency</code>, before the guard is evaluated, as for a plain step. The existing <code>step_skipped</code> event already carries <code>forEachTemplate</code> and <code>forEachIndex</code>, so log mode labels it <code>template[index]</code>.</li>
+<li><code>design/primitives/workflows.md</code> (Evaluation order) documents the forEach behaviour and the aggregated status.</li>
+</ul>
+<p>Fresh runs, suspended resume and failed-run retry all reach the check through <code>runJob()</code> → <code>runStep()</code>.</p>
+<p><strong>Behaviour change:</strong> a forEach step whose condition is not met no longer runs. Not a regression: iterations have skipped the check since forEach was int</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.184019.0-sha.c6632fa7" rel="noopener">release v20260925.184019.0-sha.c6632fa7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c6632fa7cea3ef91e872066aef15910e24b17d0d" rel="noopener">c6632fa7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2634" rel="noopener">#2634</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/232" rel="noopener">#232</a>𝗔 <a href="https://swamp-club.com/lab/2537" rel="noopener">lab#2537</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20260925-180024-0-sha-e08f1d5b">
 <h2><span class="tier A">A</span>find datastore extensions on disk (swamp-club#2531) (#2633)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -224,7 +386,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/doctor-vaults.md" rel="noopener">design/enablers/doctor-vaults.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.154206.0-sha.0707af8f" rel="noopener">release v20260925.154206.0-sha.0707af8f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0707af8fb9f59b82e169dea349806088244e2615" rel="noopener">0707af8f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2630" rel="noopener">#2630</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2606" rel="noopener">#2606</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2586" rel="noopener">#2586</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2080" rel="noopener">#2080</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2061" rel="noopener">#2061</a>𝗔 <a href="https://swamp-club.com/lab/2422" rel="noopener">lab#2422</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20260925-153804-0-sha-f2209d28">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260925-153804-0-sha-f2209d28">
 <h2><span class="tier A">A</span>scan a direct step&#39;s authored global arguments, not its evaluated ones (swamp-club#2496) (#2627)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-25T15:39:45Z">2026-09-25T15:39:45Z</time></span><span>workflows</span><span>fix</span></div>
@@ -374,7 +536,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.013241.0-sha.4489c40d" rel="noopener">release v20260925.013241.0-sha.4489c40d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4489c40d238057837f78ac4ec22a0629c8ecea06" rel="noopener">4489c40d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2624" rel="noopener">#2624</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1861" rel="noopener">#1861</a>𝗔 <a href="https://swamp-club.com/lab/2512" rel="noopener">lab#2512</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260924-225557-0-sha-c48ef142">
+<article class="item" id="release-swamp-club-swamp-v20260924-225557-0-sha-c48ef142">
 <h2><span class="tier A">A</span>refuse resuming a suspended run whose workflow changed shape (swamp-club#2498) (#2623)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-24T22:57:46Z">2026-09-24T22:57:46Z</time></span><span>workflows</span><span>fix</span></div>
@@ -8818,7 +8980,50 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.github/actions/adversarial-review/README.md" rel="noopener">.github/actions/adversarial-review/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c4600418b072728920f6df3a97f34c1666ee04" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260923-222724-0-sha-03229b0f">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260925-222627-0-sha-441f5ad0">
+<h2><span class="tier C">C</span>swamp 20260925.222627.0-sha.441f5ad0</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-25T22:28:12Z">2026-09-25T22:28:12Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): refuse extension writes to a guessed managed config base (swamp-club#2509) (#2640)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2509, part 4 of 4 of swamp-club#2483. It follows swamp-club#2483 (#2639), which resolves the managed config base at startup.</p>
+<p>In a <code>managedConfig</code> repo on an extension-backed datastore (S3, GCS), the managed config base can stay unresolved when the datastore extension is not installed or does not load. Extension write commands then recorded into the in-repo <code>.swamp/config/upstream_extensions.json</code> guess, which the datastore never sees.</p>
+<ul>
+<li><strong><code>resolveManagedLockfileForWrite</code></strong> (<code>src/cli/repo_context.ts</code>) is the single entry point for extension lockfile writes:</li>
+<li>It resolves the base the way other commands do, auto-installing a missing datastore extension, so a fresh checkout or CI runner works as before.</li>
+<li>If the base is still unresolved (the extension could not be installed or does not load), it throws <code>ManagedConfigUnresolvedError</code> (code <code>managed_config_unresolved</code>) rather than write to the guess. The remedy is <code>swamp extension pull &lt;datastore extension&gt;</code> (<code>--force</code> if it fails to load), then <code>swamp datastore sync --pull</code>.</li>
+<li><strong>The #445 exemption:</strong> <code>extension pull</code>, <code>extension update &lt;name&gt;</code> and search&#39;s install that target the repo&#39;s own datastore extension record into the in-repo lockfile without publishing, so the extension can still be repaired. Known candidate names are checked before any registry lookup. `datastoreExt</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.222627.0-sha.441f5ad0" rel="noopener">release v20260925.222627.0-sha.441f5ad0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/441f5ad0" rel="noopener">441f5ad0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2640" rel="noopener">#2640</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2639" rel="noopener">#2639</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/445" rel="noopener">#445</a>𝗔 <a href="https://swamp-club.com/lab/2483" rel="noopener">lab#2483</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260925-222223-0-sha-18ec7540">
+<h2><span class="tier C">C</span>swamp 20260925.222223.0-sha.18ec7540</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-25T22:24:01Z">2026-09-25T22:24:01Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(tests): feed the worker child env to initTracing instead of Deno.env (swamp-club#2445) (#2641)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2445. <code>integration/otel_logs_worker_correlation_test.ts</code> failed intermittently under the full parallel suite: the child span got a fresh trace id instead of the propagated parent (<code>1111…</code>) at line 129.</p>
+<h4 class="body-h">Root cause</h4>
+<p>The test wrote <code>TRACEPARENT</code> into <code>Deno.env</code> and relied on <code>initTracing()</code> reading it back several awaits later. <code>deno test --parallel</code> runs each file in its own isolate, but they all share one process env. Two things change <code>TRACEPARENT</code> there concurrently:</p>
+<ul>
+<li><code>InProcessExecutor.execute</code> (<code>src/domain/models/in_process_executor.ts:285-372</code>) saves <code>TRACEPARENT</code> and restores it around every in-process model run, deleting it when it was unset.</li>
+<li><code>src/cli/context_test.ts</code> sets and deletes it directly.</li>
+</ul>
+<p>When either landed in the gap, <code>initTracing</code> saw no parent and the span started a new trace. The race also ran the other way: this test&#39;s trace id leaked into <code>in_process_executor_test.ts</code>, failing its restore assertion at line 542.</p>
+<p>swamp-club#2131 added an <code>envGet</code> hook to <code>initTracing</code> for this race and named this test as a polluter, but never converted it. Not a regression: the test has written to <code>Deno.env</code> since it was added in #1858.</p>
+<h4 class="body-h">Change</h4>
+<p>One test file. The test builds the worker child env with the file&#39;s existing <code>buildChildEnv</code> helper and passes it to <code>initTracing</code> through <code>envGet</code>. That is the same loo</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.222223.0-sha.18ec7540" rel="noopener">release v20260925.222223.0-sha.18ec7540</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/18ec7540" rel="noopener">18ec7540</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2641" rel="noopener">#2641</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1858" rel="noopener">#1858</a>𝗔 <a href="https://swamp-club.com/lab/2445" rel="noopener">lab#2445</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260923-222724-0-sha-03229b0f">
 <h2><span class="tier C">C</span>use `tessl review run` for skill reviews (swamp-club#2457) (#2593)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-23T22:28:52Z">2026-09-23T22:28:52Z</time></span><span>docs</span></div>
@@ -9197,13 +9402,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260901.012545.0-sha.7d7984ad" rel="noopener">release v20260901.012545.0-sha.7d7984ad</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7d7984adc3a589df883ef460f5bc7e4d10259b13" rel="noopener">7d7984ad</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2332" rel="noopener">#2332</a>𝗔 <a href="https://swamp-club.com/lab/1925" rel="noopener">lab#1925</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>274 items across 1 source(s) in this window:
-3 critical, 255 notable, 5 routine,
-11 minor.</p>
-<ul><li><strong>fix</strong> — 203</li><li><strong>feat</strong> — 55</li><li><strong>docs</strong> — 11</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>chore</strong> — 1</li></ul></section>
+<p>282 items across 1 source(s) in this window:
+3 critical, 261 notable, 5 routine,
+13 minor.</p>
+<ul><li><strong>fix</strong> — 208</li><li><strong>feat</strong> — 56</li><li><strong>docs</strong> — 11</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>changes</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-25T22:07:02.861Z">2026-09-25T22:07:02.861Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-25T23:01:54.069Z">2026-09-25T23:01:54.069Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

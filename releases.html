@@ -170,8 +170,8 @@ footer .ver{color:var(--acc)}
 <li>A directory the scan can&#39;t read is skipped with a warning.</li>
 <li><strong>Catalog purge</strong> (<code>purgeUnchosenPulledDatastoreRows</code>): removes catalog rows for the copy that lost the dedupe, so its types don&#39;t register twice after a cold rebuild. Rows in a failure state (<code>CATALOG_FAILURE_STATES</code>, now sh</li>
 </ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.180024.0-sha.e08f1d5b" rel="noopener">release v20260925.180024.0-sha.e08f1d5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e08f1d5b06bdabe0181a358a6568c9e38f9ede4e" rel="noopener">e08f1d5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2633" rel="noopener">#2633</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2625" rel="noopener">#2625</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2632" rel="noopener">#2632</a>𝗔 <a href="https://swamp-club.com/lab/2483" rel="noopener">lab#2483</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.180024.0-sha.e08f1d5b" rel="noopener">release v20260925.180024.0-sha.e08f1d5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e08f1d5b06bdabe0181a358a6568c9e38f9ede4e" rel="noopener">e08f1d5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2633" rel="noopener">#2633</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2625" rel="noopener">#2625</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2632" rel="noopener">#2632</a>𝗔 <a href="https://swamp-club.com/lab/2531" rel="noopener">lab#2531</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260925-163149-0-sha-bea803c9">
 <h2><span class="tier A">A</span>garbage-collect expired and revoked server tokens (swamp-club#2413) (#2631)</h2>
@@ -196,7 +196,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>A secre</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.163149.0-sha.bea803c9" rel="noopener">release v20260925.163149.0-sha.bea803c9</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bea803c991176b9862b7731a8af0ba663e780139" rel="noopener">bea803c9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2631" rel="noopener">#2631</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2130" rel="noopener">#2130</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2513" rel="noopener">#2513</a>𝗔 <a href="https://swamp-club.com/lab/2413" rel="noopener">lab#2413</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260925-154206-0-sha-0707af8f">
@@ -290,7 +290,7 @@ footer .ver{color:var(--acc)}
 <li>checks each supplied key&#39;s value, merged over the run&#39;s stored inputs, against the workflow&#39;s input schema.</li>
 </ul>
 <p>  A mismatch throws a <code>UserError</code> coded <code>input_validation_failed</code>, and the run stays as it was. The check lives in the domain service, so the local CLI and both serve resume paths (the WebSocket handler and <code>resume_launcher</code>) get it without ch</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/execution-semantics.md" rel="noopener">.claude/skills/swamp/references/workflow/references/execution-semantics.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/execution-semantics.md" rel="noopener">.claude/skills/swamp/references/workflow/references/execution-semantics.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.153032.0-sha.9f2f5163" rel="noopener">release v20260925.153032.0-sha.9f2f5163</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9f2f51637a18493d65c60197bbd8488c255a95e0" rel="noopener">9f2f5163</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2628" rel="noopener">#2628</a>𝗔 <a href="https://swamp-club.com/lab/2502" rel="noopener">lab#2502</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260925-152556-0-sha-7b885e92">
@@ -8442,7 +8442,7 @@ footer .ver{color:var(--acc)}
 <li><code>pulledExtensionsRoot</code> from <code>resolveManagedConfigPaths</code>, <code>RepoValidationContext</code>, <code>ExtensionPullDeps</code>/<code>createExtensionPullDeps</code>, <code>InstallerAdapterConfig</code> and the serve helper <code>resolveManagedPathsFromContext</code>.</li>
 <li>`InstallContext.pulledExtensi</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.165626.0-sha.883ecd79" rel="noopener">release v20260925.165626.0-sha.883ecd79</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/883ecd795c11d0d9b2f83cee5446e1549db00ff7" rel="noopener">883ecd79</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2632" rel="noopener">#2632</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2288" rel="noopener">#2288</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2394" rel="noopener">#2394</a>𝗔 <a href="https://swamp-club.com/lab/2483" rel="noopener">lab#2483</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260923-223421-0-sha-901daee6">
@@ -9203,7 +9203,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 203</li><li><strong>feat</strong> — 55</li><li><strong>docs</strong> — 11</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-25T19:01:53.449Z">2026-09-25T19:01:53.449Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-25T20:03:01.505Z">2026-09-25T20:03:01.505Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

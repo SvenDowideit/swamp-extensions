@@ -567,3 +567,45 @@ Deno.test("cache-info reports null entry for an unknown key", async () => {
   }
 });
 
+
+Deno.test("get-many serves a cached URL that follows a fetch which hit the cap", async () => {
+  const dir = await newCacheDir();
+  try {
+    const { context, written } = makeContext(fastGlobals(dir));
+    // Seed the cache for /cached.
+    await withFetch([{ status: 200, body: "cached-body" }], async () => {
+      await model.methods.get.execute(
+        { url: "https://e.com/cached", forceRefresh: false } as {
+          url: string;
+          forceRefresh: boolean;
+        },
+        context,
+      );
+    });
+    const before = written.length;
+    // List: an uncached URL (consumes the single-fetch budget) followed by a
+    // cached URL (needs no network). The cached URL must still be served.
+    await withFetch([{ status: 200, body: "fresh" }], async (calls) => {
+      await model.methods["get-many"].execute({
+        urls: ["https://e.com/new", "https://e.com/cached"],
+        forceRefresh: false,
+        maxFetches: 1,
+      }, context);
+      assertEquals(calls.length, 1); // only the uncached URL hit the network
+    });
+    const resources = written.slice(before).filter((w) =>
+      w.specName === "fetch"
+    );
+    const byKey = Object.fromEntries(resources.map((r) => [r.name, r.data]));
+    const cachedKey = Object.keys(byKey).find((k) => k.includes("cached"))!;
+    assertEquals(byKey[cachedKey].fromCache, true);
+    assertEquals(byKey[cachedKey].body, "cached-body");
+    const batch = written.filter((w) => w.specName === "batch").at(-1)?.data;
+    assertEquals(batch?.fetched, 1);
+    assertEquals(batch?.cached, 1);
+    assertEquals(batch?.remaining, 0);
+    assertEquals(batch?.truncated, false);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});

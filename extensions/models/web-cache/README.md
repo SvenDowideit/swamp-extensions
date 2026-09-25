@@ -21,10 +21,24 @@ instead of re-implementing (and re-hitting) the network.
   `maxRetries`), honouring the origin's `Retry-After` header.
 - **Caps origin fetches per call** — `maxFetches` (or global
   `maxFetchesPerCall`) limits how many *new* network requests a single
-  `get-many`/`get` call makes. Cached hits don't count, so a large backlog
-  drains across runs instead of running forever.
+  `get-many`/`get` call makes. Cached hits don't count against the cap **and are
+  still served once it is reached**, so a large list that is mostly cached drains
+  across runs instead of stalling.
 - **Is inspectable** — `cache-info` reports size, age, freshness, and the stored
   headers; `invalidate` drops one entry, one URL, or everything.
+
+Side effects: it reads and writes a local cache directory (`cacheDir`) and
+writes swamp resources. It makes outbound HTTP GETs only when an entry is
+missing, bypassed, or stale. Nothing is installed on the host.
+
+## Install
+
+```sh
+swamp extension pull @svendowideit/web-cache
+```
+
+No dependencies — it uses Deno's built-in fetch and the bundled deno binary
+that swamp already ships.
 
 ## Sharing the cache
 
@@ -42,9 +56,10 @@ steps:
     task: { type: model_method, modelType: "@svendowideit/wikipedia", modelName: wiki, methodName: get-page, inputs: { title: ... } }
 ```
 
-## Models
+## Details
 
-### @svendowideit/web-cache
+`@svendowideit/web-cache` ships one model type (`@svendowideit/web-cache`) and
+one workflow (`web-cache-fetch`). Its methods:
 
 | Method        | Description |
 | ------------- | ----------- |
@@ -54,11 +69,9 @@ steps:
 | `invalidate`  | Drop one entry, one URL, or the whole cache. |
 | `cache-info`  | Inspect the cache: size, age, freshness, stored headers. |
 
-## Quick start
+## Examples
 
 ```bash
-swamp extension pull @svendowideit/web-cache
-
 # Fetch + cache a URL (raw body):
 swamp model @svendowideit/web-cache method run get cache \
   --input url="https://en.wikipedia.org/w/api.php?action=opensearch&search=Alfred+Bester&limit=5&format=json"
@@ -80,11 +93,14 @@ swamp model @svendowideit/web-cache method run get cache \
   --global-arg maxRetries=2 \
   --input url="https://en.wikipedia.org/w/api.php?action=opensearch&search=Alfred+Bester&limit=5&format=json"
 
-# Inspect the cache:
+# Inspect the cache: size, age, freshness and stored headers.
 swamp model @svendowideit/web-cache method run cache-info cache
 ```
 
-## Global arguments
+## Configuration
+
+The global arguments (all optional):
+
 
 | Key               | Default                | Description |
 | ----------------- | ---------------------- | ----------- |

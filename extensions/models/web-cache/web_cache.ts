@@ -107,8 +107,9 @@ const GetManyArgsSchema = z.object({
     .optional()
     .describe(
       "Cap on the number of origin fetches this call makes (omit = use global " +
-        "maxFetchesPerCall). Cached hits don't count; once the cap is hit, the " +
-        "remaining URLs are left for a later run.",
+        "maxFetchesPerCall). Cached hits don't count against the cap and are " +
+        "still served once it is reached; only URLs that would need a network " +
+        "fetch are left for a later run.",
     ),
 }).extend(FreshnessArgs.shape);
 type GetManyArgs = z.infer<typeof GetManyArgsSchema>;
@@ -331,6 +332,30 @@ async function loadCacheBody(dir: string, key: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Peek a **fresh** cache entry without making a network request.
+ *
+ * Used by `get-many` to decide whether a URL needs an origin fetch before it
+ * consumes the per-call fetch budget: a URL already cached fresh is a cache hit,
+ * not a fetch, so it must never be blocked by the cap.
+ *
+ * @returns The cached body + entry when a fresh entry exists, else null.
+ */
+async function peekFreshCache(
+  ctx: MethodContext,
+  url: string,
+  opts: { maxAgeMs?: number; forceRefresh?: boolean },
+): Promise<{ body: string | null; entry: CacheEntry } | null> {
+  if (opts.forceRefresh) return null;
+  const dir = expandHome(ctx.globalArgs.cacheDir);
+  const key = webCacheKey(url);
+  const maxAgeMs = opts.maxAgeMs ?? ctx.globalArgs.defaultMaxAgeMs;
+  const entry = await loadCacheEntry(dir, key);
+  if (!entry) return null;
+  if (computeFreshnessMs(entry, maxAgeMs) < 0) return null;
+  return { body: await loadCacheBody(dir, key), entry };
 }
 
 /** Persist a response to the cache, returning the entry metadata. */
@@ -589,7 +614,7 @@ async function cachedFetch(
 /** A managed, disk-backed HTTP GET cache with pacing and retry. */
 export const model = {
   type: "@svendowideit/web-cache",
-  version: "2026.09.20.4",
+  version: "2026.09.25.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -610,6 +635,15 @@ export const model = {
       description:
         "get-many now writes a `batch` summary (counts + truncated flag) so a " +
         "capped call honestly reports URLs left for a later run",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description:
+        "Fix: get-many now serves URLs that are already cached fresh even when " +
+        "the per-call fetch cap (maxFetches) is exhausted. Previously the cap " +
+        "was checked before the cache, so cached hits after the cap were " +
+        "needlessly skipped. No schema or argument changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -745,6 +779,29 @@ export const model = {
             continue;
           }
           seen.add(key);
+          // A URL that is already cached fresh costs no origin fetch, so serve
+          // it from cache even when the fetch budget is exhausted — the cap
+          // bounds network requests, not cache reads.
+          const peek = await peekFreshCache(context, url, args);
+          if (peek) {
+            const handle = await context.writeResource(
+              "fetch",
+              key,
+              {
+                url,
+                key,
+                body: peek.body,
+                status: peek.entry.status,
+                headers: peek.entry.headers,
+                fromCache: true,
+                refreshed: false,
+              } satisfies FetchResult,
+            );
+            handles.push(handle);
+            cached += 1;
+            processed += 1;
+            continue;
+          }
           if (fetched >= maxFetches) {
             capped = true;
             break;

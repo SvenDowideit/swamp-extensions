@@ -1,66 +1,78 @@
 manifestVersion: 1
 name: "@svendowideit/web-cache"
-version: "2026.09.20.4"
-description: |
-  A managed, disk-backed HTTP GET cache. Every GET is cached on disk — the raw
-  body plus the full set of response headers (Date, Last-Modified, ETag,
-  Cache-Control, Age, Expires) — under a shared cache directory (default
-  ~/.swamp/web-cache), keyed deterministically by URL.
+version: "2026.09.25.1"
+description: >
+  A managed, disk-backed HTTP GET cache — the single place responses are
+  fetched, cached, paced, and retried, so other models read the cache instead
+  of re-implementing (and re-hitting) the network.
 
-  Repeated calls always prefer the cached copy and avoid external traffic
-  unless the entry is missing, explicitly bypassed (forceRefresh), or stale.
-  Origin requests are paced with a tunable minimum delay (persisted across
-  runs) and HTTP 429s are retried with backoff, so bulk use stays within the
-  origin's acceptable request rate. Each call's origin fetches are capped
-  (maxFetches) so a large backlog drains across runs without running forever.
-  Cache inspection and invalidation are built in, and the cache is shared with
-  other models (e.g. @svendowideit/wikipedia) via the same URL-only key scheme.
+  WHAT IT DOES
 
-  WHAT'S INSIDE
-
-    @svendowideit/web-cache — the caching client:
-      get          Fetch a URL and return the raw body (cached).
-      get-json     Fetch a URL and return the parsed JSON body (cached).
-      get-many     Fetch many URLs in one call (fan-out; deduped; capped).
-      invalidate   Drop one entry, one URL, or the whole cache.
-      cache-info   Report cache size, age, freshness, and stored headers.
+    Turns repeated HTTP GETs into cached reads. Every response is stored on
+    disk — the raw body plus the full set of response headers — keyed
+    deterministically by URL, and a repeated call returns the cached copy
+    without touching the network unless the entry is missing, explicitly
+    bypassed, or stale. Prefer it over ad-hoc `curl` calls in every model: origin
+    requests are paced with a minimum delay persisted across runs, HTTP 429s are
+    retried with backoff, and each call's new fetches are capped, so bulk work
+    stays within the origin's rate limits and a large backlog drains across runs.
+    The cache key depends only on the URL, so any model that knows a URL can
+    share the same cache directory.
 
   INSTALL
 
       swamp extension pull @svendowideit/web-cache
 
+  DEPENDENCIES
+
+    None — it uses Deno's built-in fetch and the bundled deno binary that swamp
+    already ships. No other extension is required, and nothing is installed on
+    the host.
+
   RUN
 
+      # Fetch a URL (raw body) and cache it.
       swamp model @svendowideit/web-cache method run get cache \
         --input url="https://en.wikipedia.org/w/api.php?action=opensearch&search=Alfred+Bester&limit=5&format=json"
 
-      # Fetch many URLs in one call, capping origin fetches at 20:
+      # Fetch many URLs in one call, capping new origin fetches at 20
+      # (cached hits don't count).
       swamp model @svendowideit/web-cache method run get-many cache \
-        --input 'urls:json=["https://en.wikipedia.org/w/api.php?action=opensearch&search=Alfred+Bester&limit=5&format=json","https://en.wikipedia.org/w/api.php?action=opensearch&search=Isaac+Asimov&limit=5&format=json"]' \
+        --input 'urls:json=["https://example.org/a.json","https://example.org/b.json"]' \
         --input maxFetches=20
 
+      # Inspect the cache: size, age, freshness, stored headers.
       swamp model @svendowideit/web-cache method run cache-info cache
 
-  USE WITH @svendowideit/wikipedia (workflow seam)
+  CONFIGURE
 
-      # 1. web-cache fetches + caches the URL
-      # 2. wikipedia reads the cached body and parses the domain content
-      # Both models share the same cacheDir (default ~/.swamp/web-cache).
+    All arguments are optional global arguments (set at model creation with
+    `--global-arg key=value`):
 
-  CONFIGURE (all optional global arguments)
+      cacheDir            Where responses are cached       (default ~/.swamp/web-cache)
+      userAgent           User-Agent header                (default swamp-web-cache/1.0)
+      defaultMaxAgeMs     Freshness window; 0 = always     (default 0)
+                          prefer cache
+      requestDelayMs      Minimum delay between origin     (default 1000)
+                          requests (persisted across runs)
+      retryDelayMs        Wait after a 429 before retry     (default 5000)
+      maxRetries          Retries after a 429               (default 1)
+      maxFetchesPerCall   Cap on origin fetches per call   (default 100)
+      acceptHeader        Accept header sent               (default application/json)
 
-      cacheDir           Where to cache responses      (default ~/.swamp/web-cache)
-      userAgent          User-Agent header              (default swamp-web-cache/1.0)
-      defaultMaxAgeMs    Freshness window; 0 = always   (default 0)
-                         prefer cache
-      requestDelayMs     Minimum delay between origin   (default 1000)
-                         requests (persisted across runs)
-      retryDelayMs       Wait after a 429 before retry  (default 5000)
-      maxRetries         Retries after a 429            (default 1)
-      maxFetchesPerCall  Cap on origin fetches per call (default 100)
-      acceptHeader       Accept header sent             (default application/json)
+    Per-run overrides: `url`, `forceRefresh`, and `maxAgeMs` on `get`/`get-json`;
+    `urls`, `maxFetches`, `forceRefresh` on `get-many`; `url`/`all` on
+    `invalidate`. See the README for the full method and data reference.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, cron triggers, or webhooks. It
+    reads and writes a local cache directory (`cacheDir`) and writes swamp
+    resources.
 
 repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
 
 paths:
   base: manifest

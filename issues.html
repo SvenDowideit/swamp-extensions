@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2510"><span class="tier A">A</span>model output data/logs/search can&#39;t find outputs of user ext</a><a href="#issue-2413"><span class="tier A">A</span>serve: ServerTokenGcService is never started, so expired ser</a><a href="#issue-2422"><span class="tier A">A</span>worker token create via serve always needs --vault: reserved</a><a href="#issue-2502"><span class="tier A">A</span>workflow resume --input key=value does not coerce the value </a><a href="#issue-2496"><span class="tier A">A</span>Direct-execution workflow steps validate evaluated globalArg</a><a href="#issue-2512"><span class="tier A">A</span>serve: --group-refresh-interval warning fires on every non-O</a><a href="#issue-2498"><span class="tier A">A</span>workflow resume of a suspended run crashes mid-run when the </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2537"><span class="tier A">A</span>A forEach step&#39;s dependsOn condition is never evaluated, so </a><a href="#issue-2510"><span class="tier A">A</span>model output data/logs/search can&#39;t find outputs of user ext</a><a href="#issue-2413"><span class="tier A">A</span>serve: ServerTokenGcService is never started, so expired ser</a><a href="#issue-2422"><span class="tier A">A</span>worker token create via serve always needs --vault: reserved</a><a href="#issue-2502"><span class="tier A">A</span>workflow resume --input key=value does not coerce the value </a><a href="#issue-2496"><span class="tier A">A</span>Direct-execution workflow steps validate evaluated globalArg</a><a href="#issue-2512"><span class="tier A">A</span>serve: --group-refresh-interval warning fires on every non-O</a></aside><div>
 
 <article class="item" id="issue-2384">
 <h2><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation principal can clear a manual_approval gate meant for a human</h2>
@@ -108,6 +108,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
+</article>
+<article class="item" id="issue-2537">
+<h2><span class="tier A">A</span>A forEach step&#39;s dependsOn condition is never evaluated, so its iterations run when the condition is false</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-25T18:41:57.668Z">2026-09-25T18:41:57.668Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2537" rel="noopener">lab#2537</a></div>
 </article>
 <article class="item" id="issue-2510">
 <h2><span class="tier A">A</span>model output data/logs/search can&#39;t find outputs of user extension model types locally</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2512" rel="noopener">lab#2512</a></div>
 </article>
-<article class="item" id="issue-2498">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2498">
 <h2><span class="tier A">A</span>workflow resume of a suspended run crashes mid-run when the workflow was edited during the approval window</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-24T22:57:59.218Z">2026-09-24T22:57:59.218Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2498" rel="noopener">lab#2498</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2475">
+<article class="item" id="issue-2475">
 <h2><span class="tier A">A</span>swamp run gc deletes output YAML but orphans every run .log file</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-24T22:57:55.794Z">2026-09-24T22:57:55.794Z</time></span></div>
@@ -1853,13 +1861,13 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
-<article class="item" id="issue-2537">
-<h2><span class="tier B">B</span>A forEach step&#39;s dependsOn condition is never evaluated, so its iterations run when the condition is false</h2>
+<article class="item" id="issue-2336">
+<h2><span class="tier B">B</span>exec: sudo=true only escalates the first ; separated command, later commands run unprivileged and fail silently</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-25T17:54:42.908Z">2026-09-25T17:54:42.908Z</time></span></div>
+<div class="meta"><span><time datetime="2026-09-25T18:32:40.448Z">2026-09-25T18:32:40.448Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2537" rel="noopener">lab#2537</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2336" rel="noopener">lab#2336</a></div>
 </article>
 <article class="item" id="issue-2483">
 <h2><span class="tier B">B</span>managedConfig: fix startup config-base resolution and extension list (prerequisites for swamp-club#2429)</h2>
@@ -1981,7 +1989,71 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2541">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2543">
+<h2><span class="tier C">C</span>After a cancel or --timeout, a never-started dependency stays pending, so failed- and completed-gated cleanup steps are skipped</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-25T18:56:48.671Z">2026-09-25T18:56:48.671Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2543" rel="noopener">lab#2543</a></div>
+</article>
+<article class="item" id="issue-2538">
+<h2><span class="tier C">C</span>workflow run log output: a skipped plain step&#39;s line names only the job, not the step</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-25T18:56:37.895Z">2026-09-25T18:56:37.895Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2538" rel="noopener">lab#2538</a></div>
+</article>
+<article class="item" id="issue-2544">
+<h2><span class="tier C">C</span>Pulled extensions missing from the extension catalog cannot be resolved or auto-repaired, and doctor reports healthy</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-25T18:47:00.553Z">2026-09-25T18:47:00.553Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2544" rel="noopener">lab#2544</a></div>
+</article>
+<article class="item" id="issue-2546">
+<h2><span class="tier C">C</span>verify-reviews depends on an implicitly auto-installed @swamp/git; a broken local install fails the run with an opaque error</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-25T18:45:23.482Z">2026-09-25T18:45:23.482Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2546" rel="noopener">lab#2546</a></div>
+</article>
+<article class="item" id="issue-2545">
+<h2><span class="tier C">C</span>verify-build upgrade gate skips hand-written extensions but reports succeeded</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-25T18:45:20.894Z">2026-09-25T18:45:20.894Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2545" rel="noopener">lab#2545</a></div>
+</article>
+<article class="item" id="issue-2519">
+<h2><span class="tier C">C</span>dashboard System tab shows Port —, TLS disabled, Auth —, Scheduling disabled although serve.config reports them correctly</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-25T18:25:27.742Z">2026-09-25T18:25:27.742Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2519" rel="noopener">lab#2519</a></div>
+</article>
+<article class="item" id="issue-2539">
+<h2><span class="tier C">C</span>Docs: serve token-secrets external key opt-in (swamp-club#2324)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-25T18:24:17.747Z">2026-09-25T18:24:17.747Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2539" rel="noopener">lab#2539</a></div>
+</article>
+<article class="item" id="issue-2533">
+<h2><span class="tier C">C</span>Docs: worker token create --server defaults to the _token-secrets vault, not the sole configured vault</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-25T18:23:48.206Z">2026-09-25T18:23:48.206Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2533" rel="noopener">lab#2533</a></div>
+</article>
+<article class="item" id="issue-2541">
 <h2><span class="tier C">C</span>whoami reports an active trial ending on a collective with a paid Team subscription</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-09-25T17:25:55.709Z">2026-09-25T17:25:55.709Z</time></span></div>
@@ -1996,22 +2068,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2540" rel="noopener">lab#2540</a></div>
-</article>
-<article class="item" id="issue-2539">
-<h2><span class="tier C">C</span>Docs: serve token-secrets external key opt-in (swamp-club#2324)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-25T17:21:27.615Z">2026-09-25T17:21:27.615Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2539" rel="noopener">lab#2539</a></div>
-</article>
-<article class="item" id="issue-2538">
-<h2><span class="tier C">C</span>workflow run log output: a skipped plain step&#39;s line names only the job, not the step</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-25T17:02:23.667Z">2026-09-25T17:02:23.667Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2538" rel="noopener">lab#2538</a></div>
 </article>
 <article class="item" id="issue-2536">
 <h2><span class="tier C">C</span>command/shell: a non-zero exit drops stdout/stderr from the --json result, the result and log data artifacts, and the method-summary report</h2>
@@ -2036,14 +2092,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2534" rel="noopener">lab#2534</a></div>
-</article>
-<article class="item" id="issue-2533">
-<h2><span class="tier C">C</span>Docs: worker token create --server defaults to the _token-secrets vault, not the sole configured vault</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-25T15:17:34.859Z">2026-09-25T15:17:34.859Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2533" rel="noopener">lab#2533</a></div>
 </article>
 <article class="item" id="issue-2524">
 <h2><span class="tier C">C</span>swamp xxx xxxx --json: cursor-visibility ANSI escapes leak to stdout, corrupting JSON output</h2>
@@ -2092,14 +2140,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2520" rel="noopener">lab#2520</a></div>
-</article>
-<article class="item" id="issue-2519">
-<h2><span class="tier C">C</span>dashboard System tab shows Port —, TLS disabled, Auth —, Scheduling disabled although serve.config reports them correctly</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-25T05:04:26.581Z">2026-09-25T05:04:26.581Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2519" rel="noopener">lab#2519</a></div>
 </article>
 <article class="item" id="issue-2518">
 <h2><span class="tier C">C</span>serve: a suspended run with an expired gate from a previous serve instance cannot be cancelled by any path</h2>
@@ -2844,14 +2884,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2344" rel="noopener">lab#2344</a></div>
-</article>
-<article class="item" id="issue-2336">
-<h2><span class="tier C">C</span>exec: sudo=true only escalates the first ; separated command, later commands run unprivileged and fail silently</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-22T15:20:56.193Z">2026-09-22T15:20:56.193Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2336" rel="noopener">lab#2336</a></div>
 </article>
 <article class="item" id="issue-2333">
 <h2><span class="tier C">C</span>gcs-datastore: a failed lock read is reported as &quot;unlocked&quot; — #2298 in the GCS backend</h2>
@@ -3790,13 +3822,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1903" rel="noopener">lab#1903</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>465 items across 1 source(s) in this window:
-5 critical, 218 notable, 16 routine,
-226 minor.</p>
-<ul><li><strong>issues</strong> — 465</li></ul></section>
+<p>469 items across 1 source(s) in this window:
+5 critical, 219 notable, 16 routine,
+229 minor.</p>
+<ul><li><strong>issues</strong> — 469</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-25T18:07:21.640Z">2026-09-25T18:07:21.640Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-25T19:01:53.449Z">2026-09-25T19:01:53.449Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

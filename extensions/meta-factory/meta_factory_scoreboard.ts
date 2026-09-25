@@ -77,6 +77,18 @@ export type ScoreboardScore = {
     message: string;
     path?: string;
   }[];
+  /** Code metrics (complexity, coverage, CRAP), when present. */
+  codeMetrics?: {
+    functions: number;
+    loc: number;
+    averageComplexity: number;
+    maxComplexity: number;
+    coverage: number;
+    coverageAvailable: boolean;
+    crapScore: number;
+    averageCrap: number;
+    maxCrap: number;
+  };
 };
 
 /** A rendered scoreboard row. */
@@ -86,6 +98,14 @@ export type ScoreboardRow = {
   score: number;
   grade: string;
   reasons: string[];
+  /** Functions, when code metrics are available. */
+  functions?: number;
+  /** Average function complexity. */
+  averageComplexity?: number;
+  /** Line coverage fraction 0..1, or undefined when unavailable. */
+  coverage?: number;
+  /** Extension CRAP score (complexity + coverage). */
+  crapScore?: number;
 };
 
 /**
@@ -115,13 +135,22 @@ export function sortScores(scores: ScoreboardScore[]): ScoreboardScore[] {
 
 /** Build the scoreboard rows from every scored extension. */
 export function buildScoreboard(scores: ScoreboardScore[]): ScoreboardRow[] {
-  return sortScores(scores).map((s) => ({
-    name: s.name,
-    manifest: s.manifest,
-    score: s.score,
-    grade: s.grade,
-    reasons: s.score >= 100 ? [] : reasonsFor(s),
-  }));
+  return sortScores(scores).map((s) => {
+    const m = s.codeMetrics;
+    return {
+      name: s.name,
+      manifest: s.manifest,
+      score: s.score,
+      grade: s.grade,
+      reasons: s.score >= 100 ? [] : reasonsFor(s),
+      functions: m?.functions,
+      averageComplexity: m?.averageComplexity,
+      // Preserve "unavailable" as undefined so the table can show n/a rather
+      // than a misleading 0%.
+      coverage: m ? (m.coverageAvailable ? m.coverage : undefined) : undefined,
+      crapScore: m?.crapScore,
+    };
+  });
 }
 
 /** Escape a value for a GitHub-flavoured markdown table cell. */
@@ -132,10 +161,12 @@ function cell(value: string): string {
 /**
  * Render the scoreboard as a markdown text table.
  *
- * A `Score` / `Grade` / `Reason` table lists every extension, lowest score
- * first; the reason column is `—` for a perfect 100. A final section repeats the
- * full reason list for the imperfect extensions, since a table cell cannot hold
- * a long explanation legibly.
+ * A `Score` / `Grade` / code-metrics / `Reason` table lists every extension,
+ * lowest score first; the reason column is `—` for a perfect 100. The
+ * code-metrics columns (functions, average complexity, coverage, CRAP) are
+ * reported for information only and never affect the score. A final section
+ * repeats the full reason list for the imperfect extensions, since a table cell
+ * cannot hold a long explanation legibly.
  */
 export function renderScoreboard(rows: ScoreboardRow[]): string {
   const lines: string[] = [];
@@ -151,14 +182,30 @@ export function renderScoreboard(rows: ScoreboardRow[]): string {
       `**${perfect}** perfect · **${rows.length - perfect}** with reasons`,
   );
   lines.push("");
-  lines.push("| Extension | Score | Grade | Reason not 100 |");
-  lines.push("| --------- | ----- | ----- | -------------- |");
+  lines.push(
+    "| Extension | Score | Grade | Fns | Avg cx | Coverage | CRAP | Reason not 100 |",
+  );
+  lines.push(
+    "| --------- | ----- | ----- | --- | ------ | -------- | ---- | -------------- |",
+  );
   for (const r of rows) {
     const reason = r.reasons.length === 0
       ? "—"
       : `${r.reasons.length} issue(s)`;
+    const fns = r.functions !== undefined ? String(r.functions) : "—";
+    const avgCx = r.averageComplexity !== undefined
+      ? r.averageComplexity.toFixed(2)
+      : "—";
+    const cov = r.coverage !== undefined
+      ? `${(r.coverage * 100).toFixed(0)}%`
+      : "n/a";
+    const crap = r.crapScore !== undefined ? r.crapScore.toFixed(2) : "—";
     lines.push(
-      `| ${cell(r.name)} | ${r.score}/100 | ${r.grade} | ${cell(reason)} |`,
+      `| ${
+        cell(r.name)
+      } | ${r.score}/100 | ${r.grade} | ${fns} | ${avgCx} | ${cov} | ${crap} | ${
+        cell(reason)
+      } |`,
     );
   }
 

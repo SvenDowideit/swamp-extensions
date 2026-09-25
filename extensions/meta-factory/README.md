@@ -48,13 +48,22 @@ extension `0–100`).
   and
   dependency trust.
 
+Separately from the 0-100 documentation score, it also reports **code metrics**
+for every extension — a **CRAP score** (the Change Risk Anti-Patterns metric:
+complexity squared against coverage) together with the inputs it is derived
+from: per-function cyclomatic complexity, source lines, and test coverage. These
+are shown in the score card, the `checkAll` rollup, and the scoreboard table.
+They are **reported for information only and never affect the score** — no
+threshold, no rule; the point is to see where the code sits.
+
 Every result is written as swamp data, rendered as a readable report, and the
 bundled skill teaches agents to apply the same rules while writing an extension.
 
-Side effects: it runs `swamp extension quality` (network) and `deno doc`
-locally, reads extension files, and writes `score`/`summary` resources. It never
-modifies the extensions it scores, except `scaffold`, which writes a README
-skeleton on request.
+Side effects: it runs `swamp extension quality` (network), `deno doc` locally,
+and — when an extension has colocated `*_test.ts` files — `deno test
+--coverage` to measure them, reads extension files, and writes `score`/`summary`
+resources. It never modifies the extensions it scores, except `scaffold`, which
+writes a README skeleton on request.
 
 ## Install
 
@@ -171,9 +180,11 @@ and the `extension-docs` skill. Every method:
 Resources:
 
 - `score` — the full score card for one extension: total, grade, the checks,
-  per-method coverage, manifest/README/definition lint issues, and next actions.
-- `rollup` — the summary written by `checkAll`: counts, average score, and every
-  extension below the threshold with its top issues.
+  per-method coverage, manifest/README/definition lint issues, next actions, and
+  the `codeMetrics` block.
+- `rollup` — the summary written by `checkAll`: counts, average score, every
+  extension below the threshold with its top issues, and per-extension
+  `codeMetrics`.
 - `definitions` — the standalone creation-command lint written by
   `lintDefinitions`: every config found, its kind, expected creation command,
   its audit-confirmation status, and the issues with their severity.
@@ -206,6 +217,48 @@ the rubric's slow-type codes so JSDoc warnings are not double-counted), and
 dependency trust (3). Grades: A ≥ 90, B ≥ 75, C ≥ 60, D ≥ 40, else F. The full
 breakdown is in the bundled skill's `references/rubric.md`.
 
+### Code metrics (CRAP)
+
+Independent of the documentation score, every `score`/`summary` resource and the
+scoreboard table carry a `codeMetrics` block. It answers "where does the code
+sit?" — complexity, size, coverage, and the CRAP score that combines the first
+and third — with **no thresholds or rules**; nothing here changes the 0-100
+documentation grade.
+
+| Metric | Meaning |
+| ------ | ------- |
+| `functions` | Functions analysed across the extension's source (test files excluded). |
+| `loc` | Total source lines in those files. |
+| `averageComplexity` / `maxComplexity` | Mean and peak cyclomatic complexity per function. |
+| `coverage` / `functionCoverage` | Line coverage (across analysed functions) and the fraction of functions with any coverage. |
+| `crapScore` | Extension-level CRAP: `avgComplexity² × (1 − coverage)³ + avgComplexity`. |
+| `averageCrap` / `maxCrap` | Mean and worst per-function CRAP. |
+| `worstFunctions` | The highest-CRAP functions, with line, complexity, and coverage. |
+| `coverageAvailable` | False when the extension has no colocated `*_test.ts`, so coverage and CRAP assume 0% (shown as `n/a`). |
+
+How it is measured:
+
+- **Complexity** — each `.ts` file is parsed with `@babel/parser` (maintained
+  TypeScript/JSX parser), decision points (ifs, loops, `case`, `catch`,
+  ternaries, `&&`/`||`/`??`) are counted per function, and nested functions are
+  excluded from their parent's count. `*_test.ts` files are not measured.
+- **Coverage** — the colocated `*_test.ts` files are run under `deno test
+  --coverage`, and the lcov report Deno writes is read for the executed lines
+  inside each function's span. This is best-effort: if the tests fail to run or
+  there are none, complexity is still reported and coverage is marked
+  unavailable.
+- **CRAP** — `comp² × (1 − coverage)³ + comp` per function; a complex, untested
+  function scores worst, a simple or well-covered one stays low. The metric and
+  formula are from Alberto Savoia and Bob Evans' *Change Risk Analysis and
+  Prediction* (2007), the paper that introduced crap4j:
+  <https://www.artima.com/weblogs/viewpost.jsp?thread=215899>. The canonical
+  formula is `comp² × (1 − cov/100)³ + comp`; here coverage is carried as a 0..1
+  fraction, so the division by 100 is folded into the fraction.
+
+Because the `checkAll`/scoreboard path runs each extension's tests, a full-repo
+scoreboard run takes longer than a docs-only pass. `checkAll` accepts the
+code-metrics work as part of a normal run; nothing needs to be enabled.
+
 ### Extending this extension
 
 The codebase splits cleanly so a new rule or metric can be added without
@@ -217,6 +270,7 @@ touching orchestration:
 | `readme-lint.ts` | README structural lint (canonical sections, heading levels, config table, code blocks). |
 | `manifest-lint.ts` | Manifest structural lint (required fields, CalVer, manual coverage, artifact existence). |
 | `definitions-lint.ts` | Creation-command lint: classifies each model/workflow/vault config, checks its `id` is generated, valid, and unique, and cross-references the `swamp audit` timeline (`parseCreationCommands`) to flag a recent definition no create command confirms. Pure per-source; `lintDefinitions` only walks the filesystem. |
+| `code-metrics.ts` | Code-quality metrics: `analyzeComplexity` (`@babel/parser`-based cyclomatic complexity + LOC per function), `parseLcov` (coverage from `deno test --coverage`), `computeCrap`, and `aggregateMetrics`. Pure; filesystem/subprocess work lives in `meta_factory.ts`. Reported only — never scored. |
 | `introspect.ts` | Filesystem discovery of manifests, model types, and method keys, plus `manifestsFromGitList` (parses `git ls-files` output into manifest entries). |
 | `meta_factory.ts` | Orchestration only: subprocesses (`swamp`, `deno`, `git`), data writes, skill install. The subprocess runner (`run`) takes a bounded timeout and is injectable via `_run` for tests. |
 | `meta_factory_report.ts` | Markdown/JSON rendering of the score, rollup, and definitions lint. |

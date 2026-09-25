@@ -233,11 +233,17 @@ Deno.test("model has an upgrade entry for its current version", () => {
   const upgrades = model.upgrades ?? [];
   const entry = upgrades.find((u) => u.toVersion === model.version);
   assertEquals(entry !== undefined, true);
-  // The upgrade seeds the two globals added in this version with their defaults.
+});
+
+Deno.test("the definitionsRoot/auditHours upgrade seeds the new globals", () => {
+  const upgrades = model.upgrades ?? [];
+  const entry = upgrades.find((u) => u.toVersion === "2026.09.23.1");
+  assertEquals(entry !== undefined, true);
+  // That upgrade seeds the two globals it introduced with their defaults, and
+  // must not clobber an existing value.
   const migrated = entry!.upgradeAttributes({ root: "extensions" });
   assertEquals(migrated.definitionsRoot, ".");
   assertEquals(migrated.auditHours, 168);
-  // It must not clobber an existing value.
   const kept = entry!.upgradeAttributes({
     definitionsRoot: "src",
     auditHours: 5,

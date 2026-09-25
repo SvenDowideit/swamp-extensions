@@ -82,9 +82,19 @@ Deno.test("renderScoreboard produces a table with a reason column", () => {
     }),
   ]);
   const md = renderScoreboard(rows);
-  assertStringIncludes(md, "| Extension | Score | Grade | Reason not 100 |");
-  assertStringIncludes(md, "| @me/bad | 55/100 | D | 1 issue(s) |");
-  assertStringIncludes(md, "| @me/perfect | 100/100 | A | — |");
+  assertStringIncludes(
+    md,
+    "| Extension | Score | Grade | Fns | Avg cx | Coverage | CRAP | Reason not 100 |",
+  );
+  // No code metrics on these fixtures: the metric cells fall back to placeholders.
+  assertStringIncludes(
+    md,
+    "| @me/bad | 55/100 | D | — | — | n/a | — | 1 issue(s) |",
+  );
+  assertStringIncludes(
+    md,
+    "| @me/perfect | 100/100 | A | — | — | n/a | — | — |",
+  );
   assertStringIncludes(md, "## Reasons");
   assertStringIncludes(md, "install: no `swamp extension pull` command found");
 });
@@ -108,4 +118,30 @@ Deno.test("renderScoreboard escapes pipes in names and notes", () => {
   ]));
   // The rendered table row must not contain a raw unescaped pipe in the cell.
   assertStringIncludes(md, "@me/a\\|b");
+});
+
+Deno.test("renderScoreboard shows code metrics when present", () => {
+  const rows = buildScoreboard([
+    score({
+      name: "@me/code",
+      score: 100,
+      grade: "A",
+      codeMetrics: {
+        functions: 42,
+        loc: 1200,
+        averageComplexity: 3.25,
+        maxComplexity: 17,
+        coverage: 0.875,
+        coverageAvailable: true,
+        crapScore: 3.25,
+        averageCrap: 4.1,
+        maxCrap: 22,
+      },
+    }),
+  ]);
+  const md = renderScoreboard(rows);
+  assertStringIncludes(
+    md,
+    "| @me/code | 100/100 | A | 42 | 3.25 | 88% | 3.25 | — |",
+  );
 });

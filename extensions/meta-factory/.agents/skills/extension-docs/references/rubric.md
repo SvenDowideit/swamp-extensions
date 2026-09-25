@@ -266,6 +266,22 @@ gates; it is a read-only report. Its reasons come from each score card's
 swamp workflow run @svendowideit/meta-factory-scoreboard
 ```
 
+## Code metrics (CRAP) — reported, not scored
+
+Every score card and the scoreboard table also carry a `codeMetrics` block,
+computed by `code-metrics.ts`. It is deliberately **outside** the 0-100 score —
+no threshold, no rule — and exists only to show where the code sits:
+
+- **complexity** — `@babel/parser`-parsed cyclomatic complexity per function
+  (test files excluded), plus LOC.
+- **coverage** — from running the colocated `*_test.ts` under `deno test
+  --coverage` and reading the lcov report; `n/a` when there are no tests.
+- **CRAP** — `comp² × (1 − coverage)³ + comp`, per function and for the
+  extension as a whole. The highest-CRAP functions are both complex and
+  untested, so they are the best candidates for tests or refactoring. The metric
+  and formula are from Savoia & Evans (2007), the crap4j paper:
+  <https://www.artima.com/weblogs/viewpost.jsp?thread=215899>.
+
 ## Relationship to the Swamp Club rubric
 
 The published Swamp Club rubric (README, code example, rich README, symbols,

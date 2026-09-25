@@ -40,6 +40,14 @@ import {
 import { lintManifest } from "./manifest-lint.ts";
 import { lintReadme } from "./readme-lint.ts";
 import {
+  aggregateMetrics,
+  analyzeComplexity,
+  type CodeMetrics,
+  type FileMetric,
+  joinFileCoverage,
+  parseLcov,
+} from "./code-metrics.ts";
+import {
   type AuditEntry,
   type AuditEvidence,
   type CreationCommand,
@@ -159,6 +167,55 @@ const ExampleSchema = z.object({
   explained: z.boolean(),
 });
 
+/** Code metrics for one function (complexity + coverage + CRAP). */
+const FunctionMetricSchema = z.object({
+  name: z.string(),
+  line: z.number(),
+  endLine: z.number(),
+  complexity: z.number(),
+  loc: z.number(),
+  coverage: z.number(),
+  uncovered: z.boolean(),
+  crap: z.number(),
+});
+
+/** Per-file code metrics. */
+const FileMetricSchema = z.object({
+  file: z.string(),
+  functions: z.array(FunctionMetricSchema),
+  loc: z.number(),
+  totalComplexity: z.number(),
+  maxComplexity: z.number(),
+  averageComplexity: z.number(),
+  coverage: z.number(),
+  maxCrap: z.number(),
+  averageCrap: z.number(),
+});
+
+/**
+ * Resource schema for the code metrics block.
+ *
+ * Deliberately not part of the 0-100 documentation score: it reports where the
+ * code sits (complexity, coverage, and the CRAP score that combines them)
+ * without gating on any threshold.
+ */
+const CodeMetricsSchema = z.object({
+  files: z.number(),
+  loc: z.number(),
+  functions: z.number(),
+  totalComplexity: z.number(),
+  maxComplexity: z.number(),
+  averageComplexity: z.number(),
+  coverage: z.number(),
+  functionCoverage: z.number(),
+  maxCrap: z.number(),
+  averageCrap: z.number(),
+  crapScore: z.number(),
+  coverageAvailable: z.boolean(),
+  byFile: z.array(FileMetricSchema),
+  worstFunctions: z.array(FunctionMetricSchema),
+});
+
 /** Resource schema for one extension's documentation score card. */
 const ScoreSchema = z.object({
   name: z.string(),
@@ -189,6 +246,8 @@ const ScoreSchema = z.object({
     message: z.string(),
     path: z.string().optional(),
   })).default([]),
+  /** Code metrics (complexity, coverage, CRAP) — reported, never scored. */
+  codeMetrics: CodeMetricsSchema,
   checkedAt: z.string(),
 });
 
@@ -211,6 +270,8 @@ const SummarySchema = z.object({
     manifest: z.string(),
     score: z.number(),
     grade: z.string(),
+    /** Code metrics for this extension (complexity/coverage/CRAP). */
+    codeMetrics: CodeMetricsSchema,
   })),
   checkedAt: z.string(),
 });
@@ -463,6 +524,146 @@ async function discoverEntries(
   return await discoverManifests(root);
 }
 
+/**
+ * Compute code metrics (complexity, coverage, CRAP) for an extension.
+ *
+ * Complexity is parsed from the declared TypeScript entrypoints with
+ * `code-metrics.ts`. Coverage is obtained by running the extension's colocated
+ * `*_test.ts` files under `deno test --coverage`, then reading the lcov report
+ * Deno writes. Coverage is best-effort: when an extension has no colocated
+ * tests, or the tests fail, complexity is still reported and coverage is marked
+ * unavailable, so a metrics report never fails a run.
+ *
+ * @param deps Resolved subprocess deps (deno path, injected runner).
+ * @param manifest Parsed manifest.
+ * @param manifestDir Absolute extension directory.
+ */
+async function collectCodeMetrics(
+  deps: ScoreDeps,
+  manifest: Manifest,
+  manifestDir: string,
+): Promise<CodeMetrics> {
+  const runCmd = deps.run ?? run;
+  const entrypoints: string[] = [];
+  for (
+    const file of [
+      ...(manifest.models ?? []),
+      ...(manifest.vaults ?? []),
+      ...(manifest.reports ?? []),
+      ...(manifest.datastores ?? []),
+    ]
+  ) {
+    if (extname(file) === ".ts") entrypoints.push(join(manifestDir, file));
+  }
+  if (entrypoints.length === 0) {
+    return aggregateMetrics([]);
+  }
+
+  // --- Complexity: parse every .ts file reachable from the entrypoints. -----
+  const sources = new Map<string, string>();
+  async function walk(dir: string): Promise<void> {
+    let entries: Deno.DirEntry[];
+    try {
+      entries = [];
+      for await (const e of Deno.readDir(dir)) entries.push(e);
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const full = join(dir, e.name);
+      if (e.isDirectory) {
+        if (e.name === "node_modules" || e.name.startsWith(".")) continue;
+        await walk(full);
+      } else if (e.isFile && e.name.endsWith(".ts")) {
+        try {
+          sources.set(full, await Deno.readTextFile(full));
+        } catch {
+          // unreadable — skip
+        }
+      }
+    }
+  }
+  await walk(manifestDir);
+
+  // --- Coverage: run colocated tests if any exist. -------------------------
+  const testFiles = [...sources.keys()].filter((f) => /_test\.ts$/.test(f));
+  let lcov = "";
+  let coverageAvailable = false;
+  if (testFiles.length > 0) {
+    const coverageDir = await Deno.makeTempDir({ prefix: "meta-factory-cov-" });
+    try {
+      await runCmd(
+        deps.denoPath,
+        [
+          "test",
+          `--coverage=${coverageDir}`,
+          "--allow-read",
+          "--allow-write",
+          "--allow-env",
+          "--allow-run",
+          "--allow-net",
+          "--allow-ffi",
+          ...testFiles,
+        ],
+        manifestDir,
+      );
+      // `deno coverage --lcov` prints an lcov report to stdout.
+      const report = await runCmd(
+        deps.denoPath,
+        ["coverage", coverageDir, "--lcov"],
+        manifestDir,
+      );
+      if (report.stdout.trim()) {
+        lcov = report.stdout;
+        coverageAvailable = true;
+      }
+    } finally {
+      await Deno.remove(coverageDir, { recursive: true }).catch(() => {});
+    }
+  }
+
+  const coverageByFile = coverageAvailable ? parseLcov(lcov) : new Map();
+
+  // --- Join complexity + coverage per file. --------------------------------
+  const byFile: FileMetric[] = [];
+  for (const [file, source] of sources) {
+    // Metrics describe production code; the colocated `*_test.ts` files are
+    // instrumentation for coverage, not measured. Counting them would inflate
+    // the function total and mark every test callback "uncovered".
+    if (/_test\.ts$/.test(file)) continue;
+    const functions = analyzeComplexity(source, file);
+    if (functions.length === 0) continue;
+    const relative = relativeTo(manifestDir, file);
+    const cov = coverageByFile.get(file) ?? coverageByFile.get(resolve(file));
+    const joined = joinFileCoverage(functions, cov);
+    const complexities = joined.map((f) => f.complexity);
+    const totalComplexity = complexities.reduce((s, c) => s + c, 0);
+    const withCov = joined.filter((f) => !f.uncovered);
+    const covMean = withCov.length > 0
+      ? withCov.reduce((s, f) => s + f.coverage, 0) / withCov.length
+      : 0;
+    const craps = joined.map((f) => f.crap);
+    byFile.push({
+      file: relative,
+      functions: joined,
+      loc: source.split("\n").length,
+      totalComplexity,
+      maxComplexity: complexities.reduce((m, c) => Math.max(m, c), 0),
+      averageComplexity: joined.length > 0
+        ? totalComplexity / joined.length
+        : 0,
+      coverage: covMean,
+      maxCrap: craps.reduce((m, c) => Math.max(m, c), 0),
+      averageCrap: craps.length > 0
+        ? craps.reduce((s, c) => s + c, 0) / craps.length
+        : 0,
+    });
+  }
+
+  const aggregated = aggregateMetrics(byFile);
+  return { ...aggregated, coverageAvailable };
+}
+
 // ---------------------------------------------------------------------------
 // Core scoring
 // ---------------------------------------------------------------------------
@@ -561,15 +762,19 @@ function scoreInstanceName(repoDir: string, manifestPath: string): string {
  * this in one place guarantees the written object matches the schema exactly.
  */
 function scoreResource(
-  result: ScoreResult & { lint: { manifest: unknown; readme: unknown } },
+  result: ScoreResult & {
+    lint: { manifest: unknown; readme: unknown };
+    codeMetrics: CodeMetrics;
+  },
   wellDocumented: boolean,
 ): Record<string, unknown> {
-  const { lint, ...rest } = result;
+  const { lint, codeMetrics, ...rest } = result;
   return {
     ...rest,
     wellDocumented,
     manifestLint: lint.manifest,
     readmeLint: lint.readme,
+    codeMetrics,
     checkedAt: new Date().toISOString(),
   };
 }
@@ -741,7 +946,12 @@ async function runQualityAudit(
 async function scoreManifest(
   manifestPath: string,
   deps: ScoreDeps,
-): Promise<ScoreResult & { lint: { manifest: unknown; readme: unknown } }> {
+): Promise<
+  ScoreResult & {
+    lint: { manifest: unknown; readme: unknown };
+    codeMetrics: CodeMetrics;
+  }
+> {
   const path = manifestPath;
   const manifestDir = dirname(path);
   const text = await Deno.readTextFile(path);
@@ -762,6 +972,7 @@ async function scoreManifest(
   const { docJson, lintStdout } = await runDenoDoc(deps, manifest, manifestDir);
   const audit = await runQualityAudit(deps, path);
   const definitionIssues = await definitionIssuesFor(deps, manifestDir);
+  const codeMetrics = await collectCodeMetrics(deps, manifest, manifestDir);
 
   const result = scoreExtension({
     manifest,
@@ -808,6 +1019,7 @@ async function scoreManifest(
       manifest: manifestLint.issues,
       readme: readmeLint.issues,
     },
+    codeMetrics,
   };
 }
 
@@ -832,7 +1044,7 @@ type ExecContext = {
 /** Model definition for the extension documentation meta-factory. */
 export const model = {
   type: "@svendowideit/meta-factory",
-  version: "2026.09.23.1",
+  version: "2026.09.25.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -844,6 +1056,12 @@ export const model = {
         definitionsRoot: old.definitionsRoot ?? ".",
         auditHours: old.auditHours ?? 168,
       }),
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description:
+        "Add code metrics (complexity, coverage, CRAP) to every score and the summary rollup. These are reported in the score card, the rollup, and the scoreboard table; they do NOT affect the 0-100 documentation score. No schema or argument change — only new fields on the written resources.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   resources: {
@@ -951,6 +1169,7 @@ export const model = {
           score: number;
           grade: string;
           topIssues: string[];
+          codeMetrics: CodeMetrics;
         }> = [];
 
         for (const entry of entries) {
@@ -968,6 +1187,7 @@ export const model = {
             score: result.score,
             grade: result.grade,
             topIssues: result.nextActions.slice(0, 3),
+            codeMetrics: result.codeMetrics,
           });
           context.logger?.info("{name}: {score}/100 ({grade})", {
             name: result.name,
@@ -1004,6 +1224,7 @@ export const model = {
                 manifest: s.manifest,
                 score: s.score,
                 grade: s.grade,
+                codeMetrics: s.codeMetrics,
               })),
               checkedAt: new Date().toISOString(),
             },

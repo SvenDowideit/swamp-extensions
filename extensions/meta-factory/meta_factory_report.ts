@@ -40,6 +40,49 @@ export type Check = {
   status: string;
   note?: string;
 };
+/** One function's code metrics, as stored in a `score` resource. */
+export type FunctionMetricData = {
+  name: string;
+  line: number;
+  endLine: number;
+  complexity: number;
+  loc: number;
+  coverage: number;
+  uncovered: boolean;
+  crap: number;
+};
+
+/** Per-file code metrics. */
+export type FileMetricData = {
+  file: string;
+  functions: FunctionMetricData[];
+  loc: number;
+  totalComplexity: number;
+  maxComplexity: number;
+  averageComplexity: number;
+  coverage: number;
+  maxCrap: number;
+  averageCrap: number;
+};
+
+/** Code metrics block (complexity, coverage, CRAP). */
+export type CodeMetricsData = {
+  files: number;
+  loc: number;
+  functions: number;
+  totalComplexity: number;
+  maxComplexity: number;
+  averageComplexity: number;
+  coverage: number;
+  functionCoverage: number;
+  maxCrap: number;
+  averageCrap: number;
+  crapScore: number;
+  coverageAvailable: boolean;
+  byFile: FileMetricData[];
+  worstFunctions: FunctionMetricData[];
+};
+
 /** Shape of the `score` resource this report renders. */
 export type ScoreData = {
   name: string;
@@ -66,6 +109,7 @@ export type ScoreData = {
     message: string;
     path?: string;
   }[];
+  codeMetrics?: CodeMetricsData;
 };
 /** Shape of the `rollup` summary resource this report renders. */
 export type SummaryData = {
@@ -81,7 +125,13 @@ export type SummaryData = {
     score: number;
     topIssues: string[];
   }[];
-  scores: { name: string; manifest: string; score: number; grade: string }[];
+  scores: {
+    name: string;
+    manifest: string;
+    score: number;
+    grade: string;
+    codeMetrics?: CodeMetricsData;
+  }[];
 };
 
 /** Shape of the `definitions` resource this report renders. */
@@ -265,7 +315,73 @@ export function renderScore(s: ScoreData): string {
     lines.push("");
     for (const a of s.nextActions) lines.push(`- ${a}`);
   }
+
+  if (s.codeMetrics) {
+    lines.push("");
+    lines.push(...renderCodeMetrics(s.codeMetrics));
+  }
   return lines.join("\n");
+}
+
+/**
+ * Render the code-metrics block: a summary line, a per-file table, and the
+ * worst functions by CRAP score. Reported for information only — none of it
+ * feeds the documentation score.
+ */
+export function renderCodeMetrics(m: CodeMetricsData): string[] {
+  const lines: string[] = [];
+  lines.push("## Code metrics");
+  lines.push("");
+  lines.push(
+    `**${m.functions}** function(s) across **${m.files}** file(s), **${m.loc}** ` +
+      `LOCs · avg complexity **${m.averageComplexity.toFixed(2)}** ` +
+      `(max **${m.maxComplexity}**) · coverage **${
+        m.coverageAvailable ? `${(m.coverage * 100).toFixed(1)}%` : "n/a"
+      }** · **CRAP ${m.crapScore.toFixed(2)}** (avg **${
+        m.averageCrap.toFixed(2)
+      }**, max **${m.maxCrap.toFixed(1)}**)`,
+  );
+  if (!m.coverageAvailable) {
+    lines.push("");
+    lines.push(
+      "_No coverage report — the extension has no colocated `*_test.ts` files, " +
+        "so the CRAP scores assume 0% coverage._",
+    );
+  }
+  if (m.byFile.length > 0) {
+    lines.push("");
+    lines.push(
+      "| File | Functions | LOC | Avg complexity | Max | Coverage | CRAP |",
+    );
+    lines.push(
+      "| ---- | --------- | --- | -------------- | --- | -------- | ---- |",
+    );
+    for (const f of m.byFile) {
+      lines.push(
+        `| \`${f.file}\` | ${f.functions.length} | ${f.loc} | ${
+          f.averageComplexity.toFixed(2)
+        } | ${f.maxComplexity} | ${
+          m.coverageAvailable ? `${(f.coverage * 100).toFixed(0)}%` : "n/a"
+        } | ${f.averageCrap.toFixed(2)} |`,
+      );
+    }
+  }
+  const worst = (m.worstFunctions ?? []).filter((f) => f.crap > 0).slice(0, 8);
+  if (worst.length > 0) {
+    lines.push("");
+    lines.push("### Highest CRAP");
+    lines.push("");
+    lines.push("| Function | Line | Complexity | Coverage | CRAP |");
+    lines.push("| -------- | ---- | ---------- | -------- | ---- |");
+    for (const f of worst) {
+      lines.push(
+        `| \`${f.name}\` | ${f.line} | ${f.complexity} | ${
+          (f.coverage * 100).toFixed(0)
+        }% | ${f.crap.toFixed(1)} |`,
+      );
+    }
+  }
+  return lines;
 }
 
 /** Render the multi-extension rollup. */
@@ -279,12 +395,23 @@ export function renderSummary(s: SummaryData): string {
       `**${s.failCount}** below`,
   );
   lines.push("");
-  lines.push("| Extension | Score | Grade | Manifest |");
-  lines.push("| --------- | ----- | ----- | -------- |");
+  lines.push(
+    "| Extension | Score | Grade | Functions | Avg complexity | Coverage | CRAP | Manifest |",
+  );
+  lines.push(
+    "| --------- | ----- | ----- | --------- | -------------- | -------- | ---- | -------- |",
+  );
   const sorted = [...s.scores].sort((a, b) => a.score - b.score);
   for (const row of sorted) {
+    const m = row.codeMetrics;
+    const functions = m ? String(m.functions) : "—";
+    const avgCx = m ? m.averageComplexity.toFixed(2) : "—";
+    const cov = m
+      ? (m.coverageAvailable ? `${(m.coverage * 100).toFixed(0)}%` : "n/a")
+      : "—";
+    const crap = m ? m.crapScore.toFixed(2) : "—";
     lines.push(
-      `| ${row.name} | ${row.score}/100 | ${row.grade} | \`${row.manifest}\` |`,
+      `| ${row.name} | ${row.score}/100 | ${row.grade} | ${functions} | ${avgCx} | ${cov} | ${crap} | \`${row.manifest}\` |`,
     );
   }
   if (s.belowThreshold.length > 0) {

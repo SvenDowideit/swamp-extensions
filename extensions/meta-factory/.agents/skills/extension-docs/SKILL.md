@@ -220,6 +220,29 @@ detail in [references/rubric.md](references/rubric.md); the weights:
 Maximum 100. `≥90` A, `≥75` B, `≥60` C, `≥40` D, else F. The default
 "well documented" threshold is 75.
 
+## Code metrics (reported, not scored)
+
+Alongside the 0-100 documentation score, the meta-factory reports **code
+metrics** for every extension: a **CRAP score** plus its inputs — per-function
+cyclomatic complexity, LOC, and test coverage. They appear in the score card,
+the `checkAll` rollup, and the scoreboard table, and **never change the score**:
+there is no threshold or rule, only a view of where the code sits.
+
+- **Complexity** is parsed per function from the extension's `.ts` files (test
+  files excluded) by counting branches. Keep functions small — a complexity of
+  1–5 is easy to test; anything above ~10 is worth splitting.
+- **Coverage** comes from running the colocated `*_test.ts` files under `deno
+  test --coverage`; if there are none (or they fail), coverage is `n/a` and CRAP
+  assumes 0%.
+- **CRAP** is `comp² × (1 − coverage)³ + comp`. Because it multiplies
+  complexity by untested-ness, the highest-CRAP functions are the ones that are
+  both complex **and** untested — a good shortlist for where to add tests or
+  refactor next. The metric and formula are from Savoia & Evans (2007), the
+  crap4j paper: <https://www.artima.com/weblogs/viewpost.jsp?thread=215899>.
+
+Nothing here is a publish gate. It is a diagnostic to run when you want to see
+the code, not a score to chase.
+
 ## Use the swamp creation command for every definition
 
 A swamp **definition** — a model, workflow, or vault config YAML — must be

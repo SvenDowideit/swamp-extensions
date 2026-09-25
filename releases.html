@@ -277,7 +277,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Retention rule</strong> (<code>src/domain/models/worker/bookkeeping_retention.ts</code>, pure): a record is reapable once it is in a terminal state — lease <code>completed</code>/<code>failed</code>/<code>expired</code>, dispatch <code>dispatched</code>/<code>timed_out</code>/<code>cancelled</code>/<code>orphaned</code> — and its <code>endedAt</code> is at least the grace period (24h) old. Active leases and waiting dispatches are never reapable. The terminal-state sets are now exported from the model files as the single source of truth.</li>
 <li><strong>Sync-safe reaper</strong> (<code>src/serve/bookkeeping_gc.ts</code>): lists candidates through a catalog <code>select</code> projection scoped to the repo&#39;s own namespace (reads no bodies), reads each body separately so one unreadable record cannot stall the sweep, and deletes in batches of 100. Each batch deletes and then pushes as one exclusive sync-gate unit, so a poller pull cannot land between a delete and its</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260924.222954.0-sha.46683dc8" rel="noopener">release v20260924.222954.0-sha.46683dc8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/46683dc8129c2f9a56d39e0e92b93f0d4659b68d" rel="noopener">46683dc8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2620" rel="noopener">#2620</a>𝗔 <a href="https://swamp-club.com/lab/2262" rel="noopener">lab#2262</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260924-221045-0-sha-f08948c0">
@@ -380,7 +380,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Checks load failures.</strong> The intact <code>InstallationInspection</code> now carries <code>installedVersion</code> (from the lockfile) and <code>loadFailures</code>. <code>loadFailures</code> is true when a source under the extension&#39;s pulled directory is <code>BundleBuildFailed</code>, <code>ValidationFailed</code> or <code>EntryPointUnreadable</code>, matched by canonical path prefix with a trailing <code>/</code> and a <code>startsWith</code> re-check against SQL <code>LIKE</code> wildcards.</li>
 <li><strong>Adds a &quot;does not provide&quot; message.</strong> With no load failures, the resolver emits a new <code>installedWithoutType</code> event: <code>@x/pkg@&lt;installed&gt; is installed but does not provide &lt;type&gt;</code>. When the registry has a newer CalVer version, it adds that the newer version *may* provide it, via <code>swamp extension update &lt;pkg&gt;</code>. JSON mode reports <code>reason: &quot;type_not_provided&quot;</code> with `in</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260924.214407.0-sha.3c29ee42" rel="noopener">release v20260924.214407.0-sha.3c29ee42</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3c29ee425fe78cc9261792c8bc61398b7121fa02" rel="noopener">3c29ee42</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2616" rel="noopener">#2616</a>𝗔 <a href="https://swamp-club.com/lab/2476" rel="noopener">lab#2476</a></div>
 </article>
 <section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260924-214047-0-sha-bdd3a392">
@@ -858,7 +858,7 @@ footer .ver{color:var(--acc)}
 <li>serve <code>--heartbeat-interval</code>, <code>--reconciliation-interval</code> (limit minus its</li>
 </ul>
 <p>  500 ms jitter), <code>--group-refresh-interval</code>, `--hydr</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.225208.0-sha.063bd925" rel="noopener">release v20260923.225208.0-sha.063bd925</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/063bd92575cf57e644758d8fb09a4610b4bae29d" rel="noopener">063bd925</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2597" rel="noopener">#2597</a>𝗔 <a href="https://swamp-club.com/lab/2446" rel="noopener">lab#2446</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260923-224808-0-sha-65204770">
@@ -8987,7 +8987,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 195</li><li><strong>feat</strong> — 55</li><li><strong>docs</strong> — 11</li><li><strong>perf</strong> — 2</li><li><strong>refactor</strong> — 1</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-25T16:02:57.129Z">2026-09-25T16:02:57.129Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-25T17:02:58.286Z">2026-09-25T17:02:58.286Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

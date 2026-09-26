@@ -67,8 +67,48 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html" class="active">Changes</a><a href="releases.html">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-26fe2956d01edd7269dc85bb5ac5c71834543fe2"><span class="tier A">A</span>resolve the managed config base at startup (swamp-club#2483)</a><a href="#commit-swamp-club-swamp-extensions-db3b5915d2a02aa8466f5dc95a8fc6fcedfcdb76"><span class="tier A">A</span>pre-PR verification loop with attestation, replacing build C</a><a href="#commit-swamp-club-swamp-4341e3596984970a7b8bce38dd452a9a2b4e2a3e"><span class="tier A">A</span>read the nested serve.config payload on the System tab (swam</a><a href="#commit-swamp-club-swamp-8ccc459ccc4333b38ee190e88e7b0424acd8056d"><span class="tier A">A</span>read the transitional in-repo auto-resolve lockfile (swamp-c</a><a href="#commit-swamp-club-swamp-c176dde38e397066c8c19671ae8cc19cff8c7a85"><span class="tier A">A</span>name the step on skipped-step lines in run log output (swamp</a><a href="#commit-swamp-club-swamp-752d3384d6a5be36eefa7729b769e8e11c5990ae"><span class="tier A">A</span>opt-in external key for _token-secrets so datastore read acc</a><a href="#commit-swamp-club-swamp-c6632fa7cea3ef91e872066aef15910e24b17d0d"><span class="tier A">A</span>evaluate a forEach step&#39;s dependsOn condition for every iter</a><a href="#commit-swamp-club-swamp-5e566d4e16eed5b0bd351c8972a90f9bc3ebfab0"><span class="tier A">A</span>buffer startup warnings until logging starts (swamp-club#252</a><a href="#commit-swamp-club-swamp-extensions-49a83a078652f340209f872e915abf3cb101ee94"><span class="tier A">A</span>restore main&#39;s typecheck and publish the #2342 fix as 2026.0</a><a href="#commit-swamp-club-swamp-extensions-ac6b599b6be669648ae0c3003b43e590413d79ac"><span class="tier A">A</span>verify the work item&#39;s own run in the workflow-succeeded gat</a><a href="#commit-swamp-club-swamp-a2cfb7d196f2b2b038cd41385da2076c069327bd"><span class="tier A">A</span>report an unclosed ${{ instead of the {{...}} it runs into (</a><a href="#commit-swamp-club-swamp-cf66a8f8f0b74f22a358b385ebf117e281956d0e"><span class="tier A">A</span>refuse a failed-run resume against a changed workflow (swamp</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-64ae614f5227b989a37916fbcc019cc5153433b6"><span class="tier A">A</span>stop re-importing every pulled bundle on reload and hot-relo</a><a href="#commit-swamp-club-swamp-extensions-1807860ff727b7c8ac2ffa633c366e565650f5f6"><span class="tier A">A</span>idempotent ensure_checkout and re-runnable branch create (sw</a><a href="#commit-swamp-club-swamp-9eac3f055856e423256499df94e590891ec39941"><span class="tier A">A</span>keep every extension file that targets the same base type (s</a><a href="#commit-swamp-club-swamp-extensions-364641d0f5e3f225fec334ba8ec0156e764e653b"><span class="tier A">A</span>post attestation and integrity results as PR comments (swamp</a><a href="#commit-swamp-club-swamp-extensions-8a888c05682ca5d318bfcfe91026fe0fa4b85bc0"><span class="tier A">A</span>escalate the whole exec command under sudo (swamp-club #2336</a><a href="#commit-swamp-club-swamp-26fe2956d01edd7269dc85bb5ac5c71834543fe2"><span class="tier A">A</span>resolve the managed config base at startup (swamp-club#2483)</a><a href="#commit-swamp-club-swamp-extensions-db3b5915d2a02aa8466f5dc95a8fc6fcedfcdb76"><span class="tier A">A</span>pre-PR verification loop with attestation, replacing build C</a><a href="#commit-swamp-club-swamp-4341e3596984970a7b8bce38dd452a9a2b4e2a3e"><span class="tier A">A</span>read the nested serve.config payload on the System tab (swam</a><a href="#commit-swamp-club-swamp-8ccc459ccc4333b38ee190e88e7b0424acd8056d"><span class="tier A">A</span>read the transitional in-repo auto-resolve lockfile (swamp-c</a><a href="#commit-swamp-club-swamp-c176dde38e397066c8c19671ae8cc19cff8c7a85"><span class="tier A">A</span>name the step on skipped-step lines in run log output (swamp</a><a href="#commit-swamp-club-swamp-752d3384d6a5be36eefa7729b769e8e11c5990ae"><span class="tier A">A</span>opt-in external key for _token-secrets so datastore read acc</a><a href="#commit-swamp-club-swamp-c6632fa7cea3ef91e872066aef15910e24b17d0d"><span class="tier A">A</span>evaluate a forEach step&#39;s dependsOn condition for every iter</a></aside><div>
 
+<article class="item" id="commit-swamp-club-swamp-64ae614f5227b989a37916fbcc019cc5153433b6">
+<h2><span class="tier A">A</span>stop re-importing every pulled bundle on reload and hot-reload synced extensions (swamp-club#2355) (#2644)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-26T01:28:20Z">2026-09-26T01:28:20Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><p>fix(serve): stop re-importing every pulled bundle on reload and hot-reload synced extensions (swamp-club#2355) (#2644)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/64ae614f5227b989a37916fbcc019cc5153433b6" rel="noopener">64ae614f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2644" rel="noopener">#2644</a>𝗔 <a href="https://swamp-club.com/lab/2355" rel="noopener">lab#2355</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-1807860ff727b7c8ac2ffa633c366e565650f5f6">
+<h2><span class="tier A">A</span>idempotent ensure_checkout and re-runnable branch create (swamp-club #2297) (#323)</h2>
+<p class="lede">`feat` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-09-26T00:32:03Z">2026-09-26T00:32:03Z</time></span><span>git</span><span>feat</span></div>
+<div class="body"><p>feat(git): idempotent ensure_checkout and re-runnable branch create (swamp-club #2297) (#323)</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/main/git/README.md" rel="noopener">git/README.md</a></div>
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/1807860ff727b7c8ac2ffa633c366e565650f5f6" rel="noopener">1807860f</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/323" rel="noopener">#323</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2297" rel="noopener">#2297</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-9eac3f055856e423256499df94e590891ec39941">
+<h2><span class="tier A">A</span>keep every extension file that targets the same base type (swamp-club#2557) (#2643)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-26T00:10:57Z">2026-09-26T00:10:57Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><p>fix(extensions): keep every extension file that targets the same base type (swamp-club#2557) (#2643)</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9eac3f055856e423256499df94e590891ec39941" rel="noopener">9eac3f05</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2643" rel="noopener">#2643</a>𝗔 <a href="https://swamp-club.com/lab/2557" rel="noopener">lab#2557</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-364641d0f5e3f225fec334ba8ec0156e764e653b">
+<h2><span class="tier A">A</span>post attestation and integrity results as PR comments (swamp-club #2558) (#321)</h2>
+<p class="lede">`feat` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-09-25T23:36:24Z">2026-09-25T23:36:24Z</time></span><span>ci</span><span>feat</span></div>
+<div class="body"><p>feat(ci): post attestation and integrity results as PR comments (swamp-club #2558) (#321)</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp-extensions/blob/main/agent-constraints/implementation-conventions.md" rel="noopener">agent-constraints/implementation-conventions.md</a>, <a href="https://github.com/swamp-club/swamp-extensions/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/364641d0f5e3f225fec334ba8ec0156e764e653b" rel="noopener">364641d0</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/321" rel="noopener">#321</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2558" rel="noopener">#2558</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-8a888c05682ca5d318bfcfe91026fe0fa4b85bc0">
+<h2><span class="tier A">A</span>escalate the whole exec command under sudo (swamp-club #2336) (#320)</h2>
+<p class="lede">`fix` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-09-25T22:11:29Z">2026-09-25T22:11:29Z</time></span><span>ssh</span><span>fix</span></div>
+<div class="body"><p>fix(ssh): escalate the whole exec command under sudo (swamp-club #2336) (#320)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/8a888c05682ca5d318bfcfe91026fe0fa4b85bc0" rel="noopener">8a888c05</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/320" rel="noopener">#320</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2336" rel="noopener">#2336</a></div>
+</article>
 <article class="item" id="commit-swamp-club-swamp-26fe2956d01edd7269dc85bb5ac5c71834543fe2">
 <h2><span class="tier A">A</span>resolve the managed config base at startup (swamp-club#2483) (#2639)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -125,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c6632fa7cea3ef91e872066aef15910e24b17d0d" rel="noopener">c6632fa7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2634" rel="noopener">#2634</a>𝗔 <a href="https://swamp-club.com/lab/2537" rel="noopener">lab#2537</a></div>
 </article>
-<article class="item" id="commit-swamp-club-swamp-5e566d4e16eed5b0bd351c8972a90f9bc3ebfab0">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-5e566d4e16eed5b0bd351c8972a90f9bc3ebfab0">
 <h2><span class="tier A">A</span>buffer startup warnings until logging starts (swamp-club#2529) (#2625)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-25T14:55:07Z">2026-09-25T14:55:07Z</time></span><span>logging</span><span>fix</span></div>
@@ -165,7 +205,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/execution-semantics.md" rel="noopener">.claude/skills/swamp/references/workflow/references/execution-semantics.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cf66a8f8f0b74f22a358b385ebf117e281956d0e" rel="noopener">cf66a8f8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2611" rel="noopener">#2611</a>𝗔 <a href="https://swamp-club.com/lab/2433" rel="noopener">lab#2433</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-55571cdb883eb6670422a2692d2a3b3aea751686">
+<article class="item" id="commit-swamp-club-swamp-55571cdb883eb6670422a2692d2a3b3aea751686">
 <h2><span class="tier A">A</span>pass another service&#39;s template syntax through model validate (swamp-club#2424) (#2610)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-24T18:18:21Z">2026-09-24T18:18:21Z</time></span><span>validation</span><span>fix</span></div>
@@ -981,7 +1021,23 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d8aed81976ff40113ffcd76a8c0b8eb1cd3115a1" rel="noopener">d8aed819</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2568" rel="noopener">#2568</a>𝗔 <a href="https://swamp-club.com/lab/2282" rel="noopener">lab#2282</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="commit-swamp-club-swamp-03229b0f0474877160c25b5acd2b1e06abf9274a">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="commit-swamp-club-swamp-extensions-07d615f01aa871e6186d25e0ca1419273023d532">
+<h2><span class="tier C">C</span>document how forwarded env crosses sudo (swamp-club #2554) (#322)</h2>
+<p class="lede">`docs` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-09-26T00:12:52Z">2026-09-26T00:12:52Z</time></span><span>ssh</span><span>docs</span></div>
+<div class="body"><p>docs(ssh): document how forwarded env crosses sudo (swamp-club #2554) (#322)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/07d615f01aa871e6186d25e0ca1419273023d532" rel="noopener">07d615f0</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/322" rel="noopener">#322</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2554" rel="noopener">#2554</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-36f7fa66f6135f44d3378d444048376cdfe9f0a6">
+<h2><span class="tier C">C</span>correct the WebSocket auth verbs for admin-family requests (swamp-club#2552) (#2642)</h2>
+<p class="lede">`docs` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-25T23:44:07Z">2026-09-25T23:44:07Z</time></span><span>design</span><span>docs</span></div>
+<div class="body"><p>docs(design): correct the WebSocket auth verbs for admin-family requests (swamp-club#2552) (#2642)</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/36f7fa66f6135f44d3378d444048376cdfe9f0a6" rel="noopener">36f7fa66</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2642" rel="noopener">#2642</a>𝗔 <a href="https://swamp-club.com/lab/2552" rel="noopener">lab#2552</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-03229b0f0474877160c25b5acd2b1e06abf9274a">
 <h2><span class="tier C">C</span>use `tessl review run` for skill reviews (swamp-club#2457) (#2593)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-23T22:27:10Z">2026-09-23T22:27:10Z</time></span><span>docs</span></div>
@@ -990,13 +1046,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/03229b0f0474877160c25b5acd2b1e06abf9274a" rel="noopener">03229b0f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2593" rel="noopener">#2593</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>115 items across 2 source(s) in this window:
-0 critical, 85 notable, 29 routine,
-1 minor.</p>
-<ul><li><strong>fix</strong> — 68</li><li><strong>chore</strong> — 28</li><li><strong>feat</strong> — 17</li><li><strong>refactor</strong> — 1</li><li><strong>docs</strong> — 1</li></ul></section>
+<p>122 items across 2 source(s) in this window:
+0 critical, 90 notable, 29 routine,
+3 minor.</p>
+<ul><li><strong>fix</strong> — 71</li><li><strong>chore</strong> — 28</li><li><strong>feat</strong> — 19</li><li><strong>docs</strong> — 3</li><li><strong>refactor</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-26T01:03:02.047Z">2026-09-26T01:03:02.047Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-26T02:09:59.701Z">2026-09-26T02:09:59.701Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

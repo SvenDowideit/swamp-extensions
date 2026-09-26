@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260925-215751-0-sha-26fe2956"><span class="tier A">A</span>resolve the managed config base at startup (swamp-club#2483)</a><a href="#release-swamp-club-swamp-v20260925-210952-0-sha-4341e359"><span class="tier A">A</span>read the nested serve.config payload on the System tab (swam</a><a href="#release-swamp-club-swamp-v20260925-203424-0-sha-8ccc459c"><span class="tier A">A</span>read the transitional in-repo auto-resolve lockfile (swamp-c</a><a href="#release-swamp-club-swamp-v20260925-193910-0-sha-c176dde3"><span class="tier A">A</span>name the step on skipped-step lines in run log output (swamp</a><a href="#release-swamp-club-swamp-v20260925-193456-0-sha-752d3384"><span class="tier A">A</span>opt-in external key for _token-secrets so datastore read acc</a><a href="#release-swamp-club-swamp-v20260925-184019-0-sha-c6632fa7"><span class="tier A">A</span>evaluate a forEach step&#39;s dependsOn condition for every iter</a><a href="#release-swamp-club-swamp-v20260925-180024-0-sha-e08f1d5b"><span class="tier A">A</span>find datastore extensions on disk (swamp-club#2531) (#2633)</a><a href="#release-swamp-club-swamp-v20260925-163149-0-sha-bea803c9"><span class="tier A">A</span>garbage-collect expired and revoked server tokens (swamp-clu</a><a href="#release-swamp-club-swamp-v20260925-154206-0-sha-0707af8f"><span class="tier A">A</span>default worker token create to _token-secrets and stop count</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260925-222627-0-sha-441f5ad0"><span class="tier A">A</span>refuse extension writes to a guessed managed config base (sw</a><a href="#release-swamp-club-swamp-v20260925-222223-0-sha-18ec7540"><span class="tier A">A</span>feed the worker child env to initTracing instead of Deno.env</a><a href="#release-swamp-club-swamp-v20260925-215751-0-sha-26fe2956"><span class="tier A">A</span>resolve the managed config base at startup (swamp-club#2483)</a><a href="#release-swamp-club-swamp-v20260925-210952-0-sha-4341e359"><span class="tier A">A</span>read the nested serve.config payload on the System tab (swam</a><a href="#release-swamp-club-swamp-v20260925-203424-0-sha-8ccc459c"><span class="tier A">A</span>read the transitional in-repo auto-resolve lockfile (swamp-c</a><a href="#release-swamp-club-swamp-v20260925-193910-0-sha-c176dde3"><span class="tier A">A</span>name the step on skipped-step lines in run log output (swamp</a><a href="#release-swamp-club-swamp-v20260925-193456-0-sha-752d3384"><span class="tier A">A</span>opt-in external key for _token-secrets so datastore read acc</a><a href="#release-swamp-club-swamp-v20260925-184019-0-sha-c6632fa7"><span class="tier A">A</span>evaluate a forEach step&#39;s dependsOn condition for every iter</a><a href="#release-swamp-club-swamp-v20260925-180024-0-sha-e08f1d5b"><span class="tier A">A</span>find datastore extensions on disk (swamp-club#2531) (#2633)</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7">
 <h2><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#2446)</h2>
@@ -150,6 +150,49 @@ footer .ver{color:var(--acc)}
 <p>| <code>design/enablers/remote-execution.md</code> | Document the additionalFiles-only policy |</p></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.194129.0-sha.d1808bea" rel="noopener">release v20260902.194129.0-sha.d1808bea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1808bead33f16f9845d428e62e8d6d253214017" rel="noopener">d1808bea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2360" rel="noopener">#2360</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260925-222627-0-sha-441f5ad0">
+<h2><span class="tier A">A</span>refuse extension writes to a guessed managed config base (swamp-club#2509) (#2640)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-25T22:28:12Z">2026-09-25T22:28:12Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): refuse extension writes to a guessed managed config base (swamp-club#2509) (#2640)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2509, part 4 of 4 of swamp-club#2483. It follows swamp-club#2483 (#2639), which resolves the managed config base at startup.</p>
+<p>In a <code>managedConfig</code> repo on an extension-backed datastore (S3, GCS), the managed config base can stay unresolved when the datastore extension is not installed or does not load. Extension write commands then recorded into the in-repo <code>.swamp/config/upstream_extensions.json</code> guess, which the datastore never sees.</p>
+<ul>
+<li><strong><code>resolveManagedLockfileForWrite</code></strong> (<code>src/cli/repo_context.ts</code>) is the single entry point for extension lockfile writes:</li>
+<li>It resolves the base the way other commands do, auto-installing a missing datastore extension, so a fresh checkout or CI runner works as before.</li>
+<li>If the base is still unresolved (the extension could not be installed or does not load), it throws <code>ManagedConfigUnresolvedError</code> (code <code>managed_config_unresolved</code>) rather than write to the guess. The remedy is <code>swamp extension pull &lt;datastore extension&gt;</code> (<code>--force</code> if it fails to load), then <code>swamp datastore sync --pull</code>.</li>
+<li><strong>The #445 exemption:</strong> <code>extension pull</code>, <code>extension update &lt;name&gt;</code> and search&#39;s install that target the repo&#39;s own datastore extension record into the in-repo lockfile without publishing, so the extension can still be repaired. Known candidate names are checked before any registry lookup. `datastoreExt</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.222627.0-sha.441f5ad0" rel="noopener">release v20260925.222627.0-sha.441f5ad0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/441f5ad030101d11453f55542f02ca59ead10750" rel="noopener">441f5ad0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2640" rel="noopener">#2640</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2639" rel="noopener">#2639</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/445" rel="noopener">#445</a>𝗔 <a href="https://swamp-club.com/lab/2483" rel="noopener">lab#2483</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260925-222223-0-sha-18ec7540">
+<h2><span class="tier A">A</span>feed the worker child env to initTracing instead of Deno.env (swamp-club#2445) (#2641)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-25T22:24:01Z">2026-09-25T22:24:01Z</time></span><span>tests</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(tests): feed the worker child env to initTracing instead of Deno.env (swamp-club#2445) (#2641)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2445. <code>integration/otel_logs_worker_correlation_test.ts</code> failed intermittently under the full parallel suite: the child span got a fresh trace id instead of the propagated parent (<code>1111…</code>) at line 129.</p>
+<h4 class="body-h">Root cause</h4>
+<p>The test wrote <code>TRACEPARENT</code> into <code>Deno.env</code> and relied on <code>initTracing()</code> reading it back several awaits later. <code>deno test --parallel</code> runs each file in its own isolate, but they all share one process env. Two things change <code>TRACEPARENT</code> there concurrently:</p>
+<ul>
+<li><code>InProcessExecutor.execute</code> (<code>src/domain/models/in_process_executor.ts:285-372</code>) saves <code>TRACEPARENT</code> and restores it around every in-process model run, deleting it when it was unset.</li>
+<li><code>src/cli/context_test.ts</code> sets and deletes it directly.</li>
+</ul>
+<p>When either landed in the gap, <code>initTracing</code> saw no parent and the span started a new trace. The race also ran the other way: this test&#39;s trace id leaked into <code>in_process_executor_test.ts</code>, failing its restore assertion at line 542.</p>
+<p>swamp-club#2131 added an <code>envGet</code> hook to <code>initTracing</code> for this race and named this test as a polluter, but never converted it. Not a regression: the test has written to <code>Deno.env</code> since it was added in #1858.</p>
+<h4 class="body-h">Change</h4>
+<p>One test file. The test builds the worker child env with the file&#39;s existing <code>buildChildEnv</code> helper and passes it to <code>initTracing</code> through <code>envGet</code>. That is the same loo</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.222223.0-sha.18ec7540" rel="noopener">release v20260925.222223.0-sha.18ec7540</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/18ec7540b072f8f771182db53e2e8e479a2c15a7" rel="noopener">18ec7540</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2641" rel="noopener">#2641</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1858" rel="noopener">#1858</a>𝗔 <a href="https://swamp-club.com/lab/2445" rel="noopener">lab#2445</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260925-215751-0-sha-26fe2956">
 <h2><span class="tier A">A</span>resolve the managed config base at startup (swamp-club#2483) (#2639)</h2>
@@ -335,7 +378,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.180024.0-sha.e08f1d5b" rel="noopener">release v20260925.180024.0-sha.e08f1d5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e08f1d5b06bdabe0181a358a6568c9e38f9ede4e" rel="noopener">e08f1d5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2633" rel="noopener">#2633</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2625" rel="noopener">#2625</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2632" rel="noopener">#2632</a>𝗔 <a href="https://swamp-club.com/lab/2531" rel="noopener">lab#2531</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20260925-163149-0-sha-bea803c9">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260925-163149-0-sha-bea803c9">
 <h2><span class="tier A">A</span>garbage-collect expired and revoked server tokens (swamp-club#2413) (#2631)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-25T16:33:35Z">2026-09-25T16:33:35Z</time></span><span>serve</span><span>fix</span></div>
@@ -386,7 +429,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/doctor-vaults.md" rel="noopener">design/enablers/doctor-vaults.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.154206.0-sha.0707af8f" rel="noopener">release v20260925.154206.0-sha.0707af8f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0707af8fb9f59b82e169dea349806088244e2615" rel="noopener">0707af8f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2630" rel="noopener">#2630</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2606" rel="noopener">#2606</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2586" rel="noopener">#2586</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2080" rel="noopener">#2080</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2061" rel="noopener">#2061</a>𝗔 <a href="https://swamp-club.com/lab/2422" rel="noopener">lab#2422</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260925-153804-0-sha-f2209d28">
+<article class="item" id="release-swamp-club-swamp-v20260925-153804-0-sha-f2209d28">
 <h2><span class="tier A">A</span>scan a direct step&#39;s authored global arguments, not its evaluated ones (swamp-club#2496) (#2627)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-25T15:39:45Z">2026-09-25T15:39:45Z</time></span><span>workflows</span><span>fix</span></div>
@@ -8980,50 +9023,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.github/actions/adversarial-review/README.md" rel="noopener">.github/actions/adversarial-review/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c4600418b072728920f6df3a97f34c1666ee04" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260925-222627-0-sha-441f5ad0">
-<h2><span class="tier C">C</span>swamp 20260925.222627.0-sha.441f5ad0</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-25T22:28:12Z">2026-09-25T22:28:12Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): refuse extension writes to a guessed managed config base (swamp-club#2509) (#2640)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2509, part 4 of 4 of swamp-club#2483. It follows swamp-club#2483 (#2639), which resolves the managed config base at startup.</p>
-<p>In a <code>managedConfig</code> repo on an extension-backed datastore (S3, GCS), the managed config base can stay unresolved when the datastore extension is not installed or does not load. Extension write commands then recorded into the in-repo <code>.swamp/config/upstream_extensions.json</code> guess, which the datastore never sees.</p>
-<ul>
-<li><strong><code>resolveManagedLockfileForWrite</code></strong> (<code>src/cli/repo_context.ts</code>) is the single entry point for extension lockfile writes:</li>
-<li>It resolves the base the way other commands do, auto-installing a missing datastore extension, so a fresh checkout or CI runner works as before.</li>
-<li>If the base is still unresolved (the extension could not be installed or does not load), it throws <code>ManagedConfigUnresolvedError</code> (code <code>managed_config_unresolved</code>) rather than write to the guess. The remedy is <code>swamp extension pull &lt;datastore extension&gt;</code> (<code>--force</code> if it fails to load), then <code>swamp datastore sync --pull</code>.</li>
-<li><strong>The #445 exemption:</strong> <code>extension pull</code>, <code>extension update &lt;name&gt;</code> and search&#39;s install that target the repo&#39;s own datastore extension record into the in-repo lockfile without publishing, so the extension can still be repaired. Known candidate names are checked before any registry lookup. `datastoreExt</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.222627.0-sha.441f5ad0" rel="noopener">release v20260925.222627.0-sha.441f5ad0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/441f5ad0" rel="noopener">441f5ad0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2640" rel="noopener">#2640</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2639" rel="noopener">#2639</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/445" rel="noopener">#445</a>𝗔 <a href="https://swamp-club.com/lab/2483" rel="noopener">lab#2483</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260925-222223-0-sha-18ec7540">
-<h2><span class="tier C">C</span>swamp 20260925.222223.0-sha.18ec7540</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-25T22:24:01Z">2026-09-25T22:24:01Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(tests): feed the worker child env to initTracing instead of Deno.env (swamp-club#2445) (#2641)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2445. <code>integration/otel_logs_worker_correlation_test.ts</code> failed intermittently under the full parallel suite: the child span got a fresh trace id instead of the propagated parent (<code>1111…</code>) at line 129.</p>
-<h4 class="body-h">Root cause</h4>
-<p>The test wrote <code>TRACEPARENT</code> into <code>Deno.env</code> and relied on <code>initTracing()</code> reading it back several awaits later. <code>deno test --parallel</code> runs each file in its own isolate, but they all share one process env. Two things change <code>TRACEPARENT</code> there concurrently:</p>
-<ul>
-<li><code>InProcessExecutor.execute</code> (<code>src/domain/models/in_process_executor.ts:285-372</code>) saves <code>TRACEPARENT</code> and restores it around every in-process model run, deleting it when it was unset.</li>
-<li><code>src/cli/context_test.ts</code> sets and deletes it directly.</li>
-</ul>
-<p>When either landed in the gap, <code>initTracing</code> saw no parent and the span started a new trace. The race also ran the other way: this test&#39;s trace id leaked into <code>in_process_executor_test.ts</code>, failing its restore assertion at line 542.</p>
-<p>swamp-club#2131 added an <code>envGet</code> hook to <code>initTracing</code> for this race and named this test as a polluter, but never converted it. Not a regression: the test has written to <code>Deno.env</code> since it was added in #1858.</p>
-<h4 class="body-h">Change</h4>
-<p>One test file. The test builds the worker child env with the file&#39;s existing <code>buildChildEnv</code> helper and passes it to <code>initTracing</code> through <code>envGet</code>. That is the same loo</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.222223.0-sha.18ec7540" rel="noopener">release v20260925.222223.0-sha.18ec7540</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/18ec7540" rel="noopener">18ec7540</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2641" rel="noopener">#2641</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1858" rel="noopener">#1858</a>𝗔 <a href="https://swamp-club.com/lab/2445" rel="noopener">lab#2445</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260923-222724-0-sha-03229b0f">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260923-222724-0-sha-03229b0f">
 <h2><span class="tier C">C</span>use `tessl review run` for skill reviews (swamp-club#2457) (#2593)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-23T22:28:52Z">2026-09-23T22:28:52Z</time></span><span>docs</span></div>
@@ -9403,12 +9403,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>282 items across 1 source(s) in this window:
-3 critical, 261 notable, 5 routine,
-13 minor.</p>
-<ul><li><strong>fix</strong> — 208</li><li><strong>feat</strong> — 56</li><li><strong>docs</strong> — 11</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>changes</strong> — 2</li></ul></section>
+3 critical, 263 notable, 5 routine,
+11 minor.</p>
+<ul><li><strong>fix</strong> — 210</li><li><strong>feat</strong> — 56</li><li><strong>docs</strong> — 11</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-26T01:03:02.047Z">2026-09-26T01:03:02.047Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-26T02:09:59.701Z">2026-09-26T02:09:59.701Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

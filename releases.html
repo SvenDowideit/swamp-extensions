@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260926-025243-0-sha-0f086bc8"><span class="tier A">A</span>exit 0 when auth token revoke succeeds (swamp-club#2555) (#2</a><a href="#release-swamp-club-swamp-v20260926-012832-0-sha-64ae614f"><span class="tier A">A</span>stop re-importing every pulled bundle on reload and hot-relo</a><a href="#release-swamp-club-swamp-v20260926-001112-0-sha-9eac3f05"><span class="tier A">A</span>keep every extension file that targets the same base type (s</a><a href="#release-swamp-club-swamp-v20260925-222627-0-sha-441f5ad0"><span class="tier A">A</span>refuse extension writes to a guessed managed config base (sw</a><a href="#release-swamp-club-swamp-v20260925-222223-0-sha-18ec7540"><span class="tier A">A</span>feed the worker child env to initTracing instead of Deno.env</a><a href="#release-swamp-club-swamp-v20260925-215751-0-sha-26fe2956"><span class="tier A">A</span>resolve the managed config base at startup (swamp-club#2483)</a><a href="#release-swamp-club-swamp-v20260925-210952-0-sha-4341e359"><span class="tier A">A</span>read the nested serve.config payload on the System tab (swam</a><a href="#release-swamp-club-swamp-v20260925-203424-0-sha-8ccc459c"><span class="tier A">A</span>read the transitional in-repo auto-resolve lockfile (swamp-c</a><a href="#release-swamp-club-swamp-v20260925-193910-0-sha-c176dde3"><span class="tier A">A</span>name the step on skipped-step lines in run log output (swamp</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260927-012109-0-sha-6860a5b7"><span class="tier A">A</span>stop spreading unbounded arrays into call arguments (swamp-c</a><a href="#release-swamp-club-swamp-v20260927-001720-0-sha-211145c6"><span class="tier A">A</span>pick one deterministic winner when extensions add the same m</a><a href="#release-swamp-club-swamp-v20260926-025243-0-sha-0f086bc8"><span class="tier A">A</span>exit 0 when auth token revoke succeeds (swamp-club#2555) (#2</a><a href="#release-swamp-club-swamp-v20260926-012832-0-sha-64ae614f"><span class="tier A">A</span>stop re-importing every pulled bundle on reload and hot-relo</a><a href="#release-swamp-club-swamp-v20260926-001112-0-sha-9eac3f05"><span class="tier A">A</span>keep every extension file that targets the same base type (s</a><a href="#release-swamp-club-swamp-v20260925-222627-0-sha-441f5ad0"><span class="tier A">A</span>refuse extension writes to a guessed managed config base (sw</a><a href="#release-swamp-club-swamp-v20260925-222223-0-sha-18ec7540"><span class="tier A">A</span>feed the worker child env to initTracing instead of Deno.env</a><a href="#release-swamp-club-swamp-v20260925-215751-0-sha-26fe2956"><span class="tier A">A</span>resolve the managed config base at startup (swamp-club#2483)</a><a href="#release-swamp-club-swamp-v20260925-210952-0-sha-4341e359"><span class="tier A">A</span>read the nested serve.config payload on the System tab (swam</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7">
 <h2><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#2446)</h2>
@@ -150,6 +150,57 @@ footer .ver{color:var(--acc)}
 <p>| <code>design/enablers/remote-execution.md</code> | Document the additionalFiles-only policy |</p></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.194129.0-sha.d1808bea" rel="noopener">release v20260902.194129.0-sha.d1808bea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1808bead33f16f9845d428e62e8d6d253214017" rel="noopener">d1808bea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2360" rel="noopener">#2360</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260927-012109-0-sha-6860a5b7">
+<h2><span class="tier A">A</span>stop spreading unbounded arrays into call arguments (swamp-club#2565) (#2647)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-27T01:22:43Z">2026-09-27T01:22:43Z</time></span><span>data</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(data): stop spreading unbounded arrays into call arguments (swamp-club#2565) (#2647)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2565. Once a resource passed about 129k versions, every write to it failed with <code>RangeError: Maximum call stack size exceeded</code>. <code>Math.max(...versions)</code> puts every element on the stack as a separate argument, and V8 caps that at roughly 125k. The same pattern broke <code>swamp data versions</code>. It also broke <code>swamp run gc</code> once a single <code>outputs/&lt;type&gt;/&lt;method&gt;/</code> directory held about 129k files, which a minute-cadence poller reaches in about 90 days.</p>
+<h4 class="body-h">Version-count sites (the reported failure)</h4>
+<ul>
+<li>New <code>maxOf</code> / <code>minOf</code> in <code>src/domain/array_extrema.ts</code>. They find the extreme with a loop and don&#39;t assume sorted input.</li>
+<li>All eight <code>Math.max(...versions)</code> calls in <code>UnifiedDataRepository</code> now use <code>maxOf</code>: next version on write, latest lookups, delete, rename and its rollback, and GC. So do the calls in <code>libswamp/data/versions.ts</code> and <code>InMemoryDataRepository</code>.</li>
+<li>The duration-GC loop now works out the latest version once, instead of once per candidate version (which made it O(n²)).</li>
+</ul>
+<h4 class="body-h">Other spreads over arrays that grow with runtime data</h4>
+<p>I audited every spread passed as a call argument to <code>Math.max</code>/<code>min</code>, <code>String.fromCharCode</code>, <code>push</code>, <code>unshift</code> and <code>splice</code>. These are rewritten as loops or <code>maxOf</code>/<code>minOf</code>:</p>
+<ul>
+<li><code>yaml_output_repository</code> output collection. This is what broke <code>swamp run gc</code>; reproduced.</li>
+<li><code>doctor datastores</code> recursive file listing.</li>
+<li>`e</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260927.012109.0-sha.6860a5b7" rel="noopener">release v20260927.012109.0-sha.6860a5b7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6860a5b7358d3658b77d24b2482065fbf4856798" rel="noopener">6860a5b7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2647" rel="noopener">#2647</a>𝗔 <a href="https://swamp-club.com/lab/2565" rel="noopener">lab#2565</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260927-001720-0-sha-211145c6">
+<h2><span class="tier A">A</span>pick one deterministic winner when extensions add the same member (swamp-club#2562) (#2646)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-27T00:18:58Z">2026-09-27T00:18:58Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): pick one deterministic winner when extensions add the same member (swamp-club#2562) (#2646)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>This fixes swamp-club#2562, plus two related problems found while reproducing it.</p>
+<p>When two <code>export const extension</code> files added a member (method, check or resource spec) with the same name to one model type, whichever attached first won. Attach order was catalog row order, so a rebuilt catalog could flip the winner, and a pulled package usually beat a local override. The repro confirmed both. Scenario A flipped from <code>zz_ext.ts</code> to <code>aa_ext.ts</code> after the catalog was deleted. In scenario B, the pulled <code>get_observed</code> beat the local one.</p>
+<p><strong>One deterministic winner, whatever the attach path.</strong> Cold start, warm start, stale rescan, auto-install and serve reload all pick the same winner:</p>
+<p>1. A member the base model defines always wins.</p>
+<p>2. A local or source-mounted extension beats a pulled one (under <code>.swamp/pulled-extensions/</code> or <code>.swamp/config/pulled-extensions/</code>).</p>
+<p>3. Within one origin, the alphabetically first canonical path wins.</p>
+<p>How it works:</p>
+<ul>
+<li><code>extension_precedence.ts</code> is a pure domain policy. <code>isPulledExtensionPath</code> is now shared with <code>resolveOriginConflicts</code>.</li>
+<li>The model kind adapter records which extension contributed each member, along with the definition object it contributed.</li>
+<li><code>ModelRegistry.applyExtensionMembers</code> applies additions and overrides in one validated, immutable merge. <code>extend()</code> still never replaces a member.</li>
+<li>A co</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/checks.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/checks.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260927.001720.0-sha.211145c6" rel="noopener">release v20260927.001720.0-sha.211145c6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/211145c65a095375eda33811dc0d9f3af776cc6d" rel="noopener">211145c6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2646" rel="noopener">#2646</a>𝗔 <a href="https://swamp-club.com/lab/2562" rel="noopener">lab#2562</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260926-025243-0-sha-0f086bc8">
 <h2><span class="tier A">A</span>exit 0 when auth token revoke succeeds (swamp-club#2555) (#2645)</h2>
@@ -304,7 +355,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.210952.0-sha.4341e359" rel="noopener">release v20260925.210952.0-sha.4341e359</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4341e3596984970a7b8bce38dd452a9a2b4e2a3e" rel="noopener">4341e359</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2638" rel="noopener">#2638</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2183" rel="noopener">#2183</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2208" rel="noopener">#2208</a>𝗔 <a href="https://swamp-club.com/lab/2519" rel="noopener">lab#2519</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20260925-203424-0-sha-8ccc459c">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260925-203424-0-sha-8ccc459c">
 <h2><span class="tier A">A</span>read the transitional in-repo auto-resolve lockfile (swamp-club#2532) (#2637)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-25T20:36:08Z">2026-09-25T20:36:08Z</time></span><span>extensions</span><span>fix</span></div>
@@ -375,7 +426,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.193910.0-sha.c176dde3" rel="noopener">release v20260925.193910.0-sha.c176dde3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c176dde38e397066c8c19671ae8cc19cff8c7a85" rel="noopener">c176dde3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2636" rel="noopener">#2636</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1963" rel="noopener">#1963</a>𝗔 <a href="https://swamp-club.com/lab/2538" rel="noopener">lab#2538</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260925-193456-0-sha-752d3384">
+<article class="item" id="release-swamp-club-swamp-v20260925-193456-0-sha-752d3384">
 <h2><span class="tier A">A</span>opt-in external key for _token-secrets so datastore read access cannot decrypt tokens (swamp-club#2324) (#2635)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-25T19:36:33Z">2026-09-25T19:36:33Z</time></span><span>serve</span><span>feat</span></div>
@@ -9090,58 +9141,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.github/actions/adversarial-review/README.md" rel="noopener">.github/actions/adversarial-review/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c4600418b072728920f6df3a97f34c1666ee04" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260927-012109-0-sha-6860a5b7">
-<h2><span class="tier C">C</span>swamp 20260927.012109.0-sha.6860a5b7</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-27T01:22:43Z">2026-09-27T01:22:43Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(data): stop spreading unbounded arrays into call arguments (swamp-club#2565) (#2647)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2565. Once a resource passed about 129k versions, every write to it failed with <code>RangeError: Maximum call stack size exceeded</code>. <code>Math.max(...versions)</code> puts every element on the stack as a separate argument, and V8 caps that at roughly 125k. The same pattern broke <code>swamp data versions</code>. It also broke <code>swamp run gc</code> once a single <code>outputs/&lt;type&gt;/&lt;method&gt;/</code> directory held about 129k files, which a minute-cadence poller reaches in about 90 days.</p>
-<h4 class="body-h">Version-count sites (the reported failure)</h4>
-<ul>
-<li>New <code>maxOf</code> / <code>minOf</code> in <code>src/domain/array_extrema.ts</code>. They find the extreme with a loop and don&#39;t assume sorted input.</li>
-<li>All eight <code>Math.max(...versions)</code> calls in <code>UnifiedDataRepository</code> now use <code>maxOf</code>: next version on write, latest lookups, delete, rename and its rollback, and GC. So do the calls in <code>libswamp/data/versions.ts</code> and <code>InMemoryDataRepository</code>.</li>
-<li>The duration-GC loop now works out the latest version once, instead of once per candidate version (which made it O(n²)).</li>
-</ul>
-<h4 class="body-h">Other spreads over arrays that grow with runtime data</h4>
-<p>I audited every spread passed as a call argument to <code>Math.max</code>/<code>min</code>, <code>String.fromCharCode</code>, <code>push</code>, <code>unshift</code> and <code>splice</code>. These are rewritten as loops or <code>maxOf</code>/<code>minOf</code>:</p>
-<ul>
-<li><code>yaml_output_repository</code> output collection. This is what broke <code>swamp run gc</code>; reproduced.</li>
-<li><code>doctor datastores</code> recursive file listing.</li>
-<li>`e</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260927.012109.0-sha.6860a5b7" rel="noopener">release v20260927.012109.0-sha.6860a5b7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6860a5b7" rel="noopener">6860a5b7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2647" rel="noopener">#2647</a>𝗔 <a href="https://swamp-club.com/lab/2565" rel="noopener">lab#2565</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260927-001720-0-sha-211145c6">
-<h2><span class="tier C">C</span>swamp 20260927.001720.0-sha.211145c6</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-27T00:18:58Z">2026-09-27T00:18:58Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): pick one deterministic winner when extensions add the same member (swamp-club#2562) (#2646)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>This fixes swamp-club#2562, plus two related problems found while reproducing it.</p>
-<p>When two <code>export const extension</code> files added a member (method, check or resource spec) with the same name to one model type, whichever attached first won. Attach order was catalog row order, so a rebuilt catalog could flip the winner, and a pulled package usually beat a local override. The repro confirmed both. Scenario A flipped from <code>zz_ext.ts</code> to <code>aa_ext.ts</code> after the catalog was deleted. In scenario B, the pulled <code>get_observed</code> beat the local one.</p>
-<p><strong>One deterministic winner, whatever the attach path.</strong> Cold start, warm start, stale rescan, auto-install and serve reload all pick the same winner:</p>
-<p>1. A member the base model defines always wins.</p>
-<p>2. A local or source-mounted extension beats a pulled one (under <code>.swamp/pulled-extensions/</code> or <code>.swamp/config/pulled-extensions/</code>).</p>
-<p>3. Within one origin, the alphabetically first canonical path wins.</p>
-<p>How it works:</p>
-<ul>
-<li><code>extension_precedence.ts</code> is a pure domain policy. <code>isPulledExtensionPath</code> is now shared with <code>resolveOriginConflicts</code>.</li>
-<li>The model kind adapter records which extension contributed each member, along with the definition object it contributed.</li>
-<li><code>ModelRegistry.applyExtensionMembers</code> applies additions and overrides in one validated, immutable merge. <code>extend()</code> still never replaces a member.</li>
-<li>A co</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260927.001720.0-sha.211145c6" rel="noopener">release v20260927.001720.0-sha.211145c6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/211145c6" rel="noopener">211145c6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2646" rel="noopener">#2646</a>𝗔 <a href="https://swamp-club.com/lab/2562" rel="noopener">lab#2562</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260925-234421-0-sha-36f7fa66">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260925-234421-0-sha-36f7fa66">
 <h2><span class="tier C">C</span>correct the WebSocket auth verbs for admin-family requests (swamp-club#2552) (#2642)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-25T23:46:09Z">2026-09-25T23:46:09Z</time></span><span>design</span><span>docs</span></div>
@@ -9544,12 +9544,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>288 items across 1 source(s) in this window:
-3 critical, 266 notable, 5 routine,
-14 minor.</p>
-<ul><li><strong>fix</strong> — 213</li><li><strong>feat</strong> — 56</li><li><strong>docs</strong> — 12</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>changes</strong> — 2</li></ul></section>
+3 critical, 268 notable, 5 routine,
+12 minor.</p>
+<ul><li><strong>fix</strong> — 215</li><li><strong>feat</strong> — 56</li><li><strong>docs</strong> — 12</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-27T18:08:19.365Z">2026-09-27T18:08:19.365Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-27T19:01:54.029Z">2026-09-27T19:01:54.029Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260928-185132-0-sha-56dfcb83"><span class="tier A">A</span>accept --ca-cert on every command that takes --server (swamp</a><a href="#release-swamp-club-swamp-v20260928-184430-0-sha-6fb8870c"><span class="tier A">A</span>let jobs that share a level finish their cleanup after a can</a><a href="#release-swamp-club-swamp-v20260928-183846-0-sha-b829a796"><span class="tier A">A</span>let --ca-cert take precedence over SWAMP_CA_CERT (swamp-club</a><a href="#release-swamp-club-swamp-v20260928-174341-0-sha-0035b3d8"><span class="tier A">A</span>record a timeout as the cancel reason when workflow resume -</a><a href="#release-swamp-club-swamp-v20260928-173249-0-sha-999ae1c6"><span class="tier A">A</span>load the requested version in report get instead of only the</a><a href="#release-swamp-club-swamp-v20260928-172358-0-sha-9bb1731e"><span class="tier A">A</span>exit 75 on extension-datastore lock timeouts and skip catalo</a><a href="#release-swamp-club-swamp-v20260928-171134-0-sha-58eda5fa"><span class="tier A">A</span>stop concurrent in-process executions from clobbering TRACEP</a><a href="#release-swamp-club-swamp-v20260928-170514-0-sha-772bcfef"><span class="tier A">A</span>give workflow resume job-level cleanup mode after an abort (</a><a href="#release-swamp-club-swamp-v20260928-160203-0-sha-b76c8a82"><span class="tier A">A</span>keep the owning process&#39;s final record on an offline workflo</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260928-195328-0-sha-143c7423"><span class="tier A">A</span>hand run ownership to the process that resumes it (swamp-clu</a><a href="#release-swamp-club-swamp-v20260928-192753-0-sha-1a8ed847"><span class="tier A">A</span>stop the JSON and YAML highlighters altering displayed text </a><a href="#release-swamp-club-swamp-v20260928-192334-0-sha-1a8ed847"><span class="tier A">A</span>stop the JSON and YAML highlighters altering displayed text </a><a href="#release-swamp-club-swamp-v20260928-191133-0-sha-73454477"><span class="tier A">A</span>shareable deep links to data items, versions and reports (sw</a><a href="#release-swamp-club-swamp-v20260928-190746-0-sha-3503e31f"><span class="tier A">A</span>resolve run-scoped data get/list at the version the run reco</a><a href="#release-swamp-club-swamp-v20260928-190345-0-sha-2f36ae11"><span class="tier A">A</span>keep JSON-mode renderer output out of the console guard (swa</a><a href="#release-swamp-club-swamp-v20260928-185132-0-sha-56dfcb83"><span class="tier A">A</span>accept --ca-cert on every command that takes --server (swamp</a><a href="#release-swamp-club-swamp-v20260928-184430-0-sha-6fb8870c"><span class="tier A">A</span>let jobs that share a level finish their cleanup after a can</a><a href="#release-swamp-club-swamp-v20260928-183846-0-sha-b829a796"><span class="tier A">A</span>let --ca-cert take precedence over SWAMP_CA_CERT (swamp-club</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7">
 <h2><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#2446)</h2>
@@ -151,6 +151,171 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.194129.0-sha.d1808bea" rel="noopener">release v20260902.194129.0-sha.d1808bea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1808bead33f16f9845d428e62e8d6d253214017" rel="noopener">d1808bea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2360" rel="noopener">#2360</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20260928-195328-0-sha-143c7423">
+<h2><span class="tier A">A</span>hand run ownership to the process that resumes it (swamp-club#2420) (#2671)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T19:55:35Z">2026-09-28T19:55:35Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): hand run ownership to the process that resumes it (swamp-club#2420) (#2671)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2420. A resume runs in a new process, but the run record kept the pid and instance id of the process that started the run:</p>
+<ul>
+<li><strong><code>workflow cancel</code> didn&#39;t stop the resume.</strong> It killed the stale, usually dead, pid. The live resume then overwrote the <code>cancelled</code> record when it finished.</li>
+<li><strong>Serve-ownership checks were wrong.</strong> They read the starter&#39;s instance id.</li>
+<li><strong>Serve boot could interrupt a live resume.</strong> When a failed run&#39;s tracker row had been purged or was stale, the boot reaper fell back to the stale record and interrupted the run.</li>
+</ul>
+<p>This PR hands ownership to the resuming process while it drives the run, and back to the original owner when it stops.</p>
+<ul>
+<li><strong>Aggregate.</strong> <code>WorkflowRun.resumeFromSuspended</code> and <code>resumeFromFailed</code> now take a required <code>RunOwner</code> (the pid, plus serve&#39;s instance id when serve drives the resume).</li>
+<li>Before any step runs, the resume&#39;s first save records that owner.</li>
+<li>The previous owner is kept in <code>ownerBeforeResume</code> and restored when the run leaves <code>running</code> (suspend, complete, cancel, interrupt).</li>
+<li>While the run is running, <code>pid</code> and <code>instanceId</code> name the live process, which cancel&#39;s kill and serve&#39;s reapers need. Otherwise they name the run&#39;s owner, which cancel routing and supersede need. None of those consumers change.</li>
+<li><strong>Entry points.</strong> Serve&#39;s attached resume and the detached launcher (including ap</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.195328.0-sha.143c7423" rel="noopener">release v20260928.195328.0-sha.143c7423</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/143c742347bd64dbb4e51a62e046f3a537371b81" rel="noopener">143c7423</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2671" rel="noopener">#2671</a>𝗔 <a href="https://swamp-club.com/lab/2420" rel="noopener">lab#2420</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-192753-0-sha-1a8ed847">
+<h2><span class="tier A">A</span>stop the JSON and YAML highlighters altering displayed text (swamp-club#2607) (#2670)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T19:30:01Z">2026-09-28T19:30:01Z</time></span><span>dashboard</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(dashboard): stop the JSON and YAML highlighters altering displayed text (swamp-club#2607) (#2670)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2607. The dashboard&#39;s <code>CodeBlock</code> syntax highlighters changed the text they displayed instead of only wrapping tokens.</p>
+<ul>
+<li><strong>JSON:</strong> <code>highlightJson</code> chained whole-text regex replaces. The number, boolean and null rules matched any colon, including colons inside string values, so <code>&quot;2026-09-28T18:43:51.845Z&quot;</code> rendered as <code>&quot;2026-09-28T18: 43: 51.845Z&quot;</code> and <code>https://x.io:8080</code> as <code>x.io: 8080</code>. It is now a single-pass tokenizer (<code>json_highlight.ts</code>). String literals are consumed whole before numbers and keywords are tried, and the text between tokens is copied through verbatim. Compact JSON stays compact, and scalars inside arrays are now highlighted.</li>
+<li><strong>YAML</strong> (scope extended during review): <code>highlightYaml</code> collapsed the whitespace after a colon (<code>count:   12</code> rendered as <code>count: 12</code>) and highlighted block-scalar content (<code>run: |</code>) as keys, numbers and comments. It is now a per-line tokenizer (<code>yaml_highlight.ts</code>) that copies every character through and leaves block-scalar content plain. It highlights only values that are one whole token, plus sequence items, quoted keys and trailing comments.</li>
+<li><code>escapeHtml</code> moves to <code>escape_html.ts</code>, shared by both highlighters. Every piece of output is escaped before it reaches <code>dangerouslySetInnerHTML</code>.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>json_highlight_test.ts</code> and <code>yaml_highlight_test.ts</code> cover 22 cases:</li>
+</ul>
+<p>  -</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.192753.0-sha.1a8ed847" rel="noopener">release v20260928.192753.0-sha.1a8ed847</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1a8ed8471909c74efd071004c444da5b65fc333b" rel="noopener">1a8ed847</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2670" rel="noopener">#2670</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2595" rel="noopener">#2595</a>𝗔 <a href="https://swamp-club.com/lab/2607" rel="noopener">lab#2607</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-192334-0-sha-1a8ed847">
+<h2><span class="tier A">A</span>stop the JSON and YAML highlighters altering displayed text (swamp-club#2607) (#2670)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T19:25:41Z">2026-09-28T19:25:41Z</time></span><span>dashboard</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(dashboard): keep the Back button on one line at phone width (swamp-club#2610) (#2669)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>At phone width (~390px) the detail-view header row squeezed the Back button until its label broke, stacking the arrow above &quot;Back&quot; (swamp-club#2610, found while verifying swamp-club#2595).</p>
+<ul>
+<li>Add <code>white-space: nowrap</code> and <code>flex-shrink: 0</code> to the shared <code>.back-button</code> class in <code>packages/dashboard/src/styles.css</code>.</li>
+<li>Move the RunDetail, WorkflowDetail and ModelDetail Back buttons off their identical inline styles onto <code>.back-button</code>, so all four detail views behave the same.</li>
+<li>Give <code>.back-button</code> its own comment now that it is shared; the &quot;Data item / report detail&quot; section comment moves down to <code>.item-title</code>.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Rendered all four detail-header layouts with the built dashboard CSS in headless Chrome at a true 390px viewport (iframe, since headless Chrome clamps windows to 500px): Back button renders on a single line (26px tall, previously 42px with a broken label).</li>
+<li><code>deno run build-dashboard</code> succeeds.</li>
+<li>Host verification (<code>verify-build</code>, <code>verify-reviews</code>, <code>verify-skills</code>) passed on 5a1a1434; attestation 249e3d3f-24c0-4707-a24c-3f6683bdd511 posted.</li>
+</ul>
+<p>Known, out of scope: in the three non-Data views the <code>&lt;h1&gt;</code> has no <code>overflow-wrap: anywhere</code>, so a very long unbroken name can still overflow at phone width.</p>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L https://</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.192334.0-sha.1a8ed847" rel="noopener">release v20260928.192334.0-sha.1a8ed847</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1a8ed8471909c74efd071004c444da5b65fc333b" rel="noopener">1a8ed847</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2669" rel="noopener">#2669</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2670" rel="noopener">#2670</a>𝗔 <a href="https://swamp-club.com/lab/2610" rel="noopener">lab#2610</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-191133-0-sha-73454477">
+<h2><span class="tier A">A</span>shareable deep links to data items, versions and reports (swamp-club#2595) (#2668)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T19:13:14Z">2026-09-28T19:13:14Z</time></span><span>dashboard</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(dashboard): shareable deep links to data items, versions and reports (swamp-club#2595) (#2668)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Adds dashboard URLs for one data item, one pinned version of it, a model&#39;s report, and a workflow run&#39;s report. Notifications and incident threads can now link to the exact artifact instead of the whole model or run.</p>
+<p>| Route | Shows |</p>
+<p>| --- | --- |</p>
+<p>| <code>/dashboard/models/&lt;m&gt;/data/&lt;d&gt;</code> | latest version of a data item |</p>
+<p>| <code>/dashboard/models/&lt;m&gt;/data/&lt;d&gt;/versions/&lt;n&gt;</code> | one exact version (the permalink form) |</p>
+<p>| <code>/dashboard/models/&lt;m&gt;/reports/&lt;r&gt;[/variants/&lt;v&gt;]</code> | a model&#39;s latest report |</p>
+<p>| <code>/dashboard/workflows/&lt;wf&gt;/runs/&lt;id&gt;/reports/&lt;r&gt;</code> | a run&#39;s workflow-scope report, at the version that run produced |</p>
+<p>Path segments keep <code>@</code> readable and encode <code>/</code> as <code>%2F</code> (e.g. <code>/reports/@swamp%2Fworkflow-summary</code>). A malformed escape, such as a link truncated in chat, lands on the nearest valid parent route.</p>
+<h4 class="body-h">The item page</h4>
+<p>The new <code>DataDetail</code> page:</p>
+<ul>
+<li>renders report markdown with a Rendered/Source/JSON toggle, and other content as pretty JSON, YAML or text</li>
+<li>has Copy link, plus Copy permalink when showing the latest version</li>
+<li>shows a &quot;viewing v3 · latest is v5&quot; banner, a versions list and a details panel</li>
+<li>offers a download, and truncates very large content</li>
+<li>shows clear messages for expired, superseded, not-found, no-access and still-running</li>
+<li>sets the browser tab title to the item name</li>
+</ul>
+<h4 class="body-h">Links into the new pages</h4>
+<ul>
+<li><strong>RunDetail:</strong> each step&#39;s out</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.191133.0-sha.73454477" rel="noopener">release v20260928.191133.0-sha.73454477</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/73454477116c87d440b496eab058b2a1bdf42e9c" rel="noopener">73454477</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2668" rel="noopener">#2668</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2601" rel="noopener">#2601</a>𝗔 <a href="https://swamp-club.com/lab/2595" rel="noopener">lab#2595</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-190746-0-sha-3503e31f">
+<h2><span class="tier A">A</span>resolve run-scoped data get/list at the version the run recorded (swamp-club#2601) (#2667)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T19:09:12Z">2026-09-28T19:09:12Z</time></span><span>data</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(data): resolve run-scoped data get/list at the version the run recorded (swamp-club#2601) (#2667)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2601. <code>swamp data get/list --workflow &lt;wf&gt; --run &lt;id&gt;</code> (and serve&#39;s <code>data.get</code> with a <code>runId</code>) returned the <strong>latest</strong> version of each data item instead of the version that run produced, could return a same-named item from a <strong>different model</strong>, and returned not_found for an explicit <code>--version</code> of the run&#39;s own data.</p>
+<p><code>WorkflowDataService</code> (<code>src/domain/data/workflow_data_service.ts</code>) now:</p>
+<ul>
+<li>reads every run artifact at its recorded <code>DataArtifactRef.version</code>, never the latest;</li>
+<li>accepts the stored version only if it belongs to the run: its id matches the ref&#39;s <code>dataId</code>, or — when exactly one candidate qualifies — its <code>ownerDefinition.workflowRunId</code> is the run id;</li>
+<li>resolves workflow-scope artifacts under type <code>workflow</code> and the run&#39;s workflow id;</li>
+<li>drops the latest-version id lookup and the cross-model same-name fallback, so a garbage-collected version yields not_found rather than other data;</li>
+<li>skips (debug-logs) unreadable candidates under unrelated models instead of failing the whole lookup;</li>
+<li>with no <code>--version</code>, returns the highest version the run recorded.</li>
+</ul>
+<p>Callers in <code>libswamp/data/get.ts</code>, <code>libswamp/data/list.ts</code> and serve are unchanged.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>11 new unit tests in <code>src/domain/data/workflow_data_service_test.ts</code> (older run&#39;s version, explicit version found / not found, other-model same name, shared ids across</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.190746.0-sha.3503e31f" rel="noopener">release v20260928.190746.0-sha.3503e31f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3503e31f6558fe0de23996ae5d34ac23d89efa87" rel="noopener">3503e31f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2667" rel="noopener">#2667</a>𝗔 <a href="https://swamp-club.com/lab/2601" rel="noopener">lab#2601</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-190345-0-sha-2f36ae11">
+<h2><span class="tier A">A</span>keep JSON-mode renderer output out of the console guard (swamp-club#2547) (#2666)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T19:05:25Z">2026-09-28T19:05:25Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): keep JSON-mode renderer output out of the console guard (swamp-club#2547) (#2666)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2547. In <code>--json</code> mode, <code>swamp workflow run</code> wrote guarded-skip lines to stdout or stderr depending on timing, and could write the same line to stderr twice.</p>
+<p><code>withConsoleGuard</code> (<code>src/domain/models/console_guard.ts</code>) replaces the global console while any model method runs, so extension output goes to stderr instead of polluting stdout. <code>JsonWorkflowRunRenderer</code> printed its own guarded-skip, <code>superseded_runs</code> and <code>vault_single_quote</code> lines with <code>console.log</code>. Any line emitted while a method was running was captured as that method&#39;s output: it was added to the method&#39;s logs and replayed to stderr when the method finished. The guard also replayed every captured line once per concurrently running method, which caused the duplicates.</p>
+<p>This is not a regression. The console guard (June) existed before the guarded-skip line was added (#1993, July), so the line was never routed reliably.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong>Console guard:</strong></li>
+<li>Each captured line is written to stderr once, when it is logged, and still recorded in every active guard&#39;s logs.</li>
+<li>When the last guard exits, the guard restores the console that was in place before the first guard, not a snapshot taken at module load.</li>
+<li>Exports <code>unguardedConsole</code> (<code>log</code>/<code>error</code>) for swamp&#39;s own renderers, and <code>setConsoleGuardStderrWriter</code> as a test seam.</li>
+<li><strong><code>JsonWorkflowRunRenderer</code>:</strong></li>
+<li>Guar</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.190345.0-sha.2f36ae11" rel="noopener">release v20260928.190345.0-sha.2f36ae11</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2f36ae11b25309b6df9aba20348ea48fc4191439" rel="noopener">2f36ae11</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2666" rel="noopener">#2666</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1993" rel="noopener">#1993</a>𝗔 <a href="https://swamp-club.com/lab/2547" rel="noopener">lab#2547</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20260928-185132-0-sha-56dfcb83">
 <h2><span class="tier A">A</span>accept --ca-cert on every command that takes --server (swamp-club#2360) (#2665)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -218,7 +383,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.183846.0-sha.b829a796" rel="noopener">release v20260928.183846.0-sha.b829a796</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b829a796e75735d44840655232799369b44d3ed0" rel="noopener">b829a796</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2664" rel="noopener">#2664</a>𝗔 <a href="https://swamp-club.com/lab/2359" rel="noopener">lab#2359</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20260928-174341-0-sha-0035b3d8">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260928-174341-0-sha-0035b3d8">
 <h2><span class="tier A">A</span>record a timeout as the cancel reason when workflow resume --timeout fires (swamp-club#2594) (#2661)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-28T17:45:34Z">2026-09-28T17:45:34Z</time></span><span>workflows</span><span>fix</span></div>
@@ -358,7 +523,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.160203.0-sha.b76c8a82" rel="noopener">release v20260928.160203.0-sha.b76c8a82</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b76c8a82f658f354bd8cd22493c52bd79352138b" rel="noopener">b76c8a82</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2656" rel="noopener">#2656</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/808" rel="noopener">#808</a>𝗔 <a href="https://swamp-club.com/lab/2548" rel="noopener">lab#2548</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260928-152146-0-sha-74d8682c">
+<article class="item" id="release-swamp-club-swamp-v20260928-152146-0-sha-74d8682c">
 <h2><span class="tier A">A</span>settle work an abort left unstarted so cleanup runs, and resume it (swamp-club#2543) (#2651)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-28T15:23:23Z">2026-09-28T15:23:23Z</time></span><span>workflows</span><span>fix</span></div>
@@ -9527,172 +9692,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.github/actions/adversarial-review/README.md" rel="noopener">.github/actions/adversarial-review/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c4600418b072728920f6df3a97f34c1666ee04" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260928-195328-0-sha-143c7423">
-<h2><span class="tier C">C</span>swamp 20260928.195328.0-sha.143c7423</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T19:55:35Z">2026-09-28T19:55:35Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): hand run ownership to the process that resumes it (swamp-club#2420) (#2671)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2420. A resume runs in a new process, but the run record kept the pid and instance id of the process that started the run:</p>
-<ul>
-<li><strong><code>workflow cancel</code> didn&#39;t stop the resume.</strong> It killed the stale, usually dead, pid. The live resume then overwrote the <code>cancelled</code> record when it finished.</li>
-<li><strong>Serve-ownership checks were wrong.</strong> They read the starter&#39;s instance id.</li>
-<li><strong>Serve boot could interrupt a live resume.</strong> When a failed run&#39;s tracker row had been purged or was stale, the boot reaper fell back to the stale record and interrupted the run.</li>
-</ul>
-<p>This PR hands ownership to the resuming process while it drives the run, and back to the original owner when it stops.</p>
-<ul>
-<li><strong>Aggregate.</strong> <code>WorkflowRun.resumeFromSuspended</code> and <code>resumeFromFailed</code> now take a required <code>RunOwner</code> (the pid, plus serve&#39;s instance id when serve drives the resume).</li>
-<li>Before any step runs, the resume&#39;s first save records that owner.</li>
-<li>The previous owner is kept in <code>ownerBeforeResume</code> and restored when the run leaves <code>running</code> (suspend, complete, cancel, interrupt).</li>
-<li>While the run is running, <code>pid</code> and <code>instanceId</code> name the live process, which cancel&#39;s kill and serve&#39;s reapers need. Otherwise they name the run&#39;s owner, which cancel routing and supersede need. None of those consumers change.</li>
-<li><strong>Entry points.</strong> Serve&#39;s attached resume and the detached launcher (including ap</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.195328.0-sha.143c7423" rel="noopener">release v20260928.195328.0-sha.143c7423</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/143c7423" rel="noopener">143c7423</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2671" rel="noopener">#2671</a>𝗔 <a href="https://swamp-club.com/lab/2420" rel="noopener">lab#2420</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-192753-0-sha-1a8ed847">
-<h2><span class="tier C">C</span>swamp 20260928.192753.0-sha.1a8ed847</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T19:30:01Z">2026-09-28T19:30:01Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(dashboard): stop the JSON and YAML highlighters altering displayed text (swamp-club#2607) (#2670)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2607. The dashboard&#39;s <code>CodeBlock</code> syntax highlighters changed the text they displayed instead of only wrapping tokens.</p>
-<ul>
-<li><strong>JSON:</strong> <code>highlightJson</code> chained whole-text regex replaces. The number, boolean and null rules matched any colon, including colons inside string values, so <code>&quot;2026-09-28T18:43:51.845Z&quot;</code> rendered as <code>&quot;2026-09-28T18: 43: 51.845Z&quot;</code> and <code>https://x.io:8080</code> as <code>x.io: 8080</code>. It is now a single-pass tokenizer (<code>json_highlight.ts</code>). String literals are consumed whole before numbers and keywords are tried, and the text between tokens is copied through verbatim. Compact JSON stays compact, and scalars inside arrays are now highlighted.</li>
-<li><strong>YAML</strong> (scope extended during review): <code>highlightYaml</code> collapsed the whitespace after a colon (<code>count:   12</code> rendered as <code>count: 12</code>) and highlighted block-scalar content (<code>run: |</code>) as keys, numbers and comments. It is now a per-line tokenizer (<code>yaml_highlight.ts</code>) that copies every character through and leaves block-scalar content plain. It highlights only values that are one whole token, plus sequence items, quoted keys and trailing comments.</li>
-<li><code>escapeHtml</code> moves to <code>escape_html.ts</code>, shared by both highlighters. Every piece of output is escaped before it reaches <code>dangerouslySetInnerHTML</code>.</li>
-</ul>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li><code>json_highlight_test.ts</code> and <code>yaml_highlight_test.ts</code> cover 22 cases:</li>
-</ul>
-<p>  -</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.192753.0-sha.1a8ed847" rel="noopener">release v20260928.192753.0-sha.1a8ed847</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1a8ed847" rel="noopener">1a8ed847</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2670" rel="noopener">#2670</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2595" rel="noopener">#2595</a>𝗔 <a href="https://swamp-club.com/lab/2607" rel="noopener">lab#2607</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-192334-0-sha-1a8ed847">
-<h2><span class="tier C">C</span>swamp 20260928.192334.0-sha.1a8ed847</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T19:25:41Z">2026-09-28T19:25:41Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(dashboard): keep the Back button on one line at phone width (swamp-club#2610) (#2669)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>At phone width (~390px) the detail-view header row squeezed the Back button until its label broke, stacking the arrow above &quot;Back&quot; (swamp-club#2610, found while verifying swamp-club#2595).</p>
-<ul>
-<li>Add <code>white-space: nowrap</code> and <code>flex-shrink: 0</code> to the shared <code>.back-button</code> class in <code>packages/dashboard/src/styles.css</code>.</li>
-<li>Move the RunDetail, WorkflowDetail and ModelDetail Back buttons off their identical inline styles onto <code>.back-button</code>, so all four detail views behave the same.</li>
-<li>Give <code>.back-button</code> its own comment now that it is shared; the &quot;Data item / report detail&quot; section comment moves down to <code>.item-title</code>.</li>
-</ul>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>Rendered all four detail-header layouts with the built dashboard CSS in headless Chrome at a true 390px viewport (iframe, since headless Chrome clamps windows to 500px): Back button renders on a single line (26px tall, previously 42px with a broken label).</li>
-<li><code>deno run build-dashboard</code> succeeds.</li>
-<li>Host verification (<code>verify-build</code>, <code>verify-reviews</code>, <code>verify-skills</code>) passed on 5a1a1434; attestation 249e3d3f-24c0-4707-a24c-3f6683bdd511 posted.</li>
-</ul>
-<p>Known, out of scope: in the three non-Data views the <code>&lt;h1&gt;</code> has no <code>overflow-wrap: anywhere</code>, so a very long unbroken name can still overflow at phone width.</p>
-<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
-<p>---</p>
-<h4 class="body-h">Installation</h4>
-<p><strong>macOS (Apple Silicon):</strong></p>
-<p>```bash</p>
-<p>curl -L https://</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.192334.0-sha.1a8ed847" rel="noopener">release v20260928.192334.0-sha.1a8ed847</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1a8ed847" rel="noopener">1a8ed847</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2669" rel="noopener">#2669</a>𝗔 <a href="https://swamp-club.com/lab/2610" rel="noopener">lab#2610</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-191133-0-sha-73454477">
-<h2><span class="tier C">C</span>swamp 20260928.191133.0-sha.73454477</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T19:13:14Z">2026-09-28T19:13:14Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(dashboard): shareable deep links to data items, versions and reports (swamp-club#2595) (#2668)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Adds dashboard URLs for one data item, one pinned version of it, a model&#39;s report, and a workflow run&#39;s report. Notifications and incident threads can now link to the exact artifact instead of the whole model or run.</p>
-<p>| Route | Shows |</p>
-<p>| --- | --- |</p>
-<p>| <code>/dashboard/models/&lt;m&gt;/data/&lt;d&gt;</code> | latest version of a data item |</p>
-<p>| <code>/dashboard/models/&lt;m&gt;/data/&lt;d&gt;/versions/&lt;n&gt;</code> | one exact version (the permalink form) |</p>
-<p>| <code>/dashboard/models/&lt;m&gt;/reports/&lt;r&gt;[/variants/&lt;v&gt;]</code> | a model&#39;s latest report |</p>
-<p>| <code>/dashboard/workflows/&lt;wf&gt;/runs/&lt;id&gt;/reports/&lt;r&gt;</code> | a run&#39;s workflow-scope report, at the version that run produced |</p>
-<p>Path segments keep <code>@</code> readable and encode <code>/</code> as <code>%2F</code> (e.g. <code>/reports/@swamp%2Fworkflow-summary</code>). A malformed escape, such as a link truncated in chat, lands on the nearest valid parent route.</p>
-<h4 class="body-h">The item page</h4>
-<p>The new <code>DataDetail</code> page:</p>
-<ul>
-<li>renders report markdown with a Rendered/Source/JSON toggle, and other content as pretty JSON, YAML or text</li>
-<li>has Copy link, plus Copy permalink when showing the latest version</li>
-<li>shows a &quot;viewing v3 · latest is v5&quot; banner, a versions list and a details panel</li>
-<li>offers a download, and truncates very large content</li>
-<li>shows clear messages for expired, superseded, not-found, no-access and still-running</li>
-<li>sets the browser tab title to the item name</li>
-</ul>
-<h4 class="body-h">Links into the new pages</h4>
-<ul>
-<li><strong>RunDetail:</strong> each step&#39;s out</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.191133.0-sha.73454477" rel="noopener">release v20260928.191133.0-sha.73454477</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/73454477" rel="noopener">73454477</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2668" rel="noopener">#2668</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2601" rel="noopener">#2601</a>𝗔 <a href="https://swamp-club.com/lab/2595" rel="noopener">lab#2595</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-190746-0-sha-3503e31f">
-<h2><span class="tier C">C</span>swamp 20260928.190746.0-sha.3503e31f</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T19:09:12Z">2026-09-28T19:09:12Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(data): resolve run-scoped data get/list at the version the run recorded (swamp-club#2601) (#2667)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2601. <code>swamp data get/list --workflow &lt;wf&gt; --run &lt;id&gt;</code> (and serve&#39;s <code>data.get</code> with a <code>runId</code>) returned the <strong>latest</strong> version of each data item instead of the version that run produced, could return a same-named item from a <strong>different model</strong>, and returned not_found for an explicit <code>--version</code> of the run&#39;s own data.</p>
-<p><code>WorkflowDataService</code> (<code>src/domain/data/workflow_data_service.ts</code>) now:</p>
-<ul>
-<li>reads every run artifact at its recorded <code>DataArtifactRef.version</code>, never the latest;</li>
-<li>accepts the stored version only if it belongs to the run: its id matches the ref&#39;s <code>dataId</code>, or — when exactly one candidate qualifies — its <code>ownerDefinition.workflowRunId</code> is the run id;</li>
-<li>resolves workflow-scope artifacts under type <code>workflow</code> and the run&#39;s workflow id;</li>
-<li>drops the latest-version id lookup and the cross-model same-name fallback, so a garbage-collected version yields not_found rather than other data;</li>
-<li>skips (debug-logs) unreadable candidates under unrelated models instead of failing the whole lookup;</li>
-<li>with no <code>--version</code>, returns the highest version the run recorded.</li>
-</ul>
-<p>Callers in <code>libswamp/data/get.ts</code>, <code>libswamp/data/list.ts</code> and serve are unchanged.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>11 new unit tests in <code>src/domain/data/workflow_data_service_test.ts</code> (older run&#39;s version, explicit version found / not found, other-model same name, shared ids across</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.190746.0-sha.3503e31f" rel="noopener">release v20260928.190746.0-sha.3503e31f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3503e31f" rel="noopener">3503e31f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2667" rel="noopener">#2667</a>𝗔 <a href="https://swamp-club.com/lab/2601" rel="noopener">lab#2601</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-190345-0-sha-2f36ae11">
-<h2><span class="tier C">C</span>swamp 20260928.190345.0-sha.2f36ae11</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T19:05:25Z">2026-09-28T19:05:25Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): keep JSON-mode renderer output out of the console guard (swamp-club#2547) (#2666)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2547. In <code>--json</code> mode, <code>swamp workflow run</code> wrote guarded-skip lines to stdout or stderr depending on timing, and could write the same line to stderr twice.</p>
-<p><code>withConsoleGuard</code> (<code>src/domain/models/console_guard.ts</code>) replaces the global console while any model method runs, so extension output goes to stderr instead of polluting stdout. <code>JsonWorkflowRunRenderer</code> printed its own guarded-skip, <code>superseded_runs</code> and <code>vault_single_quote</code> lines with <code>console.log</code>. Any line emitted while a method was running was captured as that method&#39;s output: it was added to the method&#39;s logs and replayed to stderr when the method finished. The guard also replayed every captured line once per concurrently running method, which caused the duplicates.</p>
-<p>This is not a regression. The console guard (June) existed before the guarded-skip line was added (#1993, July), so the line was never routed reliably.</p>
-<h4 class="body-h">Changes</h4>
-<ul>
-<li><strong>Console guard:</strong></li>
-<li>Each captured line is written to stderr once, when it is logged, and still recorded in every active guard&#39;s logs.</li>
-<li>When the last guard exits, the guard restores the console that was in place before the first guard, not a snapshot taken at module load.</li>
-<li>Exports <code>unguardedConsole</code> (<code>log</code>/<code>error</code>) for swamp&#39;s own renderers, and <code>setConsoleGuardStderrWriter</code> as a test seam.</li>
-<li><strong><code>JsonWorkflowRunRenderer</code>:</strong></li>
-<li>Guar</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.190345.0-sha.2f36ae11" rel="noopener">release v20260928.190345.0-sha.2f36ae11</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2f36ae11" rel="noopener">2f36ae11</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2666" rel="noopener">#2666</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1993" rel="noopener">#1993</a>𝗔 <a href="https://swamp-club.com/lab/2547" rel="noopener">lab#2547</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-154016-0-sha-14cb0624">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260928-154016-0-sha-14cb0624">
 <h2><span class="tier C">C</span>say workflow inputs are recorded and route secrets through vault references (swamp-club#2585) (#2655)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-28T15:42:51Z">2026-09-28T15:42:51Z</time></span><span>skills</span><span>docs</span></div>
@@ -10115,12 +10115,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>311 items across 1 source(s) in this window:
-3 critical, 284 notable, 5 routine,
-19 minor.</p>
-<ul><li><strong>fix</strong> — 230</li><li><strong>feat</strong> — 57</li><li><strong>docs</strong> — 13</li><li><strong>changes</strong> — 6</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li></ul></section>
+3 critical, 290 notable, 5 routine,
+13 minor.</p>
+<ul><li><strong>fix</strong> — 235</li><li><strong>feat</strong> — 58</li><li><strong>docs</strong> — 13</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-28T21:03:14.332Z">2026-09-28T21:03:14.332Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-28T22:02:11.271Z">2026-09-28T22:02:11.271Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

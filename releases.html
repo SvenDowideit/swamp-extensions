@@ -9141,7 +9141,90 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.github/actions/adversarial-review/README.md" rel="noopener">.github/actions/adversarial-review/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c4600418b072728920f6df3a97f34c1666ee04" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260928-134422-0-sha-ca3aa618">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260928-145708-0-sha-bed7e148">
+<h2><span class="tier C">C</span>swamp 20260928.145708.0-sha.bed7e148</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T14:59:00Z">2026-09-28T14:59:00Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(dashboard): make sidebar navigation keyboard-focusable (swamp-club#2577) (#2653)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2577. Sidebar <code>NavItem</code> rendered each entry as a clickable <code>&lt;div&gt;</code> with no tabindex, role or key handling, so keyboard and screen-reader users could not reach or activate any navigation item.</p>
+<ul>
+<li><code>NavItem</code> is now an <code>&lt;a&gt;</code> whose <code>href</code> comes from <code>buildPath({ view, detail: null })</code> — natively focusable and activated with Enter.</li>
+<li>Plain left-clicks still <code>preventDefault()</code> and call <code>onNavigate</code> (no page reload); modified and middle clicks are left to the browser so the view opens in a new tab. The filter is a new pure helper, <code>isPlainLeftClick</code>, in <code>routes.ts</code>.</li>
+<li>Active item gets <code>aria-current=&quot;page&quot;</code>; the decorative icon is <code>aria-hidden</code>.</li>
+<li><code>.nav-item:focus-visible</code> outline in the sidebar accent colour.</li>
+</ul>
+<p>Not a regression: <code>NavItem</code> has been a <code>div</code> since the dashboard was introduced (#2208).</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit tests for <code>isPlainLeftClick</code> in <code>packages/dashboard/src/routes_test.ts</code> (plain click, each modifier, non-primary buttons, already-prevented).</li>
+<li>Dashboard build (<code>tsc -b</code> + <code>vite build</code>) passes.</li>
+<li>Manual pass in Chrome against a dev <code>swamp serve --dashboard</code>: Tab walks every item with a visible focus ring; Enter navigates with <code>aria-current</code> moving and no reload; plain mouse clicks navigate in-app without a focus ring; ctrl/meta/shift clicks are not intercepted.</li>
+<li>Verification workflows (build, reviews, skills) passed on 94b00f38; attes</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.145708.0-sha.bed7e148" rel="noopener">release v20260928.145708.0-sha.bed7e148</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bed7e148" rel="noopener">bed7e148</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2653" rel="noopener">#2653</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2208" rel="noopener">#2208</a>𝗔 <a href="https://swamp-club.com/lab/2577" rel="noopener">lab#2577</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-145202-0-sha-4a6cdf87">
+<h2><span class="tier C">C</span>swamp 20260928.145202.0-sha.4a6cdf87</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T14:54:04Z">2026-09-28T14:54:04Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(expressions): name the data written under a spec when data.latest() is passed a spec name (swamp-club#2572) (#2652)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2572.</p>
+<p><code>data.latest()</code> and <code>data.version()</code> look records up by <strong>data name</strong>. The bundled <code>swamp</code> skill docs labelled that argument a *spec*, and extensions often write a spec under a per-run instance name. For example, <code>@evrardjp/github-local-mirror</code> writes spec <code>syncRunSummary</code> as <code>sync-&lt;timestamp&gt;</code>. So <code>data.latest(&quot;test-mirror&quot;, &quot;syncRunSummary&quot;)</code> found nothing, and the error only said &quot;found no data record&quot;. <code>swamp data get test-mirror syncRunSummary</code> fails the same way.</p>
+<p>This PR keeps the lookup semantics unchanged and adds no new accessor. It makes the failure explain itself and fixes the docs:</p>
+<ul>
+<li><strong>Error hint.</strong> When a <code>data.latest()</code> or <code>data.version()</code> miss causes a failing select, and the name is an output spec with records, the error adds a paragraph:</li>
+</ul>
+<p>  ```</p>
+<p>  &quot;syncRunSummary&quot; is an output spec name, but data.latest() takes a data name.</p>
+<p>  test-mirror has 1 record of spec &quot;syncRunSummary&quot;: &quot;sync-2026-09-28T13:48:06.759Z&quot;.</p>
+<p>  Pass one of those names to data.latest(), or use data.findBySpec(&quot;test-mirror&quot;,</p>
+<p>  &quot;syncRunSummary&quot;) to get every record of that spec.</p>
+<p>  ```</p>
+<p>  It lists names newest first (up to three, plus a count).</p>
+<ul>
+<li><strong>How the lookup works.</strong></li>
+<li>It reuses the catalog rows the specName ambiguity check already reads (<code>CatalogStore.findLatestRowsBySpecName</code>, indexed).</li>
+<li>It is scoped like `data.</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.145202.0-sha.4a6cdf87" rel="noopener">release v20260928.145202.0-sha.4a6cdf87</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4a6cdf87" rel="noopener">4a6cdf87</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2652" rel="noopener">#2652</a>𝗔 <a href="https://swamp-club.com/lab/2572" rel="noopener">lab#2572</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-143100-0-sha-ff14f196">
+<h2><span class="tier C">C</span>swamp 20260928.143100.0-sha.ff14f196</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T14:32:56Z">2026-09-28T14:32:56Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(dashboard): collapsible sidebar with mobile drawer (swamp-club#2574) (#2650)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The <code>swamp serve</code> dashboard had a fixed 220px sidebar at every width. On a phone it took most of the screen and crushed the main panel (swamp-club#2574).</p>
+<ul>
+<li><strong>Desktop:</strong> a header toggle collapses the sidebar to a 64px icon-only rail, remembered in <code>localStorage</code>. Hovering an icon shows its name in a styled tooltip. The approvals badge, theme toggle, health dot and logout all stay usable in the rail.</li>
+<li><strong>At 768px and below:</strong> the sidebar becomes an off-canvas drawer, opened from a sticky top-bar menu button. The backdrop, a close button, Escape, or picking a page closes it.</li>
+<li><strong>Accessibility:</strong></li>
+<li>A closed drawer is hidden from the tab order.</li>
+<li>Opening the drawer moves focus to its close button, and closing it returns focus to the menu button.</li>
+<li>Escape closes the drawer before an open detail view.</li>
+<li>Collapsed page names are visually hidden but still read by screen readers.</li>
+<li>Animations are skipped for users who ask for reduced motion.</li>
+<li><strong>Code:</strong> sidebar styling is inline, so the CSS works through new class hooks and only sets properties the inline styles leave alone. The storage parsing and Escape-priority rules are pure functions in <code>sidebar_state.ts</code>.</li>
+<li><strong>Docs:</strong> <code>design/primitives/serve.md</code> notes the new behaviour.</li>
+</ul>
+<p>Filed separately: swamp-club#2577, because the sidebar&#39;s page links are <code>div</code>s that can&#39;t be reached with the keyboard. That problem alr</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.143100.0-sha.ff14f196" rel="noopener">release v20260928.143100.0-sha.ff14f196</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ff14f196" rel="noopener">ff14f196</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2650" rel="noopener">#2650</a>𝗔 <a href="https://swamp-club.com/lab/2574" rel="noopener">lab#2574</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-134422-0-sha-ca3aa618">
 <h2><span class="tier C">C</span>swamp 20260928.134422.0-sha.ca3aa618</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-28T13:46:00Z">2026-09-28T13:46:00Z</time></span></div>
@@ -9588,13 +9671,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260901.012545.0-sha.7d7984ad" rel="noopener">release v20260901.012545.0-sha.7d7984ad</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7d7984adc3a589df883ef460f5bc7e4d10259b13" rel="noopener">7d7984ad</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2332" rel="noopener">#2332</a>𝗔 <a href="https://swamp-club.com/lab/1925" rel="noopener">lab#1925</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>290 items across 1 source(s) in this window:
+<p>293 items across 1 source(s) in this window:
 3 critical, 268 notable, 5 routine,
-14 minor.</p>
-<ul><li><strong>fix</strong> — 215</li><li><strong>feat</strong> — 56</li><li><strong>docs</strong> — 12</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>changes</strong> — 2</li></ul></section>
+17 minor.</p>
+<ul><li><strong>fix</strong> — 215</li><li><strong>feat</strong> — 56</li><li><strong>docs</strong> — 12</li><li><strong>changes</strong> — 5</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-28T14:04:27.756Z">2026-09-28T14:04:27.756Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-28T15:02:16.174Z">2026-09-28T15:02:16.174Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

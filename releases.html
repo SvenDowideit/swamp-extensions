@@ -9141,7 +9141,52 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.github/actions/adversarial-review/README.md" rel="noopener">.github/actions/adversarial-review/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c4600418b072728920f6df3a97f34c1666ee04" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260925-234421-0-sha-36f7fa66">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260928-134422-0-sha-ca3aa618">
+<h2><span class="tier C">C</span>swamp 20260928.134422.0-sha.ca3aa618</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T13:46:00Z">2026-09-28T13:46:00Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(models): stop one bad output record from failing every output read (swamp-club#2575) (#2649)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2575. <code>swamp model delete &lt;name&gt;</code> failed with <code>ZodError: durationMs: Too small: expected number to be &gt;=0</code> even when the target model had no outputs of its own. The cause was a single output record from a different model of the same type, written while the host clock stepped backward mid-run, so its <code>completedAt</code> was 835ms before its <code>startedAt</code>.</p>
+<p>Two things combined:</p>
+<ul>
+<li><code>ModelOutput</code> computed <code>durationMs</code> as <code>completedAt - startedAt</code> with no floor and saved it unvalidated. <code>fromData</code> then rejected it on read, so swamp could write a record it could never read back.</li>
+<li><code>YamlOutputRepository</code> rethrew any parse or validation error, so one bad record failed every read for that model type. That covered more than delete: <code>model output get/search/logs/data</code> and method history hit the same error. Reproduced <code>model delete</code> and <code>model output search</code> in a scratch repo with the released binary.</li>
+</ul>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong>Duration invariant enforced by the entity.</strong> <code>markSucceeded</code>, <code>markFailed</code> and <code>markCancelled</code> clamp the derived duration to 0. The recorded timestamps are kept, so the skew is still visible in the record.</li>
+<li><strong>Existing records still load.</strong> <code>fromData</code> reads a negative <code>durationMs</code> as 0. <code>ModelOutputSchema</code> keeps <code>nonnegative()</code>, so <code>create()</code> still rejects a negative duration and non-integer values still fail.</li>
+<li>**One bad record no lon</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.134422.0-sha.ca3aa618" rel="noopener">release v20260928.134422.0-sha.ca3aa618</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ca3aa618" rel="noopener">ca3aa618</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2649" rel="noopener">#2649</a>𝗔 <a href="https://swamp-club.com/lab/2575" rel="noopener">lab#2575</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-134031-0-sha-c0dcd530">
+<h2><span class="tier C">C</span>swamp 20260928.134031.0-sha.c0dcd530</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T13:42:28Z">2026-09-28T13:42:28Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): find catalog rows written under another spelling of the repo root (swamp-club#2570) (#2648)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2570.</p>
+<p>When a repo is reached under a different spelling of its root than the one that wrote the extension catalog (on macOS, <code>/tmp/r</code> vs <code>/private/tmp/r</code>), the first command or <code>swamp serve</code> start printed one false &quot;type could not be read statically from the export block&quot; warning per extension whose export wraps its definition. That was 20 warnings for <code>@swamp/gcp-organization</code>.</p>
+<p><strong>Cause.</strong> The source-dirs fingerprint is built from the raw directory strings, so a new spelling forces a cold <code>buildIndex</code>. <code>populateCatalogFromDir</code> looked each file up by its exact path and missed the rows written under the other spelling, because <code>canonicalizePath</code> does not follow symlinks. It then fell back to static <code>extractTypeFromSource</code>, which cannot read wrapped exports such as <code>export const extension = withOptions(definition)</code>.</p>
+<p><strong>Fix.</strong> When the exact lookup misses, or finds a row with no usable type, the loader matches rows outside its own spelling of the repo root by symlink-resolved path. This works in both directions, and it is the same identity <code>contributorFor</code> already uses.</p>
+<ul>
+<li>An up-to-date match is moved to the current spelling in one transaction, leaving one row per file. This is what the next warm scan would do anyway, one run earlier.</li>
+<li>A stale match suppresses the warning, as the same-spelling stale branch does.</li>
+<li>The lo</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.134031.0-sha.c0dcd530" rel="noopener">release v20260928.134031.0-sha.c0dcd530</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0dcd530" rel="noopener">c0dcd530</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2648" rel="noopener">#2648</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2562" rel="noopener">#2562</a>𝗔 <a href="https://swamp-club.com/lab/2570" rel="noopener">lab#2570</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260925-234421-0-sha-36f7fa66">
 <h2><span class="tier C">C</span>correct the WebSocket auth verbs for admin-family requests (swamp-club#2552) (#2642)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-25T23:46:09Z">2026-09-25T23:46:09Z</time></span><span>design</span><span>docs</span></div>
@@ -9543,13 +9588,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260901.012545.0-sha.7d7984ad" rel="noopener">release v20260901.012545.0-sha.7d7984ad</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7d7984adc3a589df883ef460f5bc7e4d10259b13" rel="noopener">7d7984ad</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2332" rel="noopener">#2332</a>𝗔 <a href="https://swamp-club.com/lab/1925" rel="noopener">lab#1925</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>288 items across 1 source(s) in this window:
+<p>290 items across 1 source(s) in this window:
 3 critical, 268 notable, 5 routine,
-12 minor.</p>
-<ul><li><strong>fix</strong> — 215</li><li><strong>feat</strong> — 56</li><li><strong>docs</strong> — 12</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>chore</strong> — 1</li></ul></section>
+14 minor.</p>
+<ul><li><strong>fix</strong> — 215</li><li><strong>feat</strong> — 56</li><li><strong>docs</strong> — 12</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>changes</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-28T13:03:24.950Z">2026-09-28T13:03:24.950Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-28T14:04:27.756Z">2026-09-28T14:04:27.756Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

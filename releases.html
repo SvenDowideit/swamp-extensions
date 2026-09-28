@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260927-012109-0-sha-6860a5b7"><span class="tier A">A</span>stop spreading unbounded arrays into call arguments (swamp-c</a><a href="#release-swamp-club-swamp-v20260927-001720-0-sha-211145c6"><span class="tier A">A</span>pick one deterministic winner when extensions add the same m</a><a href="#release-swamp-club-swamp-v20260926-025243-0-sha-0f086bc8"><span class="tier A">A</span>exit 0 when auth token revoke succeeds (swamp-club#2555) (#2</a><a href="#release-swamp-club-swamp-v20260926-012832-0-sha-64ae614f"><span class="tier A">A</span>stop re-importing every pulled bundle on reload and hot-relo</a><a href="#release-swamp-club-swamp-v20260926-001112-0-sha-9eac3f05"><span class="tier A">A</span>keep every extension file that targets the same base type (s</a><a href="#release-swamp-club-swamp-v20260925-222627-0-sha-441f5ad0"><span class="tier A">A</span>refuse extension writes to a guessed managed config base (sw</a><a href="#release-swamp-club-swamp-v20260925-222223-0-sha-18ec7540"><span class="tier A">A</span>feed the worker child env to initTracing instead of Deno.env</a><a href="#release-swamp-club-swamp-v20260925-215751-0-sha-26fe2956"><span class="tier A">A</span>resolve the managed config base at startup (swamp-club#2483)</a><a href="#release-swamp-club-swamp-v20260925-210952-0-sha-4341e359"><span class="tier A">A</span>read the nested serve.config payload on the System tab (swam</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260928-160203-0-sha-b76c8a82"><span class="tier A">A</span>keep the owning process&#39;s final record on an offline workflo</a><a href="#release-swamp-club-swamp-v20260928-152146-0-sha-74d8682c"><span class="tier A">A</span>settle work an abort left unstarted so cleanup runs, and res</a><a href="#release-swamp-club-swamp-v20260928-150833-0-sha-6858940b"><span class="tier A">A</span>retry the auto-definition create lock after 25ms instead of </a><a href="#release-swamp-club-swamp-v20260928-145708-0-sha-bed7e148"><span class="tier A">A</span>make sidebar navigation keyboard-focusable (swamp-club#2577)</a><a href="#release-swamp-club-swamp-v20260928-145202-0-sha-4a6cdf87"><span class="tier A">A</span>name the data written under a spec when data.latest() is pas</a><a href="#release-swamp-club-swamp-v20260928-143100-0-sha-ff14f196"><span class="tier A">A</span>collapsible sidebar with mobile drawer (swamp-club#2574) (#2</a><a href="#release-swamp-club-swamp-v20260928-134422-0-sha-ca3aa618"><span class="tier A">A</span>stop one bad output record from failing every output read (s</a><a href="#release-swamp-club-swamp-v20260928-134031-0-sha-c0dcd530"><span class="tier A">A</span>find catalog rows written under another spelling of the repo</a><a href="#release-swamp-club-swamp-v20260927-012109-0-sha-6860a5b7"><span class="tier A">A</span>stop spreading unbounded arrays into call arguments (swamp-c</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7">
 <h2><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#2446)</h2>
@@ -151,6 +151,207 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.194129.0-sha.d1808bea" rel="noopener">release v20260902.194129.0-sha.d1808bea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1808bead33f16f9845d428e62e8d6d253214017" rel="noopener">d1808bea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2360" rel="noopener">#2360</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20260928-160203-0-sha-b76c8a82">
+<h2><span class="tier A">A</span>keep the owning process&#39;s final record on an offline workflow cancel (swamp-club#2548) (#2656)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T16:03:50Z">2026-09-28T16:03:50Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): keep the owning process&#39;s final record on an offline workflow cancel (swamp-club#2548) (#2656)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2548. An offline <code>swamp workflow cancel</code> of a live local run overwrote the owning process&#39;s final run record with a stale snapshot.</p>
+<p>The command loaded the run, sent SIGTERM to the owning <code>workflow run</code> process (<code>killProcessTree</code>), then cancelled and saved the copy it had loaded <strong>before</strong> the kill. The owner handles SIGTERM as an abort: it runs cleanup mode, marks in-flight steps failed, skips or runs cleanup steps, and saves its own final record. The cancel command&#39;s save then replaced that record with the run-start snapshot. In the reproduction, the persisted run showed job <code>main</code> pending, with steps <code>build</code> (the unexpanded forEach template, not <code>build-1</code>) and <code>rollback</code> both pending. The owner had recorded <code>build-1</code> failed, <code>rollback</code> skipped (dependency) and the job failed.</p>
+<p>This is not a regression. <code>cancelRun</code> has saved the pre-kill snapshot since execution cancellation was added (#808, <code>89973acb</code>). Cleanup mode (swamp-club#1785) only made the owner&#39;s final record richer, so more is lost.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong><code>cancelLocalRun</code></strong> (<code>src/cli/commands/workflow_cancel.ts</code>) replaces <code>cancelRun</code>. It stops the owner, then re-reads the run with <code>runRepo.findById</code> and acts on that record. The pre-kill snapshot is never saved.</li>
+</ul>
+<p>  | Record after the kill | Result |</p>
+<p>  |---|---|</p>
+<p>  | Still active (owner force-killed, dead, or ne</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.160203.0-sha.b76c8a82" rel="noopener">release v20260928.160203.0-sha.b76c8a82</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b76c8a82f658f354bd8cd22493c52bd79352138b" rel="noopener">b76c8a82</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2656" rel="noopener">#2656</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/808" rel="noopener">#808</a>𝗔 <a href="https://swamp-club.com/lab/2548" rel="noopener">lab#2548</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-152146-0-sha-74d8682c">
+<h2><span class="tier A">A</span>settle work an abort left unstarted so cleanup runs, and resume it (swamp-club#2543) (#2651)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T15:23:23Z">2026-09-28T15:23:23Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): settle work an abort left unstarted so cleanup runs, and resume it (swamp-club#2543) (#2651)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2543. After a cancel or <code>--timeout</code>, a dependency that never started stayed <code>pending</code>, so <code>failed</code>- and <code>completed</code>-gated cleanup steps and jobs were skipped.</p>
+<p><strong>Settling never-started work.</strong> At the end of the level the abort interrupted, each still-pending step, forEach iteration or job is settled as it would have been had it been reached:</p>
+<ul>
+<li><code>skipped</code> (dependency) when its <code>dependsOn</code> is unmet;</li>
+<li>otherwise <code>failed</code> with <code>cancelled</code>, like an in-flight step;</li>
+<li>a guarded step whose guard never decided stays <code>pending</code> (undecided), and a started job left with only undecided work ends <code>unknown</code>, so neither a <code>failed</code>- nor a <code>succeeded</code>-gated follow-up fires on ambiguous work.</li>
+</ul>
+<p>Cleanup gated on <code>failed</code>/<code>completed</code> now sees a terminal status and runs, as swamp-club#1785 intended.</p>
+<p><strong>Resuming it.</strong> Work the abort settled is marked <code>settledByAbort</code> (persisted). Every resume (plain, after <code>recover</code> or an approval, retry, <code>--from</code>) reopens it record by record and walks the job again, so work that never started does run. A job ended <code>unknown</code> with an undecided step is re-entered too. A step or job that cleanup skipped on its <code>dependsOn</code> is marked as well, so a <code>succeeded</code>-gated dependent of reopened work runs once that work succeeds.</p>
+<p><strong>Behaviour change:</strong> a step that had already failed (without <code>allowFailure</code>) now fails its job</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.152146.0-sha.74d8682c" rel="noopener">release v20260928.152146.0-sha.74d8682c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/74d8682c54aed59633d61bfd567b80fd205cda73" rel="noopener">74d8682c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2651" rel="noopener">#2651</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2549" rel="noopener">#2549</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2550" rel="noopener">#2550</a>𝗔 <a href="https://swamp-club.com/lab/2543" rel="noopener">lab#2543</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-150833-0-sha-6858940b">
+<h2><span class="tier A">A</span>retry the auto-definition create lock after 25ms instead of 1s (swamp-club#2579) (#2654)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T15:10:15Z">2026-09-28T15:10:15Z</time></span><span>models</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(models): retry the auto-definition create lock after 25ms instead of 1s (swamp-club#2579) (#2654)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>forEach iterations of a direct-type step (<code>modelType</code> + <code>modelName</code>) that race to create the same definition serialize on the auto-definition create lock. That <code>FileLock</code> used the 1s default initial retry, so every race loser slept 750-1250 ms although the holder released it within milliseconds — every first-time fan-out paid about a second.</p>
+<p>This gives the lock the same 25 ms initial retry interval that swamp-club#2126 gave per-model locks. Backoff, jitter, ttl, maxWait and stale-lock handling are unchanged.</p>
+<ul>
+<li><code>src/libswamp/models/direct_execution.ts</code>: new <code>AUTO_DEFINITION_LOCK_RETRY_INTERVAL_MS</code> and a <code>createAutoDefinitionLock()</code> factory used by <code>resolveOrCreateDefinition()</code>. The constant is libswamp-local to avoid a libswamp -&gt; cli import; the factory is not exported from <code>mod.ts</code>.</li>
+<li><code>src/libswamp/models/direct_execution_test.ts</code>: asserts the lock&#39;s <code>retryIntervalMs</code> (configuration, not wall-clock), mirroring the #2126 test.</li>
+<li><code>design/enablers/datastores.md</code>: retry-backoff paragraph now covers this lock.</li>
+</ul>
+<p>Fixes swamp-club#2579.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit test for the lock&#39;s retry interval; existing create / fast-path / race-winner lock tests pass unchanged.</li>
+<li>Reproduced with the 5-iteration fan-out from the issue on the released binary and with the compiled fix:</li>
+</ul>
+<p>| Run | Before | After |</p>
+<p>|---|---|---|</p>
+<p>| fresh definition | 1.2s | 125-255 ms |</p>
+<p>|</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.150833.0-sha.6858940b" rel="noopener">release v20260928.150833.0-sha.6858940b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6858940b548a778bb8ed32b965e13889e1ec407d" rel="noopener">6858940b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2654" rel="noopener">#2654</a>𝗔 <a href="https://swamp-club.com/lab/2579" rel="noopener">lab#2579</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-145708-0-sha-bed7e148">
+<h2><span class="tier A">A</span>make sidebar navigation keyboard-focusable (swamp-club#2577) (#2653)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T14:59:00Z">2026-09-28T14:59:00Z</time></span><span>dashboard</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(dashboard): make sidebar navigation keyboard-focusable (swamp-club#2577) (#2653)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2577. Sidebar <code>NavItem</code> rendered each entry as a clickable <code>&lt;div&gt;</code> with no tabindex, role or key handling, so keyboard and screen-reader users could not reach or activate any navigation item.</p>
+<ul>
+<li><code>NavItem</code> is now an <code>&lt;a&gt;</code> whose <code>href</code> comes from <code>buildPath({ view, detail: null })</code> — natively focusable and activated with Enter.</li>
+<li>Plain left-clicks still <code>preventDefault()</code> and call <code>onNavigate</code> (no page reload); modified and middle clicks are left to the browser so the view opens in a new tab. The filter is a new pure helper, <code>isPlainLeftClick</code>, in <code>routes.ts</code>.</li>
+<li>Active item gets <code>aria-current=&quot;page&quot;</code>; the decorative icon is <code>aria-hidden</code>.</li>
+<li><code>.nav-item:focus-visible</code> outline in the sidebar accent colour.</li>
+</ul>
+<p>Not a regression: <code>NavItem</code> has been a <code>div</code> since the dashboard was introduced (#2208).</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit tests for <code>isPlainLeftClick</code> in <code>packages/dashboard/src/routes_test.ts</code> (plain click, each modifier, non-primary buttons, already-prevented).</li>
+<li>Dashboard build (<code>tsc -b</code> + <code>vite build</code>) passes.</li>
+<li>Manual pass in Chrome against a dev <code>swamp serve --dashboard</code>: Tab walks every item with a visible focus ring; Enter navigates with <code>aria-current</code> moving and no reload; plain mouse clicks navigate in-app without a focus ring; ctrl/meta/shift clicks are not intercepted.</li>
+<li>Verification workflows (build, reviews, skills) passed on 94b00f38; attes</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.145708.0-sha.bed7e148" rel="noopener">release v20260928.145708.0-sha.bed7e148</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bed7e1488d7c8705d8996a995ed04112a9cc5f4f" rel="noopener">bed7e148</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2653" rel="noopener">#2653</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2208" rel="noopener">#2208</a>𝗔 <a href="https://swamp-club.com/lab/2577" rel="noopener">lab#2577</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-145202-0-sha-4a6cdf87">
+<h2><span class="tier A">A</span>name the data written under a spec when data.latest() is passed a spec name (swamp-club#2572) (#2652)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T14:54:04Z">2026-09-28T14:54:04Z</time></span><span>expressions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(expressions): name the data written under a spec when data.latest() is passed a spec name (swamp-club#2572) (#2652)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2572.</p>
+<p><code>data.latest()</code> and <code>data.version()</code> look records up by <strong>data name</strong>. The bundled <code>swamp</code> skill docs labelled that argument a *spec*, and extensions often write a spec under a per-run instance name. For example, <code>@evrardjp/github-local-mirror</code> writes spec <code>syncRunSummary</code> as <code>sync-&lt;timestamp&gt;</code>. So <code>data.latest(&quot;test-mirror&quot;, &quot;syncRunSummary&quot;)</code> found nothing, and the error only said &quot;found no data record&quot;. <code>swamp data get test-mirror syncRunSummary</code> fails the same way.</p>
+<p>This PR keeps the lookup semantics unchanged and adds no new accessor. It makes the failure explain itself and fixes the docs:</p>
+<ul>
+<li><strong>Error hint.</strong> When a <code>data.latest()</code> or <code>data.version()</code> miss causes a failing select, and the name is an output spec with records, the error adds a paragraph:</li>
+</ul>
+<p>  ```</p>
+<p>  &quot;syncRunSummary&quot; is an output spec name, but data.latest() takes a data name.</p>
+<p>  test-mirror has 1 record of spec &quot;syncRunSummary&quot;: &quot;sync-2026-09-28T13:48:06.759Z&quot;.</p>
+<p>  Pass one of those names to data.latest(), or use data.findBySpec(&quot;test-mirror&quot;,</p>
+<p>  &quot;syncRunSummary&quot;) to get every record of that spec.</p>
+<p>  ```</p>
+<p>  It lists names newest first (up to three, plus a count).</p>
+<ul>
+<li><strong>How the lookup works.</strong></li>
+<li>It reuses the catalog rows the specName ambiguity check already reads (<code>CatalogStore.findLatestRowsBySpecName</code>, indexed).</li>
+<li>It is scoped like `data.</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.145202.0-sha.4a6cdf87" rel="noopener">release v20260928.145202.0-sha.4a6cdf87</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4a6cdf879d4dc3750d340efacb1b5c5d50b77439" rel="noopener">4a6cdf87</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2652" rel="noopener">#2652</a>𝗔 <a href="https://swamp-club.com/lab/2572" rel="noopener">lab#2572</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-143100-0-sha-ff14f196">
+<h2><span class="tier A">A</span>collapsible sidebar with mobile drawer (swamp-club#2574) (#2650)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T14:32:56Z">2026-09-28T14:32:56Z</time></span><span>dashboard</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(dashboard): collapsible sidebar with mobile drawer (swamp-club#2574) (#2650)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The <code>swamp serve</code> dashboard had a fixed 220px sidebar at every width. On a phone it took most of the screen and crushed the main panel (swamp-club#2574).</p>
+<ul>
+<li><strong>Desktop:</strong> a header toggle collapses the sidebar to a 64px icon-only rail, remembered in <code>localStorage</code>. Hovering an icon shows its name in a styled tooltip. The approvals badge, theme toggle, health dot and logout all stay usable in the rail.</li>
+<li><strong>At 768px and below:</strong> the sidebar becomes an off-canvas drawer, opened from a sticky top-bar menu button. The backdrop, a close button, Escape, or picking a page closes it.</li>
+<li><strong>Accessibility:</strong></li>
+<li>A closed drawer is hidden from the tab order.</li>
+<li>Opening the drawer moves focus to its close button, and closing it returns focus to the menu button.</li>
+<li>Escape closes the drawer before an open detail view.</li>
+<li>Collapsed page names are visually hidden but still read by screen readers.</li>
+<li>Animations are skipped for users who ask for reduced motion.</li>
+<li><strong>Code:</strong> sidebar styling is inline, so the CSS works through new class hooks and only sets properties the inline styles leave alone. The storage parsing and Escape-priority rules are pure functions in <code>sidebar_state.ts</code>.</li>
+<li><strong>Docs:</strong> <code>design/primitives/serve.md</code> notes the new behaviour.</li>
+</ul>
+<p>Filed separately: swamp-club#2577, because the sidebar&#39;s page links are <code>div</code>s that can&#39;t be reached with the keyboard. That problem alr</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.143100.0-sha.ff14f196" rel="noopener">release v20260928.143100.0-sha.ff14f196</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ff14f1960e7aec6c8e41d727c794943b26da596f" rel="noopener">ff14f196</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2650" rel="noopener">#2650</a>𝗔 <a href="https://swamp-club.com/lab/2574" rel="noopener">lab#2574</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-134422-0-sha-ca3aa618">
+<h2><span class="tier A">A</span>stop one bad output record from failing every output read (swamp-club#2575) (#2649)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T13:46:00Z">2026-09-28T13:46:00Z</time></span><span>models</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(models): stop one bad output record from failing every output read (swamp-club#2575) (#2649)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2575. <code>swamp model delete &lt;name&gt;</code> failed with <code>ZodError: durationMs: Too small: expected number to be &gt;=0</code> even when the target model had no outputs of its own. The cause was a single output record from a different model of the same type, written while the host clock stepped backward mid-run, so its <code>completedAt</code> was 835ms before its <code>startedAt</code>.</p>
+<p>Two things combined:</p>
+<ul>
+<li><code>ModelOutput</code> computed <code>durationMs</code> as <code>completedAt - startedAt</code> with no floor and saved it unvalidated. <code>fromData</code> then rejected it on read, so swamp could write a record it could never read back.</li>
+<li><code>YamlOutputRepository</code> rethrew any parse or validation error, so one bad record failed every read for that model type. That covered more than delete: <code>model output get/search/logs/data</code> and method history hit the same error. Reproduced <code>model delete</code> and <code>model output search</code> in a scratch repo with the released binary.</li>
+</ul>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong>Duration invariant enforced by the entity.</strong> <code>markSucceeded</code>, <code>markFailed</code> and <code>markCancelled</code> clamp the derived duration to 0. The recorded timestamps are kept, so the skew is still visible in the record.</li>
+<li><strong>Existing records still load.</strong> <code>fromData</code> reads a negative <code>durationMs</code> as 0. <code>ModelOutputSchema</code> keeps <code>nonnegative()</code>, so <code>create()</code> still rejects a negative duration and non-integer values still fail.</li>
+<li>**One bad record no lon</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.134422.0-sha.ca3aa618" rel="noopener">release v20260928.134422.0-sha.ca3aa618</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ca3aa618dc294cc739c1dbff14c0c52f60a665f4" rel="noopener">ca3aa618</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2649" rel="noopener">#2649</a>𝗔 <a href="https://swamp-club.com/lab/2575" rel="noopener">lab#2575</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260928-134031-0-sha-c0dcd530">
+<h2><span class="tier A">A</span>find catalog rows written under another spelling of the repo root (swamp-club#2570) (#2648)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T13:42:28Z">2026-09-28T13:42:28Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): find catalog rows written under another spelling of the repo root (swamp-club#2570) (#2648)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2570.</p>
+<p>When a repo is reached under a different spelling of its root than the one that wrote the extension catalog (on macOS, <code>/tmp/r</code> vs <code>/private/tmp/r</code>), the first command or <code>swamp serve</code> start printed one false &quot;type could not be read statically from the export block&quot; warning per extension whose export wraps its definition. That was 20 warnings for <code>@swamp/gcp-organization</code>.</p>
+<p><strong>Cause.</strong> The source-dirs fingerprint is built from the raw directory strings, so a new spelling forces a cold <code>buildIndex</code>. <code>populateCatalogFromDir</code> looked each file up by its exact path and missed the rows written under the other spelling, because <code>canonicalizePath</code> does not follow symlinks. It then fell back to static <code>extractTypeFromSource</code>, which cannot read wrapped exports such as <code>export const extension = withOptions(definition)</code>.</p>
+<p><strong>Fix.</strong> When the exact lookup misses, or finds a row with no usable type, the loader matches rows outside its own spelling of the repo root by symlink-resolved path. This works in both directions, and it is the same identity <code>contributorFor</code> already uses.</p>
+<ul>
+<li>An up-to-date match is moved to the current spelling in one transaction, leaving one row per file. This is what the next warm scan would do anyway, one run earlier.</li>
+<li>A stale match suppresses the warning, as the same-spelling stale branch does.</li>
+<li>The lo</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.134031.0-sha.c0dcd530" rel="noopener">release v20260928.134031.0-sha.c0dcd530</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0dcd53029095b84b8b766eb558e0f067c3ab0d7" rel="noopener">c0dcd530</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2648" rel="noopener">#2648</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2562" rel="noopener">#2562</a>𝗔 <a href="https://swamp-club.com/lab/2570" rel="noopener">lab#2570</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20260927-012109-0-sha-6860a5b7">
 <h2><span class="tier A">A</span>stop spreading unbounded arrays into call arguments (swamp-club#2565) (#2647)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -177,7 +378,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260927.012109.0-sha.6860a5b7" rel="noopener">release v20260927.012109.0-sha.6860a5b7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6860a5b7358d3658b77d24b2482065fbf4856798" rel="noopener">6860a5b7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2647" rel="noopener">#2647</a>𝗔 <a href="https://swamp-club.com/lab/2565" rel="noopener">lab#2565</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20260927-001720-0-sha-211145c6">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260927-001720-0-sha-211145c6">
 <h2><span class="tier A">A</span>pick one deterministic winner when extensions add the same member (swamp-club#2562) (#2646)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-27T00:18:58Z">2026-09-27T00:18:58Z</time></span><span>extensions</span><span>fix</span></div>
@@ -355,7 +556,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.210952.0-sha.4341e359" rel="noopener">release v20260925.210952.0-sha.4341e359</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4341e3596984970a7b8bce38dd452a9a2b4e2a3e" rel="noopener">4341e359</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2638" rel="noopener">#2638</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2183" rel="noopener">#2183</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2208" rel="noopener">#2208</a>𝗔 <a href="https://swamp-club.com/lab/2519" rel="noopener">lab#2519</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260925-203424-0-sha-8ccc459c">
+<article class="item" id="release-swamp-club-swamp-v20260925-203424-0-sha-8ccc459c">
 <h2><span class="tier A">A</span>read the transitional in-repo auto-resolve lockfile (swamp-club#2532) (#2637)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-25T20:36:08Z">2026-09-25T20:36:08Z</time></span><span>extensions</span><span>fix</span></div>
@@ -9141,32 +9342,10 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.github/actions/adversarial-review/README.md" rel="noopener">.github/actions/adversarial-review/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c4600418b072728920f6df3a97f34c1666ee04" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260928-160203-0-sha-b76c8a82">
-<h2><span class="tier C">C</span>swamp 20260928.160203.0-sha.b76c8a82</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T16:03:50Z">2026-09-28T16:03:50Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): keep the owning process&#39;s final record on an offline workflow cancel (swamp-club#2548) (#2656)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2548. An offline <code>swamp workflow cancel</code> of a live local run overwrote the owning process&#39;s final run record with a stale snapshot.</p>
-<p>The command loaded the run, sent SIGTERM to the owning <code>workflow run</code> process (<code>killProcessTree</code>), then cancelled and saved the copy it had loaded <strong>before</strong> the kill. The owner handles SIGTERM as an abort: it runs cleanup mode, marks in-flight steps failed, skips or runs cleanup steps, and saves its own final record. The cancel command&#39;s save then replaced that record with the run-start snapshot. In the reproduction, the persisted run showed job <code>main</code> pending, with steps <code>build</code> (the unexpanded forEach template, not <code>build-1</code>) and <code>rollback</code> both pending. The owner had recorded <code>build-1</code> failed, <code>rollback</code> skipped (dependency) and the job failed.</p>
-<p>This is not a regression. <code>cancelRun</code> has saved the pre-kill snapshot since execution cancellation was added (#808, <code>89973acb</code>). Cleanup mode (swamp-club#1785) only made the owner&#39;s final record richer, so more is lost.</p>
-<h4 class="body-h">Changes</h4>
-<ul>
-<li><strong><code>cancelLocalRun</code></strong> (<code>src/cli/commands/workflow_cancel.ts</code>) replaces <code>cancelRun</code>. It stops the owner, then re-reads the run with <code>runRepo.findById</code> and acts on that record. The pre-kill snapshot is never saved.</li>
-</ul>
-<p>  | Record after the kill | Result |</p>
-<p>  |---|---|</p>
-<p>  | Still active (owner force-killed, dead, or ne</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.160203.0-sha.b76c8a82" rel="noopener">release v20260928.160203.0-sha.b76c8a82</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b76c8a82" rel="noopener">b76c8a82</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2656" rel="noopener">#2656</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/808" rel="noopener">#808</a>𝗔 <a href="https://swamp-club.com/lab/2548" rel="noopener">lab#2548</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-154016-0-sha-14cb0624">
-<h2><span class="tier C">C</span>swamp 20260928.154016.0-sha.14cb0624</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T15:42:51Z">2026-09-28T15:42:51Z</time></span></div>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260928-154016-0-sha-14cb0624">
+<h2><span class="tier C">C</span>say workflow inputs are recorded and route secrets through vault references (swamp-club#2585) (#2655)</h2>
+<p class="lede">`docs` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-28T15:42:51Z">2026-09-28T15:42:51Z</time></span><span>skills</span><span>docs</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>docs(skills): say workflow inputs are recorded and route secrets through vault references (swamp-club#2585) (#2655)</li>
@@ -9181,186 +9360,7 @@ footer .ver{color:var(--acc)}
 <li><code>rotate-secrets</code> example rewritten so the secret never passes through an inp</li>
 </ul></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.154016.0-sha.14cb0624" rel="noopener">release v20260928.154016.0-sha.14cb0624</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/14cb0624" rel="noopener">14cb0624</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2655" rel="noopener">#2655</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-152146-0-sha-74d8682c">
-<h2><span class="tier C">C</span>swamp 20260928.152146.0-sha.74d8682c</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T15:23:23Z">2026-09-28T15:23:23Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): settle work an abort left unstarted so cleanup runs, and resume it (swamp-club#2543) (#2651)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2543. After a cancel or <code>--timeout</code>, a dependency that never started stayed <code>pending</code>, so <code>failed</code>- and <code>completed</code>-gated cleanup steps and jobs were skipped.</p>
-<p><strong>Settling never-started work.</strong> At the end of the level the abort interrupted, each still-pending step, forEach iteration or job is settled as it would have been had it been reached:</p>
-<ul>
-<li><code>skipped</code> (dependency) when its <code>dependsOn</code> is unmet;</li>
-<li>otherwise <code>failed</code> with <code>cancelled</code>, like an in-flight step;</li>
-<li>a guarded step whose guard never decided stays <code>pending</code> (undecided), and a started job left with only undecided work ends <code>unknown</code>, so neither a <code>failed</code>- nor a <code>succeeded</code>-gated follow-up fires on ambiguous work.</li>
-</ul>
-<p>Cleanup gated on <code>failed</code>/<code>completed</code> now sees a terminal status and runs, as swamp-club#1785 intended.</p>
-<p><strong>Resuming it.</strong> Work the abort settled is marked <code>settledByAbort</code> (persisted). Every resume (plain, after <code>recover</code> or an approval, retry, <code>--from</code>) reopens it record by record and walks the job again, so work that never started does run. A job ended <code>unknown</code> with an undecided step is re-entered too. A step or job that cleanup skipped on its <code>dependsOn</code> is marked as well, so a <code>succeeded</code>-gated dependent of reopened work runs once that work succeeds.</p>
-<p><strong>Behaviour change:</strong> a step that had already failed (without <code>allowFailure</code>) now fails its job</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.152146.0-sha.74d8682c" rel="noopener">release v20260928.152146.0-sha.74d8682c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/74d8682c" rel="noopener">74d8682c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2651" rel="noopener">#2651</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2549" rel="noopener">#2549</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2550" rel="noopener">#2550</a>𝗔 <a href="https://swamp-club.com/lab/2543" rel="noopener">lab#2543</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-150833-0-sha-6858940b">
-<h2><span class="tier C">C</span>swamp 20260928.150833.0-sha.6858940b</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T15:10:15Z">2026-09-28T15:10:15Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(models): retry the auto-definition create lock after 25ms instead of 1s (swamp-club#2579) (#2654)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>forEach iterations of a direct-type step (<code>modelType</code> + <code>modelName</code>) that race to create the same definition serialize on the auto-definition create lock. That <code>FileLock</code> used the 1s default initial retry, so every race loser slept 750-1250 ms although the holder released it within milliseconds — every first-time fan-out paid about a second.</p>
-<p>This gives the lock the same 25 ms initial retry interval that swamp-club#2126 gave per-model locks. Backoff, jitter, ttl, maxWait and stale-lock handling are unchanged.</p>
-<ul>
-<li><code>src/libswamp/models/direct_execution.ts</code>: new <code>AUTO_DEFINITION_LOCK_RETRY_INTERVAL_MS</code> and a <code>createAutoDefinitionLock()</code> factory used by <code>resolveOrCreateDefinition()</code>. The constant is libswamp-local to avoid a libswamp -&gt; cli import; the factory is not exported from <code>mod.ts</code>.</li>
-<li><code>src/libswamp/models/direct_execution_test.ts</code>: asserts the lock&#39;s <code>retryIntervalMs</code> (configuration, not wall-clock), mirroring the #2126 test.</li>
-<li><code>design/enablers/datastores.md</code>: retry-backoff paragraph now covers this lock.</li>
-</ul>
-<p>Fixes swamp-club#2579.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>Unit test for the lock&#39;s retry interval; existing create / fast-path / race-winner lock tests pass unchanged.</li>
-<li>Reproduced with the 5-iteration fan-out from the issue on the released binary and with the compiled fix:</li>
-</ul>
-<p>| Run | Before | After |</p>
-<p>|---|---|---|</p>
-<p>| fresh definition | 1.2s | 125-255 ms |</p>
-<p>|</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.150833.0-sha.6858940b" rel="noopener">release v20260928.150833.0-sha.6858940b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6858940b" rel="noopener">6858940b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2654" rel="noopener">#2654</a>𝗔 <a href="https://swamp-club.com/lab/2579" rel="noopener">lab#2579</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-145708-0-sha-bed7e148">
-<h2><span class="tier C">C</span>swamp 20260928.145708.0-sha.bed7e148</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T14:59:00Z">2026-09-28T14:59:00Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(dashboard): make sidebar navigation keyboard-focusable (swamp-club#2577) (#2653)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2577. Sidebar <code>NavItem</code> rendered each entry as a clickable <code>&lt;div&gt;</code> with no tabindex, role or key handling, so keyboard and screen-reader users could not reach or activate any navigation item.</p>
-<ul>
-<li><code>NavItem</code> is now an <code>&lt;a&gt;</code> whose <code>href</code> comes from <code>buildPath({ view, detail: null })</code> — natively focusable and activated with Enter.</li>
-<li>Plain left-clicks still <code>preventDefault()</code> and call <code>onNavigate</code> (no page reload); modified and middle clicks are left to the browser so the view opens in a new tab. The filter is a new pure helper, <code>isPlainLeftClick</code>, in <code>routes.ts</code>.</li>
-<li>Active item gets <code>aria-current=&quot;page&quot;</code>; the decorative icon is <code>aria-hidden</code>.</li>
-<li><code>.nav-item:focus-visible</code> outline in the sidebar accent colour.</li>
-</ul>
-<p>Not a regression: <code>NavItem</code> has been a <code>div</code> since the dashboard was introduced (#2208).</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>Unit tests for <code>isPlainLeftClick</code> in <code>packages/dashboard/src/routes_test.ts</code> (plain click, each modifier, non-primary buttons, already-prevented).</li>
-<li>Dashboard build (<code>tsc -b</code> + <code>vite build</code>) passes.</li>
-<li>Manual pass in Chrome against a dev <code>swamp serve --dashboard</code>: Tab walks every item with a visible focus ring; Enter navigates with <code>aria-current</code> moving and no reload; plain mouse clicks navigate in-app without a focus ring; ctrl/meta/shift clicks are not intercepted.</li>
-<li>Verification workflows (build, reviews, skills) passed on 94b00f38; attes</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.145708.0-sha.bed7e148" rel="noopener">release v20260928.145708.0-sha.bed7e148</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bed7e148" rel="noopener">bed7e148</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2653" rel="noopener">#2653</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2208" rel="noopener">#2208</a>𝗔 <a href="https://swamp-club.com/lab/2577" rel="noopener">lab#2577</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-145202-0-sha-4a6cdf87">
-<h2><span class="tier C">C</span>swamp 20260928.145202.0-sha.4a6cdf87</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T14:54:04Z">2026-09-28T14:54:04Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(expressions): name the data written under a spec when data.latest() is passed a spec name (swamp-club#2572) (#2652)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2572.</p>
-<p><code>data.latest()</code> and <code>data.version()</code> look records up by <strong>data name</strong>. The bundled <code>swamp</code> skill docs labelled that argument a *spec*, and extensions often write a spec under a per-run instance name. For example, <code>@evrardjp/github-local-mirror</code> writes spec <code>syncRunSummary</code> as <code>sync-&lt;timestamp&gt;</code>. So <code>data.latest(&quot;test-mirror&quot;, &quot;syncRunSummary&quot;)</code> found nothing, and the error only said &quot;found no data record&quot;. <code>swamp data get test-mirror syncRunSummary</code> fails the same way.</p>
-<p>This PR keeps the lookup semantics unchanged and adds no new accessor. It makes the failure explain itself and fixes the docs:</p>
-<ul>
-<li><strong>Error hint.</strong> When a <code>data.latest()</code> or <code>data.version()</code> miss causes a failing select, and the name is an output spec with records, the error adds a paragraph:</li>
-</ul>
-<p>  ```</p>
-<p>  &quot;syncRunSummary&quot; is an output spec name, but data.latest() takes a data name.</p>
-<p>  test-mirror has 1 record of spec &quot;syncRunSummary&quot;: &quot;sync-2026-09-28T13:48:06.759Z&quot;.</p>
-<p>  Pass one of those names to data.latest(), or use data.findBySpec(&quot;test-mirror&quot;,</p>
-<p>  &quot;syncRunSummary&quot;) to get every record of that spec.</p>
-<p>  ```</p>
-<p>  It lists names newest first (up to three, plus a count).</p>
-<ul>
-<li><strong>How the lookup works.</strong></li>
-<li>It reuses the catalog rows the specName ambiguity check already reads (<code>CatalogStore.findLatestRowsBySpecName</code>, indexed).</li>
-<li>It is scoped like `data.</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.145202.0-sha.4a6cdf87" rel="noopener">release v20260928.145202.0-sha.4a6cdf87</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4a6cdf87" rel="noopener">4a6cdf87</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2652" rel="noopener">#2652</a>𝗔 <a href="https://swamp-club.com/lab/2572" rel="noopener">lab#2572</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-143100-0-sha-ff14f196">
-<h2><span class="tier C">C</span>swamp 20260928.143100.0-sha.ff14f196</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T14:32:56Z">2026-09-28T14:32:56Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(dashboard): collapsible sidebar with mobile drawer (swamp-club#2574) (#2650)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>The <code>swamp serve</code> dashboard had a fixed 220px sidebar at every width. On a phone it took most of the screen and crushed the main panel (swamp-club#2574).</p>
-<ul>
-<li><strong>Desktop:</strong> a header toggle collapses the sidebar to a 64px icon-only rail, remembered in <code>localStorage</code>. Hovering an icon shows its name in a styled tooltip. The approvals badge, theme toggle, health dot and logout all stay usable in the rail.</li>
-<li><strong>At 768px and below:</strong> the sidebar becomes an off-canvas drawer, opened from a sticky top-bar menu button. The backdrop, a close button, Escape, or picking a page closes it.</li>
-<li><strong>Accessibility:</strong></li>
-<li>A closed drawer is hidden from the tab order.</li>
-<li>Opening the drawer moves focus to its close button, and closing it returns focus to the menu button.</li>
-<li>Escape closes the drawer before an open detail view.</li>
-<li>Collapsed page names are visually hidden but still read by screen readers.</li>
-<li>Animations are skipped for users who ask for reduced motion.</li>
-<li><strong>Code:</strong> sidebar styling is inline, so the CSS works through new class hooks and only sets properties the inline styles leave alone. The storage parsing and Escape-priority rules are pure functions in <code>sidebar_state.ts</code>.</li>
-<li><strong>Docs:</strong> <code>design/primitives/serve.md</code> notes the new behaviour.</li>
-</ul>
-<p>Filed separately: swamp-club#2577, because the sidebar&#39;s page links are <code>div</code>s that can&#39;t be reached with the keyboard. That problem alr</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.143100.0-sha.ff14f196" rel="noopener">release v20260928.143100.0-sha.ff14f196</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ff14f196" rel="noopener">ff14f196</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2650" rel="noopener">#2650</a>𝗔 <a href="https://swamp-club.com/lab/2574" rel="noopener">lab#2574</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-134422-0-sha-ca3aa618">
-<h2><span class="tier C">C</span>swamp 20260928.134422.0-sha.ca3aa618</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T13:46:00Z">2026-09-28T13:46:00Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(models): stop one bad output record from failing every output read (swamp-club#2575) (#2649)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2575. <code>swamp model delete &lt;name&gt;</code> failed with <code>ZodError: durationMs: Too small: expected number to be &gt;=0</code> even when the target model had no outputs of its own. The cause was a single output record from a different model of the same type, written while the host clock stepped backward mid-run, so its <code>completedAt</code> was 835ms before its <code>startedAt</code>.</p>
-<p>Two things combined:</p>
-<ul>
-<li><code>ModelOutput</code> computed <code>durationMs</code> as <code>completedAt - startedAt</code> with no floor and saved it unvalidated. <code>fromData</code> then rejected it on read, so swamp could write a record it could never read back.</li>
-<li><code>YamlOutputRepository</code> rethrew any parse or validation error, so one bad record failed every read for that model type. That covered more than delete: <code>model output get/search/logs/data</code> and method history hit the same error. Reproduced <code>model delete</code> and <code>model output search</code> in a scratch repo with the released binary.</li>
-</ul>
-<h4 class="body-h">Changes</h4>
-<ul>
-<li><strong>Duration invariant enforced by the entity.</strong> <code>markSucceeded</code>, <code>markFailed</code> and <code>markCancelled</code> clamp the derived duration to 0. The recorded timestamps are kept, so the skew is still visible in the record.</li>
-<li><strong>Existing records still load.</strong> <code>fromData</code> reads a negative <code>durationMs</code> as 0. <code>ModelOutputSchema</code> keeps <code>nonnegative()</code>, so <code>create()</code> still rejects a negative duration and non-integer values still fail.</li>
-<li>**One bad record no lon</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.134422.0-sha.ca3aa618" rel="noopener">release v20260928.134422.0-sha.ca3aa618</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ca3aa618" rel="noopener">ca3aa618</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2649" rel="noopener">#2649</a>𝗔 <a href="https://swamp-club.com/lab/2575" rel="noopener">lab#2575</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-134031-0-sha-c0dcd530">
-<h2><span class="tier C">C</span>swamp 20260928.134031.0-sha.c0dcd530</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-28T13:42:28Z">2026-09-28T13:42:28Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): find catalog rows written under another spelling of the repo root (swamp-club#2570) (#2648)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2570.</p>
-<p>When a repo is reached under a different spelling of its root than the one that wrote the extension catalog (on macOS, <code>/tmp/r</code> vs <code>/private/tmp/r</code>), the first command or <code>swamp serve</code> start printed one false &quot;type could not be read statically from the export block&quot; warning per extension whose export wraps its definition. That was 20 warnings for <code>@swamp/gcp-organization</code>.</p>
-<p><strong>Cause.</strong> The source-dirs fingerprint is built from the raw directory strings, so a new spelling forces a cold <code>buildIndex</code>. <code>populateCatalogFromDir</code> looked each file up by its exact path and missed the rows written under the other spelling, because <code>canonicalizePath</code> does not follow symlinks. It then fell back to static <code>extractTypeFromSource</code>, which cannot read wrapped exports such as <code>export const extension = withOptions(definition)</code>.</p>
-<p><strong>Fix.</strong> When the exact lookup misses, or finds a row with no usable type, the loader matches rows outside its own spelling of the repo root by symlink-resolved path. This works in both directions, and it is the same identity <code>contributorFor</code> already uses.</p>
-<ul>
-<li>An up-to-date match is moved to the current spelling in one transaction, leaving one row per file. This is what the next warm scan would do anyway, one run earlier.</li>
-<li>A stale match suppresses the warning, as the same-spelling stale branch does.</li>
-<li>The lo</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.134031.0-sha.c0dcd530" rel="noopener">release v20260928.134031.0-sha.c0dcd530</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0dcd530" rel="noopener">c0dcd530</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2648" rel="noopener">#2648</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2562" rel="noopener">#2562</a>𝗔 <a href="https://swamp-club.com/lab/2570" rel="noopener">lab#2570</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.154016.0-sha.14cb0624" rel="noopener">release v20260928.154016.0-sha.14cb0624</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/14cb062475458f19678747870639377a7ff80ddc" rel="noopener">14cb0624</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2655" rel="noopener">#2655</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260925-234421-0-sha-36f7fa66">
 <h2><span class="tier C">C</span>correct the WebSocket auth verbs for admin-family requests (swamp-club#2552) (#2642)</h2>
@@ -9765,12 +9765,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>297 items across 1 source(s) in this window:
-3 critical, 268 notable, 5 routine,
-21 minor.</p>
-<ul><li><strong>fix</strong> — 215</li><li><strong>feat</strong> — 56</li><li><strong>docs</strong> — 12</li><li><strong>changes</strong> — 9</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li></ul></section>
+3 critical, 276 notable, 5 routine,
+13 minor.</p>
+<ul><li><strong>fix</strong> — 222</li><li><strong>feat</strong> — 57</li><li><strong>docs</strong> — 13</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-28T16:07:55.340Z">2026-09-28T16:07:55.340Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-28T17:01:48.130Z">2026-09-28T17:01:48.130Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

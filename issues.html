@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2420"><span class="tier A">A</span>workflow resume keeps the original run&#39;s process identity (r</a><a href="#issue-2607"><span class="tier A">A</span>Dashboard JSON highlighter inserts spaces after colons insid</a><a href="#issue-2610"><span class="tier A">A</span>Dashboard Back button wraps onto two lines at phone width</a><a href="#issue-2598"><span class="tier A">A</span>gatorwalk-factory: gates and limits (GW-5)</a><a href="#issue-2595"><span class="tier A">A</span>Dashboard: deep links to a model&#39;s data item, data version a</a><a href="#issue-2601"><span class="tier A">A</span>Run-scoped data get/list return the latest version, not the </a><a href="#issue-2547"><span class="tier A">A</span>workflow run --json: guarded-skip lines land on stdout or st</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2589"><span class="tier A">A</span>swamp.model.method spans are parented to the workflow run sp</a><a href="#issue-2609"><span class="tier A">A</span>Dashboard never reconnects after the serve WebSocket closes</a><a href="#issue-2611"><span class="tier A">A</span>gatorwalk-factory: lifecycle holder and work-item model type</a><a href="#issue-2314"><span class="tier A">A</span>Platform certificate load failure surfaces as an uncaught er</a><a href="#issue-2417"><span class="tier A">A</span>serve: server-login can&#39;t be traced: no request spans, and g</a><a href="#issue-2420"><span class="tier A">A</span>workflow resume keeps the original run&#39;s process identity (r</a><a href="#issue-2607"><span class="tier A">A</span>Dashboard JSON highlighter inserts spaces after colons insid</a></aside><div>
 
 <article class="item" id="issue-2384">
 <h2><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation principal can clear a manual_approval gate meant for a human</h2>
@@ -109,6 +109,46 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
 </article>
+<article class="item" id="issue-2589">
+<h2><span class="tier A">A</span>swamp.model.method spans are parented to the workflow run span instead of their swamp.workflow.step span</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-28T21:00:08.580Z">2026-09-28T21:00:08.580Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2589" rel="noopener">lab#2589</a></div>
+</article>
+<article class="item" id="issue-2609">
+<h2><span class="tier A">A</span>Dashboard never reconnects after the serve WebSocket closes</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-28T20:58:42.068Z">2026-09-28T20:58:42.068Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2609" rel="noopener">lab#2609</a></div>
+</article>
+<article class="item" id="issue-2611">
+<h2><span class="tier A">A</span>gatorwalk-factory: lifecycle holder and work-item model type (GW-6)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-28T20:45:02.908Z">2026-09-28T20:45:02.908Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2611" rel="noopener">lab#2611</a></div>
+</article>
+<article class="item" id="issue-2314">
+<h2><span class="tier A">A</span>Platform certificate load failure surfaces as an uncaught error on network commands</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-28T20:31:35.431Z">2026-09-28T20:31:35.431Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2314" rel="noopener">lab#2314</a></div>
+</article>
+<article class="item" id="issue-2417">
+<h2><span class="tier A">A</span>serve: server-login can&#39;t be traced: no request spans, and gcs-datastore push is unparented with an 81s gap in child spans</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-28T20:06:57.553Z">2026-09-28T20:06:57.553Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2417" rel="noopener">lab#2417</a></div>
+</article>
 <article class="item" id="issue-2420">
 <h2><span class="tier A">A</span>workflow resume keeps the original run&#39;s process identity (run record pid and instanceId)</h2>
 <p class="lede">Shipped bug fix</p>
@@ -125,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2607" rel="noopener">lab#2607</a></div>
 </article>
-<article class="item" id="issue-2610">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2610">
 <h2><span class="tier A">A</span>Dashboard Back button wraps onto two lines at phone width</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-28T19:26:49.429Z">2026-09-28T19:26:49.429Z</time></span></div>
@@ -165,7 +205,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2547" rel="noopener">lab#2547</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2093">
+<article class="item" id="issue-2093">
 <h2><span class="tier A">A</span>agent-runner: allow using the Claude CLI&#39;s stored login instead of requiring an API key</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-09-28T18:57:28.196Z">2026-09-28T18:57:28.196Z</time></span></div>
@@ -2213,13 +2253,53 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
-<article class="item" id="issue-2589">
-<h2><span class="tier B">B</span>swamp.model.method spans are parented to the workflow run span instead of their swamp.workflow.step span</h2>
+<article class="item" id="issue-2620">
+<h2><span class="tier B">B</span>verify-build codegen group runs no tests, so GCP enrichment test suites are never gated</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-28T20:55:09.941Z">2026-09-28T20:55:09.941Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2620" rel="noopener">lab#2620</a></div>
+</article>
+<article class="item" id="issue-2514">
+<h2><span class="tier B">B</span>A suspended run started by swamp serve cannot be cancelled</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-28T20:54:00.701Z">2026-09-28T20:54:00.701Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2514" rel="noopener">lab#2514</a></div>
+</article>
+<article class="item" id="issue-1908">
+<h2><span class="tier B">B</span>Add safe per-work-item workspace preparation</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-28T20:52:26.835Z">2026-09-28T20:52:26.835Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1908" rel="noopener">lab#1908</a></div>
+</article>
+<article class="item" id="issue-2287">
+<h2><span class="tier B">B</span>Make Compute Routes list usable without create-only global arguments</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-28T20:51:37.728Z">2026-09-28T20:51:37.728Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2287" rel="noopener">lab#2287</a></div>
+</article>
+<article class="item" id="issue-2230">
+<h2><span class="tier B">B</span>Cloud Asset: complete metadata-only project search snapshot for lifecycle planning</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-28T20:51:06.910Z">2026-09-28T20:51:06.910Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2230" rel="noopener">lab#2230</a></div>
+</article>
+<article class="item" id="issue-2458">
+<h2><span class="tier B">B</span>datastore config migrate skips setting managedConfig when the datastore is already migrated</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-28T19:55:50.097Z">2026-09-28T19:55:50.097Z</time></span></div>
+<div class="meta"><span><time datetime="2026-09-28T20:46:17.861Z">2026-09-28T20:46:17.861Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2589" rel="noopener">lab#2589</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2458" rel="noopener">lab#2458</a></div>
 </article>
 <article class="item" id="issue-2429">
 <h2><span class="tier B">B</span>managedConfig: serve extension handlers disagree on the pulled-extensions root, and lockfile files[] are repo-relative</h2>
@@ -2228,38 +2308,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2429" rel="noopener">lab#2429</a></div>
-</article>
-<article class="item" id="issue-2314">
-<h2><span class="tier B">B</span>Platform certificate load failure surfaces as an uncaught error on network commands</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-28T19:52:55.910Z">2026-09-28T19:52:55.910Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2314" rel="noopener">lab#2314</a></div>
-</article>
-<article class="item" id="issue-2611">
-<h2><span class="tier B">B</span>gatorwalk-factory: lifecycle holder and work-item model type (GW-6)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-28T19:43:11.272Z">2026-09-28T19:43:11.272Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2611" rel="noopener">lab#2611</a></div>
-</article>
-<article class="item" id="issue-2417">
-<h2><span class="tier B">B</span>serve: server-login can&#39;t be traced: no request spans, and gcs-datastore push is unparented with an 81s gap in child spans</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-28T19:38:22.380Z">2026-09-28T19:38:22.380Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2417" rel="noopener">lab#2417</a></div>
-</article>
-<article class="item" id="issue-2609">
-<h2><span class="tier B">B</span>Dashboard never reconnects after the serve WebSocket closes</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-28T19:21:26.170Z">2026-09-28T19:21:26.170Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2609" rel="noopener">lab#2609</a></div>
 </article>
 <article class="item" id="issue-2541">
 <h2><span class="tier B">B</span>whoami reports an active trial ending on a collective with a paid Team subscription</h2>
@@ -2381,7 +2429,55 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2614">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2621">
+<h2><span class="tier C">C</span>datastore config migrate checks the sentinel in the stale local cache and re-runs a full migration over a shared S3 datastore</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-28T20:59:07.626Z">2026-09-28T20:59:07.626Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2621" rel="noopener">lab#2621</a></div>
+</article>
+<article class="item" id="issue-2619">
+<h2><span class="tier C">C</span>gatorwalk-factory: test harness on the real swamp engine (GW-7)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-28T20:47:32.100Z">2026-09-28T20:47:32.100Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2619" rel="noopener">lab#2619</a></div>
+</article>
+<article class="item" id="issue-2618">
+<h2><span class="tier C">C</span>End a collective&#39;s trial when it begins a paid subscription</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-28T20:35:46.378Z">2026-09-28T20:35:46.378Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2618" rel="noopener">lab#2618</a></div>
+</article>
+<article class="item" id="issue-2617">
+<h2><span class="tier C">C</span>swamp.cli.bootstrap, configure_extension_loaders and teardown spans each start their own trace</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-28T20:15:16.577Z">2026-09-28T20:15:16.577Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2617" rel="noopener">lab#2617</a></div>
+</article>
+<article class="item" id="issue-2616">
+<h2><span class="tier C">C</span>withGeneratorSpan does not forward return() to the wrapped generator, so its finally blocks are skipped on early exit</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-28T20:11:08.174Z">2026-09-28T20:11:08.174Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2616" rel="noopener">lab#2616</a></div>
+</article>
+<article class="item" id="issue-2615">
+<h2><span class="tier C">C</span>swamp doctor reports &#39;workflows&#39; command that doesn&#39;t exist</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-28T20:10:45.204Z">2026-09-28T20:10:45.204Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2615" rel="noopener">lab#2615</a></div>
+</article>
+<article class="item" id="issue-2614">
 <h2><span class="tier C">C</span>Dashboard live audit stream fails in auth mode none when a token is left in sessionStorage</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-09-28T19:51:13.463Z">2026-09-28T19:51:13.463Z</time></span></div>
@@ -2404,30 +2500,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2612" rel="noopener">lab#2612</a></div>
-</article>
-<article class="item" id="issue-1908">
-<h2><span class="tier C">C</span>Add safe per-work-item workspace preparation</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-28T19:35:08.817Z">2026-09-28T19:35:08.817Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/1908" rel="noopener">lab#1908</a></div>
-</article>
-<article class="item" id="issue-2230">
-<h2><span class="tier C">C</span>Cloud Asset: complete metadata-only project search snapshot for lifecycle planning</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-28T19:34:50.852Z">2026-09-28T19:34:50.852Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2230" rel="noopener">lab#2230</a></div>
-</article>
-<article class="item" id="issue-2287">
-<h2><span class="tier C">C</span>Make Compute Routes list usable without create-only global arguments</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-28T19:34:29.911Z">2026-09-28T19:34:29.911Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2287" rel="noopener">lab#2287</a></div>
 </article>
 <article class="item" id="issue-2605">
 <h2><span class="tier C">C</span>CI review-integrity: record its verdict through @swamp/review-record instead of the text marker</h2>
@@ -2781,14 +2853,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2513" rel="noopener">lab#2513</a></div>
 </article>
-<article class="item" id="issue-2514">
-<h2><span class="tier C">C</span>A suspended run started by swamp serve cannot be cancelled</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-24T22:50:57.708Z">2026-09-24T22:50:57.708Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2514" rel="noopener">lab#2514</a></div>
-</article>
 <article class="item" id="issue-2495">
 <h2><span class="tier C">C</span>managedConfig: extension lockfile writes lose updates, and auto-resolved installs never reach the shared lockfile</h2>
 <p class="lede">Open issue</p>
@@ -2996,14 +3060,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2441" rel="noopener">lab#2441</a></div>
-</article>
-<article class="item" id="issue-2458">
-<h2><span class="tier C">C</span>datastore config migrate skips setting managedConfig when the datastore is already migrated</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T23:03:05.368Z">2026-09-23T23:03:05.368Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2458" rel="noopener">lab#2458</a></div>
 </article>
 <article class="item" id="issue-2455">
 <h2><span class="tier C">C</span>self.globalArguments.X returns the unevaluated expression text when the global argument is itself an expression</h2>
@@ -4326,13 +4382,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1903" rel="noopener">lab#1903</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>532 items across 1 source(s) in this window:
-5 critical, 263 notable, 21 routine,
-243 minor.</p>
-<ul><li><strong>issues</strong> — 532</li></ul></section>
+<p>539 items across 1 source(s) in this window:
+5 critical, 268 notable, 22 routine,
+244 minor.</p>
+<ul><li><strong>issues</strong> — 539</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-28T20:01:52.213Z">2026-09-28T20:01:52.213Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-28T21:03:14.332Z">2026-09-28T21:03:14.332Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

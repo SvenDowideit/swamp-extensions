@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2548"><span class="tier A">A</span>workflow cancel on a live local run overwrites the owning pr</a><a href="#issue-2584"><span class="tier A">A</span>gatorwalk-factory: the build-a-swamp-extension lifecycle as </a><a href="#issue-2543"><span class="tier A">A</span>After a cancel or --timeout, a never-started dependency stay</a><a href="#issue-2579"><span class="tier A">A</span>Direct-type forEach fan-out waits about 1s on the auto-defin</a><a href="#issue-2577"><span class="tier A">A</span>Dashboard: sidebar navigation items are not keyboard-focusab</a><a href="#issue-2483"><span class="tier A">A</span>managedConfig: fix startup config-base resolution and extens</a><a href="#issue-2572"><span class="tier A">A</span>data.latest/data.findBySpec/data.query cannot see data from </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2594"><span class="tier A">A</span>workflow resume --timeout records cancel_reason &#39;The signal </a><a href="#issue-2596"><span class="tier A">A</span>swamp report get --version N returns &quot;Report not found&quot; for </a><a href="#issue-2553"><span class="tier A">A</span>model method run holds the per-model lock across the datasto</a><a href="#issue-2556"><span class="tier A">A</span>InProcessExecutor mutates the process-wide TRACEPARENT, so c</a><a href="#issue-2550"><span class="tier A">A</span>workflow resume has no job-level cleanup mode: after --timeo</a><a href="#issue-2588"><span class="tier A">A</span>gatorwalk-factory: runtime core (GW-4)</a><a href="#issue-2548"><span class="tier A">A</span>workflow cancel on a live local run overwrites the owning pr</a></aside><div>
 
 <article class="item" id="issue-2384">
 <h2><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation principal can clear a manual_approval gate meant for a human</h2>
@@ -109,6 +109,54 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
 </article>
+<article class="item" id="issue-2594">
+<h2><span class="tier A">A</span>workflow resume --timeout records cancel_reason &#39;The signal has been aborted&#39; instead of a timeout reason</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-28T17:48:32.085Z">2026-09-28T17:48:32.085Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2594" rel="noopener">lab#2594</a></div>
+</article>
+<article class="item" id="issue-2596">
+<h2><span class="tier A">A</span>swamp report get --version N returns &quot;Report not found&quot; for any version older than the latest</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-28T17:40:43.429Z">2026-09-28T17:40:43.429Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2596" rel="noopener">lab#2596</a></div>
+</article>
+<article class="item" id="issue-2553">
+<h2><span class="tier A">A</span>model method run holds the per-model lock across the datastore pull, so a 40ms method holds it ~70s and any concurrent call hits the 60s LOCK_TIMEOUT</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-28T17:37:58.855Z">2026-09-28T17:37:58.855Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2553" rel="noopener">lab#2553</a></div>
+</article>
+<article class="item" id="issue-2556">
+<h2><span class="tier A">A</span>InProcessExecutor mutates the process-wide TRACEPARENT, so concurrent in-process executions clobber and leak trace context</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-28T17:13:36.344Z">2026-09-28T17:13:36.344Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2556" rel="noopener">lab#2556</a></div>
+</article>
+<article class="item" id="issue-2550">
+<h2><span class="tier A">A</span>workflow resume has no job-level cleanup mode: after --timeout or a cancel, always/completed cleanup jobs start with the aborted signal and fail at once</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-28T17:08:46.472Z">2026-09-28T17:08:46.472Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2550" rel="noopener">lab#2550</a></div>
+</article>
+<article class="item" id="issue-2588">
+<h2><span class="tier A">A</span>gatorwalk-factory: runtime core (GW-4)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-28T17:02:38.964Z">2026-09-28T17:02:38.964Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2588" rel="noopener">lab#2588</a></div>
+</article>
 <article class="item" id="issue-2548">
 <h2><span class="tier A">A</span>workflow cancel on a live local run overwrites the owning process&#39;s final run record with a stale snapshot</h2>
 <p class="lede">Shipped bug fix</p>
@@ -117,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2548" rel="noopener">lab#2548</a></div>
 </article>
-<article class="item" id="issue-2584">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2584">
 <h2><span class="tier A">A</span>gatorwalk-factory: the build-a-swamp-extension lifecycle as data (GW-3)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-09-28T15:23:58.331Z">2026-09-28T15:23:58.331Z</time></span></div>
@@ -165,7 +213,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2572" rel="noopener">lab#2572</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2576">
+<article class="item" id="issue-2576">
 <h2><span class="tier A">A</span>gatorwalk-factory: extension skeleton and lifecycle schema (GW-1, GW-2)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-09-28T14:36:33.275Z">2026-09-28T14:36:33.275Z</time></span></div>
@@ -2061,13 +2109,69 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
+<article class="item" id="issue-2420">
+<h2><span class="tier B">B</span>workflow resume keeps the original run&#39;s process identity (run record pid and instanceId)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-28T18:05:28.404Z">2026-09-28T18:05:28.404Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2420" rel="noopener">lab#2420</a></div>
+</article>
+<article class="item" id="issue-2561">
+<h2><span class="tier B">B</span>ssh: host and per-call env is never forwarded for tailscale transport hosts</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-28T18:04:13.087Z">2026-09-28T18:04:13.087Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2561" rel="noopener">lab#2561</a></div>
+</article>
+<article class="item" id="issue-2093">
+<h2><span class="tier B">B</span>agent-runner: allow using the Claude CLI&#39;s stored login instead of requiring an API key</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-28T17:56:56.773Z">2026-09-28T17:56:56.773Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2093" rel="noopener">lab#2093</a></div>
+</article>
+<article class="item" id="issue-2547">
+<h2><span class="tier B">B</span>workflow run --json: guarded-skip lines land on stdout or stderr depending on timing</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-28T17:43:20.726Z">2026-09-28T17:43:20.726Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2547" rel="noopener">lab#2547</a></div>
+</article>
+<article class="item" id="issue-2549">
+<h2><span class="tier B">B</span>After a cancel or --timeout, jobs that share a level are abandoned mid-flight: their steps stay running and their own cleanup steps never run</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-28T17:41:25.363Z">2026-09-28T17:41:25.363Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2549" rel="noopener">lab#2549</a></div>
+</article>
+<article class="item" id="issue-2587">
+<h2><span class="tier B">B</span>verify-reviews: code review fails on format, not substance; submit verdicts through a tool that enforces them</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-09-28T17:40:26.959Z">2026-09-28T17:40:26.959Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2587" rel="noopener">lab#2587</a></div>
+</article>
 <article class="item" id="issue-2595">
 <h2><span class="tier B">B</span>Dashboard: deep links to a model&#39;s data item, data version and report</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-09-28T17:00:36.872Z">2026-09-28T17:00:36.872Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-28T17:27:00.802Z">2026-09-28T17:27:00.802Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2595" rel="noopener">lab#2595</a></div>
+</article>
+<article class="item" id="issue-2598">
+<h2><span class="tier B">B</span>gatorwalk-factory: gates and limits (GW-5)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-28T17:10:21.595Z">2026-09-28T17:10:21.595Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2598" rel="noopener">lab#2598</a></div>
 </article>
 <article class="item" id="issue-2569">
 <h2><span class="tier B">B</span>Docs: document extension member collision precedence and local overrides of pulled methods</h2>
@@ -2076,38 +2180,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2569" rel="noopener">lab#2569</a></div>
-</article>
-<article class="item" id="issue-2550">
-<h2><span class="tier B">B</span>workflow resume has no job-level cleanup mode: after --timeout or a cancel, always/completed cleanup jobs start with the aborted signal and fail at once</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-28T16:28:53.702Z">2026-09-28T16:28:53.702Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2550" rel="noopener">lab#2550</a></div>
-</article>
-<article class="item" id="issue-2553">
-<h2><span class="tier B">B</span>model method run holds the per-model lock across the datastore pull, so a 40ms method holds it ~70s and any concurrent call hits the 60s LOCK_TIMEOUT</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-28T16:19:37.400Z">2026-09-28T16:19:37.400Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2553" rel="noopener">lab#2553</a></div>
-</article>
-<article class="item" id="issue-2556">
-<h2><span class="tier B">B</span>InProcessExecutor mutates the process-wide TRACEPARENT, so concurrent in-process executions clobber and leak trace context</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-28T15:59:12.984Z">2026-09-28T15:59:12.984Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2556" rel="noopener">lab#2556</a></div>
-</article>
-<article class="item" id="issue-2588">
-<h2><span class="tier B">B</span>gatorwalk-factory: runtime core (GW-4)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-28T15:43:36.161Z">2026-09-28T15:43:36.161Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2588" rel="noopener">lab#2588</a></div>
 </article>
 <article class="item" id="issue-2250">
 <h2><span class="tier B">B</span>verify-build fails on the codegen-verify guard: &#39;No such key: stdout&#39;</h2>
@@ -2221,29 +2293,45 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2597">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2604">
+<h2><span class="tier C">C</span>ssh: tailscale forward and sshExtraArgs fail - tailscale ssh rejects any flag before the destination</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-28T17:57:32.205Z">2026-09-28T17:57:32.205Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2604" rel="noopener">lab#2604</a></div>
+</article>
+<article class="item" id="issue-2602">
+<h2><span class="tier C">C</span>Reports from failed workflow steps are persisted but not recorded on the run</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-28T17:42:58.495Z">2026-09-28T17:42:58.495Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2602" rel="noopener">lab#2602</a></div>
+</article>
+<article class="item" id="issue-2601">
+<h2><span class="tier C">C</span>Run-scoped data get/list return the latest version, not the version the run produced</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-28T17:40:41.008Z">2026-09-28T17:40:41.008Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2601" rel="noopener">lab#2601</a></div>
+</article>
+<article class="item" id="issue-2599">
+<h2><span class="tier C">C</span>gatorwalk-factory: graph validation and exhaustive check (GW-9)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-28T17:05:43.895Z">2026-09-28T17:05:43.895Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2599" rel="noopener">lab#2599</a></div>
+</article>
+<article class="item" id="issue-2597">
 <h2><span class="tier C">C</span>workflow resume cleanup mode can run an always-gated teardown before a suspended job&#39;s approved work</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-09-28T17:01:24.064Z">2026-09-28T17:01:24.064Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2597" rel="noopener">lab#2597</a></div>
-</article>
-<article class="item" id="issue-2596">
-<h2><span class="tier C">C</span>swamp report get --version N returns &quot;Report not found&quot; for any version older than the latest</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-28T16:57:35.224Z">2026-09-28T16:57:35.224Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2596" rel="noopener">lab#2596</a></div>
-</article>
-<article class="item" id="issue-2594">
-<h2><span class="tier C">C</span>workflow resume --timeout records cancel_reason &#39;The signal has been aborted&#39; instead of a timeout reason</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-28T16:25:31.414Z">2026-09-28T16:25:31.414Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2594" rel="noopener">lab#2594</a></div>
 </article>
 <article class="item" id="issue-2593">
 <h2><span class="tier C">C</span>workflow resume ignores SWAMP_MAX_CONCURRENT_STEPS for job-level concurrency</h2>
@@ -2284,14 +2372,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2589" rel="noopener">lab#2589</a></div>
-</article>
-<article class="item" id="issue-2587">
-<h2><span class="tier C">C</span>verify-reviews: code review fails on format, not substance; submit verdicts through a tool that enforces them</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-28T15:19:46.315Z">2026-09-28T15:19:46.315Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2587" rel="noopener">lab#2587</a></div>
 </article>
 <article class="item" id="issue-2586">
 <h2><span class="tier C">C</span>Run the web dashboard locally from the CLI without swamp serve</h2>
@@ -2365,14 +2445,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2563" rel="noopener">lab#2563</a></div>
 </article>
-<article class="item" id="issue-2561">
-<h2><span class="tier C">C</span>ssh: host and per-call env is never forwarded for tailscale transport hosts</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-25T23:51:44.214Z">2026-09-25T23:51:44.214Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2561" rel="noopener">lab#2561</a></div>
-</article>
 <article class="item" id="issue-2560">
 <h2><span class="tier C">C</span>extensions: cold-path catalog rebuild skips sources whose type is not a string literal, dropping them for one process lifetime</h2>
 <p class="lede">Open issue</p>
@@ -2436,22 +2508,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2545" rel="noopener">lab#2545</a></div>
-</article>
-<article class="item" id="issue-2549">
-<h2><span class="tier C">C</span>After a cancel or --timeout, jobs that share a level are abandoned mid-flight: their steps stay running and their own cleanup steps never run</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-25T19:12:46.327Z">2026-09-25T19:12:46.327Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2549" rel="noopener">lab#2549</a></div>
-</article>
-<article class="item" id="issue-2547">
-<h2><span class="tier C">C</span>workflow run --json: guarded-skip lines land on stdout or stderr depending on timing</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-25T19:03:07.404Z">2026-09-25T19:03:07.404Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2547" rel="noopener">lab#2547</a></div>
 </article>
 <article class="item" id="issue-2544">
 <h2><span class="tier C">C</span>Pulled extensions missing from the extension catalog cannot be resolved or auto-repaired, and doctor reports healthy</h2>
@@ -3012,14 +3068,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2421" rel="noopener">lab#2421</a></div>
-</article>
-<article class="item" id="issue-2420">
-<h2><span class="tier C">C</span>workflow resume keeps the original run&#39;s process identity (run record pid and instanceId)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-23T17:40:50.472Z">2026-09-23T17:40:50.472Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2420" rel="noopener">lab#2420</a></div>
 </article>
 <article class="item" id="issue-2418">
 <h2><span class="tier C">C</span>serve: after lazy hydration, scoped poller pulls never take the fast path, and the login mint waits behind them on the sync gate</h2>
@@ -3861,14 +3909,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2089" rel="noopener">lab#2089</a></div>
 </article>
-<article class="item" id="issue-2093">
-<h2><span class="tier C">C</span>agent-runner: allow using the Claude CLI&#39;s stored login instead of requiring an API key</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-10T18:06:47.537Z">2026-09-10T18:06:47.537Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2093" rel="noopener">lab#2093</a></div>
-</article>
 <article class="item" id="issue-2096">
 <h2><span class="tier C">C</span>Per-extension white listing</h2>
 <p class="lede">Open issue</p>
@@ -4198,13 +4238,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1903" rel="noopener">lab#1903</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>516 items across 1 source(s) in this window:
-5 critical, 244 notable, 20 routine,
-247 minor.</p>
-<ul><li><strong>issues</strong> — 516</li></ul></section>
+<p>521 items across 1 source(s) in this window:
+5 critical, 250 notable, 23 routine,
+243 minor.</p>
+<ul><li><strong>issues</strong> — 521</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-28T17:01:48.130Z">2026-09-28T17:01:48.130Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-28T18:08:31.388Z">2026-09-28T18:08:31.388Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

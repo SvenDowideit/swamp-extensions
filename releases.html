@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260928-233948-0-sha-41431668"><span class="tier A">A</span>let serve cancel a suspended run it started (swamp-club#2514</a><a href="#release-swamp-club-swamp-v20260928-232837-0-sha-2ecafa78"><span class="tier A">A</span>terminate a shell step&#39;s whole process tree on abort or time</a><a href="#release-swamp-club-swamp-v20260928-232001-0-sha-47478d2e"><span class="tier A">A</span>record failed-step reports on the run and show the data a fa</a><a href="#release-swamp-club-swamp-v20260928-230907-0-sha-69e51a61"><span class="tier A">A</span>cache health collection so any-token health streams cannot d</a><a href="#release-swamp-club-swamp-v20260928-230545-0-sha-afd6c842"><span class="tier A">A</span>never create .swamp outside an initialized repo from the aud</a><a href="#release-swamp-club-swamp-v20260928-230023-0-sha-b67ff386"><span class="tier A">A</span>keep the channel on lockfile restore and stop a parent&#39;s exp</a><a href="#release-swamp-club-swamp-v20260928-224208-0-sha-1a067650"><span class="tier A">A</span>drain in-flight webhook and cron runs on shutdown with a con</a><a href="#release-swamp-club-swamp-v20260928-222802-0-sha-a1b1f00e"><span class="tier A">A</span>let any valid token read the health stream, narrowed to what</a><a href="#release-swamp-club-swamp-v20260928-213128-0-sha-d57f732c"><span class="tier A">A</span>present the audit stream token only outside auth mode none (</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260929-002922-0-sha-55e2ef29"><span class="tier A">A</span>remove per-run evaluated-workflow snapshots with their runs </a><a href="#release-swamp-club-swamp-v20260929-001435-0-sha-0d6fb89c"><span class="tier A">A</span>stop test files mutating the shared process env (swamp-club#</a><a href="#release-swamp-club-swamp-v20260928-233948-0-sha-41431668"><span class="tier A">A</span>let serve cancel a suspended run it started (swamp-club#2514</a><a href="#release-swamp-club-swamp-v20260928-232837-0-sha-2ecafa78"><span class="tier A">A</span>terminate a shell step&#39;s whole process tree on abort or time</a><a href="#release-swamp-club-swamp-v20260928-232001-0-sha-47478d2e"><span class="tier A">A</span>record failed-step reports on the run and show the data a fa</a><a href="#release-swamp-club-swamp-v20260928-230907-0-sha-69e51a61"><span class="tier A">A</span>cache health collection so any-token health streams cannot d</a><a href="#release-swamp-club-swamp-v20260928-230545-0-sha-afd6c842"><span class="tier A">A</span>never create .swamp outside an initialized repo from the aud</a><a href="#release-swamp-club-swamp-v20260928-230023-0-sha-b67ff386"><span class="tier A">A</span>keep the channel on lockfile restore and stop a parent&#39;s exp</a><a href="#release-swamp-club-swamp-v20260928-224208-0-sha-1a067650"><span class="tier A">A</span>drain in-flight webhook and cron runs on shutdown with a con</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7">
 <h2><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#2446)</h2>
@@ -150,6 +150,44 @@ footer .ver{color:var(--acc)}
 <p>| <code>design/enablers/remote-execution.md</code> | Document the additionalFiles-only policy |</p></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.194129.0-sha.d1808bea" rel="noopener">release v20260902.194129.0-sha.d1808bea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1808bead33f16f9845d428e62e8d6d253214017" rel="noopener">d1808bea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2360" rel="noopener">#2360</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260929-002922-0-sha-55e2ef29">
+<h2><span class="tier A">A</span>remove per-run evaluated-workflow snapshots with their runs (swamp-club#2522) (#2688)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-29T00:31:28Z">2026-09-29T00:31:28Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): remove per-run evaluated-workflow snapshots with their runs (swamp-club#2522) (#2688)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Every workflow run writes a snapshot to <code>.swamp/workflows-evaluated/runs/&lt;runId&gt;/evaluated-workflow.yaml</code>, and nothing ever deleted it. Run GC, data GC and <code>workflow delete</code> all left it behind, so the directory grew by one entry per run forever. On a remote datastore, each one is an extra object to index and sync.</p>
+<ul>
+<li><strong><code>swamp run gc</code></strong> deletes the snapshots of the runs it collects. It also sweeps orphaned snapshots (no run record) once they are older than both the retention and one hour. The age guard is there because a snapshot is written before its run record&#39;s first save.</li>
+<li><strong><code>swamp workflow delete</code></strong> first lists run IDs, then deletes the runs, then deletes their snapshots.</li>
+<li><strong>Run IDs always come from <code>workflow-run-&lt;id&gt;.yaml</code> filenames</strong>, never from a record&#39;s body. They must also be a single path segment (the new <code>isSinglePathSegment</code>). This matters because <code>assertSafePath</code> accepts a path equal to its boundary, so an ID of <code>&quot;&quot;</code>, <code>.</code> or <code>..</code> could otherwise delete <code>runs/</code> or all of <code>workflows-evaluated/</code>.</li>
+<li><strong><code>deleteForRun</code> now calls <code>markDirty</code></strong>, so S3 and GCS datastores propagate the delete.</li>
+<li><strong>Output:</strong> <code>run gc</code> JSON adds <code>evaluatedSnapshotsDeleted</code> and <code>evaluatedSnapshotBytesReclaimed</code> (preview: <code>...ToDelete</code> / <code>...Reclaimable</code>). Both are counted in the totals. Log mode shows <code>N run snapshot(s) (size)</code>. The interactive &quot;Nothing to c</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/repo.md" rel="noopener">design/surfaces/repo.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.002922.0-sha.55e2ef29" rel="noopener">release v20260929.002922.0-sha.55e2ef29</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/55e2ef29cc1fc8e2c433eebd16eae15dba03cf22" rel="noopener">55e2ef29</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2688" rel="noopener">#2688</a>𝗔 <a href="https://swamp-club.com/lab/2661" rel="noopener">lab#2661</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260929-001435-0-sha-0d6fb89c">
+<h2><span class="tier A">A</span>stop test files mutating the shared process env (swamp-club#2658) (#2687)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-29T00:16:16Z">2026-09-29T00:16:16Z</time></span><span>tests</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(tests): stop test files mutating the shared process env (swamp-club#2658) (#2687)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>deno test --parallel</code> runs every test file in one process, so a <code>Deno.env.set</code> in one file is visible to every other file running at the same moment. <code>resolve_datastore_test</code> set <code>SWAMP_DATASTORE</code> to a test-only datastore type, and a parallel <code>workflow_recover_test</code> failed with <code>Unknown datastore type: @test/ds-expr-env</code> (swamp-club#2658). About 25 other test files did the same with <code>SWAMP_REPO_DIR</code>, <code>SWAMP_WORKFLOWS_DIR</code>, <code>SWAMP_SERVE_URL</code>, <code>HOME</code> and others.</p>
+<ul>
+<li><strong><code>withMockedEnv</code> covers <code>has</code> and <code>toObject</code></strong> (<code>src/infrastructure/persistence/path_test_helpers.ts</code>) as well as <code>get</code>. Code that reads the whole env, such as the CEL <code>env</code> namespace and the shell model&#39;s child env, now sees the overrides. The replacement is per worker. A scratch experiment confirmed that under <code>--parallel</code> a real <code>Deno.env.set</code> leaks across files and a replaced reader does not.</li>
+<li><strong>Every env-mutating test file is converted</strong>, about 420 calls removed. Variables a test needs unset are mapped to <code>undefined</code>, so an exported <code>SWAMP_DATASTORE</code> in a developer&#39;s shell no longer breaks <code>resolve_datastore_test</code>. The self-contained issue-lifecycle extension test cannot import from <code>src/</code>, so it patches the readers the same way in-file.</li>
+<li><strong>New fitness rule</strong> <code>integration/test_env_mutation_rules_test.ts</code> fails on any <code>Deno.env.set</code> / <code>Deno.env.delete</code> in a test file under <code>src</code>, `integratio</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/AGENTS.md" rel="noopener">AGENTS.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.001435.0-sha.0d6fb89c" rel="noopener">release v20260929.001435.0-sha.0d6fb89c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0d6fb89cd31edca10c5b56c85885898665d74a5b" rel="noopener">0d6fb89c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2687" rel="noopener">#2687</a>𝗔 <a href="https://swamp-club.com/lab/2658" rel="noopener">lab#2658</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260928-233948-0-sha-41431668">
 <h2><span class="tier A">A</span>let serve cancel a suspended run it started (swamp-club#2514) (#2686)</h2>
@@ -327,7 +365,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.224208.0-sha.1a067650" rel="noopener">release v20260928.224208.0-sha.1a067650</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1a0676506918a7f10c0ad6960ae87069e7cb9381" rel="noopener">1a067650</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2679" rel="noopener">#2679</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1069" rel="noopener">#1069</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20260928-222802-0-sha-a1b1f00e">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260928-222802-0-sha-a1b1f00e">
 <h2><span class="tier A">A</span>let any valid token read the health stream, narrowed to what it may read (swamp-club#2504) (#2680)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-28T22:29:52Z">2026-09-28T22:29:52Z</time></span><span>serve</span><span>fix</span></div>
@@ -384,7 +422,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.213128.0-sha.d57f732c" rel="noopener">release v20260928.213128.0-sha.d57f732c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d57f732c80a7ea64583a50dcd70049d4968ee9fb" rel="noopener">d57f732c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2678" rel="noopener">#2678</a>𝗔 <a href="https://swamp-club.com/lab/2614" rel="noopener">lab#2614</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260928-210335-0-sha-619ebcbb">
+<article class="item" id="release-swamp-club-swamp-v20260928-210335-0-sha-619ebcbb">
 <h2><span class="tier A">A</span>set managedConfig when config migrate finds the datastore already migrated (swamp-club#2458) (#2677)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-28T21:05:03Z">2026-09-28T21:05:03Z</time></span><span>datastore</span><span>fix</span></div>
@@ -10480,13 +10518,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260901.012545.0-sha.7d7984ad" rel="noopener">release v20260901.012545.0-sha.7d7984ad</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7d7984adc3a589df883ef460f5bc7e4d10259b13" rel="noopener">7d7984ad</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2332" rel="noopener">#2332</a>𝗔 <a href="https://swamp-club.com/lab/1925" rel="noopener">lab#1925</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>326 items across 1 source(s) in this window:
-3 critical, 305 notable, 5 routine,
+<p>328 items across 1 source(s) in this window:
+3 critical, 307 notable, 5 routine,
 13 minor.</p>
-<ul><li><strong>fix</strong> — 248</li><li><strong>feat</strong> — 60</li><li><strong>docs</strong> — 13</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>chore</strong> — 1</li></ul></section>
+<ul><li><strong>fix</strong> — 250</li><li><strong>feat</strong> — 60</li><li><strong>docs</strong> — 13</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-29T03:02:12.572Z">2026-09-29T03:02:12.572Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-29T04:02:08.781Z">2026-09-29T04:02:08.781Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

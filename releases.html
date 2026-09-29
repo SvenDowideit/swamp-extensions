@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260929-145907-0-sha-6dcae01b"><span class="tier A">A</span>move local_encryption secrets when vault edit renames a vaul</a><a href="#release-swamp-club-swamp-v20260929-145528-0-sha-6dcae01b"><span class="tier A">A</span>move local_encryption secrets when vault edit renames a vaul</a><a href="#release-swamp-club-swamp-v20260929-145204-0-sha-d3a47ad3"><span class="tier A">A</span>run swamp under tini so orphaned step processes are reaped (</a><a href="#release-swamp-club-swamp-v20260929-144324-0-sha-b48291e3"><span class="tier A">A</span>compare rebundle args against the canonical source path (swa</a><a href="#release-swamp-club-swamp-v20260929-143955-0-sha-5a0fe76d"><span class="tier A">A</span>serialize concurrent extension auto-installs (swamp-club#257</a><a href="#release-swamp-club-swamp-v20260929-142525-0-sha-84b8e7ae"><span class="tier A">A</span>restore a dependency the lockfile lost instead of calling it</a><a href="#release-swamp-club-swamp-v20260929-141911-0-sha-f58f285c"><span class="tier A">A</span>make vault edit managedConfig-aware and secure remote edits </a><a href="#release-swamp-club-swamp-v20260929-002922-0-sha-55e2ef29"><span class="tier A">A</span>remove per-run evaluated-workflow snapshots with their runs </a><a href="#release-swamp-club-swamp-v20260929-001435-0-sha-0d6fb89c"><span class="tier A">A</span>stop test files mutating the shared process env (swamp-club#</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7"><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensiti</a><a href="#release-swamp-club-swamp-v20260911-214925-0-sha-aba35e37"><span class="tier S">S</span>strip SWAMP_* env vars from shell model child processes (#24</a><a href="#release-swamp-club-swamp-v20260902-194129-0-sha-d1808bea"><span class="tier S">S</span>scope remote dispatch asset listing to declared additionalFi</a><a href="#release-swamp-club-swamp-v20260929-154804-0-sha-80c0526f"><span class="tier A">A</span>align multi-entry Expression paths errors and print the shar</a><a href="#release-swamp-club-swamp-v20260929-151817-0-sha-41b2495e"><span class="tier A">A</span>shell-quote the --from hint in failed-run retry refusals (sw</a><a href="#release-swamp-club-swamp-v20260929-151444-0-sha-eb131275"><span class="tier A">A</span>label templated forEach iterations with their expanded name </a><a href="#release-swamp-club-swamp-v20260929-145907-0-sha-6dcae01b"><span class="tier A">A</span>move local_encryption secrets when vault edit renames a vaul</a><a href="#release-swamp-club-swamp-v20260929-145528-0-sha-6dcae01b"><span class="tier A">A</span>move local_encryption secrets when vault edit renames a vaul</a><a href="#release-swamp-club-swamp-v20260929-145204-0-sha-d3a47ad3"><span class="tier A">A</span>run swamp under tini so orphaned step processes are reaped (</a><a href="#release-swamp-club-swamp-v20260929-144324-0-sha-b48291e3"><span class="tier A">A</span>compare rebundle args against the canonical source path (swa</a><a href="#release-swamp-club-swamp-v20260929-143955-0-sha-5a0fe76d"><span class="tier A">A</span>serialize concurrent extension auto-installs (swamp-club#257</a><a href="#release-swamp-club-swamp-v20260929-142525-0-sha-84b8e7ae"><span class="tier A">A</span>restore a dependency the lockfile lost instead of calling it</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20260914-002634-0-sha-bbd795f7">
 <h2><span class="tier S">S</span>restrict vault reference resolution to schema-marked sensitive fields (swamp-club#2119) (#2446)</h2>
@@ -150,6 +150,86 @@ footer .ver{color:var(--acc)}
 <p>| <code>design/enablers/remote-execution.md</code> | Document the additionalFiles-only policy |</p></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260902.194129.0-sha.d1808bea" rel="noopener">release v20260902.194129.0-sha.d1808bea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1808bead33f16f9845d428e62e8d6d253214017" rel="noopener">d1808bea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2360" rel="noopener">#2360</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260929-154804-0-sha-80c0526f">
+<h2><span class="tier A">A</span>align multi-entry Expression paths errors and print the shared fix once (swamp-club#2493) (#2698)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-29T15:49:31Z">2026-09-29T15:49:31Z</time></span><span>validation</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(validation): align multi-entry Expression paths errors and print the shared fix once (swamp-club#2493) (#2698)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2493.</p>
+<p>In log mode, <code>swamp model validate</code> printed a failed Expression paths check as one arrow line holding the whole multi-line error. The first entry sat next to the arrow, the rest kept the domain layer&#39;s own indent, and every dropped-dollar or single-brace error repeated the same long fix for another service&#39;s template syntax.</p>
+<ul>
+<li><strong>Domain</strong> (<code>validation_service.ts</code>): each <code>ExpressionPathError</code> carries the fix its form shares as a separate <code>remedy</code>, and <code>suggestion</code> keeps only the form-specific fix. <code>ValidationResult</code> carries the entries as <code>expressionErrors</code>. The <code>error</code> text is now plain and unindented, with each distinct remedy printed once at the end, via a single <code>distinctRemedies</code> helper.</li>
+<li><strong>libswamp</strong>: passes <code>expressionErrors</code> through on <code>ValidationItemData</code>.</li>
+<li><strong>Renderer</strong> (<code>model_validate.ts</code>): one arrow per failed expression, its details indented under it, then each distinct remedy once.</li>
+<li><strong>Workflow executor</strong>: the pre-run <code>Model validation failed</code> message puts a multi-line error under its check name, indented. Single-line errors are unchanged.</li>
+<li><strong>Skill reference</strong>: documents <code>expressionErrors</code> in the model validate JSON shape.</li>
+</ul>
+<p>```</p>
+<p>  ✗ Expression paths</p>
+<p>    → {{workflow.id}}</p>
+<p>      Expression uses {{...}} instead of ${{...}} at &quot;methods.execute.arguments.env.HOST&quot;</p>
+<p>      Add &quot;$&quot; prefix: ${{...}}.</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/reference.md" rel="noopener">.claude/skills/swamp/references/model/reference.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.154804.0-sha.80c0526f" rel="noopener">release v20260929.154804.0-sha.80c0526f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/80c0526fe44e37229b692a3869dd177d8ce100c5" rel="noopener">80c0526f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2698" rel="noopener">#2698</a>𝗔 <a href="https://swamp-club.com/lab/2493" rel="noopener">lab#2493</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260929-151817-0-sha-41b2495e">
+<h2><span class="tier A">A</span>shell-quote the --from hint in failed-run retry refusals (swamp-club#2447) (#2697)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-29T15:19:43Z">2026-09-29T15:19:43Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): shell-quote the --from hint in failed-run retry refusals (swamp-club#2447) (#2697)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>When <code>swamp workflow resume &lt;wf&gt; --run &lt;id&gt;</code> refuses to retry a failed run, two of its refusals suggest a <code>--from</code> step: the rejected-approval refusal and the pending-step refusal. Both printed the step name without quoting. For a <code>forEach</code> step that name is the template as written, such as <code>read-${{ self.plate }}</code>, so pasting the hint into bash failed with <code>bad substitution</code>.</p>
+<ul>
+<li><strong>Quoting:</strong> <code>quoteShellWord</code> moves unchanged from <code>src/cli/remote_run.ts</code> into a new domain module, <code>src/domain/shell_word.ts</code>, because the refusals are built in the domain layer and it cannot import from <code>cli/</code>. Both hints now quote the <code>--from</code> value. A plain name such as <code>gate</code> still prints bare, so the swamp-uat assertion on <code>Add --from approve-gate to ask again</code> is unaffected.</li>
+<li><strong>Serve error limit, 200 → 512 characters:</strong> <code>MAX_CLIENT_ERROR_LENGTH</code> in <code>src/serve/handlers/shared.ts</code> applies to every error message serve sends to clients, not just these refusals.</li>
+<li>The quoted pending-step refusal for a <code>forEach</code> template is about 207 characters, and the old 200 cut clipped the end of its history hint.</li>
+<li>Serve still replaces any message containing a filesystem path, and it does that check on the full message before truncating.</li>
+<li>The separate 200-character limit on worker capability RPC errors (<code>sanitizeRpcError</code>) is unchanged.</li>
+<li>Clients can now see up to 512 c</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.151817.0-sha.41b2495e" rel="noopener">release v20260929.151817.0-sha.41b2495e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/41b2495e00b38f37f1ec950cd7d01bc168376bf3" rel="noopener">41b2495e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2697" rel="noopener">#2697</a>𝗔 <a href="https://swamp-club.com/lab/2447" rel="noopener">lab#2447</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260929-151444-0-sha-eb131275">
+<h2><span class="tier A">A</span>label templated forEach iterations with their expanded name (swamp-club#2580) (#2696)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-29T15:16:36Z">2026-09-29T15:16:36Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): label templated forEach iterations with their expanded name (swamp-club#2580) (#2696)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2580.</p>
+<p>In log mode, <code>workflow run</code> labelled each forEach iteration&#39;s lines <code>&lt;template name&gt;[&lt;index&gt;]</code>. When the forEach step&#39;s name is itself an expression, that label was the unevaluated template (<code>deploy-${{ self.env }}[0]</code>), and the label column widened to match it for the whole run.</p>
+<p><code>WorkflowRunRenderer.getDisplayName()</code> now labels an iteration with its expanded step name (<code>deploy-dev</code>) when the template contains an expression. Plain-named forEach steps keep their <code>name[index]</code> label. The label is cached per step, so output, heartbeat, done/failed and skipped lines all use it. <code>forEachTemplate</code> is unchanged on events and run records (resume and <code>--from</code> key on it). JSON output is unaffected.</p>
+<p>Before:</p>
+<p>```</p>
+<p>warm-${{ self.region }}[0] │ skipped warm-us-east-1 (guarded) · guard: true</p>
+<p> deploy-${{ self.env }}[0] │ done deploy-dev in 25ms</p>
+<p>```</p>
+<p>After:</p>
+<p>```</p>
+<p>warm-us-east-1 │ skipped warm-us-east-1 (guarded) · guard: true</p>
+<p>    deploy-dev │ done deploy-dev in 52ms</p>
+<p> plain-each[0] │ done plain-each-dev in 27ms</p>
+<p>```</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>New renderer tests in <code>src/presentation/renderers/workflow_run_test.ts</code>:</li>
+<li>a templated forEach run: exact labels on output, done and failed lines, and no line contains <code>${{</code></li>
+<li>dependency-skipped and guard-skipped templated iterations</li>
+<li>both fail against the unfixed renderer; the existing plain-name `fet</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.151444.0-sha.eb131275" rel="noopener">release v20260929.151444.0-sha.eb131275</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/eb131275bfdc7a2d554ca472c14ec403c6e3c59c" rel="noopener">eb131275</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2696" rel="noopener">#2696</a>𝗔 <a href="https://swamp-club.com/lab/2580" rel="noopener">lab#2580</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-145907-0-sha-6dcae01b">
 <h2><span class="tier A">A</span>move local_encryption secrets when vault edit renames a vault (swamp-club#2681) (#2695)</h2>
@@ -283,7 +363,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.142525.0-sha.84b8e7ae" rel="noopener">release v20260929.142525.0-sha.84b8e7ae</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/84b8e7aeeaead662c8cc29dc0e5e8b17327bd8f4" rel="noopener">84b8e7ae</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2690" rel="noopener">#2690</a>𝗔 <a href="https://swamp-club.com/lab/2646" rel="noopener">lab#2646</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20260929-141911-0-sha-f58f285c">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260929-141911-0-sha-f58f285c">
 <h2><span class="tier A">A</span>make vault edit managedConfig-aware and secure remote edits (swamp-club#2426) (#2689)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-29T14:21:19Z">2026-09-29T14:21:19Z</time></span><span>serve</span><span>fix</span></div>
@@ -346,7 +426,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/AGENTS.md" rel="noopener">AGENTS.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.001435.0-sha.0d6fb89c" rel="noopener">release v20260929.001435.0-sha.0d6fb89c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0d6fb89cd31edca10c5b56c85885898665d74a5b" rel="noopener">0d6fb89c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2687" rel="noopener">#2687</a>𝗔 <a href="https://swamp-club.com/lab/2658" rel="noopener">lab#2658</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260928-233948-0-sha-41431668">
+<article class="item" id="release-swamp-club-swamp-v20260928-233948-0-sha-41431668">
 <h2><span class="tier A">A</span>let serve cancel a suspended run it started (swamp-club#2514) (#2686)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-28T23:41:49Z">2026-09-28T23:41:49Z</time></span><span>serve</span><span>fix</span></div>
@@ -10253,87 +10333,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.github/actions/adversarial-review/README.md" rel="noopener">.github/actions/adversarial-review/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c4600418b072728920f6df3a97f34c1666ee04" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260929-154804-0-sha-80c0526f">
-<h2><span class="tier C">C</span>swamp 20260929.154804.0-sha.80c0526f</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-29T15:49:31Z">2026-09-29T15:49:31Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(validation): align multi-entry Expression paths errors and print the shared fix once (swamp-club#2493) (#2698)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2493.</p>
-<p>In log mode, <code>swamp model validate</code> printed a failed Expression paths check as one arrow line holding the whole multi-line error. The first entry sat next to the arrow, the rest kept the domain layer&#39;s own indent, and every dropped-dollar or single-brace error repeated the same long fix for another service&#39;s template syntax.</p>
-<ul>
-<li><strong>Domain</strong> (<code>validation_service.ts</code>): each <code>ExpressionPathError</code> carries the fix its form shares as a separate <code>remedy</code>, and <code>suggestion</code> keeps only the form-specific fix. <code>ValidationResult</code> carries the entries as <code>expressionErrors</code>. The <code>error</code> text is now plain and unindented, with each distinct remedy printed once at the end, via a single <code>distinctRemedies</code> helper.</li>
-<li><strong>libswamp</strong>: passes <code>expressionErrors</code> through on <code>ValidationItemData</code>.</li>
-<li><strong>Renderer</strong> (<code>model_validate.ts</code>): one arrow per failed expression, its details indented under it, then each distinct remedy once.</li>
-<li><strong>Workflow executor</strong>: the pre-run <code>Model validation failed</code> message puts a multi-line error under its check name, indented. Single-line errors are unchanged.</li>
-<li><strong>Skill reference</strong>: documents <code>expressionErrors</code> in the model validate JSON shape.</li>
-</ul>
-<p>```</p>
-<p>  ✗ Expression paths</p>
-<p>    → {{workflow.id}}</p>
-<p>      Expression uses {{...}} instead of ${{...}} at &quot;methods.execute.arguments.env.HOST&quot;</p>
-<p>      Add &quot;$&quot; prefix: ${{...}}.</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.154804.0-sha.80c0526f" rel="noopener">release v20260929.154804.0-sha.80c0526f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/80c0526f" rel="noopener">80c0526f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2698" rel="noopener">#2698</a>𝗔 <a href="https://swamp-club.com/lab/2493" rel="noopener">lab#2493</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260929-151817-0-sha-41b2495e">
-<h2><span class="tier C">C</span>swamp 20260929.151817.0-sha.41b2495e</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-29T15:19:43Z">2026-09-29T15:19:43Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): shell-quote the --from hint in failed-run retry refusals (swamp-club#2447) (#2697)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>When <code>swamp workflow resume &lt;wf&gt; --run &lt;id&gt;</code> refuses to retry a failed run, two of its refusals suggest a <code>--from</code> step: the rejected-approval refusal and the pending-step refusal. Both printed the step name without quoting. For a <code>forEach</code> step that name is the template as written, such as <code>read-${{ self.plate }}</code>, so pasting the hint into bash failed with <code>bad substitution</code>.</p>
-<ul>
-<li><strong>Quoting:</strong> <code>quoteShellWord</code> moves unchanged from <code>src/cli/remote_run.ts</code> into a new domain module, <code>src/domain/shell_word.ts</code>, because the refusals are built in the domain layer and it cannot import from <code>cli/</code>. Both hints now quote the <code>--from</code> value. A plain name such as <code>gate</code> still prints bare, so the swamp-uat assertion on <code>Add --from approve-gate to ask again</code> is unaffected.</li>
-<li><strong>Serve error limit, 200 → 512 characters:</strong> <code>MAX_CLIENT_ERROR_LENGTH</code> in <code>src/serve/handlers/shared.ts</code> applies to every error message serve sends to clients, not just these refusals.</li>
-<li>The quoted pending-step refusal for a <code>forEach</code> template is about 207 characters, and the old 200 cut clipped the end of its history hint.</li>
-<li>Serve still replaces any message containing a filesystem path, and it does that check on the full message before truncating.</li>
-<li>The separate 200-character limit on worker capability RPC errors (<code>sanitizeRpcError</code>) is unchanged.</li>
-<li>Clients can now see up to 512 c</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.151817.0-sha.41b2495e" rel="noopener">release v20260929.151817.0-sha.41b2495e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/41b2495e" rel="noopener">41b2495e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2697" rel="noopener">#2697</a>𝗔 <a href="https://swamp-club.com/lab/2447" rel="noopener">lab#2447</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260929-151444-0-sha-eb131275">
-<h2><span class="tier C">C</span>swamp 20260929.151444.0-sha.eb131275</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-09-29T15:16:36Z">2026-09-29T15:16:36Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): label templated forEach iterations with their expanded name (swamp-club#2580) (#2696)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2580.</p>
-<p>In log mode, <code>workflow run</code> labelled each forEach iteration&#39;s lines <code>&lt;template name&gt;[&lt;index&gt;]</code>. When the forEach step&#39;s name is itself an expression, that label was the unevaluated template (<code>deploy-${{ self.env }}[0]</code>), and the label column widened to match it for the whole run.</p>
-<p><code>WorkflowRunRenderer.getDisplayName()</code> now labels an iteration with its expanded step name (<code>deploy-dev</code>) when the template contains an expression. Plain-named forEach steps keep their <code>name[index]</code> label. The label is cached per step, so output, heartbeat, done/failed and skipped lines all use it. <code>forEachTemplate</code> is unchanged on events and run records (resume and <code>--from</code> key on it). JSON output is unaffected.</p>
-<p>Before:</p>
-<p>```</p>
-<p>warm-${{ self.region }}[0] │ skipped warm-us-east-1 (guarded) · guard: true</p>
-<p> deploy-${{ self.env }}[0] │ done deploy-dev in 25ms</p>
-<p>```</p>
-<p>After:</p>
-<p>```</p>
-<p>warm-us-east-1 │ skipped warm-us-east-1 (guarded) · guard: true</p>
-<p>    deploy-dev │ done deploy-dev in 52ms</p>
-<p> plain-each[0] │ done plain-each-dev in 27ms</p>
-<p>```</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>New renderer tests in <code>src/presentation/renderers/workflow_run_test.ts</code>:</li>
-<li>a templated forEach run: exact labels on output, done and failed lines, and no line contains <code>${{</code></li>
-<li>dependency-skipped and guard-skipped templated iterations</li>
-<li>both fail against the unfixed renderer; the existing plain-name `fet</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.151444.0-sha.eb131275" rel="noopener">release v20260929.151444.0-sha.eb131275</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/eb131275" rel="noopener">eb131275</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2696" rel="noopener">#2696</a>𝗔 <a href="https://swamp-club.com/lab/2580" rel="noopener">lab#2580</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20260928-154016-0-sha-14cb0624">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260928-154016-0-sha-14cb0624">
 <h2><span class="tier C">C</span>say workflow inputs are recorded and route secrets through vault references (swamp-club#2585) (#2655)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-28T15:42:51Z">2026-09-28T15:42:51Z</time></span><span>skills</span><span>docs</span></div>
@@ -10756,12 +10756,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>338 items across 1 source(s) in this window:
-3 critical, 314 notable, 5 routine,
-16 minor.</p>
-<ul><li><strong>fix</strong> — 257</li><li><strong>feat</strong> — 60</li><li><strong>docs</strong> — 13</li><li><strong>changes</strong> — 3</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li></ul></section>
+3 critical, 317 notable, 5 routine,
+13 minor.</p>
+<ul><li><strong>fix</strong> — 260</li><li><strong>feat</strong> — 60</li><li><strong>docs</strong> — 13</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-29T17:11:25.884Z">2026-09-29T17:11:25.884Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-29T18:02:29.193Z">2026-09-29T18:02:29.193Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

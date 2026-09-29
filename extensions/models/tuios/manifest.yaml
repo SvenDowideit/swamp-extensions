@@ -1,0 +1,106 @@
+manifestVersion: 1
+name: "@svendowideit/tuios"
+version: "2026.09.29.1"
+description: >
+  Keep TUIOS current and always-on: track the latest release, know exactly what
+  to download for this machine, install or upgrade it, and run the TUIOS daemon
+  under systemd so sessions survive logout and reboot.
+
+  WHAT IT DOES
+
+    TUIOS (https://tuios.dev) is a terminal window manager whose sessions live
+    in a background daemon. This extension closes the whole loop around it.
+    One model resolves the newest GitHub release and the exact archive for the
+    machine it runs on — probing OS and architecture, mapping them to the
+    release's GoReleaser tokens, and recording the archive's SHA-256 from the
+    release's checksums.txt. A second model tracks what is already installed
+    (running `tuios --version`) and can download, checksum-verify and install
+    the binary, idempotently. The bundled workflow wires those together and
+    hands the daemon to systemd, so installing and upgrading — and keeping
+    sessions available — is a single `swamp workflow run`.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/tuios
+
+  DEPENDENCIES
+
+    `@svendowideit/systemd-service`, declared in `dependencies:` and installed
+    by the single pull above. It is used by the bundled workflow to run the
+    TUIOS daemon as a systemd *user* service; the two models work without it
+    (set `--input manageService=false` to skip the service steps).
+
+  RUN
+
+      # Install or upgrade TUIOS and start its daemon as a systemd user
+      # service, so sessions survive logout and reboot. Idempotent.
+      swamp workflow run @svendowideit/tuios-install
+
+      # Pin a version and choose where the binary lands.
+      swamp workflow run @svendowideit/tuios-install \
+        --input version=0.8.0 --input installDir=~/.local/bin
+
+      # Ask what the latest release is and what this machine would download.
+      swamp model @svendowideit/tuios-release method run check tuios-release
+
+      # Ask what is installed and whether an update is available.
+      swamp model @svendowideit/tuios-installed method run sync tuios-installed
+
+      # Install or upgrade the binary without touching systemd.
+      swamp model @svendowideit/tuios-installed method run install tuios-installed
+
+  CONFIGURE
+
+    Workflow inputs (all optional, with defaults):
+
+      installDir     Where to install the binary         (default: first writable of
+                                                         /usr/local/bin, ~/.local/bin, ~/bin)
+      version        Release to install; empty = latest  (default "")
+      flavor         std | ghostty                       (default std)
+      force          Reinstall even when up to date      (default false)
+      manageService  Create + start the daemon service   (default true)
+      serviceName    systemd user service name           (default tuios)
+
+    The models also take model globals for the release repository, API URL,
+    User-Agent, a GitHub token and an os/arch override; see the README for the
+    full table. Precedence is per-call `--input` > model global > schema
+    default. Set `githubToken` (or export `GITHUB_TOKEN`) on machines that run
+    the workflow often: the releases API allows only 60 anonymous requests per
+    hour per IP.
+
+  WHAT IT INSTALLS
+
+    The `tuios` binary at the chosen install directory (default: the first
+    writable of /usr/local/bin, ~/.local/bin, ~/bin) — the same locations the
+    upstream install script targets. When `manageService` is true it also
+    writes one systemd *user* unit named `tuios.service` at
+    `~/.config/systemd/user/`, enables user lingering, and starts/enables the
+    service so the daemon runs at boot. Nothing else is installed, and
+    `manageService=false` installs no service.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - tuios_release.ts
+  - tuios_installed.ts
+  - tuios_shared.ts
+
+workflows:
+  - tuios-install.yaml
+
+dependencies:
+  - "@svendowideit/systemd-service"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - tuios_shared_test.ts
+  - tuios_release_test.ts
+  - tuios_installed_test.ts
+
+platforms: []

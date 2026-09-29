@@ -1,0 +1,180 @@
+id: fc72db4c-1cc0-45d5-b3e5-75c3bcd80252
+name: '@svendowideit/tuios-install'
+description: |
+  Install or upgrade TUIOS on the machine this workflow runs on, then hand the
+  daemon to systemd so sessions are always available.
+
+  Steps:
+    check-latest → install → create-daemon-service → start-daemon-service → verify
+
+  check-latest resolves the newest TUIOS release and the archive for this
+  platform, recording it as the `release` resource. install is idempotent: it
+  locates the installed binary, skips the download when the target version is
+  already present (unless force is set), verifies the archive against the
+  release's checksums.txt, and replaces the binary. The systemd steps then
+  create and start a `tuios daemon` user service (via
+  @svendowideit/systemd-service) so sessions survive logout and reboot, and
+  verify prints the final state.
+
+  Run it on any machine to make TUIOS present, current, and always-on:
+
+      swamp workflow run @svendowideit/tuios-install
+
+  Pin a version, choose where the binary lands, or leave the daemon alone:
+
+      swamp workflow run @svendowideit/tuios-install \
+        --input version=0.8.0 --input installDir=~/.local/bin \
+        --input manageService=false
+
+  The workflow auto-registers the `tuios-release`, `tuios-installed` and
+  `tuios-daemon` model instances on first run; nothing needs creating by hand.
+  The daily trigger upgrades the binary and restarts the daemon as new releases
+  appear; remove `trigger:` if you would rather upgrade by hand.
+tags: {}
+trigger:
+  schedule: "0 4 * * *"
+  inputs:
+    manageService: true
+inputs:
+  properties:
+    installDir:
+      type: string
+      default: ""
+      description: >-
+        Directory to install the tuios binary into. Empty picks the first
+        writable of /usr/local/bin, ~/.local/bin, ~/bin.
+    version:
+      type: string
+      default: ""
+      description: >-
+        Release to install (e.g. 0.8.0 or v0.8.0). Empty installs the latest.
+    flavor:
+      type: string
+      enum:
+        - std
+        - ghostty
+      default: std
+      description: >-
+        Build flavor: 'std' is the pure-Go emulator, 'ghostty' bundles
+        libghostty-vt (Linux/Windows only).
+    force:
+      type: boolean
+      default: false
+      description: >-
+        Reinstall even when the target version is already installed, and
+        rewrite the systemd unit even if it already matches.
+    manageService:
+      type: boolean
+      default: true
+      description: >-
+        Create and start a systemd user service running the TUIOS daemon, so
+        sessions persist across logout and reboot.
+    serviceName:
+      type: string
+      default: tuios
+      description: systemd user service name (without the .service suffix).
+  required: []
+jobs:
+  - name: main
+    description: Resolve the release, ensure the binary, then run the daemon under systemd.
+    steps:
+      - name: check-latest
+        description: >-
+          Fetch the newest TUIOS release and select the archive for this
+          machine's OS and architecture, recording its SHA-256. This is the
+          only writer of the `release` resource in a run.
+        task:
+          type: model_method
+          modelType: "@svendowideit/tuios-release"
+          modelName: tuios-release
+          methodName: check
+          inputs:
+            flavor: ${{ inputs.flavor }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: install
+        description: >-
+          Download, checksum-verify and install the TUIOS binary. The model
+          locates whatever is already installed and skips the download when the
+          target version is present (unless force is set), so this step is safe
+          on every pass. It is the only writer of the `installed` and `install`
+          resources in a run.
+        task:
+          type: model_method
+          modelType: "@svendowideit/tuios-installed"
+          modelName: tuios-installed
+          methodName: install
+          inputs:
+            version: ${{ inputs.version }}
+            installDir: ${{ inputs.installDir }}
+            flavor: ${{ inputs.flavor }}
+            force: ${{ inputs.force }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: create-daemon-service
+        description: >-
+          Write (idempotently) a systemd user unit that runs the freshly
+          installed `tuios daemon`, so sessions persist across logout and
+          reboot. Only runs when manageService is true.
+        guard: ${{ inputs.manageService == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/systemd-service"
+          modelName: tuios-daemon
+          methodName: createService
+          inputs:
+            serviceName: ${{ inputs.serviceName }}
+            command: ${{ data.latest("tuios-installed", "install").attributes.path + " daemon" }}
+            description: TUIOS daemon — persistent terminal sessions
+            restart: always
+            restartSec: "5"
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: install
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: start-daemon-service
+        description: >-
+          Enable user lingering and start/enable the service so the daemon comes
+          back at boot and its sessions are always available.
+        guard: ${{ inputs.manageService == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/systemd-service"
+          modelName: tuios-daemon
+          methodName: startService
+          inputs:
+            serviceName: ${{ inputs.serviceName }}
+            linger: true
+        dependsOn:
+          - step: create-daemon-service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: verify
+        description: >-
+          Print the final installed version and latest release, so the run log
+          ends with what is now on the machine and what the next run would
+          fetch. The only writer of the `summary` resource in a run.
+        task:
+          type: model_method
+          modelType: "@svendowideit/tuios-installed"
+          modelName: tuios-installed
+          methodName: print
+        dependsOn:
+          - step: install
+            condition:
+              type: succeeded
+          - step: start-daemon-service
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

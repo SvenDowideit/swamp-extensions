@@ -6,7 +6,12 @@
  */
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
 import { isSupportedOs, resolvePlatform } from "./tuios_shared.ts";
-import { checksumsUrlFor, formatSummary } from "./tuios_release.ts";
+import {
+  checksumsUrlFor,
+  formatSummary,
+  parseReleasePayload,
+  selectPlatformAsset,
+} from "./tuios_release.ts";
 
 Deno.test("isSupportedOs accepts the release OS tokens only", () => {
   assertEquals(isSupportedOs("Linux"), true);
@@ -76,6 +81,65 @@ Deno.test("checksumsUrlFor prefers the checksums asset, else derives one", () =>
     "https://example.test/v/checksums.txt",
   );
   assertEquals(checksumsUrlFor([]), null);
+});
+
+Deno.test("parseReleasePayload reads the GitHub release fields", () => {
+  const parsed = parseReleasePayload({
+    tag_name: "v0.8.0",
+    name: "v0.8.0",
+    published_at: "2026-09-27T19:17:22Z",
+    prerelease: false,
+    html_url: "https://github.com/Gaurav-Gosain/tuios/releases/tag/v0.8.0",
+    body: "notes",
+    assets: [
+      {
+        name: "tuios_0.8.0_Linux_x86_64.tar.gz",
+        browser_download_url: "https://example.test/a.tar.gz",
+        size: 10,
+      },
+    ],
+  });
+  assertEquals(parsed.tag, "v0.8.0");
+  assertEquals(parsed.version, "0.8.0");
+  assertEquals(parsed.publishedAt, "2026-09-27T19:17:22Z");
+  assertEquals(parsed.assets[0].version, "0.8.0");
+  assertEquals(parsed.body, "notes");
+});
+
+Deno.test("selectPlatformAsset annotates the platform with the chosen archive", () => {
+  const release = parseReleasePayload({
+    tag_name: "v0.8.0",
+    assets: [
+      {
+        name: "tuios_0.8.0_Linux_x86_64.tar.gz",
+        browser_download_url: "https://example.test/linux.tar.gz",
+      },
+      {
+        name: "tuios-ghostty_0.8.0_Linux_x86_64.tar.gz",
+        browser_download_url: "https://example.test/ghostty.tar.gz",
+      },
+    ],
+  });
+  const std = selectPlatformAsset(release, {
+    os: "Linux",
+    arch: "x86_64",
+    flavor: "std",
+    supported: true,
+  });
+  assertEquals(std.archiveName, "tuios_0.8.0_Linux_x86_64.tar.gz");
+  assertEquals(std.downloadUrl, "https://example.test/linux.tar.gz");
+  assertEquals(std.supported, true);
+
+  // A platform with no matching archive keeps the derived name but is
+  // marked unsupported.
+  const missing = selectPlatformAsset(release, {
+    os: "Darwin",
+    arch: "arm64",
+    flavor: "std",
+    supported: true,
+  });
+  assertEquals(missing.archiveName, undefined);
+  assertEquals(missing.supported, false);
 });
 
 Deno.test("release formatSummary reports platform and update state", () => {

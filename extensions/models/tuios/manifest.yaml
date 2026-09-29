@@ -14,8 +14,9 @@ description: >
     machine it runs on — probing OS and architecture, mapping them to the
     release's GoReleaser tokens, and recording the archive's SHA-256 from the
     release's checksums.txt. A second model tracks what is already installed
-    (running `tuios --version`) and can download, checksum-verify and install
-    the binary, idempotently. The bundled workflow wires those together and
+    (running `tuios --version`) and downloads, checksum-verifies and installs
+    the binary, idempotently; the checksum is mandatory, so an unverified
+    archive is never installed. The bundled workflow wires those together and
     hands the daemon to systemd, so installing and upgrading — and keeping
     sessions available — is a single `swamp workflow run`.
 
@@ -66,7 +67,10 @@ description: >
     full table. Precedence is per-call `--input` > model global > schema
     default. Set `githubToken` (or export `GITHUB_TOKEN`) on machines that run
     the workflow often: the releases API allows only 60 anonymous requests per
-    hour per IP.
+    hour per IP. The install step consumes the release that `check` resolved
+    (version, download URL, SHA-256), so a normal run spends one API request;
+    `install` also takes `archiveName`/`downloadUrl`/`releaseVersion`/`checksum`
+    for a direct call, and refuses to install an archive with no checksum.
 
   WHAT IT INSTALLS
 
@@ -102,5 +106,7 @@ additionalFiles:
   - tuios_shared_test.ts
   - tuios_release_test.ts
   - tuios_installed_test.ts
+  - tuios_release_methods_test.ts
+  - tuios_installed_methods_test.ts
 
 platforms: []

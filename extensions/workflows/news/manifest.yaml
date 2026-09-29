@@ -1,26 +1,96 @@
 manifestVersion: 1
 name: "@svendowideit/news"
-version: "2026.09.11.1"
+version: "2026.09.25.2"
 description: >
-  The full news stack — feed discovery, catalog management, preference-aware
-  fetching, LLM story fusion, and static HTML rendering. Ships four model
-  extensions (news-feed-discovery, news-feed-catalog, news-reader, news-feed-analysis), one
-  report extension (news_html_report), the four news workflows (news-fetch, news-fusion,
-  news-curation, news-full), and the decoupled feedback server that closes the
-  👍/👎 loop between the generated HTML page and the workflows. When the
-  optional @svendowideit/systemd-service extension is installed, the feedback
-  server runs as a systemd user service (via user lingering) so it starts at
-  boot; otherwise the ensure-feedback-server step is skipped and you run it
-  manually.
+  The full news stack: feed discovery, catalog management, preference-aware
+  fetching, LLM story fusion, and static HTML rendering — plus a decoupled
+  feedback server that closes the 👍/👎 loop between the rendered page and the
+  workflows.
 
-  Install: swamp extension pull @svendowideit/news. Model instances
-  (local-news, feed-catalog, feed-discovery, feed-analysis) are auto-registered
-  by the workflows on first run — no manual swamp model create needed.
-  Setup: swamp model @svendowideit/news-reader method run setup local-news
-  (set llmModel + llmBaseUrl to enable LLM fusion).
-  Run: swamp workflow run @svendowideit/news-fetch | @svendowideit/news-fusion | @svendowideit/news-curation | @svendowideit/news-full.
+  WHAT IT DOES
+
+    Turns a pile of RSS/Atom feeds into a ranked, deduplicated, optionally
+    LLM-fused news digest, rendered as a static HTML page you can read or host.
+    It discovers feeds, keeps a catalog of them, fetches and deduplicates
+    articles, learns your preferences from interest/ignore feedback, clusters
+    related articles into one story, and — if you point it at an
+    OpenAI-compatible LLM — fuses each cluster into a single factual story with
+    citations. Prefer it over reading feeds by hand or wiring a one-off script:
+    every stage is a swamp method (so it composes, resumes, and is auditable),
+    the fetch is incremental, and the feedback page closes the loop so the next
+    run ranks what you actually read. It is LLM-optional: without an LLM it
+    still fetches, filters, and renders.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/news
+
+  DEPENDENCIES
+
+    None required — the fetch, catalog, and rendering stages use only the swamp
+    CLI and the bundled deno binary. Two optional pieces: set an
+    `llmModel`/`llmBaseUrl` to enable LLM story fusion (any OpenAI-compatible
+    server), and install `@svendowideit/systemd-service` to run the feedback
+    server as a systemd user service; without it the ensure-feedback-server step
+    is skipped and you run the server yourself.
+
+  RUN
+
+      # See every setting, its valid values, its default and its current value.
+      swamp model @svendowideit/news-reader method run setup local-news
+
+      # Fast path — feedback, fetch, dedupe, filter, generate HTML.
+      swamp workflow run @svendowideit/news-fetch
+
+      # The full loop — discovery → catalog → fetch → filter → fuse → render.
+      swamp workflow run @svendowideit/news-full
+
+    The model instances (local-news, feed-catalog, feed-discovery, feed-analysis)
+    are auto-registered by the workflows on first run — no manual
+    `swamp model create` needed.
+
+  CONFIGURE
+
+    Global arguments on the news-reader instance (all optional):
+
+      llmBaseUrl                  OpenAI-compatible LLM base   (default local Ollama)
+      llmModel                    Model tag for fusion; empty  (default "")
+                                  disables fusion
+      llmTemperature              Sampling temperature          (default 0.1)
+      fusionMinClusterSize        Min articles per fusion       (default 2)
+      citationRetentionDays       How long citations age out    (default 30)
+      llmConcurrency              Max concurrent LLM calls      (default 3)
+      maxFusions                  Cap on LLM calls per step     (default 25)
+      llmTimeoutSec               Per-call LLM timeout (s)      (default 120)
+      llmFailureThreshold         Server failures before halt   (default 3)
+      feedbackServerHost          Interface it binds to          (default 127.0.0.1)
+      feedbackServerPort          Feedback server port          (default 8765)
+      feedbackServerServiceName   systemd service name          (default feedback-server)
+
+    The feedback server's bind host/port are these model globals — not workflow
+    inputs — so a scheduled `news-fetch` run can never rebind an existing
+    service. Set them with `swamp model @svendowideit/news-reader method run
+    setup local-news` (validates and reports the exact change) then apply with
+    `swamp model edit local-news`; the matching feed-catalog instance takes
+    feedbackServerHost/feedbackServerPort too. The discovery and analysis
+    models each take their own small global args; see the README.
+
+  WHAT IT INSTALLS
+
+    The feedback server as a systemd *user* service — but only when
+    `@svendowideit/systemd-service` is installed and the ensure-feedback-server
+    step runs; it then enables user lingering so the server starts at boot. It
+    binds the `local-news` feedbackServerHost/feedbackServerPort globals
+    (127.0.0.1:8765 by default, local-only); set them to expose it on the
+    network, which is safe only behind an authenticating proxy. Rewriting the
+    unit does not restart a running process, so after changing the host/port
+    run `stopService` then `startService`. Without that extension nothing is
+    installed on the host. The rendered HTML, stories, and feedback queue are
+    written under `~/.swamp/news-pages/`.
 
 repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
 
 paths:
   base: manifest

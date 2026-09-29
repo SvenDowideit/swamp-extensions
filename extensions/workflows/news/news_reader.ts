@@ -12,6 +12,23 @@
 import { z } from "npm:zod@4";
 
 // ---------------------------------------------------------------------------
+// Feedback-server defaults
+// ---------------------------------------------------------------------------
+
+/**
+ * Default interface the feedback server binds to (loopback = local-only).
+ *
+ * CEL `self.globalArguments` exposes only *stored* globals, not schema
+ * defaults, so the workflow's `self.globalArguments.?feedbackServerHost
+ * .orValue(...)` fallback mirrors this value textually. Keep the two in sync
+ * when changing the default.
+ */
+export const DEFAULT_FEEDBACK_SERVER_HOST = "127.0.0.1";
+
+/** Default port the feedback server listens on (mirrored in the workflow YAML). */
+export const DEFAULT_FEEDBACK_SERVER_PORT = 8765;
+
+// ---------------------------------------------------------------------------
 // Schemas
 // ---------------------------------------------------------------------------
 
@@ -57,8 +74,24 @@ const GlobalArgsSchema = z.object({
     "Server-side LLM failures (outage / timeout / HTTP 5xx) tolerated in a step before the step halts. 1 = fail fast on the first server error. Client-side errors are not counted.",
   ),
   /** Port the feedback queue server listens on. */
-  feedbackServerPort: z.number().int().min(1).max(65535).default(8765).describe(
-    "Port the feedback queue HTTP server listens on (default 8765).",
+  feedbackServerPort: z.number().int().min(1).max(65535).default(
+    DEFAULT_FEEDBACK_SERVER_PORT,
+  ).describe(
+    `Port the feedback queue HTTP server listens on (default ${DEFAULT_FEEDBACK_SERVER_PORT}).`,
+  ),
+  /**
+   * Interface the feedback server binds to.
+   *
+   * This global is the single source of truth for the bind address: the
+   * workflow reads it (via `self.globalArguments`) to (re)configure the systemd
+   * unit, and the gather methods derive their client URL from it. Do not set it
+   * per workflow run. Loopback by default: the server is unauthenticated and
+   * exposes an arbitrary-URL fetch plus the feedback/page write endpoints, so
+   * it must not be reachable from the network unless the operator opts in. Set
+   * `0.0.0.0` only behind an authenticating proxy or on a trusted network.
+   */
+  feedbackServerHost: z.string().default(DEFAULT_FEEDBACK_SERVER_HOST).describe(
+    `Interface the feedback server binds to. \`${DEFAULT_FEEDBACK_SERVER_HOST}\` (default) is local-only; \`0.0.0.0\` exposes it on every interface — do that only behind an authenticating proxy, since the server has no auth and fetches arbitrary URLs.`,
   ),
   /** systemd user service name for the feedback server. */
   feedbackServerServiceName: z.string().default("feedback-server").describe(
@@ -70,7 +103,43 @@ const GlobalArgsSchema = z.object({
   ),
 }).strict();
 
-type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
+/**
+ * Validated global arguments for the news-reader model.
+ *
+ * Declared as an explicit type rather than `z.infer`: exported functions take it
+ * as a parameter, and an exported inferred type references zod's private
+ * `output` type (a `deno doc --lint` slow type).
+ */
+export type GlobalArgs = {
+  /** Base URL of an OpenAI-compatible LLM server. */
+  llmBaseUrl: string;
+  /** Model tag used for fusion. */
+  llmModel: string;
+  /** Optional API key for LLM servers that require auth. */
+  llmApiKey?: string;
+  /** Sampling temperature for fusion LLM calls. */
+  llmTemperature: number;
+  /** Minimum articles per cluster before LLM fusion triggers. */
+  fusionMinClusterSize: number;
+  /** How long article citations live before aging out. */
+  citationRetentionDays: number;
+  /** Max concurrent LLM requests for fusion steps. */
+  llmConcurrency: number;
+  /** Hard cap on LLM calls per fusion step. */
+  maxFusions: number;
+  /** Per-call timeout in seconds for LLM requests. */
+  llmTimeoutSec: number;
+  /** Server-side LLM failures tolerated before a step halts. */
+  llmFailureThreshold: number;
+  /** Port the feedback queue server listens on. */
+  feedbackServerPort: number;
+  /** Interface the feedback server binds to (default loopback). */
+  feedbackServerHost: string;
+  /** systemd user service name for the feedback server. */
+  feedbackServerServiceName: string;
+  /** Override the path to the bundled feedback-server.ts script. */
+  feedbackServerScriptPath?: string;
+};
 
 /** Parse a newsAge string (e.g., "3d", "2h", "4w", "1m") into milliseconds. */
 export function parseNewsAge(ageStr: string): number {
@@ -202,8 +271,8 @@ const FeedbackArgsSchema = z.object({
 type FeedbackArgs = z.infer<typeof FeedbackArgsSchema>;
 
 const GatherFeedbackArgsSchema = z.object({
-  serverUrl: z.string().default("http://localhost:8765").describe(
-    "URL of the feedback queue HTTP server",
+  serverUrl: z.string().optional().describe(
+    "URL of the feedback queue HTTP server. Defaults to the model's feedbackServerHost/feedbackServerPort globals.",
   ),
   batchSize: z.number().int().min(1).max(100).default(100).describe(
     "Number of feedback entries to process per batch",
@@ -214,8 +283,8 @@ const GatherFeedbackArgsSchema = z.object({
 }).describe("Arguments for the gatherFeedback method");
 
 const GatherPagesArgsSchema = z.object({
-  serverUrl: z.string().default("http://localhost:8765").describe(
-    "URL of the pages queue HTTP server",
+  serverUrl: z.string().optional().describe(
+    "URL of the pages queue HTTP server. Defaults to the model's feedbackServerHost/feedbackServerPort globals.",
   ),
   batchSize: z.number().int().min(1).max(100).default(100).describe(
     "Number of queued pages to process per batch",
@@ -668,6 +737,62 @@ export function expandHome(path: string): string {
   return path;
 }
 
+/**
+ * The `ExecStart` command for the feedback-server systemd unit.
+ *
+ * `--host`/`--port` are passed explicitly so the service binds exactly the
+ * interface and port the operator chose (default loopback) rather than the
+ * server's own default. Pure, so the wiring is unit-testable without spawning
+ * `swamp`.
+ */
+export function feedbackServerCommand(opts: {
+  denoPath: string;
+  scriptPath: string;
+  host: string;
+  port: number;
+}): string {
+  return `${opts.denoPath} run --allow-net --allow-read --allow-write --allow-env ` +
+    `${opts.scriptPath} --host ${opts.host} --port ${opts.port}`;
+}
+
+/**
+ * The client URL for the feedback server, derived from the bind globals.
+ *
+ * The workflow only passes `serverUrl` explicitly when an operator opts into a
+ * non-default URL; otherwise the gather methods fall back to this helper so the
+ * server host/port configured in `globalArguments` is the single source of
+ * truth. A wildcard bind (`0.0.0.0` or `::`) is not a usable client address, so
+ * it maps to `localhost`; any other interface is used verbatim (useful when the
+ * server is bound to a specific LAN address).
+ */
+export function feedbackServerUrl(opts: {
+  host: string;
+  port: number;
+}): string {
+  const host = opts.host === "0.0.0.0" || opts.host === "::"
+    ? "localhost"
+    : opts.host;
+  return `http://${host}:${opts.port}`;
+}
+
+/**
+ * Resolve the feedback-server URL from an explicit method argument or the
+ * model's bind globals. `serverUrl` is only set when the caller explicitly
+ * passes one, so an empty/whitespace string falls back to the globals rather
+ * than pointing at an unusable URL.
+ */
+export function resolveFeedbackServerUrl(
+  serverUrl: string | undefined,
+  globals: Pick<GlobalArgs, "feedbackServerHost" | "feedbackServerPort">,
+): string {
+  const explicit = serverUrl?.trim();
+  if (explicit) return explicit;
+  return feedbackServerUrl({
+    host: globals.feedbackServerHost,
+    port: globals.feedbackServerPort,
+  });
+}
+
 /** Run a `swamp` CLI command and capture stdout/stderr/exit code. */
 export async function runSwampCmd(
   args: string[],
@@ -908,8 +1033,8 @@ export function isLlmServerError(err: unknown): boolean {
   return err instanceof LlmError && err.serverError;
 }
 
-/** A chat message for an OpenAI-compatible endpoint. */
-type ChatMessage = { role: "system" | "user"; content: string };
+/** A chat message sent to an OpenAI-compatible chat/completions endpoint. */
+export type ChatMessage = { role: "system" | "user"; content: string };
 
 /**
  * Call an OpenAI-compatible /v1/chat/completions endpoint (works with Ollama
@@ -1310,6 +1435,7 @@ export async function probeLlm(
           llmTimeoutSec: 30,
           llmFailureThreshold: 1,
           feedbackServerPort: 8765,
+          feedbackServerHost: "127.0.0.1",
           feedbackServerServiceName: "feedback-server",
         },
         [
@@ -3850,7 +3976,7 @@ function mobileCard(
 /** Model definition for fetching RSS feeds and generating news summaries. */
 export const model = {
   type: "@svendowideit/news-reader",
-  version: "2026.09.10.1",
+  version: "2026.09.25.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3863,6 +3989,18 @@ export const model = {
       toVersion: "2026.09.10.1",
       description:
         "Add feedbackServerPort, feedbackServerServiceName, and feedbackServerScriptPath global args; add ensureFeedbackServer method",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description:
+        "Docs and typing only: explicit GlobalArgs/ChatMessage types replace z.infer exports so deno doc --lint reports no slow types. No schema or argument changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.2",
+      description:
+        "Feedback server host/port are now configuration, not workflow inputs: the new feedbackServerHost/feedbackServerPort globals drive the systemd unit and gatherFeedback/gatherPages derive their client URL from them. serverUrl method args are now optional (empty falls back to the globals).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -3963,6 +4101,13 @@ export const model = {
         llmFailureThreshold: z.number().int().min(1).optional().describe(
           "Server-side LLM failures tolerated in a step before the step halts.",
         ),
+        feedbackServerHost: z.string().optional().describe(
+          "Interface the feedback server binds to (127.0.0.1 = local-only).",
+        ),
+        feedbackServerPort: z.number().int().min(1).max(65535).optional()
+          .describe(
+            "Port the feedback server listens on.",
+          ),
       }),
       execute: async (
         args: Record<string, unknown>,
@@ -4745,6 +4890,10 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
+        const serverUrl = resolveFeedbackServerUrl(
+          args.serverUrl,
+          context.globalArgs as GlobalArgs,
+        );
 
         const prefsData = await context.readResource("prefs-current") as
           | Record<string, unknown>
@@ -4756,8 +4905,7 @@ export const model = {
         let queued = 1; // assume pending until first poll reports otherwise
 
         while (batchCount < args.maxBatches && queued > 0) {
-          const getUrl =
-            `${args.serverUrl}/api/feedback?limit=${args.batchSize}`;
+          const getUrl = `${serverUrl}/api/feedback?limit=${args.batchSize}`;
           logger?.info("Polling feedback queue: {url}", { url: getUrl });
 
           let resp: Response;
@@ -4852,7 +5000,7 @@ export const model = {
 
           prefs.keywordWeights = computeKeywordWeights(prefs);
 
-          const deleteUrl = `${args.serverUrl}/api/feedback?ids=${
+          const deleteUrl = `${serverUrl}/api/feedback?ids=${
             processedIds.join(",")
           }`;
           try {
@@ -4899,13 +5047,17 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
+        const serverUrl = resolveFeedbackServerUrl(
+          args.serverUrl,
+          context.globalArgs as GlobalArgs,
+        );
 
         const pages: PageEntry[] = [];
         let batchCount = 0;
         let queued = 1; // assume pending until first poll reports otherwise
 
         while (batchCount < args.maxBatches && queued > 0) {
-          const getUrl = `${args.serverUrl}/api/pages?limit=${args.batchSize}`;
+          const getUrl = `${serverUrl}/api/pages?limit=${args.batchSize}`;
           logger?.info("Polling pages queue: {url}", { url: getUrl });
 
           let resp: Response;
@@ -4952,7 +5104,7 @@ export const model = {
             processedIds.push(item.id);
           }
 
-          const deleteUrl = `${args.serverUrl}/api/pages?ids=${
+          const deleteUrl = `${serverUrl}/api/pages?ids=${
             processedIds.join(",")
           }`;
           try {
@@ -5475,6 +5627,9 @@ export const model = {
         port: z.number().int().min(1).max(65535).optional().describe(
           "Port the feedback server listens on (defaults to global feedbackServerPort).",
         ),
+        host: z.string().optional().describe(
+          "Interface to bind (defaults to global feedbackServerHost, i.e. 127.0.0.1).",
+        ),
         serviceName: z.string().optional().describe(
           "systemd user service name (defaults to global feedbackServerServiceName).",
         ),
@@ -5483,12 +5638,18 @@ export const model = {
         ),
       }).describe("Arguments for the ensureFeedbackServer method"),
       execute: async (
-        args: { port?: number; serviceName?: string; scriptPath?: string },
+        args: {
+          port?: number;
+          host?: string;
+          serviceName?: string;
+          scriptPath?: string;
+        },
         context: MethodContext,
       ): Promise<{ dataHandles: Array<{ name: string }> }> => {
         const logger = context.logger;
         const ga = context.globalArgs as GlobalArgs;
         const port = args.port ?? ga.feedbackServerPort;
+        const host = args.host ?? ga.feedbackServerHost;
         const serviceName = args.serviceName ?? ga.feedbackServerServiceName;
 
         // Resolve the bundled feedback-server.ts script path.
@@ -5521,8 +5682,15 @@ export const model = {
         }
 
         const denoPath = expandHome("~/.swamp/deno/deno");
-        const command =
-          `${denoPath} run --allow-net --allow-read --allow-write --allow-env ${scriptPath}`;
+        // Pass --host/--port explicitly: the service must bind the same
+        // interface the operator chose. `FEEDBACK_PORT` is kept for backwards
+        // compatibility with existing units.
+        const command = feedbackServerCommand({
+          denoPath,
+          scriptPath,
+          host,
+          port,
+        });
 
         // Idempotently create the unit (createService is a no-op if unchanged).
         const create = await runSwampCmd([
@@ -5571,8 +5739,8 @@ export const model = {
         }
 
         logger?.info(
-          "Feedback server service {serviceName} is running on port {port} (script {scriptPath})",
-          { serviceName, port, scriptPath },
+          "Feedback server service {serviceName} is running on {host}:{port} (script {scriptPath})",
+          { serviceName, host, port, scriptPath },
         );
         return { dataHandles: [] };
       },

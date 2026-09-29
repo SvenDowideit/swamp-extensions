@@ -124,11 +124,22 @@ swamp model @svendowideit/tuios-release method run check tuios-release \
 
 | Model type | Method | Arguments | Produces |
 | ---------- | ------ | --------- | -------- |
-| `@svendowideit/tuios-release` | `check` | `os`, `arch`, `flavor`, `archiveName`, `fetchChecksums` | `release` — the latest tag/version, every asset, the platform's archive, its download URL and SHA-256. |
+| `@svendowideit/tuios-release` | `check` | `os`, `arch`, `flavor`, `archiveName`, `fetchChecksums`, `requireChecksum` | `release` — the latest tag/version, every asset, the platform's archive, its download URL and SHA-256. |
 | `@svendowideit/tuios-release` | `print` | `installedVersion` | `summary` — logs the release, the platform archive and whether an update is available. |
 | `@svendowideit/tuios-installed` | `sync` | `path`, `checkLatest` | `installed` — path, present flag, version, backend, latest version and `updateAvailable`. |
-| `@svendowideit/tuios-installed` | `install` | `version`, `installDir`, `archiveName`, `os`, `arch`, `flavor`, `force` | `install` — the install result (or a `skipped: true` record), and a refreshed `installed` resource. |
+| `@svendowideit/tuios-installed` | `install` | `version`, `installDir`, `archiveName`, `downloadUrl`, `releaseVersion`, `checksum`, `os`, `arch`, `flavor`, `force` | `install` — the install result (or a `skipped: true` record), and a refreshed `installed` resource. |
 | `@svendowideit/tuios-installed` | `print` | none | `summary` — logs the installed state and update availability. |
+
+The `downloadUrl`, `releaseVersion` and `checksum` inputs on `install` are the
+consume-the-check-result path: the bundled workflow fills them from
+`tuios-release`'s `release` resource, so `install` reuses the release `check`
+already resolved instead of spending a second GitHub API request. When they are
+empty (a direct `install` call) or belong to a different pinned version,
+`install` fetches the release itself. **A checksum is mandatory on both paths:**
+`check` fails when the selected archive is not listed in `checksums.txt`
+(unless `requireChecksum=false`), and `install` refuses to install an archive
+with no available SHA-256 or one whose download does not match — it never
+installs an unverified archive.
 
 ### Workflow — `@svendowideit/tuios-install`
 
@@ -155,11 +166,16 @@ start-daemon-service → verify`.
   platform mapping, version comparison, checksum parsing, tar extraction and
   PATH/install-dir selection all live here so both models and their tests share
   one implementation.
-- `tuios_release.ts` — the `tuios-release` model.
+- `tuios_release.ts` — the `tuios-release` model, with `parseReleasePayload` /
+  `selectPlatformAsset` exported so the payload handling is testable without a
+  network call.
 - `tuios_installed.ts` — the `tuios-installed` model, including the atomic
   install (write to `<path>.new-<uuid>`, then rename).
 - `tuios-install.yaml` — the bundled workflow (created with
   `swamp workflow create`; do not hand-edit its `id`).
+- `tuios_*_test.ts` — pure-helper tests; `tuios_*_methods_test.ts` drive the
+  real `execute` functions through `createModelTestContext`, with the network
+  stubbed by `withMockedFetch` and subprocesses by `withMockedCommand`.
 
 To add a platform, extend `mapUnameOs` / `mapUnameArch` and `RELEASE_OSES` in
 `tuios_shared.ts`. To track another release flavor, add it to
@@ -169,11 +185,13 @@ it.
 ### Testing
 
 ```sh
-# Unit tests (no network, no binary execution):
-~/.swamp/deno/deno test --allow-read --allow-env --allow-run \
+# Unit and execute-level tests (no network, no real subprocesses):
+~/.swamp/deno/deno test --allow-read --allow-write --allow-env --allow-run \
   extensions/models/tuios/tuios_shared_test.ts \
   extensions/models/tuios/tuios_release_test.ts \
-  extensions/models/tuios/tuios_installed_test.ts
+  extensions/models/tuios/tuios_installed_test.ts \
+  extensions/models/tuios/tuios_release_methods_test.ts \
+  extensions/models/tuios/tuios_installed_methods_test.ts
 
 # Type-check every module:
 ~/.swamp/deno/deno check extensions/models/tuios/tuios_shared.ts \

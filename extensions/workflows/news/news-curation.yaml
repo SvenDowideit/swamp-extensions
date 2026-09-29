@@ -36,8 +36,11 @@ inputs:
       description: Category tag for discovered feeds in the catalog.
     feedbackServerUrl:
       type: string
-      default: http://localhost:8765
-      description: URL of the feedback queue HTTP server.
+      default: ''
+      description: >-
+        Override URL of the feedback queue HTTP server. Leave empty (default) to
+        use each model's feedbackServerHost/feedbackServerPort globals — the
+        server bind address is configuration, not a per-run workflow input.
     feedbackBatchSize:
       type: integer
       default: 100
@@ -48,8 +51,10 @@ inputs:
       description: Maximum number of batches to process in one run.
     pagesServerUrl:
       type: string
-      default: http://localhost:8765
-      description: URL of the pages queue HTTP server.
+      default: ''
+      description: >-
+        Override URL of the pages queue HTTP server. Leave empty (default) to
+        use the local-news feedbackServerHost/feedbackServerPort globals.
     pagesBatchSize:
       type: integer
       default: 100

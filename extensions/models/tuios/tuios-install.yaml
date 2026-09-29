@@ -95,11 +95,12 @@ jobs:
         allowFailure: false
       - name: install
         description: >-
-          Download, checksum-verify and install the TUIOS binary. The model
-          locates whatever is already installed and skips the download when the
-          target version is present (unless force is set), so this step is safe
-          on every pass. It is the only writer of the `installed` and `install`
-          resources in a run.
+          Download, checksum-verify and install the TUIOS binary, consuming the
+          version, download URL and SHA-256 that `check-latest` already resolved
+          (so the release is not re-fetched). The model locates whatever is
+          already installed and skips the download when the target version is
+          present (unless force is set), so this step is safe on every pass. It
+          is the only writer of the `installed` and `install` resources in a run.
         task:
           type: model_method
           modelType: "@svendowideit/tuios-installed"
@@ -110,7 +111,14 @@ jobs:
             installDir: ${{ inputs.installDir }}
             flavor: ${{ inputs.flavor }}
             force: ${{ inputs.force }}
-        dependsOn: []
+            archiveName: ${{ data.latest("tuios-release", "release").attributes.?platform.?archiveName.orValue("") }}
+            downloadUrl: ${{ data.latest("tuios-release", "release").attributes.?platform.?downloadUrl.orValue("") }}
+            releaseVersion: ${{ data.latest("tuios-release", "release").attributes.?version.orValue("") }}
+            checksum: ${{ data.latest("tuios-release", "release").attributes.?checksum.orValue("") }}
+        dependsOn:
+          - step: check-latest
+            condition:
+              type: succeeded
         weight: 0
         allowFailure: false
       - name: create-daemon-service

@@ -38,6 +38,7 @@ import {
   compareVersions,
   fetchChecksums,
   fetchLatestRelease,
+  mapAssets,
   normalizeVersion,
   type Platform,
   RELEASE_API_URL,
@@ -96,6 +97,10 @@ const CheckArgsSchema = z.object({
   ),
   fetchChecksums: z.boolean().default(true).describe(
     "Download checksums.txt and record the selected archive's SHA-256. Set false to skip the extra request.",
+  ),
+  requireChecksum: z.boolean().default(true).describe(
+    "Fail when the selected archive's SHA-256 cannot be resolved from checksums.txt. " +
+      "Set false to record the release without a checksum (the install method will then refuse to install it unless it too relaxes this).",
   ),
 });
 
@@ -161,6 +166,76 @@ type MethodContext = {
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for testing)
 // ---------------------------------------------------------------------------
+
+/** The release fields parsed from a raw GitHub release payload. */
+export interface ParsedRelease {
+  /** Git tag, e.g. `v0.8.0`. */
+  tag: string;
+  /** Bare version, e.g. `0.8.0`. */
+  version: string;
+  /** Release title as shown on GitHub. */
+  name: string;
+  /** Publication timestamp (ISO 8601). */
+  publishedAt: string;
+  /** Whether GitHub marks this release a prerelease. */
+  prerelease: boolean;
+  /** GitHub HTML URL for the release. */
+  htmlUrl: string;
+  /** Release notes body (Markdown), when present. */
+  body: string | undefined;
+  /** The archives attached to the release. */
+  assets: ReleaseAsset[];
+}
+
+/**
+ * Parse a raw GitHub release payload into the fields the model stores.
+ * Exported so `check`'s payload handling is unit-testable without a network
+ * call, and so `install` can accept a release passed in from the model layer.
+ */
+export function parseReleasePayload(
+  payload: Record<string, unknown>,
+): ParsedRelease {
+  const tag = String(payload.tag_name ?? "");
+  return {
+    tag,
+    version: normalizeVersion(tag),
+    name: String(payload.name ?? tag),
+    publishedAt: String(payload.published_at ?? ""),
+    prerelease: Boolean(payload.prerelease),
+    htmlUrl: String(payload.html_url ?? ""),
+    body: typeof payload.body === "string" ? payload.body : undefined,
+    assets: mapAssets(payload.assets),
+  };
+}
+
+/**
+ * Pick the archive for a platform from a parsed release, returning the release
+ * `Platform` annotated with the chosen archive and download URL. An explicit
+ * `platform.archiveName` wins; otherwise the platform's os/arch/flavor is
+ * matched, with a schema-derived-name fallback so an unexpected asset rename
+ * still yields a concrete (but unsupported) result.
+ */
+export function selectPlatformAsset(
+  release: ParsedRelease,
+  platform: Platform,
+): Platform {
+  const flavor = platform.flavor as BuildFlavor;
+  let asset = platform.archiveName
+    ? release.assets.find((a) => a.name === platform.archiveName) ?? null
+    : selectAsset(release.assets, platform.os, platform.arch, flavor);
+  if (!asset && !platform.archiveName) {
+    asset = release.assets.find((a) =>
+      a.name ===
+        archiveName(release.version, platform.os, platform.arch, flavor)
+    ) ?? null;
+  }
+  return {
+    ...platform,
+    archiveName: asset?.name,
+    downloadUrl: asset?.url,
+    supported: platform.supported && asset !== null,
+  };
+}
 
 /** URL for the release's `checksums.txt`, from the asset list when present. */
 export function checksumsUrlFor(assets: ReleaseAsset[]): string | null {
@@ -258,65 +333,61 @@ export const model = {
           flavor: args.flavor ?? g.flavor,
           archiveName: args.archiveName,
         });
-        const sourceUrl = g.apiUrl;
 
-        context.logger.debug?.("GET {url}", { url: sourceUrl });
+        context.logger.debug?.("GET {url}", { url: g.apiUrl });
         const token = resolveToken(g.githubToken);
-        const { tag, version, assets, payload } = await fetchLatestRelease({
+        const { payload } = await fetchLatestRelease({
           apiUrl: g.apiUrl,
           userAgent: g.userAgent,
           token,
         });
 
-        const flavor = platform.flavor as BuildFlavor;
-        let asset = args.archiveName
-          ? assets.find((a) => a.name === args.archiveName) ?? null
-          : selectAsset(assets, platform.os, platform.arch, flavor);
-        if (!asset && !args.archiveName) {
-          // Fall back to the schema-derived name so `archiveName` is still
-          // populated (and the failure explicit) on an unexpected asset rename.
-          asset = assets.find(
-            (a) =>
-              a.name ===
-                archiveName(version, platform.os, platform.arch, flavor),
-          ) ?? null;
-        }
+        const release = parseReleasePayload(payload);
+        const releasePlatform = selectPlatformAsset(release, platform);
 
         const checksumsUrl = args.fetchChecksums
-          ? checksumsUrlFor(assets)
+          ? checksumsUrlFor(release.assets)
           : null;
         let checksum: string | null = null;
         if (checksumsUrl) {
-          const expectedName = asset?.name ??
-            archiveName(version, platform.os, platform.arch, flavor);
-          const sums = await fetchChecksums(checksumsUrl, g.userAgent, token);
-          checksum = sums[expectedName] ?? null;
-          if (!checksum) {
-            context.logger.warn?.(
-              "checksums.txt does not list {name} (or could not be fetched)",
-              { name: expectedName },
+          const expectedName = releasePlatform.archiveName ??
+            archiveName(
+              release.version,
+              releasePlatform.os,
+              releasePlatform.arch,
+              releasePlatform.flavor as BuildFlavor,
             );
-          }
+          checksum = (await fetchChecksums(checksumsUrl, g.userAgent, token))[
+            expectedName
+          ] ?? null;
+        }
+        // When an archive was selected, a checksum is mandatory: recording a
+        // release with no verifiable hash would let `install` proceed
+        // unverified. (No archive — an unsupported platform — is recorded so
+        // the caller can see the release, and `install` fails on its own.)
+        if (
+          releasePlatform.archiveName && !checksum && args.fetchChecksums &&
+          args.requireChecksum
+        ) {
+          throw new Error(
+            `No SHA-256 for ${releasePlatform.archiveName} in ` +
+              `${
+                checksumsUrl ?? "checksums.txt"
+              } — refusing to record a release ` +
+              `that cannot be verified. Pass requireChecksum=false to override.`,
+          );
+        }
+        if (releasePlatform.archiveName && !checksum) {
+          context.logger.warn?.(
+            "No checksum for {name} — release recorded unverified",
+            { name: releasePlatform.archiveName },
+          );
         }
 
-        const releasePlatform: Platform = {
-          ...platform,
-          archiveName: asset?.name,
-          downloadUrl: asset?.url,
-          supported: platform.supported && asset !== null,
-        };
-
         const handle = await context.writeResource("release", "release", {
-          tag,
-          version,
-          name: String(payload.name ?? tag),
-          publishedAt: String(payload.published_at ?? ""),
-          prerelease: Boolean(payload.prerelease),
-          htmlUrl: String(payload.html_url ?? ""),
-          body: typeof payload.body === "string" ? payload.body : undefined,
-          assets,
+          ...release,
           fetchedAt: new Date().toISOString(),
-          sourceUrl,
+          sourceUrl: g.apiUrl,
           platform: releasePlatform,
           checksumsUrl,
           checksum,
@@ -325,7 +396,7 @@ export const model = {
         context.logger.info(
           "Latest TUIOS {version} — {os}/{arch} ({flavor}): {archive}",
           {
-            version,
+            version: release.version,
             os: releasePlatform.os,
             arch: releasePlatform.arch,
             flavor: releasePlatform.flavor,

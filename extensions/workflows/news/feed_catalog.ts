@@ -22,9 +22,42 @@ const GlobalArgsSchema = z.object({
   dedupeStalenessDays: z.number().int().min(1).default(7).describe(
     "Max days before a cached feed identity is re-fetched during dedupe. New feeds are always fetched.",
   ),
+  /**
+   * Interface the feedback server binds to. Kept here so `gatherFeedState` can
+   * derive its client URL from configuration instead of a workflow input. The
+   * news-reader instance owns the value that actually configures the systemd
+   * unit; set this to match it when the server is exposed beyond loopback.
+   */
+  feedbackServerHost: z.string().default("127.0.0.1").describe(
+    "Interface the feedback server binds to. `127.0.0.1` (default) is local-only.",
+  ),
+  /** Port the feedback server listens on (must match the news-reader's). */
+  feedbackServerPort: z.number().int().min(1).max(65535).default(8765).describe(
+    "Port the feedback server listens on (default 8765).",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
+
+/**
+ * Resolve the feedback-server URL from an explicit method argument or this
+ * model's bind globals. `serverUrl` is only set when the caller explicitly
+ * passes one, so an empty/whitespace string falls back to the globals. A
+ * wildcard bind (`0.0.0.0`/`::`) is not a usable client address and maps to
+ * `localhost`.
+ */
+export function resolveFeedbackServerUrl(
+  serverUrl: string | undefined,
+  globals: Pick<GlobalArgs, "feedbackServerHost" | "feedbackServerPort">,
+): string {
+  const explicit = serverUrl?.trim();
+  if (explicit) return explicit;
+  const host = globals.feedbackServerHost === "0.0.0.0" ||
+      globals.feedbackServerHost === "::"
+    ? "localhost"
+    : globals.feedbackServerHost;
+  return `http://${host}:${globals.feedbackServerPort}`;
+}
 
 const AddFeedArgsSchema = z.object({
   url: z.string().url().describe("RSS/Atom feed URL to add"),
@@ -133,8 +166,8 @@ const GenerateFeedsHtmlArgsSchema = z.object({
 type GenerateFeedsHtmlArgs = z.infer<typeof GenerateFeedsHtmlArgsSchema>;
 
 const GatherFeedStateArgsSchema = z.object({
-  serverUrl: z.string().default("http://localhost:8765").describe(
-    "URL of the feedback queue HTTP server",
+  serverUrl: z.string().optional().describe(
+    "URL of the feedback queue HTTP server. Defaults to this model's feedbackServerHost/feedbackServerPort globals.",
   ),
   batchSize: z.number().int().min(1).max(100).default(100).describe(
     "Number of feed state entries to process per batch",
@@ -399,7 +432,7 @@ function escapeHtml(s: string): string {
  * underneath).
  */
 /** A single article in the news-reader snapshot, with dedup annotations. */
-type SnapshotArticle = {
+export type SnapshotArticle = {
   id: string | number;
   source: string;
   duplicate?: boolean;
@@ -409,7 +442,7 @@ type SnapshotArticle = {
 };
 
 /** A preference entry (interested/ignored) keyed by article id + source. */
-type PrefsEntry = { articleId: string | number; source: string };
+export type PrefsEntry = { articleId: string | number; source: string };
 
 export function generateFeedsHtml(
   feeds: Feed[],
@@ -850,13 +883,25 @@ const CategoriesListSchema = z.object({
 
 export const model = {
   type: "@svendowideit/news-feed-catalog",
-  version: "2026.08.06.1784424438",
+  version: "2026.09.25.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
       toVersion: "2026.08.06.1784424438",
       description:
         "Baseline version for @svendowideit/news-feed-catalog, no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description:
+        "Typing only: explicit SnapshotArticle/PrefsEntry types replace private references so deno doc --lint reports no slow types. No schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.2",
+      description:
+        "Add feedbackServerHost/feedbackServerPort globals and make gatherFeedState.serverUrl optional; the URL now derives from the globals instead of a workflow input.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1315,11 +1360,15 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const logger = context.logger;
+        const serverUrl = resolveFeedbackServerUrl(
+          args.serverUrl,
+          context.globalArgs,
+        );
 
         logger?.info(
           "Gathering feed state from {serverUrl} (max {batches} batches of {size})",
           {
-            serverUrl: args.serverUrl,
+            serverUrl,
             batches: args.maxBatches,
             size: args.batchSize,
           },
@@ -1339,7 +1388,7 @@ export const model = {
         let queued = 1;
 
         while (batchCount < args.maxBatches && queued > 0) {
-          const getUrl = `${args.serverUrl}/api/feed?limit=${args.batchSize}`;
+          const getUrl = `${serverUrl}/api/feed?limit=${args.batchSize}`;
           logger?.info("Polling feed state queue (batch {batch}): {url}", {
             url: getUrl,
             batch: batchCount + 1,
@@ -1421,7 +1470,7 @@ export const model = {
           }
 
           if (processedIds.length > 0) {
-            const deleteUrl = `${args.serverUrl}/api/feed?ids=${
+            const deleteUrl = `${serverUrl}/api/feed?ids=${
               processedIds.join(",")
             }`;
             try {

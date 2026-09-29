@@ -48,7 +48,7 @@ const AnalyzePagesArgsSchema = z.object({
 
 type AnalyzePagesArgs = z.infer<typeof AnalyzePagesArgsSchema>;
 
-interface PageEntry {
+export interface PageEntry {
   url: string;
   name: string;
   category: string;
@@ -353,13 +353,19 @@ async function readCrossModelData(
 
 export const model = {
   type: "@svendowideit/news-feed-analysis",
-  version: "2026.08.03.1",
+  version: "2026.09.25.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
       toVersion: "2026.08.03.1",
       description:
         "Baseline version for @svendowideit/news-feed-analysis, no globalArguments schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.25.1",
+      description:
+        "Typing only: PageEntry is exported so deno doc --lint reports no slow types. No schema changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

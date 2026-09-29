@@ -253,8 +253,8 @@ export async function fetchChecksums(
  * `GITHUB_TOKEN` or `GH_TOKEN` environment variable, else none. Returning
  * `undefined` keeps the anonymous request path.
  */
-export function resolveToken(explicit: string): string | undefined {
-  const value = explicit.trim() ||
+export function resolveToken(explicit?: string): string | undefined {
+  const value = (explicit ?? "").trim() ||
     (Deno.env.get("GITHUB_TOKEN") ?? "").trim() ||
     (Deno.env.get("GH_TOKEN") ?? "").trim();
   return value || undefined;

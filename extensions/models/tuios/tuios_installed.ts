@@ -104,7 +104,16 @@ const InstallArgsSchema = z.object({
     "Directory to install the tuios binary into. Empty picks the first writable of /usr/local/bin, ~/.local/bin, ~/bin.",
   ),
   archiveName: z.string().default("").describe(
-    "Force an exact archive file name to download, overriding platform selection.",
+    "Force an exact archive file name to download, overriding platform selection. The bundled workflow supplies this from tuios-release's `release` resource.",
+  ),
+  downloadUrl: z.string().default("").describe(
+    "Archive download URL recorded by tuios-release's `check`. When set (and it matches the requested version) the release is not re-fetched.",
+  ),
+  releaseVersion: z.string().default("").describe(
+    "The version tuios-release's `check` resolved, used to confirm `downloadUrl` matches the requested `version`.",
+  ),
+  checksum: z.string().default("").describe(
+    "Expected SHA-256 of the archive, recorded by tuios-release's `check`. The install fails if this is empty or does not match the download.",
   ),
   os: z.string().optional().describe(
     "Override the release OS token for this call (e.g. Linux). Empty uses the model global / host probe.",
@@ -512,31 +521,73 @@ export const model = {
           archiveName: args.archiveName.trim() || undefined,
         });
 
-        // 1. Resolve the target release (pinned version or the latest).
-        const wanted = args.version.trim();
-        const releaseUrl = wanted
-          ? g.apiUrl.replace(
-            /\/latest\/?$/,
-            `/tags/v${wanted.replace(/^v/i, "")}`,
-          )
-          : g.apiUrl;
-        const token = resolveToken(g.githubToken);
-        const { version: latest, assets } = await fetchLatestRelease({
-          apiUrl: releaseUrl,
-          userAgent: g.userAgent,
-          token,
-        });
+        // 1. Resolve the target release. The bundled workflow passes the
+        //    version/URL/checksum that tuios-release's `check` already
+        //    resolved, so the common path spends no extra GitHub API request.
+        //    A direct call with a pinned `version` still fetches it.
+        const wanted = args.version.trim().replace(/^v/i, "");
+        const suppliedVersion = args.releaseVersion.trim().replace(/^v/i, "");
+        const suppliedUrl = args.downloadUrl.trim();
+        const suppliedChecksum = args.checksum.trim();
+        const suppliedArchive = args.archiveName.trim();
+        // Reuse `check`'s fields only when no version was pinned, or the pinned
+        // version is the one check resolved. A pinned version that differs is a
+        // different release, whose archive name and checksum are not the ones
+        // check recorded, so it is fetched instead.
+        const reuse = suppliedUrl !== "" && suppliedChecksum !== "" &&
+          suppliedArchive !== "" &&
+          (wanted === "" || wanted === suppliedVersion);
 
-        // 2. Find the archive for this platform.
-        const asset = args.archiveName.trim()
-          ? assets.find((a) => a.name === args.archiveName.trim()) ?? null
-          : selectAsset(
-            assets,
-            platform.os,
-            platform.arch,
-            platform.flavor as BuildFlavor,
+        let asset: ReleaseAsset | null;
+        let latest: string;
+        let releaseAssets: ReleaseAsset[];
+        let checksum: string;
+        const token = resolveToken(g.githubToken);
+        if (reuse) {
+          latest = suppliedVersion || wanted;
+          asset = { name: suppliedArchive, url: suppliedUrl };
+          releaseAssets = [asset];
+          checksum = suppliedChecksum;
+          context.logger.info(
+            "Using the release resolved by check: {version} {archive}",
+            { version: latest, archive: suppliedArchive },
           );
-        const expectedName = asset?.name ??
+        } else {
+          const releaseUrl = wanted
+            ? g.apiUrl.replace(/\/latest\/?$/, `/tags/v${wanted}`)
+            : g.apiUrl;
+          const fetched = await fetchLatestRelease({
+            apiUrl: releaseUrl,
+            userAgent: g.userAgent,
+            token,
+          });
+          latest = fetched.version;
+          releaseAssets = fetched.assets;
+          // A supplied archiveName belongs to `check`'s release; only honor it
+          // when no version is pinned (a pinned version has its own assets).
+          const explicitArchive = wanted === "" ? suppliedArchive : "";
+          asset = explicitArchive
+            ? releaseAssets.find((a) => a.name === explicitArchive) ?? null
+            : selectAsset(
+              releaseAssets,
+              platform.os,
+              platform.arch,
+              platform.flavor as BuildFlavor,
+            );
+          // Resolve the checksum for the fetched release. A checksum is
+          // mandatory — an unverified download is what must not be installed.
+          const checksumsUrl = releaseAssets.find((a) =>
+            a.name === CHECKSUMS_NAME
+          )?.url;
+          checksum = "";
+          if (checksumsUrl && asset) {
+            checksum = (await fetchChecksums(checksumsUrl, g.userAgent, token))[
+              asset.name
+            ] ?? "";
+          }
+        }
+
+        const expectedName = asset?.name ||
           archiveName(
             latest,
             platform.os,
@@ -547,6 +598,14 @@ export const model = {
           throw new Error(
             `No TUIOS ${latest} archive found for ${platform.os}/${platform.arch} ` +
               `(${platform.flavor}); expected ${expectedName}`,
+          );
+        }
+        if (!checksum) {
+          throw new Error(
+            `No SHA-256 available for ${asset.name} — refusing to install an ` +
+              `unverified download. Run tuios-release's check first (it fails ` +
+              `when checksums.txt does not list the archive), or pass the ` +
+              `archive's checksum via the checksum input.`,
           );
         }
 
@@ -593,26 +652,12 @@ export const model = {
           });
           await performSync(context, existingPath ?? "", true, {
             version: latest,
-            assets,
+            assets: releaseAssets,
           });
           return { dataHandles: [handle] };
         }
 
-        // 4. Download the archive and verify its checksum.
-        const checksumsUrl = assets.find((a) => a.name === CHECKSUMS_NAME)?.url;
-        const checksum = checksumsUrl
-          ? (await fetchChecksums(checksumsUrl, g.userAgent, token))[
-            asset.name
-          ] ??
-            null
-          : null;
-        if (!checksum) {
-          context.logger.warn?.(
-            "No checksum available for {archive} — downloading unverified",
-            { archive: asset.name },
-          );
-        }
-
+        // 4. Download the archive and verify it against the required checksum.
         context.logger.info("Downloading {url}", { url: asset.url });
         const response = await fetch(asset.url, {
           headers: { "User-Agent": g.userAgent },
@@ -623,7 +668,7 @@ export const model = {
           );
         }
         const bytes = new Uint8Array(await response.arrayBuffer());
-        if (!(await verifySha256(bytes, checksum ?? ""))) {
+        if (!(await verifySha256(bytes, checksum))) {
           throw new Error(
             `Checksum mismatch for ${asset.name}: the download does not match ` +
               `checksums.txt — refusing to install.`,
@@ -683,7 +728,10 @@ export const model = {
 
         // 6. Re-sync so the `installed` resource reflects the new binary,
         //    reusing the release already fetched above.
-        await performSync(context, target, true, { version: latest, assets });
+        await performSync(context, target, true, {
+          version: latest,
+          assets: releaseAssets,
+        });
 
         return { dataHandles: [handle] };
       },

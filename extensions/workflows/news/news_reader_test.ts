@@ -2,6 +2,7 @@ import {
   assertEquals,
   assertExists,
   assertRejects,
+  assertStringIncludes,
   assertThrows,
 } from "jsr:@std/assert@1";
 
@@ -24,6 +25,9 @@ import {
   extractEntities,
   extractJsonObject,
   extractKeywords,
+  feedbackServerCommand,
+  feedbackServerUrl,
+  resolveFeedbackServerUrl,
   fetchFeed,
   generateHtml,
   generateMobileHtml,
@@ -88,7 +92,9 @@ const storySample = (overrides: Partial<Story> = {}): Story => ({
       title: "Article one",
       source: "example.com",
       publishedAt: "2026-08-10T00:00:00Z",
-      firstSeenAt: "2026-08-10T00:00:00Z",
+      // Keep the default citation recent so ageOutCitations tests never depend
+      // on the wall-clock date (a hardcoded past date ages out eventually).
+      firstSeenAt: new Date().toISOString(),
     },
   ],
   createdAt: "2026-08-10T00:00:00Z",
@@ -843,6 +849,7 @@ Deno.test("formatGlobalArgsYaml emits a copy-paste globalArguments block", () =>
     llmTimeoutSec: 120,
     llmFailureThreshold: 3,
     feedbackServerPort: 8765,
+    feedbackServerHost: "127.0.0.1",
     feedbackServerServiceName: "feedback-server",
   });
   assertEquals(yaml.includes("globalArguments:"), true);
@@ -867,6 +874,7 @@ Deno.test("formatGlobalArgsYaml omits empty values", () => {
     llmTimeoutSec: 120,
     llmFailureThreshold: 3,
     feedbackServerPort: 8765,
+    feedbackServerHost: "127.0.0.1",
     feedbackServerServiceName: "feedback-server",
   });
   assertEquals(yaml.includes("llmModel"), false);
@@ -2371,6 +2379,7 @@ Deno.test("chatCompletion throws LlmError(server) on fetch failure", async () =>
         llmTimeoutSec: 1,
         llmFailureThreshold: 1,
         feedbackServerPort: 8765,
+        feedbackServerHost: "127.0.0.1",
         feedbackServerServiceName: "feedback-server",
       }, [{ role: "user", content: "hi" }]),
       LlmError,
@@ -2378,4 +2387,79 @@ Deno.test("chatCompletion throws LlmError(server) on fetch failure", async () =>
   } finally {
     globalThis.fetch = origFetch;
   }
+});
+
+Deno.test("feedbackServerCommand bakes host and port into ExecStart", () => {
+  const cmd = feedbackServerCommand({
+    denoPath: "/home/me/.swamp/deno/deno",
+    scriptPath: "/x/scripts/feedback-server.ts",
+    host: "192.168.1.10",
+    port: 8765,
+  });
+  assertStringIncludes(cmd, "--host 192.168.1.10");
+  assertStringIncludes(cmd, "--port 8765");
+  assertStringIncludes(cmd, "/x/scripts/feedback-server.ts");
+});
+
+Deno.test("feedbackServerCommand defaults callers can pass loopback", () => {
+  const cmd = feedbackServerCommand({
+    denoPath: "deno",
+    scriptPath: "s.ts",
+    host: "127.0.0.1",
+    port: 9000,
+  });
+  assertStringIncludes(cmd, "--host 127.0.0.1 --port 9000");
+});
+
+Deno.test("feedbackServerUrl uses the configured interface verbatim", () => {
+  assertEquals(
+    feedbackServerUrl({ host: "192.168.1.10", port: 8765 }),
+    "http://192.168.1.10:8765",
+  );
+  assertEquals(
+    feedbackServerUrl({ host: "127.0.0.1", port: 9000 }),
+    "http://127.0.0.1:9000",
+  );
+});
+
+Deno.test("feedbackServerUrl maps a wildcard bind to localhost", () => {
+  assertEquals(
+    feedbackServerUrl({ host: "0.0.0.0", port: 8765 }),
+    "http://localhost:8765",
+  );
+  assertEquals(
+    feedbackServerUrl({ host: "::", port: 8765 }),
+    "http://localhost:8765",
+  );
+});
+
+Deno.test("resolveFeedbackServerUrl prefers an explicit URL and falls back to globals", () => {
+  const globals = {
+    feedbackServerHost: "127.0.0.1",
+    feedbackServerPort: 8765,
+  };
+  assertEquals(
+    resolveFeedbackServerUrl("http://example.com:1234", globals),
+    "http://example.com:1234",
+  );
+  // Empty/whitespace must not produce an unusable URL.
+  assertEquals(
+    resolveFeedbackServerUrl("", globals),
+    "http://127.0.0.1:8765",
+  );
+  assertEquals(
+    resolveFeedbackServerUrl("   ", globals),
+    "http://127.0.0.1:8765",
+  );
+  assertEquals(
+    resolveFeedbackServerUrl(undefined, globals),
+    "http://127.0.0.1:8765",
+  );
+  assertEquals(
+    resolveFeedbackServerUrl(undefined, {
+      feedbackServerHost: "0.0.0.0",
+      feedbackServerPort: 4321,
+    }),
+    "http://localhost:4321",
+  );
 });

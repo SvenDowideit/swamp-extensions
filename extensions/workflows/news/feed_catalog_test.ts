@@ -11,6 +11,7 @@ import {
   isFeedBody,
   model,
   normalizeId,
+  resolveFeedbackServerUrl,
 } from "./feed_catalog.ts";
 
 // ---------------------------------------------------------------------------
@@ -491,4 +492,50 @@ Deno.test("seed is a no-op when catalog already has feeds", async () => {
   assertEquals(data.feeds.length, 1);
   assertEquals(data.feeds[0].url, "https://a.com/feed");
   assertEquals(data.totalCount, 1);
+});
+
+// ---------------------------------------------------------------------------
+// resolveFeedbackServerUrl
+// ---------------------------------------------------------------------------
+
+Deno.test("resolveFeedbackServerUrl prefers an explicit URL over globals", () => {
+  assertEquals(
+    resolveFeedbackServerUrl("http://example.com:1234", {
+      feedbackServerHost: "10.0.0.1",
+      feedbackServerPort: 9999,
+    }),
+    "http://example.com:1234",
+  );
+});
+
+Deno.test("resolveFeedbackServerUrl falls back to the bind globals", () => {
+  assertEquals(
+    resolveFeedbackServerUrl(undefined, {
+      feedbackServerHost: "192.168.1.10",
+      feedbackServerPort: 8765,
+    }),
+    "http://192.168.1.10:8765",
+  );
+});
+
+Deno.test("resolveFeedbackServerUrl treats empty/whitespace as unset", () => {
+  const globals = { feedbackServerHost: "127.0.0.1", feedbackServerPort: 8765 };
+  assertEquals(
+    resolveFeedbackServerUrl("", globals),
+    "http://127.0.0.1:8765",
+  );
+  assertEquals(
+    resolveFeedbackServerUrl("   ", globals),
+    "http://127.0.0.1:8765",
+  );
+});
+
+Deno.test("resolveFeedbackServerUrl maps a wildcard bind to localhost", () => {
+  assertEquals(
+    resolveFeedbackServerUrl(undefined, {
+      feedbackServerHost: "0.0.0.0",
+      feedbackServerPort: 8765,
+    }),
+    "http://localhost:8765",
+  );
 });

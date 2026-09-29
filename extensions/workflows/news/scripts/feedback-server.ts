@@ -7,7 +7,11 @@
  *
  * Usage:
  *   deno run --allow-net --allow-read --allow-write --allow-env \
- *     scripts/feedback-server.ts [--port 8765] [--html path/to/news.html] [--queue-dir path/to/queue] [--pages-dir path/to/pages]
+ *     scripts/feedback-server.ts [--port 8765] [--host 127.0.0.1] [--html path/to/news.html] [--queue-dir path/to/queue] [--pages-dir path/to/pages]
+ *
+ * Binds to loopback (127.0.0.1) by default: the server has no authentication and
+ * exposes an arbitrary-URL fetch, so pass `--host 0.0.0.0` only when you
+ * deliberately want it reachable from the network.
  *
  * If `deno` is not on your PATH, swamp installs it at ~/.swamp/deno/deno:
  *   ~/.swamp/deno/deno run --allow-net --allow-read --allow-write --allow-env \
@@ -52,6 +56,7 @@ const FEED_STATE_DIR = Deno.env.get("FEEDBACK_FEED_STATE_DIR") ?? "";
 
 function parseArgs(): {
   port: number;
+  host: string;
   htmlPath: string;
   feedsPath: string;
   storiesPath: string;
@@ -61,6 +66,11 @@ function parseArgs(): {
   feedStateDir: string;
 } {
   let port = PORT;
+  // Bind to loopback by default. The server has no authentication and exposes
+  // an arbitrary-URL fetch (`/api/frame-check`) plus the feedback/page queues,
+  // so binding to 0.0.0.0 would publish an open proxy and write endpoint on the
+  // network. Pass `--host 0.0.0.0` only when you deliberately want that.
+  let host = "127.0.0.1";
   let htmlPath = HTML_PATH;
   let feedsPath = FEEDS_PATH;
   let storiesPath = STORIES_PATH;
@@ -72,6 +82,8 @@ function parseArgs(): {
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--port" && i + 1 < args.length) {
       port = parseInt(args[++i], 10);
+    } else if (args[i] === "--host" && i + 1 < args.length) {
+      host = args[++i];
     } else if (args[i] === "--html" && i + 1 < args.length) {
       htmlPath = args[++i];
     } else if (args[i] === "--feeds" && i + 1 < args.length) {
@@ -99,6 +111,7 @@ function parseArgs(): {
   }
   return {
     port,
+    host,
     htmlPath,
     feedsPath,
     storiesPath,
@@ -634,6 +647,7 @@ async function handleRequest(
 
 const {
   port,
+  host,
   htmlPath,
   feedsPath,
   storiesPath,
@@ -648,7 +662,7 @@ await ensureQueueDir(pagesDir);
 await ensureQueueDir(feedStateDir);
 
 Deno.serve(
-  { port },
+  { port, hostname: host },
   (req) =>
     handleRequest(
       req,
@@ -662,7 +676,7 @@ Deno.serve(
     ),
 );
 
-console.error(`Feedback server listening on http://localhost:${port}`);
+console.error(`Feedback server listening on http://${host}:${port}`);
 console.error(`Queue directory: ${queueDir}`);
 console.error(`Pages directory: ${pagesDir}`);
 console.error(`Feed state directory: ${feedStateDir}`);

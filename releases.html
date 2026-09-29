@@ -172,7 +172,7 @@ footer .ver{color:var(--acc)}
 <li>An empty body still means no reason, so older CLIs keep working.</li>
 <li><strong>CLI reports the recorded reason.</strong> The CLI sends <code>--reason</code> and reports the reason the server applied. Previously <code>--json</code> always printed `options.reason ?? &quot;Cancelled</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.174223.0-sha.add31e2c" rel="noopener">release v20260929.174223.0-sha.add31e2c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/add31e2ce4206a2b9100ed7fd7577f6b4c413555" rel="noopener">add31e2c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2703" rel="noopener">#2703</a>𝗔 <a href="https://swamp-club.com/lab/2650" rel="noopener">lab#2650</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-173900-0-sha-add31e2c">
@@ -189,7 +189,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Reconcile settles pulled-vs-pulled conflicts.</strong> <code>ExtensionRepository.saveAll</code> takes an opt-in <code>settlePulledTypeConflicts</code> option that reuses <code>ExtensionCatalogStore.settlePulledTypeConflicts</code> from swamp-club#2490: the earliest-inserted pulled row keeps the type (the first lockfile entry on a rebuilt catalog, the existing owner on a warm one), the other is cleared, and a warning names both extensions and how to switch. Only <code>ReconcileFromDiskService.execute</code> turns it on; install, pull, upgrade, <code>rm</code> and the serve scoped reconcile stay strict, so pulling a second provider still fails with <code>DuplicateTypeError</code>. Local and source-mounted duplicates still throw.</li>
 <li><strong>A failed startup reconcile is non-fatal.</strong> <code>configureStartupExtensions</code> now logs <code>Extension catalog repair failed: … Run swamp doctor extensions to inspect.</code> and continues, matching the deferred reconcile path,</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.173900.0-sha.add31e2c" rel="noopener">release v20260929.173900.0-sha.add31e2c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/add31e2ce4206a2b9100ed7fd7577f6b4c413555" rel="noopener">add31e2c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2702" rel="noopener">#2702</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2703" rel="noopener">#2703</a>𝗔 <a href="https://swamp-club.com/lab/2702" rel="noopener">lab#2702</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-163724-0-sha-f5b06021">
@@ -270,7 +270,7 @@ footer .ver{color:var(--acc)}
 <li>A settle step clears leftover conflicts and warns when two pulled extensions claim the same type.</li>
 <li>A typeless-row heal,</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.162915.0-sha.f6b0d386" rel="noopener">release v20260929.162915.0-sha.f6b0d386</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f6b0d386081932e97f8af08a82a244bb5a797585" rel="noopener">f6b0d386</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2699" rel="noopener">#2699</a>𝗔 <a href="https://swamp-club.com/lab/2490" rel="noopener">lab#2490</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-154804-0-sha-80c0526f">
@@ -296,7 +296,7 @@ footer .ver{color:var(--acc)}
 <p>    → {{workflow.id}}</p>
 <p>      Expression uses {{...}} instead of ${{...}} at &quot;methods.execute.arguments.env.HOST&quot;</p>
 <p>      Add &quot;$&quot; prefix: ${{...}}.</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/reference.md" rel="noopener">.claude/skills/swamp/references/model/reference.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.154804.0-sha.80c0526f" rel="noopener">release v20260929.154804.0-sha.80c0526f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/80c0526fe44e37229b692a3869dd177d8ce100c5" rel="noopener">80c0526f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2698" rel="noopener">#2698</a>𝗔 <a href="https://swamp-club.com/lab/2493" rel="noopener">lab#2493</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-151817-0-sha-41b2495e">
@@ -317,7 +317,7 @@ footer .ver{color:var(--acc)}
 <li>The separate 200-character limit on worker capability RPC errors (<code>sanitizeRpcError</code>) is unchanged.</li>
 <li>Clients can now see up to 512 c</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.151817.0-sha.41b2495e" rel="noopener">release v20260929.151817.0-sha.41b2495e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/41b2495e00b38f37f1ec950cd7d01bc168376bf3" rel="noopener">41b2495e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2697" rel="noopener">#2697</a>𝗔 <a href="https://swamp-club.com/lab/2447" rel="noopener">lab#2447</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-151444-0-sha-eb131275">
@@ -721,7 +721,7 @@ footer .ver{color:var(--acc)}
 <li>Stops the watcher and scheduler.</li>
 <li>If a drain starts while a cron fire is claiming its slot through dedup, the fire is recorded for replay. Otherwise the claimed slot would make peers skip it and the fire would be lo</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.224208.0-sha.1a067650" rel="noopener">release v20260928.224208.0-sha.1a067650</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1a0676506918a7f10c0ad6960ae87069e7cb9381" rel="noopener">1a067650</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2679" rel="noopener">#2679</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1069" rel="noopener">#1069</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260928-222802-0-sha-a1b1f00e">
@@ -752,7 +752,7 @@ footer .ver{color:var(--acc)}
 <li>It registers in the same registry as WebSocket sessions.</li>
 <li>Revoking, rotating or expiring the token, or removing the principal&#39;s access, ends it with a final <code>session-ended</code> event carrying <code>{code, reason}</code> and an `</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-audit.md" rel="noopener">design/enablers/serve-audit.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.222802.0-sha.a1b1f00e" rel="noopener">release v20260928.222802.0-sha.a1b1f00e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a1b1f00eee05fb04ee9a8e700e3a565397efd89b" rel="noopener">a1b1f00e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2680" rel="noopener">#2680</a>𝗔 <a href="https://swamp-club.com/lab/2504" rel="noopener">lab#2504</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260928-213128-0-sha-d57f732c">
@@ -1231,7 +1231,7 @@ footer .ver{color:var(--acc)}
 <li>A nested child hands the env back to its parent when it finishes. That still works when an unawaited child outlives its parent.</li>
 <li>Unrelated overlaps revert the env to its pre-run value until every</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/api.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260928.171134.0-sha.58eda5fa" rel="noopener">release v20260928.171134.0-sha.58eda5fa</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/58eda5fae50a403bb77822576e88f4df59f6cec1" rel="noopener">58eda5fa</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2658" rel="noopener">#2658</a>𝗔 <a href="https://swamp-club.com/lab/2556" rel="noopener">lab#2556</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260928-170514-0-sha-772bcfef">
@@ -1882,7 +1882,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Validation reads authored text</strong> (<code>validation_service.ts</code>). <code>validateModel</code> takes an optional <code>authoredGlobalArguments</code> that the template-syntax scan reads in place of the definition&#39;s global arguments. Every other check still reads the definition.</li>
 <li><strong>The authored workflow reaches the step</strong> (<code>execution_service.ts</code>). The workflow as loaded is threaded to each step as <code>authoredStep</code>, from both the fresh-run and resume seams; `forEa</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260925.153804.0-sha.f2209d28" rel="noopener">release v20260925.153804.0-sha.f2209d28</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f2209d28e8801d2d684f0f418baaf98d4136ff7d" rel="noopener">f2209d28</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2627" rel="noopener">#2627</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2424" rel="noopener">#2424</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2491" rel="noopener">#2491</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2497" rel="noopener">#2497</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2628" rel="noopener">#2628</a>𝗔 <a href="https://swamp-club.com/lab/2496" rel="noopener">lab#2496</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260925-153420-0-sha-940b6cd5">
@@ -2256,7 +2256,7 @@ footer .ver{color:var(--acc)}
 <li>Text that does not parse is never foreign. That covers a swamp expression cut short at a <code>}}</code> inside one of its strings.</li>
 <li><code>inputs</code> read whole or with</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/references/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/model/references/troubleshooting.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260924.213437.0-sha.5ac3223b" rel="noopener">release v20260924.213437.0-sha.5ac3223b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5ac3223bf74d938604fa393ee3a03fdea95dbb77" rel="noopener">5ac3223b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2613" rel="noopener">#2613</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2598" rel="noopener">#2598</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2610" rel="noopener">#2610</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2612" rel="noopener">#2612</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/429" rel="noopener">#429</a>𝗔 <a href="https://swamp-club.com/lab/2491" rel="noopener">lab#2491</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260924-213028-0-sha-78a79929">
@@ -2687,7 +2687,7 @@ footer .ver{color:var(--acc)}
 <li>serve <code>--heartbeat-interval</code>, <code>--reconciliation-interval</code> (limit minus its</li>
 </ul>
 <p>  500 ms jitter), <code>--group-refresh-interval</code>, `--hydr</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.225208.0-sha.063bd925" rel="noopener">release v20260923.225208.0-sha.063bd925</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/063bd92575cf57e644758d8fb09a4610b4bae29d" rel="noopener">063bd925</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2597" rel="noopener">#2597</a>𝗔 <a href="https://swamp-club.com/lab/2446" rel="noopener">lab#2446</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260923-224808-0-sha-65204770">
@@ -5433,7 +5433,7 @@ footer .ver{color:var(--acc)}
 <li><code>verify-skills</code>: passed; swamp 93%, swamp-getting-started 98%. Trigger evaluations were skipped by the runner because <code>ANTHROPIC_API_KEY</code> was unset, as allowed by the verification conventions.</li>
 <li>Fresh combined verification attestation posted to swamp-club before pushing the synced commit: <code>668c9003-2ea5-4180-a91c-afb0ccdc7362</code>. Verification was rerun after syncing main&#39;s updated review workflow to match CI&#39;s</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/reference.md" rel="noopener">.claude/skills/swamp/references/extension-publish/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/references/publishing.md" rel="noopener">.claude/skills/swamp/references/extension-publish/references/publishing.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/reference.md" rel="noopener">.claude/skills/swamp/references/extension-publish/reference.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260916.235537.0-sha.71971475" rel="noopener">release v20260916.235537.0-sha.71971475</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/71971475eb99f762d6afe6d474ee2504f728db4c" rel="noopener">71971475</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2484" rel="noopener">#2484</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2200" rel="noopener">#2200</a>𝗔 <a href="https://swamp-club.com/lab/2198" rel="noopener">lab#2198</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260916-233837-0-sha-9b557bde">
@@ -10935,7 +10935,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 265</li><li><strong>feat</strong> — 60</li><li><strong>docs</strong> — 13</li><li><strong>refactor</strong> — 2</li><li><strong>perf</strong> — 2</li><li><strong>changes</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-29T19:02:28.702Z">2026-09-29T19:02:28.702Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-29T20:04:57.568Z">2026-09-29T20:04:57.568Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

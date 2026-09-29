@@ -133,6 +133,18 @@ function runInstall(
   ) => Promise<unknown>)(full, ctx.context);
 }
 
+/** Invoke `model.methods.uninstall.execute` with args defaults filled in. */
+function runUninstall(
+  ctx: { context: unknown },
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const full = { path: "", installDir: "", force: false, ...args };
+  return (model.methods.uninstall.execute as unknown as (
+    a: Record<string, unknown>,
+    c: unknown,
+  ) => Promise<unknown>)(full, ctx.context);
+}
+
 /** Invoke `model.methods.sync.execute` with the path defaulted. */
 function runSync(
   ctx: { context: unknown },
@@ -154,7 +166,11 @@ async function makeArchiveBlob(
   return new Blob([new Uint8Array(bytes)]);
 }
 
-/** A command stub answering `uname` and `tuios --version`. */
+/**
+ * A command stub answering `uname`, `which`, package-manager ownership queries
+ * and `tuios --version`. Package queries answer "no owner" by default so an
+ * unrelated command's output is never mistaken for ownership.
+ */
 function commandHandler(versionOutput = VERSION_OUTPUT) {
   return (command: string, args: string[]) => {
     if (command === "uname" && args[0] === "-s") {
@@ -164,6 +180,9 @@ function commandHandler(versionOutput = VERSION_OUTPUT) {
       return { stdout: "x86_64", code: 0 };
     }
     if (command === "which") return { stdout: "", code: 1 };
+    if (command === "dpkg" || command === "rpm" || command === "brew") {
+      return { stdout: "", stderr: "not found", code: 1 };
+    }
     return { stdout: versionOutput, code: 0 };
   };
 }
@@ -518,5 +537,194 @@ Deno.test("print fails soft when no installed snapshot exists", async () => {
   assertStringIncludes(
     (summary.data.lines as string[])[0],
     "run the sync method",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// uninstall
+// ---------------------------------------------------------------------------
+
+Deno.test("uninstall removes the binary and records the result", async () => {
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${tmpDir}/tuios`, "binary");
+    const ctx = createModelTestContext({
+      globalArgs: { ...GLOBALS },
+      methodName: "uninstall",
+    });
+    await withMockedCommand(commandHandler(), async () => {
+      await runUninstall(ctx, { installDir: tmpDir });
+    });
+
+    const uninstall = ctx.getWrittenResources().find((r) =>
+      r.specName === "uninstall"
+    );
+    assertEquals(uninstall?.data.removed, true);
+    assertEquals(uninstall?.data.skipped, false);
+    assertEquals(uninstall?.data.path, `${tmpDir}/tuios`);
+    await assertRejects(() => Deno.stat(`${tmpDir}/tuios`));
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("uninstall is idempotent when the binary is absent", async () => {
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    const ctx = createModelTestContext({
+      globalArgs: { ...GLOBALS },
+      methodName: "uninstall",
+    });
+    await withMockedCommand(commandHandler(), async () => {
+      await runUninstall(ctx, { installDir: tmpDir });
+    });
+    const uninstall = ctx.getWrittenResources().find((r) =>
+      r.specName === "uninstall"
+    );
+    assertEquals(uninstall?.data.removed, false);
+    assertEquals(uninstall?.data.skipped, true);
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("uninstall refuses a package-manager-owned binary without force", async () => {
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${tmpDir}/tuios`, "binary");
+    const ctx = createModelTestContext({
+      globalArgs: { ...GLOBALS },
+      methodName: "uninstall",
+    });
+    // dpkg claims ownership of the exact binary path.
+    await withMockedCommand((command, args) => {
+      if (command === "dpkg" && args[0] === "-S") {
+        return { stdout: `tuios: ${tmpDir}/tuios\n`, code: 0 };
+      }
+      return commandHandler()(command, args);
+    }, async () => {
+      await assertRejects(
+        () => runUninstall(ctx, { installDir: tmpDir }),
+        Error,
+        "owned by",
+      );
+    });
+    // The binary is still present.
+    const stat = await Deno.stat(`${tmpDir}/tuios`);
+    assertEquals(stat.isFile, true);
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("install refuses to overwrite a package-manager-owned binary", async () => {
+  const archiveBlob = makeArchiveBlob();
+  const sum = await sha256Hex(await makeArchive());
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${tmpDir}/tuios`, "binary");
+    const ctx = createModelTestContext({
+      globalArgs: { ...GLOBALS },
+      methodName: "install",
+    });
+    // The installed binary is older than the target, so an install would
+    // actually change it and the package-manager guard must fire.
+    const oldVersion = "tuios version 0.7.0 [pure-Go backend]";
+    await withMockedCommand((command, args) => {
+      if (command === "dpkg" && args[0] === "-S") {
+        return { stdout: `tuios: ${tmpDir}/tuios\n`, code: 0 };
+      }
+      return commandHandler(oldVersion)(command, args);
+    }, async () => {
+      await withMockedFetch(async (req) => {
+        if (req.url.endsWith("tuios.tar.gz")) {
+          return new Response(await archiveBlob);
+        }
+        return new Response("nope", { status: 404 });
+      }, async () => {
+        await assertRejects(
+          () =>
+            runInstall(ctx, {
+              installDir: tmpDir,
+              archiveName: "tuios_0.8.0_Linux_x86_64.tar.gz",
+              downloadUrl: "https://example.test/tuios.tar.gz",
+              releaseVersion: "0.8.0",
+              checksum: sum,
+            }),
+          Error,
+          "owned by",
+        );
+      });
+    });
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("install no-ops on an up-to-date package-manager-owned binary", async () => {
+  // The guard runs only when an install would change the binary, so a
+  // package-managed binary already at the target version skips cleanly.
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${tmpDir}/tuios`, "binary");
+    const ctx = createModelTestContext({
+      globalArgs: { ...GLOBALS },
+      methodName: "install",
+    });
+    await withMockedCommand((command, args) => {
+      if (command === "dpkg" && args[0] === "-S") {
+        return { stdout: `tuios: ${tmpDir}/tuios\n`, code: 0 };
+      }
+      return commandHandler()(command, args); // reports 0.8.0, the target
+    }, async () => {
+      await runInstall(ctx, {
+        installDir: tmpDir,
+        archiveName: "tuios_0.8.0_Linux_x86_64.tar.gz",
+        downloadUrl: "https://example.test/tuios.tar.gz",
+        releaseVersion: "0.8.0",
+        checksum: "abc",
+      });
+    });
+    const install = ctx.getWrittenResources().find((r) =>
+      r.specName === "install"
+    );
+    assertEquals(install?.data.skipped, true);
+    const stat = await Deno.stat(`${tmpDir}/tuios`);
+    assertEquals(stat.isFile, true);
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("install rejects a relative installDir before touching the network", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: { ...GLOBALS },
+    methodName: "install",
+  });
+  let fetches = 0;
+  await withMockedCommand(commandHandler(), async () => {
+    await withMockedFetch(() => {
+      fetches++;
+      return new Response("must not fetch", { status: 500 });
+    }, async () => {
+      await assertRejects(
+        () => runInstall(ctx, { installDir: "relative/bin" }),
+        Error,
+        "absolute",
+      );
+    });
+  });
+  assertEquals(fetches, 0);
+});
+
+Deno.test("uninstall rejects a relative installDir", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: { ...GLOBALS },
+    methodName: "uninstall",
+  });
+  await assertRejects(
+    () => runUninstall(ctx, { installDir: "relative/bin" }),
+    Error,
+    "absolute",
   );
 });

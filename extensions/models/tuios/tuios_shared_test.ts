@@ -4,10 +4,12 @@
  *
  * @module
  */
-import { assertEquals, assertFalse } from "jsr:@std/assert@1";
+import { assertEquals, assertFalse, assertThrows } from "jsr:@std/assert@1";
 import {
   archiveName,
+  assertAbsoluteDir,
   compareVersions,
+  detectPackageManagerOwner,
   githubHeaders,
   mapAssets,
   mapUnameArch,
@@ -142,6 +144,76 @@ Deno.test("parseVersionOutput reads the version and backend", () => {
     backend: "",
   });
   assertEquals(parseVersionOutput("command not found"), null);
+});
+
+Deno.test("assertAbsoluteDir accepts absolute, ~ and empty; rejects relative", () => {
+  assertAbsoluteDir("/usr/local/bin", "installDir");
+  assertAbsoluteDir("~/.local/bin", "installDir");
+  assertAbsoluteDir("", "installDir");
+  assertThrows(
+    () => assertAbsoluteDir("relative/bin", "installDir"),
+    Error,
+    "absolute",
+  );
+});
+
+Deno.test("detectPackageManagerOwner reads a dpkg -S response", async () => {
+  const run = (bin: string, args: string[]) => {
+    if (bin === "dpkg" && args[0] === "-S") {
+      return Promise.resolve({
+        stdout: "tuios: /usr/bin/tuios\n",
+        stderr: "",
+        code: 0,
+      });
+    }
+    return Promise.resolve({ stdout: "", stderr: "not found", code: 1 });
+  };
+  assertEquals(await detectPackageManagerOwner("/usr/bin/tuios", run), "tuios");
+});
+
+Deno.test("detectPackageManagerOwner accepts an rpm NEVRA", async () => {
+  const run = (bin: string, args: string[]) => {
+    if (bin === "rpm" && args[0] === "-qf") {
+      return Promise.resolve({
+        stdout: "tuios-0.8.0-1.x86_64\n",
+        stderr: "",
+        code: 0,
+      });
+    }
+    return Promise.resolve({ stdout: "", stderr: "not found", code: 1 });
+  };
+  assertEquals(
+    await detectPackageManagerOwner("/usr/bin/tuios", run),
+    "tuios-0.8.0-1.x86_64",
+  );
+});
+
+Deno.test("detectPackageManagerOwner ignores output that is not ownership", async () => {
+  // A stub returning the version banner for every command must not be read as
+  // an owner: neither dpkg's `pkg: path` nor rpm's NEVRA shape matches, and
+  // brew reports the formula absent.
+  const run = (bin: string) =>
+    Promise.resolve(
+      bin === "brew" ? { stdout: "", stderr: "not installed", code: 1 } : {
+        stdout: "tuios version 0.8.0 [pure-Go backend]",
+        stderr: "",
+        code: 0,
+      },
+    );
+  assertEquals(await detectPackageManagerOwner("/tmp/tuios", run), null);
+});
+
+Deno.test("detectPackageManagerOwner checks brew formulae last", async () => {
+  const run = (bin: string, args: string[]) => {
+    if (bin === "brew" && args[0] === "list") {
+      return Promise.resolve({ stdout: "tuios\n", stderr: "", code: 0 });
+    }
+    return Promise.resolve({ stdout: "", stderr: "not found", code: 1 });
+  };
+  assertEquals(
+    await detectPackageManagerOwner("/opt/homebrew/bin/tuios", run),
+    "brew formula 'tuios'",
+  );
 });
 
 Deno.test("githubHeaders sets only the required headers without a token", () => {

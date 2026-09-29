@@ -1,10 +1,10 @@
 id: fc72db4c-1cc0-45d5-b3e5-75c3bcd80252
 name: '@svendowideit/tuios-install'
 description: |
-  Install or upgrade TUIOS on the machine this workflow runs on, then hand the
-  daemon to systemd so sessions are always available.
+  Install, upgrade — or uninstall — TUIOS on the machine this workflow runs on,
+  then hand the daemon to systemd so sessions are always available.
 
-  Steps:
+  Steps (install):
     check-latest → install → create-daemon-service → start-daemon-service → verify
 
   check-latest resolves the newest TUIOS release and the archive for this
@@ -25,6 +25,10 @@ description: |
       swamp workflow run @svendowideit/tuios-install \
         --input version=0.8.0 --input installDir=~/.local/bin \
         --input manageService=false
+
+  Remove the binary instead (the systemd service is left in place):
+
+      swamp workflow run @svendowideit/tuios-install --input uninstall=true
 
   The workflow auto-registers the `tuios-release`, `tuios-installed` and
   `tuios-daemon` model instances on first run; nothing needs creating by hand.
@@ -73,6 +77,12 @@ inputs:
       type: string
       default: tuios
       description: systemd user service name (without the .service suffix).
+    uninstall:
+      type: boolean
+      default: false
+      description: >-
+        Remove the tuios binary instead of installing it. The systemd service
+        is left in place; remove it separately with @svendowideit/systemd-service.
   required: []
 jobs:
   - name: main
@@ -81,8 +91,10 @@ jobs:
       - name: check-latest
         description: >-
           Fetch the newest TUIOS release and select the archive for this
-          machine's OS and architecture, recording its SHA-256. This is the
-          only writer of the `release` resource in a run.
+          machine's OS and architecture, recording its SHA-256. Skipped on an
+          uninstall run (nothing to download). This is the only writer of the
+          `release` resource in a run.
+        guard: ${{ inputs.uninstall == true }}
         task:
           type: model_method
           modelType: "@svendowideit/tuios-release"
@@ -99,8 +111,10 @@ jobs:
           version, download URL and SHA-256 that `check-latest` already resolved
           (so the release is not re-fetched). The model locates whatever is
           already installed and skips the download when the target version is
-          present (unless force is set), so this step is safe on every pass. It
-          is the only writer of the `installed` and `install` resources in a run.
+          present (unless force is set), so this step is safe on every pass.
+          Skipped when `uninstall=true`. It is the only writer of the `installed`
+          and `install` resources in a run.
+        guard: ${{ inputs.uninstall == true }}
         task:
           type: model_method
           modelType: "@svendowideit/tuios-installed"
@@ -121,12 +135,32 @@ jobs:
               type: succeeded
         weight: 0
         allowFailure: false
+      - name: uninstall
+        description: >-
+          Remove the tuios binary. Idempotent: a missing binary is a no-op, and
+          a package-manager-owned binary is refused unless force is set. Only
+          runs when `uninstall=true`. The systemd service is left in place.
+        guard: ${{ inputs.uninstall == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/tuios-installed"
+          modelName: tuios-installed
+          methodName: uninstall
+          inputs:
+            installDir: ${{ inputs.installDir }}
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: check-latest
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
       - name: create-daemon-service
         description: >-
           Write (idempotently) a systemd user unit that runs the freshly
           installed `tuios daemon`, so sessions persist across logout and
-          reboot. Only runs when manageService is true.
-        guard: ${{ inputs.manageService == false }}
+          reboot. Only runs when manageService is true and uninstall is false.
+        guard: ${{ inputs.uninstall == true || inputs.manageService == false }}
         task:
           type: model_method
           modelType: "@svendowideit/systemd-service"
@@ -149,7 +183,7 @@ jobs:
         description: >-
           Enable user lingering and start/enable the service so the daemon comes
           back at boot and its sessions are always available.
-        guard: ${{ inputs.manageService == false }}
+        guard: ${{ inputs.uninstall == true || inputs.manageService == false }}
         task:
           type: model_method
           modelType: "@svendowideit/systemd-service"
@@ -177,7 +211,10 @@ jobs:
         dependsOn:
           - step: install
             condition:
-              type: succeeded
+              type: always
+          - step: uninstall
+            condition:
+              type: always
           - step: start-daemon-service
             condition:
               type: always

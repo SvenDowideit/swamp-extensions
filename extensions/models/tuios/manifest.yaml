@@ -16,9 +16,11 @@ description: >
     release's checksums.txt. A second model tracks what is already installed
     (running `tuios --version`) and downloads, checksum-verifies and installs
     the binary, idempotently; the checksum is mandatory, so an unverified
-    archive is never installed. The bundled workflow wires those together and
-    hands the daemon to systemd, so installing and upgrading — and keeping
-    sessions available — is a single `swamp workflow run`.
+    archive is never installed, and it refuses to overwrite a binary a system
+    package manager owns. It can also uninstall the binary. The bundled
+    workflow wires those together and hands the daemon to systemd, so
+    installing, upgrading, removing — and keeping sessions available — is a
+    single `swamp workflow run`.
 
   INSTALL
 
@@ -50,6 +52,9 @@ description: >
       # Install or upgrade the binary without touching systemd.
       swamp model @svendowideit/tuios-installed method run install tuios-installed
 
+      # Remove the binary (leaving any systemd service in place).
+      swamp workflow run @svendowideit/tuios-install --input uninstall=true
+
   CONFIGURE
 
     Workflow inputs (all optional, with defaults):
@@ -58,9 +63,11 @@ description: >
                                                          /usr/local/bin, ~/.local/bin, ~/bin)
       version        Release to install; empty = latest  (default "")
       flavor         std | ghostty                       (default std)
-      force          Reinstall even when up to date      (default false)
+      force          Reinstall even when up to date, and override the
+                     package-manager guard                (default false)
       manageService  Create + start the daemon service   (default true)
       serviceName    systemd user service name           (default tuios)
+      uninstall      Remove the binary instead           (default false)
 
     The models also take model globals for the release repository, API URL,
     User-Agent, a GitHub token and an os/arch override; see the README for the

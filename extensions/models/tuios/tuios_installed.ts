@@ -28,9 +28,11 @@
 import { z } from "npm:zod@4";
 import {
   archiveName,
+  assertAbsoluteDir,
   type BuildFlavor,
   CHECKSUMS_NAME,
   compareVersions,
+  detectPackageManagerOwner,
   expandHome,
   extractFromTarGz,
   fetchChecksums,
@@ -130,6 +132,30 @@ const InstallArgsSchema = z.object({
 });
 
 type InstallArgs = z.infer<typeof InstallArgsSchema>;
+
+const UninstallArgsSchema = z.object({
+  path: z.string().default("").describe(
+    "Exact binary path to remove. Empty uses the model `path` global, then the usual install locations.",
+  ),
+  installDir: z.string().default("").describe(
+    "Directory to remove the binary from (its `tuios` is deleted). Empty derives the directory from the resolved binary path.",
+  ),
+  force: z.boolean().default(false).describe(
+    "Remove a binary that a package manager owns, which is otherwise refused.",
+  ),
+});
+
+type UninstallArgs = z.infer<typeof UninstallArgsSchema>;
+
+const UninstallResultSchema = z.object({
+  removed: z.boolean(),
+  skipped: z.boolean(),
+  path: z.string().nullable(),
+  version: z.string().nullable(),
+  packageManagerOwner: z.string().nullable(),
+  removedAt: z.string(),
+  message: z.string(),
+});
 
 const InstallResultSchema = z.object({
   installed: z.boolean(),
@@ -287,6 +313,13 @@ export async function runVersion(
       code: 127,
     };
   }
+}
+
+/** The actionable message shown when a package manager owns the binary. */
+export function packageManagedMessage(path: string, owner: string): string {
+  return `The tuios binary at ${path} is owned by ${owner}. Installing over ` +
+    `it (or removing it) would fight the package manager. Upgrade with the ` +
+    `package manager instead, or pass force=true to override.`;
 }
 
 /** Render the human-readable summary lines for `print`. */
@@ -459,11 +492,40 @@ async function performSync(
 // Model definition
 // ---------------------------------------------------------------------------
 
+/** The check context passed to a pre-flight check. */
+type CheckContext = {
+  globalArgs: GlobalArgs;
+  methodName: string;
+  logger?: {
+    info: (msg: string, props?: Record<string, unknown>) => void;
+  };
+};
+
 /** Tracks the TUIOS version installed on this machine. */
 export const model = {
   type: "@svendowideit/tuios-installed",
   version: "2026.09.29.1",
   globalArguments: GlobalArgsSchema,
+  checks: {
+    "valid-install-dir": {
+      description:
+        "Validate the configured `path` global is absolute or ~-prefixed before mutating the filesystem",
+      labels: ["policy"],
+      appliesTo: ["install", "uninstall"],
+      execute: (
+        context: CheckContext,
+      ): { pass: boolean; errors?: string[] } => {
+        const errors: string[] = [];
+        const dir = context.globalArgs.path;
+        if (dir && !dir.startsWith("/") && !dir.startsWith("~")) {
+          errors.push(
+            `path global must be absolute or ~-prefixed, got '${dir}'`,
+          );
+        }
+        return errors.length > 0 ? { pass: false, errors } : { pass: true };
+      },
+    },
+  },
   resources: {
     installed: {
       description:
@@ -475,6 +537,12 @@ export const model = {
     install: {
       description: "The result of the last install (or skipped install)",
       schema: InstallResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    uninstall: {
+      description: "The result of the last uninstall (or skipped uninstall)",
+      schema: UninstallResultSchema,
       lifetime: "infinite",
       garbageCollection: 20,
     },
@@ -514,6 +582,7 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
+        assertAbsoluteDir(args.installDir, "installDir");
         const platform = await resolvePlatform({
           os: args.os ?? g.os,
           arch: args.arch ?? g.arch,
@@ -613,6 +682,8 @@ export const model = {
         //    target location. When installDir is explicit, only that exact
         //    path counts — falling back to PATH could otherwise skip an
         //    install the caller asked for because an unrelated binary exists.
+        //    This runs before the package-manager guard so an up-to-date
+        //    package-managed binary is a no-op rather than an error.
         const explicitDir = args.installDir.trim();
         const existingPath = explicitDir
           ? await existingBinary(`${expandHome(explicitDir)}/tuios`)
@@ -657,7 +728,18 @@ export const model = {
           return { dataHandles: [handle] };
         }
 
-        // 4. Download the archive and verify it against the required checksum.
+        // 4. Refuse to overwrite a binary a package manager owns. This is the
+        //    authoritative guard: the pre-flight check cannot see installDir,
+        //    and a package-manager install should be upgraded through it. Only
+        //    reached when an install would actually change the binary.
+        const targetPath = existingPath ??
+          `${explicitDir ? expandHome(explicitDir) : selectInstallDir()}/tuios`;
+        if (!args.force) {
+          const owner = await detectPackageManagerOwner(targetPath);
+          if (owner) throw new Error(packageManagedMessage(targetPath, owner));
+        }
+
+        // 5. Download the archive and verify it against the required checksum.
         context.logger.info("Downloading {url}", { url: asset.url });
         const response = await fetch(asset.url, {
           headers: { "User-Agent": g.userAgent },
@@ -675,7 +757,7 @@ export const model = {
           );
         }
 
-        // 5. Extract the binary and install it atomically.
+        // 6. Extract the binary and install it atomically.
         const binary = await extractFromTarGz(bytes, "tuios");
         if (!binary) {
           throw new Error(
@@ -726,12 +808,94 @@ export const model = {
           message,
         });
 
-        // 6. Re-sync so the `installed` resource reflects the new binary,
+        // 7. Re-sync so the `installed` resource reflects the new binary,
         //    reusing the release already fetched above.
         await performSync(context, target, true, {
           version: latest,
           assets: releaseAssets,
         });
+
+        return { dataHandles: [handle] };
+      },
+    },
+
+    uninstall: {
+      description:
+        "Remove the `tuios` binary from this machine. Idempotent: a missing " +
+        "binary is a no-op. Refuses to remove a binary a package manager owns " +
+        "unless `force` is set. Re-syncs afterwards so the `installed` resource " +
+        "shows it is gone. It does not remove the systemd unit — run " +
+        "@svendowideit/systemd-service's removeService for that.",
+      arguments: UninstallArgsSchema,
+      execute: async (
+        args: UninstallArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        assertAbsoluteDir(args.installDir, "installDir");
+        assertAbsoluteDir(args.path, "path");
+
+        // Resolve the target path: explicit arg, then installDir + /tuios,
+        // then the model global, then auto-detection.
+        const explicitDir = args.installDir.trim();
+        const explicitPath = args.path.trim();
+        const target = explicitPath
+          ? expandHome(explicitPath)
+          : explicitDir
+          ? `${expandHome(explicitDir)}/tuios`
+          : g.path
+          ? expandHome(g.path)
+          : await findBinary("");
+
+        let removed = false;
+        let version: string | null = null;
+        let owner: string | null = null;
+        let message: string;
+
+        if (!target) {
+          message = "No tuios binary found — nothing to remove.";
+          context.logger.info(message);
+        } else {
+          let present = false;
+          try {
+            present = (await Deno.stat(target)).isFile;
+          } catch {
+            present = false;
+          }
+          if (!present) {
+            message = `No tuios binary at ${target} — nothing to remove.`;
+            context.logger.info(message);
+          } else {
+            version = parseVersionOutput((await runVersion(target)).output)
+              ?.version ?? null;
+            owner = await detectPackageManagerOwner(target);
+            if (owner && !args.force) {
+              throw new Error(packageManagedMessage(target, owner));
+            }
+            await Deno.remove(target);
+            removed = true;
+            message =
+              `Removed TUIOS${version ? ` ${version}` : ""} from ${target}` +
+              (owner ? ` (was owned by ${owner})` : "");
+            context.logger.info("Removed {target}{version}", {
+              target,
+              version: version ? ` (${version})` : "",
+            });
+          }
+        }
+
+        const handle = await context.writeResource("uninstall", "uninstall", {
+          removed,
+          skipped: !removed,
+          path: target,
+          version,
+          packageManagerOwner: owner,
+          removedAt: new Date().toISOString(),
+          message,
+        });
+
+        // Re-sync so the `installed` resource reflects the removal.
+        await performSync(context, target ?? "", false);
 
         return { dataHandles: [handle] };
       },

@@ -116,6 +116,14 @@ swamp model @svendowideit/tuios-installed method run install tuios-installed \
 # Track the libghostty-vt build instead of the pure-Go one.
 swamp model @svendowideit/tuios-release method run check tuios-release \
   --input flavor=ghostty
+
+# Remove the binary (the systemd service is left alone) via the workflow.
+swamp workflow run @svendowideit/tuios-install --input uninstall=true
+
+# Or directly, from a specific directory. Idempotent, and it refuses a
+# package-manager-owned binary unless force=true.
+swamp model @svendowideit/tuios-installed method run uninstall tuios-installed \
+  --input installDir=~/.local/bin
 ```
 
 ## Details
@@ -128,7 +136,24 @@ swamp model @svendowideit/tuios-release method run check tuios-release \
 | `@svendowideit/tuios-release` | `print` | `installedVersion` | `summary` — logs the release, the platform archive and whether an update is available. |
 | `@svendowideit/tuios-installed` | `sync` | `path`, `checkLatest` | `installed` — path, present flag, version, backend, latest version and `updateAvailable`. |
 | `@svendowideit/tuios-installed` | `install` | `version`, `installDir`, `archiveName`, `downloadUrl`, `releaseVersion`, `checksum`, `os`, `arch`, `flavor`, `force` | `install` — the install result (or a `skipped: true` record), and a refreshed `installed` resource. |
+| `@svendowideit/tuios-installed` | `uninstall` | `path`, `installDir`, `force` | `uninstall` — the removal result (or a `skipped: true` no-op), and a refreshed `installed` resource. |
 | `@svendowideit/tuios-installed` | `print` | none | `summary` — logs the installed state and update availability. |
+
+### Pre-flight checks — `@svendowideit/tuios-installed`
+
+| Check | Label | Applies to | What it validates |
+| ----- | ----- | ---------- | ----------------- |
+| `valid-install-dir` | `policy` | `install`, `uninstall` | The configured `path` global is absolute or `~`-prefixed. |
+
+Skip it with `--skip-check valid-install-dir` or `--skip-check-label policy`.
+
+The package-manager guard is a **runtime** check inside `install` and
+`uninstall`, not a pre-flight check: pre-flight checks cannot see call-time
+method arguments, so they could not validate the effective `installDir`. Both
+methods probe the actual target with `dpkg -S` / `rpm -qf` / `brew list` and
+refuse a binary a package manager owns unless `force=true`. The same absolute-
+path rule is also enforced at runtime, so a relative `installDir`/`path` is
+rejected even when the pre-flight check is skipped.
 
 The `downloadUrl`, `releaseVersion` and `checksum` inputs on `install` are the
 consume-the-check-result path: the bundled workflow fills them from

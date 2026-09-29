@@ -458,6 +458,100 @@ export function isOnPath(dir: string, pathVar?: string): boolean {
 }
 
 /**
+ * Assert a target directory is safe to write to: absolute, or `~`-prefixed
+ * (expanded by the caller). A relative path would install relative to whatever
+ * working directory the method happened to run in, so it is rejected. An empty
+ * string is allowed (the caller then auto-selects a directory).
+ */
+export function assertAbsoluteDir(dir: string, field: string): void {
+  const value = dir.trim();
+  if (value && !value.startsWith("/") && !value.startsWith("~")) {
+    throw new Error(
+      `${field} must be an absolute path or ~-prefixed, got '${value}'`,
+    );
+  }
+}
+
+/**
+ * A command runner returning the decoded stdout, stderr and exit code. The
+ * default shells out via `Deno.Command`; tests inject a stub.
+ */
+export type CommandRunner = (
+  bin: string,
+  args: string[],
+) => Promise<{ stdout: string; stderr: string; code: number }>;
+
+/** Run a command, capturing stdout/stderr; a missing binary is code 127. */
+export async function runCapture(
+  bin: string,
+  args: string[],
+): Promise<{ stdout: string; stderr: string; code: number }> {
+  try {
+    const proc = new Deno.Command(bin, {
+      args,
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const out = await proc.output();
+    return {
+      stdout: new TextDecoder().decode(out.stdout),
+      stderr: new TextDecoder().decode(out.stderr),
+      code: out.code,
+    };
+  } catch (err) {
+    return {
+      stdout: "",
+      stderr: err instanceof Error ? err.message : String(err),
+      code: 127,
+    };
+  }
+}
+
+/**
+ * Detect whether a system package manager owns a file at `path`. Runs the
+ * read-only ownership queries `dpkg -S` and `rpm -qf`, then checks whether a
+ * Homebrew formula with the binary's name (`tuios` or `tuios-bin`) is
+ * installed. Returns a human-readable owner description, or `null` when no
+ * package manager claims it.
+ *
+ * Best-effort: a missing tool or an unexpected failure answers `false` rather
+ * than throwing, so it can run inside a non-mutating pre-flight check.
+ */
+export async function detectPackageManagerOwner(
+  path: string,
+  run: CommandRunner = runCapture,
+): Promise<string | null> {
+  // `dpkg -S` prints `pkg: /path/to/file`; require both the separator and the
+  // queried path so unrelated output cannot masquerade as ownership.
+  const dpkg = await run("dpkg", ["-S", path]);
+  if (dpkg.code === 0) {
+    const line = dpkg.stdout.trim().split("\n")[0].trim();
+    const colon = line.indexOf(":");
+    if (colon > 0 && line.slice(colon + 1).includes(path)) {
+      return line.slice(0, colon).trim();
+    }
+  }
+  // `rpm -qf` prints one package NEVRA (e.g. `tuios-0.8.0-1.x86_64`); require
+  // that shape so arbitrary stdout is not read as a package name.
+  const rpm = await run("rpm", ["-qf", path]);
+  if (rpm.code === 0) {
+    const line = rpm.stdout.trim().split("\n")[0].trim();
+    if (/^[\w.+-]+-[\d][\w.+-]*$/.test(line)) return line;
+  }
+  const stem = path.replace(/\\/g, "/").split("/").pop()?.replace(
+    /\.exe$/i,
+    "",
+  );
+  if (stem) {
+    for (const name of [stem, `${stem}-bin`]) {
+      const result = await run("brew", ["list", "--formula", name]);
+      if (result.code === 0) return `brew formula '${name}'`;
+    }
+  }
+  return null;
+}
+
+/**
  * Compare a downloaded archive against the expected SHA-256. Returns `true`
  * when `expected` is empty (nothing to verify), so a missing checksums entry
  * degrades to "unverified" rather than failing.

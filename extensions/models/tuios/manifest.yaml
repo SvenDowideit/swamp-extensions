@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/tuios"
-version: "2026.09.30.1"
+version: "2026.09.30.2"
 description: >
   Keep TUIOS current and always-on: track the latest release, know exactly what
   to download for this machine, install, upgrade, restart or remove it, and run
@@ -10,13 +10,18 @@ description: >
 
     TUIOS (https://tuios.dev) is a terminal window manager whose sessions live
     in a background daemon. This extension closes the whole loop around it on
-    the machine it runs on: resolve the newest release and the exact archive
-    for this platform (recording its SHA-256 from checksums.txt), then install,
-    upgrade or remove the binary — idempotently, refusing an unverified archive
-    and refusing to fight a system package manager. A bundled workflow does the
-    lot: it installs or upgrades, restarts the systemd daemon so it runs the
-    new binary, and prints the version, the binary's path and the exact
-    `systemctl --user status` command to inspect the service.
+    the machine it runs on: it resolves the newest release and the exact archive
+    for this platform (recording its SHA-256 from checksums.txt), downloads and
+    verifies it, then installs, upgrades or removes the `tuios` binary —
+    idempotently, refusing an unverified archive and refusing to fight a system
+    package manager. A bundled workflow does the lot: it installs or upgrades,
+    restarts the systemd daemon so it runs the new binary, and prints the
+    version, the binary's path and the exact `systemctl --user status` command
+    to inspect the service.
+
+    Release resolution, platform selection, checksum lookup and download are
+    delegated to `@svendowideit/github-release-install`, so this extension keeps
+    only what is particular to TUIOS.
 
   INSTALL
 
@@ -24,10 +29,11 @@ description: >
 
   DEPENDENCIES
 
-    `@svendowideit/systemd-service`, declared in `dependencies:` and installed
-    by the single pull above. It is used by the bundled workflow to run the
-    TUIOS daemon as a systemd *user* service; the two models work without it
-    (set `--input manageService=false` to skip the service steps).
+    `@svendowideit/github-release-install`, declared in `dependencies:` and
+    installed by the single pull above. It resolves, selects, downloads and
+    verifies the release archive; the bundled workflow calls it. The TUIOS
+    models also depend on `@svendowideit/systemd-service` for the daemon steps —
+    optional, and skipped with `--input manageService=false`.
 
   RUN
 
@@ -40,13 +46,11 @@ description: >
         --input version=0.8.0 --input installDir=~/.local/bin
 
       # Ask what the latest release is and what this machine would download.
-      swamp model @svendowideit/tuios-release method run check tuios-release
+      swamp workflow run @svendowideit/github-release-install-fetch \
+        --input repo=Gaurav-Gosain/tuios --input stem=tuios --input download=false
 
-      # Ask what is installed and whether an update is available.
+      # Ask what is installed right now.
       swamp model @svendowideit/tuios-installed method run sync tuios-installed
-
-      # Install or upgrade the binary without touching systemd.
-      swamp model @svendowideit/tuios-installed method run install tuios-installed
 
       # Remove the binary (leaving any systemd service in place).
       swamp workflow run @svendowideit/tuios-install --input uninstall=true
@@ -55,8 +59,10 @@ description: >
 
     Workflow inputs (all optional, with defaults):
 
+      repo           GitHub repository publishing TUIOS  (default Gaurav-Gosain/tuios)
       installDir     Where to install the binary         (default: first writable of
                                                          /usr/local/bin, ~/.local/bin, ~/bin)
+      downloadDir    Where the verified archive is staged (default ~/.cache/tuios)
       version        Release to install; empty = latest  (default "")
       flavor         std | ghostty                       (default std)
       force          Reinstall even when up to date, and override the
@@ -64,23 +70,23 @@ description: >
       manageService  Create + start the daemon service   (default true)
       serviceName    systemd user service name           (default tuios)
       uninstall      Remove the binary instead           (default false)
+      githubToken    GitHub token for the releases API   (default: GITHUB_TOKEN,
+                                                         GH_TOKEN, or `gh auth token`)
 
-    The models also take model globals for the release repository, API URL,
-    User-Agent, a GitHub token and an os/arch override; see the README for the
-    full table. Precedence is per-call `--input` > model global > schema
-    default. Set `githubToken` (or export `GITHUB_TOKEN`) on machines that run
-    the workflow often: the releases API allows only 60 anonymous requests per
-    hour per IP. The install step consumes the release that `check` resolved
-    (version, download URL, SHA-256), so a normal run spends one API request;
-    `install` also takes `archiveName`/`downloadUrl`/`releaseVersion`/`checksum`
-    for a direct call, and refuses to install an archive with no checksum.
+    Precedence is per-call `--input` > schema default. The releases API allows
+    only 60 anonymous requests per hour per IP, so authenticate for scheduled
+    runs: run `gh auth login` once (its token is then used automatically), or
+    export `GITHUB_TOKEN=$(gh auth token)` / pass `--input githubToken=…`. The
+    release workflow resolves and downloads once; install consumes the verified
+    archive it produced, so a normal run spends one API request.
 
   WHAT IT INSTALLS
 
     The `tuios` binary at the chosen install directory (default: the first
     writable of /usr/local/bin, ~/.local/bin, ~/bin) — the same locations the
-    upstream install script targets. The install output and the final verify
-    step log the binary's path (run `<path> --version` to check it). When
+    upstream install script targets. The archive is staged (and checksum
+    verified) under the download directory. The install output and the final
+    verify step log the binary's path (run `<path> --version` to check it). When
     `manageService` is true it also writes one systemd *user* unit named
     `tuios.service` at `~/.config/systemd/user/`, enables user lingering,
     starts/enables the service so the daemon runs at boot, and restarts it
@@ -97,7 +103,6 @@ paths:
   base: manifest
 
 models:
-  - tuios_release.ts
   - tuios_installed.ts
   - tuios_shared.ts
 
@@ -105,15 +110,14 @@ workflows:
   - tuios-install.yaml
 
 dependencies:
+  - "@svendowideit/github-release-install"
   - "@svendowideit/systemd-service"
 
 additionalFiles:
   - README.md
   - LICENSE.txt
   - tuios_shared_test.ts
-  - tuios_release_test.ts
   - tuios_installed_test.ts
-  - tuios_release_methods_test.ts
   - tuios_installed_methods_test.ts
 
 platforms: []

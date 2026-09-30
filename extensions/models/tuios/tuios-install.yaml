@@ -5,20 +5,22 @@ description: |
   then hand the daemon to systemd so sessions are always available.
 
   Steps (install):
-    check-latest → install → create-daemon-service → start-daemon-service
+    fetch-release → install → create-daemon-service → start-daemon-service
     → restart-daemon-service → verify
 
-  check-latest resolves the newest TUIOS release and the archive for this
-  platform, recording it as the `release` resource. install is idempotent: it
-  locates the installed binary, skips the download when the target version is
-  already present (unless force is set), verifies the archive against the
-  release's checksums.txt, and replaces the binary. The systemd steps then
-  create and start a `tuios daemon` user service (via
-  @svendowideit/systemd-service) so sessions survive logout and reboot, and
-  restart it after an upgrade (enable --now does not restart an active unit, so
-  without this the daemon would keep running the old binary). verify prints the
-  installed version, the binary's path, and the exact
-  `systemctl --user status <service>.service` command to inspect the daemon.
+  fetch-release calls @svendowideit/github-release-install-fetch, which resolves
+  the newest TUIOS release, selects the archive for this platform, records its
+  SHA-256 from checksums.txt, downloads it and verifies the bytes before writing
+  a checksum-verified archive. install then extracts the `tuios` binary from
+  that verified archive, checks it once more, and replaces the installed binary
+  — idempotently: it skips the install when the target version is already
+  present (unless force is set). The systemd steps create and start a
+  `tuios daemon` user service (via @svendowideit/systemd-service) so sessions
+  survive logout and reboot, and restart it after an upgrade (enable --now does
+  not restart an active unit, so without this the daemon would keep running the
+  old binary). verify prints the installed version, the binary's path, and the
+  exact `systemctl --user status <service>.service` command to inspect the
+  daemon.
 
   Run it on any machine to make TUIOS present, current, and always-on:
 
@@ -34,7 +36,7 @@ description: |
 
       swamp workflow run @svendowideit/tuios-install --input uninstall=true
 
-  The workflow auto-registers the `tuios-release`, `tuios-installed` and
+  The workflow auto-registers the `github-release`, `tuios-installed` and
   `tuios-daemon` model instances on first run; nothing needs creating by hand.
   The daily trigger upgrades the binary and restarts the daemon as new releases
   appear; remove `trigger:` if you would rather upgrade by hand.
@@ -45,12 +47,22 @@ trigger:
     manageService: true
 inputs:
   properties:
+    repo:
+      type: string
+      default: Gaurav-Gosain/tuios
+      description: GitHub repository (owner/name) publishing the TUIOS releases.
     installDir:
       type: string
       default: ""
       description: >-
         Directory to install the tuios binary into. Empty picks the first
         writable of /usr/local/bin, ~/.local/bin, ~/bin.
+    downloadDir:
+      type: string
+      default: ~/.cache/tuios
+      description: >-
+        Directory the checksum-verified release archive is staged in before
+        install extracts it.
     version:
       type: string
       default: ""
@@ -65,6 +77,13 @@ inputs:
       description: >-
         Build flavor: 'std' is the pure-Go emulator, 'ghostty' bundles
         libghostty-vt (Linux/Windows only).
+    githubToken:
+      type: string
+      default: ""
+      description: >-
+        GitHub token to raise the releases API rate limit. Empty falls back to
+        GITHUB_TOKEN / GH_TOKEN, then the authenticated `gh` CLI. Set
+        GITHUB_TOKEN or run `gh auth login` for scheduled runs.
     force:
       type: boolean
       default: false
@@ -90,34 +109,37 @@ inputs:
   required: []
 jobs:
   - name: main
-    description: Resolve the release, ensure the binary, then run the daemon under systemd.
+    description: Fetch and verify the release archive, install the binary, then run the daemon under systemd.
     steps:
-      - name: check-latest
+      - name: fetch-release
         description: >-
-          Fetch the newest TUIOS release and select the archive for this
-          machine's OS and architecture, recording its SHA-256. Skipped on an
-          uninstall run (nothing to download). This is the only writer of the
-          `release` resource in a run.
+          Resolve the newest TUIOS release, select this platform's archive,
+          download it, and verify it against the release's checksums — landing a
+          checksum-verified archive on disk. Skipped on an uninstall run (nothing
+          to download). This is the only writer of the `release` and `archive`
+          resources in a run.
         guard: ${{ inputs.uninstall == true }}
         task:
-          type: model_method
-          modelType: "@svendowideit/tuios-release"
-          modelName: tuios-release
-          methodName: check
+          type: workflow
+          workflowIdOrName: "@svendowideit/github-release-install-fetch"
           inputs:
-            flavor: ${{ inputs.flavor }}
+            repo: ${{ inputs.repo }}
+            version: ${{ inputs.version }}
+            stem: '${{ inputs.flavor == "ghostty" ? "tuios-ghostty" : "tuios" }}'
+            outputDir: ${{ inputs.downloadDir }}
+            force: ${{ inputs.force }}
+            githubToken: ${{ inputs.githubToken }}
         dependsOn: []
         weight: 0
         allowFailure: false
       - name: install
         description: >-
-          Download, checksum-verify and install the TUIOS binary, consuming the
-          version, download URL and SHA-256 that `check-latest` already resolved
-          (so the release is not re-fetched). The model locates whatever is
-          already installed and skips the download when the target version is
-          present (unless force is set), so this step is safe on every pass.
-          Skipped when `uninstall=true`. It is the only writer of the `installed`
-          and `install` resources in a run.
+          Extract the `tuios` binary from the verified archive, verify it once
+          more against the recorded SHA-256, and install it. The model locates
+          whatever is already installed and skips the install when the target
+          version is present (unless force is set), so this step is safe on every
+          pass. Skipped when `uninstall=true`. It is the only writer of the
+          `installed` and `install` resources in a run.
         guard: ${{ inputs.uninstall == true }}
         task:
           type: model_method
@@ -127,14 +149,12 @@ jobs:
           inputs:
             version: ${{ inputs.version }}
             installDir: ${{ inputs.installDir }}
-            flavor: ${{ inputs.flavor }}
             force: ${{ inputs.force }}
-            archiveName: ${{ data.latest("tuios-release", "release").attributes.?platform.?archiveName.orValue("") }}
-            downloadUrl: ${{ data.latest("tuios-release", "release").attributes.?platform.?downloadUrl.orValue("") }}
-            releaseVersion: ${{ data.latest("tuios-release", "release").attributes.?version.orValue("") }}
-            checksum: ${{ data.latest("tuios-release", "release").attributes.?checksum.orValue("") }}
+            archivePath: ${{ data.latest("github-release", "archive").attributes.?path.orValue("") }}
+            archiveName: ${{ data.latest("github-release", "archive").attributes.?archiveName.orValue("") }}
+            checksum: ${{ data.latest("github-release", "archive").attributes.?checksum.orValue("") }}
         dependsOn:
-          - step: check-latest
+          - step: fetch-release
             condition:
               type: succeeded
         weight: 0
@@ -157,7 +177,7 @@ jobs:
             force: ${{ inputs.force }}
             serviceName: ${{ inputs.serviceName }}
         dependsOn:
-          - step: check-latest
+          - step: fetch-release
             condition:
               type: always
         weight: 0

@@ -39,8 +39,14 @@ description: >
 
     None — it uses Deno's built-in `fetch` and the bundled Deno binary swamp
     already ships. No other extension is required, and nothing is installed on
-    the host. A GitHub token is optional: set the `githubToken` global (or
-    export `GITHUB_TOKEN`) to raise the API rate limit above 60 requests/hour.
+    the host. A GitHub token is optional. GitHub's releases API allows only 60
+    anonymous requests per hour; the extension resolves a token from, in order,
+    the `githubToken` global, `GITHUB_TOKEN`, `GH_TOKEN`, then the authenticated
+    `gh` CLI (`gh auth token`). So `gh auth login` is enough to lift the limit.
+    Check what a run would use with the `authStatus` method:
+
+        swamp model @svendowideit/github-release-install method run authStatus gh \
+          --input repo=Gaurav-Gosain/tuios
 
   RUN
 
@@ -81,16 +87,18 @@ description: >
                        named groups version/os/arch        tool_<v>_<Os>_<arch>[.ext])
       checksumsName    checksums asset name               (default checksums.txt)
       format           auto | tar.gz | zip | raw          (default auto)
-      githubToken      raises the API rate limit          (default: GITHUB_TOKEN / GH_TOKEN)
+      githubToken      raises the API rate limit          (default: GITHUB_TOKEN,
+                                                           GH_TOKEN, then `gh auth token`)
       userAgent        User-Agent header                  (default swamp-github-release/1.0)
       os / arch        override the detected platform     (default: host probe)
 
-    Per-run overrides: `check` takes `version`, `os`, `arch`, `stem`,
-    `assetName`, `pattern`, `fetchChecksums` and `requireChecksum`; `download`
-    takes `version`, `outputPath`/`outputDir`, `checksum`/`downloadUrl`/
-    `assetName` (to consume a prior `check`), `checksumsUrl`, `force` and
-    `requireChecksum`; `render` takes `includeBody`, `includeAssets` and
-    `maxBodyChars`. Precedence is per-call `--input` > model global > schema
+    Per-run overrides: `authStatus` takes `checkRemaining`; `check` takes
+    `version`, `os`, `arch`, `stem`, `assetName`, `pattern`, `fetchChecksums`
+    and `requireChecksum`; `download` takes `version`, `outputPath`/`outputDir`,
+    `checksum`/`downloadUrl`/`assetName` (to consume a prior `check`),
+    `checksumsUrl`, `force` and `requireChecksum`; `render` takes `includeBody`,
+    `includeAssets` and `maxBodyChars`. Precedence is per-call `--input` >
+    model global > schema
     default. `format` both records the archive format and filters selection
     (use it when a release offers the same platform as more than one format). A
     checksum is mandatory on both paths: `check` fails when the checksums file
@@ -102,8 +110,8 @@ description: >
     Nothing on the host — no services, daemons, cron triggers, or webhooks. It
     writes the verified archive to the `outputPath`/`outputDir` you pass to
     `download` (nothing is written when both are empty), and writes swamp
-    resources (`release`, `archive`, `summary`, `document`). Installing or
-    extracting the downloaded archive is the caller's job —
+    resources (`release`, `archive`, `summary`, `document`, `authStatus`).
+    Installing or extracting the downloaded archive is the caller's job —
     `@svendowideit/tuios` uses it to keep the `tuios` binary current.
 
 repository: https://github.com/svendowideit/swamp-extensions

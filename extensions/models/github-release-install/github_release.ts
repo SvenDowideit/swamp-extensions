@@ -791,15 +791,116 @@ export function githubHeaders(
   return headers;
 }
 
+/** A command runner returning decoded stdout/stderr and the exit code. */
+export type CommandRunner = (
+  bin: string,
+  args: string[],
+) => Promise<{ stdout: string; stderr: string; code: number }>;
+
+/** Run a command, capturing stdout/stderr; a missing binary is code 127. */
+export async function runCmd(
+  bin: string,
+  args: string[],
+): Promise<{ stdout: string; stderr: string; code: number }> {
+  try {
+    const proc = new Deno.Command(bin, {
+      args,
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const out = await proc.output();
+    return {
+      stdout: new TextDecoder().decode(out.stdout),
+      stderr: new TextDecoder().decode(out.stderr),
+      code: out.code,
+    };
+  } catch (err) {
+    return {
+      stdout: "",
+      stderr: err instanceof Error ? err.message : String(err),
+      code: 127,
+    };
+  }
+}
+
+/** Where a resolved token came from — reported to the user, never the value. */
+export type TokenSource =
+  | "githubToken"
+  | "GITHUB_TOKEN"
+  | "GH_TOKEN"
+  | "gh-cli"
+  | "anonymous";
+
+/** A resolved credential: the token (or none) and its source. */
+export interface ResolvedToken {
+  /** The bearer token, or `undefined` for anonymous access. */
+  token?: string;
+  /** Which source supplied the token. */
+  source: TokenSource;
+}
+
 /**
- * Resolve the GitHub token for a run: the explicit global wins, else the
- * `GITHUB_TOKEN` or `GH_TOKEN` environment variable, else none.
+ * Resolve a GitHub token from the local `gh` CLI (`gh auth token`). Returns
+ * `undefined` when `gh` is absent or not authenticated. Memoized per process so
+ * repeated method calls do not respawn `gh`; pass `fresh` to bypass the cache.
+ *
+ * Reads the local keyring only — no network request, so it costs nothing
+ * against the API rate limit.
  */
-export function resolveToken(explicit?: string): string | undefined {
-  const value = (explicit ?? "").trim() ||
-    (Deno.env.get("GITHUB_TOKEN") ?? "").trim() ||
-    (Deno.env.get("GH_TOKEN") ?? "").trim();
-  return value || undefined;
+let ghTokenCache: string | undefined;
+let ghTokenLoaded = false;
+export async function ghAuthToken(
+  runner: CommandRunner = runCmd,
+  fresh = false,
+): Promise<string | undefined> {
+  if (!fresh && ghTokenLoaded) return ghTokenCache;
+  const result = await runner("gh", ["auth", "token"]);
+  const token = result.code === 0 ? result.stdout.trim() : "";
+  ghTokenCache = token || undefined;
+  ghTokenLoaded = true;
+  return ghTokenCache;
+}
+
+/** Clear the memoized `gh auth token` result (used by tests). */
+export function resetGhTokenCache(): void {
+  ghTokenCache = undefined;
+  ghTokenLoaded = false;
+}
+
+/**
+ * Resolve the GitHub token for a run, in precedence order:
+ *
+ *   1. the explicit `githubToken` global (or `--input`);
+ *   2. the `GITHUB_TOKEN` environment variable;
+ *   3. the `GH_TOKEN` environment variable;
+ *   4. the local `gh` CLI (`gh auth token`), when installed and logged in.
+ *
+ * Returning the source lets the caller tell the user where the token came from
+ * (or that the request will be anonymous) without ever printing the value.
+ * `env` and `runner` are injectable for testing.
+ */
+export async function resolveToken(
+  explicit?: string,
+  opts: { env?: (key: string) => string | undefined; runner?: CommandRunner } =
+    {},
+): Promise<ResolvedToken> {
+  const env = opts.env ?? ((k: string) => Deno.env.get(k));
+  const explicitValue = (explicit ?? "").trim();
+  if (explicitValue) return { token: explicitValue, source: "githubToken" };
+  const githubToken = (env("GITHUB_TOKEN") ?? "").trim();
+  if (githubToken) return { token: githubToken, source: "GITHUB_TOKEN" };
+  const ghToken = (env("GH_TOKEN") ?? "").trim();
+  if (ghToken) return { token: ghToken, source: "GH_TOKEN" };
+  const fromCli = await ghAuthToken(opts.runner);
+  if (fromCli) return { token: fromCli, source: "gh-cli" };
+  return { source: "anonymous" };
+}
+
+/** The exact shell commands that authenticate future runs. */
+export function authSetupHint(): string {
+  return "Authenticate the GitHub CLI with `gh auth login` — its token is " +
+    "then used automatically — or set one explicitly with " +
+    "`export GITHUB_TOKEN=$(gh auth token)`.";
 }
 
 /**
@@ -819,9 +920,13 @@ export async function fetchRelease(
   });
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    const hint = response.status === 403 && /rate limit/i.test(body)
-      ? " — GitHub's unauthenticated API limit is 60 requests/hour; set the " +
-        "`githubToken` global (or the GITHUB_TOKEN env var) to raise it"
+    const rateLimited = response.status === 429 ||
+      (response.status === 403 && /rate limit|secondary rate/i.test(body));
+    const unauthenticated = !opts.token;
+    const hint = rateLimited && unauthenticated
+      ? ` — GitHub's unauthenticated API limit is 60 requests/hour. ${authSetupHint()}`
+      : response.status === 401
+      ? ` — the token was rejected. ${authSetupHint()}`
       : "";
     throw new Error(
       `GitHub releases request failed: ${response.status} ${response.statusText} (${opts.apiUrl})` +

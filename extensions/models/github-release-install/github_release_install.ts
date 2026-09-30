@@ -33,6 +33,7 @@ import {
   apiUrlForVersion,
   ARCHIVE_TYPES,
   type ArchiveType,
+  authSetupHint,
   CHECKSUMS_NAME,
   checksumsUrlFor,
   compileAssetPattern,
@@ -42,9 +43,11 @@ import {
   expandHome,
   fetchChecksums,
   fetchRelease,
+  githubHeaders,
   normalizeVersion,
   type Platform,
   renderReleaseMarkdown,
+  resetGhTokenCache,
   resolveApiUrl,
   resolveOsArch,
   resolveToken,
@@ -254,6 +257,27 @@ const RenderResultSchema = z.object({
   lines: z.array(z.string()),
 });
 
+const AuthStatusArgsSchema = z.object({
+  checkRemaining: z.boolean().default(false).describe(
+    "Make one authenticated request to the releases API and report the " +
+      "remaining rate limit from its headers. Costs one API request (none when " +
+      "a rate-limit response is returned).",
+  ),
+});
+
+type AuthStatusArgs = z.infer<typeof AuthStatusArgsSchema>;
+
+const AuthStatusResultSchema = z.object({
+  authenticated: z.boolean(),
+  source: z.string(),
+  apiUrl: z.string(),
+  rateLimit: z.number().nullable(),
+  rateRemaining: z.number().nullable(),
+  rateReset: z.string().nullable(),
+  guidance: z.string(),
+  lines: z.array(z.string()),
+});
+
 // ---------------------------------------------------------------------------
 // Method context
 // ---------------------------------------------------------------------------
@@ -421,8 +445,93 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 20,
     },
+    authStatus: {
+      description:
+        "The resolved GitHub authentication status and rate-limit guidance",
+      schema: AuthStatusResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
   },
   methods: {
+    authStatus: {
+      description:
+        "Report how GitHub API requests will authenticate (explicit token, " +
+        "GITHUB_TOKEN, GH_TOKEN, the `gh` CLI, or anonymous) and, when " +
+        "unauthenticated, print the exact commands to fix it. Optionally makes " +
+        "one request to report the remaining rate limit. Never prints the token.",
+      arguments: AuthStatusArgsSchema,
+      execute: async (
+        args: AuthStatusArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        // Re-check the CLI fresh so this method reflects the current login.
+        resetGhTokenCache();
+        const { token, source } = await resolveToken(g.githubToken);
+        const authenticated = Boolean(token);
+        const apiUrl = resolveApiUrl(g.repo, g.apiUrl);
+
+        let rateLimit: number | null = null;
+        let rateRemaining: number | null = null;
+        let rateReset: string | null = null;
+        if (args.checkRemaining) {
+          const response = await fetch(apiUrl, {
+            headers: githubHeaders(
+              g.userAgent,
+              "application/vnd.github+json",
+              token,
+            ),
+          });
+          await response.body?.cancel();
+          const limit = response.headers.get("x-ratelimit-limit");
+          const remaining = response.headers.get("x-ratelimit-remaining");
+          const reset = response.headers.get("x-ratelimit-reset");
+          rateLimit = limit ? Number(limit) : null;
+          rateRemaining = remaining ? Number(remaining) : null;
+          rateReset = reset
+            ? new Date(Number(reset) * 1000).toISOString()
+            : null;
+        }
+
+        const lines: string[] = [];
+        lines.push(
+          authenticated
+            ? `GitHub authentication: token from ${source}`
+            : "GitHub authentication: none — requests are anonymous (60/hour)",
+        );
+        lines.push(`Releases API:         ${apiUrl}`);
+        if (rateRemaining !== null) {
+          lines.push(
+            `Rate limit:           ${rateRemaining}/${
+              rateLimit ?? "?"
+            } remaining` +
+              (rateReset ? ` (resets ${rateReset})` : ""),
+          );
+        }
+        if (!authenticated) {
+          lines.push("");
+          lines.push(authSetupHint());
+        }
+        for (const line of lines) context.logger.info(line);
+
+        const handle = await context.writeResource(
+          "authStatus",
+          "authStatus",
+          {
+            authenticated,
+            source,
+            apiUrl,
+            rateLimit,
+            rateRemaining,
+            rateReset,
+            guidance: authSetupHint(),
+            lines,
+          },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
     check: {
       description:
         "Fetch a GitHub release (latest, or a pinned version), select the " +
@@ -440,9 +549,12 @@ export const model = {
         const apiUrl = args.version.trim()
           ? apiUrlForVersion(resolveApiUrl(g.repo, g.apiUrl), args.version)
           : resolveApiUrl(g.repo, g.apiUrl);
-        const token = resolveToken(g.githubToken);
+        const { token, source } = await resolveToken(g.githubToken);
+        context.logger.debug?.("GET {url} (auth: {source})", {
+          url: apiUrl,
+          source,
+        });
 
-        context.logger.debug?.("GET {url}", { url: apiUrl });
         const release = await fetchRelease({
           apiUrl,
           userAgent: g.userAgent,
@@ -553,7 +665,7 @@ export const model = {
         const pattern = args.pattern ?? g.assetPattern;
         compileAssetPattern(pattern);
         const format = (args.format ?? g.format) as ArchiveType;
-        const token = resolveToken(g.githubToken);
+        const { token } = await resolveToken(g.githubToken);
 
         const wanted = normalizeVersion(args.version);
         const suppliedVersion = normalizeVersion(args.releaseVersion);

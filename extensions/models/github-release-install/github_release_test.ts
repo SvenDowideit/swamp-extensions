@@ -6,13 +6,16 @@
  * @module
  */
 import { assertEquals, assertFalse, assertThrows } from "jsr:@std/assert@1";
+import { withMockedCommand } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 import {
   apiUrlForVersion,
+  authSetupHint,
   compareVersions,
   compileAssetPattern,
   DEFAULT_ASSET_PATTERN,
   detectArchiveType,
   expandHome,
+  ghAuthToken,
   mapAssets,
   mapUnameArch,
   mapUnameOs,
@@ -23,7 +26,9 @@ import {
   parseReleasePayload,
   releasesApiUrl,
   renderReleaseMarkdown,
+  resetGhTokenCache,
   resolveApiUrl,
+  resolveToken,
   sameArch,
   sameOs,
   selectAsset,
@@ -421,6 +426,88 @@ Deno.test("verifyChecksum chooses the algorithm from the digest length", async (
   const sha512 = await verifyChecksum(bytes, "0".repeat(128));
   assertEquals(sha512.algorithm, "sha512");
   assertEquals(sha512.verified, false);
+});
+
+Deno.test("resolveToken prefers explicit, then env vars, then the gh CLI", async () => {
+  resetGhTokenCache();
+  const env = (vars: Record<string, string>) => (k: string) => vars[k];
+  const ghOk = () =>
+    Promise.resolve({ stdout: "cli-token\n", stderr: "", code: 0 });
+
+  // Explicit global wins over everything.
+  assertEquals(
+    await resolveToken("explicit", {
+      env: env({
+        GITHUB_TOKEN: "e1",
+        GH_TOKEN: "e2",
+      }),
+      runner: ghOk,
+    }),
+    { token: "explicit", source: "githubToken" },
+  );
+  // GITHUB_TOKEN beats GH_TOKEN.
+  assertEquals(
+    await resolveToken("", {
+      env: env({
+        GITHUB_TOKEN: "e1",
+        GH_TOKEN: "e2",
+      }),
+      runner: ghOk,
+    }),
+    { token: "e1", source: "GITHUB_TOKEN" },
+  );
+  // GH_TOKEN beats the CLI.
+  assertEquals(
+    await resolveToken("", { env: env({ GH_TOKEN: "e2" }), runner: ghOk }),
+    { token: "e2", source: "GH_TOKEN" },
+  );
+  // No env: falls through to the authenticated gh CLI.
+  resetGhTokenCache();
+  assertEquals(
+    await resolveToken("", { env: env({}), runner: ghOk }),
+    { token: "cli-token", source: "gh-cli" },
+  );
+  // No env and gh unauthenticated: anonymous.
+  resetGhTokenCache();
+  assertEquals(
+    await resolveToken("", {
+      env: env({}),
+      runner: () => Promise.resolve({ stdout: "", stderr: "no auth", code: 1 }),
+    }),
+    { source: "anonymous" },
+  );
+});
+
+Deno.test("ghAuthToken caches the CLI result and tolerates a missing gh", async () => {
+  resetGhTokenCache();
+  const { calls } = await withMockedCommand(() => ({
+    stdout: "tok\n",
+    code: 0,
+  }), async () => {
+    assertEquals(await ghAuthToken(), "tok");
+    // Cached: a second call must not spawn gh again.
+    assertEquals(await ghAuthToken(), "tok");
+  });
+  assertEquals(calls.filter((c) => c.command === "gh").length, 1);
+
+  // A missing/failing gh is also cached (no repeated spawns), returning
+  // undefined so resolveToken falls back to anonymous.
+  resetGhTokenCache();
+  const missing = await withMockedCommand(
+    () => ({ stdout: "", stderr: "not found", code: 127 }),
+    async () => {
+      assertEquals(await ghAuthToken(), undefined);
+      assertEquals(await ghAuthToken(), undefined);
+    },
+  );
+  assertEquals(missing.calls.filter((c) => c.command === "gh").length, 1);
+  resetGhTokenCache();
+});
+
+Deno.test("authSetupHint names the gh commands", () => {
+  const hint = authSetupHint();
+  assertEquals(hint.includes("gh auth login"), true);
+  assertEquals(hint.includes("GITHUB_TOKEN=$(gh auth token)"), true);
 });
 
 Deno.test("DEFAULT_ASSET_PATTERN has the required named groups", () => {

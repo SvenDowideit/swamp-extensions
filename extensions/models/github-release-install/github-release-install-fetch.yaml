@@ -81,7 +81,9 @@ inputs:
     githubToken:
       type: string
       default: ""
-      description: GitHub token to raise the API rate limit. Empty falls back to GITHUB_TOKEN / GH_TOKEN.
+      description: >-
+        GitHub token to raise the API rate limit. Empty falls back to
+        GITHUB_TOKEN / GH_TOKEN, then the authenticated `gh` CLI.
     download:
       type: boolean
       default: true

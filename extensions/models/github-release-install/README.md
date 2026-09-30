@@ -55,8 +55,41 @@ URLs (nothing is written there); `download` writes one verified file when
 swamp extension pull @svendowideit/github-release-install
 ```
 
-No dependencies. Set `GITHUB_TOKEN` (or the `githubToken` global) on machines
-that call this often — the releases API allows 60 anonymous requests per hour.
+No dependencies.
+
+## Authentication and rate limits
+
+GitHub's releases API allows only **60 anonymous requests per hour per IP**;
+authenticated requests get 5,000. The extension resolves a token in this order:
+
+1. the `githubToken` global (or `--input githubToken=…`);
+2. the `GITHUB_TOKEN` environment variable;
+3. the `GH_TOKEN` environment variable;
+4. the local **`gh` CLI** — `gh auth token` (reads the keyring, no network).
+
+So if you have run `gh auth login`, the extension uses that token automatically
+and you never hit the anonymous limit. If none is available it makes anonymous
+requests, and on a rate-limit failure the error tells you exactly how to fix it:
+
+```sh
+# One-off: authenticate the gh CLI; its token is then used automatically.
+gh auth login
+
+# Or export a token for the current shell / a scheduled job, sourced from gh.
+export GITHUB_TOKEN=$(gh auth token)
+```
+
+Check what a run would use — without ever printing the token — with the
+`authStatus` method:
+
+```sh
+swamp model @svendowideit/github-release-install method run authStatus gh \
+  --input repo=Gaurav-Gosain/tuios
+
+# Also spend one request to report the remaining rate limit.
+swamp model @svendowideit/github-release-install method run authStatus gh \
+  --input repo=Gaurav-Gosain/tuios --input checkRemaining=true
+```
 
 ## Configuration
 
@@ -81,7 +114,7 @@ Alternatively `swamp model create … --global-arg …` once and reuse the insta
 | `assetPattern` | string | `^(?<stem>…)_(?<version>…)_(?<os>…)_(?<arch>…)(?:\.(?<ext>…))?$` | Regex an archive asset name must match; must define named groups `version`, `os`, `arch` (and optionally `stem`, `ext`). |
 | `checksumsName` | string | `checksums.txt` | Name of the release asset listing the digests. A version-prefixed name (e.g. `caddy_2.11.4_checksums.txt`) is also found when this does not match exactly. |
 | `format` | `auto` \| `tar.gz` \| `zip` \| `raw` | `auto` | Archive format. `auto` derives it from the file name; a concrete value also **filters asset selection** — use it when a release offers the same platform as more than one format. |
-| `githubToken` | string | `""` | Token to raise the API rate limit. Empty falls back to `GITHUB_TOKEN` / `GH_TOKEN`. |
+| `githubToken` | string | `""` | Token to raise the API rate limit. Empty falls back to `GITHUB_TOKEN`, `GH_TOKEN`, then the authenticated `gh` CLI (`gh auth token`). |
 | `userAgent` | string | `swamp-github-release/1.0` | `User-Agent` sent to the GitHub API and asset downloads. |
 | `os` | string | `""` | Override the detected OS token (`Linux`, `linux`, `Darwin`, `macos`, …). Family-equivalent tokens all match. Empty probes the host. |
 | `arch` | string | `""` | Override the detected architecture token (`x86_64`, `amd64`, `arm64`, `aarch64`, …). Family-equivalent tokens all match. Empty probes the host. |
@@ -90,6 +123,7 @@ Alternatively `swamp model create … --global-arg …` once and reuse the insta
 
 | Method | Arguments |
 | ------ | --------- |
+| `authStatus` | `checkRemaining` (default `false`) |
 | `check` | `version`, `os`, `arch`, `stem`, `assetName`, `pattern`, `fetchChecksums` (default `true`), `requireChecksum` (default `true`) |
 | `download` | `version`, `outputPath`, `outputDir`, `assetName`, `downloadUrl`, `releaseVersion`, `checksum`, `checksumsUrl`, `os`, `arch`, `stem`, `pattern`, `format`, `requireChecksum` (default `true`), `force` (default `false`) |
 | `render` | `includeBody` (default `true`), `includeAssets` (default `true`), `maxBodyChars` (default `0` = full) |
@@ -132,6 +166,11 @@ swamp model @svendowideit/github-release-install method run check rel2
 
 # Read back the resolved release and its expected checksum.
 swamp data get rel release --json
+
+# Hitting the anonymous rate limit? See which credential a run would use and
+# how to set one up (never prints the token).
+swamp model @svendowideit/github-release-install method run authStatus gh \
+  --input repo=Gaurav-Gosain/tuios
 
 # Download and verify the archive to a path in one workflow run — the common
 # path for a caller that will extract or install the verified file next.
@@ -180,6 +219,7 @@ swamp data get rel document --json
 
 | Model | Method | Produces |
 | ----- | ------ | -------- |
+| `@svendowideit/github-release-install` | `authStatus` | `authStatus` — whether requests are authenticated, the token source (never the value), the resolved API URL, and (optionally) the remaining rate limit. |
 | `@svendowideit/github-release-install` | `check` | `release` — tag/version, every asset, the platform's chosen archive and all `candidates`, its download URL, format, expected `checksum`/`checksumAlgorithm` and the raw GitHub `payload`. |
 | `@svendowideit/github-release-install` | `download` | `archive` — the verified download: version, archive name, URL, expected checksum, computed digest (`sha256`), `checksumAlgorithm`, whether it verified, format, size and the file path. |
 | `@svendowideit/github-release-install` | `render` | `document` — the Markdown release document (`markdown` plus version/tag/body-size/asset-count metadata). |

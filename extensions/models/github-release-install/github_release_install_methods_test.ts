@@ -21,6 +21,7 @@ import {
   withMockedFetch,
 } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 import { model } from "./github_release_install.ts";
+import { resetGhTokenCache } from "./github_release.ts";
 
 const GLOBALS = {
   repo: "Gaurav-Gosain/tuios",
@@ -213,9 +214,109 @@ Deno.test("check surfaces a rate-limit error with an actionable hint", async () 
     }, async () => {
       const err = await assertRejects(() => runCheck(ctx, {}), Error);
       assertStringIncludes(err.message, "rate limit");
-      assertStringIncludes(err.message, "githubToken");
+      // The hint must tell the user how to authenticate with gh.
+      assertStringIncludes(err.message, "gh auth login");
+      assertStringIncludes(err.message, "GITHUB_TOKEN=$(gh auth token)");
     });
   });
+});
+
+Deno.test("check authenticates with the gh CLI token when env is unset", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: GLOBALS,
+    methodName: "check",
+  });
+  const savedGh = Deno.env.get("GH_TOKEN");
+  const savedGithub = Deno.env.get("GITHUB_TOKEN");
+  Deno.env.delete("GH_TOKEN");
+  Deno.env.delete("GITHUB_TOKEN");
+  resetGhTokenCache();
+  let sawAuth = "";
+  try {
+    await withMockedCommand((cmd, args) => {
+      if (cmd === "gh" && args[0] === "auth") {
+        return { stdout: "gh-token-123\n", code: 0 };
+      }
+      return unameHandler()(cmd, args);
+    }, async () => {
+      await withMockedFetch((req) => {
+        if (req.url.endsWith("checksums.txt")) {
+          return new Response(`${SUM}  ${ARCHIVE}\n`);
+        }
+        sawAuth = req.headers.get("authorization") ?? "";
+        return Response.json(releasePayload());
+      }, async () => {
+        await runCheck(ctx, {});
+      });
+    });
+  } finally {
+    resetGhTokenCache();
+    if (savedGh === undefined) Deno.env.delete("GH_TOKEN");
+    else Deno.env.set("GH_TOKEN", savedGh);
+    if (savedGithub === undefined) Deno.env.delete("GITHUB_TOKEN");
+    else Deno.env.set("GITHUB_TOKEN", savedGithub);
+  }
+  assertEquals(sawAuth, "Bearer gh-token-123");
+});
+
+Deno.test("authStatus reports the token source without exposing the value", async () => {
+  const token = "super-secret-token-value";
+  const ctx = createModelTestContext({
+    globalArgs: { ...GLOBALS, githubToken: token },
+    methodName: "authStatus",
+  });
+  await withMockedCommand(unameHandler(), async () => {
+    await (model.methods.authStatus.execute as unknown as (
+      a: Record<string, unknown>,
+      c: unknown,
+    ) => Promise<unknown>)({ checkRemaining: false }, ctx.context);
+  });
+  const status = ctx.getWrittenResources().find((r) =>
+    r.specName === "authStatus"
+  );
+  assertEquals(status?.data.authenticated, true);
+  assertEquals(status?.data.source, "githubToken");
+  // The token value must never appear in the resource.
+  assertEquals(JSON.stringify(status?.data).includes(token), false);
+  assertStringIncludes(
+    String((status?.data.lines as string[])[0]),
+    "githubToken",
+  );
+});
+
+Deno.test("authStatus prints setup guidance when unauthenticated", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: { ...GLOBALS, githubToken: "" },
+    methodName: "authStatus",
+  });
+  const savedGh = Deno.env.get("GH_TOKEN");
+  const savedGithub = Deno.env.get("GITHUB_TOKEN");
+  Deno.env.delete("GH_TOKEN");
+  Deno.env.delete("GITHUB_TOKEN");
+  resetGhTokenCache();
+  try {
+    await withMockedCommand((cmd, args) => {
+      if (cmd === "gh") return { stdout: "", stderr: "no auth", code: 1 };
+      return unameHandler()(cmd, args);
+    }, async () => {
+      await (model.methods.authStatus.execute as unknown as (
+        a: Record<string, unknown>,
+        c: unknown,
+      ) => Promise<unknown>)({ checkRemaining: false }, ctx.context);
+    });
+  } finally {
+    resetGhTokenCache();
+    if (savedGh === undefined) Deno.env.delete("GH_TOKEN");
+    else Deno.env.set("GH_TOKEN", savedGh);
+    if (savedGithub === undefined) Deno.env.delete("GITHUB_TOKEN");
+    else Deno.env.set("GITHUB_TOKEN", savedGithub);
+  }
+  const status = ctx.getWrittenResources().find((r) =>
+    r.specName === "authStatus"
+  );
+  assertEquals(status?.data.authenticated, false);
+  assertEquals(status?.data.source, "anonymous");
+  assertStringIncludes(String(status?.data.guidance), "gh auth login");
 });
 
 Deno.test("check resolves a pinned version via the tag URL", async () => {

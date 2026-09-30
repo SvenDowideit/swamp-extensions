@@ -1,0 +1,106 @@
+id: 6f1d9b2c-3a44-4c8e-9f61-7b2c1d0e5a10
+name: "@svendowideit/test-factory"
+description: |
+  Test a swamp extension inside containers across Linux distributions and swamp
+  deployment topologies, then fail when any scenario does not behave as expected.
+
+  Each scenario installs swamp in a fresh container, registers the extension,
+  checks it loads, creates its model definitions and validates its workflows, and
+  (optionally) runs fixtures. Serve and fleet scenarios stand up a `swamp serve`
+  orchestrator with enrolled workers and dispatch a probe step to confirm remote
+  execution works.
+
+  Test one distro:
+    swamp workflow run @svendowideit/test-factory \
+      --input manifest=extensions/models/systemd-service/manifest.yaml \
+      --input scenario=ubuntu-systemd-standalone
+
+  Test a filtered matrix of topologies:
+    swamp workflow run @svendowideit/test-factory \
+      --input manifest=extensions/models/github-release-install/manifest.yaml \
+      --input distro=ubuntu,rocky --input topology=fleet --input workers=2
+tags: {}
+inputs:
+  properties:
+    manifest:
+      type: string
+      default: ""
+      description: Path to the candidate extension manifest.yaml, relative to the repo root.
+    scenario:
+      type: string
+      default: ""
+      description: Named scenario(s) to run, comma separated. Empty uses the filters below.
+    distro:
+      type: string
+      default: ""
+      description: Distro name(s) to include, comma separated (e.g. ubuntu,fedora,rocky).
+    topology:
+      type: string
+      default: standalone
+      description: Topology(ies) to include - standalone, serve, fleet.
+    systemd:
+      type: boolean
+      default: false
+      description: Require a systemd host for every scenario.
+    workers:
+      type: integer
+      default: 2
+      description: Worker count for fleet scenarios.
+    phases:
+      type: string
+      default: ""
+      description: Phase override - smoke, load, definitions, fixtures.
+    fixturesFile:
+      type: string
+      default: ""
+      description: Path to a fixtures file for the fixtures phase.
+  required:
+    - manifest
+jobs:
+  - name: test
+    description: Run each scenario in containers and write a result per scenario.
+    steps:
+      - name: run
+        description: Fan out across the selected scenarios.
+        task:
+          type: model_method
+          modelType: "@svendowideit/test-factory"
+          modelName: test-factory
+          methodName: test
+          inputs:
+            manifest: ${{ inputs.manifest }}
+            scenario: ${{ inputs.scenario }}
+            distro: ${{ inputs.distro }}
+            topology: ${{ inputs.topology }}
+            systemd: ${{ inputs.systemd }}
+            workers: ${{ inputs.workers }}
+            phases: ${{ inputs.phases }}
+            fixturesFile: ${{ inputs.fixturesFile }}
+          globalArgs:
+            workers: ${{ inputs.workers }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: gate
+        description: Fail when any scenario did not behave as expected.
+        task:
+          type: assert
+          expr: >-
+            data.latest("test-factory", "rollup").attributes.failCount == 0
+            && data.latest("test-factory", "rollup").attributes.errorCount == 0
+          message: >-
+            ${{ data.latest("test-factory", "rollup").attributes.failCount }}
+            scenario(s) failed and
+            ${{ data.latest("test-factory", "rollup").attributes.errorCount }}
+            errored. Run `swamp report get @svendowideit/test-factory-report
+            --model test-factory --markdown` for the breakdown.
+          severity: high
+        dependsOn:
+          - step: run
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

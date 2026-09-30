@@ -1,0 +1,132 @@
+manifestVersion: 1
+name: "@svendowideit/test-factory"
+version: "2026.09.30.1"
+description: >
+  Run a swamp extension inside containers on different Linux distributions and
+  swamp deployment topologies, and report exactly where it breaks. Prefer it
+  over testing by hand: the scenarios are repeatable, each layer of failure
+  (install, load, definitions, method runs) is reported separately, and the same
+  command covers Alpine, Debian, Ubuntu, Fedora, Rocky, systemd and non-systemd
+  hosts, a standalone node, a `swamp serve` orchestrator, and a fleet of
+  enrolled workers.
+
+  WHAT IT DOES
+
+    An extension can document perfectly and still fail to install, register,
+    define or run on a given host. This extension closes that gap: it boots the
+    candidate in a fresh container of a chosen distro, installs swamp, registers
+    the extension, and checks each layer in turn — swamp installs and
+    `swamp doctor extensions` passes, every declared model type registers,
+    `swamp model create` works and each declared workflow validates, and any
+    caller-supplied fixtures execute. The `serve` topology starts a real
+    orchestrator and `fleet` adds enrolled worker containers that run a
+    dispatched probe step. Alpine (musl-only) is expected to fail, proving the
+    harness diagnoses rather than hangs. It learns what to test from the
+    manifest itself, and downloads swamp in-container at the version under test,
+    so images cache across runs.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/test-factory
+
+  DEPENDENCIES
+
+    A local container runtime — Docker by default (set `dockerBinary` for
+    podman) — able to build images and run privileged containers for the systemd
+    scenarios. The only network access is the swamp release download; no
+    swamp-club account is required, because `serve`/`fleet` run `swamp serve` on
+    loopback with `--auth-mode none`.
+
+  RUN
+
+      # Test one extension on one distro before you call it done — the fast,
+      # dependency-free smoke + load + definitions path.
+      swamp model @svendowideit/test-factory method run test tf \
+        --input manifest=extensions/models/systemd-service/manifest.yaml \
+        --input scenario=ubuntu-systemd-standalone
+
+      # Fan out across the default matrix — every runnable standalone distro —
+      # when you want to know which distros a change broke.
+      swamp model @svendowideit/test-factory method run test tf \
+        --input manifest=extensions/models/caddy/manifest.yaml \
+        --input distro=ubuntu,fedora,rocky
+
+      # Exercise remote execution: a serve orchestrator plus two workers that
+      # run the dispatched probe step.
+      swamp model @svendowideit/test-factory method run test tf \
+        --input manifest=extensions/models/github-release-install/manifest.yaml \
+        --input topology=fleet --input workers=2
+
+      # Run a workflow that gates on the result — fails the run when any
+      # scenario does not behave as expected (use it in CI).
+      swamp workflow run @svendowideit/test-factory \
+        --input manifest=extensions/test-factory/manifest.yaml \
+        --input scenario=debian-standalone
+
+      # Read the per-scenario breakdown from the last run.
+      swamp report get @svendowideit/test-factory-report \
+        --model tf --markdown
+
+  CONFIGURE
+
+    Global arguments (set at creation with `--global-arg`, or per call):
+
+      dockerBinary     container CLI to drive              (default docker)
+      swampVersion     swamp release tag under test        (default latest)
+      releaseBaseUrl   release download base URL           (default GitHub)
+      defaultPhases    phases when a run does not override (default
+                       smoke,load,definitions)
+      workers          worker count for `fleet` scenarios  (default 2)
+      keepOnFailure    leave containers up on failure      (default false)
+      probe            run the serve/fleet dispatch probe  (default true)
+
+    Per-run overrides: `manifest` (required), `scenario`, `distro`, `topology`,
+    `systemd`, `workers`, `phases`, `fixturesFile`, `scenarioFile`, `expected`
+    on `test`; `root` and `gitOnly` additionally on `testAll`; `prefix` on
+    `cleanup`; `distro` on `listScenarios`.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, cron triggers, or webhooks. It
+    builds local container images named `swamp-test-factory/<distro>` and runs
+    short-lived containers and networks prefixed `tf-`, all removed at the end of
+    a scenario unless `keepOnFailure` is set. It writes swamp resources (`result`
+    per scenario, `summary` per fan-out) and never modifies the extension it
+    tests.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - test_factory.ts
+
+reports:
+  - test_factory_report.ts
+
+workflows:
+  - test-factory.yaml
+  - test-factory-sweep.yaml
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - scenarios.ts
+  - docker.ts
+  - harness.ts
+  - topology.ts
+  - introspect.ts
+  - scenarios_test.ts
+  - harness_test.ts
+  - topology_test.ts
+  - introspect_test.ts
+  - docker_test.ts
+  - test_factory_report_test.ts
+  - test_factory_test.ts
+
+platforms: []

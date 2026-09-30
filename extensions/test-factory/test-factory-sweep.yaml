@@ -1,0 +1,68 @@
+id: 8c2f4d6e-1b93-42a7-8e05-9d3a6f0c4b21
+name: "@svendowideit/test-factory-sweep"
+description: |
+  Test every git-tracked swamp extension this repo publishes across a chosen
+  distro matrix, and print a rollup of where each one breaks.
+
+  This is the "run it occasionally and see what rotted" job: one `testAll`
+  call discovers the manifests and runs the same container scenarios against
+  each extension, without gating, so a single red cell does not end the sweep.
+
+  Sweep the default standalone matrix across every extension:
+    swamp workflow run @svendowideit/test-factory-sweep
+
+  Sweep one distro with systemd:
+    swamp workflow run @svendowideit/test-factory-sweep \
+      --input root=extensions/models --input distro=rocky --input systemd=true
+tags: {}
+inputs:
+  properties:
+    root:
+      type: string
+      default: extensions
+      description: Directory under the repo root to scan for extension manifests.
+    distro:
+      type: string
+      default: ""
+      description: Distro name(s) to test on, comma separated (empty = the default standalone matrix).
+    scenario:
+      type: string
+      default: ""
+      description: Named scenario(s) to run instead of the distro filter.
+    systemd:
+      type: boolean
+      default: false
+      description: Require a systemd host for every scenario.
+    phases:
+      type: string
+      default: smoke,load,definitions
+      description: Phases to run for each extension.
+    gitOnly:
+      type: boolean
+      default: true
+      description: Test only git-tracked manifests, excluding pulled/generated copies.
+  required: []
+jobs:
+  - name: sweep
+    description: Test each discovered extension; never gate, just report.
+    steps:
+      - name: run
+        description: Discover and test every manifest under the root in one call.
+        task:
+          type: model_method
+          modelType: "@svendowideit/test-factory"
+          modelName: test-factory
+          methodName: testAll
+          inputs:
+            root: ${{ inputs.root }}
+            distro: ${{ inputs.distro }}
+            scenario: ${{ inputs.scenario }}
+            systemd: ${{ inputs.systemd }}
+            phases: ${{ inputs.phases }}
+            gitOnly: ${{ inputs.gitOnly }}
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

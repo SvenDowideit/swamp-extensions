@@ -72,9 +72,33 @@ type Model struct {
 	dataSel      int
 
 	// rootKind/rootName identify the object the Detail and Data panes describe
-	// (the selected workflow or model).
-	rootKind RootKind
-	rootName string
+	// (the selected workflow or model). rootInputs holds the root's declared
+	// workflow inputs schema, used to build the run form.
+	rootKind   RootKind
+	rootName   string
+	rootInputs map[string]any
+
+	// Run console: an overlay that streams a workflow run's events.
+	runOpen   bool
+	runTitle  string
+	runStatus string
+	runID     string
+	runLines  []string
+	runScroll int
+	runErr    error
+	runHandle *swamp.RunHandle
+	runBusy   bool
+
+	// lastRunID/lastFailedStep describe the most recent run of the current
+	// workflow root, enabling resume-at-step.
+	lastRunID      string
+	lastFailedStep string
+
+	// Run input form (shown before starting a run that declares inputs).
+	inputOpen    bool
+	inputFields  []runField
+	inputSel     int
+	inputEditing bool
 
 	loading      bool
 	status       string
@@ -210,12 +234,15 @@ type modelsLoadedMsg struct {
 }
 
 type detailLoadedMsg struct {
-	title string
-	lines []string
-	items []node
-	err   error
-	root  RootKind
-	name  string
+	title          string
+	lines          []string
+	items          []node
+	err            error
+	root           RootKind
+	name           string
+	inputs         map[string]any
+	lastRunID      string
+	lastFailedStep string
 }
 
 type workflowsLoadedMsg struct {
@@ -308,8 +335,40 @@ func (m *Model) selectWorkflow() tea.Cmd {
 		}
 		lines := renderWorkflowDetail(wf)
 
+		var inputs map[string]any
+		if in, ok := wf["inputs"].(map[string]any); ok {
+			inputs = in
+		}
+		var lastRunID, lastFailedStep string
+
+		if runs, err := client.SearchWorkflowRuns(ctx, name, 8); err == nil && len(runs) > 0 {
+			lastRunID = runs[0].RunID
+			lastFailedStep = runs[0].FailedStep
+			lines = append(lines, "", stylePaneTitle.Render(fmt.Sprintf("Recent runs (%d)", len(runs))))
+			for _, r := range runs {
+				dot := styleGreen.Render("●")
+				if r.Status != "succeeded" {
+					dot = styleError.Render("●")
+				}
+				when := r.StartedAt
+				if len(when) >= 16 {
+					when = when[5:16] // MM-DDTHH:MM
+				}
+				line := fmt.Sprintf("  %s %-9s %s  %d/%d steps  %dms",
+					dot, r.Status, when, r.StepsCompleted, r.StepsTotal, r.DurationMS)
+				lines = append(lines, line)
+				if r.FailedStep != "" {
+					lines = append(lines, "      "+styleError.Render("failed at "+r.FailedStep))
+				}
+			}
+		}
+
 		items := workflowDataItems(ctx, client, name)
-		return detailLoadedMsg{title: name, root: RootWorkflow, name: name, lines: lines, items: items}
+		return detailLoadedMsg{
+			title: name, root: RootWorkflow, name: name,
+			lines: lines, items: items, inputs: inputs,
+			lastRunID: lastRunID, lastFailedStep: lastFailedStep,
+		}
 	}
 }
 

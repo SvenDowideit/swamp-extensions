@@ -61,6 +61,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rootKind = msg.root
 			m.rootName = msg.name
 		}
+		m.rootInputs = msg.inputs
+		m.lastRunID = msg.lastRunID
+		m.lastFailedStep = msg.lastFailedStep
 		if msg.items != nil {
 			m.dataItems = msg.items
 			m.dataSel = 0
@@ -85,6 +88,37 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case runStartedMsg:
+		m.runHandle = msg.handle
+		m.runBusy = true
+		m.runStatus = "running"
+		return m, waitForRunEvent(msg.handle)
+
+	case runEventMsg:
+		m.appendRunEvent(msg.ev)
+		if m.runHandle != nil {
+			return m, waitForRunEvent(m.runHandle)
+		}
+		return m, nil
+
+	case runDoneMsg:
+		m.runBusy = false
+		m.runHandle = nil
+		if msg.err != nil {
+			m.runErr = msg.err
+			m.runStatus = "error"
+			m.addRunLine(styleError.Render("run error: " + msg.err.Error()))
+		}
+		return m, nil
+
+	case runFailedMsg:
+		m.runBusy = false
+		m.runErr = msg.err
+		m.runStatus = "error"
+		m.runOpen = true
+		m.addRunLine(styleError.Render("failed: " + msg.err.Error()))
+		return m, nil
+
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	}
@@ -93,6 +127,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
+
+	// Modal overlays consume all keys while open, innermost first.
+	if m.inputOpen {
+		return m.handleInputKey(msg)
+	}
+	if m.runOpen {
+		return m.handleRunKey(msg)
+	}
 
 	// Spotter overlay consumes all keys while open.
 	if m.spotterOpen {
@@ -153,6 +195,20 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, m.loadSpotter()
 		}
 
+	case "R":
+		// Run the current root (workflows only).
+		if m.rootKind == RootWorkflow && m.rootName != "" {
+			return m.startRunForm()
+		}
+		m.status = "select a workflow to run (R)"
+
+	case "u":
+		// Resume the last failed run of the current workflow at its failed step.
+		if m.rootKind == RootWorkflow && m.lastFailedStep != "" {
+			return m, m.startResume(m.lastFailedStep)
+		}
+		m.status = "no failed step to resume"
+
 	case "tab", "l", "right":
 		m.focus = m.cyclePane(1)
 
@@ -203,6 +259,87 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.focus = PaneDetail
 				return m, m.loadDataContent(m.rootKind, m.rootName, item.label, m.width)
 			}
+		}
+	}
+	return m, nil
+}
+
+// handleRunKey processes keys while the run console is open.
+func (m *Model) handleRunKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.runOpen = false
+		return m, nil
+	case "q", "ctrl+c":
+		// Quit the whole browser. The run is serve-owned, so it continues.
+		m.stopServe()
+		return m, tea.Quit
+	case "c":
+		if m.runBusy {
+			return m, m.cancelRun()
+		}
+	case "up", "k":
+		m.runScroll -= 1
+		if m.runScroll < 0 {
+			m.runScroll = 0
+		}
+	case "down", "j":
+		m.runScroll += 1
+	case "pgup":
+		m.runScroll = clamp(m.runScroll-10, 0, len(m.runLines))
+	case "pgdown":
+		m.runScroll = clamp(m.runScroll+10, 0, len(m.runLines))
+	case "g":
+		m.runScroll = 0
+	case "G":
+		m.runScroll = 1 << 30
+	}
+	return m, nil
+}
+
+// handleInputKey processes keys while the run input form is open.
+func (m *Model) handleInputKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.inputOpen = false
+		m.inputEditing = false
+		return m, nil
+	case "up", "k":
+		if !m.inputEditing {
+			m.inputSel = clamp(m.inputSel-1, 0, len(m.inputFields)-1)
+		}
+	case "down", "j", "tab":
+		if !m.inputEditing {
+			m.inputSel = clamp(m.inputSel+1, 0, len(m.inputFields)-1)
+		}
+	case "enter":
+		if m.inputEditing {
+			m.inputEditing = false
+			return m, nil
+		}
+		// Submit: close the form and start the run with coerced inputs.
+		m.inputOpen = false
+		inputs := m.coerceRunInputs()
+		return m, m.startRun(inputs)
+	case "backspace":
+		if m.inputEditing && len(m.inputFields) > 0 {
+			f := &m.inputFields[clamp(m.inputSel, 0, len(m.inputFields)-1)]
+			if f.value != "" {
+				f.value = f.value[:len(f.value)-1]
+			}
+		}
+	case " ":
+		if m.inputEditing {
+			m.inputFields[m.inputSel].value += " "
+		} else {
+			m.inputEditing = true
+		}
+	default:
+		if len(msg.Text) > 0 {
+			if !m.inputEditing {
+				m.inputEditing = true
+			}
+			m.inputFields[clamp(m.inputSel, 0, len(m.inputFields)-1)].value += msg.Text
 		}
 	}
 	return m, nil

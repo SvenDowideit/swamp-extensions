@@ -109,3 +109,137 @@ func TestLiveWorkflowBrowser(t *testing.T) {
 		t.Fatalf("data content failed to load for %s/%s", chosen, item.label)
 	}
 }
+
+// TestLiveRunStreaming starts a real workflow run over the protocol and drains
+// its events through the UI's Update loop, asserting the console reaches a
+// terminal state with rendered step output.
+//
+//	swamp serve --port 9090 --no-schedule &
+//	SP_SERVER=ws://127.0.0.1:9090 go test -tags integration -run TestLiveRunStreaming ./internal/ui/
+func TestLiveRunStreaming(t *testing.T) {
+	server := os.Getenv("SP_SERVER")
+	if server == "" {
+		server = "ws://127.0.0.1:9090"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	client, err := swamp.Dial(ctx, server, "")
+	if err != nil {
+		t.Skipf("no server at %s: %v", server, err)
+	}
+	defer client.Close()
+
+	m := New(client, "live", nil)
+	m.width, m.height = 140, 40
+	// Pick a fast, side-effect-light workflow if present.
+	m.rootKind = RootWorkflow
+	m.rootName = "@svendowideit/opencode-theme"
+
+	cmd := m.startRun(nil)
+	if cmd == nil {
+		t.Skip("startRun produced no command")
+	}
+
+	// Drive the real event loop: each message may schedule the next.
+	deadline := time.Now().Add(80 * time.Second)
+	msg := cmd()
+	var steps int
+	for msg != nil {
+		if time.Now().After(deadline) {
+			t.Fatalf("run did not finish; status=%q lines=%d", m.runStatus, len(m.runLines))
+		}
+		_, next := m.Update(msg)
+		steps++
+		if next == nil {
+			break
+		}
+		msg = next()
+		if m.runStatus == "succeeded" || m.runStatus == "failed" || m.runStatus == "error" {
+			// Drain a few more frames so the terminal event is applied.
+			for i := 0; i < 3 && msg != nil; i++ {
+				_, n := m.Update(msg)
+				if n == nil {
+					msg = nil
+					break
+				}
+				msg = n()
+			}
+			break
+		}
+	}
+
+	if m.runStatus != "succeeded" {
+		t.Fatalf("run status=%q (err=%v) lines=\n%s", m.runStatus, m.runErr,
+			strip(strings.Join(m.runLines, "\n")))
+	}
+	out := strip(m.render())
+	if !strings.Contains(out, "Run —") || !strings.Contains(out, "succeeded") {
+		t.Fatalf("console did not render a successful run:\n%s", out)
+	}
+	t.Logf("drained %d messages, %d console lines", steps, len(m.runLines))
+}
+
+// TestLiveResumeRendersFailedStep confirms a workflow with a failed run shows
+// its recent runs and exposes the failed step for resume.
+//
+//	swamp serve --port 9090 --no-schedule &
+//	SP_SERVER=ws://127.0.0.1:9090 go test -tags integration -run TestLiveResumeRendersFailedStep ./internal/ui/
+func TestLiveResumeRendersFailedStep(t *testing.T) {
+	server := os.Getenv("SP_SERVER")
+	if server == "" {
+		server = "ws://127.0.0.1:9090"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	client, err := swamp.Dial(ctx, server, "")
+	if err != nil {
+		t.Skipf("no server at %s: %v", server, err)
+	}
+	defer client.Close()
+
+	m := New(client, "live", nil)
+	m.width, m.height = 140, 40
+	wmsg := m.loadWorkflows()().(workflowsLoadedMsg)
+	if wmsg.err != nil {
+		t.Fatalf("loadWorkflows: %v", wmsg.err)
+	}
+	m.workflows = wmsg.workflows
+
+	// Find a workflow whose latest run failed and recorded a failed step.
+	var chosen string
+	for _, w := range m.workflows {
+		runs, err := client.SearchWorkflowRuns(ctx, w.label, 1)
+		if err != nil || len(runs) == 0 {
+			continue
+		}
+		if runs[0].FailedStep != "" {
+			chosen = w.label
+			break
+		}
+	}
+	if chosen == "" {
+		t.Skip("no workflow with a failed step in recent history")
+	}
+
+	for i, w := range m.workflows {
+		if w.label == chosen {
+			m.wfSel = i
+		}
+	}
+	dmsg := m.selectWorkflow()().(detailLoadedMsg)
+	m.Update(dmsg)
+
+	if m.lastFailedStep == "" {
+		t.Fatalf("workflow %q has a failed run but lastFailedStep is empty", chosen)
+	}
+	if m.lastRunID == "" {
+		t.Fatalf("expected a lastRunID for %q", chosen)
+	}
+	out := strip(m.render())
+	if !strings.Contains(out, "Recent runs") {
+		t.Fatalf("detail missing recent runs:\n%s", out)
+	}
+	t.Logf("%s: last failed step %q", chosen, m.lastFailedStep)
+}

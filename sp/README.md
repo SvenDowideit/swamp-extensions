@@ -100,17 +100,53 @@ Four selection-linked panes, dropped responsively as the terminal narrows:
 | < 84   | Models · Detail                    |
 
 - **Workflows** — from `workflow.search`. `enter` loads the DAG (jobs, ordered
-  steps with dependency arrows, nested `workflow:` steps) and that workflow's
-  produced data.
+  steps with dependency arrows, nested `workflow:` steps), that workflow's
+  **recent runs** (`workflow.run.search`), and its produced data. `R` runs it.
 - **Models** — from `model.search`. `enter` loads methods and data-output specs
   plus the model's data.
-- **Detail** — the DAG or method list; scrollable.
+- **Detail** — the DAG (with recent runs) or method list; scrollable. `R` runs
+  the workflow; `u` resumes at the failed step when the last run failed.
 - **Data** — data produced by the selected workflow (`data.list` with
   `workflowName`) or model. `enter` fetches the item's content with a scoped
   `data.get`.
 
 The Detail and Data panes always describe one **root** (a workflow or a model);
 `esc` returns focus to the pane that owns it.
+
+## Running a workflow (live)
+
+`R` on a workflow starts `workflow.run` over the protocol and opens a **run
+console** — a full-screen live view of the run's event stream. No shelling out;
+events arrive on the same WebSocket and are rendered as they happen:
+
+```
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Run — @svendowideit/opencode-theme  04facbc0                        ● running │
+│ ▶ started @svendowideit/opencode-theme                                       │
+│ job main                                                                     │
+│   → install-theme                                                            │
+│     opencode.installTheme                                                    │
+│     Theme 'borland_modern_blue' already installed                            │
+│   ✓ install-theme                                                            │
+│   → set-theme                                                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+[run]  ↑↓ scroll  c cancel  esc close
+```
+
+The events handled are `validating_inputs`, `evaluating_workflow`, `started`,
+`job_started`, `step_started`, `model_resolved`, `method_executing`,
+`method_output` (stdout/stderr), `step_completed`/`step_failed`, `job_completed`,
+and `completed` (which carries the final `run` status). The run is **serve-owned**
+— the console is a subscriber, `c` sends the protocol `cancel`, and the run keeps
+going if the console is closed.
+
+If a workflow declares inputs, `R` first opens a small form generated from its
+`inputs` JSON schema (`path`, `excludePatterns`, …), coercing each field to its
+declared type (string/integer/boolean/array/object) before starting. Workflows
+with no declared inputs run immediately.
+
+If the most recent run failed, `u` sends `workflow.resume` with `from` set to the
+failed step (and the failed `runId`) to re-enter the run at that point.
 
 ## Spotter (global search)
 
@@ -125,17 +161,19 @@ its DAG.
 ## Tests
 
 ```sh
-go test ./...                                   # unit (render/layout/filter/DAG)
+go test ./...                                   # unit (render/layout/filter/DAG/run)
 go test -tags integration -run TestEnsureServe ./internal/swamp/  # lifecycle
 # drive the real TUI model against a live server:
 swamp serve --port 9090 --no-schedule &
-SP_SERVER=ws://127.0.0.1:9090 go test -tags integration -run TestLiveWorkflowBrowser ./internal/ui/
+SP_SERVER=ws://127.0.0.1:9090 go test -tags integration ./internal/ui/
 ```
 
 The lifecycle test proves the hard requirement: a spawned server is reachable
 after `EnsureServe`, is gone after `Stop`, and a pre-existing server is adopted
-rather than owned. The live test loads the real workflow list, picks one that has
-produced data, renders its DAG, and drills into a data item's content.
+rather than owned. The live tests load the real workflow list, render a DAG,
+drill into data content, **start a real run and drain its event stream through
+the UI's Update loop to a `succeeded` terminal state**, and verify a failed
+run's step is exposed for resume.
 
 ## Status / next
 
@@ -146,11 +184,11 @@ Prototype. Current surface:
   contents (JSON pretty-printed), selection-linked panes.
 - **Workflow pane + DAG** (done): workflows → job/step DAG with dependency
   arrows and nested-workflow steps → workflow data.
+- **Live run browser** (done): `R` streams a workflow run's events into a console
+  (with input form and cancel), recent runs in the detail, and `u` resume-at-step.
 
 Deliberately not yet built, in the order the research doc recommends:
 
-- Run browser with live event streaming (`workflow.run` / `run.attach`) and
-  resume-at-step.
 - Playground: evaluate a CEL predicate via `data.query` and send the result to a
   new view.
 - Contextual data views (type-specific rendering) — the moldable layer.

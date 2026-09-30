@@ -201,13 +201,37 @@ type Event struct {
 	Raw  map[string]any
 }
 
-// Stream starts a streaming request (workflow.run, model.method.run). It returns
-// a channel of events; the channel is closed on done/error, and the terminal
-// error is delivered on the returned error channel (which may deliver nil).
-func (c *Client) Stream(ctx context.Context, reqType string, payload any) (<-chan Event, <-chan error, error) {
+// Str returns a string field from an event payload.
+func (e Event) Str(key string) string {
+	s, _ := e.Raw[key].(string)
+	return s
+}
+
+// RunHandle is a live reference to a streaming request (a workflow or method
+// run). The server owns the run; closing the socket does not stop it, and
+// Cancel explicitly aborts it.
+type RunHandle struct {
+	client *Client
+	id     string
+	Events <-chan Event
+	Errc   <-chan error
+}
+
+// Cancel aborts the run keyed by this request id.
+func (h *RunHandle) Cancel(ctx context.Context) error {
+	body, err := json.Marshal(wireRequest{Type: "cancel", ID: h.id})
+	if err != nil {
+		return err
+	}
+	return h.client.conn.Write(ctx, websocket.MessageText, body)
+}
+
+// StartRun issues a streaming request and returns a handle. It supersedes
+// Stream for callers that need to cancel.
+func (c *Client) StartRun(ctx context.Context, reqType string, payload any) (*RunHandle, error) {
 	p, id, err := c.send(ctx, reqType, payload)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	events := make(chan Event, 256)
 	errc := make(chan error, 1)
@@ -252,7 +276,78 @@ func (c *Client) Stream(ctx context.Context, reqType string, payload any) (<-cha
 			}
 		}
 	}()
-	return events, errc, nil
+	return &RunHandle{client: c, id: id, Events: events, Errc: errc}, nil
+}
+
+// Stream is the older two-channel form of StartRun, kept for probes.
+func (c *Client) Stream(ctx context.Context, reqType string, payload any) (<-chan Event, <-chan error, error) {
+	h, err := c.StartRun(ctx, reqType, payload)
+	if err != nil {
+		return nil, nil, err
+	}
+	return h.Events, h.Errc, nil
+}
+
+// WorkflowRunEntry is one row of workflow.run.search.
+type WorkflowRunEntry struct {
+	RunID          string
+	WorkflowName   string
+	Status         string
+	StartedAt      string
+	DurationMS     int64
+	FailedStep     string
+	FailureReason  string
+	StepsCompleted int
+	StepsTotal     int
+}
+
+// SearchWorkflowRuns lists recent runs, optionally scoped to a workflow.
+func (c *Client) SearchWorkflowRuns(ctx context.Context, workflow string, limit int) ([]WorkflowRunEntry, error) {
+	p := map[string]any{}
+	if workflow != "" {
+		p["workflow"] = workflow
+	}
+	if limit > 0 {
+		p["limit"] = limit
+	}
+	res, err := c.dataRequest(ctx, ReqWorkflowRunSearch, p)
+	if err != nil {
+		return nil, err
+	}
+	rows := asAnyList(res["results"])
+	out := make([]WorkflowRunEntry, 0, len(rows))
+	for _, r := range rows {
+		m, ok := r.(map[string]any)
+		if !ok {
+			continue
+		}
+		prog, _ := m["stepProgress"].(map[string]any)
+		out = append(out, WorkflowRunEntry{
+			RunID:          jsonStr(m["runId"]),
+			WorkflowName:   jsonStr(m["workflowName"]),
+			Status:         jsonStr(m["status"]),
+			StartedAt:      jsonStr(m["startedAt"]),
+			DurationMS:     int64(num(m["duration"])),
+			FailedStep:     jsonStr(m["failedStep"]),
+			FailureReason:  jsonStr(m["failureReason"]),
+			StepsCompleted: int(num(prog["completed"])),
+			StepsTotal:     int(num(prog["total"])),
+		})
+	}
+	return out, nil
+}
+
+func asAnyList(v any) []any {
+	if l, ok := v.([]any); ok {
+		return l
+	}
+	return nil
+}
+
+// num coerces a JSON number to float64 (0 if absent).
+func num(v any) float64 {
+	f, _ := v.(float64)
+	return f
 }
 
 // Handshake fetches the server version, populating c.Version and c.GitSHA.
@@ -442,4 +537,16 @@ func FetchAuthInfo(ctx context.Context, baseURL string) (*AuthInfo, error) {
 		return nil, err
 	}
 	return &info, nil
+}
+
+// jsonStr renders a JSON scalar as a string ("" when absent).
+func jsonStr(v any) string {
+	switch t := v.(type) {
+	case nil:
+		return ""
+	case string:
+		return t
+	default:
+		return fmt.Sprintf("%v", t)
+	}
 }

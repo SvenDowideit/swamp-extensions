@@ -58,7 +58,12 @@ func (m *Model) render() string {
 	body := lipgloss.JoinHorizontal(lipgloss.Top, panes...)
 	all := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
 
-	if m.spotterOpen {
+	switch {
+	case m.inputOpen:
+		return m.renderInputForm()
+	case m.runOpen:
+		return m.renderRunConsole()
+	case m.spotterOpen:
 		return m.renderSpotter()
 	}
 	return all
@@ -112,7 +117,104 @@ func (m *Model) renderSpotter() string {
 	}, w)
 
 	// Centre over the background.
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
+	return lipgloss.Place(m.width, placeHeight(m.height), lipgloss.Center, lipgloss.Center, box)
+}
+
+// renderRunConsole draws the live run event console, full screen.
+func (m *Model) renderRunConsole() string {
+	// Reserve one row for the hint line and one for the terminal-scroll guard
+	// (content equal to the row count scrolls the terminal by one).
+	h := m.height - 2
+	if h < 4 {
+		h = 4
+	}
+	innerH := h - 3
+
+	status := m.runStatus
+	title := "Run — " + m.runTitle
+	if m.runID != "" {
+		title += "  " + styleMuted.Render(shortID(m.runID))
+	}
+
+	// Scroll window.
+	lines := m.runLines
+	maxScroll := len(lines) - innerH
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	top := clamp(m.runScroll, 0, maxScroll)
+	if m.runScroll >= 1<<29 {
+		top = maxScroll
+	}
+	end := top + innerH
+	if end > len(lines) {
+		end = len(lines)
+	}
+	visible := lines[top:end]
+
+	// Right-aligned status chip.
+	chip := styleMuted.Render(status)
+	if status == "running" {
+		chip = styleGreen.Render("● running")
+	} else if status == "succeeded" {
+		chip = styleGreen.Render("■ succeeded")
+	} else if status == "failed" || status == "error" {
+		chip = styleError.Render("■ " + status)
+	}
+	head := stylePaneTitle.Render(title)
+	gap := m.width - 4 - lipgloss.Width(head) - lipgloss.Width(chip)
+	if gap < 1 {
+		gap = 1
+	}
+	headerLine := head + strings.Repeat(" ", gap) + chip
+
+	body := strings.Join(visible, "\n")
+	box := stylePaneFocus.Width(m.width).Height(h).Render(
+		headerLine + "\n" + body)
+	box += "\n" + renderHints(m.runConsoleHints(), m.width)
+	return box
+}
+
+// renderInputForm draws the workflow run input form centred on screen.
+func (m *Model) renderInputForm() string {
+	w := clamp(m.width*60/100, 40, 90)
+	var b strings.Builder
+	b.WriteString(stylePaneTitle.Render("Run "+m.runTitle) + "\n\n")
+	for i, f := range m.inputFields {
+		label := padRight(f.key, 20)
+		val := f.value
+		if i == m.inputSel {
+			marker := "  "
+			if m.inputEditing {
+				marker = styleKey.Render("✎ ")
+				val = val + "▏"
+			} else {
+				marker = styleKey.Render("▸ ")
+			}
+			b.WriteString(marker + styleKey.Render(label) + " " + val + "\n")
+		} else {
+			b.WriteString("  " + styleMuted.Render(label) + " " + styleMuted.Render(val) + "\n")
+		}
+		if f.typ != "" {
+			b.WriteString("    " + styleMuted.Render(f.typ) + "\n")
+		}
+	}
+	box := stylePaneFocus.Width(w).Render(b.String())
+	box += "\n" + renderHints([]hint{
+		h("↑↓", "field"),
+		h("type", "edit"),
+		h("enter", "run"),
+		h("esc", "cancel"),
+	}, w)
+	return lipgloss.Place(m.width, placeHeight(m.height), lipgloss.Center, lipgloss.Center, box)
+}
+
+// shortID abbreviates a UUID for display.
+func shortID(id string) string {
+	if len(id) > 8 {
+		return id[:8]
+	}
+	return id
 }
 
 func padRight(s string, n int) string {
@@ -157,27 +259,43 @@ func (m *Model) keyHints() []hint {
 			h("esc", "clear"),
 		}
 	case m.focus == PaneWorkflows:
-		return []hint{
+		hs := []hint{
 			h("[workflows]", ""),
 			h("↑↓", "move"),
 			h("enter", "open DAG"),
+			h("R", "run"),
+		}
+		if m.lastFailedStep != "" {
+			hs = append(hs, h("u", "resume "+m.lastFailedStep))
+		}
+		hs = append(hs,
 			h("/", "filter"),
 			h("tab", "pane"),
 			h("s", "search"),
 			h("r", "reload"),
 			h("q", "quit"),
-		}
+		)
+		return hs
 	case m.focus == PaneDetail:
-		return []hint{
+		hs := []hint{
 			h("[detail]", ""),
 			h("↑↓", "scroll"),
 			h("pgup/pgdn", "page"),
+		}
+		if m.rootKind == RootWorkflow {
+			hs = append(hs, h("R", "run"))
+			if m.lastFailedStep != "" {
+				hs = append(hs, h("u", "resume "+m.lastFailedStep))
+			}
+		}
+		hs = append(hs,
 			h("tab", "pane"),
 			h("s", "search"),
 			h("esc", "root"),
 			h("r", "reload"),
 			h("q", "quit"),
-		}
+		)
+		return hs
 	case m.focus == PaneData:
 		return []hint{
 			h("[data]", ""),
@@ -377,4 +495,13 @@ func shortType(t string) string {
 		return t[i+1:]
 	}
 	return t
+}
+
+// placeHeight keeps composed overlays one row short of the terminal so the
+// bottom line is never scrolled off (see render()).
+func placeHeight(h int) int {
+	if h > 1 {
+		return h - 1
+	}
+	return h
 }

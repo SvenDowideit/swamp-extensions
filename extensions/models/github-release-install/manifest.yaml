@@ -1,0 +1,104 @@
+manifestVersion: 1
+name: "@svendowideit/github-release-install"
+version: "2026.09.30.1"
+description: >
+  Resolve any GitHub repository's latest (or pinned) release, pick the right
+  archive for this machine, verify it against the release's checksums, and
+  download a verified file — the reusable core of a binary auto-updater.
+
+  WHAT IT DOES
+
+    Turns "install the latest release of X" into two repeatable commands for
+    any repository that publishes release assets. It reads the GitHub releases
+    API, probes the local OS and architecture (`uname`), matches them against
+    each asset's parsed name (`tool_1.2.3_Linux_x86_64.tar.gz`), records the
+    archive's SHA-256 from the release's checksums file, and downloads the
+    archive only after the bytes match that hash. Prefer it over a `curl` of a
+    release URL: the download is verified before it is written, the platform
+    match is explicit, and one model serves every repository. The same
+    checksum-verified download pattern `@swamp/deno-runner` uses for Deno is
+    generalised here to any repo, any release, and tar.gz / zip / raw archives.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/github-release-install
+
+  DEPENDENCIES
+
+    None — it uses Deno's built-in `fetch` and the bundled Deno binary swamp
+    already ships. No other extension is required, and nothing is installed on
+    the host. A GitHub token is optional: set the `githubToken` global (or
+    export `GITHUB_TOKEN`) to raise the API rate limit above 60 requests/hour.
+
+  RUN
+
+      # Resolve a repository's latest release and this machine's archive.
+      swamp model @svendowideit/github-release-install method run check rel \
+        --global repo=Gaurav-Gosain/tuios
+
+      # Resolve and download a verified archive to a path in one workflow run.
+      swamp workflow run @svendowideit/github-release-install-fetch \
+        --input repo=Gaurav-Gosain/tuios \
+        --input outputPath=~/.cache/tuios/tuios.tar.gz
+
+      # Pin a version and ask what a different platform would download,
+      # without touching this machine.
+      swamp model @svendowideit/github-release-install method run check rel \
+        --global repo=Gaurav-Gosain/tuios \
+        --input version=0.8.0 --input os=Darwin --input arch=arm64
+
+  CONFIGURE
+
+    Global arguments (set at model creation with `--global repo=owner/name`):
+
+      repo             GitHub repository (owner/name)     (required; or set apiUrl)
+      apiUrl           explicit releases API URL          (default: derived from repo)
+      stem             required asset product name        (default: any)
+      assetPattern     regex the asset name must match;   (default: GoReleaser
+                       named groups version/os/arch        tool_<v>_<Os>_<arch>[.ext])
+      checksumsName    checksums asset name               (default checksums.txt)
+      format           auto | tar.gz | zip | raw          (default auto)
+      githubToken      raises the API rate limit          (default: GITHUB_TOKEN / GH_TOKEN)
+      userAgent        User-Agent header                  (default swamp-github-release/1.0)
+      os / arch        override the detected platform     (default: host probe)
+
+    Per-run overrides: `check` takes `version`, `os`, `arch`, `stem`,
+    `assetName`, `pattern`, `fetchChecksums` and `requireChecksum`; `download`
+    takes `version`, `outputPath`, `checksum`/`downloadUrl`/`assetName` (to
+    consume a prior `check`), `force` and `requireChecksum`. Precedence is
+    per-call `--input` > model global > schema default. A checksum is mandatory
+    on both paths: `check` fails when the selected archive is not in the
+    checksums file, and `download` refuses an archive whose bytes do not match.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, cron triggers, or webhooks. It
+    writes the verified archive to the `outputPath` you pass to `download`
+    (nothing is written when `outputPath` is empty), and writes swamp resources
+    (`release`, `archive`, `summary`). Installing or extracting the downloaded
+    archive is the caller's job — `@svendowideit/tuios` uses it to keep the
+    `tuios` binary current.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - github_release_install.ts
+  - github_release.ts
+
+workflows:
+  - github-release-install-fetch.yaml
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - github_release_test.ts
+  - github_release_install_methods_test.ts
+
+platforms: []

@@ -1,0 +1,173 @@
+id: 357211e6-d5c8-4d7e-9c7b-28542505c990
+name: '@svendowideit/github-release-install-fetch'
+description: |
+  Resolve a GitHub repository's latest (or pinned) release, select the archive
+  for this machine, verify it against the release's checksums, and download it
+  to a path — the reusable "fetch a GitHub release" seam.
+
+  Steps: resolve (check) → download → print.
+
+  resolve reads the release from the GitHub releases API, selects the archive
+  matching the local OS/architecture (or an explicit override), and records its
+  expected SHA-256 from the release's checksums file. download then downloads
+  the archive, verifies the bytes against that checksum, and writes the verified
+  file to `outputPath`; it refuses to return an archive whose hash does not
+  match. print logs the version, the platform archive, its SHA-256 and the
+  verified file path.
+
+  This workflow is called by other workflows (e.g. @svendowideit/tuios-install)
+  that then extract or install the verified file. Run it directly to see what a
+  machine would download, or to stage a verified archive:
+
+      swamp workflow run @svendowideit/github-release-install-fetch \
+        --input repo=Gaurav-Gosain/tuios \
+        --input outputPath=~/.cache/tuios/tuios_0.8.0_Linux_x86_64.tar.gz
+
+  Set download=false to resolve and checksum only, without fetching the archive.
+tags: {}
+inputs:
+  properties:
+    repo:
+      type: string
+      description: GitHub repository (owner/name) publishing the releases.
+    version:
+      type: string
+      default: ""
+      description: Release version to resolve (e.g. 0.8.0). Empty resolves the latest release.
+    outputPath:
+      type: string
+      default: ""
+      description: >-
+        Exact absolute or ~-prefixed file path for the verified archive. Wins
+        over outputDir. Empty (with outputDir empty) downloads into memory only.
+    outputDir:
+      type: string
+      default: ""
+      description: >-
+        Directory to write the verified archive into, keeping the release's
+        archive file name. Used when outputPath is empty.
+    os:
+      type: string
+      default: ""
+      description: Override the detected release OS token (e.g. Linux). Empty probes the host.
+    arch:
+      type: string
+      default: ""
+      description: Override the detected release architecture token (e.g. arm64). Empty probes the host.
+    stem:
+      type: string
+      default: ""
+      description: Required asset stem / product name (e.g. tuios). Empty matches any stem.
+    assetPattern:
+      type: string
+      default: ""
+      description: >-
+        Regex an archive asset name must match, with named groups version/os/arch.
+        Empty uses the model's default GoReleaser pattern.
+    format:
+      type: string
+      enum:
+        - auto
+        - tar.gz
+        - zip
+        - raw
+      default: auto
+      description: Archive format; auto derives it from the file name.
+    userAgent:
+      type: string
+      default: ""
+      description: User-Agent header for the GitHub API. Empty uses the model default.
+    githubToken:
+      type: string
+      default: ""
+      description: GitHub token to raise the API rate limit. Empty falls back to GITHUB_TOKEN / GH_TOKEN.
+    download:
+      type: boolean
+      default: true
+      description: Download and verify the archive. Set false to resolve and checksum only.
+    force:
+      type: boolean
+      default: false
+      description: Re-download even when outputPath already holds the expected bytes.
+  required:
+    - repo
+jobs:
+  - name: main
+    description: Resolve the release, download and verify the archive, then print the result.
+    steps:
+      - name: resolve
+        description: >-
+          Fetch the release and record the platform archive and its expected
+          SHA-256, from the GitHub releases API and the release's checksums file.
+        task:
+          type: model_method
+          modelType: "@svendowideit/github-release-install"
+          modelName: github-release
+          methodName: check
+          globalArgs:
+            repo: ${{ inputs.repo }}
+            userAgent: ${{ inputs.userAgent }}
+            githubToken: ${{ inputs.githubToken }}
+            stem: ${{ inputs.stem }}
+            format: ${{ inputs.format }}
+          inputs:
+            version: ${{ inputs.version }}
+            os: ${{ inputs.os }}
+            arch: ${{ inputs.arch }}
+            pattern: ${{ inputs.assetPattern }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: download
+        description: >-
+          Download the archive resolved by `resolve`, verify its SHA-256 against
+          the checksums file, and write the verified file to `outputPath`.
+          Refuses an archive whose hash does not match.
+        guard: ${{ inputs.download == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/github-release-install"
+          modelName: github-release
+          methodName: download
+          globalArgs:
+            repo: ${{ inputs.repo }}
+            userAgent: ${{ inputs.userAgent }}
+            githubToken: ${{ inputs.githubToken }}
+            stem: ${{ inputs.stem }}
+            format: ${{ inputs.format }}
+          inputs:
+            version: ${{ inputs.version }}
+            outputPath: ${{ inputs.outputPath }}
+            outputDir: ${{ inputs.outputDir }}
+            force: ${{ inputs.force }}
+            assetName: ${{ data.latest("github-release", "release").attributes.?platform.?archiveName.orValue("") }}
+            downloadUrl: ${{ data.latest("github-release", "release").attributes.?platform.?downloadUrl.orValue("") }}
+            releaseVersion: ${{ data.latest("github-release", "release").attributes.?version.orValue("") }}
+            checksum: ${{ data.latest("github-release", "release").attributes.?checksum.orValue("") }}
+        dependsOn:
+          - step: resolve
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: print
+        description: >-
+          Print the release, the platform archive, its SHA-256 and the verified
+          file path, so the run log ends with what was resolved and downloaded.
+        task:
+          type: model_method
+          modelType: "@svendowideit/github-release-install"
+          modelName: github-release
+          methodName: print
+        dependsOn:
+          - step: resolve
+            condition:
+              type: succeeded
+          - step: download
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

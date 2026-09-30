@@ -44,6 +44,7 @@ import {
   fetchRelease,
   normalizeVersion,
   type Platform,
+  renderReleaseMarkdown,
   resolveApiUrl,
   resolveOsArch,
   resolveToken,
@@ -222,6 +223,34 @@ const PrintResultSchema = z.object({
   lines: z.array(z.string()),
 });
 
+const RenderArgsSchema = z.object({
+  includeBody: z.boolean().default(true).describe(
+    "Include the release notes body in the rendered Markdown.",
+  ),
+  includeAssets: z.boolean().default(true).describe(
+    "Include the asset table in the rendered Markdown.",
+  ),
+  maxBodyChars: z.number().int().min(0).default(0).describe(
+    "Truncate the release notes to this many characters. 0 keeps the full body.",
+  ),
+});
+
+type RenderArgs = z.infer<typeof RenderArgsSchema>;
+
+const RenderResultSchema = z.object({
+  rendered: z.boolean(),
+  version: z.string().nullable(),
+  tag: z.string().nullable(),
+  name: z.string().nullable(),
+  publishedAt: z.string().nullable(),
+  htmlUrl: z.string().nullable(),
+  prerelease: z.boolean().nullable(),
+  bodyChars: z.number(),
+  assetCount: z.number(),
+  markdown: z.string(),
+  lines: z.array(z.string()),
+});
+
 // ---------------------------------------------------------------------------
 // Method context
 // ---------------------------------------------------------------------------
@@ -280,12 +309,15 @@ function selectPlatformAsset(
     format?: ArchiveType;
   },
 ): Platform {
+  const requestedFormat = opts.format ??
+    (platform.format as ArchiveType | undefined);
   const asset = selectAsset(release.assets, {
     assetName: opts.assetName,
     pattern: opts.pattern,
     os: platform.os,
     arch: platform.arch,
     stem: platform.stem,
+    format: requestedFormat,
   });
   if (!asset) return { ...platform, supported: false };
   const format = detectArchiveType(
@@ -373,6 +405,13 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 20,
     },
+    document: {
+      description:
+        "The rendered Markdown release document (notes and asset table)",
+      schema: RenderResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
   },
   methods: {
     check: {
@@ -411,18 +450,32 @@ export const model = {
           ? checksumsUrlFor(release.assets, g.checksumsName)
           : null;
         let checksum: string | null = null;
+        let checksumsAvailable = false;
         if (checksumsUrl && releasePlatform.archiveName) {
-          const sums = await fetchChecksums(checksumsUrl, g.userAgent, token);
-          checksum = sums[releasePlatform.archiveName] ?? null;
+          const result = await fetchChecksums(
+            checksumsUrl,
+            g.userAgent,
+            token,
+          );
+          checksumsAvailable = result.available;
+          checksum = result.sums[releasePlatform.archiveName] ?? null;
         }
         if (
           releasePlatform.archiveName && !checksum && args.fetchChecksums &&
           args.requireChecksum
         ) {
           throw new Error(
-            `No SHA-256 for ${releasePlatform.archiveName} in ` +
-              `${checksumsUrl ?? g.checksumsName} — refusing to record a ` +
-              `release that cannot be verified. Pass requireChecksum=false to override.`,
+            checksumsUrl && !checksumsAvailable
+              ? `Could not fetch the checksums file ${checksumsUrl} for ` +
+                `${releasePlatform.archiveName} — refusing to record a release ` +
+                `that cannot be verified. Check network access, or pass ` +
+                `requireChecksum=false to override.`
+              : `No SHA-256 for ${releasePlatform.archiveName} in ` +
+                `${
+                  checksumsUrl ?? g.checksumsName
+                } — the checksums file does ` +
+                `not list this archive, so it cannot be verified. Pass ` +
+                `requireChecksum=false to override.`,
           );
         }
         if (releasePlatform.archiveName && !checksum) {
@@ -486,6 +539,9 @@ export const model = {
         let tag: string | null = null;
         let platform: Platform | null = null;
         let expected: string;
+        // Whether the checksums file was reachable (as opposed to reachable but
+        // not listing this archive) — drives the failure message.
+        let checksumsAvailable = true;
 
         if (reuse) {
           version = suppliedVersion || wanted;
@@ -530,22 +586,35 @@ export const model = {
           }
           archiveName = platform.archiveName;
           downloadUrl = platform.downloadUrl!;
-          const checksumsUrl = checksumsUrlFor(release.assets, g.checksumsName);
+          const checksumsUrl = checksumsUrlFor(
+            release.assets,
+            g.checksumsName,
+            args.checksumsUrl,
+          );
           expected = "";
+          checksumsAvailable = Boolean(checksumsUrl);
           if (checksumsUrl) {
-            expected = (await fetchChecksums(checksumsUrl, g.userAgent, token))[
-              archiveName
-            ] ?? "";
+            const result = await fetchChecksums(
+              checksumsUrl,
+              g.userAgent,
+              token,
+            );
+            checksumsAvailable = result.available;
+            expected = result.sums[archiveName] ?? "";
           }
         }
 
         if (!expected) {
           if (args.requireChecksum) {
             throw new Error(
-              `No SHA-256 available for ${archiveName} — refusing to download ` +
-                `an unverified archive. Run \`check\` first, or pass the ` +
-                `archive's checksum via the checksum input, or set ` +
-                `requireChecksum=false to override.`,
+              !checksumsAvailable
+                ? `Could not fetch the checksums file for ${archiveName} — ` +
+                  `refusing to download an unverified archive. Check network ` +
+                  `access, or set requireChecksum=false to override.`
+                : `No SHA-256 available for ${archiveName} — refusing to ` +
+                  `download an unverified archive. Run \`check\` first, or ` +
+                  `pass the archive's checksum via the checksum input, or set ` +
+                  `requireChecksum=false to override.`,
             );
           }
           context.logger.warn?.(
@@ -602,6 +671,85 @@ export const model = {
           message,
         });
         context.logger.info(message);
+        return { dataHandles: [handle] };
+      },
+    },
+
+    render: {
+      description:
+        "Render the stored release — including the preserved raw GitHub payload " +
+        "— into a Markdown document: title, version, publication time, release " +
+        "notes and an asset table. Writes the `document` resource and logs the " +
+        "Markdown. Run `check` first.",
+      arguments: RenderArgsSchema,
+      execute: async (
+        args: RenderArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const release = await context.readResource("release") as {
+          tag?: string;
+          version?: string;
+          name?: string;
+          publishedAt?: string;
+          prerelease?: boolean;
+          htmlUrl?: string;
+          body?: string;
+          assets?: { name: string; url: string; size?: number }[];
+          payload?: Record<string, unknown>;
+        } | null;
+
+        if (!release) {
+          const lines = [
+            "No release snapshot found — run the check method first.",
+          ];
+          const handle = await context.writeResource("document", "document", {
+            rendered: false,
+            version: null,
+            tag: null,
+            name: null,
+            publishedAt: null,
+            htmlUrl: null,
+            prerelease: null,
+            bodyChars: 0,
+            assetCount: 0,
+            markdown: "",
+            lines,
+          });
+          context.logger.warn?.("render: no release snapshot found");
+          return { dataHandles: [handle] };
+        }
+
+        const markdown = renderReleaseMarkdown(release, {
+          includeBody: args.includeBody,
+          includeAssets: args.includeAssets,
+          maxBodyChars: args.maxBodyChars,
+        });
+        const body = release.body ??
+          (typeof release.payload?.body === "string"
+            ? String(release.payload.body)
+            : "");
+        context.logger.info(
+          "Rendered release {version} — {assets} assets, {chars} body chars",
+          {
+            version: release.version ?? release.tag ?? "unknown",
+            assets: release.assets?.length ?? 0,
+            chars: body.length,
+          },
+        );
+
+        const handle = await context.writeResource("document", "document", {
+          rendered: true,
+          version: release.version ?? null,
+          tag: release.tag ?? null,
+          name: release.name ?? null,
+          publishedAt: release.publishedAt ?? null,
+          htmlUrl: release.htmlUrl ?? null,
+          prerelease: release.prerelease ?? null,
+          bodyChars: body.length,
+          assetCount: release.assets?.length ?? 0,
+          markdown,
+          lines: markdown.split("\n"),
+        });
         return { dataHandles: [handle] };
       },
     },

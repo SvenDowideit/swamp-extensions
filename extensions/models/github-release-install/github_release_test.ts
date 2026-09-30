@@ -19,7 +19,9 @@ import {
   normalizeVersion,
   parseAssetName,
   parseChecksums,
+  parseReleasePayload,
   releasesApiUrl,
+  renderReleaseMarkdown,
   resolveApiUrl,
   selectAsset,
   sha256Hex,
@@ -178,6 +180,111 @@ Deno.test("apiUrlForVersion rewrites latest into the tag URL", () => {
     ),
     "https://api.github.com/repos/acme/tool/releases/tags/v0.8.0",
   );
+  // A custom (non-/latest) base gets the tag suffix appended, so a pinned
+  // version is honoured even when apiUrl was supplied explicitly.
+  assertEquals(
+    apiUrlForVersion(
+      "https://ghe.example.com/api/v3/repos/acme/tool/releases",
+      "1.2.3",
+    ),
+    "https://ghe.example.com/api/v3/repos/acme/tool/releases/tags/v1.2.3",
+  );
+});
+
+Deno.test("selectAsset honours an explicit format", () => {
+  const assets = mapAssets([
+    { name: "tool_1.0.0_Linux_x86_64.tar.gz", browser_download_url: "gz" },
+    { name: "tool_1.0.0_Linux_x86_64.zip", browser_download_url: "zip" },
+  ]);
+  assertEquals(
+    selectAsset(assets, {
+      os: "Linux",
+      arch: "x86_64",
+      stem: "tool",
+      format: "zip",
+    })?.name,
+    "tool_1.0.0_Linux_x86_64.zip",
+  );
+  assertEquals(
+    selectAsset(assets, {
+      os: "Linux",
+      arch: "x86_64",
+      stem: "tool",
+      format: "tar.gz",
+    })?.name,
+    "tool_1.0.0_Linux_x86_64.tar.gz",
+  );
+  // auto keeps the first match.
+  assertEquals(
+    selectAsset(assets, { os: "Linux", arch: "x86_64", stem: "tool" })?.name,
+    "tool_1.0.0_Linux_x86_64.tar.gz",
+  );
+});
+
+Deno.test("parseReleasePayload rejects a list response and preserves the payload", () => {
+  // The releases *list* endpoint returns an array — a common apiUrl mistake.
+  assertThrows(
+    () => parseReleasePayload([] as unknown as Record<string, unknown>),
+    Error,
+    "not a release object",
+  );
+  assertThrows(
+    () => parseReleasePayload({ name: "no tag" }),
+    Error,
+    "no tag_name",
+  );
+  const parsed = parseReleasePayload({
+    tag_name: "v0.8.0",
+    body: "notes",
+    assets: [],
+    extra_field: "kept",
+  });
+  assertEquals(parsed.payload.extra_field, "kept");
+});
+
+Deno.test("renderReleaseMarkdown renders notes and assets from the payload", () => {
+  const md = renderReleaseMarkdown({
+    tag: "v0.8.0",
+    version: "0.8.0",
+    name: "Release 0.8.0",
+    publishedAt: "2026-09-27T19:17:22Z",
+    prerelease: false,
+    htmlUrl: "https://github.com/acme/tool/releases/tag/v0.8.0",
+    body: "## What changed\n\nFixed things.",
+    assets: [
+      { name: "tool_0.8.0_Linux_x86_64.tar.gz", url: "u", size: 10 },
+    ],
+  });
+  assertEquals(md.includes("# Release 0.8.0"), true);
+  assertEquals(md.includes("Version: 0.8.0"), true);
+  assertEquals(md.includes("## Release notes"), true);
+  assertEquals(md.includes("Fixed things."), true);
+  assertEquals(md.includes("| tool_0.8.0_Linux_x86_64.tar.gz | 10 |"), true);
+});
+
+Deno.test("renderReleaseMarkdown falls back to the raw payload", () => {
+  // No summary fields at all — everything must come from the payload.
+  const md = renderReleaseMarkdown({
+    payload: {
+      tag_name: "v1.0.0",
+      name: "v1.0.0",
+      body: "from payload",
+      html_url: "https://github.com/acme/tool/releases/tag/v1.0.0",
+      assets: [],
+    },
+  });
+  assertEquals(md.includes("# v1.0.0"), true);
+  assertEquals(md.includes("from payload"), true);
+});
+
+Deno.test("renderReleaseMarkdown honours include flags and body truncation", () => {
+  const md = renderReleaseMarkdown({
+    version: "1.0.0",
+    body: "0123456789",
+    assets: [{ name: "a.tar.gz", url: "u" }],
+  }, { includeAssets: false, maxBodyChars: 4 });
+  assertEquals(md.includes("## Assets"), false);
+  assertEquals(md.includes("0123\n\n… (6 more characters)"), true);
 });
 
 Deno.test("mapUnameOs and mapUnameArch map host output", () => {

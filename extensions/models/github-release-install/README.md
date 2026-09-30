@@ -15,10 +15,13 @@ that does not match. This extension does all four for any repository:
 - **`check`** reads the GitHub releases API (latest, or a pinned version),
   probes `uname -s` / `uname -m`, matches the platform against each asset's
   parsed name, and records the selected archive plus its SHA-256 from the
-  release's `checksums.txt`.
+  release's `checksums.txt`. The full raw GitHub payload is preserved on the
+  resource.
 - **`download`** downloads the selected archive, verifies the bytes against that
   SHA-256, and writes the verified file to a path you choose. It refuses an
   archive with no checksum, or one whose hash does not match.
+- **`render`** turns the preserved payload into a Markdown release document —
+  title, version, publication time, release notes and an asset table.
 - **`print`** logs the resolved version, the platform archive, its SHA-256, the
   verified file path, and whether it is newer than a version you pass in.
 
@@ -53,7 +56,7 @@ that call this often — the releases API allows 60 anonymous requests per hour.
 | `stem` | string | `""` | Required product name the asset name must carry (`tuios`, `tuios-ghostty`). Empty matches any. |
 | `assetPattern` | string | `^(?<stem>…)_(?<version>…)_(?<os>…)_(?<arch>…)(?:\.(?<ext>…))?$` | Regex an archive asset name must match; must define named groups `version`, `os`, `arch` (and optionally `stem`, `ext`). |
 | `checksumsName` | string | `checksums.txt` | Name of the release asset listing every archive's SHA-256. |
-| `format` | `auto` \| `tar.gz` \| `zip` \| `raw` | `auto` | Archive format; `auto` derives it from the file name. |
+| `format` | `auto` \| `tar.gz` \| `zip` \| `raw` | `auto` | Archive format. `auto` derives it from the file name; a concrete value also **filters asset selection** — use it when a release offers the same platform as more than one format. |
 | `githubToken` | string | `""` | Token to raise the API rate limit. Empty falls back to `GITHUB_TOKEN` / `GH_TOKEN`. |
 | `userAgent` | string | `swamp-github-release/1.0` | `User-Agent` sent to the GitHub API and asset downloads. |
 | `os` | string | `""` | Override the detected release OS token (`Linux`, `Darwin`, …). Empty probes the host. |
@@ -64,7 +67,8 @@ that call this often — the releases API allows 60 anonymous requests per hour.
 | Method | Arguments |
 | ------ | --------- |
 | `check` | `version`, `os`, `arch`, `stem`, `assetName`, `pattern`, `fetchChecksums` (default `true`), `requireChecksum` (default `true`) |
-| `download` | `version`, `outputPath`, `assetName`, `downloadUrl`, `releaseVersion`, `checksum`, `checksumsUrl`, `os`, `arch`, `stem`, `pattern`, `format`, `requireChecksum` (default `true`), `force` (default `false`) |
+| `download` | `version`, `outputPath`, `outputDir`, `assetName`, `downloadUrl`, `releaseVersion`, `checksum`, `checksumsUrl`, `os`, `arch`, `stem`, `pattern`, `format`, `requireChecksum` (default `true`), `force` (default `false`) |
+| `render` | `includeBody` (default `true`), `includeAssets` (default `true`), `maxBodyChars` (default `0` = full) |
 | `print` | `installedVersion` |
 
 Per-call `--input` wins over the model global. `download`'s `assetName` /
@@ -92,8 +96,10 @@ re-fetch the release (see the bundled workflow).
 ```sh
 # Resolve a repository's latest release and record this machine's archive.
 # Use this to see what would be downloaded before downloading anything.
+# Globals are set at creation time with --global-arg (there is no --global on
+# method run); per-call values use --input.
 swamp model create @svendowideit/github-release-install rel \
-  --global repo=Gaurav-Gosain/tuios --global stem=tuios
+  --global-arg repo=Gaurav-Gosain/tuios --global-arg stem=tuios
 swamp model @svendowideit/github-release-install method run check rel
 
 # Read back the resolved release and its expected SHA-256.
@@ -110,18 +116,25 @@ swamp workflow run @svendowideit/github-release-install-fetch \
 swamp model @svendowideit/github-release-install method run check rel \
   --input version=0.8.0 --input os=Darwin --input arch=arm64
 
-# Resolve a repo that does not use the GoReleaser naming, with a custom
-# pattern whose named groups are version/os/arch.
-swamp model create @svendowideit/github-release-install other \
-  --global repo=acme/tool \
-  --global 'assetPattern=^(?<stem>.+)-(?<version>\d+\.\d+\.\d+)-(?<os>linux|darwin)-(?<arch>amd64|arm64)(?<ext>)?$'
-swamp model @svendowideit/github-release-install method run check other
+# Use a custom asset-name pattern (named groups version/os/arch are required).
+# Here an explicit pattern pins the release to Linux/arm64 tar.gz assets; any
+# repo whose names differ from the GoReleaser default can be described this way.
+swamp model create @svendowideit/github-release-install arm \
+  --global-arg repo=Gaurav-Gosain/tuios \
+  --global-arg os=Linux --global-arg arch=arm64 \
+  --global-arg 'assetPattern=^(?<stem>tuios)_(?<version>\d+\.\d+\.\d+)_(?<os>Linux)_(?<arch>arm64)\.(?<ext>tar\.gz)$'
+swamp model @svendowideit/github-release-install method run check arm
 
 # Download into memory only (no file) and print the summary.
 swamp model @svendowideit/github-release-install method run download rel \
   --input outputPath=
 swamp model @svendowideit/github-release-install method run print rel \
   --input installedVersion=0.7.0
+
+# Render the release (notes + asset table) into a Markdown document resource,
+# then read it back — useful for review summaries and changelog drafting.
+swamp model @svendowideit/github-release-install method run render rel
+swamp data get rel document --json
 ```
 
 ## Details
@@ -130,31 +143,35 @@ swamp model @svendowideit/github-release-install method run print rel \
 
 | Model | Method | Produces |
 | ----- | ------ | -------- |
-| `@svendowideit/github-release-install` | `check` | `release` — tag/version, every asset, the platform's archive, its download URL, format and expected SHA-256. |
+| `@svendowideit/github-release-install` | `check` | `release` — tag/version, every asset, the platform's archive, its download URL, format, expected SHA-256 and the raw GitHub `payload`. |
 | `@svendowideit/github-release-install` | `download` | `archive` — the verified download: version, archive name, URL, expected checksum, computed sha256, whether it verified, format, size and the file path. |
+| `@svendowideit/github-release-install` | `render` | `document` — the Markdown release document (`markdown` plus version/tag/body-size/asset-count metadata). |
 | `@svendowideit/github-release-install` | `print` | `summary` — the logged release/archive and update availability. |
 
 ### Workflow — `@svendowideit/github-release-install-fetch`
 
-Steps: `resolve → download → print`.
+Steps: `resolve → download → render → print`.
 
 - `resolve` (`check`) is the only writer of `release`; `download` is the only
-  writer of `archive`; `print` is the only writer of `summary`. One writer per
-  resource per run keeps `data.latest(...)` unambiguous.
+  writer of `archive`; `render` of `document`; `print` of `summary`. One writer
+  per resource per run keeps `data.latest(...)` unambiguous.
 - `download` consumes `resolve`'s `release` via CEL (`archiveName`,
   `downloadUrl`, `version`, `checksum`), so the release is fetched once.
-- `download=false` skips the download step and leaves only the resolved release.
+- `render` turns the preserved payload into Markdown; skip it with
+  `render=false`. `download=false` skips the download step and leaves only the
+  resolved release.
 
 ### Structure and extending
 
-- `github_release.ts` — the pure helpers and the two network calls
-  (`fetchRelease`, `fetchChecksums`, `downloadAndVerify`): asset-name
-  parsing/building, archive-format detection, asset selection, checksum and
-  version parsing, URL derivation, platform mapping and SHA-256. Everything both
-  the model and its tests need lives here.
-- `github_release_install.ts` — the model. `check` resolves, `download` fetches
-  and verifies (reusing a file already at `outputPath` when it matches, unless
-  `force`), `print` summarises.
+- `github_release.ts` — the pure helpers and the network calls (`fetchRelease`,
+  `fetchChecksums`, `downloadAndVerify`) plus `renderReleaseMarkdown`:
+  asset-name parsing/building, archive-format detection, asset selection,
+  checksum and version parsing, URL derivation, platform mapping and SHA-256.
+  Everything both the model and its tests need lives here.
+- `github_release_install.ts` — the model. `check` resolves and preserves the
+  payload, `download` fetches and verifies (reusing a file already at
+  `outputPath` when it matches, unless `force`), `render` produces the Markdown
+  document, `print` summarises.
 - `github-release-install-fetch.yaml` — the bundled workflow (created with
   `swamp workflow create`; do not hand-edit its `id`).
 - `github_release_test.ts` / `github_release_install_methods_test.ts` — pure and

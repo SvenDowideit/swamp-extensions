@@ -234,6 +234,149 @@ Deno.test("check resolves a pinned version via the tag URL", async () => {
   assertEquals(sawTagUrl, true);
 });
 
+Deno.test("check distinguishes a checksum-fetch outage from a missing entry", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: GLOBALS,
+    methodName: "check",
+  });
+  await withMockedCommand(unameHandler(), async () => {
+    await withMockedFetch((req) => {
+      if (req.url.endsWith("checksums.txt")) {
+        // The checksums file itself is unreachable.
+        return new Response("nope", { status: 500 });
+      }
+      return Response.json(releasePayload());
+    }, async () => {
+      const err = await assertRejects(() => runCheck(ctx, {}), Error);
+      assertStringIncludes(err.message, "Could not fetch the checksums file");
+      assertStringIncludes(err.message, "requireChecksum=false");
+    });
+  });
+});
+
+Deno.test("render writes a Markdown document from the stored release", async () => {
+  // Seed the release resource check would have written (payload included).
+  const release = {
+    ...releasePayload(),
+    version: "0.8.0",
+    tag: "v0.8.0",
+    fetchedAt: "2026-09-27T19:17:23Z",
+    sourceUrl:
+      "https://api.github.com/repos/Gaurav-Gosain/tuios/releases/latest",
+    platform: {
+      os: "Linux",
+      arch: "x86_64",
+      stem: "tuios",
+      archiveName: ARCHIVE,
+      downloadUrl: "https://example.test/tuios.tar.gz",
+      format: "tar.gz",
+      supported: true,
+    },
+    checksumsUrl: "https://example.test/checksums.txt",
+    checksum: SUM,
+    payload: releasePayload(),
+  };
+  const ctx = createModelTestContext({
+    globalArgs: GLOBALS,
+    methodName: "render",
+    storedResources: { release },
+  });
+  await (model.methods.render.execute as unknown as (
+    a: Record<string, unknown>,
+    c: unknown,
+  ) => Promise<unknown>)(
+    { includeBody: true, includeAssets: true, maxBodyChars: 0 },
+    ctx.context,
+  );
+
+  const doc = ctx.getWrittenResources().find((r) => r.specName === "document");
+  assertEquals(doc?.data.rendered, true);
+  assertEquals(doc?.data.version, "0.8.0");
+  assertStringIncludes(String(doc?.data.markdown), "## Release notes");
+  assertStringIncludes(String(doc?.data.markdown), "notes");
+  assertStringIncludes(String(doc?.data.markdown), ARCHIVE);
+});
+
+function runPrint(
+  ctx: { context: unknown },
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const full = { installedVersion: "", ...args };
+  return (model.methods.print.execute as unknown as (
+    a: Record<string, unknown>,
+    c: unknown,
+  ) => Promise<unknown>)(full, ctx.context);
+}
+
+Deno.test("print reports update availability and the verified archive path", async () => {
+  const release = {
+    ...releasePayload(),
+    version: "0.8.0",
+    tag: "v0.8.0",
+    platform: {
+      os: "Linux",
+      arch: "x86_64",
+      stem: "tuios",
+      archiveName: ARCHIVE,
+      downloadUrl: "https://example.test/tuios.tar.gz",
+      format: "tar.gz",
+      supported: true,
+    },
+    checksum: SUM,
+    payload: releasePayload(),
+  };
+  const ctx = createModelTestContext({
+    globalArgs: GLOBALS,
+    methodName: "print",
+    storedResources: { release, archive: { path: "/tmp/tuios.tar.gz" } },
+  });
+  await runPrint(ctx, { installedVersion: "0.7.0" });
+  const summary = ctx.getWrittenResources().find((r) =>
+    r.specName === "summary"
+  );
+  assertEquals(summary?.data.printed, true);
+  assertEquals(summary?.data.version, "0.8.0");
+  assertEquals(summary?.data.updateAvailable, true);
+  assertEquals(summary?.data.archivePath, "/tmp/tuios.tar.gz");
+  assertStringIncludes(
+    (summary?.data.lines as string[]).join("\n"),
+    "update available",
+  );
+});
+
+Deno.test("print fails soft when no release snapshot exists", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: GLOBALS,
+    methodName: "print",
+  });
+  await runPrint(ctx, { installedVersion: "" });
+  const summary = ctx.getWrittenResources()[0];
+  assertEquals(summary.specName, "summary");
+  assertEquals(summary.data.printed, false);
+  assertStringIncludes(
+    String((summary.data.lines as string[])[0]),
+    "run the check method",
+  );
+});
+
+Deno.test("render fails soft when no release snapshot exists", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: GLOBALS,
+    methodName: "render",
+  });
+  await (model.methods.render.execute as unknown as (
+    a: Record<string, unknown>,
+    c: unknown,
+  ) => Promise<unknown>)(
+    { includeBody: true, includeAssets: true, maxBodyChars: 0 },
+    ctx.context,
+  );
+  const doc = ctx.getWrittenResources()[0];
+  assertEquals(doc.specName, "document");
+  assertEquals(doc.data.rendered, false);
+  assertStringIncludes(String((doc.data.lines as string[])[0]), "check method");
+});
+
 Deno.test("download downloads, verifies and writes the archive", async () => {
   const bytes = new TextEncoder().encode("archive-bytes");
   const sum = await sha256(bytes);

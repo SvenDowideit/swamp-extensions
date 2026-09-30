@@ -5,15 +5,16 @@ description: |
   for this machine, verify it against the release's checksums, and download it
   to a path — the reusable "fetch a GitHub release" seam.
 
-  Steps: resolve (check) → download → print.
+  Steps: resolve (check) → download → render → print.
 
   resolve reads the release from the GitHub releases API, selects the archive
   matching the local OS/architecture (or an explicit override), and records its
-  expected SHA-256 from the release's checksums file. download then downloads
-  the archive, verifies the bytes against that checksum, and writes the verified
+  expected SHA-256 from the release's checksums file. download fetches the
+  archive, verifies the bytes against that checksum, and writes the verified
   file to `outputPath`; it refuses to return an archive whose hash does not
-  match. print logs the version, the platform archive, its SHA-256 and the
-  verified file path.
+  match. render turns the preserved GitHub payload into a Markdown document
+  (release notes and asset table). print logs the version, the platform archive,
+  its SHA-256 and the verified file path.
 
   This workflow is called by other workflows (e.g. @svendowideit/tuios-install)
   that then extract or install the verified file. Run it directly to see what a
@@ -89,6 +90,12 @@ inputs:
       type: boolean
       default: false
       description: Re-download even when outputPath already holds the expected bytes.
+    render:
+      type: boolean
+      default: true
+      description: >-
+        Render the release — notes and asset table — into a Markdown document
+        resource after resolving it.
   required:
     - repo
 jobs:
@@ -150,6 +157,24 @@ jobs:
               type: succeeded
         weight: 0
         allowFailure: false
+      - name: render
+        description: >-
+          Render the resolved release — the preserved GitHub payload's notes and
+          the asset table — into a Markdown document resource, so a caller (or a
+          human) can read the release without another API call. Skipped when
+          `render=false`.
+        guard: ${{ inputs.render == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/github-release-install"
+          modelName: github-release
+          methodName: render
+        dependsOn:
+          - step: resolve
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
       - name: print
         description: >-
           Print the release, the platform archive, its SHA-256 and the verified
@@ -164,6 +189,9 @@ jobs:
             condition:
               type: succeeded
           - step: download
+            condition:
+              type: always
+          - step: render
             condition:
               type: always
         weight: 0

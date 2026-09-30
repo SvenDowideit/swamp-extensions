@@ -13,11 +13,13 @@ description: >
     API, probes the local OS and architecture (`uname`), matches them against
     each asset's parsed name (`tool_1.2.3_Linux_x86_64.tar.gz`), records the
     archive's SHA-256 from the release's checksums file, and downloads the
-    archive only after the bytes match that hash. Prefer it over a `curl` of a
-    release URL: the download is verified before it is written, the platform
-    match is explicit, and one model serves every repository. The same
-    checksum-verified download pattern `@swamp/deno-runner` uses for Deno is
-    generalised here to any repo, any release, and tar.gz / zip / raw archives.
+    archive only after the bytes match that hash. It also preserves the raw
+    GitHub payload and can render it into a Markdown release document. Prefer it
+    over a `curl` of a release URL: the download is verified before it is
+    written, the platform match is explicit, and one model serves every
+    repository. The same checksum-verified download pattern
+    `@swamp/deno-runner` uses for Deno is generalised here to any repo, any
+    release, and tar.gz / zip / raw archives.
 
   INSTALL
 
@@ -32,9 +34,11 @@ description: >
 
   RUN
 
-      # Resolve a repository's latest release and this machine's archive.
-      swamp model @svendowideit/github-release-install method run check rel \
-        --global repo=Gaurav-Gosain/tuios
+      # Create a model for a repository (globals are set with --global-arg),
+      # then resolve its latest release and this machine's archive.
+      swamp model create @svendowideit/github-release-install rel \
+        --global-arg repo=Gaurav-Gosain/tuios --global-arg stem=tuios
+      swamp model @svendowideit/github-release-install method run check rel
 
       # Resolve and download a verified archive to a path in one workflow run.
       swamp workflow run @svendowideit/github-release-install-fetch \
@@ -42,14 +46,16 @@ description: >
         --input outputPath=~/.cache/tuios/tuios.tar.gz
 
       # Pin a version and ask what a different platform would download,
-      # without touching this machine.
+      # without touching this machine (per-call values use --input).
       swamp model @svendowideit/github-release-install method run check rel \
-        --global repo=Gaurav-Gosain/tuios \
         --input version=0.8.0 --input os=Darwin --input arch=arm64
+
+      # Render the resolved release (notes + asset table) into Markdown.
+      swamp model @svendowideit/github-release-install method run render rel
 
   CONFIGURE
 
-    Global arguments (set at model creation with `--global repo=owner/name`):
+    Global arguments (set at model creation with `--global-arg repo=owner/name`):
 
       repo             GitHub repository (owner/name)     (required; or set apiUrl)
       apiUrl           explicit releases API URL          (default: derived from repo)
@@ -64,20 +70,24 @@ description: >
 
     Per-run overrides: `check` takes `version`, `os`, `arch`, `stem`,
     `assetName`, `pattern`, `fetchChecksums` and `requireChecksum`; `download`
-    takes `version`, `outputPath`, `checksum`/`downloadUrl`/`assetName` (to
-    consume a prior `check`), `force` and `requireChecksum`. Precedence is
-    per-call `--input` > model global > schema default. A checksum is mandatory
-    on both paths: `check` fails when the selected archive is not in the
-    checksums file, and `download` refuses an archive whose bytes do not match.
+    takes `version`, `outputPath`/`outputDir`, `checksum`/`downloadUrl`/
+    `assetName` (to consume a prior `check`), `checksumsUrl`, `force` and
+    `requireChecksum`; `render` takes `includeBody`, `includeAssets` and
+    `maxBodyChars`. Precedence is per-call `--input` > model global > schema
+    default. `format` both records the archive format and filters selection
+    (use it when a release offers the same platform as more than one format). A
+    checksum is mandatory on both paths: `check` fails when the checksums file
+    cannot be fetched or does not list the archive, and `download` refuses an
+    archive whose bytes do not match.
 
   WHAT IT INSTALLS
 
     Nothing on the host — no services, daemons, cron triggers, or webhooks. It
-    writes the verified archive to the `outputPath` you pass to `download`
-    (nothing is written when `outputPath` is empty), and writes swamp resources
-    (`release`, `archive`, `summary`). Installing or extracting the downloaded
-    archive is the caller's job — `@svendowideit/tuios` uses it to keep the
-    `tuios` binary current.
+    writes the verified archive to the `outputPath`/`outputDir` you pass to
+    `download` (nothing is written when both are empty), and writes swamp
+    resources (`release`, `archive`, `summary`, `document`). Installing or
+    extracting the downloaded archive is the caller's job —
+    `@svendowideit/tuios` uses it to keep the `tuios` binary current.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

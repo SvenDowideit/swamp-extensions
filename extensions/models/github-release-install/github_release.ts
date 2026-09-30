@@ -66,6 +66,13 @@ const ReleaseAssetSchema = z.object({
 });
 
 /**
+ * The raw GitHub release payload. Kept intact (rather than projected away) so
+ * callers can render release notes and read fields this module does not model.
+ * Loose by design: it follows whatever the API returns.
+ */
+const ReleasePayloadSchema = z.record(z.string(), z.unknown());
+
+/**
  * Zod schemas shared by the model and its tests. Kept as members of one
  * exported object (rather than separately-exported constants) so `deno doc
  * --lint` does not report a `private-type-ref` slow type on each schema.
@@ -83,6 +90,8 @@ export const schemas = {
     htmlUrl: z.string(),
     body: z.string().optional(),
     assets: z.array(ReleaseAssetSchema),
+    /** The raw GitHub API payload, preserved for rendering and extra fields. */
+    payload: ReleasePayloadSchema,
   }),
   /** The platform this run resolved, and the archive selected for it. */
   platform: z.object({
@@ -130,6 +139,8 @@ export interface ReleaseInfo {
   body?: string;
   /** The assets attached to the release, including checksums.txt. */
   assets: ReleaseAsset[];
+  /** The raw GitHub API payload, preserved for rendering and extra fields. */
+  payload: Record<string, unknown>;
 }
 
 /** A resolved platform and the asset selected for it. */
@@ -198,11 +209,17 @@ export function resolveApiUrl(repo: string, apiUrl: string): string {
 }
 
 /**
- * Rewrite a `releases/latest` URL into the URL for a specific tag. Used by
- * `download` when a pinned `version` is requested instead of the latest.
+ * Rewrite a releases API URL into the URL for a specific tag. A URL ending in
+ * `/latest` is rewritten in place; any other URL (a custom GitHub Enterprise
+ * base, say) gets the `/tags/v<version>` suffix appended, so a pinned version
+ * is honoured even when `apiUrl` was supplied explicitly.
  */
 export function apiUrlForVersion(apiUrl: string, version: string): string {
-  return apiUrl.replace(/\/latest\/?$/, `/tags/v${normalizeVersion(version)}`);
+  const tag = `v${normalizeVersion(version)}`;
+  if (/\/latest\/?$/.test(apiUrl)) {
+    return apiUrl.replace(/\/latest\/?$/, `/tags/${tag}`);
+  }
+  return `${apiUrl.replace(/\/+$/, "")}/tags/${tag}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -316,6 +333,7 @@ export function selectAsset(
     os?: string;
     arch?: string;
     stem?: string;
+    format?: ArchiveType;
   },
 ): ReleaseAsset | null {
   const wanted = (opts.assetName ?? "").trim();
@@ -326,12 +344,16 @@ export function selectAsset(
   const os = (opts.os ?? "").trim();
   const arch = (opts.arch ?? "").trim();
   const stem = (opts.stem ?? "").trim();
+  const format = opts.format ?? "auto";
   for (const asset of assets) {
     const parsed = parseAssetName(asset.name, pattern);
     if (!parsed) continue;
     if (os && parsed.os !== os) continue;
     if (arch && parsed.arch !== arch) continue;
     if (stem && parsed.stem !== stem) continue;
+    if (format !== "auto" && detectArchiveType(asset.name, "auto") !== format) {
+      continue;
+    }
     return asset;
   }
   return null;
@@ -347,7 +369,21 @@ export function parseReleasePayload(
   payload: Record<string, unknown>,
   pattern: string = DEFAULT_ASSET_PATTERN,
 ): ReleaseInfo {
+  if (
+    payload === null || typeof payload !== "object" || Array.isArray(payload)
+  ) {
+    throw new Error(
+      "GitHub releases response is not a release object — check the apiUrl " +
+        "(a releases *list* endpoint returns an array of releases).",
+    );
+  }
   const tag = String(payload.tag_name ?? "");
+  if (!tag) {
+    throw new Error(
+      "GitHub releases response has no tag_name — check the apiUrl points " +
+        "at a single release (…/releases/latest or …/releases/tags/<tag>).",
+    );
+  }
   return {
     tag,
     version: normalizeVersion(tag),
@@ -357,7 +393,93 @@ export function parseReleasePayload(
     htmlUrl: String(payload.html_url ?? ""),
     body: typeof payload.body === "string" ? payload.body : undefined,
     assets: mapAssets(payload.assets, pattern),
+    payload,
   };
+}
+
+/** Options for {@link renderReleaseMarkdown}. */
+export interface RenderOptions {
+  /** Include the release notes body. */
+  includeBody?: boolean;
+  /** Include the asset table. */
+  includeAssets?: boolean;
+  /** Truncate the body to this many characters; 0 (default) keeps it whole. */
+  maxBodyChars?: number;
+}
+
+/**
+ * Render a stored release — including the preserved raw payload — into a
+ * Markdown document a human can read: the title, version, publication time,
+ * prerelease flag, HTML URL, release notes and an asset table. The payload is
+ * the source of truth for the notes and URL, so a release whose summary fields
+ * were dropped is still rendered faithfully from the raw data.
+ */
+export function renderReleaseMarkdown(
+  release: {
+    tag?: string | null;
+    version?: string | null;
+    name?: string | null;
+    publishedAt?: string | null;
+    prerelease?: boolean | null;
+    htmlUrl?: string | null;
+    body?: string | null;
+    assets?: ReleaseAsset[];
+    payload?: Record<string, unknown> | null;
+  },
+  opts: RenderOptions = {},
+): string {
+  const payload = release.payload ?? {};
+  const tag = release.tag ?? String(payload.tag_name ?? "");
+  const name = release.name ?? String(payload.name ?? tag) ?? "";
+  const version = release.version ?? normalizeVersion(tag);
+  const publishedAt = release.publishedAt ??
+    String(payload.published_at ?? "");
+  const htmlUrl = release.htmlUrl ?? String(payload.html_url ?? "");
+  const prerelease = release.prerelease ?? Boolean(payload.prerelease);
+  const body = release.body ??
+    (typeof payload.body === "string" ? payload.body : "");
+  const assets = release.assets ?? [];
+
+  const heading = name || version || tag || "release";
+  const lines: string[] = [`# ${heading}`];
+
+  const facts: string[] = [];
+  if (version) facts.push(`Version: ${version}`);
+  if (tag) facts.push(`Tag: ${tag}`);
+  if (publishedAt) facts.push(`Published: ${publishedAt}`);
+  if (prerelease) facts.push("Prerelease: yes");
+  if (htmlUrl) facts.push(`Release page: ${htmlUrl}`);
+  if (facts.length) {
+    lines.push("", ...facts.map((f) => `- ${f}`));
+  }
+
+  if (opts.includeBody !== false && body.trim()) {
+    let text = body.trim();
+    const max = opts.maxBodyChars ?? 0;
+    if (max > 0 && text.length > max) {
+      text = `${text.slice(0, max)}\n\n… (${
+        text.length - max
+      } more characters)`;
+    }
+    lines.push("", "## Release notes", "", text);
+  }
+
+  if (opts.includeAssets !== false && assets.length) {
+    lines.push(
+      "",
+      "## Assets",
+      "",
+      "| Asset | Size (bytes) |",
+      "| --- | --- |",
+    );
+    for (const asset of assets) {
+      lines.push(
+        `| ${asset.name} | ${asset.size !== undefined ? asset.size : ""} |`,
+      );
+    }
+  }
+
+  return `${lines.join("\n")}\n`;
 }
 
 /**
@@ -501,24 +623,35 @@ export async function fetchRelease(
   return { ...parseReleasePayload(payload, assetPattern), payload };
 }
 
+/** The result of fetching a release's checksums file. */
+export interface ChecksumsResult {
+  /** Whether the checksums file was fetched successfully. */
+  available: boolean;
+  /** The parsed `name → sha256` map (empty when unavailable or unlisted). */
+  sums: Record<string, string>;
+}
+
 /**
- * Download a release's checksums file and return the `name → sha256` map.
- * Returns an empty map when the request fails, so a checksum outage degrades
- * to "unverified" rather than failing the whole release check.
+ * Download a release's checksums file and return the `name → sha256` map,
+ * reporting whether the file itself was reachable. A network or HTTP failure
+ * returns `available: false`, letting the caller distinguish "the checksums
+ * file could not be fetched" from "the checksums file lists no entry for this
+ * archive" — the two need different messages. On success `available` is true
+ * and `sums` holds whatever the file listed.
  */
 export async function fetchChecksums(
   url: string,
   userAgent: string,
   token?: string,
-): Promise<Record<string, string>> {
+): Promise<ChecksumsResult> {
   try {
     const response = await fetch(url, {
       headers: githubHeaders(userAgent, "text/plain", token),
     });
-    if (!response.ok) return {};
-    return parseChecksums(await response.text());
+    if (!response.ok) return { available: false, sums: {} };
+    return { available: true, sums: parseChecksums(await response.text()) };
   } catch {
-    return {};
+    return { available: false, sums: {} };
   }
 }
 

@@ -1,0 +1,89 @@
+package ui
+
+import (
+	"regexp"
+	"strings"
+	"testing"
+)
+
+var ansiRe = regexp.MustCompile(`\x1b\[[0-9;?<=>]*[a-zA-Z]|\x1b[()][A-Z0-9]|\x1b[>=]`)
+
+func strip(s string) string { return ansiRe.ReplaceAllString(s, "") }
+
+func sampleModel() *Model {
+	m := New(nil, "swamp-project", nil)
+	m.width, m.height = 140, 40
+	m.models = []node{
+		{label: "bom", sub: "@svendowideit/bom-weather", kind: "model"},
+		{label: "ideas-factory", sub: "@svendowideit/ideas-factory", kind: "model"},
+		{label: "meta-factory", sub: "@svendowideit/meta-factory", kind: "model"},
+	}
+	m.detailTitle = "bom"
+	m.detailLines = []string{
+		"name bom",
+		"type @svendowideit/bom-weather",
+		"",
+		"Methods",
+		"  • resolve",
+		"  • sync",
+	}
+	m.dataItems = []node{
+		{label: "forecast", sub: "resource v9  3.2 KiB", kind: "data"},
+		{label: "hourly", sub: "resource v11  21.8 KiB", kind: "data"},
+	}
+	return m
+}
+
+func TestRenderContainsPanes(t *testing.T) {
+	m := sampleModel()
+	out := strip(m.render())
+	for _, want := range []string{
+		"swamp browser", "swamp-project",
+		"Models (3)", "Detail", "Data (2)",
+		"bom", "ideas-factory", "meta-factory",
+		"Methods", "resolve", "sync",
+		"forecast", "hourly",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("render missing %q", want)
+		}
+	}
+}
+
+func TestHeaderHasOriginAndSpacing(t *testing.T) {
+	m := sampleModel()
+	header := strip(strings.SplitN(m.render(), "\n", 2)[0])
+	if !strings.Contains(header, "existing serve") {
+		t.Fatalf("header missing origin label: %q", header)
+	}
+	if strings.Contains(header, "swamp-projectexisting") {
+		t.Fatalf("header missing spacing between repo and origin: %q", header)
+	}
+}
+
+func TestFilterNarrowsModelList(t *testing.T) {
+	m := sampleModel()
+	m.filter = "factory"
+	got := m.visibleModels()
+	if len(got) != 2 {
+		t.Fatalf("filter 'factory' matched %d, want 2", len(got))
+	}
+	m.filter = "bom"
+	got = m.visibleModels()
+	if len(got) != 1 || got[0].label != "bom" {
+		t.Fatalf("filter 'bom' got %+v", got)
+	}
+}
+
+func TestHumanSize(t *testing.T) {
+	cases := map[float64]string{
+		512:    "512 B",
+		2048:   "2.0 KiB",
+		3276.8: "3.2 KiB",
+	}
+	for in, want := range cases {
+		if got := humanSize(in); got != want {
+			t.Errorf("humanSize(%v)=%q want %q", in, got, want)
+		}
+	}
+}

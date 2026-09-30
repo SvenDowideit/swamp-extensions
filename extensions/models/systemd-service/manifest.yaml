@@ -1,9 +1,9 @@
 manifestVersion: 1
 name: "@svendowideit/systemd-service"
-version: "2026.09.24.1"
+version: "2026.09.30.1"
 description: >
   Generic systemd *user* service management: idempotently create, start, stop,
-  and remove a persistent user service for any command line.
+  restart, and remove a persistent user service for any command line.
 
   WHAT IT DOES
 
@@ -36,8 +36,11 @@ description: >
       swamp model @svendowideit/systemd-service method run startService feedback-server \
         --input 'serviceName=feedback-server'
 
-      # Check it, stop it, or remove it entirely.
+      # Check it, restart it (e.g. after replacing its executable), stop it, or
+      # remove it entirely.
       swamp model @svendowideit/systemd-service method run status feedback-server
+      swamp model @svendowideit/systemd-service method run restartService feedback-server \
+        --input 'serviceName=feedback-server'
       swamp model @svendowideit/systemd-service method run stopService feedback-server \
         --input 'serviceName=feedback-server'
 
@@ -51,13 +54,16 @@ description: >
     Per-call overrides on `createService`: `command`, `description`,
     `workingDirectory`, `environment`, `restart`, `restartSec`, `after`,
     `wants`, and `force`. `startService` takes `linger` (default true) to
-    control whether user lingering is enabled.
+    control whether user lingering is enabled. `restartService` restarts a
+    running (or stopped) unit and verifies it is active — use it after
+    replacing the service's executable, which `enable --now` does not restart.
 
   WHAT IT INSTALLS
 
     A single systemd *user* unit file per service at `<unitDir>/<name>.service`.
     `startService` enables the unit and user lingering so it starts at boot.
-    `removeService` deletes the unit file. Nothing else is installed.
+    `restartService` restarts it in place. `removeService` deletes the unit
+    file. Nothing else is installed.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

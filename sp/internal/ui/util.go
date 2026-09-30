@@ -1,0 +1,144 @@
+package ui
+
+import (
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
+)
+
+// str renders any JSON value as a compact display string.
+func str(v any) string {
+	switch t := v.(type) {
+	case nil:
+		return ""
+	case string:
+		return t
+	case bool:
+		return fmt.Sprintf("%v", t)
+	case float64:
+		if t == float64(int64(t)) {
+			return fmt.Sprintf("%d", int64(t))
+		}
+		return fmt.Sprintf("%g", t)
+	default:
+		b, err := json.Marshal(t)
+		if err != nil {
+			return fmt.Sprintf("%v", t)
+		}
+		return string(b)
+	}
+}
+
+// asList coerces a JSON value into a slice where possible.
+func asList(v any) []any {
+	switch t := v.(type) {
+	case nil:
+		return nil
+	case []any:
+		return t
+	case map[string]any:
+		return []any{t}
+	default:
+		return nil
+	}
+}
+
+// firstLine returns the first non-empty line of s, trimmed.
+func firstLine(s string) string {
+	for _, ln := range strings.Split(s, "\n") {
+		if strings.TrimSpace(ln) != "" {
+			return strings.TrimSpace(ln)
+		}
+	}
+	return ""
+}
+
+// humanSize formats a numeric byte count.
+func humanSize(v any) string {
+	f, ok := v.(float64)
+	if !ok {
+		return ""
+	}
+	n := int64(f)
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for x := n / unit; x >= unit; x /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGT"[exp])
+}
+
+// prettyContent turns a data.get response into display lines. The content may be
+// a JSON object/array, a string, or base64 for binary. Falls back gracefully.
+func prettyContent(d map[string]any, width int) []string {
+	content := d["content"]
+	if content == nil {
+		return []string{styleMuted.Render("(no content)")}
+	}
+
+	var val any = content
+	if s, ok := content.(string); ok {
+		// Try to parse JSON-encoded content.
+		var parsed any
+		if json.Unmarshal([]byte(s), &parsed) == nil {
+			val = parsed
+		} else {
+			return wrapString(s, width)
+		}
+	}
+
+	b, err := json.MarshalIndent(val, "", "  ")
+	if err != nil {
+		return wrapString(str(val), width)
+	}
+	pretty := string(b)
+	lines := strings.Split(pretty, "\n")
+	// Cap very large payloads.
+	const maxLines = 4000
+	if len(lines) > maxLines {
+		lines = append(lines[:maxLines], styleMuted.Render(
+			fmt.Sprintf("… %d more lines truncated", len(lines)-maxLines)))
+	}
+	return lines
+}
+
+func wrapString(s string, width int) []string {
+	if width <= 0 {
+		width = 100
+	}
+	var out []string
+	for _, ln := range strings.Split(s, "\n") {
+		for len(ln) > width {
+			out = append(out, ln[:width])
+			ln = ln[width:]
+		}
+		out = append(out, ln)
+	}
+	return out
+}
+
+// joinNonEmpty filters empty strings, then joins with sep.
+func joinNonEmpty(sep string, parts ...string) string {
+	kept := parts[:0]
+	for _, p := range parts {
+		if p != "" {
+			kept = append(kept, p)
+		}
+	}
+	return strings.Join(kept, sep)
+}
+
+// sortedKeys is a small helper for debugging maps.
+func sortedKeys(m map[string]any) []string {
+	ks := make([]string, 0, len(m))
+	for k := range m {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	return ks
+}

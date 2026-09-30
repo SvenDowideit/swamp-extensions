@@ -330,12 +330,12 @@ type MethodContext = {
 /**
  * Model definition for generic systemd *user* service management.
  *
- * Exposes `createService`, `startService`, `stopService`, `removeService`, and
- * `status`, writing the `create` and `service` resources.
+ * Exposes `createService`, `startService`, `stopService`, `restartService`,
+ * `removeService`, and `status`, writing the `create` and `service` resources.
  */
 export const model = {
   type: "@svendowideit/systemd-service",
-  version: "2026.09.24.1",
+  version: "2026.09.30.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -348,6 +348,12 @@ export const model = {
       toVersion: "2026.09.24.1",
       description:
         "Security and docs: service names are validated against systemd unit-name rules, and unit-directive injection through command/description/workingDirectory/environment/after/wants is rejected. No schema changes; global and method arguments are unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.1",
+      description:
+        "Add restartService: restart a user service and verify it is active, so a caller can make a running service pick up a replaced executable or an updated unit. No schema changes; global and existing method arguments are unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -512,6 +518,59 @@ export const model = {
           serviceName: args.serviceName,
         });
         return { dataHandles: [] };
+      },
+    },
+
+    restartService: {
+      description:
+        "Restart a systemd user service so it picks up a replaced executable or an updated unit, and verify it is active",
+      arguments: ServiceNameArgsSchema,
+      execute: async (
+        args: z.infer<typeof ServiceNameArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const unitDir = expandHome(g.unitDir);
+
+        // `restart` starts the unit if it is not running and restarts it if it
+        // is, so this is safe after an executable upgrade (which does not
+        // restart an already-active unit on its own).
+        const restart = await systemctl(["restart", args.serviceName]);
+        if (restart.code !== 0) {
+          throw new Error(
+            `systemctl --user restart ${args.serviceName} failed (${restart.code}): ${
+              restart.stderr || restart.stdout
+            }`,
+          );
+        }
+
+        const active = await systemctl(["is-active", args.serviceName]);
+        const enabled = await systemctl(["is-enabled", args.serviceName]);
+        if (active.code !== 0) {
+          throw new Error(
+            `Service ${args.serviceName} is not active after restart: ${
+              active.stderr || active.stdout
+            }`,
+          );
+        }
+
+        context.logger?.info(
+          "Restarted service {serviceName}; active: {active}, enabled: {enabled}",
+          {
+            serviceName: args.serviceName,
+            active: active.code === 0,
+            enabled: enabled.code === 0,
+          },
+        );
+
+        const handle = await context.writeResource("service", "current", {
+          serviceName: args.serviceName,
+          unitPath: `${unitDir}/${args.serviceName}.service`,
+          active: active.code === 0,
+          enabled: enabled.code === 0,
+          checkedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
       },
     },
 

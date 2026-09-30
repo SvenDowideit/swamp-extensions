@@ -7,10 +7,10 @@ service name and command line.
 
 A thin, generic wrapper around `systemctl --user` and unit-file rendering. You
 supply the service name and the exact command line to run, and it idempotently
-creates, starts, stops, and removes a persistent systemd *user* service. It is
-the reusable building block other extensions call to keep a long-lived process
-(a web service, an API, a queue server) alive: rather than embedding systemd
-logic in every extension, they invoke this model's methods.
+creates, starts, stops, restarts, and removes a persistent systemd *user*
+service. It is the reusable building block other extensions call to keep a
+long-lived process (a web service, an API, a queue server) alive: rather than
+embedding systemd logic in every extension, they invoke this model's methods.
 
 Because these are **user** (not system) units, `systemctl --user` alone only
 starts them when you log in. `startService` therefore also enables **user
@@ -62,10 +62,10 @@ Global arguments (set at model creation with `--global-arg key=value`):
 | `serviceName` | — | systemd user service name (without the `.service` suffix). |
 | `linger` | `true` | Enable user lingering (`loginctl enable-linger`) so the service starts at boot. Set `false` to keep login-only behavior. |
 
-`stopService`, `removeService`, and `status` each take no arguments beyond the
-model instance name; `status` reports the state of the service named after the
-model instance (`context.definition.name`), so name the model instance after the
-service you want to inspect.
+`stopService`, `restartService`, `removeService`, and `status` each take no
+arguments beyond the model instance name; `status` reports the state of the
+service named after the model instance (`context.definition.name`), so name the
+model instance after the service you want to inspect.
 
 ## Examples
 
@@ -100,6 +100,15 @@ swamp model @svendowideit/systemd-service method run createService api \
   --input 'restartSec=2'
 ```
 
+Restart a service after replacing its executable — `enable --now` does **not**
+restart an already-active unit, so a binary upgrade needs this to take effect:
+
+```sh
+# Restart and verify the service is active.
+swamp model @svendowideit/systemd-service method run restartService feedback-server \
+  --input 'serviceName=feedback-server'
+```
+
 Stop or fully remove a service:
 
 ```sh
@@ -126,7 +135,7 @@ swamp model @svendowideit/systemd-service method run createService api \
 ## Details
 
 `@svendowideit/systemd-service` ships one model type
-(`@svendowideit/systemd-service`) with five methods, and two resources
+(`@svendowideit/systemd-service`) with six methods, and two resources
 (`service`, `create`).
 
 | Method | Purpose |
@@ -134,6 +143,7 @@ swamp model @svendowideit/systemd-service method run createService api \
 | `createService` | Write (or update) the unit file and `daemon-reload`. Idempotent — if the unit already matches, it is left untouched. |
 | `startService` | Enable user lingering, `systemctl --user enable --now`, and verify it is active. |
 | `stopService` | `systemctl --user stop`. Idempotent — stopping an already-stopped or never-created service succeeds. |
+| `restartService` | `systemctl --user restart` and verify it is active. Use after replacing the service's executable or updating its unit. |
 | `removeService` | Stop, disable, delete the unit file, and `daemon-reload`. |
 | `status` | Report active/enabled state of the model's service. |
 

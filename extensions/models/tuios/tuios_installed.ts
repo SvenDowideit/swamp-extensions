@@ -426,11 +426,11 @@ type CheckContext = {
 /** Tracks and installs the TUIOS binary on this machine. */
 export const model = {
   type: "@svendowideit/tuios-installed",
-  version: "2026.09.30.1",
+  version: "2026.09.30.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
-      toVersion: "2026.09.30.1",
+      toVersion: "2026.09.30.2",
       description:
         "install now consumes the checksum-verified archive produced by @svendowideit/github-release-install (via the bundled workflow) instead of resolving and downloading the release itself: it takes archivePath/archiveName/checksum/version and no longer takes downloadUrl/releaseVersion/os/arch. Release resolution, platform selection, checksum lookup and download moved to the new extension. New archivePath field on the install resource; installed/print drop the latest-release fields (the release workflow reports those).",
       upgradeAttributes: (old: Record<string, unknown>) => old,

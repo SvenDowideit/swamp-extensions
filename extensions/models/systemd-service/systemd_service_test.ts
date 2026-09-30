@@ -1,10 +1,19 @@
-import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import {
+  assertEquals,
+  assertRejects,
+  assertStringIncludes,
+} from "jsr:@std/assert@1";
+import {
+  createModelTestContext,
+  withMockedCommand,
+} from "jsr:@swamp-club/swamp-testing@^0.3.0";
 
 import {
   assertNoNewlines,
   assertValidServiceName,
   expandHome,
   isAlreadyStopped,
+  model,
   renderServiceUnit,
 } from "./systemd_service.ts";
 
@@ -172,4 +181,60 @@ Deno.test("isAlreadyStopped treats a clean stop and an unloaded unit as success"
     isAlreadyStopped({ stdout: "", stderr: "Access denied", code: 5 }),
     false,
   );
+});
+
+Deno.test("restartService restarts the unit and verifies it is active", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: {
+      denoPath: "~/.swamp/deno/deno",
+      unitDir: "~/.config/systemd/user",
+    },
+    methodName: "restartService",
+  });
+  const calls: string[] = [];
+  await withMockedCommand((command, args) => {
+    calls.push([command, ...args].join(" "));
+    if (args.includes("is-active") || args.includes("is-enabled")) {
+      return { stdout: "active\n", code: 0 };
+    }
+    if (args.includes("restart")) return { stdout: "", code: 0 };
+    return { stdout: "", code: 0 };
+  }, async () => {
+    await model.methods.restartService.execute(
+      { serviceName: "tuios" },
+      ctx.context as never,
+    );
+  });
+  assertEquals(calls.some((c) => c.includes("--user restart tuios")), true);
+  const written = ctx.getWrittenResources();
+  assertEquals(written.length, 1);
+  assertEquals(written[0].specName, "service");
+  assertEquals(written[0].data.active, true);
+});
+
+Deno.test("restartService throws when the service is not active afterwards", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: {
+      denoPath: "~/.swamp/deno/deno",
+      unitDir: "~/.config/systemd/user",
+    },
+    methodName: "restartService",
+  });
+  await withMockedCommand((_command, args) => {
+    if (args.includes("restart")) return { stdout: "", code: 0 };
+    if (args.includes("is-active")) {
+      return { stdout: "failed\n", code: 3 };
+    }
+    return { stdout: "", code: 0 };
+  }, async () => {
+    await assertRejects(
+      () =>
+        model.methods.restartService.execute(
+          { serviceName: "tuios" },
+          ctx.context as never,
+        ),
+      Error,
+      "not active",
+    );
+  });
 });

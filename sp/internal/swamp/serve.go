@@ -65,6 +65,17 @@ func (s *Serve) Owned() bool { return s.owned }
 // LogPath is where a locally started server's output is captured.
 func (s *Serve) LogPath() string { return s.logPath }
 
+// Detach relinquishes ownership so Stop becomes a no-op. Use this to leave a
+// server (and any runs it hosts) running after the tool exits. The spawned
+// process is disowned from the process group by signalling it independently:
+// we do NOT kill it, and we drop our handle so cleanup cannot.
+func (s *Serve) Detach() {
+	if s == nil {
+		return
+	}
+	s.owned = false
+}
+
 // Stop terminates a server this process started. A pre-existing server is left
 // untouched. It always exits the process group spawned with Setpgid, so no
 // orphaned swamp serve survives the tool.

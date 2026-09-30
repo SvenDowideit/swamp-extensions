@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -98,6 +97,7 @@ func (m *Model) startResume(from string) tea.Cmd {
 	m.runLines = []string{styleMuted.Render("resuming " + name + " from " + from + "…")}
 	m.runScroll = 0
 	m.runErr = nil
+	m.runUnseen = false
 
 	return func() tea.Msg {
 		payload := map[string]any{"workflowIdOrName": name, "from": from, "skipAllReports": true}
@@ -131,6 +131,7 @@ func (m *Model) startRun(inputs map[string]any) tea.Cmd {
 	m.runLines = []string{styleMuted.Render("starting " + name + "…")}
 	m.runScroll = 0
 	m.runErr = nil
+	m.runUnseen = false
 	ctx := context.Background()
 
 	return func() tea.Msg {
@@ -302,15 +303,18 @@ func defaultString(v any) string {
 	}
 }
 
-// runConsoleHint is used by the view for the console's key bar.
+// runConsoleHints is the context key bar shown inside the run dialog.
 func (m *Model) runConsoleHints() []hint {
-	return []hint{
-		h("[run]", ""),
+	hs := []hint{
 		h("↑↓", "scroll"),
-		h("c", "cancel"),
-		h("esc", "close"),
 	}
+	if m.runBusy {
+		hs = append(hs,
+			h("c", "cancel run"),
+			h("esc", "detach (keeps running)"),
+		)
+	} else {
+		hs = append(hs, h("esc", "close"))
+	}
+	return hs
 }
-
-// fmtRunLineCount is a small helper for the console title.
-func fmtRunLineCount(n int) string { return fmt.Sprintf("%d lines", n) }

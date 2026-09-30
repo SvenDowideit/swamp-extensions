@@ -14,6 +14,7 @@ func TestRunConsoleAndInputRenderFits(t *testing.T) {
 
 		// Run console.
 		m.runOpen = true
+		m.runBusy = true
 		m.runTitle = "wf"
 		m.runStatus = "running"
 		m.runLines = []string{"line one", "line two"}
@@ -24,8 +25,8 @@ func TestRunConsoleAndInputRenderFits(t *testing.T) {
 		if !strings.Contains(out, "Run —") {
 			t.Errorf("console missing title at %dx%d", size[0], size[1])
 		}
-		if !strings.Contains(out, "[run]") {
-			t.Errorf("console missing hints at %dx%d", size[0], size[1])
+		if !strings.Contains(out, "detach") {
+			t.Errorf("console missing detach hint at %dx%d", size[0], size[1])
 		}
 
 		// Input form.

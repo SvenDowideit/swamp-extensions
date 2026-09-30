@@ -155,6 +155,54 @@ func rangeLabel(n, top, bottom int) string {
 	return fmt.Sprintf(" %d–%d/%d", top+1, bottom, n)
 }
 
+// scrollbarThumb computes the proportional thumb [start, end) for a viewport
+// showing `visible` of `total` rows, scrolled to `top`. It returns ok=false when
+// the content fits (no bar needed).
+func scrollbarThumb(total, visible, top, trackH int) (start, end int, ok bool) {
+	if total <= visible || trackH <= 0 {
+		return 0, 0, false
+	}
+	thumb := trackH * visible / total
+	if thumb < 1 {
+		thumb = 1
+	}
+	if thumb > trackH {
+		thumb = trackH
+	}
+	maxTop := total - visible
+	if maxTop < 1 {
+		maxTop = 1
+	}
+	pos := 0
+	if top > 0 {
+		pos = (trackH - thumb) * top / maxTop
+	}
+	if pos < 0 {
+		pos = 0
+	}
+	if pos+thumb > trackH {
+		pos = trackH - thumb
+	}
+	return pos, pos + thumb, true
+}
+
+// scrollbarString renders a vertical scrollbar of trackH cells for a viewport
+// showing `visible` of `total` rows at offset `top`, using the given glyphs.
+func scrollbarString(total, visible, top, trackH int, track, thumb string) []string {
+	out := make([]string, trackH)
+	for i := range out {
+		out[i] = track
+	}
+	start, end, ok := scrollbarThumb(total, visible, top, trackH)
+	if !ok {
+		return out
+	}
+	for i := start; i < end && i < trackH; i++ {
+		out[i] = thumb
+	}
+	return out
+}
+
 // joinNonEmpty filters empty strings, then joins with sep.
 func joinNonEmpty(sep string, parts ...string) string {
 	kept := parts[:0]

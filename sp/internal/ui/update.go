@@ -109,6 +109,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.runStatus = "error"
 			m.addRunLine(styleError.Render("run error: " + msg.err.Error()))
 		}
+		if !m.runOpen {
+			m.runUnseen = true
+		}
 		return m, nil
 
 	case runFailedMsg:
@@ -129,6 +132,9 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 
 	// Modal overlays consume all keys while open, innermost first.
+	if m.quitConfirm {
+		return m.handleQuitConfirmKey(msg)
+	}
 	if m.inputOpen {
 		return m.handleInputKey(msg)
 	}
@@ -166,8 +172,20 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	switch key {
 	case "q", "ctrl+c":
+		if m.runBusy {
+			m.quitConfirm = true
+			return m, nil
+		}
 		m.stopServe()
 		return m, tea.Quit
+
+	case "o":
+		// Reopen the run console (a run may be streaming while detached, or
+		// have finished with results the user has not looked at).
+		if m.runHandle != nil || m.runBusy || m.runUnseen || len(m.runLines) > 0 {
+			m.runOpen = true
+			m.runUnseen = false
+		}
 
 	case "esc":
 		// Return to the pane that owns the current root (workflow or model).
@@ -260,6 +278,29 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				return m, m.loadDataContent(m.rootKind, m.rootName, item.label, m.width)
 			}
 		}
+	}
+	return m, nil
+}
+
+// handleQuitConfirmKey handles the "quit while a run is active?" prompt.
+func (m *Model) handleQuitConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "n":
+		m.quitConfirm = false
+		return m, nil
+	case "d":
+		// Detach: leave the run (and any server we started) running, quit sp.
+		// We relinquish ownership of the serve so its own deferred cleanup
+		// (defer serve.Stop() in main) cannot kill it after we exit.
+		if m.serve != nil {
+			m.serve.Detach()
+		}
+		return m, tea.Quit
+	case "x", "enter":
+		// Cancel the run, stop an owned serve, then quit.
+		m.cancelRun()
+		m.stopServe()
+		return m, tea.Quit
 	}
 	return m, nil
 }

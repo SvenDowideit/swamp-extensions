@@ -162,3 +162,101 @@ func TestSelectedModelStaysVisibleWhenScrolled(t *testing.T) {
 		t.Fatalf("expected a scroll range indicator in the title:\n%s", out)
 	}
 }
+
+func TestScrollbarThumbProportionalAndMoving(t *testing.T) {
+	// 200 rows of content, 10 visible.
+	start, end, ok := scrollbarThumb(200, 10, 0, 10)
+	if !ok || start != 0 {
+		t.Fatalf("top: start=%d end=%d ok=%v", start, end, ok)
+	}
+	if end < 1 {
+		t.Fatalf("thumb must be at least 1 cell")
+	}
+	// Scrolled to the end, the thumb bottom must reach the track bottom.
+	_, endBottom, _ := scrollbarThumb(200, 10, 190, 10)
+	if endBottom != 10 {
+		t.Fatalf("bottom: thumb end=%d want 10", endBottom)
+	}
+	// No bar when content fits.
+	if _, _, ok := scrollbarThumb(10, 10, 0, 10); ok {
+		t.Fatalf("expected no scrollbar when content fits")
+	}
+	if _, _, ok := scrollbarThumb(5, 10, 0, 10); ok {
+		t.Fatalf("expected no scrollbar when content is shorter")
+	}
+	// Thumb stays within the track for every offset.
+	for top := 0; top <= 190; top++ {
+		s, e, ok := scrollbarThumb(200, 10, top, 10)
+		if !ok || s < 0 || e > 10 || s >= e {
+			t.Fatalf("top=%d invalid thumb [%d,%d)", top, s, e)
+		}
+	}
+}
+
+func TestListPanesShowScrollbarWhenOverflowing(t *testing.T) {
+	m := New(nil, "r", nil)
+	m.width, m.height = 120, 20
+	for i := 0; i < 40; i++ {
+		m.models = append(m.models, node{label: fmt.Sprintf("m%02d", i), sub: "@x/t"})
+	}
+	m.focus = PaneModels
+	out := strip(m.renderModels(40, m.height-4))
+	if !strings.Contains(out, "█") {
+		t.Fatalf("expected a scrollbar thumb for an overflowing model list:\n%s", out)
+	}
+
+	// A short list must not show a bar.
+	m2 := New(nil, "r", nil)
+	m2.width, m2.height = 120, 20
+	for i := 0; i < 3; i++ {
+		m2.models = append(m2.models, node{label: fmt.Sprintf("m%02d", i), sub: "@x/t"})
+	}
+	out2 := strip(m2.renderModels(40, m2.height-4))
+	if strings.Contains(out2, "█") {
+		t.Fatalf("short list should have no scrollbar:\n%s", out2)
+	}
+}
+
+func TestDetailPaneShowsScrollbar(t *testing.T) {
+	m := New(nil, "r", nil)
+	m.width, m.height = 120, 20
+	for i := 0; i < 100; i++ {
+		m.detailLines = append(m.detailLines, fmt.Sprintf("detail line %d", i))
+	}
+	m.focus = PaneDetail
+	out := strip(m.renderDetail(60, m.height-4))
+	if !strings.Contains(out, "█") {
+		t.Fatalf("expected a scrollbar on an overflowing detail pane:\n%s", out)
+	}
+}
+
+func TestScrollbarThumbMovesInRender(t *testing.T) {
+	m := New(nil, "r", nil)
+	m.width, m.height = 120, 20
+	for i := 0; i < 60; i++ {
+		m.models = append(m.models, node{label: fmt.Sprintf("m%02d", i), sub: "@x/t"})
+	}
+	m.focus = PaneModels
+	h := m.height - 4
+
+	thumbRow := func() int {
+		rows := strings.Split(strip(m.renderModels(40, h)), "\n")
+		for i, r := range rows {
+			if strings.Contains(r, "█") {
+				return i
+			}
+		}
+		return -1
+	}
+
+	m.modelSel = 0
+	top0 := thumbRow()
+	m.modelSel = 59
+	topEnd := thumbRow()
+	if top0 < 0 || topEnd < 0 {
+		t.Fatalf("no thumb found (start=%d end=%d)", top0, topEnd)
+	}
+	if topEnd <= top0 {
+		t.Fatalf("thumb did not move down as selection increased: start=%d end=%d", top0, topEnd)
+	}
+}

@@ -89,6 +89,14 @@ type Model struct {
 	runHandle *swamp.RunHandle
 	runBusy   bool
 
+	// runUnseen is set when a run reaches a terminal state while the dialog is
+	// closed, so the header can flag a result the user has not looked at yet.
+	runUnseen bool
+
+	// quitConfirm is shown when quitting while a run is still active, so the
+	// user can choose whether the run (and an owned serve) keeps running.
+	quitConfirm bool
+
 	// lastRunID/lastFailedStep describe the most recent run of the current
 	// workflow root, enabling resume-at-step.
 	lastRunID      string

@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func (m *Model) View() tea.View {
@@ -59,14 +60,78 @@ func (m *Model) render() string {
 	all := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
 
 	switch {
+	case m.quitConfirm:
+		return overlayAt(all, m.renderQuitConfirm(), m.width)
 	case m.inputOpen:
 		return m.renderInputForm()
 	case m.runOpen:
-		return m.renderRunConsole()
+		return overlayAt(all, m.renderRunDialog(), m.width)
 	case m.spotterOpen:
 		return m.renderSpotter()
 	}
 	return all
+}
+
+// renderQuitConfirm draws the "a run is still active" prompt.
+func (m *Model) renderQuitConfirm() string {
+	w := clamp(m.width*60/100, 44, 88)
+	var b strings.Builder
+	b.WriteString(styleError.Render("A run is still in progress") + "\n\n")
+	b.WriteString(fmt.Sprintf("%s  %s\n\n",
+		runStatusChip(m.runStatus),
+		styleMuted.Render(m.runTitle+" "+shortID(m.runID))))
+	b.WriteString(styleMuted.Render(
+		"The run is owned by swamp serve, not by this browser.\n"+
+			"Detaching leaves it running; cancelling stops it.") + "\n")
+	b.WriteString("\n")
+	b.WriteString(renderHints([]hint{
+		h("d", "detach & quit (run continues)"),
+		h("x", "cancel run & quit"),
+		h("esc", "stay"),
+	}, w-4))
+	return stylePaneFocus.Width(w).Render(stylePaneTitle.Render("Quit?") + "\n" + b.String())
+}
+
+// overlayAt composites fg over base, centred horizontally and placed so its
+// bottom sits just above the base's last line (the context key bar, which stays
+// visible). base is expected to be m.height-1 lines tall.
+func overlayAt(base, fg string, totalW int) string {
+	b := strings.Split(base, "\n")
+	f := strings.Split(fg, "\n")
+	fw := 0
+	for _, l := range f {
+		if w := ansi.StringWidth(l); w > fw {
+			fw = w
+		}
+	}
+	x := (totalW - fw) / 2
+	if x < 0 {
+		x = 0
+	}
+	// One blank row above the footer.
+	y := len(b) - 1 - len(f)
+	if y < 0 {
+		y = 0
+	}
+	for i, fl := range f {
+		yy := y + i
+		if yy < 0 || yy >= len(b) {
+			continue
+		}
+		bl := b[yy]
+		bw := ansi.StringWidth(bl)
+		if bw < totalW {
+			bl += strings.Repeat(" ", totalW-bw)
+			bw = totalW
+		}
+		left := ansi.Cut(bl, 0, x)
+		right := ""
+		if x+fw < bw {
+			right = ansi.Cut(bl, x+fw, bw)
+		}
+		b[yy] = left + fl + right
+	}
+	return strings.Join(b, "\n")
 }
 
 // renderSpotter draws the global search box centred on the screen.
@@ -120,59 +185,91 @@ func (m *Model) renderSpotter() string {
 	return lipgloss.Place(m.width, placeHeight(m.height), lipgloss.Center, lipgloss.Center, box)
 }
 
-// renderRunConsole draws the live run event console, full screen.
-func (m *Model) renderRunConsole() string {
-	// Reserve one row for the hint line and one for the terminal-scroll guard
-	// (content equal to the row count scrolls the terminal by one).
-	h := m.height - 2
-	if h < 4 {
-		h = 4
+// renderRunDialog draws the live run console as a compact dialog sized to a
+// fraction of the screen, leaving the browser and the context key bar visible.
+func (m *Model) renderRunDialog() string {
+	// Dialog footprint: ~86% wide, ~70% tall, clamped so the bottom sits above
+	// the footer.
+	w := clamp(m.width*86/100, 44, m.width-2)
+	h := clamp(m.height*70/100, 8, m.height-6)
+	if h > m.height-2 {
+		h = m.height - 2
 	}
-	innerH := h - 3
+	if w > m.width {
+		w = m.width
+	}
+	// Layout: h is the dialog's total height (border included). Inside the
+	// border we have a 1-row title, the event body, and a 1-row hint line, so
+	// the body gets h-4 rows. w includes 2 border + 2 padding columns, and we
+	// reserve the last column for a scrollbar.
+	innerW := w - 4
+	innerH := h - 4
+	if innerH < 1 {
+		innerH = 1
+	}
+	textW := innerW
+	bar := innerH > 0 && len(m.runLines) > innerH
+	if bar {
+		textW = innerW - 1
+	}
 
-	status := m.runStatus
 	title := "Run — " + m.runTitle
 	if m.runID != "" {
 		title += "  " + styleMuted.Render(shortID(m.runID))
 	}
-
-	// Scroll window.
-	lines := m.runLines
-	maxScroll := len(lines) - innerH
-	if maxScroll < 0 {
-		maxScroll = 0
-	}
-	top := clamp(m.runScroll, 0, maxScroll)
-	if m.runScroll >= 1<<29 {
-		top = maxScroll
-	}
-	end := top + innerH
-	if end > len(lines) {
-		end = len(lines)
-	}
-	visible := lines[top:end]
-
-	// Right-aligned status chip.
-	chip := styleMuted.Render(status)
-	if status == "running" {
-		chip = styleGreen.Render("● running")
-	} else if status == "succeeded" {
-		chip = styleGreen.Render("■ succeeded")
-	} else if status == "failed" || status == "error" {
-		chip = styleError.Render("■ " + status)
-	}
+	chip := runStatusChip(m.runStatus)
 	head := stylePaneTitle.Render(title)
-	gap := m.width - 4 - lipgloss.Width(head) - lipgloss.Width(chip)
+	gap := innerW - lipgloss.Width(head) - lipgloss.Width(chip)
 	if gap < 1 {
 		gap = 1
 	}
 	headerLine := head + strings.Repeat(" ", gap) + chip
 
-	body := strings.Join(visible, "\n")
-	box := stylePaneFocus.Width(m.width).Height(h).Render(
-		headerLine + "\n" + body)
-	box += "\n" + renderHints(m.runConsoleHints(), m.width)
-	return box
+	// Scroll window over the event lines.
+	top := m.runTop(innerH)
+	end := top + innerH
+	if end > len(m.runLines) {
+		end = len(m.runLines)
+	}
+	body := clip(strings.Join(m.runLines[top:end], "\n"), textW, innerH)
+	if bar {
+		body = stampScrollbar(body, paneScroll{
+			total: len(m.runLines), visible: innerH, top: top,
+		}, innerW, innerH)
+	}
+
+	footer := renderHints(m.runConsoleHints(), innerW)
+	joined := headerLine + "\n" + body + "\n" + styleMuted.Render(footer)
+	// Height is inner content (title+body+footer) + 2 border rows.
+	return stylePaneFocus.Width(w).Height(h).Render(joined)
+}
+
+// runTop resolves the run console's scroll offset to a concrete top row.
+func (m *Model) runTop(innerH int) int {
+	maxScroll := len(m.runLines) - innerH
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if m.runScroll >= 1<<29 {
+		return maxScroll // pinned to bottom
+	}
+	return clamp(m.runScroll, 0, maxScroll)
+}
+
+// runStatusChip renders the coloured status indicator for the run dialog.
+func runStatusChip(status string) string {
+	switch status {
+	case "running":
+		return styleGreen.Render("● running")
+	case "starting…", "resuming…", "cancelling…":
+		return styleOrange.Render("◐ " + status)
+	case "succeeded":
+		return styleGreen.Render("■ succeeded")
+	case "failed", "error":
+		return styleError.Render("■ " + status)
+	default:
+		return styleMuted.Render(status)
+	}
 }
 
 // renderInputForm draws the workflow run input form centred on screen.
@@ -234,6 +331,23 @@ func (m *Model) renderHeader() string {
 		origin = "existing serve"
 	}
 	right := styleStatus.Render(origin)
+	// A detached (or open) run is surfaced in the header so it is never
+	// ambiguous whether a run is still going.
+	if m.runHandle != nil || m.runBusy || m.runUnseen {
+		chip := runStatusChip(m.runStatus)
+		if m.runID != "" {
+			chip += styleMuted.Render(" " + shortID(m.runID))
+		}
+		if !m.runOpen {
+			hint := "o open"
+			if m.runUnseen && !m.runBusy {
+				hint = "o results"
+				chip = styleKey.Render("! ") + chip
+			}
+			chip += styleKey.Render("  (" + hint + ")")
+		}
+		right = chip + "   " + right
+	}
 	gap := m.width - lipgloss.Width(title) - lipgloss.Width(repo) - lipgloss.Width(right) - 2
 	if gap < 1 {
 		gap = 1
@@ -367,7 +481,16 @@ func (m *Model) renderFooter() string {
 	}
 }
 
-func (m *Model) pane(title string, focused bool, content string, w, h int) string {
+// paneScroll describes how full a pane's content is, for the scrollbar.
+type paneScroll struct {
+	total   int // total content rows
+	visible int // rows the viewport shows
+	top     int // first visible row
+}
+
+func (s paneScroll) needed() bool { return s.total > s.visible && s.visible > 0 }
+
+func (m *Model) pane(title string, focused bool, content string, w, h int, sc paneScroll) string {
 	st := stylePane
 	titleSt := stylePaneTitleBlur
 	if focused {
@@ -388,9 +511,47 @@ func (m *Model) pane(title string, focused bool, content string, w, h int) strin
 	if m.focus == PaneModels && title == "Models" && m.filtering {
 		head = titleSt.Render(title) + styleMuted.Render("  /"+m.filter)
 	}
-	body := clip(content, innerW, innerH)
+
+	// Reserve the last inner column for the scrollbar whenever the content
+	// overflows, so the bar is always visible.
+	hasBar := sc.needed() && innerW >= 3
+	contentW := innerW
+	if hasBar {
+		contentW = innerW - 1
+	}
+	body := clip(content, contentW, innerH)
+	if hasBar {
+		body = stampScrollbar(body, sc, innerW, innerH)
+	}
 	joined := head + "\n" + body
 	return st.Width(w).Height(h).Render(joined)
+}
+
+// stampScrollbar overlays a proportional scrollbar in the last inner column of
+// each body row, padding rows to the full inner height so the bar is continuous.
+func stampScrollbar(body string, sc paneScroll, innerW, innerH int) string {
+	rows := strings.Split(body, "\n")
+	bar := scrollbarString(sc.total, sc.visible, sc.top, innerH,
+		styleScrollTrack.Render("│"), styleScrollThumb.Render("█"))
+	if len(bar) < innerH {
+		bar = append(bar, make([]string, innerH-len(bar))...)
+	}
+	out := make([]string, innerH)
+	for i := 0; i < innerH; i++ {
+		var line string
+		if i < len(rows) {
+			line = rows[i]
+		}
+		w := lipgloss.Width(line)
+		if w > innerW-1 {
+			line = truncateANSI(line, innerW-1)
+			w = innerW - 1
+		}
+		line += strings.Repeat(" ", innerW-1-w)
+		line += bar[i]
+		out[i] = line
+	}
+	return strings.Join(out, "\n")
 }
 
 func (m *Model) renderWorkflows(w, h int) string {
@@ -408,7 +569,8 @@ func (m *Model) renderWorkflows(w, h int) string {
 		b.WriteString(styleMuted.Render("(no workflows)"))
 	}
 	title := fmt.Sprintf("Workflows (%d)%s", len(wfs), rangeLabel(len(wfs), top, bottom))
-	return m.pane(title, m.focus == PaneWorkflows, b.String(), w, h)
+	sc := paneScroll{total: len(wfs) * 2, visible: (bottom - top) * 2, top: top * 2}
+	return m.pane(title, m.focus == PaneWorkflows, b.String(), w, h, sc)
 }
 
 func (m *Model) renderModels(w, h int) string {
@@ -423,7 +585,8 @@ func (m *Model) renderModels(w, h int) string {
 		b.WriteString("\n")
 	}
 	title := fmt.Sprintf("Models (%d)%s", len(models), rangeLabel(len(models), top, bottom))
-	return m.pane(title, m.focus == PaneModels, b.String(), w, h)
+	sc := paneScroll{total: len(models) * 2, visible: (bottom - top) * 2, top: top * 2}
+	return m.pane(title, m.focus == PaneModels, b.String(), w, h, sc)
 }
 
 // listLabel renders one selectable list row, styled by selection and focus.
@@ -447,7 +610,8 @@ func (m *Model) renderDetail(w, h int) string {
 	if m.detailScroll > 0 && m.detailScroll < len(m.detailLines) {
 		content = strings.Join(m.detailLines[m.detailScroll:], "\n")
 	}
-	return m.pane(title, m.focus == PaneDetail, content, w, h)
+	sc := paneScroll{total: len(m.detailLines), visible: h - 3, top: m.detailScroll}
+	return m.pane(title, m.focus == PaneDetail, content, w, h, sc)
 }
 
 func (m *Model) renderData(w, h int) string {
@@ -464,7 +628,8 @@ func (m *Model) renderData(w, h int) string {
 		b.WriteString(styleMuted.Render("(no data)"))
 	}
 	title := fmt.Sprintf("Data (%d)%s", len(m.dataItems), rangeLabel(len(m.dataItems), top, bottom))
-	return m.pane(title, m.focus == PaneData, b.String(), w, h)
+	sc := paneScroll{total: len(m.dataItems) * 2, visible: (bottom - top) * 2, top: top * 2}
+	return m.pane(title, m.focus == PaneData, b.String(), w, h, sc)
 }
 
 // clip trims content to innerW x innerH (approximate; ANSI-aware via lipgloss).

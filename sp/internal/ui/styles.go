@@ -74,6 +74,9 @@ var (
 	styleKind = lipgloss.NewStyle().
 			Foreground(colAccent2)
 
+	styleScrollTrack = lipgloss.NewStyle().Foreground(colBorder)
+	styleScrollThumb = lipgloss.NewStyle().Foreground(colAccent)
+
 	styleGreen  = lipgloss.NewStyle().Foreground(colGreen)
 	styleOrange = lipgloss.NewStyle().Foreground(colOrange)
 	styleMuted  = lipgloss.NewStyle().Foreground(colMuted)

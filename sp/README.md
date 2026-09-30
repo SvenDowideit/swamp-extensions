@@ -107,10 +107,15 @@ Four selection-linked panes, dropped responsively as the terminal narrows:
 - **Detail** — the DAG (with recent runs) or method list; scrollable. `R` runs
   the workflow; `u` resumes at the failed step when the last run failed.
 
-The three list panes **scroll to follow the selection**: moving past the bottom
-(or jumping via Spotter) shifts the window so the selected row is always visible,
-and the title shows a `first–last/total` indicator when the list overflows
-(e.g. `Models (30) 9–19/30`).
+The list panes **scroll to follow the selection**: moving past the bottom (or
+jumping via Spotter) shifts the window so the selected row is always visible, and
+the title shows a `first–last/total` indicator when the list overflows (e.g.
+`Models (30) 9–19/30`).
+
+Every pane whose content is longer than the pane shows a **persistent
+proportional scrollbar** in its right-hand column — a thumb sized to
+`visible/total` that tracks the scroll position (Workflows, Models, Data, and the
+scrolling Detail pane). Panes whose content fits show no bar.
 - **Data** — data produced by the selected workflow (`data.list` with
   `workflowName`) or model. `enter` fetches the item's content with a scoped
   `data.get`.
@@ -121,29 +126,46 @@ The Detail and Data panes always describe one **root** (a workflow or a model);
 ## Running a workflow (live)
 
 `R` on a workflow starts `workflow.run` over the protocol and opens a **run
-console** — a full-screen live view of the run's event stream. No shelling out;
-events arrive on the same WebSocket and are rendered as they happen:
+dialog** — a compact overlay (≈86% × 70% of the screen) that streams the run's
+events. It floats over the browser rather than taking the whole screen, so the
+context key bar and the surrounding panes stay visible:
 
 ```
-╭──────────────────────────────────────────────────────────────────────────────╮
-│ Run — @svendowideit/opencode-theme  04facbc0                        ● running │
-│ ▶ started @svendowideit/opencode-theme                                       │
-│ job main                                                                     │
-│   → install-theme                                                            │
-│     opencode.installTheme                                                    │
-│     Theme 'borland_modern_blue' already installed                            │
-│   ✓ install-theme                                                            │
-│   → set-theme                                                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-[run]  ↑↓ scroll  c cancel  esc close
+│     ╭──────────────────────────────────────────────────────────────────────╮
+│     │ Run — disk                                           ● running       │
+│     │ event line 40                                                     █   │
+│     │ event line 41                                                     █   │
+│     │ …                                                                     │
+│     │ ↑↓ scroll  c cancel run  esc detach (keeps running)                  │
+│     ╰──────────────────────────────────────────────────────────────────────╯
+[models]  ↑↓ move  enter open  / filter  tab pane  s search  r reload  q quit
 ```
 
 The events handled are `validating_inputs`, `evaluating_workflow`, `started`,
 `job_started`, `step_started`, `model_resolved`, `method_executing`,
 `method_output` (stdout/stderr), `step_completed`/`step_failed`, `job_completed`,
-and `completed` (which carries the final `run` status). The run is **serve-owned**
-— the console is a subscriber, `c` sends the protocol `cancel`, and the run keeps
-going if the console is closed.
+and `completed` (which carries the final `run` status). The dialog has its own
+proportional scrollbar, pinned to the tail while the run streams; `↑`/`↓` and
+`pgup`/`pgdn` scroll back through history.
+
+### Is it still running? Detach, and quitting
+
+The run is **owned by `swamp serve`, not by the browser**. The dialogue is a
+subscriber:
+
+- **`esc` detaches** — the dialog closes but the run keeps streaming in the
+  background. The header then shows a persistent `● running <id>  (o open)`
+  chip, and `o` reopens the dialog. When a detached run finishes, the chip
+  switches to `! ■ succeeded` / `! ■ failed` with `(o results)` until you look.
+- **`q` while a run is active prompts** rather than quitting outright:
+  `d` **detaches and quits** — it deliberately does *not* stop the serve it
+  started, so the run continues after `sp` exits; `x` cancels the run and stops
+  an owned serve before quitting; `esc` stays. (If `sp` merely attached to an
+  existing serve, that serve was never going to be stopped regardless.)
+
+So yes: start a long workflow, press `esc` to detach, then `q` → `d`, and the
+workflow keeps running server-side. Re-run `sp` later and the run's history is
+in the workflow's **Recent runs**.
 
 If a workflow declares inputs, `R` first opens a small form generated from its
 `inputs` JSON schema (`path`, `excludePatterns`, …), coercing each field to its

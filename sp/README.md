@@ -106,6 +106,11 @@ Four selection-linked panes, dropped responsively as the terminal narrows:
   plus the model's data.
 - **Detail** — the DAG (with recent runs) or method list; scrollable. `R` runs
   the workflow; `u` resumes at the failed step when the last run failed.
+
+The three list panes **scroll to follow the selection**: moving past the bottom
+(or jumping via Spotter) shifts the window so the selected row is always visible,
+and the title shows a `first–last/total` indicator when the list overflows
+(e.g. `Models (30) 9–19/30`).
 - **Data** — data produced by the selected workflow (`data.list` with
   `workflowName`) or model. `enter` fetches the item's content with a scoped
   `data.get`.

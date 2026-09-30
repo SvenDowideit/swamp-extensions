@@ -122,6 +122,39 @@ func wrapString(s string, width int) []string {
 	return out
 }
 
+// listWindow returns the half-open item range [top, bottom) to render so that
+// the selected item (sel) stays visible in a viewport of innerH rows, where
+// each item occupies rowsPerItem rows. It scrolls the minimum amount and never
+// scrolls past the end of the list.
+func listWindow(n, sel, rowsPerItem, innerH int) (top, bottom int) {
+	visible := innerH / rowsPerItem
+	if visible < 1 {
+		visible = 1
+	}
+	if n <= visible {
+		return 0, n
+	}
+	top = 0
+	if sel >= visible {
+		top = sel - visible + 1
+	}
+	if top > n-visible {
+		top = n - visible
+	}
+	if top < 0 {
+		top = 0
+	}
+	return top, top + visible
+}
+
+// rangeLabel renders " (a–b/n)" for a scrolled list, or "" when everything fits.
+func rangeLabel(n, top, bottom int) string {
+	if top == 0 && bottom >= n {
+		return ""
+	}
+	return fmt.Sprintf(" %d–%d/%d", top+1, bottom, n)
+}
+
 // joinNonEmpty filters empty strings, then joins with sep.
 func joinNonEmpty(sep string, parts ...string) string {
 	kept := parts[:0]

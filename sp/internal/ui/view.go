@@ -395,15 +395,11 @@ func (m *Model) pane(title string, focused bool, content string, w, h int) strin
 
 func (m *Model) renderWorkflows(w, h int) string {
 	wfs := m.visibleWorkflows()
+	top, bottom := listWindow(len(wfs), m.wfSel, 2, h-3)
 	var b strings.Builder
-	for i, n := range wfs {
-		line := styleItem.Render(n.label)
-		if i == m.wfSel && m.focus == PaneWorkflows {
-			line = styleSelected.Render(" " + n.label)
-		} else if i == m.wfSel {
-			line = styleSelectedBlur.Render(" " + n.label)
-		}
-		b.WriteString(line)
+	for i := top; i < bottom; i++ {
+		n := wfs[i]
+		b.WriteString(m.listLabel(i, m.wfSel, n.label, m.focus == PaneWorkflows))
 		b.WriteString("\n")
 		b.WriteString(styleItemSub.Render("   " + n.sub))
 		b.WriteString("\n")
@@ -411,25 +407,34 @@ func (m *Model) renderWorkflows(w, h int) string {
 	if len(wfs) == 0 {
 		b.WriteString(styleMuted.Render("(no workflows)"))
 	}
-	return m.pane(fmt.Sprintf("Workflows (%d)", len(wfs)), m.focus == PaneWorkflows, b.String(), w, h)
+	title := fmt.Sprintf("Workflows (%d)%s", len(wfs), rangeLabel(len(wfs), top, bottom))
+	return m.pane(title, m.focus == PaneWorkflows, b.String(), w, h)
 }
 
 func (m *Model) renderModels(w, h int) string {
 	models := m.visibleModels()
+	top, bottom := listWindow(len(models), m.modelSel, 2, h-3)
 	var b strings.Builder
-	for i, n := range models {
-		line := styleItem.Render(n.label)
-		if i == m.modelSel && m.focus == PaneModels {
-			line = styleSelected.Render(" " + n.label)
-		} else if i == m.modelSel {
-			line = styleSelectedBlur.Render(" " + n.label)
-		}
-		b.WriteString(line)
+	for i := top; i < bottom; i++ {
+		n := models[i]
+		b.WriteString(m.listLabel(i, m.modelSel, n.label, m.focus == PaneModels))
 		b.WriteString("\n")
 		b.WriteString(styleItemSub.Render("   " + shortType(n.sub)))
 		b.WriteString("\n")
 	}
-	return m.pane(fmt.Sprintf("Models (%d)", len(models)), m.focus == PaneModels, b.String(), w, h)
+	title := fmt.Sprintf("Models (%d)%s", len(models), rangeLabel(len(models), top, bottom))
+	return m.pane(title, m.focus == PaneModels, b.String(), w, h)
+}
+
+// listLabel renders one selectable list row, styled by selection and focus.
+func (m *Model) listLabel(i, sel int, label string, focused bool) string {
+	if i == sel && focused {
+		return styleSelected.Render(" " + label)
+	}
+	if i == sel {
+		return styleSelectedBlur.Render(" " + label)
+	}
+	return styleItem.Render(label)
 }
 
 func (m *Model) renderDetail(w, h int) string {
@@ -446,15 +451,11 @@ func (m *Model) renderDetail(w, h int) string {
 }
 
 func (m *Model) renderData(w, h int) string {
+	top, bottom := listWindow(len(m.dataItems), m.dataSel, 2, h-3)
 	var b strings.Builder
-	for i, n := range m.dataItems {
-		line := styleItem.Render(n.label)
-		if i == m.dataSel && m.focus == PaneData {
-			line = styleSelected.Render(" " + n.label)
-		} else if i == m.dataSel {
-			line = styleSelectedBlur.Render(" " + n.label)
-		}
-		b.WriteString(line)
+	for i := top; i < bottom; i++ {
+		n := m.dataItems[i]
+		b.WriteString(m.listLabel(i, m.dataSel, n.label, m.focus == PaneData))
 		b.WriteString("\n")
 		b.WriteString(styleItemSub.Render("   " + n.sub))
 		b.WriteString("\n")
@@ -462,7 +463,8 @@ func (m *Model) renderData(w, h int) string {
 	if len(m.dataItems) == 0 {
 		b.WriteString(styleMuted.Render("(no data)"))
 	}
-	return m.pane(fmt.Sprintf("Data (%d)", len(m.dataItems)), m.focus == PaneData, b.String(), w, h)
+	title := fmt.Sprintf("Data (%d)%s", len(m.dataItems), rangeLabel(len(m.dataItems), top, bottom))
+	return m.pane(title, m.focus == PaneData, b.String(), w, h)
 }
 
 // clip trims content to innerW x innerH (approximate; ANSI-aware via lipgloss).

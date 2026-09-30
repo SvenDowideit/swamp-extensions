@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2835"><span class="tier A">A</span>Combat log: batch the extension visibility lookup into one q</a><a href="#issue-2833"><span class="tier A">A</span>Concurrent embedded deno extraction races: stale temp-file c</a><a href="#issue-2802"><span class="tier A">A</span>Telemetry bridge drops a parent step&#39;s invocation when a nes</a><a href="#issue-2794"><span class="tier A">A</span>gatorwalk-factory: a built-in tracker core that the Lab and </a><a href="#issue-2824"><span class="tier A">A</span>serve daemon: unit sets SWAMP_HOME, which relocates the conf</a><a href="#issue-2776"><span class="tier A">A</span>gatorwalk-factory: dispatch fidelity: subagents get the rend</a><a href="#issue-2805"><span class="tier A">A</span>gatorwalk-factory: saved scenarios next to a lifecycle, run </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2829"><span class="tier A">A</span>serve daemon enable writes a unit that crash-loops when serv</a><a href="#issue-2818"><span class="tier A">A</span>gatorwalk-factory skill: authoring: the agent interviews, st</a><a href="#issue-2806"><span class="tier A">A</span>gatorwalk-factory: studio model type and its local serve met</a><a href="#issue-2778"><span class="tier A">A</span>gatorwalk-factory: record_usage cannot take the token count </a><a href="#issue-2783"><span class="tier A">A</span>Object-level refinements on globalArguments schemas are not </a><a href="#issue-2781"><span class="tier A">A</span>gatorwalk-factory: review prompts define severity and scale </a><a href="#issue-2748"><span class="tier A">A</span>workflow reference.md documents removed --driver flag on swa</a></aside><div>
 
 <article class="item" id="issue-2384">
 <h2><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation principal can clear a manual_approval gate meant for a human</h2>
@@ -108,6 +108,70 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
+</article>
+<article class="item" id="issue-2829">
+<h2><span class="tier A">A</span>serve daemon enable writes a unit that crash-loops when serve args are invalid (e.g. missing --admins)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-30T22:01:30.246Z">2026-09-30T22:01:30.246Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2829" rel="noopener">lab#2829</a></div>
+</article>
+<article class="item" id="issue-2818">
+<h2><span class="tier A">A</span>gatorwalk-factory skill: authoring: the agent interviews, starts from an example, validates, and shows the factory</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-30T22:01:19.515Z">2026-09-30T22:01:19.515Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2818" rel="noopener">lab#2818</a></div>
+</article>
+<article class="item" id="issue-2806">
+<h2><span class="tier A">A</span>gatorwalk-factory: studio model type and its local serve method</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-30T21:46:03.006Z">2026-09-30T21:46:03.006Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2806" rel="noopener">lab#2806</a></div>
+</article>
+<article class="item" id="issue-2778">
+<h2><span class="tier A">A</span>gatorwalk-factory: record_usage cannot take the token count Claude Code reports, so no dispatch gets usage</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-30T21:43:23.392Z">2026-09-30T21:43:23.392Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2778" rel="noopener">lab#2778</a></div>
+</article>
+<article class="item" id="issue-2783">
+<h2><span class="tier A">A</span>Object-level refinements on globalArguments schemas are not enforced at execution time</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-30T21:30:50.041Z">2026-09-30T21:30:50.041Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2783" rel="noopener">lab#2783</a></div>
+</article>
+<article class="item" id="issue-2781">
+<h2><span class="tier A">A</span>gatorwalk-factory: review prompts define severity and scale to the change, so a small change doesn&#39;t loop on logistics findings</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-30T21:30:37.008Z">2026-09-30T21:30:37.008Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2781" rel="noopener">lab#2781</a></div>
+</article>
+<article class="item" id="issue-2748">
+<h2><span class="tier A">A</span>workflow reference.md documents removed --driver flag on swamp workflow run</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-30T21:26:50.933Z">2026-09-30T21:26:50.933Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2748" rel="noopener">lab#2748</a></div>
+</article>
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2784">
+<h2><span class="tier A">A</span>Docs: remove stale Docker Execution Driver section from the extension model reference</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-30T21:18:14.713Z">2026-09-30T21:18:14.713Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2784" rel="noopener">lab#2784</a></div>
 </article>
 <article class="item" id="issue-2835">
 <h2><span class="tier A">A</span>Combat log: batch the extension visibility lookup into one query</h2>
@@ -165,7 +229,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2805" rel="noopener">lab#2805</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2817">
+<article class="item" id="issue-2817">
 <h2><span class="tier A">A</span>CLI telemetry redaction: user values still transmitted (errorMessage, workflowContext, init path, history args, private types) while command words are over-redacted</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-30T18:56:29.036Z">2026-09-30T18:56:29.036Z</time></span></div>
@@ -3133,37 +3197,61 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
-<article class="item" id="issue-2818">
-<h2><span class="tier B">B</span>gatorwalk-factory skill: authoring: the agent interviews, starts from an example, validates, and shows the factory</h2>
+<article class="item" id="issue-2795">
+<h2><span class="tier B">B</span>gatorwalk-factory: a lifecycle chooses its tracker, and status shows projection lag</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-09-30T21:01:20.780Z">2026-09-30T21:01:20.780Z</time></span></div>
+<div class="meta"><span><time datetime="2026-09-30T22:00:43.423Z">2026-09-30T22:00:43.423Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2818" rel="noopener">lab#2818</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2795" rel="noopener">lab#2795</a></div>
 </article>
-<article class="item" id="issue-2806">
-<h2><span class="tier B">B</span>gatorwalk-factory: studio model type and its local serve method</h2>
+<article class="item" id="issue-2830">
+<h2><span class="tier B">B</span>Telemetry: mark paths where errors are built so redaction needs no guessing</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-30T21:00:20.845Z">2026-09-30T21:00:20.845Z</time></span></div>
+<div class="meta"><span><time datetime="2026-09-30T22:00:14.446Z">2026-09-30T22:00:14.446Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2806" rel="noopener">lab#2806</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2830" rel="noopener">lab#2830</a></div>
 </article>
-<article class="item" id="issue-2778">
-<h2><span class="tier B">B</span>gatorwalk-factory: record_usage cannot take the token count Claude Code reports, so no dispatch gets usage</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-09-30T20:58:49.743Z">2026-09-30T20:58:49.743Z</time></span></div>
+<article class="item" id="issue-2831">
+<h2><span class="tier B">B</span>Telemetry opt-out scope: one user-level setting that disables telemetry everywhere</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-30T21:57:11.542Z">2026-09-30T21:57:11.542Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2778" rel="noopener">lab#2778</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2831" rel="noopener">lab#2831</a></div>
+</article>
+<article class="item" id="issue-2745">
+<h2><span class="tier B">B</span>serve reload keeps a removed extension&#39;s add-on methods on built-in and local model types</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-30T21:54:29.339Z">2026-09-30T21:54:29.339Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2745" rel="noopener">lab#2745</a></div>
+</article>
+<article class="item" id="issue-2770">
+<h2><span class="tier B">B</span>gatorwalk-factory: keep a person&#39;s plan feedback and hand it to the next plan</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-30T21:50:19.565Z">2026-09-30T21:50:19.565Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2770" rel="noopener">lab#2770</a></div>
 </article>
 <article class="item" id="issue-2838">
 <h2><span class="tier B">B</span>managedConfig: extension writes update the shared lockfile from a stale cache and overwrite peers&#39; entries</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-30T20:41:58.747Z">2026-09-30T20:41:58.747Z</time></span></div>
+<div class="meta"><span><time datetime="2026-09-30T21:29:54.660Z">2026-09-30T21:29:54.660Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2838" rel="noopener">lab#2838</a></div>
+</article>
+<article class="item" id="issue-2828">
+<h2><span class="tier B">B</span>Docs: telemetry reference — the envelope we send and our redaction policy</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-09-30T21:26:43.675Z">2026-09-30T21:26:43.675Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2828" rel="noopener">lab#2828</a></div>
 </article>
 <article class="item" id="issue-2837">
 <h2><span class="tier B">B</span>datastore setup extension overwrites the shared config tier with the repo-local copy and drops managedConfig from .swamp.yaml</h2>
@@ -3173,14 +3261,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2837" rel="noopener">lab#2837</a></div>
 </article>
-<article class="item" id="issue-2828">
-<h2><span class="tier B">B</span>Docs: telemetry reference — the envelope we send and our redaction policy</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-09-30T20:22:47.597Z">2026-09-30T20:22:47.597Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2828" rel="noopener">lab#2828</a></div>
-</article>
 <article class="item" id="issue-2736">
 <h2><span class="tier B">B</span>A nested workflow that suspends on manual approval forwards its suspended event into the parent run&#39;s stream</h2>
 <p class="lede">Issue triaged</p>
@@ -3188,46 +3268,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2736" rel="noopener">lab#2736</a></div>
-</article>
-<article class="item" id="issue-2829">
-<h2><span class="tier B">B</span>serve daemon enable writes a unit that crash-loops when serve args are invalid (e.g. missing --admins)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-30T20:13:43.596Z">2026-09-30T20:13:43.596Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2829" rel="noopener">lab#2829</a></div>
-</article>
-<article class="item" id="issue-2781">
-<h2><span class="tier B">B</span>gatorwalk-factory: review prompts define severity and scale to the change, so a small change doesn&#39;t loop on logistics findings</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-09-30T19:22:18.439Z">2026-09-30T19:22:18.439Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2781" rel="noopener">lab#2781</a></div>
-</article>
-<article class="item" id="issue-2784">
-<h2><span class="tier B">B</span>Docs: remove stale Docker Execution Driver section from the extension model reference</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-30T15:52:45.530Z">2026-09-30T15:52:45.530Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2784" rel="noopener">lab#2784</a></div>
-</article>
-<article class="item" id="issue-2783">
-<h2><span class="tier B">B</span>Object-level refinements on globalArguments schemas are not enforced at execution time</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-30T14:59:17.376Z">2026-09-30T14:59:17.376Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2783" rel="noopener">lab#2783</a></div>
-</article>
-<article class="item" id="issue-2748">
-<h2><span class="tier B">B</span>workflow reference.md documents removed --driver flag on swamp workflow run</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-30T14:59:09.205Z">2026-09-30T14:59:09.205Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2748" rel="noopener">lab#2748</a></div>
 </article>
 <article class="item" id="issue-2612">
 <h2><span class="tier B">B</span>managedConfig: store pulled extension archives in the config tier and converge each checkout to the shared lockfile</h2>
@@ -3349,21 +3389,109 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2495">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2844">
+<h2><span class="tier C">C</span>datastore setup can overwrite an existing remote config tier when it moves an in-repo tier into an extension datastore</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-30T22:01:31.181Z">2026-09-30T22:01:31.181Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2844" rel="noopener">lab#2844</a></div>
+</article>
+<article class="item" id="issue-2843">
+<h2><span class="tier C">C</span>deployments: sync fails after adopt/get because stored state has id, not uid</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-30T21:59:23.996Z">2026-09-30T21:59:23.996Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2843" rel="noopener">lab#2843</a></div>
+</article>
+<article class="item" id="issue-2782">
+<h2><span class="tier C">C</span>gatorwalk-factory skill: stop on repeated automatic rework, and lay out every exit neutrally at human stops</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-30T21:53:20.104Z">2026-09-30T21:53:20.104Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2782" rel="noopener">lab#2782</a></div>
+</article>
+<article class="item" id="issue-2816">
+<h2><span class="tier C">C</span>gatorwalk-factory: a factory definition&#39;s name field duplicates the factory&#39;s model name</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-30T21:40:49.393Z">2026-09-30T21:40:49.393Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2816" rel="noopener">lab#2816</a></div>
+</article>
+<article class="item" id="issue-2841">
+<h2><span class="tier C">C</span>gatorwalk-factory studio: file-watch and page edge cases left from #2806&#39;s reviews</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-30T21:40:38.865Z">2026-09-30T21:40:38.865Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2841" rel="noopener">lab#2841</a></div>
+</article>
+<article class="item" id="issue-2842">
+<h2><span class="tier C">C</span>gatorwalk-factory: scrub the swamp-club Lab from everything a public user sees, so it never reads as an option</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-30T21:39:55.718Z">2026-09-30T21:39:55.718Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2842" rel="noopener">lab#2842</a></div>
+</article>
+<article class="item" id="issue-2819">
+<h2><span class="tier C">C</span>gatorwalk-factory: user documentation for go-live (getting started, concepts, reference, trackers, studio, migration)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-30T21:34:23.615Z">2026-09-30T21:34:23.615Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2819" rel="noopener">lab#2819</a></div>
+</article>
+<article class="item" id="issue-2826">
+<h2><span class="tier C">C</span>Top-level swamp init never earns repo-init quest or tier credit</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-30T21:16:28.654Z">2026-09-30T21:16:28.654Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2826" rel="noopener">lab#2826</a></div>
+</article>
+<article class="item" id="issue-2836">
+<h2><span class="tier C">C</span>Docs: manual approval gates inside nested workflows (swamp-club#2736)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-30T21:16:14.469Z">2026-09-30T21:16:14.469Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2836" rel="noopener">lab#2836</a></div>
+</article>
+<article class="item" id="issue-2827">
+<h2><span class="tier C">C</span>Docs: serve daemon enable pins SWAMP_CONFIG_DIR; document the SWAMP_CONFIG_DIR override</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-30T21:16:08.588Z">2026-09-30T21:16:08.588Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2827" rel="noopener">lab#2827</a></div>
+</article>
+<article class="item" id="issue-2839">
+<h2><span class="tier C">C</span>gatorwalk-factory skill: authoring&#39;s Show it step uses the studio once it lands</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-30T21:15:03.821Z">2026-09-30T21:15:03.821Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2839" rel="noopener">lab#2839</a></div>
+</article>
+<article class="item" id="issue-2840">
+<h2><span class="tier C">C</span>gatorwalk-factory: validate warns on a way back with no description and on a product with no schema</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-30T21:15:00.260Z">2026-09-30T21:15:00.260Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2840" rel="noopener">lab#2840</a></div>
+</article>
+<article class="item" id="issue-2495">
 <h2><span class="tier C">C</span>managedConfig: extension lockfile writes lose updates, and auto-resolved installs never reach the shared lockfile</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-09-30T20:11:54.441Z">2026-09-30T20:11:54.441Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2495" rel="noopener">lab#2495</a></div>
-</article>
-<article class="item" id="issue-2836">
-<h2><span class="tier C">C</span>Docs: manual approval gates inside nested workflows (swamp-club#2736)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-30T20:09:34.385Z">2026-09-30T20:09:34.385Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2836" rel="noopener">lab#2836</a></div>
 </article>
 <article class="item" id="issue-2834">
 <h2><span class="tier C">C</span>@swamp/digitalocean/space-key: update and sync call /v2/spaces/keys/undefined</h2>
@@ -3381,14 +3509,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2796" rel="noopener">lab#2796</a></div>
 </article>
-<article class="item" id="issue-2795">
-<h2><span class="tier C">C</span>gatorwalk-factory: a lifecycle chooses its tracker, and status shows projection lag</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-30T19:27:31.532Z">2026-09-30T19:27:31.532Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2795" rel="noopener">lab#2795</a></div>
-</article>
 <article class="item" id="issue-2832">
 <h2><span class="tier C">C</span>gatorwalk-factory: built-in tracker create must not overwrite a ticket on an id collision</h2>
 <p class="lede">Open issue</p>
@@ -3397,30 +3517,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2832" rel="noopener">lab#2832</a></div>
 </article>
-<article class="item" id="issue-2831">
-<h2><span class="tier C">C</span>Telemetry opt-out scope: one user-level setting that disables telemetry everywhere</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-30T18:48:45.177Z">2026-09-30T18:48:45.177Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2831" rel="noopener">lab#2831</a></div>
-</article>
-<article class="item" id="issue-2830">
-<h2><span class="tier C">C</span>Telemetry: mark paths where errors are built so redaction needs no guessing</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-30T18:48:44.323Z">2026-09-30T18:48:44.323Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2830" rel="noopener">lab#2830</a></div>
-</article>
-<article class="item" id="issue-2770">
-<h2><span class="tier C">C</span>gatorwalk-factory: keep a person&#39;s plan feedback and hand it to the next plan</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-30T18:37:30.115Z">2026-09-30T18:37:30.115Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2770" rel="noopener">lab#2770</a></div>
-</article>
 <article class="item" id="issue-2500">
 <h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
 <p class="lede">Open issue</p>
@@ -3428,22 +3524,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2500" rel="noopener">lab#2500</a></div>
-</article>
-<article class="item" id="issue-2827">
-<h2><span class="tier C">C</span>Docs: serve daemon enable pins SWAMP_CONFIG_DIR; document the SWAMP_CONFIG_DIR override</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-30T18:15:25.616Z">2026-09-30T18:15:25.616Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2827" rel="noopener">lab#2827</a></div>
-</article>
-<article class="item" id="issue-2826">
-<h2><span class="tier C">C</span>Top-level swamp init never earns repo-init quest or tier credit</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-30T18:10:30.734Z">2026-09-30T18:10:30.734Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2826" rel="noopener">lab#2826</a></div>
 </article>
 <article class="item" id="issue-2821">
 <h2><span class="tier C">C</span>software-factory: decide its future at gatorwalk-factory go-live: PR #318, support window, deprecation</h2>
@@ -3509,14 +3589,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2820" rel="noopener">lab#2820</a></div>
 </article>
-<article class="item" id="issue-2819">
-<h2><span class="tier C">C</span>gatorwalk-factory: user documentation for go-live (getting started, concepts, reference, trackers, studio, migration)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-30T16:49:52.971Z">2026-09-30T16:49:52.971Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2819" rel="noopener">lab#2819</a></div>
-</article>
 <article class="item" id="issue-2289">
 <h2><span class="tier C">C</span>verification: adversarial review guard omits extensions/, so bundled extension changes skip review</h2>
 <p class="lede">Open issue</p>
@@ -3548,14 +3620,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2777" rel="noopener">lab#2777</a></div>
-</article>
-<article class="item" id="issue-2816">
-<h2><span class="tier C">C</span>gatorwalk-factory: a factory definition&#39;s name field duplicates the factory&#39;s model name</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-30T16:36:45.803Z">2026-09-30T16:36:45.803Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2816" rel="noopener">lab#2816</a></div>
 </article>
 <article class="item" id="issue-2812">
 <h2><span class="tier C">C</span>serve: a relative grants-dir resolves against the working directory, not the repository</h2>
@@ -3717,14 +3781,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2780" rel="noopener">lab#2780</a></div>
 </article>
-<article class="item" id="issue-2782">
-<h2><span class="tier C">C</span>gatorwalk-factory skill: stop on repeated automatic rework, and lay out every exit neutrally at human stops</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-30T14:25:07.182Z">2026-09-30T14:25:07.182Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2782" rel="noopener">lab#2782</a></div>
-</article>
 <article class="item" id="issue-2763">
 <h2><span class="tier C">C</span>issue-lifecycle triage fails with 422 when the primary issue is already in_progress in swamp-club</h2>
 <p class="lede">Open issue</p>
@@ -3868,14 +3924,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2746" rel="noopener">lab#2746</a></div>
-</article>
-<article class="item" id="issue-2745">
-<h2><span class="tier C">C</span>serve reload keeps a removed extension&#39;s add-on methods on built-in and local model types</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-29T22:52:02.996Z">2026-09-29T22:52:02.996Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2745" rel="noopener">lab#2745</a></div>
 </article>
 <article class="item" id="issue-2668">
 <h2><span class="tier C">C</span>gatorwalk-factory: a shortcut from several stages to one</h2>
@@ -5838,13 +5886,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1903" rel="noopener">lab#1903</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>721 items across 1 source(s) in this window:
-5 critical, 378 notable, 27 routine,
-311 minor.</p>
-<ul><li><strong>issues</strong> — 721</li></ul></section>
+<p>727 items across 1 source(s) in this window:
+5 critical, 386 notable, 24 routine,
+312 minor.</p>
+<ul><li><strong>issues</strong> — 727</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-30T21:03:20.840Z">2026-09-30T21:03:20.840Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-30T22:03:27.161Z">2026-09-30T22:03:27.161Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2741"><span class="tier A">A</span>PulledExtensionsLock timeout names the lock file with a forw</a><a href="#issue-2515"><span class="tier A">A</span>definitions: delete() silently leaves an auto-definition fil</a><a href="#issue-2737"><span class="tier A">A</span>vault create/migrate --config help says local_encryption &#39;al</a><a href="#issue-2730"><span class="tier A">A</span>gatorwalk-factory: graph validation fails at default cycle l</a><a href="#issue-2725"><span class="tier A">A</span>images list pulls full public catalog and crashes on duplica</a><a href="#issue-2726"><span class="tier A">A</span>issue --extension: documented example @adam/cfgmgmt is unrou</a><a href="#issue-2684"><span class="tier A">A</span>gatorwalk-factory: starter plugins (GW-13)</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2384"><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation </a><a href="#issue-2223"><span class="tier S">S</span>Security Center: complete location-scoped finding snapshots </a><a href="#issue-2087"><span class="tier S">S</span>Simplify CI: remove redundant jobs, automerge only on securi</a><a href="#issue-1979"><span class="tier S">S</span>target-domain create/get fail with &quot;security token expired&quot; </a><a href="#issue-1961"><span class="tier S">S</span>Extension version binaries never persisted — binaries securi</a><a href="#issue-2734"><span class="tier A">A</span>gatorwalk-factory: drive a swamp-extensions Lab issue end to</a><a href="#issue-2742"><span class="tier A">A</span>managedConfig: extension rm on one serve instance leaves the</a><a href="#issue-2741"><span class="tier A">A</span>PulledExtensionsLock timeout names the lock file with a forw</a><a href="#issue-2515"><span class="tier A">A</span>definitions: delete() silently leaves an auto-definition fil</a><a href="#issue-2737"><span class="tier A">A</span>vault create/migrate --config help says local_encryption &#39;al</a><a href="#issue-2730"><span class="tier A">A</span>gatorwalk-factory: graph validation fails at default cycle l</a><a href="#issue-2725"><span class="tier A">A</span>images list pulls full public catalog and crashes on duplica</a></aside><div>
 
 <article class="item" id="issue-2384">
 <h2><span class="tier S">S</span>security: a &quot;run&quot; grant implies &quot;approve&quot;, so an automation principal can clear a manual_approval gate meant for a human</h2>
@@ -109,6 +109,22 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1961" rel="noopener">lab#1961</a></div>
 </article>
+<article class="item" id="issue-2734">
+<h2><span class="tier A">A</span>gatorwalk-factory: drive a swamp-extensions Lab issue end to end through the swamp-club adapter (gap 1)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-09-29T23:54:30.797Z">2026-09-29T23:54:30.797Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2734" rel="noopener">lab#2734</a></div>
+</article>
+<article class="item" id="issue-2742">
+<h2><span class="tier A">A</span>managedConfig: extension rm on one serve instance leaves the extension&#39;s types registered on its peers</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-09-29T23:18:28.616Z">2026-09-29T23:18:28.616Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2742" rel="noopener">lab#2742</a></div>
+</article>
 <article class="item" id="issue-2741">
 <h2><span class="tier A">A</span>PulledExtensionsLock timeout names the lock file with a forward slash on Windows; Windows CI fails on main</h2>
 <p class="lede">Shipped bug fix</p>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2725" rel="noopener">lab#2725</a></div>
 </article>
-<article class="item" id="issue-2726">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2726">
 <h2><span class="tier A">A</span>issue --extension: documented example @adam/cfgmgmt is unroutable (no repo), so -x against it no-ops at exit 0</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-09-29T21:19:30.969Z">2026-09-29T21:19:30.969Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2684" rel="noopener">lab#2684</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2700">
+<article class="item" id="issue-2700">
 <h2><span class="tier A">A</span>issue-lifecycle: link issues that ship together and ship duplicates</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-09-29T20:31:30.403Z">2026-09-29T20:31:30.403Z</time></span></div>
@@ -2885,14 +2901,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1899" rel="noopener">lab#1899</a></div>
 </article>
-<article class="item" id="issue-2742">
-<h2><span class="tier B">B</span>managedConfig: extension rm on one serve instance leaves the extension&#39;s types registered on its peers</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-29T23:00:37.602Z">2026-09-29T23:00:37.602Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2742" rel="noopener">lab#2742</a></div>
-</article>
 <article class="item" id="issue-2723">
 <h2><span class="tier B">B</span>Install extensions by stage and swap, with a journal and crash recovery</h2>
 <p class="lede">Issue in_progress</p>
@@ -2900,14 +2908,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2723" rel="noopener">lab#2723</a></div>
-</article>
-<article class="item" id="issue-2734">
-<h2><span class="tier B">B</span>gatorwalk-factory: drive a swamp-extensions Lab issue end to end through the swamp-club adapter (gap 1)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-09-29T22:44:45.887Z">2026-09-29T22:44:45.887Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2734" rel="noopener">lab#2734</a></div>
 </article>
 <article class="item" id="issue-2612">
 <h2><span class="tier B">B</span>managedConfig: store pulled extension archives in the config tier and converge each checkout to the shared lockfile</h2>
@@ -3029,7 +3029,87 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/1974" rel="noopener">lab#1974</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2746">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2626">
+<h2><span class="tier C">C</span>Docs: health endpoints need a valid token, not admin, and the stream ends on token revoke</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-29T23:35:31.841Z">2026-09-29T23:35:31.841Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2626" rel="noopener">lab#2626</a></div>
+</article>
+<article class="item" id="issue-2653">
+<h2><span class="tier C">C</span>Docs: document health stream limits and narrowed snapshots in the swamp serve REST API reference</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-29T23:35:29.348Z">2026-09-29T23:35:29.348Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2653" rel="noopener">lab#2653</a></div>
+</article>
+<article class="item" id="issue-2661">
+<h2><span class="tier C">C</span>Docs: document snapshot cleanup and the new snapshot fields in the swamp run gc reference</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-29T23:35:26.919Z">2026-09-29T23:35:26.919Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2661" rel="noopener">lab#2661</a></div>
+</article>
+<article class="item" id="issue-2679">
+<h2><span class="tier C">C</span>Docs: edit commands over --server take piped YAML on stdin</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-29T23:35:24.616Z">2026-09-29T23:35:24.616Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2679" rel="noopener">lab#2679</a></div>
+</article>
+<article class="item" id="issue-2692">
+<h2><span class="tier C">C</span>Docs: vault rename moves local_encryption secrets</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-29T23:35:21.947Z">2026-09-29T23:35:21.947Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2692" rel="noopener">lab#2692</a></div>
+</article>
+<article class="item" id="issue-2694">
+<h2><span class="tier C">C</span>Docs: update the model validate Expression paths example in cel-expressions.md</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-29T23:35:19.596Z">2026-09-29T23:35:19.596Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2694" rel="noopener">lab#2694</a></div>
+</article>
+<article class="item" id="issue-2701">
+<h2><span class="tier C">C</span>Docs: worker-fleet guides start swamp serve without --admins and mint tokens with a removed command</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-29T23:35:17.106Z">2026-09-29T23:35:17.106Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2701" rel="noopener">lab#2701</a></div>
+</article>
+<article class="item" id="issue-2728">
+<h2><span class="tier C">C</span>Docs: serve authorizes requests by id against the resource&#39;s name</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-29T23:35:14.634Z">2026-09-29T23:35:14.634Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2728" rel="noopener">lab#2728</a></div>
+</article>
+<article class="item" id="issue-2733">
+<h2><span class="tier C">C</span>Docs: local_encryption key-source fields are refused over --server</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-29T23:35:11.916Z">2026-09-29T23:35:11.916Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2733" rel="noopener">lab#2733</a></div>
+</article>
+<article class="item" id="issue-2740">
+<h2><span class="tier C">C</span>Docs: describe how enrollment token revoke disconnects connected workers</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-09-29T23:35:09.385Z">2026-09-29T23:35:09.385Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2740" rel="noopener">lab#2740</a></div>
+</article>
+<article class="item" id="issue-2746">
 <h2><span class="tier C">C</span>A pulled extension can shadow a built-in type, and removing it leaves serve without the built-in</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-09-29T23:00:00.014Z">2026-09-29T23:00:00.014Z</time></span></div>
@@ -3052,30 +3132,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2744" rel="noopener">lab#2744</a></div>
-</article>
-<article class="item" id="issue-2728">
-<h2><span class="tier C">C</span>Docs: serve authorizes requests by id against the resource&#39;s name</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-29T22:42:19.180Z">2026-09-29T22:42:19.180Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2728" rel="noopener">lab#2728</a></div>
-</article>
-<article class="item" id="issue-2740">
-<h2><span class="tier C">C</span>Docs: describe how enrollment token revoke disconnects connected workers</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-29T22:21:18.737Z">2026-09-29T22:21:18.737Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2740" rel="noopener">lab#2740</a></div>
-</article>
-<article class="item" id="issue-2733">
-<h2><span class="tier C">C</span>Docs: local_encryption key-source fields are refused over --server</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-29T21:57:36.602Z">2026-09-29T21:57:36.602Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2733" rel="noopener">lab#2733</a></div>
 </article>
 <article class="item" id="issue-2736">
 <h2><span class="tier C">C</span>A nested workflow that suspends on manual approval forwards its suspended event into the parent run&#39;s stream</h2>
@@ -3148,30 +3204,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2720" rel="noopener">lab#2720</a></div>
-</article>
-<article class="item" id="issue-2692">
-<h2><span class="tier C">C</span>Docs: vault rename moves local_encryption secrets</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-29T18:49:31.213Z">2026-09-29T18:49:31.213Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2692" rel="noopener">lab#2692</a></div>
-</article>
-<article class="item" id="issue-2694">
-<h2><span class="tier C">C</span>Docs: update the model validate Expression paths example in cel-expressions.md</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-29T18:49:25.640Z">2026-09-29T18:49:25.640Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2694" rel="noopener">lab#2694</a></div>
-</article>
-<article class="item" id="issue-2701">
-<h2><span class="tier C">C</span>Docs: worker-fleet guides start swamp serve without --admins and mint tokens with a removed command</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-29T18:49:11.052Z">2026-09-29T18:49:11.052Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2701" rel="noopener">lab#2701</a></div>
 </article>
 <article class="item" id="issue-2703">
 <h2><span class="tier C">C</span>gatorwalk-factory: project a work item parked by its dispatch cap (GW-17 follow-up)</h2>
@@ -3261,14 +3293,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2696" rel="noopener">lab#2696</a></div>
 </article>
-<article class="item" id="issue-2679">
-<h2><span class="tier C">C</span>Docs: edit commands over --server take piped YAML on stdin</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-29T14:19:55.416Z">2026-09-29T14:19:55.416Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2679" rel="noopener">lab#2679</a></div>
-</article>
 <article class="item" id="issue-2683">
 <h2><span class="tier C">C</span>s3/gcs datastore: pullChanged overwrites dirty, unpushed cache files</h2>
 <p class="lede">Open issue</p>
@@ -3349,14 +3373,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2662" rel="noopener">lab#2662</a></div>
 </article>
-<article class="item" id="issue-2661">
-<h2><span class="tier C">C</span>Docs: document snapshot cleanup and the new snapshot fields in the swamp run gc reference</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-29T00:22:18.095Z">2026-09-29T00:22:18.095Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2661" rel="noopener">lab#2661</a></div>
-</article>
 <article class="item" id="issue-2659">
 <h2><span class="tier C">C</span>acquireModelLocks writes SWAMP_LOCK_HOLDER_PID to process-global env, so concurrent runs in one process clobber each other</h2>
 <p class="lede">Open issue</p>
@@ -3364,22 +3380,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2659" rel="noopener">lab#2659</a></div>
-</article>
-<article class="item" id="issue-2626">
-<h2><span class="tier C">C</span>Docs: health endpoints need a valid token, not admin, and the stream ends on token revoke</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-28T23:34:49.085Z">2026-09-28T23:34:49.085Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2626" rel="noopener">lab#2626</a></div>
-</article>
-<article class="item" id="issue-2653">
-<h2><span class="tier C">C</span>Docs: document health stream limits and narrowed snapshots in the swamp serve REST API reference</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-09-28T23:34:28.711Z">2026-09-28T23:34:28.711Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2653" rel="noopener">lab#2653</a></div>
 </article>
 <article class="item" id="issue-2533">
 <h2><span class="tier C">C</span>Docs: worker token create --server defaults to the _token-secrets vault, not the sole configured vault</h2>
@@ -5231,12 +5231,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>645 items across 1 source(s) in this window:
-5 critical, 347 notable, 18 routine,
+5 critical, 349 notable, 16 routine,
 275 minor.</p>
 <ul><li><strong>issues</strong> — 645</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-29T23:03:11.784Z">2026-09-29T23:03:11.784Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-30T00:02:32.573Z">2026-09-30T00:02:32.573Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

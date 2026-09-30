@@ -11038,7 +11038,32 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.github/actions/adversarial-review/README.md" rel="noopener">.github/actions/adversarial-review/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c4600418b072728920f6df3a97f34c1666ee04" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260930-143206-0-sha-fdd49f4d">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260930-163357-0-sha-fe52cda6">
+<h2><span class="tier C">C</span>swamp 20260930.163357.0-sha.fe52cda6</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-30T16:35:41Z">2026-09-30T16:35:41Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(verification): let attestation accept runs from post-#2171 binaries (swamp-club#2815, swamp-club#2814) (#2738)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2815 and swamp-club#2814. Both stop any branch from getting an attestation when it is verified with a binary that includes swamp-club#2171 (518cbcbf). Neither PR can be attested without the other, so they ship together.</p>
+<h4 class="body-h">swamp-club#2815: build-attestation refused every run</h4>
+<p>swamp-club#2171 made <code>saveForRun</code> write two keys at the top level of every run&#39;s evaluated workflow: <code>sensitiveFormat: 1</code>, plus <code>writtenReferences</code> when the run records any. <code>checkWorkflowProvenance</code> in <code>scripts/build_attestation.ts</code> only lets a key appear in the evaluated workflow alone if it is an empty default. So every verify-build run was reported as executing a different workflow:</p>
+<p>```</p>
+<p>sensitiveFormat is in the evaluated workflow but not the committed definition</p>
+<p>```</p>
+<ul>
+<li>The check now skips those two keys, but only at the top level and only when the committed definition doesn&#39;t set them.</li>
+<li>The same keys anywhere deeper, and any other extra key, are still refused.</li>
+<li>Runs from older binaries don&#39;t have either key, so they are judged exactly as before.</li>
+</ul>
+<h4 class="body-h">swamp-club#2814: sensitive-data test failed where <code>/bin/sh</code> is bash</h4>
+<p>Cherry-picked from <code>issue-2814</code> (a062af74). bash runs the last command of a <code>sh -c</code> string in place of the shell. So the test&#39;s <code>ps -o args= -p $$</code> probe printed the argv of <code>ps</code> itself, and the test never found the `</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260930.163357.0-sha.fe52cda6" rel="noopener">release v20260930.163357.0-sha.fe52cda6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fe52cda6" rel="noopener">fe52cda6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2738" rel="noopener">#2738</a>𝗔 <a href="https://swamp-club.com/lab/2815" rel="noopener">lab#2815</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260930-143206-0-sha-fdd49f4d">
 <h2><span class="tier C">C</span>swamp 20260930.143206.0-sha.fdd49f4d</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-30T14:33:54Z">2026-09-30T14:33:54Z</time></span></div>
@@ -11639,13 +11664,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260901.012545.0-sha.7d7984ad" rel="noopener">release v20260901.012545.0-sha.7d7984ad</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7d7984adc3a589df883ef460f5bc7e4d10259b13" rel="noopener">7d7984ad</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2332" rel="noopener">#2332</a>𝗔 <a href="https://swamp-club.com/lab/1925" rel="noopener">lab#1925</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>376 items across 1 source(s) in this window:
+<p>377 items across 1 source(s) in this window:
 3 critical, 346 notable, 6 routine,
-21 minor.</p>
-<ul><li><strong>fix</strong> — 285</li><li><strong>feat</strong> — 64</li><li><strong>docs</strong> — 13</li><li><strong>changes</strong> — 7</li><li><strong>refactor</strong> — 3</li><li><strong>perf</strong> — 2</li></ul></section>
+22 minor.</p>
+<ul><li><strong>fix</strong> — 285</li><li><strong>feat</strong> — 64</li><li><strong>docs</strong> — 13</li><li><strong>changes</strong> — 8</li><li><strong>refactor</strong> — 3</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-30T16:09:30.418Z">2026-09-30T16:09:30.418Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-30T17:02:17.372Z">2026-09-30T17:02:17.372Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

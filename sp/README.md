@@ -65,6 +65,7 @@ sp/
     update.go                 # key handling, filtering, selection, pane cycling
     view.go                   # pane layout (workflows/models/detail/data)
     viewer.go                 # run-output artifact viewer (dialog + fetch)
+    playground.go             # CEL query console (data.query + shape rendering)
     htmlrender.go, mdrender.go, inline.go, richtext.go  # HTML/markdown → text
     styles.go, util.go        # styling + JSON/size helpers
     *_test.go                 # deterministic render/selection tests
@@ -224,6 +225,45 @@ If the run recorded an artifact whose data has since been **garbage-collected**
 
 > HTML is rendered to text, not pixels — CSS layout and images are out of scope.
 
+## Playground (CEL query console)
+
+The Playground is a Smalltalk **Workspace**: `p` opens an overlay where you
+evaluate a [CEL](https://github.com/google/cel-spec) predicate over the whole
+data catalog via `data.query`, then send the result to the viewer. It is the
+"workspace → new view" dataflow the research doc calls Phase 4.
+
+```
+╭──────────────────────────────────────────────────────────────────────╮
+│ Playground  data.query                                       7 rows  │
+│ ▸ predicate modelName == "bom"                                       │
+│   select    [modelName, name, string(version), dataType]             │
+│ ──────────────────────────────────────────────────────────────────── │
+│  bom  report-swamp-method-summary  52  report                        │
+│  bom  observation                  13  resource                      │
+│  bom  forecast                     11  resource                      │
+│ e edit  tab field  enter run  ↑↓ row  v view row  [ ] history  esc … │
+╰──────────────────────────────────────────────────────────────────────╯
+```
+
+- `p` — open the console (prefilled from the selected model when there is one).
+- `e` / `i` — edit the focused field; `tab` switches between **predicate** and
+  **select**; `enter` runs the query; `esc` closes.
+- `↑`/`↓` move through result rows; `v` (or `enter` on a row) opens it in the
+  artifact viewer.
+- `[` / `]` step back/forward through query **history**.
+- `y` seeds a useful default `select` projection.
+
+Results are rendered by the shape the select produces:
+
+- **no select** → the raw `DataRecord`s, one selectable row each
+  (`model · name · version · type · size`); each opens in the viewer.
+- **list** `[...]` → a positional table.
+- **map** `{...}` → a named-column table.
+- **scalar** → a numbered list of values.
+
+CEL errors come back with the server's caret snippet and are shown inline. This
+is the same query primitive Spotter uses to index the catalog, exposed directly.
+
 ## Spotter (global search)
 
 Pressing `s` builds a single in-memory index from three sources — `model.search`,
@@ -250,7 +290,9 @@ rather than owned, and a **detached** server survives `Stop` (`Detach`). The liv
 tests load the real workflow list, render a DAG, drill into data content,
 **start a real run and drain its event stream through the UI's Update loop to a
 `succeeded` terminal state**, open each of a real run's outputs through the
-viewer (including HTML), and verify a failed run's step is exposed for resume.
+viewer (including HTML), run real CEL queries through the Playground (records,
+list/map/scalar projections, and a syntax error), and verify a failed run's step
+is exposed for resume.
 
 ## Status / next
 
@@ -266,9 +308,9 @@ Prototype. Current surface:
 - **Run-output inspector** (done): each recent run's data/reports/files are
   selectable bullets in the Detail pane; `enter` opens an artifact viewer that
   renders markdown reports, JSON, plain text, and **HTML built-ins**.
+- **Playground** (done): `p` opens a CEL console over `data.query`; results
+  render by shape (records/list/map/scalar) and record rows open in the viewer.
 
 Deliberately not yet built, in the order the research doc recommends:
 
-- Playground: evaluate a CEL predicate via `data.query` and send the result to a
-  new view.
 - Contextual data views (type-specific rendering) — the moldable layer.

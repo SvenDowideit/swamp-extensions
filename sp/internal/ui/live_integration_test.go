@@ -258,6 +258,100 @@ func TestLiveRunOutputsAndViewer(t *testing.T) {
 	t.Logf("%s: opened %d outputs (%d gc'd), html=%v", chosen, opened, gone, htmlSeen)
 }
 
+// TestLivePlayground runs real CEL queries through the Playground: a record
+// query (no select), a projection, and a syntax error.
+//
+//	swamp serve --port 9090 --no-schedule &
+//	SP_SERVER=ws://127.0.0.1:9090 go test -tags integration -run TestLivePlayground ./internal/ui/
+func TestLivePlayground(t *testing.T) {
+	server := os.Getenv("SP_SERVER")
+	if server == "" {
+		server = "ws://127.0.0.1:9090"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	client, err := swamp.Dial(ctx, server, "")
+	if err != nil {
+		t.Skipf("no server at %s: %v", server, err)
+	}
+	defer client.Close()
+
+	m := New(client, "live", nil)
+	m.width, m.height = 140, 40
+	m.pgOpen = true
+
+	// Record query: every data item is a selectable row.
+	m.pgPred = "size >= 0"
+	msg := m.runPlayground()()
+	if _, ok := msg.(pgResultMsg); !ok {
+		t.Fatalf("runPlayground returned %T", msg)
+	}
+	m.Update(msg)
+	if m.pgErr != nil {
+		t.Fatalf("record query: %v", m.pgErr)
+	}
+	if len(m.pgRows) == 0 {
+		t.Fatalf("record query returned no rows")
+	}
+	first := m.pgRows[0]
+	if first.modelName == "" || first.name == "" {
+		t.Fatalf("record row missing model/name: %+v", first)
+	}
+	out := strip(m.render())
+	if !strings.Contains(out, "Playground") || !strings.Contains(out, "data.query") {
+		t.Fatalf("playground not rendered:\n%s", out)
+	}
+
+	// Projection query: a list shape renders as a table.
+	m.pgSelect = "[modelName, name, string(version), dataType]"
+	m.Update(m.runPlayground()())
+	if m.pgErr != nil {
+		t.Fatalf("projection query: %v", m.pgErr)
+	}
+	if m.pgResult == nil || m.pgResult.Projected == nil || m.pgResult.Projected.Shape != "list" {
+		t.Fatalf("expected a list projection, got %+v", m.pgResult)
+	}
+
+	// Scalar projection.
+	m.pgSelect = "name"
+	m.Update(m.runPlayground()())
+	if m.pgResult.Projected.Shape != "scalar" || len(m.pgResult.Projected.Values) == 0 {
+		t.Fatalf("expected scalar values, got %+v", m.pgResult.Projected)
+	}
+
+	// Syntax error surfaces the server's message, not a panic.
+	m.pgSelect = ""
+	m.pgPred = "this is not valid !!"
+	m.Update(m.runPlayground()())
+	if m.pgErr == nil {
+		t.Fatalf("expected a CEL syntax error")
+	}
+	if !strings.Contains(strip(strings.Join(m.pgErrorLines(), "\n")), "Unexpected") {
+		t.Fatalf("error not surfaced: %v", m.pgErr)
+	}
+
+	// Opening a record row fetches real content into the viewer.
+	m.pgPred = "size >= 0"
+	m.pgSelect = ""
+	m.Update(m.runPlayground()())
+	for i, r := range m.pgRows {
+		if r.contentType == "text/markdown" || strings.HasSuffix(r.name, ".md") {
+			m.pgRowSel = i
+			break
+		}
+	}
+	al := m.openPlaygroundRow()()
+	if _, ok := al.(artifactLoadedMsg); !ok {
+		t.Fatalf("openPlaygroundRow returned %T", al)
+	}
+	m.Update(al)
+	if len(m.viewLines) == 0 {
+		t.Fatalf("viewer empty for playground row")
+	}
+	t.Logf("playground ok: rows=%d", len(m.pgRows))
+}
+
 // TestLiveRunStreaming starts a real workflow run over the protocol and drains
 // its events through the UI's Update loop, asserting the console reaches a
 // terminal state with rendered step output.

@@ -562,6 +562,53 @@ func (c *Client) GetDataScoped(ctx context.Context, byWorkflow bool, root, name 
 // DataQuery runs a CEL predicate over the data catalog. selectExpr is optional.
 // Returns the projected rows (list or map per the select expression).
 func (c *Client) DataQuery(ctx context.Context, predicate, selectExpr string, limit int) ([]any, error) {
+	res, err := c.QueryData(ctx, predicate, selectExpr, limit)
+	if err != nil {
+		return nil, err
+	}
+	// With a --select projection the rows live under projected.rows; without
+	// one they are the raw records under results.
+	if res.Projected != nil && res.Projected.Rows != nil {
+		return res.Projected.Rows, nil
+	}
+	rows := make([]any, 0, len(res.Records))
+	for _, r := range res.Records {
+		rows = append(rows, r)
+	}
+	return rows, nil
+}
+
+// QueryResult is the full, shape-preserving result of a data.query. Exactly one
+// of Records (no select), or Projected (with select) is populated.
+type QueryResult struct {
+	Predicate string
+	Select    string
+	Total     int
+	Limited   bool
+
+	// Records are the raw DataRecords returned when no select is given.
+	Records []map[string]any
+
+	// Projected is set when the query used a select expression.
+	Projected *Projection
+}
+
+// Projection is a --select projection. Shape is "list", "map", or "scalar".
+//
+//	list:   Rows is []any, each a []any of positional columns
+//	map:    Columns names the keys, Rows is []any of map[string]any
+//	scalar: Values holds the per-record scalar values
+type Projection struct {
+	Shape   string
+	Columns []string
+	Rows    []any
+	Values  []any
+}
+
+// QueryData runs a predicate (and optional select) and returns the complete
+// structured result, preserving whether the query projected a list, map, or
+// scalar. This is the primitive the Playground uses.
+func (c *Client) QueryData(ctx context.Context, predicate, selectExpr string, limit int) (*QueryResult, error) {
 	p := map[string]any{"predicate": predicate}
 	if selectExpr != "" {
 		p["select"] = selectExpr
@@ -573,17 +620,37 @@ func (c *Client) DataQuery(ctx context.Context, predicate, selectExpr string, li
 	if err != nil {
 		return nil, err
 	}
-	// With a --select projection the rows live under projected.rows; without
-	// one they are the raw records under results.
-	if proj, ok := res["projected"].(map[string]any); ok {
-		if rows, ok := proj["rows"].([]any); ok {
-			return rows, nil
+	out := &QueryResult{
+		Predicate: jsonStr(res["predicate"]),
+		Select:    jsonStr(res["select"]),
+		Total:     int(num(res["total"])),
+		Limited:   boolVal(res["limited"]),
+	}
+	for _, r := range asAnyList(res["results"]) {
+		if m, ok := r.(map[string]any); ok {
+			out.Records = append(out.Records, m)
 		}
 	}
-	if rows, ok := res["results"].([]any); ok {
-		return rows, nil
+	if proj, ok := res["projected"].(map[string]any); ok {
+		pj := &Projection{Shape: jsonStr(proj["shape"])}
+		for _, cn := range asAnyList(proj["columns"]) {
+			pj.Columns = append(pj.Columns, jsonStr(cn))
+		}
+		if rows, ok := proj["rows"].([]any); ok {
+			pj.Rows = rows
+		}
+		if vals, ok := proj["values"].([]any); ok {
+			pj.Values = vals
+		}
+		out.Projected = pj
 	}
-	return nil, nil
+	return out, nil
+}
+
+// boolVal coerces a JSON value to bool.
+func boolVal(v any) bool {
+	b, _ := v.(bool)
+	return b
 }
 
 // RunHistory lists recent runs.

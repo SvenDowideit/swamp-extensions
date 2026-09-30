@@ -68,10 +68,125 @@ func (m *Model) render() string {
 		return overlayAt(all, m.renderViewer(), m.width)
 	case m.runOpen:
 		return overlayAt(all, m.renderRunDialog(), m.width)
+	case m.pgOpen:
+		return overlayAt(all, m.renderPlayground(), m.width)
 	case m.spotterOpen:
 		return m.renderSpotter()
 	}
 	return all
+}
+
+// renderPlayground draws the CEL query console as an overlay: an editable
+// predicate and select, and a shape-aware result view.
+func (m *Model) renderPlayground() string {
+	w := clamp(m.width-6, 50, m.width)
+	ht := clamp(m.height*84/100, 12, m.height-3)
+	innerW := w - 4
+	innerH := ht - 4
+	if innerW < 20 {
+		innerW = 20
+	}
+	if innerH < 3 {
+		innerH = 3
+	}
+
+	var b strings.Builder
+	// Predicate field.
+	b.WriteString(m.pgFieldLine("predicate", m.pgPred, 0, innerW))
+	b.WriteString("\n")
+	// Select field.
+	b.WriteString(m.pgFieldLine("select", m.pgSelect, 1, innerW))
+	b.WriteString("\n")
+	b.WriteString(styleMuted.Render(strings.Repeat("─", innerW)))
+	b.WriteString("\n")
+
+	// The dialog's content (inside the border) is ht-2 rows: a 1-row header, the
+	// field block (2 fields + separator = 3 rows), the results, and a 1-row
+	// footer. So the results get ht-7 rows.
+	resH := ht - 7
+	if resH < 1 {
+		resH = 1
+	}
+	body := m.renderPlaygroundResults(innerW, resH)
+	// Pad the body to resH rows so the footer sits at the dialog's bottom.
+	if n := resH - strings.Count(body, "\n") - 1; n > 0 {
+		body += strings.Repeat("\n", n)
+	}
+	b.WriteString(body)
+
+	chip := ""
+	if m.pgLoading {
+		chip = styleOrange.Render("◐ querying…")
+	} else if m.pgErr != nil {
+		chip = styleError.Render("✗ error")
+	} else if m.pgResult != nil {
+		chip = styleMuted.Render(fmt.Sprintf("%d rows", m.pgResult.Total))
+		if m.pgResult.Limited {
+			chip += styleMuted.Render(" (limited)")
+		}
+	}
+	head := stylePaneTitle.Render("Playground") + "  " + styleKind.Render("data.query")
+	gap := innerW - lipgloss.Width(head) - lipgloss.Width(chip)
+	if gap < 1 {
+		gap = 1
+	}
+	headerLine := head + strings.Repeat(" ", gap) + chip
+
+	footer := renderHints(m.playgroundHints(), innerW)
+	joined := headerLine + "\n" + b.String() + "\n" + styleMuted.Render(footer)
+	return stylePaneFocus.Width(w).Height(ht).Render(joined)
+}
+
+// playgroundHints is the context key bar for the Playground.
+func (m *Model) playgroundHints() []hint {
+	if m.pgEditing {
+		return []hint{
+			h("type", "edit "+pgFieldName(m.pgField)),
+			h("enter", "run"),
+			h("esc", "done"),
+		}
+	}
+	hs := []hint{
+		h("e", "edit"),
+		h("tab", "field"),
+		h("enter", "run"),
+	}
+	if len(m.pgRows) > 0 {
+		hs = append(hs, h("↑↓", "row"), h("v", "view row"))
+	}
+	if len(m.pgHistory) > 0 {
+		hs = append(hs, h("[ ]", "history"))
+	}
+	hs = append(hs, h("esc", "close"))
+	return hs
+}
+
+func pgFieldName(i int) string {
+	if i == 0 {
+		return "predicate"
+	}
+	return "select"
+}
+
+// pgFieldLine renders one labeled, optionally-focused query field.
+func (m *Model) pgFieldLine(label, value string, field, width int) string {
+	focused := m.pgField == field
+	labelSt := styleMuted
+	if focused {
+		labelSt = styleKey
+	}
+	prefix := "  "
+	if focused && m.pgEditing {
+		prefix = styleKey.Render("✎ ")
+	} else if focused {
+		prefix = styleKey.Render("▸ ")
+	}
+	text := value
+	if focused && m.pgEditing {
+		text += "▏"
+	}
+	line := prefix + labelSt.Render(padRight(label, 9)) + " " + text
+	return truncateANSI(line, width)
 }
 
 // renderViewer draws the artifact viewer as a large overlay over the browser.
@@ -430,6 +545,7 @@ func (m *Model) keyHints() []hint {
 			h("/", "filter"),
 			h("tab", "pane"),
 			h("s", "search"),
+			h("p", "playground"),
 			h("r", "reload"),
 			h("q", "quit"),
 		)
@@ -452,6 +568,7 @@ func (m *Model) keyHints() []hint {
 		hs = append(hs,
 			h("tab", "pane"),
 			h("s", "search"),
+			h("p", "playground"),
 			h("esc", "root"),
 			h("r", "reload"),
 			h("q", "quit"),
@@ -464,6 +581,7 @@ func (m *Model) keyHints() []hint {
 			h("enter", "view content"),
 			h("tab", "pane"),
 			h("s", "search"),
+			h("p", "playground"),
 			h("esc", "root"),
 			h("r", "reload"),
 			h("q", "quit"),
@@ -476,6 +594,7 @@ func (m *Model) keyHints() []hint {
 			h("/", "filter"),
 			h("tab", "pane"),
 			h("s", "search"),
+			h("p", "playground"),
 			h("r", "reload"),
 			h("q", "quit"),
 		}

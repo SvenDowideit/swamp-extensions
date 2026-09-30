@@ -52,15 +52,20 @@ func (m *Model) scrollToDetailLine(line int) {
 	}
 }
 
-// openArtifact opens the viewer dialog and fetches the artifact's content.
+// openArtifact opens the viewer for a run-output link.
 func (m *Model) openArtifact(lk detailLink) tea.Cmd {
-	art := lk.artifact
+	m.viewRunID = lk.runID
+	return m.openDataRef(lk.artifact)
+}
+
+// openDataRef opens the viewer dialog for any data reference (a run output, a
+// Playground result row, …) and fetches its content.
+func (m *Model) openDataRef(art runOutput) tea.Cmd {
 	m.viewOpen = true
 	m.viewLoading = true
 	m.viewErr = nil
 	m.viewScroll = 0
 	m.viewArtifact = art
-	m.viewRunID = lk.runID
 	m.viewTitle = artifactTitle(art)
 	m.viewKind = kindForContentType(art.contentType, art.name)
 	m.viewLines = []string{styleMuted.Render("loading " + art.name + "…")}

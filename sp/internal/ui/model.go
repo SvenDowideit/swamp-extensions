@@ -186,6 +186,28 @@ type Model struct {
 	spotterResults []spotterItem // current matches
 	spotterSel     int
 	spotterLoaded  bool
+
+	// Playground is the CEL query console: a predicate and optional select,
+	// evaluated with data.query over the data catalog.
+	pgOpen    bool
+	pgPred    string
+	pgSelect  string
+	pgField   int // 0 = predicate, 1 = select
+	pgEditing bool
+	pgLoading bool
+	pgErr     error
+	pgResult  *swamp.QueryResult
+	pgRows    []runOutput // selectable data refs for record results
+	pgRowSel  int
+	pgScroll  int
+	pgHistory []pgQuery
+	pgHistIdx int // -1 when not browsing history
+}
+
+// pgQuery is one entry in the Playground query history.
+type pgQuery struct {
+	pred       string
+	selectExpr string
 }
 
 // New builds the initial model.

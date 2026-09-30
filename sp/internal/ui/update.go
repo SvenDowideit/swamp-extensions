@@ -141,6 +141,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewLines = msg.lines
 		return m, nil
 
+	case pgResultMsg:
+		m.pgLoading = false
+		if msg.err != nil {
+			m.pgErr = msg.err
+			m.pgResult = nil
+			m.pgRows = nil
+			return m, nil
+		}
+		m.pgErr = nil
+		m.pgResult = msg.result
+		m.pgRows = msg.rows
+		m.pgRowSel = 0
+		m.pgScroll = 0
+		return m, nil
+
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	}
@@ -162,6 +177,9 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.runOpen {
 		return m.handleRunKey(msg)
+	}
+	if m.pgOpen {
+		return m.handlePlaygroundKey(msg)
 	}
 
 	// Spotter overlay consumes all keys while open.
@@ -234,6 +252,9 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if !m.spotterLoaded {
 			return m, m.loadSpotter()
 		}
+
+	case "p":
+		return m, m.openPlayground()
 
 	case "R":
 		// Run the current root (workflows only).

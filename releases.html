@@ -11038,7 +11038,209 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.github/actions/adversarial-review/README.md" rel="noopener">.github/actions/adversarial-review/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.182830.0-sha.c1c46004" rel="noopener">release v20260923.182830.0-sha.c1c46004</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c1c4600418b072728920f6df3a97f34c1666ee04" rel="noopener">c1c46004</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2559" rel="noopener">#2559</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260930-163357-0-sha-fe52cda6">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20260930-200517-0-sha-ea0a31bc">
+<h2><span class="tier C">C</span>swamp 20260930.200517.0-sha.ea0a31bc</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-30T20:07:03Z">2026-09-30T20:07:03Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(runtime): only remove abandoned temp files so concurrent extractions don&#39;t race (swamp-club#2833) (#2747)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2833.</p>
+<ul>
+<li>Embedded deno extraction deleted every <code>.deno.tmp.*</code> file in <code>~/.swamp/deno</code> before writing its own. When two swamp processes extract at the same time, one can delete the other&#39;s in-flight temp file, and the victim fails with <code>chmod … .deno.tmp.&lt;uuid&gt;: No such file or directory</code>. This showed up as a flaky swamp-uat failure in <code>extension pull</code>.</li>
+<li><code>replaceBinary</code> in the update checker had the same unconditional cleanup for <code>.swamp.tmp.*</code>.</li>
+<li>Added <code>removeAbandonedTempFiles(dir, prefix)</code> in <code>src/infrastructure/persistence/abandoned_temp_files.ts</code>. It removes only regular files whose mtime is older than 10 minutes (<code>ABANDONED_TEMP_FILE_MAX_AGE_MS</code>). Fresh, future-dated, mtime-less, directory and symlink entries are kept, and errors are still ignored.</li>
+<li>Both call sites now use the helper. Temp files left by a crash are still cleaned up, just not ones a live process may own. The rest of the extraction flow (per-process UUID temp name + atomic rename) was already safe for concurrent use.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>New <code>abandoned_temp_files_test.ts</code>: a fresh file is kept, an aged file is removed (mtime set with <code>Deno.utime</code>), non-prefixed files are ignored, a future mtime is kept, a prefixed directory is kept, and a missing dir is tolerated.</li>
+<li><code>http_update_checker_test.ts</code>: the existing stale-temp test now ages its file past th</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260930.200517.0-sha.ea0a31bc" rel="noopener">release v20260930.200517.0-sha.ea0a31bc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ea0a31bc" rel="noopener">ea0a31bc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2747" rel="noopener">#2747</a>𝗔 <a href="https://swamp-club.com/lab/2833" rel="noopener">lab#2833</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260930-200003-0-sha-599b4aa9">
+<h2><span class="tier C">C</span>swamp 20260930.200003.0-sha.599b4aa9</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-30T20:01:56Z">2026-09-30T20:01:56Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(telemetry): pair workflow step events per owning run so nested same-named steps are not dropped (swamp-club#2802) (#2746)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The libswamp telemetry bridge tracked in-flight method invocations by job and step name only. A nested workflow step forwards its child&#39;s step events into the parent&#39;s stream with no run identity. So when a child step had the same job and step names as a step running at the same time in the parent or in a sibling nested run, one <code>method_executing</code> overwrote the other. One invocation was then lost without a trace; no error entry was recorded for it.</p>
+<ul>
+<li><strong>Run id on step events.</strong> <code>model_resolved</code>, <code>method_executing</code>, <code>step_completed</code> and <code>step_failed</code> now carry a required <code>runId</code> naming the run that owns the step. It is set at all 14 places that emit these events. Because it is required, the compiler rejects any emit site that forgets it.</li>
+<li><strong>Not published.</strong> <code>mapWorkflowExecutionEvent</code> removes <code>runId</code>, so the published event stream, the serve wire and remote clients are unchanged. This matters because <code>src/cli/remote_run.ts</code> adopts the <code>runId</code> of any event without <code>parentRunId</code> as the run to reattach to on reconnect, and clients already released could not be fixed.</li>
+<li><strong>Bridge keyed per run.</strong> The bridge now observes the domain event and keys its in-flight and model-type maps on <code>(runId, jobId, stepId)</code>, JSON-encoded. <code>finalize()</code> reads job and step names from the tracked record instead of splitting the key on <code>:</code>. That</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260930.200003.0-sha.599b4aa9" rel="noopener">release v20260930.200003.0-sha.599b4aa9</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/599b4aa9" rel="noopener">599b4aa9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2746" rel="noopener">#2746</a>𝗔 <a href="https://swamp-club.com/lab/2802" rel="noopener">lab#2802</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260930-190145-0-sha-1ff9bbd4">
+<h2><span class="tier C">C</span>swamp 20260930.190145.0-sha.1ff9bbd4</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-30T19:03:35Z">2026-09-30T19:03:35Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): bound workflow.cancel run lookup by the run id alone (swamp-club#2729) (#2745)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2729. <code>workflow.cancel</code> in serve looks up a persisted run before it authorizes the caller. Any authenticated principal could make that lookup do work that grew with the repository:</p>
+<ul>
+<li><strong>Without <code>workflowIdOrName</code>:</strong> it called <code>findGlobalByStatus(&quot;suspended&quot;)</code>, which hydrates every suspended run just to compare ids.</li>
+<li><strong>With <code>workflowIdOrName</code>:</strong> it resolved the name first (<code>findByName</code>, then <code>findById</code>), and each of those parses every workflow file on a miss. <code>YamlWorkflowRunRepository.findById</code> then substring-matched the run id against every run file, so a runId of <code>-</code> read and parsed all of them.</li>
+</ul>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong><code>YamlWorkflowRunRepository.findById</code></strong>: returns null for an id that is not a UUID. Otherwise it reads only <code>workflow-run-&lt;id&gt;.yaml</code> instead of listing and substring-matching the directory. <code>findGlobalById</code> gets the same guard.</li>
+<li>The guard also keeps a client id such as <code>../../x</code> out of the path join. Serve&#39;s resume and approve paths reach <code>findById</code> with client ids too.</li>
+<li>Every persisted run id is a UUID: <code>WorkflowRunSchema</code> requires it and ids are minted by <code>crypto.randomUUID</code>. So no valid run becomes unreachable.</li>
+<li><strong>Cancel lookup</strong> (<code>src/libswamp/workflows/cancel_suspended.ts</code>):</li>
+<li>A non-UUID runId is rejected before any repository call.</li>
+<li>The run is always located by its own file (<code>findGlobalById</code>).</li>
+<li>`workflowI</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260930.190145.0-sha.1ff9bbd4" rel="noopener">release v20260930.190145.0-sha.1ff9bbd4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1ff9bbd4" rel="noopener">1ff9bbd4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2745" rel="noopener">#2745</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260930-185231-0-sha-85ae0b32">
+<h2><span class="tier C">C</span>swamp 20260930.185231.0-sha.85ae0b32</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-30T18:54:11Z">2026-09-30T18:54:11Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(telemetry): resolve redaction against the command tree, send names, redact paths (swamp-club#2817) (#2744)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2817. CLI telemetry redaction guessed what each positional meant from its position, so it both leaked and over-redacted. It now follows the maintainer policy: <strong>names, ids, types and queries are sent; filesystem paths, input and option values, secrets, access groups and principals, and <code>data query</code> predicates are redacted.</strong></p>
+<h4 class="body-h">Recorded invocation (<code>src/cli/telemetry_invocation.ts</code>)</h4>
+<ul>
+<li><strong>Resolved against the real command tree.</strong> <code>registerCommands</code> is extracted from <code>runInvocation</code> so the tree can be built outside it. Every command word is recorded, and the canonical path goes in a new optional <code>commandPath</code> field.</li>
+<li><strong>Typed spelling kept for existing fields.</strong> <code>command</code>, <code>subcommand</code> and <code>args</code> keep what the user typed, because swamp-club scores XP and quests on <code>subcommand</code>. Canonicalising aliases there would shift points: <code>vault list</code> would drop from 40 to 10 XP.</li>
+<li><strong>Positionals are classified by declared argument name.</strong> Unclassified names default to redacted, and an integration test fails if a new argument name is left unclassified. <code>help</code> sends only words that resolve to commands.</li>
+<li><strong>Fails closed when the positional mapping can&#39;t be trusted.</strong> Positionals are redacted when too few are given, when their slot is ambiguous, after an unknown option or an unknown command, and after <code>--</code>. Undeclared option keys are</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260930.185231.0-sha.85ae0b32" rel="noopener">release v20260930.185231.0-sha.85ae0b32</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/85ae0b32" rel="noopener">85ae0b32</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2744" rel="noopener">#2744</a>𝗔 <a href="https://swamp-club.com/lab/2817" rel="noopener">lab#2817</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260930-184839-0-sha-e47a5c51">
+<h2><span class="tier C">C</span>swamp 20260930.184839.0-sha.e47a5c51</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-30T18:50:23Z">2026-09-30T18:50:23Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): pin the config dir in daemon units so token/oauth daemons find auth.json (swamp-club#2824) (#2743)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp serve daemon enable --auth-mode token|oauth</code> installed a service that could never start. The generated systemd unit / launchd plist set only <code>SWAMP_HOME</code> (added in #2532), and <code>getSwampConfigDir()</code> treats <code>SWAMP_HOME</code> as moving the config dir to <code>$SWAMP_HOME/config</code>. The daemon then could not find the <code>auth.json</code> written by <code>swamp auth login</code>, failed <code>requireAuthenticated</code>, and systemd restarted it every 10s. <code>daemon enable</code> itself runs in the user&#39;s shell, so it reported success.</p>
+<p>This is a regression for <code>--user</code> units: before #2532 the unit carried no env and systemd&#39;s <code>HOME</code> resolved the default config dir. It was introduced in <code>20260921.211448.0</code>.</p>
+<ul>
+<li><code>getSwampConfigDir()</code> now checks a <code>SWAMP_CONFIG_DIR</code> override first. When it&#39;s unset, the behaviour is unchanged, so <code>SWAMP_HOME</code> alone still gives <code>$SWAMP_HOME/config</code>.</li>
+<li><code>daemon enable</code> writes both <code>SWAMP_HOME</code> and <code>SWAMP_CONFIG_DIR</code> into the service definition via <code>buildServeDaemonEnv()</code>. They are absolute paths resolved in the enabling user&#39;s environment, so the daemon reads exactly the credentials that passed the enable-time auth gate. systemd and launchd both render <code>ServiceConfig.env</code>, so both are fixed.</li>
+<li>The <code>swamp serve</code> help text and <code>design/architecture.md</code> describe the override.</li>
+</ul>
+<p><strong>Action for affected users:</strong> a unit installed by an affected version keeps crash-</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260930.184839.0-sha.e47a5c51" rel="noopener">release v20260930.184839.0-sha.e47a5c51</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e47a5c51" rel="noopener">e47a5c51</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2743" rel="noopener">#2743</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2532" rel="noopener">#2532</a>𝗔 <a href="https://swamp-club.com/lab/2824" rel="noopener">lab#2824</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260930-184056-0-sha-f4afbc68">
+<h2><span class="tier C">C</span>swamp 20260930.184056.0-sha.f4afbc68</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-30T18:42:40Z">2026-09-30T18:42:40Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): take the step lock before a step writes its output (swamp-club#2825) (#2742)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2825. A workflow <code>model_method</code> step that timed out waiting for its per-model lock left its <code>ModelOutput</code> at <code>status: running</code> and its run-tracker row at <code>running</code> for good. The workflow run itself was already marked <code>failed</code> and the process had exited.</p>
+<p><code>DefaultStepExecutor.executeModelMethod</code> wrote the evaluated definition, the running output and the tracker row *before* calling <code>stepLockHook</code>. That call sat outside the <code>try</code> whose failure path marks the output and tracker row <code>failed</code>. The outcome depended on where the step ran:</p>
+<ul>
+<li><strong>CLI:</strong> the tracker row stayed <code>running</code> until <code>run doctor --fix</code> reaped it as <code>interrupted</code>, which is also wrong because the step failed.</li>
+<li><strong><code>swamp serve</code>:</strong> the row carries serve&#39;s own live pid, so it was never reaped.</li>
+<li><strong>Both:</strong> the output YAML stayed <code>running</code> indefinitely.</li>
+</ul>
+<h4 class="body-h">Change</h4>
+<ul>
+<li>The step lock is now taken before the step&#39;s first write. The evaluated definition, the running output, the tracker row, the method&#39;s data and its reports all happen under the lock.</li>
+<li>A single <code>try</code>/<code>finally</code> covers everything after acquisition, so the lock is still released when a later step fails, e.g. vault resolution or an unknown method.</li>
+<li>A lock timeout now fails the step before any record exists.</li>
+<li>Because the step&#39;s datastore-tier writes now come after the lock&#39;s sync pull, they no longer race it.</li>
+</ul>
+<p>CLI (`</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260930.184056.0-sha.f4afbc68" rel="noopener">release v20260930.184056.0-sha.f4afbc68</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f4afbc68" rel="noopener">f4afbc68</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2742" rel="noopener">#2742</a>𝗔 <a href="https://swamp-club.com/lab/2825" rel="noopener">lab#2825</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260930-180631-0-sha-e34705c3">
+<h2><span class="tier C">C</span>swamp 20260930.180631.0-sha.e34705c3</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-30T18:08:10Z">2026-09-30T18:08:10Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): read a grants-dir that is the repository grants directory once (swamp-club#2788) (#2741)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2788. With <code>grants-dir</code> pointing at <code>&lt;repo&gt;/grants</code>, serve read that directory twice: once as the repository grants directory (keyed by bare filename) and again as grants-dir (keyed by full path). Every file was reconciled under two sources, <code>file:admin.yaml</code> and <code>file:/abs/grants/admin.yaml</code>, which doubled stored grants, <code>filesProcessed</code> and <code>grantCount</code>. A deleted grants file also stayed in <code>access reload</code> results forever, and revoked grants were counted as <code>unchanged</code>.</p>
+<ul>
+<li><strong>Read the directory once.</strong> <code>resolveExternalGrantsDir</code> (<code>src/domain/access/grant_file.ts</code>) drops a grants-dir that is the same physical directory as <code>&lt;repo&gt;/grants</code>. It compares dev/ino, which covers symlinks, relative paths and case-insensitive filesystems, and falls back to realPath where ino is unavailable. <code>serve.ts</code> passes the result to startup loading, the auto-reload poller and the manual reload handler, so all three read the directory once. Serve logs one info line when it drops it.</li>
+<li><strong>Upgrade self-heal.</strong> Grants already stored under the full-path source are no longer wanted, so the first reconcile after upgrade revokes them once. The identical bare-name grants stay active, so access never lapses and no migration is needed.</li>
+<li><strong>Reconcile report.</strong> The reconciler no longer counts already-revoked grants as <code>unchanged</code>. A deleted file is reported by</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260930.180631.0-sha.e34705c3" rel="noopener">release v20260930.180631.0-sha.e34705c3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e34705c3" rel="noopener">e34705c3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2741" rel="noopener">#2741</a>𝗔 <a href="https://swamp-club.com/lab/2788" rel="noopener">lab#2788</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260930-173827-0-sha-1d12d8b5">
+<h2><span class="tier C">C</span>swamp 20260930.173827.0-sha.1d12d8b5</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-30T17:40:13Z">2026-09-30T17:40:13Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): roll an upgrade that collides back to the previous version (swamp-club#2724) (#2740)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2724.</p>
+<p>An extension upgrade whose catalog save hit a <code>DuplicateTypeError</code> used to end with <strong>no version installed</strong>. <code>installExtension</code> committed the install, which deleted the kept v1 roots, before phase 8 ran. The collision rollback then deleted v2&#39;s files and wrote v1&#39;s lockfile entry back. The lockfile said v1, but neither version was on disk. A dependency installed in the same call ended up the same way.</p>
+<p>The install is now held uncommitted across phase 8 and ended there. This builds on swamp-club#2723&#39;s stage and swap.</p>
+<ul>
+<li><strong><code>PendingInstall</code></strong> (<code>pull.ts</code>): <code>applyInstall</code> returns an uncommitted handle. It covers the extension and every dependency installed with it; dependencies no longer commit on their own. Exactly one of <code>commit()</code> and <code>rollback()</code> takes effect. <code>installExtension</code> commits a handle its caller left pending. It also commits right after apply when there is no catalog step: the lockfile restore in <code>extension install</code>, and auto-resolve.</li>
+<li><strong><code>InstallExtensionService</code></strong>:</li>
+<li>catalog save succeeds: <strong>commit</strong>;</li>
+<li><code>DuplicateTypeError</code>: <strong>rollback</strong>;</li>
+<li>any other fault: <strong>commit</strong>, and report today&#39;s &quot;Install partially applied&quot; half-state. This includes bundling failures: one source that fails to import must not block the rest.</li>
+<li><code>rollbackOnCollision</code> is deleted.</li>
+<li><strong>Rollback order</strong>:</li>
+</ul>
+<p>  1. Every lockfile entry</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260930.173827.0-sha.1d12d8b5" rel="noopener">release v20260930.173827.0-sha.1d12d8b5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1d12d8b5" rel="noopener">1d12d8b5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2740" rel="noopener">#2740</a>𝗔 <a href="https://swamp-club.com/lab/2724" rel="noopener">lab#2724</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260930-171207-0-sha-6d78ca3b">
+<h2><span class="tier C">C</span>swamp 20260930.171207.0-sha.6d78ca3b</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-09-30T17:13:50Z">2026-09-30T17:13:50Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(telemetry): attribute nested workflow steps to the top-level run (swamp-club#2735) (#2739)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The libswamp telemetry bridge took <code>workflowName</code> and <code>runId</code> from every <code>started</code> event in the stream. A workflow step that runs a nested workflow forwards the child&#39;s <code>started</code> event into the parent&#39;s stream, so every method invocation recorded afterwards, including the parent&#39;s own later steps, was reported under the child&#39;s workflow name and run id.</p>
+<ul>
+<li><code>WorkflowTelemetryBridge.observe</code> now ignores <code>started</code> events that carry <code>parentRunId</code>, so every child entry of a run, including those from nested workflows at any depth, is attributed to the top-level run. Nested entries keep their own <code>jobName</code> and <code>stepName</code>.</li>
+<li>This matches how <code>workflow run</code>, serve and scheduled execution already identify the top-level run from the <code>parentRunId</code> contract added in swamp-club#2470.</li>
+<li><code>design/primitives/workflows.md</code> (Per-Method Telemetry) states the attribution.</li>
+</ul>
+<p>Attributing to the child run instead was ruled out: forwarded step events carry no run id and parent jobs/steps run concurrently, so child and parent events interleave. The related in-flight key collision between same-named parent and nested steps needs run identity on step events and is tracked as swamp-club#2802.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Three new unit tests in <code>src/libswamp/workflows/telemetry_bridge_test.ts</code>: a parent step after nested and grandchild workflows keeps the top-level attribution (the issue&#39;s r</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260930.171207.0-sha.6d78ca3b" rel="noopener">release v20260930.171207.0-sha.6d78ca3b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6d78ca3b" rel="noopener">6d78ca3b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2739" rel="noopener">#2739</a>𝗔 <a href="https://swamp-club.com/lab/2735" rel="noopener">lab#2735</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20260930-163357-0-sha-fe52cda6">
 <h2><span class="tier C">C</span>swamp 20260930.163357.0-sha.fe52cda6</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-09-30T16:35:41Z">2026-09-30T16:35:41Z</time></span></div>
@@ -11664,13 +11866,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260901.012545.0-sha.7d7984ad" rel="noopener">release v20260901.012545.0-sha.7d7984ad</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7d7984adc3a589df883ef460f5bc7e4d10259b13" rel="noopener">7d7984ad</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2332" rel="noopener">#2332</a>𝗔 <a href="https://swamp-club.com/lab/1925" rel="noopener">lab#1925</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>377 items across 1 source(s) in this window:
+<p>386 items across 1 source(s) in this window:
 3 critical, 346 notable, 6 routine,
-22 minor.</p>
-<ul><li><strong>fix</strong> — 285</li><li><strong>feat</strong> — 64</li><li><strong>docs</strong> — 13</li><li><strong>changes</strong> — 8</li><li><strong>refactor</strong> — 3</li><li><strong>perf</strong> — 2</li></ul></section>
+31 minor.</p>
+<ul><li><strong>fix</strong> — 285</li><li><strong>feat</strong> — 64</li><li><strong>changes</strong> — 17</li><li><strong>docs</strong> — 13</li><li><strong>refactor</strong> — 3</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-30T19:03:18.551Z">2026-09-30T19:03:18.551Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-30T20:09:19.944Z">2026-09-30T20:09:19.944Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

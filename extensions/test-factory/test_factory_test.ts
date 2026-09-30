@@ -12,7 +12,7 @@ import { assertEquals, assertRejects } from "jsr:@std/assert@1";
 import { createModelTestContext } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 
 import type { CmdResult } from "./docker.ts";
-import { model } from "./test_factory.ts";
+import { containerEnv, model } from "./test_factory.ts";
 
 type Call = [string, ...string[]];
 
@@ -316,6 +316,43 @@ Deno.test("testAll sweeps every git-tracked manifest", async () => {
       calls.some((c) => c[0] === "git" && c[1] === "ls-files"),
       true,
     );
+  } finally {
+    await Deno.remove(dir, { recursive: true }).catch(() => {});
+  }
+});
+
+Deno.test("containerEnv sets SWAMP_API_KEY only when provided", () => {
+  const withKey = containerEnv("swamp_org_deadbeef");
+  assertEquals(withKey.SWAMP_API_KEY, "swamp_org_deadbeef");
+  assertEquals(withKey.SWAMP_TELEMETRY_DISABLED, "1");
+
+  const without = containerEnv("");
+  assertEquals("SWAMP_API_KEY" in without, false);
+});
+
+Deno.test("the API key is passed to every container via docker run -e", async () => {
+  const { runner, calls } = stubRunner();
+  const { manifest, dir } = await writeCandidate();
+  try {
+    const { promise } = await runMethod(
+      "test",
+      {
+        manifest,
+        scenario: "debian-standalone",
+        phases: "smoke",
+        _run: runner,
+      },
+      {
+        repoDir: dir,
+        globalArgs: { swampApiKey: "swamp_org_cafef00d" },
+      },
+    );
+    await promise;
+    const runCalls = calls.filter((c) => c[0] === "docker" && c[1] === "run");
+    assertEquals(runCalls.length >= 1, true);
+    for (const call of runCalls) {
+      assertEquals(call.includes("SWAMP_API_KEY=swamp_org_cafef00d"), true);
+    }
   } finally {
     await Deno.remove(dir, { recursive: true }).catch(() => {});
   }

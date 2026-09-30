@@ -98,6 +98,11 @@ const GlobalArgsSchema = z.object({
   probe: z.boolean().default(true).describe(
     "In `serve`/`fleet` scenarios, run the dispatch probe workflow",
   ),
+  swampApiKey: z.string().default("").meta({ sensitive: true }).describe(
+    "swamp-club collective API token exported as SWAMP_API_KEY in every " +
+      "container (needed for `swamp serve` on gated hosts). Prefer a vault " +
+      "expression, e.g. --global-arg 'swampApiKey=${{ vault.get(my-vault, SWAMP_API_KEY) }}'",
+  ),
 });
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -302,6 +307,24 @@ interface Deps {
   runFn: RunFn;
   releaseBaseUrl: string;
   swampVersion: string;
+  /**
+   * swamp-club collective API token exported as `SWAMP_API_KEY` in every
+   * container. Empty means unset. Never logged.
+   */
+  swampApiKey: string;
+}
+
+/**
+ * The environment every test-factory container is started with.
+ *
+ * `docker exec` inherits the container's environment, so setting the key once
+ * at `docker run` covers the harness, serve, token, worker and probe processes
+ * alike — every swamp invocation in the scenario.
+ */
+export function containerEnv(swampApiKey: string): Record<string, string> {
+  const env: Record<string, string> = { SWAMP_TELEMETRY_DISABLED: "1" };
+  if (swampApiKey) env.SWAMP_API_KEY = swampApiKey;
+  return env;
 }
 
 /** The candidate extension under test. */
@@ -509,6 +532,7 @@ async function runScenario(
       systemd: scenario.systemd,
       network: scenario.topology === "standalone" ? undefined : network,
       mounts,
+      env: containerEnv(deps.swampApiKey),
       labels: scenario.topology === "standalone"
         ? { "tf.scenario": slug }
         : { "tf.scenario": slug, "tf.role": "orchestrator" },
@@ -725,6 +749,7 @@ async function runTopology(
         `${bundleDir}:/tf-scripts:ro`,
         `${sharedVolume}:/tf-shared`,
       ],
+      env: containerEnv(deps.swampApiKey),
       labels: { "tf.scenario": scenarioSlug(scenario), "tf.role": "worker" },
     });
     if (!created.ok) {
@@ -858,6 +883,7 @@ export const model = {
           runFn: args._run ?? defaultRun,
           releaseBaseUrl: context.globalArgs.releaseBaseUrl,
           swampVersion: context.globalArgs.swampVersion,
+          swampApiKey: context.globalArgs.swampApiKey ?? "",
         };
 
         const version = await dockerVersion(deps.runFn);
@@ -925,6 +951,7 @@ export const model = {
           runFn: args._run ?? defaultRun,
           releaseBaseUrl: context.globalArgs.releaseBaseUrl,
           swampVersion: context.globalArgs.swampVersion,
+          swampApiKey: context.globalArgs.swampApiKey ?? "",
         };
         const version = await dockerVersion(deps.runFn);
         if (!version.available) {

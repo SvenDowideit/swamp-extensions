@@ -64,7 +64,9 @@ swamp extension pull @svendowideit/test-factory
 No dependencies beyond a local container runtime. Docker is the default; set the
 `dockerBinary` global to `podman` to use podman. The only network access is the
 swamp release download; `serve`/`fleet` run `swamp serve` with `--auth-mode none`
-on loopback, so no swamp-club account is required.
+on loopback, so no swamp-club account is required by default. Where `swamp serve`
+*is* gated, provide a collective API token with the `swampApiKey` global and it
+is exported as `SWAMP_API_KEY` in every container.
 
 ## Configuration
 
@@ -81,6 +83,7 @@ Global arguments are set at model creation (`swamp model create
 | `workers` | integer | `2` | Default worker count for `fleet` scenarios. |
 | `keepOnFailure` | boolean | `false` | Leave containers running when a scenario fails, for inspection. |
 | `probe` | boolean | `true` | In `serve`/`fleet`, run the dispatch probe workflow. |
+| `swampApiKey` | string (sensitive) | `""` | swamp-club collective API token exported as `SWAMP_API_KEY` in **every** container. Needed when `swamp serve` is gated on the host. Because it is sensitive, a literal is rejected — create a vault (`swamp vault create local_encryption my-vault`), store the token (`swamp vault put my-vault SWAMP_API_KEY`), then reference it with `vault.get` (see the Examples section). |
 
 Per-run overrides on `test`: `manifest` (required), `scenario`, `distro`,
 `topology`, `systemd`, `workers`, `phases`, `fixturesFile`, `scenarioFile`,
@@ -119,6 +122,29 @@ run the dispatched probe step:
 swamp model @svendowideit/test-factory method run test tf \
   --input manifest=extensions/models/github-release-install/manifest.yaml \
   --input topology=fleet --input workers=2
+```
+
+On a host where `swamp serve` is a gated team feature, export an API token into
+every container with `swampApiKey`. It is a sensitive field, so a literal is
+rejected — create a vault, store the token there, and reference that secret:
+
+```sh
+# 1. Create a vault to hold the token (skip if you already have one).
+swamp vault create local_encryption my-vault
+
+# 2. Store the token. It is prompted for, so it never lands in your shell
+#    history. A pipeline works too: `echo -n "$TOKEN" | swamp vault put ...`.
+swamp vault put my-vault SWAMP_API_KEY
+
+# 3. Point the model at that secret and run — a literal value here is refused.
+swamp model create @svendowideit/test-factory tf \
+  --global-arg 'swampApiKey=${{ vault.get(my-vault, SWAMP_API_KEY) }}'
+swamp model @svendowideit/test-factory method run test tf \
+  --input manifest=extensions/models/github-release-install/manifest.yaml \
+  --input topology=fleet --input workers=2
+
+# Confirm the key is wired up without reading the container by hand:
+swamp vault list-keys my-vault
 ```
 
 Run a fixture-backed method and require a marker in its output, so the fixture

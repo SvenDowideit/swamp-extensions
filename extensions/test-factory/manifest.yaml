@@ -33,9 +33,10 @@ description: >
 
     A local container runtime — Docker by default (set `dockerBinary` for
     podman) — able to build images and run privileged containers for the systemd
-    scenarios. The only network access is the swamp release download; no
-    swamp-club account is required, because `serve`/`fleet` run `swamp serve` on
-    loopback with `--auth-mode none`.
+    scenarios. The only network access is the swamp release download. No
+    swamp-club account is required by default, because `serve`/`fleet` run
+    `swamp serve` on loopback with `--auth-mode none`; a host where that team
+    feature is gated needs `swampApiKey`, below.
 
   RUN
 
@@ -63,6 +64,17 @@ description: >
         --input manifest=extensions/test-factory/manifest.yaml \
         --input scenario=debian-standalone
 
+      # On a host where `swamp serve` is gated, give every container an API
+      # token. A literal is rejected for a sensitive field, so create a vault,
+      # store the token in it, and reference that secret.
+      swamp vault create local_encryption my-vault
+      swamp vault put my-vault SWAMP_API_KEY     # then paste the token
+      swamp model create @svendowideit/test-factory tf \
+        --global-arg 'swampApiKey=${{ vault.get(my-vault, SWAMP_API_KEY) }}'
+      swamp model @svendowideit/test-factory method run test tf \
+        --input manifest=extensions/models/caddy/manifest.yaml \
+        --input topology=fleet --input workers=2
+
       # Read the per-scenario breakdown from the last run.
       swamp report get @svendowideit/test-factory-report \
         --model tf --markdown
@@ -79,6 +91,13 @@ description: >
       workers          worker count for `fleet` scenarios  (default 2)
       keepOnFailure    leave containers up on failure      (default false)
       probe            run the serve/fleet dispatch probe  (default true)
+      swampApiKey      collective API token exported as SWAMP_API_KEY in every
+                       container (default unset); sensitive, so store it in a
+                       vault and reference the secret:
+                       swamp vault create local_encryption my-vault
+                       swamp vault put my-vault SWAMP_API_KEY
+                       then --global-arg
+                       'swampApiKey=${{ vault.get(my-vault, SWAMP_API_KEY) }}'
 
     Per-run overrides: `manifest` (required), `scenario`, `distro`, `topology`,
     `systemd`, `workers`, `phases`, `fixturesFile`, `scenarioFile`, `expected`

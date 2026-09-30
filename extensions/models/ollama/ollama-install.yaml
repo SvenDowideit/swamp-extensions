@@ -1,0 +1,478 @@
+id: 2b656abc-0076-47fd-9a86-ef89d16e853a
+name: '@svendowideit/ollama-install'
+description: |
+  Install or upgrade Ollama on this machine and keep its systemd service
+  running with your configuration — the whole loop in one idempotent run.
+
+  Steps (install): plan → sync → resolve → assess → download → install →
+  create-service → configure-service → restart-service → verify
+
+  plan resolves this machine's OS/architecture and accelerator (NVIDIA CUDA,
+  AMD ROCm, Jetson, or the base build), the exact release asset name to fetch,
+  and whether the service is a system or user unit. sync reads the installed
+  `ollama --version`. resolve calls @svendowideit/github-release-install to read
+  the newest Ollama release and the asset's expected SHA-256 from its
+  sha256sum.txt, and assess compares the two. download fetches the
+  checksum-verified archive only when an update is actually needed (or force is
+  set), so a current machine does not re-download a multi-gigabyte release.
+  install extracts that archive and installs the `ollama` binary and its
+  `lib/ollama` runtime. The service steps create a systemd unit when none exists
+  (making the unprivileged `ollama` user for a system unit), apply your service
+  settings as a drop-in override so an existing unit is customised not
+  clobbered, and restart it so the running daemon matches the new binary and
+  configuration. verify prints the installed version, the binary path and the
+  exact `systemctl status` command.
+
+  Run it on any Linux host to make Ollama present, current, configured and
+  always-on:
+
+      swamp workflow run @svendowideit/ollama-install
+
+  Pin a version, put the models on a big disk, and expose the API on the LAN:
+
+      swamp workflow run @svendowideit/ollama-install \
+        --input version=0.35.0 \
+        --input host=0.0.0.0:11434 \
+        --input environment='OLLAMA_MODELS=/mnt/models'
+
+  Use user scope (no root) and skip service management entirely:
+
+      swamp workflow run @svendowideit/ollama-install \
+        --input serviceScope=user --input manageService=false
+
+  Remove the binary (and optionally the service) again:
+
+      swamp workflow run @svendowideit/ollama-install --input uninstall=true \
+        --input purgeService=true
+
+  The workflow auto-registers the `ollama` and `github-release` model instances
+  on first run; nothing needs creating by hand. The daily trigger upgrades the
+  binary and restarts the service as new releases appear; remove `trigger:` if
+  you would rather upgrade by hand.
+tags: {}
+trigger:
+  schedule: "0 4 * * *"
+  inputs:
+    manageService: true
+inputs:
+  properties:
+    repo:
+      type: string
+      default: ollama/ollama
+      description: GitHub repository (owner/name) publishing the Ollama releases.
+    version:
+      type: string
+      default: ""
+      description: >-
+        Release to install (e.g. 0.35.0 or v0.35.0). Empty installs the latest.
+    os:
+      type: string
+      default: ""
+      description: Override the detected OS token (Linux). Empty probes the host.
+    arch:
+      type: string
+      default: ""
+      description: >-
+        Override the detected architecture token (x86_64, arm64). Empty probes
+        the host.
+    accel:
+      type: string
+      enum:
+        - auto
+        - base
+        - rocm
+        - mlx
+        - jetpack5
+        - jetpack6
+      default: auto
+      description: >-
+        Build variant: auto detects Jetson/ROCm, else base (which bundles CUDA
+        on Linux/amd64). rocm adds AMD GPU support; jetpack5/jetpack6 are the
+        NVIDIA Jetson (arm64) builds.
+    githubToken:
+      type: string
+      default: ""
+      description: >-
+        GitHub token to raise the releases API rate limit. Empty falls back to
+        GITHUB_TOKEN / GH_TOKEN, then the authenticated `gh` CLI.
+    downloadDir:
+      type: string
+      default: ~/.cache/ollama
+      description: >-
+        Directory the checksum-verified release archive is staged in before
+        install extracts it.
+    installDir:
+      type: string
+      default: ""
+      description: >-
+        Directory to install the ollama binary into. Empty picks /usr/local/bin
+        for system scope or ~/.local/bin for user scope.
+    force:
+      type: boolean
+      default: false
+      description: >-
+        Reinstall even when the target version is already installed, and rewrite
+        the unit/drop-in even when it already matches.
+    manageService:
+      type: boolean
+      default: true
+      description: >-
+        Create/configure/restart a systemd service running `ollama serve`.
+    uninstall:
+      type: boolean
+      default: false
+      description: >-
+        Remove the ollama binary and lib instead of installing. With
+        purgeService=true the systemd service is removed too.
+    purgeService:
+      type: boolean
+      default: false
+      description: >-
+        On an uninstall run, also remove the systemd unit and drop-in (rather
+        than leaving them in place).
+    serviceName:
+      type: string
+      default: ollama
+      description: systemd service name (without the .service suffix).
+    serviceScope:
+      type: string
+      enum:
+        - auto
+        - system
+        - user
+      default: auto
+      description: >-
+        systemd scope: system (needs root/sudo), user (no root), or auto to use
+        the existing service when one is found, else system.
+    unitDir:
+      type: string
+      default: ""
+      description: >-
+        Override the directory unit files are written to. Empty uses
+        /etc/systemd/system (system) or ~/.config/systemd/user (user).
+    serviceUser:
+      type: string
+      default: ollama
+      description: Run-as user for a system service (created if missing).
+    serviceGroup:
+      type: string
+      default: ollama
+      description: Run-as group for a system service (created if missing).
+    host:
+      type: string
+      default: ""
+      description: >-
+        Value for OLLAMA_HOST (e.g. 127.0.0.1:11434 or 0.0.0.0:11434). Empty
+        leaves the service default untouched.
+    environment:
+      type: array
+      items:
+        type: string
+      default: []
+      description: >-
+        Extra Environment= lines as KEY=VALUE (e.g. OLLAMA_MODELS=/mnt/models),
+        one per array item.
+    extraArgs:
+      type: string
+      default: ""
+      description: >-
+        Extra arguments appended to `ollama serve` in ExecStart (e.g.
+        --flash-attention).
+    restart:
+      type: string
+      default: always
+      description: systemd Restart= policy.
+    restartSec:
+      type: string
+      default: "3"
+      description: systemd RestartSec= delay.
+  required: []
+jobs:
+  - name: main
+    description: >-
+      Plan the platform, read the installed version, resolve the latest release,
+      download and install only when an update is needed, then
+      create/configure/restart the systemd service.
+    steps:
+      - name: plan
+        description: >-
+          Resolve this machine's OS/arch/accelerator, the exact release asset
+          name to fetch, the install/lib paths, and the systemd service scope.
+          Runs first so every later step uses one consistent plan. It is the
+          only writer of the `plan` resource.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama"
+          modelName: ollama
+          methodName: plan
+          inputs:
+            os: ${{ inputs.os }}
+            arch: ${{ inputs.arch }}
+            accel: ${{ inputs.accel }}
+            serviceScope: ${{ inputs.serviceScope }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: sync
+        description: >-
+          Read the installed `ollama --version` so `assess` can decide whether an
+          update is needed. Skipped on an uninstall run. It is the only writer of
+          the `installed` resource before install.
+        guard: ${{ inputs.uninstall == true }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama"
+          modelName: ollama
+          methodName: sync
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: resolve
+        description: >-
+          Read the latest Ollama release (or the pinned version), match the exact
+          asset plan selected, and record its expected SHA-256 from the release's
+          sha256sum.txt. Skipped on an uninstall run. It is the only writer of
+          the `release` resource.
+        guard: ${{ inputs.uninstall == true }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/github-release-install"
+          modelName: github-release
+          methodName: check
+          globalArgs:
+            repo: ${{ inputs.repo }}
+            githubToken: ${{ inputs.githubToken }}
+            checksumsName: sha256sum.txt
+          inputs:
+            version: ${{ inputs.version }}
+            stem: ${{ steps.plan.outputs.stem }}
+            pattern: ${{ steps.plan.outputs.assetPattern }}
+            os: ${{ steps.plan.outputs.os }}
+            arch: ${{ steps.plan.outputs.arch }}
+        dependsOn:
+          - step: sync
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: assess
+        description: >-
+          Compare the installed version with the resolved latest release and
+          record whether an update is available. Skipped on an uninstall run. It
+          is the only writer of the `assessment` resource, which gates the
+          download and install steps.
+        guard: ${{ inputs.uninstall == true }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama"
+          modelName: ollama
+          methodName: assess
+          inputs:
+            latestVersion: ${{ steps.resolve.outputs.version }}
+        dependsOn:
+          - step: resolve
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: download
+        description: >-
+          Download the resolved archive and verify its SHA-256. Only runs when an
+          update is actually available (or force is set), so a machine that is
+          already current does not re-download a multi-gigabyte release. It is
+          the only writer of the `archive` resource.
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.force == false
+          && steps.assess.outputs.?updateAvailable.orValue(true) == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/github-release-install"
+          modelName: github-release
+          methodName: download
+          globalArgs:
+            repo: ${{ inputs.repo }}
+            githubToken: ${{ inputs.githubToken }}
+            checksumsName: sha256sum.txt
+          inputs:
+            outputDir: ${{ inputs.downloadDir }}
+            force: ${{ inputs.force }}
+            stem: ${{ steps.plan.outputs.stem }}
+            pattern: ${{ steps.plan.outputs.assetPattern }}
+            assetName: ${{ steps.resolve.outputs.?platform.?archiveName.orValue("") }}
+            downloadUrl: ${{ steps.resolve.outputs.?platform.?downloadUrl.orValue("") }}
+            releaseVersion: ${{ steps.resolve.outputs.version }}
+            checksum: ${{ steps.resolve.outputs.?checksum.orValue("") }}
+        dependsOn:
+          - step: assess
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: install
+        description: >-
+          Extract the `ollama` binary and its `lib/ollama` runtime from the
+          checksum-verified archive and install them. Runs only when `download`
+          produced an archive (an update was needed, or force is set). Skipped
+          when uninstall=true. It is the only writer of the `install` resource.
+        guard: >-
+          ${{ inputs.uninstall == true
+          || (inputs.force == false
+          && steps.assess.outputs.?updateAvailable.orValue(true) == false) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama"
+          modelName: ollama
+          methodName: install
+          inputs:
+            version: ${{ steps.resolve.outputs.?version.orValue(inputs.version) }}
+            archivePath: ${{ steps.download.outputs.?path.orValue("") }}
+            archiveName: ${{ steps.download.outputs.?archiveName.orValue("") }}
+            checksum: ${{ steps.download.outputs.?checksum.orValue("") }}
+            installDir: ${{ inputs.installDir }}
+            serviceScope: ${{ inputs.serviceScope }}
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: download
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: uninstall
+        description: >-
+          Remove the ollama binary and its runtime. Idempotent: a missing binary
+          is a no-op. With purgeService=true the systemd service is removed too;
+          otherwise the service is stopped but the unit is left in place. Only
+          runs when uninstall=true.
+        guard: ${{ inputs.uninstall == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama"
+          modelName: ollama
+          methodName: uninstall
+          inputs:
+            serviceName: ${{ inputs.serviceName }}
+            serviceScope: ${{ inputs.serviceScope }}
+            purge: ${{ inputs.purgeService }}
+        dependsOn:
+          - step: plan
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: create-service
+        description: >-
+          Write a systemd unit for `ollama serve` when none exists, creating the
+          unprivileged `ollama` run-as user for a system unit. An existing unit
+          (e.g. from Ollama's own installer) is left untouched unless force is
+          set. Only runs when manageService is true and uninstall is false.
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.manageService == false
+          || steps.plan.outputs.?serviceStatusCommand.orValue("") == "" }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama"
+          modelName: ollama
+          methodName: createService
+          inputs:
+            serviceName: ${{ inputs.serviceName }}
+            unitDir: ${{ inputs.unitDir }}
+            serviceScope: ${{ inputs.serviceScope }}
+            serviceUser: ${{ inputs.serviceUser }}
+            serviceGroup: ${{ inputs.serviceGroup }}
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: install
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: configure-service
+        description: >-
+          Apply the service settings (OLLAMA_HOST, Environment= lines, extra
+          serve arguments) as a systemd drop-in override, so an existing unit is
+          customised rather than clobbered. Idempotent. Only runs when
+          manageService is true and uninstall is false.
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.manageService == false
+          || steps.plan.outputs.?serviceStatusCommand.orValue("") == "" }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama"
+          modelName: ollama
+          methodName: configureService
+          inputs:
+            serviceName: ${{ inputs.serviceName }}
+            unitDir: ${{ inputs.unitDir }}
+            serviceScope: ${{ inputs.serviceScope }}
+            serviceUser: ${{ inputs.serviceUser }}
+            serviceGroup: ${{ inputs.serviceGroup }}
+            host: ${{ inputs.host }}
+            environment: ${{ inputs.environment }}
+            extraArgs: ${{ inputs.extraArgs }}
+            restart: ${{ inputs.restart }}
+            restartSec: ${{ inputs.restartSec }}
+        dependsOn:
+          - step: create-service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: restart-service
+        description: >-
+          Enable and restart the service so the running daemon is the newly
+          installed binary with the new configuration. `restart` starts a
+          stopped unit too, so this is safe on every pass. Skipped on uninstall,
+          when the service is unmanaged, or on a non-systemd platform.
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.manageService == false
+          || steps.plan.outputs.?serviceStatusCommand.orValue("") == "" }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama"
+          modelName: ollama
+          methodName: restartService
+          inputs:
+            serviceName: ${{ inputs.serviceName }}
+            unitDir: ${{ inputs.unitDir }}
+            serviceScope: ${{ inputs.serviceScope }}
+            enable: true
+        dependsOn:
+          - step: configure-service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: verify
+        description: >-
+          Print the installed version, the binary path and the exact
+          `systemctl status` command for the service, so the run log ends with
+          what is now on the machine, where it is and how to check it.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama"
+          modelName: ollama
+          methodName: print
+          inputs:
+            serviceName: ${{ inputs.serviceName }}
+            serviceScope: ${{ inputs.serviceScope }}
+        dependsOn:
+          - step: sync
+            condition:
+              type: always
+          - step: install
+            condition:
+              type: always
+          - step: uninstall
+            condition:
+              type: always
+          - step: restart-service
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

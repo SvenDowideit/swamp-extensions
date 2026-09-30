@@ -1,0 +1,141 @@
+manifestVersion: 1
+name: "@svendowideit/ollama"
+version: "2026.10.01.1"
+description: >
+  Install, upgrade and configure Ollama on a machine with systemd — the whole
+  loop from "which version is installed" to "the daemon is running the new
+  binary with my settings".
+
+  WHAT IT DOES
+
+    Closes the loop around an Ollama install on this machine: it reads the
+    installed `ollama --version`, resolves the newest release, and compares the
+    two — downloading a checksum-verified archive and installing the binary and
+    its `lib/ollama` runtime only when an update is actually needed (never
+    re-downloading a multi-gigabyte release for a current machine). It picks the
+    right build for this OS/architecture and accelerator (Linux/NVIDIA via the
+    base build, Linux/AMD ROCm, NVIDIA Jetson, macOS, Windows). It then keeps
+    `ollama serve` alive under systemd,
+    creating a unit when none exists (making the unprivileged `ollama` user for
+    a system unit) or writing a drop-in override when one does. Prefer it over
+    Ollama's own `install.sh` when you want the same result as repeatable swamp
+    workflows, with service settings (host, models path, environment, serve
+    flags) managed as configuration rather than hand-edited unit files.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/ollama
+
+  DEPENDENCIES
+
+    `@svendowideit/github-release-install`, declared in `dependencies:` and
+    installed by the single pull above; the bundled workflow calls it to resolve
+    the release, match the platform asset, record its SHA-256 from the release's
+    `sha256sum.txt`, and download a verified archive only when an update is
+    needed. Extracting a Linux `.tar.zst` release needs the `zstd`
+    tool (`apt-get install zstd`), which Ollama's own installer also requires.
+    Managing a system service needs root (configure passwordless `sudo`, or use
+    `serviceScope=user`); nothing else is required.
+
+  RUN
+
+      # Install or upgrade Ollama and keep `ollama serve` running under
+      # systemd, with the unit created if it is missing. Idempotent.
+      swamp workflow run @svendowideit/ollama-install
+
+      # Pin a version, put the models on a big disk, and expose the API on the
+      # LAN — your service settings, applied as a drop-in override.
+      swamp workflow run @svendowideit/ollama-install \
+        --input version=0.35.0 \
+        --input host=0.0.0.0:11434 \
+        --input environment='OLLAMA_MODELS=/mnt/models'
+
+      # Ask what is installed and how the service is doing.
+      swamp model @svendowideit/ollama method run sync ollama
+      swamp model @svendowideit/ollama method run status ollama
+
+      # Change just the service settings later, without reinstalling.
+      swamp workflow run @svendowideit/ollama-install \
+        --input host=0.0.0.0:11434 --input manageService=true
+
+      # Remove the binary and the systemd service again.
+      swamp workflow run @svendowideit/ollama-install \
+        --input uninstall=true --input purgeService=true
+
+  CONFIGURE
+
+    Workflow inputs (all optional, with defaults), also settable as model global
+    args with `--global-arg` and overridable per call with `--input`:
+
+      repo            GitHub repository publishing Ollama  (default ollama/ollama)
+      version         Release to install; empty = latest   (default "")
+      os / arch       Override the detected platform       (default: host probe)
+      accel           auto | base | rocm | mlx |            (default auto)
+                      jetpack5 | jetpack6
+      githubToken     Raises the releases API rate limit    (default: GITHUB_TOKEN,
+                                                            GH_TOKEN, `gh auth token`)
+      downloadDir     Where the verified archive is staged  (default ~/.cache/ollama)
+      installDir      Where the binary lands                (default /usr/local/bin for
+                                                            system, ~/.local/bin for user)
+      manageService   Create/configure/restart the service  (default true)
+      serviceName     systemd service name                  (default ollama)
+      serviceScope    auto | system | user                  (default auto)
+      serviceUser     Run-as user for a system unit         (default ollama)
+      serviceGroup    Run-as group for a system unit        (default ollama)
+      host            OLLAMA_HOST (e.g. 0.0.0.0:11434)      (default: untouched)
+      environment     Extra Environment= KEY=VALUE lines    (default [])
+      extraArgs       Extra `ollama serve` arguments        (default "")
+      restart         systemd Restart= policy               (default always)
+      restartSec      systemd RestartSec= delay             (default 3)
+      force           Reinstall / rewrite even if current   (default false)
+      uninstall       Remove binary and lib instead          (default false)
+      purgeService    Also remove the unit on uninstall      (default false)
+
+    The releases API allows only 60 anonymous requests per hour per IP, so
+    authenticate for scheduled runs: run `gh auth login` once (its token is then
+    used automatically), or export `GITHUB_TOKEN=$(gh auth token)`. The release
+    workflow resolves and downloads once; install consumes the verified archive
+    it produced, so a normal run spends one API request.
+
+  WHAT IT INSTALLS
+
+    The `ollama` binary (and, on Linux, its matching `lib/ollama` runtime
+    directory) into the chosen install directory — `/usr/local/bin` for system
+    scope, `~/.local/bin` for user scope. The verified archive is staged (and
+    checksum-checked) under `downloadDir`. On Linux it also manages a systemd
+    unit: `createService` writes `<name>.service` (`/etc/systemd/system` for
+    system scope, `~/.config/systemd/user` for user scope) only when none
+    exists, creating the unprivileged `ollama` user for a system unit;
+    `configureService` writes a `<name>.service.d/10-swamp.conf` drop-in with
+    your settings (and creates the unit when missing), so an existing upstream
+    unit is customised, never overwritten; `restartService` enables and restarts
+    it so it starts at boot. Remove the unit with `removeService`. macOS and
+    Windows releases install the binary only — no service management. Inspect
+    the service at any time with:
+
+        systemctl status ollama.service
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - ollama.ts
+  - ollama_shared.ts
+
+workflows:
+  - ollama-install.yaml
+
+dependencies:
+  - "@svendowideit/github-release-install"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - ollama_shared_test.ts
+  - ollama_test.ts
+
+platforms: []

@@ -18,6 +18,8 @@ import {
   parseArchiveName,
   parseChecksums,
   parseVersionOutput,
+  releasesApiUrl,
+  resolveApiUrl,
   resolveToken,
   selectAsset,
   versionsEqual,
@@ -144,6 +146,27 @@ Deno.test("parseVersionOutput reads the version and backend", () => {
     backend: "",
   });
   assertEquals(parseVersionOutput("command not found"), null);
+});
+
+Deno.test("resolveApiUrl derives from repo unless apiUrl is set", () => {
+  // Empty apiUrl -> derived from repo.
+  assertEquals(
+    resolveApiUrl("Gaurav-Gosain/tuios", ""),
+    "https://api.github.com/repos/Gaurav-Gosain/tuios/releases/latest",
+  );
+  // A different repo is honoured (wires the previously-dead `repo` global).
+  assertEquals(
+    releasesApiUrl("acme/tuios"),
+    "https://api.github.com/repos/acme/tuios/releases/latest",
+  );
+  // An explicit apiUrl always wins.
+  assertEquals(
+    resolveApiUrl(
+      "acme/tuios",
+      "https://ghe.example.test/api/v3/releases/latest",
+    ),
+    "https://ghe.example.test/api/v3/releases/latest",
+  );
 });
 
 Deno.test("assertAbsoluteDir accepts absolute, ~ and empty; rejects relative", () => {

@@ -5,7 +5,8 @@ description: |
   then hand the daemon to systemd so sessions are always available.
 
   Steps (install):
-    check-latest → install → create-daemon-service → start-daemon-service → verify
+    check-latest → install → create-daemon-service → start-daemon-service
+    → restart-daemon-service → verify
 
   check-latest resolves the newest TUIOS release and the archive for this
   platform, recording it as the `release` resource. install is idempotent: it
@@ -14,7 +15,10 @@ description: |
   release's checksums.txt, and replaces the binary. The systemd steps then
   create and start a `tuios daemon` user service (via
   @svendowideit/systemd-service) so sessions survive logout and reboot, and
-  verify prints the final state.
+  restart it after an upgrade (enable --now does not restart an active unit, so
+  without this the daemon would keep running the old binary). verify prints the
+  installed version, the binary's path, and the exact
+  `systemctl --user status <service>.service` command to inspect the daemon.
 
   Run it on any machine to make TUIOS present, current, and always-on:
 
@@ -139,7 +143,9 @@ jobs:
         description: >-
           Remove the tuios binary. Idempotent: a missing binary is a no-op, and
           a package-manager-owned binary is refused unless force is set. Only
-          runs when `uninstall=true`. The systemd service is left in place.
+          runs when `uninstall=true`. It stops the daemon service (so a removed
+          binary cannot leave the unit restart-looping) but leaves the unit
+          file, and reports how to remove that too.
         guard: ${{ inputs.uninstall == false }}
         task:
           type: model_method
@@ -149,6 +155,7 @@ jobs:
           inputs:
             installDir: ${{ inputs.installDir }}
             force: ${{ inputs.force }}
+            serviceName: ${{ inputs.serviceName }}
         dependsOn:
           - step: check-latest
             condition:
@@ -198,16 +205,42 @@ jobs:
               type: succeeded
         weight: 0
         allowFailure: true
+      - name: restart-daemon-service
+        description: >-
+          Restart the daemon so it runs the newly installed binary. `enable
+          --now` does not restart an already-active unit, so without this an
+          upgrade would leave the old binary running. Skipped on uninstall, when
+          the service is unmanaged, and when the install step was a no-op
+          (already up to date).
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.manageService == false
+          || data.latest("tuios-installed", "install").?attributes.?skipped.orValue(true) == true }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/systemd-service"
+          modelName: tuios-daemon
+          methodName: restartService
+          inputs:
+            serviceName: ${{ inputs.serviceName }}
+        dependsOn:
+          - step: start-daemon-service
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
       - name: verify
         description: >-
-          Print the final installed version and latest release, so the run log
-          ends with what is now on the machine and what the next run would
-          fetch. The only writer of the `summary` resource in a run.
+          Print the final installed version, the binary path, and the exact
+          `systemctl --user status` command for the daemon service, so the run
+          log ends with what is now on the machine, where it is, and how to
+          check the service.
         task:
           type: model_method
           modelType: "@svendowideit/tuios-installed"
           modelName: tuios-installed
           methodName: print
+          inputs:
+            serviceName: ${{ inputs.serviceName }}
         dependsOn:
           - step: install
             condition:
@@ -215,7 +248,7 @@ jobs:
           - step: uninstall
             condition:
               type: always
-          - step: start-daemon-service
+          - step: restart-daemon-service
             condition:
               type: always
         weight: 0

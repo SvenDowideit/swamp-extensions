@@ -21,9 +21,10 @@ machine you run swamp on:
   backend and the resolved path.
 - **How do I install or upgrade it, and keep it running?** The `install`
   method downloads the platform archive, verifies it against the checksum, and
-  atomically installs the binary. The bundled workflow runs the whole loop and
-  starts a `tuios daemon` systemd *user* service so sessions are always
-  available.
+  atomically installs the binary; `uninstall` removes it. The bundled workflow
+  runs the whole loop, starts a `tuios daemon` systemd *user* service, restarts
+  it after an upgrade, and prints where the binary landed and the exact
+  `systemctl --user status` command to inspect the service.
 
 Side effects: outbound HTTPS reads from `api.github.com`,
 `github.com/…/releases/download/…` and `raw.githubusercontent.com` (nothing is
@@ -51,14 +52,15 @@ The declared dependency `@svendowideit/systemd-service` is pulled automatically.
 | `force` | boolean | `false` | Reinstall even when the target version is already present, and rewrite the systemd unit even if it matches. |
 | `manageService` | boolean | `true` | Create and start a systemd user service running the TUIOS daemon. |
 | `serviceName` | string | `tuios` | systemd user service name (without `.service`). |
+| `uninstall` | boolean | `false` | Remove the binary instead of installing it. |
 
 ### `tuios-release` global arguments
 
 | Argument | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
 | `flavor` | `std` \| `ghostty` | `std` | Build flavor to track. |
-| `repo` | string | `Gaurav-Gosain/tuios` | GitHub repository publishing the releases. |
-| `apiUrl` | string | GitHub `releases/latest` URL | Releases API endpoint. |
+| `repo` | string | `Gaurav-Gosain/tuios` | GitHub repository publishing the releases; used to derive `apiUrl`. |
+| `apiUrl` | string | `""` | Releases API endpoint. Empty derives it from `repo`. |
 | `userAgent` | string | `swamp-tuios/1.0` | `User-Agent` sent to the GitHub API. |
 | `githubToken` | string | `""` | GitHub token to raise the API rate limit. Empty falls back to `GITHUB_TOKEN` / `GH_TOKEN`. |
 | `os` | string | `""` | Override the detected release OS token (`Linux`, `Darwin`, …). Empty probes the host. |
@@ -68,17 +70,19 @@ The declared dependency `@svendowideit/systemd-service` is pulled automatically.
 
 | Argument | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `path` | string | `""` | Path to the `tuios` binary. Empty auto-detects from `PATH` and the usual install locations. |
+| `path` | string | `""` | Path to the `tuios` binary. Empty auto-detects from `PATH` and the usual install locations; when set it is authoritative (no fall-back). |
 | `flavor` | `std` \| `ghostty` | `std` | Build flavor to track. |
-| `repo` | string | `Gaurav-Gosain/tuios` | GitHub repository publishing the releases. |
-| `apiUrl` | string | GitHub `releases/latest` URL | Releases API endpoint. |
+| `repo` | string | `Gaurav-Gosain/tuios` | GitHub repository publishing the releases; used to derive `apiUrl`. |
+| `apiUrl` | string | `""` | Releases API endpoint. Empty derives it from `repo`. |
 | `userAgent` | string | `swamp-tuios/1.0` | `User-Agent` sent to the GitHub API. |
 | `githubToken` | string | `""` | GitHub token to raise the API rate limit. Empty falls back to `GITHUB_TOKEN` / `GH_TOKEN`. |
 | `os` | string | `""` | Override the detected release OS token. Empty probes the host. |
 | `arch` | string | `""` | Override the detected architecture token. Empty probes the host. |
+| `serviceName` | string | `tuios` | systemd user service name, used to print the `systemctl --user status` command. |
 
 Per-call overrides use `--input`, and a non-empty `--input` always wins over
-the model global.
+the model global. `print` also takes a `serviceName` input to override the
+global for that call.
 
 > **GitHub API rate limits.** The releases API allows 60 anonymous requests per
 > hour per IP. A workflow run spends one on `check` (plus one for
@@ -109,6 +113,10 @@ swamp model @svendowideit/tuios-release method run check tuios-release
 swamp model @svendowideit/tuios-installed method run sync tuios-installed
 swamp data get tuios-installed installed --json
 
+# Print the current state, binary path and systemctl status command (the
+# workflow's verify step does this, but you can run it standalone any time).
+swamp model @svendowideit/tuios-installed method run print tuios-installed
+
 # Reinstall over an existing binary even when the version matches.
 swamp model @svendowideit/tuios-installed method run install tuios-installed \
   --input force=true
@@ -117,7 +125,9 @@ swamp model @svendowideit/tuios-installed method run install tuios-installed \
 swamp model @svendowideit/tuios-release method run check tuios-release \
   --input flavor=ghostty
 
-# Remove the binary (the systemd service is left alone) via the workflow.
+# Remove the binary via the workflow. It stops the daemon service (so a
+# removed binary cannot leave the unit restart-looping) but leaves the unit
+# file; the output says how to remove that too.
 swamp workflow run @svendowideit/tuios-install --input uninstall=true
 
 # Or directly, from a specific directory. Idempotent, and it refuses a
@@ -135,9 +145,9 @@ swamp model @svendowideit/tuios-installed method run uninstall tuios-installed \
 | `@svendowideit/tuios-release` | `check` | `os`, `arch`, `flavor`, `archiveName`, `fetchChecksums`, `requireChecksum` | `release` — the latest tag/version, every asset, the platform's archive, its download URL and SHA-256. |
 | `@svendowideit/tuios-release` | `print` | `installedVersion` | `summary` — logs the release, the platform archive and whether an update is available. |
 | `@svendowideit/tuios-installed` | `sync` | `path`, `checkLatest` | `installed` — path, present flag, version, backend, latest version and `updateAvailable`. |
-| `@svendowideit/tuios-installed` | `install` | `version`, `installDir`, `archiveName`, `downloadUrl`, `releaseVersion`, `checksum`, `os`, `arch`, `flavor`, `force` | `install` — the install result (or a `skipped: true` record), and a refreshed `installed` resource. |
-| `@svendowideit/tuios-installed` | `uninstall` | `path`, `installDir`, `force` | `uninstall` — the removal result (or a `skipped: true` no-op), and a refreshed `installed` resource. |
-| `@svendowideit/tuios-installed` | `print` | none | `summary` — logs the installed state and update availability. |
+| `@svendowideit/tuios-installed` | `install` | `version`, `installDir`, `archiveName`, `downloadUrl`, `releaseVersion`, `checksum`, `os`, `arch`, `flavor`, `force` | `install` — the install result (or a `skipped: true` record), with `versionCommand` and `serviceStatusCommand`, and a refreshed `installed` resource. |
+| `@svendowideit/tuios-installed` | `uninstall` | `path`, `installDir`, `force`, `serviceName` | `uninstall` — the removal result (or a `skipped: true` no-op), with `serviceNote`/`serviceStatusCommand`, and a refreshed `installed` resource. |
+| `@svendowideit/tuios-installed` | `print` | `serviceName` | `summary` — logs the installed state, the binary path, the update availability and the `systemctl --user status` command. |
 
 ### Pre-flight checks — `@svendowideit/tuios-installed`
 
@@ -169,18 +179,24 @@ installs an unverified archive.
 ### Workflow — `@svendowideit/tuios-install`
 
 Steps: `check-latest → install → create-daemon-service →
-start-daemon-service → verify`.
+start-daemon-service → restart-daemon-service → verify`.
 
 - `check-latest` is the only writer of the `release` resource; `install` is the
-  only writer of `installed`/`install`; `verify` is the only writer of
-  `summary`. Keeping one writer per resource per run keeps `data.latest(...)`
-  unambiguous.
+  only writer of `installed`/`install`; `uninstall` is the only writer of
+  `uninstall`; `verify` is the only writer of `summary`. Keeping one writer per
+  resource per run keeps `data.latest(...)` unambiguous.
 - `install` is idempotent: it locates the existing binary, and when its version
   already equals the target it records `skipped: true` and does not download
   (pass `force=true` to override).
+- `restart-daemon-service` restarts the daemon after an actual upgrade.
+  `systemctl --user enable --now` does **not** restart an already-active unit, so
+  without this step the daemon would keep running the old binary. It is skipped
+  when the install was a no-op, on uninstall, and when `manageService=false`.
 - The systemd steps are `allowFailure: true` — an install still succeeds on a
   machine without a user systemd session. Set `manageService=false` to skip
   them entirely.
+- `verify` prints the installed version, the binary path (`<path> --version`),
+  and `systemctl --user status <service>.service`.
 - The bundled trigger runs daily at 04:00; remove the `trigger:` block to
   upgrade by hand.
 
@@ -195,7 +211,8 @@ start-daemon-service → verify`.
   `selectPlatformAsset` exported so the payload handling is testable without a
   network call.
 - `tuios_installed.ts` — the `tuios-installed` model, including the atomic
-  install (write to `<path>.new-<uuid>`, then rename).
+  install (write to `<path>.new-<uuid>`, rename, and clean up the temp file in a
+  `finally`), the package-manager guard, and the uninstall path.
 - `tuios-install.yaml` — the bundled workflow (created with
   `swamp workflow create`; do not hand-edit its `id`).
 - `tuios_*_test.ts` — pure-helper tests; `tuios_*_methods_test.ts` drive the
@@ -224,6 +241,23 @@ it.
   extensions/models/tuios/tuios_installed.ts
 ```
 
+### Where things land and how to check them
+
+The install output and the workflow's `verify` step print both, but to check by
+hand once TUIOS is installed:
+
+```sh
+# The binary (path is printed by install/verify; usually ~/.local/bin/tuios).
+~/.local/bin/tuios --version
+
+# The daemon, if manageService was used (default service name: tuios).
+systemctl --user status tuios.service
+systemctl --user is-enabled tuios.service
+```
+
+Change the service name with `--input serviceName=<name>` (or the
+`tuios-installed` `serviceName` global) if you use something other than `tuios`.
+
 ### Caveats
 
 - The `ghostty` flavor is published for Linux and Windows only; selecting it on
@@ -234,6 +268,13 @@ it.
 - Installing into `/usr/local/bin` requires that this user can write there;
   otherwise the model falls back to `~/.local/bin` and warns when that
   directory is not on `PATH`.
+- `uninstall` removes the binary and stops the daemon service, but does not
+  delete the unit file — remove it with `@svendowideit/systemd-service`'s
+  `removeService`. The uninstall output says so.
+- An upgrade restarts the daemon; that ends any attached clients, but sessions
+  persist because the daemon saves them. The daemon runs the binary present at
+  the time it started, so a manual binary replacement outside the workflow also
+  needs a `restartService`.
 
 ## License
 

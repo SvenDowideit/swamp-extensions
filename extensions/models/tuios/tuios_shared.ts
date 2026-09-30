@@ -32,6 +32,22 @@ export const RELEASE_REPO = "Gaurav-Gosain/tuios";
 export const RELEASE_API_URL =
   `https://api.github.com/repos/${RELEASE_REPO}/releases/latest`;
 
+/** The `releases/latest` API URL for a GitHub `owner/name` repository. */
+export function releasesApiUrl(repo: string): string {
+  return `https://api.github.com/repos/${repo}/releases/latest`;
+}
+
+/**
+ * Resolve the effective releases API URL: an explicit `apiUrl` wins, otherwise
+ * it is derived from the `repo` global. This is what wires `repo` — changing it
+ * (without also setting `apiUrl`) points the model at that repository.
+ */
+export function resolveApiUrl(repo: string, apiUrl: string): string {
+  const explicit = apiUrl.trim();
+  if (explicit) return explicit;
+  return releasesApiUrl(repo.trim() || RELEASE_REPO);
+}
+
 /** Name of the release asset that lists every archive's SHA-256. */
 export const CHECKSUMS_NAME = "checksums.txt";
 

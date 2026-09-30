@@ -31,11 +31,12 @@ const GLOBALS = {
   path: "",
   flavor: "std",
   repo: "Gaurav-Gosain/tuios",
-  apiUrl: "https://api.github.com/repos/Gaurav-Gosain/tuios/releases/latest",
+  apiUrl: "",
   userAgent: "swamp-tuios-test/1.0",
   githubToken: "",
   os: "Linux",
   arch: "x86_64",
+  serviceName: "tuios",
 };
 
 const VERSION_OUTPUT = [
@@ -138,7 +139,13 @@ function runUninstall(
   ctx: { context: unknown },
   args: Record<string, unknown>,
 ): Promise<unknown> {
-  const full = { path: "", installDir: "", force: false, ...args };
+  const full = {
+    path: "",
+    installDir: "",
+    force: false,
+    serviceName: "",
+    ...args,
+  };
   return (model.methods.uninstall.execute as unknown as (
     a: Record<string, unknown>,
     c: unknown,
@@ -530,7 +537,10 @@ Deno.test("print fails soft when no installed snapshot exists", async () => {
     globalArgs: { ...GLOBALS },
     methodName: "print",
   });
-  await model.methods.print.execute({}, ctx.context as never);
+  await model.methods.print.execute(
+    { serviceName: "" },
+    ctx.context as never,
+  );
   const summary = ctx.getWrittenResources()[0];
   assertEquals(summary.specName, "summary");
   assertEquals(summary.data.printed, false);

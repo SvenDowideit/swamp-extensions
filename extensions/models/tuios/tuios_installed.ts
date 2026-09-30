@@ -39,11 +39,12 @@ import {
   fetchLatestRelease,
   isOnPath,
   parseVersionOutput,
-  RELEASE_API_URL,
   RELEASE_REPO,
   type ReleaseAsset,
+  resolveApiUrl,
   resolvePlatform,
   resolveToken,
+  runCapture,
   selectAsset,
   selectInstallDir,
   verifySha256,
@@ -63,10 +64,10 @@ const GlobalArgsSchema = z.object({
     "Build flavor to track: 'std' is the pure-Go emulator, 'ghostty' bundles libghostty-vt.",
   ),
   repo: z.string().default(RELEASE_REPO).describe(
-    "GitHub repository (owner/name) publishing TUIOS releases.",
+    "GitHub repository (owner/name) publishing TUIOS releases. Used to derive apiUrl when that is empty.",
   ),
-  apiUrl: z.string().default(RELEASE_API_URL).describe(
-    "GitHub releases API URL for the latest release.",
+  apiUrl: z.string().default("").describe(
+    "GitHub releases API URL for the latest release. Empty derives it from repo (https://api.github.com/repos/<repo>/releases/latest).",
   ),
   userAgent: z.string().default("swamp-tuios/1.0").describe(
     "User-Agent header sent to the GitHub API.",
@@ -79,6 +80,9 @@ const GlobalArgsSchema = z.object({
   ),
   arch: z.string().default("").describe(
     "Override the detected release architecture token (e.g. x86_64, arm64). Empty probes the host.",
+  ),
+  serviceName: z.string().default("tuios").describe(
+    "systemd user service name (without .service) that runs the TUIOS daemon. Used to print the `systemctl --user status` command.",
   ),
 });
 
@@ -95,7 +99,11 @@ const SyncArgsSchema = z.object({
 
 type SyncArgs = z.infer<typeof SyncArgsSchema>;
 
-const PrintArgsSchema = z.object({});
+const PrintArgsSchema = z.object({
+  serviceName: z.string().default("").describe(
+    "Override the model's serviceName global for this call when printing the `systemctl --user status` command.",
+  ),
+});
 type PrintArgs = z.infer<typeof PrintArgsSchema>;
 
 const InstallArgsSchema = z.object({
@@ -143,6 +151,9 @@ const UninstallArgsSchema = z.object({
   force: z.boolean().default(false).describe(
     "Remove a binary that a package manager owns, which is otherwise refused.",
   ),
+  serviceName: z.string().default("").describe(
+    "Override the model's serviceName global: the daemon service stopped after removal, and named in the status command.",
+  ),
 });
 
 type UninstallArgs = z.infer<typeof UninstallArgsSchema>;
@@ -155,6 +166,8 @@ const UninstallResultSchema = z.object({
   packageManagerOwner: z.string().nullable(),
   removedAt: z.string(),
   message: z.string(),
+  serviceStatusCommand: z.string().nullable(),
+  serviceNote: z.string().nullable(),
 });
 
 const InstallResultSchema = z.object({
@@ -171,6 +184,8 @@ const InstallResultSchema = z.object({
   bytes: z.number().nullable(),
   installedAt: z.string(),
   message: z.string(),
+  versionCommand: z.string().nullable(),
+  serviceStatusCommand: z.string().nullable(),
 });
 
 const InstalledResultSchema = z.object({
@@ -226,43 +241,43 @@ type MethodContext = {
 // ---------------------------------------------------------------------------
 
 /**
- * The candidate paths to search for the `tuios` binary, in order: an explicit
- * path first, then the usual install locations the upstream script targets.
+ * The auto-detection candidates for the `tuios` binary, in priority order:
+ * `tuios` on `$PATH`, then the usual install locations the upstream script
+ * targets. Used only when no explicit path was supplied.
  */
-export function candidatePaths(explicit: string, home?: string): string[] {
+export function searchPaths(home?: string): string[] {
   const h = home ?? Deno.env.get("HOME") ?? "";
-  const candidates: string[] = [];
-  if (explicit.trim()) candidates.push(expandHome(explicit.trim(), h));
-  candidates.push(
+  return [
     "tuios",
     `${h}/.local/bin/tuios`,
     `${h}/bin/tuios`,
     "/usr/local/bin/tuios",
-  );
-  return [...new Set(candidates)];
+  ];
 }
 
 /**
- * Locate a runnable `tuios` binary. A bare `tuios` (no slash) is resolved via
- * `$PATH`; an explicit path is checked with `Deno.stat`. Returns `null` when
- * nothing is found.
+ * Locate a runnable `tuios` binary.
+ *
+ * When `explicit` is non-empty it is **authoritative**: only that exact path
+ * (with `~` expanded) is checked and `null` is returned if it is not a file.
+ * Falling through to auto-detection here would silently resolve to a *different*
+ * binary than the caller asked for — so `path` and `uninstall --input path` do
+ * what they say. With no explicit path, {@link searchPaths} is probed in order.
  */
 export async function findBinary(
   explicit: string,
   home?: string,
 ): Promise<string | null> {
-  for (const candidate of candidatePaths(explicit, home)) {
+  const wanted = explicit.trim();
+  if (wanted) return await existingBinary(expandHome(wanted, home));
+  for (const candidate of searchPaths(home)) {
     if (!candidate.includes("/")) {
       const onPath = await which(candidate);
       if (onPath) return onPath;
       continue;
     }
-    try {
-      const stat = await Deno.stat(candidate);
-      if (stat.isFile) return candidate;
-    } catch {
-      // not at this path
-    }
+    const found = await existingBinary(candidate);
+    if (found) return found;
   }
   return null;
 }
@@ -322,15 +337,39 @@ export function packageManagedMessage(path: string, owner: string): string {
     `package manager instead, or pass force=true to override.`;
 }
 
-/** Render the human-readable summary lines for `print`. */
-export function formatSummary(state: {
-  path?: string | null;
-  present?: boolean;
-  version?: string | null;
-  backend?: string | null;
-  latestVersion?: string | null;
-  updateAvailable?: boolean | null;
-}): string[] {
+/** The `systemctl --user status` command for a service name, or `null`. */
+export function serviceStatusCommandFor(name: string): string | null {
+  const trimmed = name.trim();
+  return trimmed ? `systemctl --user status ${trimmed}.service` : null;
+}
+
+/**
+ * The `systemctl --user status` command for the daemon service named by the
+ * model's `serviceName` global, or `null` when the name is empty. Surfaced in
+ * install/print output so the operator knows how to inspect the service.
+ */
+export function serviceStatusCommand(
+  context: { globalArgs: { serviceName: string } },
+): string | null {
+  return serviceStatusCommandFor(context.globalArgs.serviceName);
+}
+
+/**
+ * Render the human-readable summary lines for `print`. When a `serviceName` is
+ * supplied it also emits the exact `systemctl --user status` command, so the
+ * operator can inspect the daemon that runs the installed binary.
+ */
+export function formatSummary(
+  state: {
+    path?: string | null;
+    present?: boolean;
+    version?: string | null;
+    backend?: string | null;
+    latestVersion?: string | null;
+    updateAvailable?: boolean | null;
+  },
+  serviceName = "",
+): string[] {
   const lines: string[] = [];
   if (!state.present) {
     lines.push(
@@ -343,12 +382,23 @@ export function formatSummary(state: {
   }
   lines.push(`Installed:    ${state.version ?? "unknown"}`);
   if (state.backend) lines.push(`Backend:      ${state.backend}`);
-  if (state.path) lines.push(`Path:         ${state.path}`);
+  if (state.path) {
+    lines.push(`Binary:       ${state.path}`);
+    lines.push(
+      `Check it:     ${state.path} --version`,
+    );
+  }
   if (state.latestVersion) {
     lines.push(
       `Latest:       ${state.latestVersion}${
         state.updateAvailable ? " (update available)" : " (up to date)"
       }`,
+    );
+  }
+  if (serviceName) {
+    lines.push(`Service:      ${serviceName}.service (user)`);
+    lines.push(
+      `Check it:     systemctl --user status ${serviceName}.service`,
     );
   }
   return lines;
@@ -414,7 +464,7 @@ async function performSync(
         flavor: g.flavor,
       });
       const release = knownRelease ?? await fetchLatestRelease({
-        apiUrl: g.apiUrl,
+        apiUrl: resolveApiUrl(g.repo, g.apiUrl),
         userAgent: g.userAgent,
         token: resolveToken(g.githubToken),
       });
@@ -504,8 +554,16 @@ type CheckContext = {
 /** Tracks the TUIOS version installed on this machine. */
 export const model = {
   type: "@svendowideit/tuios-installed",
-  version: "2026.09.29.1",
+  version: "2026.09.30.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.30.1",
+      description:
+        "Adds the uninstall method (idempotent, package-manager aware) and a serviceName global. install now takes archiveName/downloadUrl/releaseVersion/checksum (consuming tuios-release's check), fails when no checksum is available, refuses a package-managed binary, and records versionCommand/serviceStatusCommand. New uninstall resource; installed/install/summary gain fields. Existing global args are unchanged (new serviceName defaults to 'tuios').",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   checks: {
     "valid-install-dir": {
       description:
@@ -583,6 +641,7 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
         assertAbsoluteDir(args.installDir, "installDir");
+        assertAbsoluteDir(g.path, "path");
         const platform = await resolvePlatform({
           os: args.os ?? g.os,
           arch: args.arch ?? g.arch,
@@ -622,9 +681,10 @@ export const model = {
             { version: latest, archive: suppliedArchive },
           );
         } else {
+          const latestUrl = resolveApiUrl(g.repo, g.apiUrl);
           const releaseUrl = wanted
-            ? g.apiUrl.replace(/\/latest\/?$/, `/tags/v${wanted}`)
-            : g.apiUrl;
+            ? latestUrl.replace(/\/latest\/?$/, `/tags/v${wanted}`)
+            : latestUrl;
           const fetched = await fetchLatestRelease({
             apiUrl: releaseUrl,
             userAgent: g.userAgent,
@@ -720,6 +780,8 @@ export const model = {
             bytes: null,
             installedAt: new Date().toISOString(),
             message,
+            versionCommand: existingPath ? `${existingPath} --version` : null,
+            serviceStatusCommand: serviceStatusCommand(context),
           });
           await performSync(context, existingPath ?? "", true, {
             version: latest,
@@ -770,8 +832,18 @@ export const model = {
         await Deno.mkdir(installDir, { recursive: true });
         const target = `${installDir.replace(/\/+$/, "")}/tuios`;
         const tmp = `${target}.new-${crypto.randomUUID()}`;
-        await Deno.writeFile(tmp, binary, { mode: 0o755 });
-        await Deno.rename(tmp, target);
+        try {
+          await Deno.writeFile(tmp, binary, { mode: 0o755 });
+          await Deno.rename(tmp, target);
+        } finally {
+          // If writeFile or rename failed, the temp file may linger; remove it
+          // so a failed install never litters the install directory.
+          try {
+            await Deno.remove(tmp);
+          } catch {
+            // already renamed (the normal path) or never created
+          }
+        }
 
         context.logger.info(
           "Installed TUIOS {version} to {target}{prev}",
@@ -789,9 +861,15 @@ export const model = {
           );
         }
 
+        const statusCommand = serviceStatusCommand(context);
         const message = `Installed TUIOS ${latest} to ${target}` +
           (previousVersion ? ` (was ${previousVersion})` : "") +
-          (onPath ? "" : `; note: ${installDir} is not on PATH`);
+          (onPath ? "" : `; note: ${installDir} is not on PATH`) +
+          (statusCommand ? `; check the service with: ${statusCommand}` : "");
+        context.logger.info(
+          "Binary at {target}; check the daemon with: {statusCommand}",
+          { target, statusCommand: statusCommand ?? "(no systemd service)" },
+        );
         const handle = await context.writeResource("install", "install", {
           installed: true,
           skipped: false,
@@ -806,6 +884,8 @@ export const model = {
           bytes: bytes.length,
           installedAt: new Date().toISOString(),
           message,
+          versionCommand: `${target} --version`,
+          serviceStatusCommand: statusCommand,
         });
 
         // 7. Re-sync so the `installed` resource reflects the new binary,
@@ -823,8 +903,9 @@ export const model = {
       description:
         "Remove the `tuios` binary from this machine. Idempotent: a missing " +
         "binary is a no-op. Refuses to remove a binary a package manager owns " +
-        "unless `force` is set. Re-syncs afterwards so the `installed` resource " +
-        "shows it is gone. It does not remove the systemd unit — run " +
+        "unless `force` is set. Stops the daemon service (so a removed binary " +
+        "cannot leave the unit restart-looping) and re-syncs so the `installed` " +
+        "resource shows it is gone. It does not delete the systemd unit — run " +
         "@svendowideit/systemd-service's removeService for that.",
       arguments: UninstallArgsSchema,
       execute: async (
@@ -834,6 +915,8 @@ export const model = {
         const g = context.globalArgs;
         assertAbsoluteDir(args.installDir, "installDir");
         assertAbsoluteDir(args.path, "path");
+        const svcName = (args.serviceName.trim() || g.serviceName).trim();
+        const statusCommand = serviceStatusCommandFor(svcName);
 
         // Resolve the target path: explicit arg, then installDir + /tuios,
         // then the model global, then auto-detection.
@@ -851,6 +934,7 @@ export const model = {
         let version: string | null = null;
         let owner: string | null = null;
         let message: string;
+        let serviceNote: string | null = null;
 
         if (!target) {
           message = "No tuios binary found — nothing to remove.";
@@ -877,6 +961,20 @@ export const model = {
             message =
               `Removed TUIOS${version ? ` ${version}` : ""} from ${target}` +
               (owner ? ` (was owned by ${owner})` : "");
+
+            // A systemd unit whose ExecStart pointed at the removed binary will
+            // flap under Restart=always. Stop it best-effort and tell the
+            // operator how to remove it, rather than silently leaving a
+            // broken unit behind.
+            if (statusCommand) {
+              await runCapture("systemctl", ["--user", "stop", svcName]);
+              serviceNote =
+                `The systemd user service '${svcName}' was stopped; remove it ` +
+                `with @svendowideit/systemd-service's removeService, or check ` +
+                `it with: ${statusCommand}`;
+              context.logger.warn?.(serviceNote);
+            }
+
             context.logger.info("Removed {target}{version}", {
               target,
               version: version ? ` (${version})` : "",
@@ -892,6 +990,8 @@ export const model = {
           packageManagerOwner: owner,
           removedAt: new Date().toISOString(),
           message,
+          serviceStatusCommand: statusCommand,
+          serviceNote,
         });
 
         // Re-sync so the `installed` resource reflects the removal.
@@ -907,7 +1007,7 @@ export const model = {
         "flag, latest version and whether an update is available. Run `sync` first.",
       arguments: PrintArgsSchema,
       execute: async (
-        _args: PrintArgs,
+        args: PrintArgs,
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const stored = await context.readResource("installed") as {
@@ -937,7 +1037,9 @@ export const model = {
           return { dataHandles: [handle] };
         }
 
-        const lines = formatSummary(stored);
+        const serviceName = (args.serviceName.trim() ||
+          context.globalArgs.serviceName).trim();
+        const lines = formatSummary(stored, serviceName);
         for (const line of lines) context.logger.info(line);
 
         const handle = await context.writeResource("summary", "summary", {

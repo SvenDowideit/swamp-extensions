@@ -1,26 +1,22 @@
 manifestVersion: 1
 name: "@svendowideit/tuios"
-version: "2026.09.29.1"
+version: "2026.09.30.1"
 description: >
   Keep TUIOS current and always-on: track the latest release, know exactly what
-  to download for this machine, install or upgrade it, and run the TUIOS daemon
-  under systemd so sessions survive logout and reboot.
+  to download for this machine, install, upgrade, restart or remove it, and run
+  the TUIOS daemon under systemd so sessions survive logout and reboot.
 
   WHAT IT DOES
 
     TUIOS (https://tuios.dev) is a terminal window manager whose sessions live
-    in a background daemon. This extension closes the whole loop around it.
-    One model resolves the newest GitHub release and the exact archive for the
-    machine it runs on — probing OS and architecture, mapping them to the
-    release's GoReleaser tokens, and recording the archive's SHA-256 from the
-    release's checksums.txt. A second model tracks what is already installed
-    (running `tuios --version`) and downloads, checksum-verifies and installs
-    the binary, idempotently; the checksum is mandatory, so an unverified
-    archive is never installed, and it refuses to overwrite a binary a system
-    package manager owns. It can also uninstall the binary. The bundled
-    workflow wires those together and hands the daemon to systemd, so
-    installing, upgrading, removing — and keeping sessions available — is a
-    single `swamp workflow run`.
+    in a background daemon. This extension closes the whole loop around it on
+    the machine it runs on: resolve the newest release and the exact archive
+    for this platform (recording its SHA-256 from checksums.txt), then install,
+    upgrade or remove the binary — idempotently, refusing an unverified archive
+    and refusing to fight a system package manager. A bundled workflow does the
+    lot: it installs or upgrades, restarts the systemd daemon so it runs the
+    new binary, and prints the version, the binary's path and the exact
+    `systemctl --user status` command to inspect the service.
 
   INSTALL
 
@@ -83,11 +79,15 @@ description: >
 
     The `tuios` binary at the chosen install directory (default: the first
     writable of /usr/local/bin, ~/.local/bin, ~/bin) — the same locations the
-    upstream install script targets. When `manageService` is true it also
-    writes one systemd *user* unit named `tuios.service` at
-    `~/.config/systemd/user/`, enables user lingering, and starts/enables the
-    service so the daemon runs at boot. Nothing else is installed, and
-    `manageService=false` installs no service.
+    upstream install script targets. The install output and the final verify
+    step log the binary's path (run `<path> --version` to check it). When
+    `manageService` is true it also writes one systemd *user* unit named
+    `tuios.service` at `~/.config/systemd/user/`, enables user lingering,
+    starts/enables the service so the daemon runs at boot, and restarts it
+    after an upgrade. Nothing else is installed, and `manageService=false`
+    installs no service. Inspect the service at any time with:
+
+        systemctl --user status tuios.service
 
 repository: https://github.com/svendowideit/swamp-extensions
 

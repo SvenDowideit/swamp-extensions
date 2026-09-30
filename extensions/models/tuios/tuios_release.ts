@@ -41,9 +41,9 @@ import {
   mapAssets,
   normalizeVersion,
   type Platform,
-  RELEASE_API_URL,
   RELEASE_REPO,
   type ReleaseAsset,
+  resolveApiUrl,
   resolvePlatform,
   resolveToken,
   schemas,
@@ -61,10 +61,10 @@ const GlobalArgsSchema = z.object({
     "Build flavor to track: 'std' is the pure-Go emulator, 'ghostty' bundles libghostty-vt.",
   ),
   repo: z.string().default(RELEASE_REPO).describe(
-    "GitHub repository (owner/name) publishing TUIOS releases.",
+    "GitHub repository (owner/name) publishing TUIOS releases. Used to derive apiUrl when that is empty.",
   ),
-  apiUrl: z.string().default(RELEASE_API_URL).describe(
-    "GitHub releases API URL for the latest release.",
+  apiUrl: z.string().default("").describe(
+    "GitHub releases API URL for the latest release. Empty derives it from repo (https://api.github.com/repos/<repo>/releases/latest).",
   ),
   userAgent: z.string().default("swamp-tuios/1.0").describe(
     "User-Agent header sent to the GitHub API.",
@@ -298,8 +298,16 @@ export function formatSummary(
 /** Resolves the latest TUIOS release and the archive for the local platform. */
 export const model = {
   type: "@svendowideit/tuios-release",
-  version: "2026.09.29.1",
+  version: "2026.09.30.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.30.1",
+      description:
+        "check gained requireChecksum (fails when the selected archive is not in checksums.txt). apiUrl now defaults to empty and is derived from repo, so the repo global takes effect; an explicit apiUrl still wins. Output resources unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     release: {
       description:
@@ -334,10 +342,11 @@ export const model = {
           archiveName: args.archiveName,
         });
 
-        context.logger.debug?.("GET {url}", { url: g.apiUrl });
+        const apiUrl = resolveApiUrl(g.repo, g.apiUrl);
+        context.logger.debug?.("GET {url}", { url: apiUrl });
         const token = resolveToken(g.githubToken);
         const { payload } = await fetchLatestRelease({
-          apiUrl: g.apiUrl,
+          apiUrl,
           userAgent: g.userAgent,
           token,
         });
@@ -387,7 +396,7 @@ export const model = {
         const handle = await context.writeResource("release", "release", {
           ...release,
           fetchedAt: new Date().toISOString(),
-          sourceUrl: g.apiUrl,
+          sourceUrl: apiUrl,
           platform: releasePlatform,
           checksumsUrl,
           checksum,

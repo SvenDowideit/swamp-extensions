@@ -34,11 +34,11 @@ import {
   ARCHIVE_TYPES,
   type ArchiveType,
   authSetupHint,
+  CHECKSUM_ALGORITHMS,
   CHECKSUMS_NAME,
   checksumsUrlFor,
   compileAssetPattern,
   DEFAULT_ASSET_PATTERN,
-  CHECKSUM_ALGORITHMS,
   detectArchiveType,
   digestFromAsset,
   downloadAndVerify,
@@ -418,8 +418,16 @@ export function formatSummary(
 /** Resolves and downloads GitHub release archives for any repository. */
 export const model = {
   type: "@svendowideit/github-release-install",
-  version: "2026.09.30.1",
+  version: "2026.09.30.2",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.09.30.2",
+      description:
+        "The assetPattern's `version` named group is now optional, so releases whose asset names carry no version (e.g. opencode-linux-x64.tar.gz) can be matched with NO_VERSION_ASSET_PATTERN. When a release publishes no checksums.txt listing the archive, check/download now verify against the per-asset `digest` the GitHub API exposes. No resource schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     release: {
       description:

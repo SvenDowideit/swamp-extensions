@@ -9,28 +9,41 @@ verified file. It is the reusable core of a binary auto-updater — TUIOS
 
 Installing "the latest release" of a tool from GitHub is four separate jobs that
 are easy to get subtly wrong: read the release, choose the right asset for this
-OS and architecture, find the expected SHA-256, and refuse to write anything
+OS and architecture, find the expected checksum, and refuse to write anything
 that does not match. This extension does all four for any repository:
 
 - **`check`** reads the GitHub releases API (latest, or a pinned version),
   probes `uname -s` / `uname -m`, matches the platform against each asset's
-  parsed name, and records the selected archive plus its SHA-256 from the
-  release's `checksums.txt`. The full raw GitHub payload is preserved on the
+  parsed name, and records the selected archive plus its checksum from the
+  release's checksums file. The full raw GitHub payload is preserved on the
   resource.
 - **`download`** downloads the selected archive, verifies the bytes against that
-  SHA-256, and writes the verified file to a path you choose. It refuses an
-  archive with no checksum, or one whose hash does not match.
+  checksum, and writes the verified file to a path you choose. It refuses an
+  archive with no checksum, or one whose digest does not match.
 - **`render`** turns the preserved payload into a Markdown release document —
   title, version, publication time, release notes and an asset table.
-- **`print`** logs the resolved version, the platform archive, its SHA-256, the
+- **`print`** logs the resolved version, the platform archive, its checksum, the
   verified file path, and whether it is newer than a version you pass in.
+
+Facts it handles that a naive downloader does not:
+
+- **Publisher naming.** OS/arch match by **family**, so a host probe of
+  `Linux`/`x86_64` resolves a publisher that names assets `linux`/`amd64`
+  (`caddyserver/caddy`). Any token can be overridden with `os`/`arch`.
+- **Checksum variants.** SHA-1, SHA-256, SHA-384 and SHA-512 are all verified,
+  the algorithm chosen from the digest length, and a version-prefixed checksums
+  file (`caddy_2.11.4_checksums.txt`) is found without extra configuration.
+- **Multiple archives per platform.** When a release ships several for one
+  platform — tuios publishes `tuios` (main), `tuios-ghostty` and `tuios-web` —
+  every match is recorded in preference order and the **base build** is chosen.
+  Pass `stem` or `assetName` to select another.
 
 Prefer it over a bare `curl` of a release URL: the download is verified before
 it is written, the platform match is explicit and overridable, and one model
-serves every repository that follows the common GoReleaser asset naming. The
-same checksum-verified download pattern [`@swamp/deno-runner`](https://swamp.club/extensions/@swamp/deno-runner)
-uses for Deno is generalised here to any repo, any release, and the tar.gz, zip
-and raw archive formats.
+serves every repository. The same checksum-verified download pattern
+[`@swamp/deno-runner`](https://swamp.club/extensions/@swamp/deno-runner) uses
+for Deno is generalised here to any repo, any release, and the tar.gz, zip and
+raw archive formats.
 
 Side effects: outbound HTTPS reads from `api.github.com` and the asset download
 URLs (nothing is written there); `download` writes one verified file when
@@ -47,20 +60,31 @@ that call this often — the releases API allows 60 anonymous requests per hour.
 
 ## Configuration
 
+Every global argument below can also be passed **per call with `--input`**, so a
+direct type run needs no pre-created model instance:
+
+```sh
+swamp model @svendowideit/github-release-install method run check caddy \
+  --input repo=caddyserver/caddy
+```
+
+That single command auto-creates a definition named `caddy` and runs `check`.
+Alternatively `swamp model create … --global-arg …` once and reuse the instance.
+
 ### Model globals — `@svendowideit/github-release-install`
 
 | Argument | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
 | `repo` | string | `""` | GitHub repository (`owner/name`) publishing the releases. Required unless `apiUrl` is set. |
 | `apiUrl` | string | `""` | Releases API URL. Empty derives it from `repo`. |
-| `stem` | string | `""` | Required product name the asset name must carry (`tuios`, `tuios-ghostty`). Empty matches any. |
+| `stem` | string | `""` | Required product name the asset name must carry (`tuios`, `caddy`, `tuios-ghostty`). Empty matches any. |
 | `assetPattern` | string | `^(?<stem>…)_(?<version>…)_(?<os>…)_(?<arch>…)(?:\.(?<ext>…))?$` | Regex an archive asset name must match; must define named groups `version`, `os`, `arch` (and optionally `stem`, `ext`). |
-| `checksumsName` | string | `checksums.txt` | Name of the release asset listing every archive's SHA-256. |
+| `checksumsName` | string | `checksums.txt` | Name of the release asset listing the digests. A version-prefixed name (e.g. `caddy_2.11.4_checksums.txt`) is also found when this does not match exactly. |
 | `format` | `auto` \| `tar.gz` \| `zip` \| `raw` | `auto` | Archive format. `auto` derives it from the file name; a concrete value also **filters asset selection** — use it when a release offers the same platform as more than one format. |
 | `githubToken` | string | `""` | Token to raise the API rate limit. Empty falls back to `GITHUB_TOKEN` / `GH_TOKEN`. |
 | `userAgent` | string | `swamp-github-release/1.0` | `User-Agent` sent to the GitHub API and asset downloads. |
-| `os` | string | `""` | Override the detected release OS token (`Linux`, `Darwin`, …). Empty probes the host. |
-| `arch` | string | `""` | Override the detected architecture token (`x86_64`, `arm64`, …). Empty probes the host. |
+| `os` | string | `""` | Override the detected OS token (`Linux`, `linux`, `Darwin`, `macos`, …). Family-equivalent tokens all match. Empty probes the host. |
+| `arch` | string | `""` | Override the detected architecture token (`x86_64`, `amd64`, `arm64`, `aarch64`, …). Family-equivalent tokens all match. Empty probes the host. |
 
 ### Method arguments
 
@@ -94,15 +118,19 @@ re-fetch the release (see the bundled workflow).
 ## Examples
 
 ```sh
-# Resolve a repository's latest release and record this machine's archive.
-# Use this to see what would be downloaded before downloading anything.
-# Globals are set at creation time with --global-arg (there is no --global on
-# method run); per-call values use --input.
-swamp model create @svendowideit/github-release-install rel \
-  --global-arg repo=Gaurav-Gosain/tuios --global-arg stem=tuios
-swamp model @svendowideit/github-release-install method run check rel
+# One-shot: no model instance to create first. A direct type run with --input
+# auto-creates the definition (`rel`) and resolves the release. Use this to see
+# what would be downloaded before downloading anything.
+swamp model @svendowideit/github-release-install method run check rel \
+  --input repo=Gaurav-Gosain/tuios --input stem=tuios
 
-# Read back the resolved release and its expected SHA-256.
+# The equivalent with an explicit instance, so the globals live in a file you
+# can edit and version-control.
+swamp model create @svendowideit/github-release-install rel2 \
+  --global-arg repo=Gaurav-Gosain/tuios --global-arg stem=tuios
+swamp model @svendowideit/github-release-install method run check rel2
+
+# Read back the resolved release and its expected checksum.
 swamp data get rel release --json
 
 # Download and verify the archive to a path in one workflow run — the common
@@ -116,14 +144,23 @@ swamp workflow run @svendowideit/github-release-install-fetch \
 swamp model @svendowideit/github-release-install method run check rel \
   --input version=0.8.0 --input os=Darwin --input arch=arm64
 
+# A lowercase-token publisher (caddy names assets linux/amd64): the host's
+# Linux/x86_64 matches by family, and its SHA-512 checksums file is verified.
+swamp model @svendowideit/github-release-install method run check caddy \
+  --input repo=caddyserver/caddy
+
+# A release with several archives per platform (tuios main + ghostty + web):
+# all matches are recorded and the base build is chosen. Pick a variant with
+# stem, or an exact file with assetName.
+swamp model @svendowideit/github-release-install method run check rel \
+  --input stem=tuios-web
+
 # Use a custom asset-name pattern (named groups version/os/arch are required).
 # Here an explicit pattern pins the release to Linux/arm64 tar.gz assets; any
 # repo whose names differ from the GoReleaser default can be described this way.
-swamp model create @svendowideit/github-release-install arm \
-  --global-arg repo=Gaurav-Gosain/tuios \
-  --global-arg os=Linux --global-arg arch=arm64 \
-  --global-arg 'assetPattern=^(?<stem>tuios)_(?<version>\d+\.\d+\.\d+)_(?<os>Linux)_(?<arch>arm64)\.(?<ext>tar\.gz)$'
-swamp model @svendowideit/github-release-install method run check arm
+swamp model @svendowideit/github-release-install method run check arm \
+  --input repo=Gaurav-Gosain/tuios --input os=Linux --input arch=arm64 \
+  --input 'assetPattern=^(?<stem>tuios)_(?<version>\d+\.\d+\.\d+)_(?<os>Linux)_(?<arch>arm64)\.(?<ext>tar\.gz)$'
 
 # Download into memory only (no file) and print the summary.
 swamp model @svendowideit/github-release-install method run download rel \
@@ -143,8 +180,8 @@ swamp data get rel document --json
 
 | Model | Method | Produces |
 | ----- | ------ | -------- |
-| `@svendowideit/github-release-install` | `check` | `release` — tag/version, every asset, the platform's archive, its download URL, format, expected SHA-256 and the raw GitHub `payload`. |
-| `@svendowideit/github-release-install` | `download` | `archive` — the verified download: version, archive name, URL, expected checksum, computed sha256, whether it verified, format, size and the file path. |
+| `@svendowideit/github-release-install` | `check` | `release` — tag/version, every asset, the platform's chosen archive and all `candidates`, its download URL, format, expected `checksum`/`checksumAlgorithm` and the raw GitHub `payload`. |
+| `@svendowideit/github-release-install` | `download` | `archive` — the verified download: version, archive name, URL, expected checksum, computed digest (`sha256`), `checksumAlgorithm`, whether it verified, format, size and the file path. |
 | `@svendowideit/github-release-install` | `render` | `document` — the Markdown release document (`markdown` plus version/tag/body-size/asset-count metadata). |
 | `@svendowideit/github-release-install` | `print` | `summary` — the logged release/archive and update availability. |
 
@@ -165,9 +202,9 @@ Steps: `resolve → download → render → print`.
 
 - `github_release.ts` — the pure helpers and the network calls (`fetchRelease`,
   `fetchChecksums`, `downloadAndVerify`) plus `renderReleaseMarkdown`:
-  asset-name parsing/building, archive-format detection, asset selection,
-  checksum and version parsing, URL derivation, platform mapping and SHA-256.
-  Everything both the model and its tests need lives here.
+  asset-name parsing/building, archive-format detection, family-aware asset
+  selection (`selectAssets`), multi-algorithm checksum parsing, URL derivation
+  and platform mapping. Everything both the model and its tests need lives here.
 - `github_release_install.ts` — the model. `check` resolves and preserves the
   payload, `download` fetches and verifies (reusing a file already at
   `outputPath` when it matches, unless `force`), `render` produces the Markdown
@@ -201,10 +238,22 @@ change is needed. To add an archive format, extend `ARCHIVE_TYPES` and
 - `download` returns verified bytes; it does not extract or install them.
   Extraction is the caller's job (see `@svendowideit/tuios`).
 - The default pattern expects GoReleaser naming (`tool_<version>_<Os>_<arch>`).
-  A repo that names assets differently needs an `assetPattern`.
+  OS/arch tokens match by family (`Linux`↔`linux`, `x86_64`↔`amd64`), but a repo
+  that orders or names the parts differently still needs an `assetPattern`.
+- A release with several archives for one platform picks the base build; the
+  full list is on `platform.candidates`. A variant needs `stem`/`assetName`.
 - A release with no checksums file, or one that does not list the selected
   archive, fails `check` (pass `requireChecksum=false` to record it unverified),
   and `download` refuses to write an unverified archive.
+
+### How TUIOS uses this
+
+TUIOS publishes three archives per platform: `tuios` (the main build),
+`tuios-ghostty` (bundles libghostty-vt) and `tuios-web` (the web server). This
+extension records all three as `candidates` and selects `tuios` — the base
+build — which is what `@svendowideit/tuios`'s installer expects. To install the
+ghostty variant, pass `stem=tuios-ghostty` (which the tuios workflow does from
+its `flavor` input).
 
 ## License
 

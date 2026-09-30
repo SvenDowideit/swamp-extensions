@@ -12,11 +12,21 @@ description: >
     any repository that publishes release assets. It reads the GitHub releases
     API, probes the local OS and architecture (`uname`), matches them against
     each asset's parsed name (`tool_1.2.3_Linux_x86_64.tar.gz`), records the
-    archive's SHA-256 from the release's checksums file, and downloads the
+    archive's checksum from the release's checksums file, and downloads the
     archive only after the bytes match that hash. It also preserves the raw
-    GitHub payload and can render it into a Markdown release document. Prefer it
-    over a `curl` of a release URL: the download is verified before it is
-    written, the platform match is explicit, and one model serves every
+    GitHub payload and can render it into a Markdown release document.
+
+    Platform matching is by family, so a host probe of Linux/x86_64 resolves a
+    publisher that names assets linux/amd64 (caddyserver/caddy). Checksums in
+    any of SHA-1/256/384/512 are verified, chosen from the digest length, and a
+    version-prefixed checksums file (caddy_2.11.4_checksums.txt) is found
+    without extra configuration. When a release ships several archives for one
+    platform (tuios publishes main, ghostty and web), all matches are recorded
+    in preference order and the base build is chosen — pass `stem` or
+    `assetName` to pick another.
+
+    Prefer it over a `curl` of a release URL: the download is verified before it
+    is written, the platform match is explicit, and one model serves every
     repository. The same checksum-verified download pattern
     `@swamp/deno-runner` uses for Deno is generalised here to any repo, any
     release, and tar.gz / zip / raw archives.
@@ -34,8 +44,13 @@ description: >
 
   RUN
 
-      # Create a model for a repository (globals are set with --global-arg),
-      # then resolve its latest release and this machine's archive.
+      # One-shot, no model instance to create first: a direct type run with
+      # --input. Any key (method argument or global) can be passed this way,
+      # and the definition is auto-created on first use.
+      swamp model @svendowideit/github-release-install method run check caddy \
+        --input repo=caddyserver/caddy
+
+      # Or create a named instance once and reuse it (globals via --global-arg).
       swamp model create @svendowideit/github-release-install rel \
         --global-arg repo=Gaurav-Gosain/tuios --global-arg stem=tuios
       swamp model @svendowideit/github-release-install method run check rel
@@ -55,7 +70,9 @@ description: >
 
   CONFIGURE
 
-    Global arguments (set at model creation with `--global-arg repo=owner/name`):
+    Any global argument may also be passed per call with `--input`, so a direct
+    type run needs no pre-created instance. Globals (set at creation with
+    `--global-arg`, or per call with `--input`):
 
       repo             GitHub repository (owner/name)     (required; or set apiUrl)
       apiUrl           explicit releases API URL          (default: derived from repo)

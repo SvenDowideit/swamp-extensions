@@ -54,6 +54,64 @@ export const ARCHIVE_TYPES = ["auto", "tar.gz", "zip", "raw"] as const;
 /** A recognised archive format, or `auto` to derive it from the file name. */
 export type ArchiveType = typeof ARCHIVE_TYPES[number];
 
+/**
+ * Operating-system tokens grouped into families of equivalent names, so a host
+ * probe (`Linux`, from `uname`) matches a publisher that names its assets
+ * differently (`linux`, as caddy does). A token absent from every family is
+ * only matched by an equal token.
+ */
+export const OS_FAMILIES: Record<string, readonly string[]> = {
+  linux: ["linux", "linux-gnu", "linux-musl"],
+  darwin: ["darwin", "macos", "macosx", "osx", "apple"],
+  windows: ["windows", "win", "win32", "win64", "mingw", "msys", "cygwin"],
+  freebsd: ["freebsd"],
+  openbsd: ["openbsd"],
+  netbsd: ["netbsd"],
+  dragonfly: ["dragonfly"],
+};
+
+/**
+ * Architecture tokens grouped into families of equivalent names, so a host
+ * probe (`x86_64`, from `uname -m`) matches a publisher that names its assets
+ * `amd64` (caddy, gh) or `x64`.
+ */
+export const ARCH_FAMILIES: Record<string, readonly string[]> = {
+  x86_64: ["x86_64", "x86-64", "amd64", "x64"],
+  arm64: ["arm64", "aarch64", "armv8"],
+  armv7: ["armv7", "armv7l", "armhf", "arm"],
+  armv6: ["armv6", "armv6l"],
+  i386: ["i386", "i686", "386", "x86", "ia32"],
+  riscv64: ["riscv64"],
+  ppc64le: ["ppc64le", "ppc64"],
+  s390x: ["s390x"],
+  mips: ["mips", "mipsle"],
+  mips64: ["mips64", "mips64le"],
+};
+
+/** The family a token belongs to, or the lowercased token when ungrouped. */
+function familyOf(
+  families: Record<string, readonly string[]>,
+  token: string,
+): string {
+  const t = token.trim().toLowerCase();
+  for (const [family, members] of Object.entries(families)) {
+    if (members.includes(t)) return family;
+  }
+  return t;
+}
+
+/** Whether two OS tokens name the same OS family (case-insensitively). */
+export function sameOs(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  return familyOf(OS_FAMILIES, a) === familyOf(OS_FAMILIES, b);
+}
+
+/** Whether two architecture tokens name the same architecture family. */
+export function sameArch(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  return familyOf(ARCH_FAMILIES, a) === familyOf(ARCH_FAMILIES, b);
+}
+
 // ---------------------------------------------------------------------------
 // Zod schemas shared by the model
 // ---------------------------------------------------------------------------
@@ -102,6 +160,12 @@ export const schemas = {
     downloadUrl: z.string().optional(),
     format: z.string(),
     supported: z.boolean(),
+    /**
+     * Every archive that matched this platform, in preference order. More than
+     * one means the release ships variants (e.g. a main build plus a web or
+     * ghostty build); `archiveName` is the chosen "main" one.
+     */
+    candidates: z.array(z.string()).optional(),
   }),
 } as const;
 
@@ -159,6 +223,11 @@ export interface Platform {
   format: string;
   /** Whether a matching archive was found. */
   supported: boolean;
+  /**
+   * Every archive that matched the platform, in preference order. More than one
+   * means the release ships variants; `archiveName` is the chosen main one.
+   */
+  candidates?: string[];
 }
 
 /** The parts parsed from an asset file name by {@link parseAssetName}. */
@@ -318,45 +387,112 @@ export function detectArchiveType(
   return "raw";
 }
 
+/** Options for {@link selectAssets}. */
+export interface SelectOptions {
+  /** Exact asset file name — wins outright over every other filter. */
+  assetName?: string;
+  /** Asset-name pattern to parse with. */
+  pattern?: string;
+  /** Required OS token (any family equivalent matches). */
+  os?: string;
+  /** Required architecture token (any family equivalent matches). */
+  arch?: string;
+  /** Required asset stem / product name (exact, never family-matched). */
+  stem?: string;
+  /** Required archive format; `auto` matches any. */
+  format?: ArchiveType;
+  /**
+   * Repository `owner/name` — used to prefer the base archive when several
+   * stems match (its last segment, e.g. `tuios`, beats `tuios-ghostty`).
+   */
+  repo?: string;
+}
+
+/** The result of selecting an archive: the winner and every valid candidate. */
+export interface AssetSelection {
+  /** The chosen archive, or `null` when nothing matched. */
+  selected: ReleaseAsset | null;
+  /**
+   * Every asset that matched the platform filters, in preference order. When
+   * `selected` is `null` this is empty; when it has more than one entry the
+   * platform has multiple valid archives (e.g. a main build plus variants).
+   */
+  candidates: ReleaseAsset[];
+}
+
 /**
- * Pick the archive for a platform from a release's asset list.
+ * Find every archive matching the platform filters, ordered by preference.
  *
- * An exact `assetName` wins outright. Otherwise every asset whose name parses
- * is filtered by `os`, `arch` and `stem` (each ignored when empty), and the
- * first survivor is returned. Returns `null` when nothing matches.
+ * An exact `assetName` wins outright and is the only candidate. Otherwise each
+ * parsed asset is filtered by `os`, `arch` and `stem` (ignored when empty) and
+ * by `format` (when concrete). OS/arch match by **family**, so a host probe of
+ * `Linux`/`x86_64` matches a publisher that names assets `linux`/`amd64`
+ * (caddy); an exact-token match is preferred over a family match. The `stem`
+ * filter is always exact, so `tuios` never matches `tuios-ghostty`.
+ *
+ * Candidates are then ordered so the "main" build wins: a stem equal to the
+ * repository name is preferred, then the shortest stem, then the stem that is a
+ * prefix of the others (a base name such as `tuios` beats `tuios-web`), then
+ * alphabetically — deterministic regardless of the API's asset order.
  */
-export function selectAsset(
+export function selectAssets(
   assets: ReleaseAsset[],
-  opts: {
-    assetName?: string;
-    pattern?: string;
-    os?: string;
-    arch?: string;
-    stem?: string;
-    format?: ArchiveType;
-  },
-): ReleaseAsset | null {
+  opts: SelectOptions,
+): AssetSelection {
   const wanted = (opts.assetName ?? "").trim();
   if (wanted) {
-    return assets.find((a) => a.name === wanted) ?? null;
+    const match = assets.find((a) => a.name === wanted);
+    return { selected: match ?? null, candidates: match ? [match] : [] };
   }
+
   const pattern = opts.pattern ?? DEFAULT_ASSET_PATTERN;
   const os = (opts.os ?? "").trim();
   const arch = (opts.arch ?? "").trim();
   const stem = (opts.stem ?? "").trim();
   const format = opts.format ?? "auto";
+  const repoName = (opts.repo ?? "").trim().split("/").pop()?.toLowerCase() ??
+    "";
+
+  const scored: { asset: ReleaseAsset; parsed: ParsedAsset; exact: number }[] =
+    [];
   for (const asset of assets) {
     const parsed = parseAssetName(asset.name, pattern);
     if (!parsed) continue;
-    if (os && parsed.os !== os) continue;
-    if (arch && parsed.arch !== arch) continue;
+    if (os && !sameOs(parsed.os, os)) continue;
+    if (arch && !sameArch(parsed.arch, arch)) continue;
     if (stem && parsed.stem !== stem) continue;
     if (format !== "auto" && detectArchiveType(asset.name, "auto") !== format) {
       continue;
     }
-    return asset;
+    const exact = (os && parsed.os === os ? 1 : 0) +
+      (arch && parsed.arch === arch ? 1 : 0);
+    scored.push({ asset, parsed, exact });
   }
-  return null;
+
+  scored.sort((a, b) => {
+    // Exact-token matches before family-only matches.
+    if (a.exact !== b.exact) return b.exact - a.exact;
+    // The repository's own name is the main build.
+    const aRepo = repoName && a.parsed.stem.toLowerCase() === repoName ? 1 : 0;
+    const bRepo = repoName && b.parsed.stem.toLowerCase() === repoName ? 1 : 0;
+    if (aRepo !== bRepo) return bRepo - aRepo;
+    // A shorter stem is more likely the base build (`tuios` < `tuios-web`).
+    if (a.parsed.stem.length !== b.parsed.stem.length) {
+      return a.parsed.stem.length - b.parsed.stem.length;
+    }
+    return a.parsed.stem.localeCompare(b.parsed.stem);
+  });
+
+  const candidates = scored.map((s) => s.asset);
+  return { selected: candidates[0] ?? null, candidates };
+}
+
+/** Pick the single best archive for a platform, or `null` when none match. */
+export function selectAsset(
+  assets: ReleaseAsset[],
+  opts: SelectOptions,
+): ReleaseAsset | null {
+  return selectAssets(assets, opts).selected;
 }
 
 /**
@@ -523,26 +659,99 @@ export function checksumsUrlFor(
 ): string | null {
   const override = explicit.trim();
   if (override) return override;
+  // An exact-name match first (the GoReleaser default `checksums.txt`).
   const direct = assets.find((a) => a.name === name);
   if (direct) return direct.url;
+  // Then any checksums file, so a version-prefixed name (caddy's
+  // `caddy_2.11.4_checksums.txt`) is found without a per-version global. A
+  // `.sig`/`.pem`/`.sbom` sidecar of the checksums file is skipped.
+  const base = name.replace(/\.[^.]+$/, "").toLowerCase();
+  const suffixed = assets.find((a) => {
+    const lower = a.name.toLowerCase();
+    return lower.endsWith(`${base}.txt`) ||
+      (lower.includes(base) && lower.endsWith(".txt") &&
+        !/\.(sig|pem|sbom|asc)$/.test(lower));
+  });
+  if (suffixed) return suffixed.url;
+  // Finally derive it from a sibling asset's directory.
   const sibling = assets[0];
   if (!sibling) return null;
-  const base = sibling.url.replace(/\/[^/]+$/, "");
-  return base ? `${base}/${name}` : null;
+  const dir = sibling.url.replace(/\/[^/]+$/, "");
+  return dir ? `${dir}/${name}` : null;
 }
 
 /**
- * Parse a `checksums.txt` body into a `name → sha256` map. Lines it cannot
- * parse are skipped, so an extra comment or blank line never fails a verify.
- * Both `sha256sum` (`<hash>  <name>`) and `<hash> *<name>` forms are accepted.
+ * The hash algorithms recognised in a checksums file, keyed by digest length
+ * in hex characters. `sha512` (128) covers projects such as caddy that publish
+ * SHA-512 only; `sha256` (64) is the GoReleaser default.
+ */
+export const CHECKSUM_ALGORITHMS: Record<number, string> = {
+  40: "sha1",
+  64: "sha256",
+  96: "sha384",
+  128: "sha512",
+};
+
+/** A checksums file parsed into per-asset digests plus their algorithm. */
+export interface ParsedChecksums {
+  /** `name → hex digest` for every parseable line. */
+  sums: Record<string, string>;
+  /**
+   * The algorithm of the digests found (e.g. `sha256`, `sha512`), or `null`
+   * when the file held no parseable line.
+   */
+  algorithm: string | null;
+}
+
+/**
+ * Parse a `checksums.txt` body into a digest map, detecting the hash algorithm
+ * from the digest lengths. Lines it cannot parse (comments, blanks, `.sig` /
+ * `.pem` sidecars that carry no digest) are skipped, so an extra line never
+ * fails a verify. Both `sha256sum` (`<hash>  <name>`) and `<hash> *<name>`
+ * forms are accepted, and digest lengths of 40/64/96/128 hex are recognised as
+ * SHA-1/256/384/512.
+ */
+export function parseChecksumsDetailed(text: string): ParsedChecksums {
+  const sums: Record<string, string> = {};
+  const lengths = new Set<number>();
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.trim().match(/^([0-9a-fA-F]{40,128})\s+\*?(.+)$/);
+    if (!match) continue;
+    const digest = match[1].toLowerCase();
+    if (!CHECKSUM_ALGORITHMS[digest.length]) continue;
+    sums[match[2]] = digest;
+    lengths.add(digest.length);
+  }
+  // Report the strongest algorithm present (a file mixing lengths is unusual).
+  const strongest = [...lengths].sort((a, b) => b - a)[0];
+  return {
+    sums,
+    algorithm: strongest ? CHECKSUM_ALGORITHMS[strongest] : null,
+  };
+}
+
+/**
+ * Parse a `checksums.txt` body into a `name → digest` map (any recognised
+ * algorithm). Prefer {@link parseChecksumsDetailed} when the algorithm matters.
  */
 export function parseChecksums(text: string): Record<string, string> {
-  const sums: Record<string, string> = {};
-  for (const line of text.split(/\r?\n/)) {
-    const match = line.trim().match(/^([0-9a-fA-F]{64})\s+\*?(.+)$/);
-    if (match) sums[match[2]] = match[1].toLowerCase();
+  return parseChecksumsDetailed(text).sums;
+}
+
+/** The WebCrypto algorithm name for a digest's hex length, or `null`. */
+export function webCryptoAlgorithm(hexLength: number): string | null {
+  switch (CHECKSUM_ALGORITHMS[hexLength]) {
+    case "sha1":
+      return "SHA-1";
+    case "sha256":
+      return "SHA-256";
+    case "sha384":
+      return "SHA-384";
+    case "sha512":
+      return "SHA-512";
+    default:
+      return null;
   }
-  return sums;
 }
 
 // ---------------------------------------------------------------------------
@@ -627,17 +836,18 @@ export async function fetchRelease(
 export interface ChecksumsResult {
   /** Whether the checksums file was fetched successfully. */
   available: boolean;
-  /** The parsed `name → sha256` map (empty when unavailable or unlisted). */
+  /** The parsed `name → digest` map (empty when unavailable or unlisted). */
   sums: Record<string, string>;
+  /** The digest algorithm found (e.g. `sha256`, `sha512`), or `null`. */
+  algorithm: string | null;
 }
 
 /**
- * Download a release's checksums file and return the `name → sha256` map,
- * reporting whether the file itself was reachable. A network or HTTP failure
- * returns `available: false`, letting the caller distinguish "the checksums
- * file could not be fetched" from "the checksums file lists no entry for this
- * archive" — the two need different messages. On success `available` is true
- * and `sums` holds whatever the file listed.
+ * Download a release's checksums file and return the `name → digest` map,
+ * reporting whether the file itself was reachable and which algorithm it used.
+ * A network or HTTP failure returns `available: false`, letting the caller
+ * distinguish "the checksums file could not be fetched" from "the checksums
+ * file lists no entry for this archive" — the two need different messages.
  */
 export async function fetchChecksums(
   url: string,
@@ -648,10 +858,15 @@ export async function fetchChecksums(
     const response = await fetch(url, {
       headers: githubHeaders(userAgent, "text/plain", token),
     });
-    if (!response.ok) return { available: false, sums: {} };
-    return { available: true, sums: parseChecksums(await response.text()) };
+    if (!response.ok) return { available: false, sums: {}, algorithm: null };
+    const parsed = parseChecksumsDetailed(await response.text());
+    return {
+      available: true,
+      sums: parsed.sums,
+      algorithm: parsed.algorithm,
+    };
   } catch {
-    return { available: false, sums: {} };
+    return { available: false, sums: {}, algorithm: null };
   }
 }
 
@@ -734,39 +949,79 @@ export async function resolveOsArch(
 
 /** SHA-256 of a byte array as lowercase hex. */
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(bytes));
+  return await digestHex(bytes, "SHA-256");
+}
+
+/** Compute a digest of a byte array with the named WebCrypto algorithm. */
+export async function digestHex(
+  bytes: Uint8Array,
+  algorithm: string,
+): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    algorithm,
+    new Uint8Array(bytes),
+  );
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
 
+/** A verified digest: its value and the algorithm that produced it. */
+export interface DigestResult {
+  /** The computed digest, lowercase hex. */
+  hex: string;
+  /** The algorithm used, e.g. `sha256` or `sha512`. */
+  algorithm: string;
+  /** Whether the digest matched the expected value (true when none expected). */
+  verified: boolean;
+}
+
 /**
- * Compare downloaded bytes against the expected SHA-256. Returns `true` when
- * `expected` is empty (nothing to verify), so a missing checksums entry
- * degrades to "unverified" rather than failing.
+ * Compute the digest of `bytes` using the algorithm implied by the expected
+ * digest's length (SHA-256 by default), and compare it. Returns the computed
+ * digest and whether it matched. An empty `expected` is treated as "nothing to
+ * verify" and reports `verified: true`, so a missing checksums entry degrades
+ * to "unverified" rather than failing.
+ */
+export async function verifyChecksum(
+  bytes: Uint8Array,
+  expected: string,
+): Promise<DigestResult> {
+  const want = expected.trim().toLowerCase();
+  const algorithm = (want ? CHECKSUM_ALGORITHMS[want.length] : null) ??
+    "sha256";
+  const webAlgo = webCryptoAlgorithm(want.length) ?? "SHA-256";
+  const hex = await digestHex(bytes, webAlgo);
+  return { hex, algorithm, verified: !want || hex === want };
+}
+
+/**
+ * Compare downloaded bytes against the expected digest, choosing the algorithm
+ * from the digest's length. Returns `true` when `expected` is empty.
  */
 export async function verifySha256(
   bytes: Uint8Array,
   expected: string,
 ): Promise<boolean> {
-  if (!expected) return true;
-  return (await sha256Hex(bytes)) === expected.toLowerCase();
+  return (await verifyChecksum(bytes, expected)).verified;
 }
 
 /** A downloaded archive held in memory, with its verification result. */
 export interface DownloadedArchive {
   /** The raw archive bytes. */
   bytes: Uint8Array;
-  /** The SHA-256 computed over the downloaded bytes. */
+  /** The digest computed over the downloaded bytes, lowercase hex. */
   sha256: string;
+  /** The digest algorithm used, e.g. `sha256` or `sha512`. */
+  algorithm: string;
   /** Whether the bytes matched the expected checksum. */
   checksumVerified: boolean;
 }
 
 /**
- * Download an asset, compute its SHA-256, and verify it against `expected`.
- * Throws when the download fails or the checksum does not match — an
- * unverified download is never returned.
+ * Download an asset, compute its digest (choosing the algorithm from the
+ * expected checksum's length), and verify it. Throws when the download fails or
+ * the checksum does not match — an unverified download is never returned.
  */
 export async function downloadAndVerify(
   url: string,
@@ -783,12 +1038,17 @@ export async function downloadAndVerify(
     );
   }
   const bytes = new Uint8Array(await response.arrayBuffer());
-  const sha256 = await sha256Hex(bytes);
-  if (expected && sha256 !== expected.toLowerCase()) {
+  const { hex, algorithm, verified } = await verifyChecksum(bytes, expected);
+  if (!verified) {
     throw new Error(
-      `Checksum mismatch: the download does not match the expected SHA-256 ` +
-        `(expected ${expected}, got ${sha256}).`,
+      `Checksum mismatch: the download does not match the expected ` +
+        `${algorithm} digest (expected ${expected}, got ${hex}).`,
     );
   }
-  return { bytes, sha256, checksumVerified: expected !== "" };
+  return {
+    bytes,
+    sha256: hex,
+    algorithm,
+    checksumVerified: expected.trim() !== "",
+  };
 }

@@ -168,7 +168,11 @@ Deno.test("check fails when the archive's checksum is missing", async () => {
       }
       return Response.json(releasePayload());
     }, async () => {
-      await assertRejects(() => runCheck(ctx, {}), Error, "No SHA-256");
+      await assertRejects(
+        () => runCheck(ctx, {}),
+        Error,
+        "does not list this archive",
+      );
     });
   });
   assertEquals(ctx.getWrittenResources().length, 0);
@@ -232,6 +236,111 @@ Deno.test("check resolves a pinned version via the tag URL", async () => {
     });
   });
   assertEquals(sawTagUrl, true);
+});
+
+Deno.test("check verifies a SHA-512 checksums file (caddy-style)", async () => {
+  const caddyGlobals = {
+    ...GLOBALS,
+    repo: "caddyserver/caddy",
+    stem: "caddy",
+    checksumsName: "checksums.txt",
+  };
+  const archive = "caddy_2.11.4_linux_amd64.tar.gz";
+  const sha512 = "a".repeat(128);
+  const ctx = createModelTestContext({
+    globalArgs: caddyGlobals,
+    methodName: "check",
+  });
+  await withMockedCommand(unameHandler(), async () => {
+    await withMockedFetch((req) => {
+      if (req.url.includes("api.github.com")) {
+        return Response.json({
+          tag_name: "v2.11.4",
+          assets: [
+            {
+              name: archive,
+              browser_download_url: "https://example.test/caddy.tar.gz",
+            },
+            // caddy's checksums file is version-prefixed.
+            {
+              name: "caddy_2.11.4_checksums.txt",
+              browser_download_url: "https://example.test/caddy_sums.txt",
+            },
+          ],
+        });
+      }
+      if (req.url.endsWith("caddy_sums.txt")) {
+        return new Response(`${sha512}  ${archive}\n`);
+      }
+      return new Response("nope", { status: 404 });
+    }, async () => {
+      await runCheck(ctx, { os: "linux", arch: "amd64" });
+    });
+  });
+  const release = ctx.getWrittenResources().find((r) =>
+    r.specName === "release"
+  );
+  const platform = release?.data.platform as Record<string, unknown>;
+  assertEquals(platform.archiveName, archive);
+  assertEquals(release?.data.checksum, sha512);
+  assertEquals(release?.data.checksumAlgorithm, "sha512");
+});
+
+Deno.test("check records every matching variant and picks the base build", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: GLOBALS,
+    methodName: "check",
+  });
+  await withMockedCommand(unameHandler(), async () => {
+    await withMockedFetch((req) => {
+      if (req.url.includes("api.github.com")) {
+        // tuios ships main + ghostty + web for Linux/x86_64.
+        return Response.json({
+          tag_name: "v0.8.1",
+          assets: [
+            {
+              name: "tuios-web_0.8.1_Linux_x86_64.tar.gz",
+              browser_download_url: "https://example.test/web.tar.gz",
+            },
+            {
+              name: "tuios-ghostty_0.8.1_Linux_x86_64.tar.gz",
+              browser_download_url: "https://example.test/ghostty.tar.gz",
+            },
+            {
+              name: "tuios_0.8.1_Linux_x86_64.tar.gz",
+              browser_download_url: "https://example.test/main.tar.gz",
+            },
+            {
+              name: "checksums.txt",
+              browser_download_url: "https://example.test/checksums.txt",
+            },
+          ],
+        });
+      }
+      if (req.url.endsWith("checksums.txt")) {
+        return new Response(
+          `${SUM}  tuios_0.8.1_Linux_x86_64.tar.gz\n` +
+            `${SUM}  tuios-ghostty_0.8.1_Linux_x86_64.tar.gz\n` +
+            `${SUM}  tuios-web_0.8.1_Linux_x86_64.tar.gz\n`,
+        );
+      }
+      return new Response("nope", { status: 404 });
+    }, async () => {
+      // No stem set, so every tuios* variant for the platform is a candidate.
+      await runCheck(ctx, { stem: "" });
+    });
+  });
+  const platform = ctx.getWrittenResources().find((r) =>
+    r.specName === "release"
+  )?.data.platform as Record<string, unknown>;
+  // The base build wins; all three variants are recorded.
+  assertEquals(platform.archiveName, "tuios_0.8.1_Linux_x86_64.tar.gz");
+  // Preference order: base build, then the shorter stem, then the longer.
+  assertEquals(platform.candidates, [
+    "tuios_0.8.1_Linux_x86_64.tar.gz",
+    "tuios-web_0.8.1_Linux_x86_64.tar.gz",
+    "tuios-ghostty_0.8.1_Linux_x86_64.tar.gz",
+  ]);
 });
 
 Deno.test("check distinguishes a checksum-fetch outage from a missing entry", async () => {

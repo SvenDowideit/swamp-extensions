@@ -19,12 +19,17 @@ import {
   normalizeVersion,
   parseAssetName,
   parseChecksums,
+  parseChecksumsDetailed,
   parseReleasePayload,
   releasesApiUrl,
   renderReleaseMarkdown,
   resolveApiUrl,
+  sameArch,
+  sameOs,
   selectAsset,
+  selectAssets,
   sha256Hex,
+  verifyChecksum,
   verifySha256,
   versionsEqual,
 } from "./github_release.ts";
@@ -322,6 +327,100 @@ Deno.test("sha256Hex and verifySha256", async () => {
   // An empty expectation degrades to "unverified", i.e. true.
   assertEquals(await verifySha256(bytes, ""), true);
   assertEquals(await verifySha256(bytes, "0".repeat(64)), false);
+});
+
+Deno.test("sameOs and sameArch match token families", () => {
+  // Host probe says Linux/x86_64; caddy names assets linux/amd64.
+  assertEquals(sameOs("Linux", "linux"), true);
+  assertEquals(sameArch("x86_64", "amd64"), true);
+  assertEquals(sameArch("aarch64", "arm64"), true);
+  assertEquals(sameOs("Darwin", "macos"), true);
+  assertEquals(sameOs("Linux", "Darwin"), false);
+  assertEquals(sameArch("x86_64", "arm64"), false);
+  // Empty tokens never match.
+  assertEquals(sameOs("", "linux"), false);
+  assertEquals(sameArch("", "amd64"), false);
+});
+
+Deno.test("selectAssets matches a lowercase publisher (caddy)", () => {
+  const assets = mapAssets([
+    { name: "caddy_2.11.4_linux_amd64.tar.gz", browser_download_url: "u1" },
+    { name: "caddy_2.11.4_linux_arm64.tar.gz", browser_download_url: "u2" },
+    { name: "caddy_2.11.4_darwin_amd64.tar.gz", browser_download_url: "u3" },
+  ]);
+  // Host tokens Linux/x86_64 must resolve caddy's linux/amd64 asset.
+  const { selected } = selectAssets(assets, {
+    os: "Linux",
+    arch: "x86_64",
+    stem: "caddy",
+  });
+  assertEquals(selected?.name, "caddy_2.11.4_linux_amd64.tar.gz");
+});
+
+Deno.test("selectAssets reports multiple variants and prefers the base build", () => {
+  const assets = mapAssets([
+    { name: "tuios-web_0.8.1_Linux_x86_64.tar.gz", browser_download_url: "w" },
+    {
+      name: "tuios-ghostty_0.8.1_Linux_x86_64.tar.gz",
+      browser_download_url: "g",
+    },
+    { name: "tuios_0.8.1_Linux_x86_64.tar.gz", browser_download_url: "m" },
+  ]);
+  // No stem set: all three match; the base `tuios` wins over web/ghostty.
+  const { selected, candidates } = selectAssets(assets, {
+    os: "Linux",
+    arch: "x86_64",
+    repo: "Gaurav-Gosain/tuios",
+  });
+  assertEquals(selected?.name, "tuios_0.8.1_Linux_x86_64.tar.gz");
+  assertEquals(candidates.length, 3);
+  assertEquals(candidates[0].name, "tuios_0.8.1_Linux_x86_64.tar.gz");
+  // A stem pins one variant.
+  assertEquals(
+    selectAssets(assets, {
+      os: "Linux",
+      arch: "x86_64",
+      stem: "tuios-ghostty",
+    }).selected?.name,
+    "tuios-ghostty_0.8.1_Linux_x86_64.tar.gz",
+  );
+  // A repo whose name is not any stem still picks the shortest base.
+  assertEquals(
+    selectAssets(assets, { os: "Linux", arch: "x86_64" }).selected?.name,
+    "tuios_0.8.1_Linux_x86_64.tar.gz",
+  );
+});
+
+Deno.test("parseChecksumsDetailed detects SHA-512 and SHA-256", () => {
+  const sha512 = parseChecksumsDetailed(
+    "8220d1f013b6f27510247b2360c9e0ca9f018feebd82515f07635318b34ff977" +
+      "7ccc8fd0b6e6f2486ce3a33fe389fbb7db12d05baa474f4587509fb4f5ebf1c9" +
+      "  caddy_2.11.4_linux_amd64.tar.gz\n",
+  );
+  assertEquals(sha512.algorithm, "sha512");
+  assertEquals(
+    sha512.sums["caddy_2.11.4_linux_amd64.tar.gz"].length,
+    128,
+  );
+  const sha256 = parseChecksumsDetailed(
+    "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824  a.tar.gz\n",
+  );
+  assertEquals(sha256.algorithm, "sha256");
+  // A file with no digests reports no algorithm.
+  assertEquals(parseChecksumsDetailed("just a comment").algorithm, null);
+});
+
+Deno.test("verifyChecksum chooses the algorithm from the digest length", async () => {
+  const bytes = new TextEncoder().encode("hello");
+  const expected =
+    "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+  const result = await verifyChecksum(bytes, expected);
+  assertEquals(result.algorithm, "sha256");
+  assertEquals(result.verified, true);
+  // A 128-hex digest selects SHA-512.
+  const sha512 = await verifyChecksum(bytes, "0".repeat(128));
+  assertEquals(sha512.algorithm, "sha512");
+  assertEquals(sha512.verified, false);
 });
 
 Deno.test("DEFAULT_ASSET_PATTERN has the required named groups", () => {

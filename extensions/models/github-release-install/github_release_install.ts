@@ -49,8 +49,9 @@ import {
   resolveOsArch,
   resolveToken,
   schemas,
-  selectAsset,
-  sha256Hex,
+  selectAssets,
+  type SelectOptions,
+  verifyChecksum,
 } from "./github_release.ts";
 
 // ---------------------------------------------------------------------------
@@ -188,6 +189,7 @@ const ReleaseResultSchema = schemas.releaseInfo.extend({
   platform: schemas.platform,
   checksumsUrl: z.string().nullable(),
   checksum: z.string().nullable(),
+  checksumAlgorithm: z.string().nullable(),
 });
 
 const ArchiveResultSchema = z.object({
@@ -198,6 +200,7 @@ const ArchiveResultSchema = z.object({
   archiveName: z.string().nullable(),
   downloadUrl: z.string().nullable(),
   checksum: z.string().nullable(),
+  checksumAlgorithm: z.string().nullable(),
   sha256: z.string().nullable(),
   checksumVerified: z.boolean(),
   format: z.string().nullable(),
@@ -301,34 +304,40 @@ async function platformFor(
  * found, forces that platform's format/os/arch to the asset's own parsed parts.
  */
 function selectPlatformAsset(
-  release: { assets: Parameters<typeof selectAsset>[0] },
+  release: { assets: Parameters<typeof selectAssets>[0] },
   platform: Platform,
   opts: {
     assetName?: string;
     pattern?: string;
     format?: ArchiveType;
+    repo?: string;
   },
 ): Platform {
   const requestedFormat = opts.format ??
     (platform.format as ArchiveType | undefined);
-  const asset = selectAsset(release.assets, {
+  const selectOpts: SelectOptions = {
     assetName: opts.assetName,
     pattern: opts.pattern,
     os: platform.os,
     arch: platform.arch,
     stem: platform.stem,
     format: requestedFormat,
-  });
-  if (!asset) return { ...platform, supported: false };
+    repo: opts.repo,
+  };
+  const { selected, candidates } = selectAssets(release.assets, selectOpts);
+  if (!selected) return { ...platform, supported: false, candidates: [] };
   const format = detectArchiveType(
-    asset.name,
+    selected.name,
     opts.format ?? (platform.format as ArchiveType),
   );
   return {
     ...platform,
-    archiveName: asset.name,
-    downloadUrl: asset.url,
+    archiveName: selected.name,
+    downloadUrl: selected.url,
     format,
+    // Record every valid variant so a caller knows the release ships more than
+    // one archive for this platform (e.g. tuios main + ghostty + web).
+    candidates: candidates.map((a) => a.name),
     supported: true,
   };
 }
@@ -444,12 +453,14 @@ export const model = {
         const releasePlatform = selectPlatformAsset(release, platform, {
           assetName: args.assetName,
           pattern,
+          repo: g.repo,
         });
 
         const checksumsUrl = args.fetchChecksums
           ? checksumsUrlFor(release.assets, g.checksumsName)
           : null;
         let checksum: string | null = null;
+        let checksumAlgorithm: string | null = null;
         let checksumsAvailable = false;
         if (checksumsUrl && releasePlatform.archiveName) {
           const result = await fetchChecksums(
@@ -459,6 +470,7 @@ export const model = {
           );
           checksumsAvailable = result.available;
           checksum = result.sums[releasePlatform.archiveName] ?? null;
+          checksumAlgorithm = result.algorithm;
         }
         if (
           releasePlatform.archiveName && !checksum && args.fetchChecksums &&
@@ -470,7 +482,7 @@ export const model = {
                 `${releasePlatform.archiveName} — refusing to record a release ` +
                 `that cannot be verified. Check network access, or pass ` +
                 `requireChecksum=false to override.`
-              : `No SHA-256 for ${releasePlatform.archiveName} in ` +
+              : `No checksum for ${releasePlatform.archiveName} in ` +
                 `${
                   checksumsUrl ?? g.checksumsName
                 } — the checksums file does ` +
@@ -484,6 +496,23 @@ export const model = {
             { name: releasePlatform.archiveName },
           );
         }
+        // More than one archive matched the platform: report the variants so a
+        // caller knows the main build was chosen over the others.
+        if ((releasePlatform.candidates?.length ?? 0) > 1) {
+          context.logger.warn?.(
+            "{count} archives match {os}/{arch}; selected {archive}. " +
+              "Other variants: {others}. Pass stem or assetName to choose another.",
+            {
+              count: releasePlatform.candidates!.length,
+              os: releasePlatform.os,
+              arch: releasePlatform.arch,
+              archive: releasePlatform.archiveName,
+              others: releasePlatform.candidates!.filter((n) =>
+                n !== releasePlatform.archiveName
+              ).join(", "),
+            },
+          );
+        }
 
         const handle = await context.writeResource("release", "release", {
           ...release,
@@ -492,6 +521,7 @@ export const model = {
           platform: releasePlatform,
           checksumsUrl,
           checksum,
+          checksumAlgorithm,
         });
 
         context.logger.info(
@@ -576,6 +606,7 @@ export const model = {
           platform = selectPlatformAsset(release, resolved, {
             assetName: suppliedArchive || undefined,
             pattern,
+            repo: g.repo,
           });
           if (!platform.archiveName) {
             throw new Error(
@@ -632,7 +663,7 @@ export const model = {
           : outputDir
           ? `${expandHome(outputDir).replace(/\/+$/, "")}/${archiveName}`
           : "";
-        const { bytes, sha256, checksumVerified, cached } =
+        const { bytes, sha256, algorithm, checksumVerified, cached } =
           await downloadWithCache({
             downloadUrl,
             outputPath,
@@ -660,6 +691,7 @@ export const model = {
           archiveName,
           downloadUrl,
           checksum: expected || null,
+          checksumAlgorithm: algorithm,
           sha256,
           checksumVerified,
           format: platform?.format ?? detectArchiveType(archiveName, format),
@@ -873,6 +905,7 @@ async function downloadWithCache(opts: {
 }): Promise<{
   bytes: Uint8Array;
   sha256: string;
+  algorithm: string;
   checksumVerified: boolean;
   cached: boolean;
 }> {
@@ -881,14 +914,16 @@ async function downloadWithCache(opts: {
   if (outputPath && !force) {
     try {
       const existing = await Deno.readFile(outputPath);
-      const sha = await sha256Hex(existing);
-      if (expected && sha === expected.toLowerCase()) {
+      // Verify with the algorithm the expected digest implies.
+      const check = await verifyChecksum(existing, expected);
+      if (expected && check.verified) {
         opts.log.info("Reusing verified archive at {path}", {
           path: outputPath,
         });
         return {
           bytes: existing,
-          sha256: sha,
+          sha256: check.hex,
+          algorithm: check.algorithm,
           checksumVerified: true,
           cached: true,
         };

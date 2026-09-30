@@ -219,7 +219,7 @@ footer .ver{color:var(--acc)}
 <li>Under the pulled-extensions lock, the sweep re-reads the lockfile, so a concurrent install wins.</li>
 </ul>
 <p>  -</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.231730.0-sha.9c7438f4" rel="noopener">release v20260929.231730.0-sha.9c7438f4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9c7438f4fa585d30a8567e9ba40ed26cdc12c835" rel="noopener">9c7438f4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2728" rel="noopener">#2728</a>𝗔 <a href="https://swamp-club.com/lab/2742" rel="noopener">lab#2742</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-230233-0-sha-cd8f2d24">
@@ -10766,7 +10766,7 @@ footer .ver{color:var(--acc)}
 <h4 class="body-h">Why this is more than developer convenience</h4>
 <p><code>scripts/download_deno.ts</code> derives the embedded runtime version from <code>deno --version</code> <strong>on the building machine</strong> and bakes that exact release into the compiled binary for user extensions. With <code>release.yml</code> on a floating <code>v2.9.x</code>, consecutive releases could ship different embedded Deno patches with nothing recording which. Pinning exactly makes the shipped artifact reproducible.</p>
 <p>The script now also guards that at its source: it compares the running Deno against the pin, <strong>failing hard under <code>CI</code> and warning locally</strong>. Th</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/README.md" rel="noopener">README.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260918.141950.0-sha.7b3608ba" rel="noopener">release v20260918.141950.0-sha.7b3608ba</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7b3608ba912ebe38a4cf6bea653eee2db83fddb9" rel="noopener">7b3608ba</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2511" rel="noopener">#2511</a>𝗔 <a href="https://swamp-club.com/lab/2271" rel="noopener">lab#2271</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260917-001849-0-sha-1288f64b">
@@ -11388,7 +11388,7 @@ footer .ver{color:var(--acc)}
 <p>| Intensifiers | 123 | 10 |</p>
 <p>| Buzzwords | 33 | 0 |</p>
 <p>The word count only</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/architecture.md" rel="noopener">design/architecture.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/doctor-secrets.md" rel="noopener">design/enablers/doctor-secrets.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/operations.md" rel="noopener">design/operations.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/agent-interface.md" rel="noopener">design/surfaces/agent-interface.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/agent.md" rel="noopener">design/surfaces/agent.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/audit-doctor.md" rel="noopener">design/surfaces/audit-doctor.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/doctor-secrets.md" rel="noopener">design/enablers/doctor-secrets.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/agent-interface.md" rel="noopener">design/surfaces/agent-interface.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/agent.md" rel="noopener">design/surfaces/agent.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/audit-doctor.md" rel="noopener">design/surfaces/audit-doctor.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260923.191817.0-sha.4c426154" rel="noopener">release v20260923.191817.0-sha.4c426154</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4c4261544fdf28d2bcb5241334816fbfd803d9a9" rel="noopener">4c426154</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2579" rel="noopener">#2579</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260922-210919-0-sha-0e4cc7b5">
@@ -11670,7 +11670,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 285</li><li><strong>feat</strong> — 64</li><li><strong>docs</strong> — 13</li><li><strong>changes</strong> — 8</li><li><strong>refactor</strong> — 3</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-30T18:13:17.597Z">2026-09-30T18:13:17.597Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-30T19:03:18.551Z">2026-09-30T19:03:18.551Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

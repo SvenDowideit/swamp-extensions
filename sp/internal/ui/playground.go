@@ -20,17 +20,186 @@ type pgResultMsg struct {
 // pgResultLimit caps how many records the Playground will request and render.
 const pgResultLimit = 500
 
-// openPlayground opens the CEL query console, prefilled with the predicate of
-// the last query if there is one.
+// pgExample is one runnable example in the Playground help panel.
+type pgExample struct {
+	title string
+	desc  string
+	pred  string
+	sel   string
+}
+
+// pgExamples are ready-to-run queries that double as the Playground tutorial.
+// They are chosen to be meaningful in any swamp repo.
+var pgExamples = []pgExample{
+	{
+		title: "Everything",
+		desc:  "list every data artifact as a table",
+		pred:  "size >= 0",
+		sel:   "[modelName, name, string(version), dataType, string(size)]",
+	},
+	{
+		title: "One model",
+		desc:  "all data a model has produced",
+		pred:  `modelName == "bom"`,
+		sel:   "[name, string(version), dataType, string(size)]",
+	},
+	{
+		title: "Files only",
+		desc:  "rendered files such as HTML pages",
+		pred:  `dataType == "file"`,
+		sel:   "[modelName, name, contentType, string(size)]",
+	},
+	{
+		title: "Reports",
+		desc:  "report artifacts, by report name",
+		pred:  `tags.type == "report"`,
+		sel:   "[modelName, name, string(tags.reportName)]",
+	},
+	{
+		title: "Large artifacts",
+		desc:  "anything over 1 MiB",
+		pred:  "size > 1048576",
+		sel:   "[modelName, name, string(size)]",
+	},
+	{
+		title: "JSON resources",
+		desc:  "structured resources only",
+		pred:  `contentType == "application/json"`,
+		sel:   "[modelName, name, string(version), string(specName)]",
+	},
+	{
+		title: "By workflow",
+		desc:  "data tagged with a workflow name",
+		pred:  `workflowName != ""`,
+		sel:   "[workflowName, modelName, name, dataType]",
+	},
+	{
+		title: "Name prefix",
+		desc:  "CEL string methods (startsWith / contains)",
+		pred:  `name.startsWith("report-")`,
+		sel:   "[modelName, name]",
+	},
+}
+
+// pgHelpLines builds the help panel: a syntax cheat-sheet followed by the
+// runnable examples, with the selected example marked. It returns the lines and
+// the line index where the selected example begins (so the view can scroll to
+// keep it visible).
+func (m *Model) pgHelpLines(width int) ([]string, int) {
+	inner := width - 4
+	if inner < 20 {
+		inner = 20
+	}
+	var lines []string
+	selLine := 0
+	add := func(s string) { lines = append(lines, s) }
+
+	add(stylePaneTitle.Render("Query the data catalog with CEL"))
+	add(styleMuted.Render("The predicate is a CEL expression evaluated over every"))
+	add(styleMuted.Render("data artifact. Leave select blank to get whole records"))
+	add(styleMuted.Render("(each openable); add a projection to shape the output."))
+	add("")
+	add(stylePaneTitle.Render("Fields"))
+	for _, ln := range []string{
+		"modelName  name  version  dataType  contentType  size",
+		"specName  lifetime  streaming  createdAt  ownerType",
+		"tags.<key>        e.g. tags.type == \"report\"",
+		"attributes.<key>  the artifact's JSON content",
+		"workflowName  workflowRunId  jobName  stepName",
+	} {
+		add("  " + styleItem.Render(ln))
+	}
+	add("")
+	add(stylePaneTitle.Render("Operators"))
+	for _, ln := range []string{
+		"== != > >= < <=        &&  ||  !",
+		"name.contains(\"x\")  startsWith  endsWith  matches(\"re\")",
+		"has(tags.env)          string(version)  string(size)",
+	} {
+		add("  " + styleItem.Render(ln))
+	}
+	add("")
+	add(stylePaneTitle.Render("Select shapes"))
+	for _, ln := range []string{
+		"blank            whole records (open with v)",
+		"[a, b, c]        table with positional columns",
+		"{x: a, y: b}     table with named columns",
+		"a                one value per row (scalars)",
+	} {
+		add("  " + styleItem.Render(ln))
+	}
+	add("")
+	add(stylePaneTitle.Render("Examples — ↑↓ then enter to run"))
+	for i, ex := range pgExamples {
+		marker := "  "
+		line := fmt.Sprintf("%-16s %s", ex.title, styleMuted.Render(ex.desc))
+		if i == m.pgHelpSel {
+			marker = styleKey.Render("▸ ")
+			line = styleSelected.Render(fmt.Sprintf("%-16s %s", ex.title, ex.desc))
+			selLine = len(lines)
+		}
+		add(marker + line)
+		if i == m.pgHelpSel {
+			add("      " + styleMuted.Render("pred  ") + styleKind.Render(truncStr(ex.pred, inner-8)))
+			if ex.sel != "" {
+				add("      " + styleMuted.Render("sel   ") + styleKind.Render(truncStr(ex.sel, inner-8)))
+			}
+		}
+	}
+	return lines, selLine
+}
+
+// helpViewportRows is the number of rows the help panel can show.
+func (m *Model) helpViewportRows() int {
+	ht := clamp(m.height*84/100, 12, m.height-3)
+	return maxInt(1, ht-7)
+}
+
+// ensureHelpSelVisible scrolls the help panel so the selected example (and its
+// two detail rows) are visible, without scrolling before the first example.
+func (m *Model) ensureHelpSelVisible() {
+	// selLine needs the rendered help lines; recompute to find its index.
+	_, selLine := m.pgHelpLines(m.width)
+	viewport := m.helpViewportRows()
+	if selLine < m.pgHelpScroll {
+		m.pgHelpScroll = selLine
+	}
+	if selLine+2 >= m.pgHelpScroll+viewport {
+		m.pgHelpScroll = selLine + 3 - viewport
+	}
+	if m.pgHelpScroll < 0 {
+		m.pgHelpScroll = 0
+	}
+}
+
+// pgLoadExample copies the selected example into the query fields and runs it.
+func (m *Model) pgLoadExample() tea.Cmd {
+	if m.pgHelpSel < 0 || m.pgHelpSel >= len(pgExamples) {
+		return nil
+	}
+	ex := pgExamples[m.pgHelpSel]
+	m.pgPred = ex.pred
+	m.pgSelect = ex.sel
+	m.pgHelp = false
+	return m.runPlayground()
+}
+
+// openPlayground opens the CEL query console. It starts on the help panel the
+// first time (until the user dismisses it), and prefills the predicate from the
+// selected model so the first query is immediately meaningful.
 func (m *Model) openPlayground() tea.Cmd {
 	m.pgOpen = true
 	m.pgField = 0
 	m.pgEditing = false
 	m.pgErr = nil
 	m.pgHistIdx = -1
+	// Show the teaching panel unless the user has dismissed it before, or a
+	// query has already been run this session.
+	if !m.pgHelpOff && m.pgResult == nil {
+		m.pgHelp = true
+		m.pgHelpScroll = 0
+	}
 	if m.pgPred == "" && m.pgSelect == "" {
-		// Seed from the currently selected model, if any, so the first query is
-		// immediately meaningful.
 		if m.focus == PaneModels {
 			if models := m.visibleModels(); len(models) > 0 {
 				name := models[clamp(m.modelSel, 0, len(models)-1)].label
@@ -53,6 +222,7 @@ func (m *Model) runPlayground() tea.Cmd {
 	m.pgErr = nil
 	m.pgRowSel = 0
 	m.pgScroll = 0
+	m.pgHelp = false
 	m.rememberQuery(pred, sel)
 
 	client := m.client
@@ -139,9 +309,43 @@ func (m *Model) handlePlaygroundKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Help panel: navigate and run examples, or dismiss it.
+	if m.pgHelp {
+		switch key {
+		case "esc", "?", "h":
+			m.pgHelp = false
+			m.pgHelpOff = true
+		case "q":
+			m.pgOpen = false
+		case "up", "k":
+			m.pgHelpSel = clamp(m.pgHelpSel-1, 0, len(pgExamples)-1)
+			m.ensureHelpSelVisible()
+		case "down", "j":
+			m.pgHelpSel = clamp(m.pgHelpSel+1, 0, len(pgExamples)-1)
+			m.ensureHelpSelVisible()
+		case "g":
+			m.pgHelpSel = 0
+			m.ensureHelpSelVisible()
+		case "G":
+			m.pgHelpSel = len(pgExamples) - 1
+			m.ensureHelpSelVisible()
+		case "pgup":
+			m.pgHelpScroll = maxInt(0, m.pgHelpScroll-10)
+		case "pgdown":
+			m.pgHelpScroll += 10
+		case "enter":
+			return m, m.pgLoadExample()
+		}
+		return m, nil
+	}
+
 	switch key {
 	case "esc", "q":
 		m.pgOpen = false
+	case "?":
+		m.pgHelp = true
+		m.pgHelpScroll = 0
+		m.ensureHelpSelVisible()
 	case "tab":
 		m.pgField = (m.pgField + 1) % 2
 	case "enter":

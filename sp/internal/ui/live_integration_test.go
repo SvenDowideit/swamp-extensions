@@ -352,6 +352,50 @@ func TestLivePlayground(t *testing.T) {
 	t.Logf("playground ok: rows=%d", len(m.pgRows))
 }
 
+// TestLivePlaygroundExamples runs every built-in help example against the real
+// server, so the documented examples cannot drift from the data model.
+//
+//	swamp serve --port 9090 --no-schedule &
+//	SP_SERVER=ws://127.0.0.1:9090 go test -tags integration -run TestLivePlaygroundExamples ./internal/ui/
+func TestLivePlaygroundExamples(t *testing.T) {
+	server := os.Getenv("SP_SERVER")
+	if server == "" {
+		server = "ws://127.0.0.1:9090"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	client, err := swamp.Dial(ctx, server, "")
+	if err != nil {
+		t.Skipf("no server at %s: %v", server, err)
+	}
+	defer client.Close()
+
+	m := New(client, "live", nil)
+	m.width, m.height = 140, 40
+	m.pgOpen = true
+	m.pgHelp = true
+
+	for i, ex := range pgExamples {
+		m.pgHelpSel = i
+		msg := m.pgLoadExample()()
+		al, ok := msg.(pgResultMsg)
+		if !ok {
+			t.Fatalf("example %q returned %T", ex.title, msg)
+		}
+		if al.err != nil {
+			t.Errorf("example %q failed: %v", ex.title, al.err)
+			continue
+		}
+		m.Update(al)
+		if m.pgResult == nil {
+			t.Errorf("example %q produced no result", ex.title)
+			continue
+		}
+		t.Logf("%-16s -> total=%d limited=%v", ex.title, m.pgResult.Total, m.pgResult.Limited)
+	}
+}
+
 // TestLiveRunStreaming starts a real workflow run over the protocol and drains
 // its events through the UI's Update loop, asserting the console reaches a
 // terminal state with rendered step output.

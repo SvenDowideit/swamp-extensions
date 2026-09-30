@@ -8,11 +8,109 @@ import (
 	"github.com/svendowideit/swamp-project/sp/internal/swamp"
 )
 
-func TestPlaygroundOpensAndEdits(t *testing.T) {
+func TestPlaygroundOpensWithHelp(t *testing.T) {
 	m := sampleModel()
 	press(m, 'p', "")
 	if !m.pgOpen {
 		t.Fatalf("p should open the Playground")
+	}
+	if !m.pgHelp {
+		t.Fatalf("first open should show the teaching panel")
+	}
+	out := strip(m.render())
+	for _, want := range []string{"Query the data catalog with CEL", "Fields", "Operators", "Examples", "Everything"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("help panel missing %q:\n%s", want, out)
+		}
+	}
+	// Navigating to an example and choosing it fills the fields and hides help.
+	// (The returned tea.Cmd is not executed here — there is no live client.)
+	m.pgHelpSel = 1
+	cmd := m.pgLoadExample()
+	if m.pgHelp {
+		t.Fatalf("running an example should hide the help panel")
+	}
+	if m.pgPred == "" {
+		t.Fatalf("example did not populate the predicate")
+	}
+	if cmd == nil {
+		t.Fatalf("example should issue a query command")
+	}
+}
+
+func TestPlaygroundHelpToggleAndDismiss(t *testing.T) {
+	m := sampleModel()
+	press(m, 'p', "")
+	if !m.pgHelp {
+		t.Fatalf("help should be visible initially")
+	}
+	// '?' hides it and records the dismissal.
+	press(m, 0, "?")
+	if m.pgHelp || !m.pgHelpOff {
+		t.Fatalf("? should hide and mark help dismissed")
+	}
+	// '?' shows it again.
+	press(m, 0, "?")
+	if !m.pgHelp {
+		t.Fatalf("? should show the help panel")
+	}
+	// esc hides it without closing the console.
+	press(m, tea.KeyEscape, "")
+	if m.pgHelp || !m.pgOpen {
+		t.Fatalf("esc on help should hide help but keep the console open")
+	}
+}
+
+func TestPlaygroundHelpScrollFollowsSelection(t *testing.T) {
+	m := sampleModel()
+	m.width, m.height = 140, 40
+	m.pgOpen = true
+	m.pgHelp = true
+
+	// At the top, the intro docs are visible.
+	if m.pgHelpScroll != 0 {
+		t.Fatalf("help should start at the top")
+	}
+	out := strip(m.render())
+	if !strings.Contains(out, "Query the data catalog with CEL") {
+		t.Fatalf("intro not visible on open:\n%s", out)
+	}
+
+	// Moving to the last example scrolls it (and its detail) into view.
+	m.pgHelpSel = len(pgExamples) - 1
+	m.ensureHelpSelVisible()
+	if m.pgHelpScroll == 0 {
+		t.Fatalf("selecting the last example should scroll the panel")
+	}
+	out = strip(m.render())
+	last := pgExamples[len(pgExamples)-1]
+	if !strings.Contains(out, last.title) {
+		t.Fatalf("selected example %q not visible after scroll:\n%s", last.title, out)
+	}
+	if !strings.Contains(out, last.pred) {
+		t.Fatalf("selected example's predicate not visible:\n%s", out)
+	}
+}
+
+func TestPlaygroundHelpNotShownAfterDismissal(t *testing.T) {
+	m := sampleModel()
+	m.pgHelpOff = true
+	press(m, 'p', "")
+	if m.pgHelp {
+		t.Fatalf("a dismissed help panel should not reappear on reopen")
+	}
+}
+
+func TestPlaygroundOpensAndEdits(t *testing.T) {
+	m := sampleModel()
+	m.pgHelpOff = true
+	m.pgHelp = false
+	press(m, 'p', "")
+	if !m.pgOpen {
+		t.Fatalf("p should open the Playground")
+	}
+	if m.pgHelp {
+		t.Fatalf("help should be suppressed for this test")
 	}
 	// 'e' enters edit mode on the focused (predicate) field.
 	press(m, 0, "e")

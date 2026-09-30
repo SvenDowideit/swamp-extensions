@@ -246,12 +246,54 @@ data catalog via `data.query`, then send the result to the viewer. It is the
 ```
 
 - `p` — open the console (prefilled from the selected model when there is one).
+  It opens on a **built-in help panel** the first time, so it teaches itself.
+- `?` — show/hide that help panel at any time; `esc`/`h` hides it (and `esc`
+  again closes the console).
 - `e` / `i` — edit the focused field; `tab` switches between **predicate** and
-  **select**; `enter` runs the query; `esc` closes.
+  **select**; `enter` runs the query.
 - `↑`/`↓` move through result rows; `v` (or `enter` on a row) opens it in the
   artifact viewer.
 - `[` / `]` step back/forward through query **history**.
 - `y` seeds a useful default `select` projection.
+
+### Built-in help and examples
+
+The panel is a cheat-sheet plus runnable examples, so you never have to leave the
+tool to learn the syntax:
+
+- **Fields** available to the predicate (`modelName`, `name`, `version`,
+  `dataType`, `contentType`, `size`, `specName`, `tags.<key>`,
+  `attributes.<key>`, `workflowName`, …).
+- **Operators** and CEL string methods (`contains`, `startsWith`, `matches`,
+  `has(...)`, `string(...)`).
+- **Select shapes** — blank (whole records), `[a, b]` (positional table),
+  `{x: a}` (named table), or a bare expression (scalars).
+- **Eight runnable examples** — *Everything*, *One model*, *Files only*,
+  *Reports*, *Large artifacts*, *JSON resources*, *By workflow*, *Name prefix*.
+  `↑`/`↓` to pick one, `enter` to load **and run** it. The selected example shows
+  its exact `predicate` and `select`, and the panel scrolls to keep it in view.
+
+```
+╭──────────────────────────────────────────────────────────────────────╮
+│ Playground  data.query                                         help  │
+│ ▸ predicate                                                          │
+│   select                                                             │
+│ ──────────────────────────────────────────────────────────────────── │
+│ Query the data catalog with CEL                                      │
+│ The predicate is a CEL expression evaluated over every data …        │
+│                                                                      │
+│ Fields                                                               │
+│   modelName  name  version  dataType  contentType  size              │
+│   tags.<key>        e.g. tags.type == "report"                       │
+│                                                                      │
+│ Examples — ↑↓ then enter to run                                      │
+│   Everything       list every data artifact as a table               │
+│ ▸ Files only       rendered files such as HTML pages                 │
+│       pred  dataType == "file"                                       │
+│       sel   [modelName, name, contentType, string(size)]             │
+│ ↑↓ example  enter run example  ? hide help  esc close                │
+╰──────────────────────────────────────────────────────────────────────╯
+```
 
 Results are rendered by the shape the select produces:
 

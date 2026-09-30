@@ -202,6 +202,15 @@ type Model struct {
 	pgScroll  int
 	pgHistory []pgQuery
 	pgHistIdx int // -1 when not browsing history
+
+	// pgHelp shows the in-window cheat-sheet and runnable examples instead of
+	// results. It starts visible so the console is self-teaching, and hides
+	// once a query runs (toggle any time with ?). pgHelpScroll is its own
+	// scroll offset, so opening shows the docs from the top.
+	pgHelp       bool
+	pgHelpSel    int
+	pgHelpScroll int
+	pgHelpOff    bool // user explicitly dismissed help for this session
 }
 
 // pgQuery is one entry in the Playground query history.

@@ -107,7 +107,15 @@ func (m *Model) renderPlayground() string {
 	if resH < 1 {
 		resH = 1
 	}
-	body := m.renderPlaygroundResults(innerW, resH)
+	// The help panel replaces the results with a cheat-sheet and examples.
+	var body string
+	if m.pgHelp {
+		hlines, _ := m.pgHelpLines(innerW)
+		top := clamp(m.pgHelpScroll, 0, maxInt(0, len(hlines)-1))
+		body = clip(strings.Join(hlines[top:], "\n"), innerW, resH)
+	} else {
+		body = m.renderPlaygroundResults(innerW, resH)
+	}
 	// Pad the body to resH rows so the footer sits at the dialog's bottom.
 	if n := resH - strings.Count(body, "\n") - 1; n > 0 {
 		body += strings.Repeat("\n", n)
@@ -115,7 +123,9 @@ func (m *Model) renderPlayground() string {
 	b.WriteString(body)
 
 	chip := ""
-	if m.pgLoading {
+	if m.pgHelp {
+		chip = styleMuted.Render("help")
+	} else if m.pgLoading {
 		chip = styleOrange.Render("◐ querying…")
 	} else if m.pgErr != nil {
 		chip = styleError.Render("✗ error")
@@ -139,6 +149,14 @@ func (m *Model) renderPlayground() string {
 
 // playgroundHints is the context key bar for the Playground.
 func (m *Model) playgroundHints() []hint {
+	if m.pgHelp {
+		return []hint{
+			h("↑↓", "example"),
+			h("enter", "run example"),
+			h("?", "hide help"),
+			h("esc", "close"),
+		}
+	}
 	if m.pgEditing {
 		return []hint{
 			h("type", "edit "+pgFieldName(m.pgField)),
@@ -157,7 +175,7 @@ func (m *Model) playgroundHints() []hint {
 	if len(m.pgHistory) > 0 {
 		hs = append(hs, h("[ ]", "history"))
 	}
-	hs = append(hs, h("esc", "close"))
+	hs = append(hs, h("?", "help"), h("esc", "close"))
 	return hs
 }
 

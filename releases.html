@@ -177,7 +177,7 @@ footer .ver{color:var(--acc)}
 <li><strong>libswamp:</strong></li>
 <li><code>applyInstall</code> stages and swaps; <code>installExtension</code> commits right after apply (swamp-club#2724 moves</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260930.003205.0-sha.9a2c3e5f" rel="noopener">release v20260930.003205.0-sha.9a2c3e5f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9a2c3e5ffc51d18e47def3b9d79ed16ad9b89043" rel="noopener">9a2c3e5f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2730" rel="noopener">#2730</a>𝗔 <a href="https://swamp-club.com/lab/2723" rel="noopener">lab#2723</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-232140-0-sha-f8d0d9ea">
@@ -197,7 +197,7 @@ footer .ver{color:var(--acc)}
 <li>Each distinct denied owner is audited once through <code>isAuthorized</code>, however many matches it owns, so a short prefix over a large history can&#39;t flood the audit log.</li>
 <li>When no match is readable, the request is refused just as a unique prefix of the first match</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.232140.0-sha.f8d0d9ea" rel="noopener">release v20260929.232140.0-sha.f8d0d9ea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f8d0d9eac444fcae92bc24e0ca9dc9d34e68b612" rel="noopener">f8d0d9ea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2729" rel="noopener">#2729</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-231730-0-sha-9c7438f4">
@@ -219,7 +219,7 @@ footer .ver{color:var(--acc)}
 <li>Under the pulled-extensions lock, the sweep re-reads the lockfile, so a concurrent install wins.</li>
 </ul>
 <p>  -</p></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.231730.0-sha.9c7438f4" rel="noopener">release v20260929.231730.0-sha.9c7438f4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9c7438f4fa585d30a8567e9ba40ed26cdc12c835" rel="noopener">9c7438f4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2728" rel="noopener">#2728</a>𝗔 <a href="https://swamp-club.com/lab/2742" rel="noopener">lab#2742</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-230233-0-sha-cd8f2d24">
@@ -240,7 +240,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Through serve:</strong> the revoke handler cuts workers off right after the revoke is saved, including already-revoked tokens and cancelled requests, and returns <code>disconnectedWorkers</code>.</li>
 <li><strong>From the CLI without <code>--server</code>, or on an HA peer:</strong> the new <code>WorkerTokenRevalidationService</code> reads the to</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.230233.0-sha.cd8f2d24" rel="noopener">release v20260929.230233.0-sha.cd8f2d24</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cd8f2d24499c584c914f2a3d8a32db05b985ce53" rel="noopener">cd8f2d24</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2727" rel="noopener">#2727</a>𝗔 <a href="https://swamp-club.com/lab/2740" rel="noopener">lab#2740</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-224726-0-sha-d826d56d">
@@ -290,7 +290,7 @@ footer .ver{color:var(--acc)}
 <li><code>file_lock_test.ts</code> and <code>pulled_extensions_lock_test.ts</code>: 43 passed.</li>
 <li>Tests for the other <code>FileLock</code> callers (direct execution, auto-resolver</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.224339.0-sha.ee3181ce" rel="noopener">release v20260929.224339.0-sha.ee3181ce</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ee3181ce0a7a0624fef62f37dc59bcf67823d44e" rel="noopener">ee3181ce</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2726" rel="noopener">#2726</a>𝗔 <a href="https://swamp-club.com/lab/2741" rel="noopener">lab#2741</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-223942-0-sha-527bf79a">
@@ -311,7 +311,7 @@ footer .ver{color:var(--acc)}
 <li>Serve (<code>resource_resolution.ts</code>) authorizes every owner of what will be read:</li>
 <li>an output: every definition declaring</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.223942.0-sha.527bf79a" rel="noopener">release v20260929.223942.0-sha.527bf79a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/527bf79a6ad9f13db6e47a80412ac5dea9451e00" rel="noopener">527bf79a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2725" rel="noopener">#2725</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2674" rel="noopener">#2674</a>𝗔 <a href="https://swamp-club.com/lab/2728" rel="noopener">lab#2728</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-215712-0-sha-977f175c">
@@ -351,7 +351,7 @@ footer .ver{color:var(--acc)}
 <h4 class="body-h">Change</h4>
 <p>The cancel now runs in two stages (<code>src/serve/suspended_run_cancel.ts</code>):</p>
 <p>1. <strong>Locate:</strong> holds neither the gate nor the reservation. <code>locateSuspendedRunToCancel</code> (new, read-only, in libswamp) finds the run, resolves its workflow, checks <code>workflowIdOrName</code>, and authorizes against the run&#39;s own workflow. A missing, mismatched or refused run gets the not-found reply straight away. A miss while the id is registered returns <code>active</code>, which the handler authorizes against the regi</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.215321.0-sha.cd8cd7b8" rel="noopener">release v20260929.215321.0-sha.cd8cd7b8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cd8cd7b89afc4c32153b9b2937e5a7cf7427f76e" rel="noopener">cd8cd7b8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2721" rel="noopener">#2721</a>𝗔 <a href="https://swamp-club.com/lab/2651" rel="noopener">lab#2651</a></div>
 </article>
 <section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20260929-214059-0-sha-b4d6bad2">
@@ -538,7 +538,7 @@ footer .ver{color:var(--acc)}
 <li>a <code>FileLock</code> on <code>.swamp/pulled-extensions.lock</code> for other processes. Its 30s TTL and heartbeat clear a crashed holder.</li>
 </ul>
 <p>  <code>withLock</code> waits within a single 180s budget that covers both layers. <code>tryWithLock</code> reports busy instead of waiting (for #2612). The lock is reentrant through an `AsyncLoc</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20260929.194930.0-sha.69969ae8" rel="noopener">release v20260929.194930.0-sha.69969ae8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/69969ae875b5a1d8af157ff8bacd42d97258b33d" rel="noopener">69969ae8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2713" rel="noopener">#2713</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2612" rel="noopener">#2612</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2571" rel="noopener">#2571</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2495" rel="noopener">#2495</a>𝗔 <a href="https://swamp-club.com/lab/2709" rel="noopener">lab#2709</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20260929-193319-0-sha-80b228c3">
@@ -11485,7 +11485,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 285</li><li><strong>feat</strong> — 64</li><li><strong>docs</strong> — 13</li><li><strong>refactor</strong> — 3</li><li><strong>perf</strong> — 2</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-30T05:02:08.622Z">2026-09-30T05:02:08.622Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-09-30T06:03:15.768Z">2026-09-30T06:03:15.768Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

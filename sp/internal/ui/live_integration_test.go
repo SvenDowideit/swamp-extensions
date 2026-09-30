@@ -60,7 +60,7 @@ func TestLiveWorkflowBrowser(t *testing.T) {
 	// Find a workflow that has produced data (has at least one run).
 	var chosen string
 	for _, w := range m.visibleWorkflows() {
-		items := workflowDataItems(ctx, client, w.label)
+		items, _ := workflowDataItems(ctx, client, w.label)
 		if len(items) > 0 {
 			chosen = w.label
 			break
@@ -350,6 +350,79 @@ func TestLivePlayground(t *testing.T) {
 		t.Fatalf("viewer empty for playground row")
 	}
 	t.Logf("playground ok: rows=%d", len(m.pgRows))
+}
+
+// TestLiveContextualViews opens real JSON artifacts and checks that the
+// contextual view registry selects a sensible type-specific view (forecast,
+// bars, or table) and that cycling reaches the raw json.
+//
+//	swamp serve --port 9090 --no-schedule &
+//	SP_SERVER=ws://127.0.0.1:9090 go test -tags integration -run TestLiveContextualViews ./internal/ui/
+func TestLiveContextualViews(t *testing.T) {
+	server := os.Getenv("SP_SERVER")
+	if server == "" {
+		server = "ws://127.0.0.1:9090"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	client, err := swamp.Dial(ctx, server, "")
+	if err != nil {
+		t.Skipf("no server at %s: %v", server, err)
+	}
+	defer client.Close()
+
+	// Candidate artifacts that exercise each view family, if present.
+	candidates := []struct {
+		model, name string
+		wantFirst   string
+	}{
+		{"bom", "forecast", "forecast"},
+		{"disk-auditor", "current", "bars"},
+		{"local-disk", "current", "bars"},
+	}
+	m := New(client, "live", nil)
+	m.width, m.height = 140, 40
+
+	seen := map[string]bool{}
+	for _, c := range candidates {
+		ref := runOutput{name: c.name, modelName: c.model, kind: "resource"}
+		msg := m.loadArtifact(ref)()
+		al, ok := msg.(artifactLoadedMsg)
+		if !ok {
+			t.Fatalf("loadArtifact(%s/%s) -> %T", c.model, c.name, msg)
+		}
+		if al.err != nil {
+			continue // artifact may not exist / be gc'd
+		}
+		if len(al.names) == 0 {
+			continue
+		}
+		m.Update(al)
+		t.Logf("%s/%s first=%v views=%d lines=%d", c.model, c.name, al.names[0], len(al.names), len(al.lines))
+		if al.names[0] != c.wantFirst {
+			t.Errorf("%s/%s: first view = %q, want %q", c.model, c.name, al.names[0], c.wantFirst)
+		}
+		if al.names[len(al.names)-1] != "json" {
+			t.Errorf("%s/%s: last view = %q, want json", c.model, c.name, al.names[len(al.names)-1])
+		}
+		// The first view must render actual content.
+		if len(strip(strings.Join(al.lines, "\n"))) == 0 {
+			t.Errorf("%s/%s: first view rendered nothing", c.model, c.name)
+		}
+		// Cycling reaches json.
+		for i := 0; i < len(al.names)-1; i++ {
+			m.cycleView(1)
+		}
+		if m.viewNames[m.viewIdx] != "json" {
+			t.Errorf("%s/%s: cycling did not reach json (at %q)", c.model, c.name, m.viewNames[m.viewIdx])
+		}
+		seen[c.wantFirst] = true
+	}
+	if len(seen) == 0 {
+		t.Skip("no candidate artifacts present to exercise contextual views")
+	}
+	t.Logf("exercised view families: %v", seen)
 }
 
 // TestLivePlaygroundExamples runs every built-in help example against the real

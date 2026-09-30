@@ -65,6 +65,7 @@ sp/
     update.go                 # key handling, filtering, selection, pane cycling
     view.go                   # pane layout (workflows/models/detail/data)
     viewer.go                 # run-output artifact viewer (dialog + fetch)
+    views.go                  # contextual view registry (forecast/bars/table/fields/json)
     playground.go             # CEL query console (data.query + shape rendering)
     htmlrender.go, mdrender.go, inline.go, richtext.go  # HTML/markdown → text
     styles.go, util.go        # styling + JSON/size helpers
@@ -217,13 +218,61 @@ by content type:
   browser required, and it works over SSH.
 - **Markdown** (`text/markdown`, i.e. reports) → headings, tables, lists,
   blockquotes, and inline emphasis, wrapped to the pane.
-- **JSON** (`application/json`) → pretty-printed, indented.
+- **JSON** (`application/json`) → **contextual views** (see below).
 - **Anything else** → wrapped as plain text.
 
 If the run recorded an artifact whose data has since been **garbage-collected**
 (reports keep only a few versions), the viewer says so plainly instead of erroring.
 
 > HTML is rendered to text, not pixels — CSS layout and images are out of scope.
+
+## Contextual views (the moldable inspector)
+
+A JSON artifact is not just a blob — it has a *type*, and the right rendering
+depends on it. This is the Moldable-Development layer the research doc calls
+proposal C: the same data, shown as a forecast card, a bar chart, a table, or raw
+JSON, chosen by shape.
+
+The viewer runs a small **view registry** over every JSON artifact. Each view
+declares the value shape it understands and returns `ok=false` when the data does
+not fit, so detection is by structure, not by hard-coded model names:
+
+| View        | Detected by                                              | Renders                                             |
+| ----------- | -------------------------------------------------------- | --------------------------------------------------- |
+| `forecast`  | an object with a `days[]` of per-day objects             | a per-day table with weather glyphs, min/max, rain  |
+| `bars`      | an array with `fraction` / `totalBytes` / `bytes` / `count` | a proportional bar chart with sizes and percentages |
+| `table`     | the largest array of objects                             | an aligned table of the first columns               |
+| `fields`    | any object                                               | aligned key/value summary (timestamps shortened)    |
+| `json`      | always (fallback)                                        | the pretty-printed raw document                     |
+
+The most specific matching view is shown first; `v` **cycles** through the rest,
+and the title shows the active view and position (`[bars] 1/4 views`). So a
+`disk-auditor` snapshot opens as a size bar chart, a BOM `forecast` as a weather
+table, and a generic resource as a table — with raw JSON always one keypress
+away, and JSON only ever falling back to the raw dump.
+
+```
+╭──────────────────────────────────────────────────────────────────────╮
+│ current  disk-auditor  [bars] 1/4 views                              │
+│ Categories                                                          │
+│   Other             103.8 GiB  ███████████████████░░░░░░░░░░  64%   │
+│   VM/disk images    20.3 GiB   ███████░░░░░░░░░░░░░░░░░░░░░  13%    │
+│   Databases         7.8 GiB    ██░░░░░░░░░░░░░░░░░░░░░░░░░░░   5%   │
+│ ↑↓ scroll  g/G top/end  v next view  esc close                       │
+╰──────────────────────────────────────────────────────────────────────╯
+```
+
+The **Data** pane opens items here too: `enter` on a data item opens the same
+contextual inspector (falling back to inline rendering for non-JSON content).
+
+### Extending the registry
+
+`internal/ui/views.go` is the whole registry — `ctxViews` is an ordered slice of
+`{name, render}`. Adding a view is one function that inspects a decoded value and
+returns styled lines. This is deliberately the seam an extension would plug into
+(the swamp-native end state: a **report extension** that declares "for data
+matching X, render Y", per research proposal G), so it is kept small and
+data-driven rather than a pile of per-model special cases.
 
 ## Playground (CEL query console)
 
@@ -333,8 +382,9 @@ tests load the real workflow list, render a DAG, drill into data content,
 **start a real run and drain its event stream through the UI's Update loop to a
 `succeeded` terminal state**, open each of a real run's outputs through the
 viewer (including HTML), run real CEL queries through the Playground (records,
-list/map/scalar projections, and a syntax error), and verify a failed run's step
-is exposed for resume.
+list/map/scalar projections, and a syntax error), select the right contextual
+view for real JSON artifacts (forecast, bars) and cycle to raw json, and verify a
+failed run's step is exposed for resume.
 
 ## Status / next
 
@@ -352,7 +402,10 @@ Prototype. Current surface:
   renders markdown reports, JSON, plain text, and **HTML built-ins**.
 - **Playground** (done): `p` opens a CEL console over `data.query`; results
   render by shape (records/list/map/scalar) and record rows open in the viewer.
+- **Contextual inspector** (done): JSON artifacts render through a pluggable
+  view registry (forecast/bars/table/fields → json), cycled with `v` — the
+  moldable, type-specific layer.
 
-Deliberately not yet built, in the order the research doc recommends:
-
-- Contextual data views (type-specific rendering) — the moldable layer.
+The roadmap from `docs/smalltalk-browser-research.md` is now complete through
+Phase 5 (the moldable view registry), with reports (proposal G) as the natural
+next substrate for user-authored views.

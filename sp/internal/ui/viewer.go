@@ -11,10 +11,13 @@ import (
 )
 
 // artifactLoadedMsg delivers the content of one run output for the viewer.
+// For JSON artifacts, names/cache carry the applicable contextual views.
 type artifactLoadedMsg struct {
 	title string
 	kind  string
 	lines []string
+	names []string
+	cache map[string][]string
 	err   error
 }
 
@@ -68,6 +71,9 @@ func (m *Model) openDataRef(art runOutput) tea.Cmd {
 	m.viewArtifact = art
 	m.viewTitle = artifactTitle(art)
 	m.viewKind = kindForContentType(art.contentType, art.name)
+	m.viewNames = nil
+	m.viewIdx = 0
+	m.viewCache = nil
 	m.viewLines = []string{styleMuted.Render("loading " + art.name + "…")}
 	return m.loadArtifact(art)
 }
@@ -144,11 +150,25 @@ func (m *Model) loadArtifact(a runOutput) tea.Cmd {
 		}
 		kind := kindForContentType(ct, a.name)
 		content := str(d["content"])
-		return artifactLoadedMsg{
+		msg := artifactLoadedMsg{
 			title: artifactTitle(a),
 			kind:  kind,
 			lines: renderArtifact(kind, content, d, width),
 		}
+		// JSON artifacts get the contextual view registry: a list of applicable
+		// views (type-specific first, raw json last) that the user can cycle.
+		if kind == "json" {
+			innerW := width - 8
+			if innerW < 20 {
+				innerW = 20
+			}
+			if names, cache := dataViews(content, innerW); len(names) > 0 {
+				msg.names = names
+				msg.cache = cache
+				msg.lines = cache[names[0]]
+			}
+		}
+		return msg
 	}
 }
 
@@ -203,8 +223,22 @@ func (m *Model) handleViewKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.viewScroll = 0
 	case "G", "end":
 		m.viewScroll = maxInt(0, len(m.viewLines)-viewH)
+	case "v":
+		m.cycleView(1)
 	}
 	return m, nil
+}
+
+// cycleView switches to the next/previous contextual view of a JSON artifact.
+func (m *Model) cycleView(dir int) {
+	if len(m.viewNames) == 0 {
+		return
+	}
+	m.viewIdx = (m.viewIdx + dir + len(m.viewNames)) % len(m.viewNames)
+	if lines, ok := m.viewCache[m.viewNames[m.viewIdx]]; ok {
+		m.viewLines = lines
+		m.viewScroll = 0
+	}
 }
 
 // viewInnerHeight is the number of content rows the viewer dialog shows.

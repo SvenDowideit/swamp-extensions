@@ -105,6 +105,7 @@ type Model struct {
 	detailTitle  string
 	detailScroll int
 	dataItems    []node
+	dataRefs     []runOutput // parallel to dataItems: refs for the inspector
 	dataSel      int
 
 	// rootKind/rootName identify the object the Detail and Data panes describe
@@ -147,7 +148,9 @@ type Model struct {
 	detailLinks []detailLink
 	detailSel   int
 
-	// Artifact viewer dialog: shows the content of one run output.
+	// Artifact viewer dialog: shows the content of one run output. For JSON
+	// artifacts, viewNames holds the applicable contextual views (forecast,
+	// bars, table, fields, json) and viewIdx selects the active one.
 	viewOpen     bool
 	viewTitle    string
 	viewKind     string // "html" | "markdown" | "json" | "text"
@@ -157,6 +160,9 @@ type Model struct {
 	viewErr      error
 	viewArtifact runOutput
 	viewRunID    string
+	viewNames    []string            // contextual view names, or nil
+	viewIdx      int                 // index into viewNames
+	viewCache    map[string][]string // rendered lines per view name
 
 	// Run input form (shown before starting a run that declares inputs).
 	inputOpen    bool
@@ -332,6 +338,7 @@ type detailLoadedMsg struct {
 	title          string
 	lines          []string
 	items          []node
+	refs           []runOutput
 	links          []detailLink
 	runs           []recentRun
 	err            error
@@ -493,10 +500,10 @@ func (m *Model) selectWorkflow() tea.Cmd {
 			}
 		}
 
-		items := workflowDataItems(ctx, client, name)
+		items, refs := workflowDataItems(ctx, client, name)
 		return detailLoadedMsg{
 			title: name, root: RootWorkflow, name: name,
-			lines: lines, items: items, inputs: inputs, links: links, runs: runs,
+			lines: lines, items: items, refs: refs, inputs: inputs, links: links, runs: runs,
 			lastRunID: lastRunID, lastFailedStep: lastFailedStep,
 		}
 	}
@@ -565,12 +572,20 @@ func runOutputLabel(o runOutput) string {
 	return fmt.Sprintf("%s  [%s]", name, detail)
 }
 
-// workflowDataItems loads data produced by a workflow, flattened into nodes.
-func workflowDataItems(ctx context.Context, client *swamp.Client, name string) []node {
-	items := []node{}
+// dataItem pairs a display node with the ref needed to open it in the
+// contextual inspector. The two slices are always built and sorted together.
+type dataItem struct {
+	node node
+	ref  runOutput
+}
+
+// workflowDataItems loads data produced by a workflow, flattened into nodes,
+// plus parallel refs for the contextual inspector (same order).
+func workflowDataItems(ctx context.Context, client *swamp.Client, name string) ([]node, []runOutput) {
+	var items []dataItem
 	dl, err := client.ListWorkflowData(ctx, name)
 	if err != nil {
-		return items
+		return nil, nil
 	}
 	for _, grp := range asList(dl["groups"]) {
 		gm, ok := grp.(map[string]any)
@@ -586,11 +601,25 @@ func workflowDataItems(ctx context.Context, client *swamp.Client, name string) [
 			if step := str(im["stepName"]); step != "" {
 				sub = step + " · " + sub
 			}
-			items = append(items, node{label: str(im["name"]), sub: sub, kind: "data"})
+			items = append(items, dataItem{
+				node: node{label: str(im["name"]), sub: sub, kind: "data"},
+				ref: runOutput{
+					name:        str(im["name"]),
+					modelName:   str(im["modelName"]),
+					version:     int(numVal(im["version"])),
+					contentType: str(im["contentType"]),
+					kind:        str(im["type"]),
+				},
+			})
 		}
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].label < items[j].label })
-	return items
+	sort.Slice(items, func(i, j int) bool { return items[i].node.label < items[j].node.label })
+	nodes := make([]node, len(items))
+	refs := make([]runOutput, len(items))
+	for i, it := range items {
+		nodes[i], refs[i] = it.node, it.ref
+	}
+	return nodes, refs
 }
 
 // renderWorkflowDetail formats a workflow.get payload into display lines,
@@ -773,7 +802,7 @@ func (m *Model) selectModel() tea.Cmd {
 			}
 		}
 
-		items := []node{}
+		var items []dataItem
 		if dl, err := client.ListData(ctx, name); err == nil {
 			for _, grp := range asList(dl["groups"]) {
 				gm, ok := grp.(map[string]any)
@@ -785,16 +814,30 @@ func (m *Model) selectModel() tea.Cmd {
 					if !ok {
 						continue
 					}
-					items = append(items, node{
-						label: str(im["name"]),
-						sub:   str(im["type"]) + " v" + str(im["version"]) + "  " + humanSize(im["size"]),
-						kind:  "data",
+					items = append(items, dataItem{
+						node: node{
+							label: str(im["name"]),
+							sub:   str(im["type"]) + " v" + str(im["version"]) + "  " + humanSize(im["size"]),
+							kind:  "data",
+						},
+						ref: runOutput{
+							name:        str(im["name"]),
+							modelName:   name,
+							version:     int(numVal(im["version"])),
+							contentType: str(im["contentType"]),
+							kind:        str(im["type"]),
+						},
 					})
 				}
 			}
-			sort.Slice(items, func(i, j int) bool { return items[i].label < items[j].label })
+			sort.Slice(items, func(i, j int) bool { return items[i].node.label < items[j].node.label })
 		}
-		return detailLoadedMsg{title: name, root: RootModel, name: name, lines: lines, items: items}
+		nodes := make([]node, len(items))
+		refs := make([]runOutput, len(items))
+		for i, it := range items {
+			nodes[i], refs[i] = it.node, it.ref
+		}
+		return detailLoadedMsg{title: name, root: RootModel, name: name, lines: lines, items: nodes, refs: refs}
 	}
 }
 

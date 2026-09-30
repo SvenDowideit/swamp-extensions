@@ -71,6 +71,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.items != nil {
 			m.dataItems = msg.items
+			m.dataRefs = msg.refs
 			m.dataSel = 0
 			if m.pendingData != "" {
 				for i, it := range m.dataItems {
@@ -130,6 +131,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case artifactLoadedMsg:
 		m.viewLoading = false
 		m.viewKind = msg.kind
+		m.viewNames = msg.names
+		m.viewCache = msg.cache
+		m.viewIdx = 0
 		if msg.err != nil {
 			m.viewErr = msg.err
 			m.viewLines = []string{styleError.Render("data.get: " + msg.err.Error())}
@@ -318,7 +322,17 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 		case PaneData:
 			if len(m.dataItems) > 0 && m.rootName != "" {
-				item := m.dataItems[clamp(m.dataSel, 0, len(m.dataItems)-1)]
+				sel := clamp(m.dataSel, 0, len(m.dataItems)-1)
+				// Prefer the contextual inspector (type-specific views + cycling)
+				// when we have a ref for the item; fall back to inline render.
+				if sel < len(m.dataRefs) && m.dataRefs[sel].name != "" {
+					ref := m.dataRefs[sel]
+					if ref.modelName == "" {
+						ref.modelName = m.rootName
+					}
+					return m, m.openDataRef(ref)
+				}
+				item := m.dataItems[sel]
 				m.focus = PaneDetail
 				return m, m.loadDataContent(m.rootKind, m.rootName, item.label, m.width)
 			}

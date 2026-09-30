@@ -221,6 +221,12 @@ func (m *Model) renderViewer() string {
 	}
 
 	kindTag := styleKind.Render("[" + m.viewKind + "]")
+	if len(m.viewNames) > 0 {
+		// Show the active contextual view and how many there are.
+		active := m.viewNames[clamp(m.viewIdx, 0, len(m.viewNames)-1)]
+		kindTag = styleKind.Render("["+active+"]") +
+			styleMuted.Render(fmt.Sprintf(" %d/%d views", m.viewIdx+1, len(m.viewNames)))
+	}
 	head := stylePaneTitle.Render(m.viewTitle) + "  " + kindTag
 	if m.viewLoading {
 		head += styleMuted.Render("  loading…")
@@ -243,7 +249,11 @@ func (m *Model) renderViewer() string {
 		body = stampScrollbar(body, paneScroll{total: len(m.viewLines), visible: innerH, top: top}, innerW, innerH)
 	}
 
-	hints := []hint{h("↑↓", "scroll"), h("g/G", "top/end"), h("esc", "close")}
+	hints := []hint{h("↑↓", "scroll"), h("g/G", "top/end")}
+	if len(m.viewNames) > 1 {
+		hints = append(hints, h("v", "next view"))
+	}
+	hints = append(hints, h("esc", "close"))
 	footer := renderHints(hints, innerW)
 	joined := head + "\n" + body + "\n" + styleMuted.Render(footer)
 	return stylePaneFocus.Width(w).Height(ht).Render(joined)

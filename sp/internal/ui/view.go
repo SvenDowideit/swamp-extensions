@@ -23,7 +23,10 @@ func (m *Model) render() string {
 	header := m.renderHeader()
 	footer := m.renderFooter()
 
-	bodyH := m.height - lipgloss.Height(header) - lipgloss.Height(footer)
+	// Keep the total rendered height one row short of the terminal. Emitting
+	// exactly m.height lines makes the terminal scroll by one, pushing the
+	// status bar off the bottom.
+	bodyH := m.height - 1 - lipgloss.Height(header) - lipgloss.Height(footer)
 	if bodyH < 4 {
 		bodyH = 4
 	}
@@ -88,7 +91,12 @@ func (m *Model) renderSpotter() string {
 
 	box := stylePaneFocus.Width(w).Render(
 		stylePaneTitle.Render("Spotter") + "\n" + b.String())
-	box = box + "\n" + styleMuted.Render("↑↓ move  enter jump  esc close")
+	box = box + "\n" + renderHints([]hint{
+		h("type", "search"),
+		h("↑↓", "move"),
+		h("enter", "jump"),
+		h("esc", "close"),
+	}, w)
 
 	// Centre over the background.
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
@@ -118,18 +126,103 @@ func (m *Model) renderHeader() string {
 	return title + " " + repo + strings.Repeat(" ", gap) + right
 }
 
-func (m *Model) renderFooter() string {
-	var b strings.Builder
-	if m.err != nil {
-		b.WriteString(styleError.Render("✗ " + m.err.Error()))
-	} else if m.filtering {
-		b.WriteString(styleKey.Render("/") + m.filter + "▏")
-		b.WriteString(styleMuted.Render("  enter:apply  esc:clear"))
-	} else {
-		b.WriteString(styleMuted.Render(
-			"s search  tab switch  ↑↓ move  enter open  / filter  r reload  q quit"))
+// hint is one key/description pair in the status bar.
+type hint struct {
+	key  string
+	desc string
+}
+
+func h(key, desc string) hint { return hint{key: key, desc: desc} }
+
+// keyHints returns the context-sensitive key hints for the current state.
+func (m *Model) keyHints() []hint {
+	switch {
+	case m.filtering:
+		return []hint{
+			h("type", "filter models"),
+			h("enter", "apply"),
+			h("esc", "clear"),
+		}
+	case m.focus == PaneDetail:
+		return []hint{
+			h("[detail]", ""),
+			h("↑↓", "scroll"),
+			h("pgup/pgdn", "page"),
+			h("tab", "pane"),
+			h("s", "search"),
+			h("esc", "models"),
+			h("r", "reload"),
+			h("q", "quit"),
+		}
+	case m.focus == PaneData:
+		return []hint{
+			h("[data]", ""),
+			h("↑↓", "move"),
+			h("enter", "view content"),
+			h("tab", "pane"),
+			h("s", "search"),
+			h("esc", "models"),
+			h("r", "reload"),
+			h("q", "quit"),
+		}
+	default: // PaneModels
+		return []hint{
+			h("[models]", ""),
+			h("↑↓", "move"),
+			h("enter", "open"),
+			h("/", "filter"),
+			h("tab", "pane"),
+			h("s", "search"),
+			h("r", "reload"),
+			h("q", "quit"),
+		}
 	}
-	return "\n" + b.String()
+}
+
+// renderHints lays out hints on one line, dropping trailing hints that would
+// overflow width. Each hint renders as "key desc" with the key accented.
+func renderHints(hints []hint, width int) string {
+	var b strings.Builder
+	used := 0
+	for i, hn := range hints {
+		// Section labels like "[models]" render dimmed with no key styling.
+		var seg string
+		if strings.HasPrefix(hn.key, "[") {
+			seg = stylePaneTitle.Render(hn.key)
+		} else {
+			seg = styleKey.Render(hn.key)
+			if hn.desc != "" {
+				seg += " " + styleMuted.Render(hn.desc)
+			}
+		}
+		segW := lipgloss.Width(seg)
+		sepW := 0
+		if i > 0 {
+			sepW = 2
+		}
+		if used+sepW+segW > width {
+			break
+		}
+		if i > 0 {
+			b.WriteString("  ")
+			used += sepW
+		}
+		b.WriteString(seg)
+		used += segW
+	}
+	return b.String()
+}
+
+func (m *Model) renderFooter() string {
+	switch {
+	case m.err != nil:
+		return styleError.Render("✗ " + m.err.Error())
+	case m.filtering:
+		return styleKey.Render("/") + m.filter + "▏  " +
+			renderHints(m.keyHints(), m.width)
+	default:
+		return renderHints(m.keyHints(), m.width)
+	}
 }
 
 func (m *Model) pane(title string, focused bool, content string, w, h int) string {
@@ -139,8 +232,10 @@ func (m *Model) pane(title string, focused bool, content string, w, h int) strin
 		st = stylePaneFocus
 		titleSt = stylePaneTitle
 	}
+	// w includes 2 border + 2 padding columns; h includes 2 border rows plus
+	// the 1-row pane title.
 	innerW := w - 4
-	innerH := h - 2
+	innerH := h - 3
 	if innerW < 1 {
 		innerW = 1
 	}

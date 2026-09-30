@@ -95,4 +95,29 @@ threshold (default 75). Refresh the bundled skill with
 `swamp model @svendowideit/meta-factory method run installSkill meta-factory
 --input target=both`.
 
+## Extension release hygiene
+
+**Whenever you change an extension, prepare it for release and report it.**
+Changing `extensions/<type>/<name>/**` (source, manifest, README, workflows,
+bundled files) is not finished until the extension is release-ready:
+
+1. **Bump the version.** Run `swamp extension version --manifest <manifest>`
+   and set both the manifest `version:` and the model's `version:` to the
+   returned `nextVersion` — they must match. Add or update the model's
+   `upgrades:` entry (`toVersion` = the new version) when the model version
+   moves.
+2. **Verify.** Run the tests (`~/.swamp/deno/deno test`), `deno check`,
+   `swamp extension fmt <manifest> --check`, `swamp workflow validate` for any
+   workflow, and the meta-factory score.
+3. **Record the adversarial review** for the new content hash (needed to push).
+4. **Tell the user**, in the same message: the extension name, old → new
+   version, what changed, the verification result, and the exact
+   `swamp extension push` command to publish it. Publishing is a separate,
+   outward-facing step — prepare and report it, but do not push unless asked.
+
+This applies to every extension touched, including ones changed only as a
+dependency of another (e.g. extending a shared release-installer). A change
+that is committed but unpublished leaves other machines pulling a stale bundle
+— the exact failure mode this rule exists to prevent.
+
 

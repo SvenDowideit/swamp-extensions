@@ -1,0 +1,111 @@
+manifestVersion: 1
+name: "@svendowideit/opencode"
+version: "2026.09.30.1"
+description: >
+  Keep the opencode CLI current and themed: track the latest release, install
+  or update the binary on this machine, and ship and activate the Borland
+  Modern Blue theme.
+
+  WHAT IT DOES
+
+    opencode (https://opencode.ai) is a terminal AI coding agent published as a
+    single self-contained binary. This extension closes the loop around it on
+    the machine it runs on: it resolves the newest release and the exact archive
+    for this platform (recording its SHA-256), then installs or upgrades the
+    binary — idempotently, refusing an unverified archive and refusing to fight
+    a system package manager. It ships the Borland Modern Blue theme, sets it as
+    the default, and a reusable theme workflow installs and activates any theme
+    separately or together. Prefer it over the upstream install script: the
+    download is checksum-verified before it is written, and re-running the
+    workflow is the upgrade path.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/opencode
+
+  DEPENDENCIES
+
+    `@svendowideit/github-release-install`, declared in `dependencies:` and
+    installed by the single pull above. It resolves, selects, downloads and
+    verifies the release archive; the bundled workflow calls it. No other
+    dependency, and nothing else is installed on the host.
+
+  RUN
+
+      # Install or update opencode and activate the Borland theme. Idempotent.
+      swamp workflow run @svendowideit/opencode-install
+
+      # Install the theme only, without touching the binary.
+      swamp workflow run @svendowideit/opencode-theme
+
+      # Activate an already-installed theme without rewriting its file.
+      swamp workflow run @svendowideit/opencode-theme \
+        --input install=false --input theme=github
+
+      # Ask what is installed right now.
+      swamp model @svendowideit/opencode method run sync opencode
+
+  CONFIGURE
+
+    Workflow inputs (@svendowideit/opencode-install), all optional:
+
+      repo           GitHub repository publishing opencode  (default anomalyco/opencode)
+      installDir     Where to install the binary            (default: first writable of
+                                                            ~/.opencode/bin, /usr/local/bin, ~/.local/bin)
+      downloadDir    Where the verified archive is staged   (default ~/.cache/opencode)
+      version        Release to install; empty = latest     (default "")
+      flavor         auto | musl | baseline                 (default auto)
+      theme          Theme to install and activate          (default borland_modern_blue)
+      installTheme   Install + activate the theme           (default true)
+      force          Reinstall and rewrite theme files      (default false)
+      githubToken    GitHub token for the releases API      (default: GITHUB_TOKEN,
+                                                            GH_TOKEN, or `gh auth login`)
+
+    The reusable @svendowideit/opencode-theme workflow takes `theme`,
+    `themePath`, `themeJson`, `configDir`, `install`, `set` and `force`. The
+    models also take globals (`path`, `configDir`, `theme`); a per-call
+    `--input` wins over a global. Model methods: `sync`, `install`,
+    `installTheme`, `setTheme`, `print`; see the README for the full tables.
+
+  WHAT IT INSTALLS
+
+    The `opencode` binary at the chosen install directory (default: the first
+    writable of ~/.opencode/bin, /usr/local/bin, ~/.local/bin) — the first being
+    where the upstream installer puts it. The install output and the final
+    verify step log the binary's path (run `<path> --version` to check it). It
+    also writes the theme to ~/.config/opencode/themes/borland_modern_blue.json
+    and selects it in ~/.config/opencode/tui.json (preserving other keys).
+    Nothing else is installed, and the only schedule is the workflow's own daily
+    upgrade trigger.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - opencode.ts
+  - opencode_shared.ts
+
+workflows:
+  - opencode-install.yaml
+  - opencode-theme.yaml
+
+dependencies:
+  - "@svendowideit/github-release-install"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - themes/borland_modern_blue.json
+  - opencode_shared_test.ts
+  - opencode_test.ts
+  - opencode_methods_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

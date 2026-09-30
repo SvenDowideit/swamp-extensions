@@ -1,0 +1,112 @@
+id: c5a7f2c7-2a00-4498-bbb1-42740595484e
+name: '@svendowideit/opencode-theme'
+description: |
+  Install and/or activate an opencode theme — separately or together — without
+  touching the opencode binary. This is the reusable theme seam that other
+  workflows call.
+
+  Steps: install-theme → set-theme.
+
+  install-theme writes the theme JSON into `~/.config/opencode/themes/`;
+  set-theme selects it in `~/.config/opencode/tui.json`, preserving other keys.
+  Both steps are idempotent and each is gated by its own input, so the same
+  workflow installs only, activates only, or does both.
+
+  Install and activate the bundled Borland theme (the default):
+
+      swamp workflow run @svendowideit/opencode-theme
+
+  Activate a theme that is already installed, without rewriting its file:
+
+      swamp workflow run @svendowideit/opencode-theme \
+        --input install=false --input theme=github
+
+  Install a theme from a file without activating it:
+
+      swamp workflow run @svendowideit/opencode-theme \
+        --input set=false --input theme=my-theme \
+        --input themePath=./my-theme.json
+tags: {}
+inputs:
+  properties:
+    theme:
+      type: string
+      default: borland_modern_blue
+      description: Theme name (written as <configDir>/themes/<name>.json).
+    themePath:
+      type: string
+      default: ""
+      description: >-
+        Path to a theme JSON file to install. Empty uses the bundled theme named
+        by `theme`.
+    themeJson:
+      type: string
+      default: ""
+      description: >-
+        Inline theme JSON to install. Wins over themePath and the bundled theme.
+    configDir:
+      type: string
+      default: ~/.config/opencode
+      description: opencode config directory holding `themes/` and `tui.json`.
+    install:
+      type: boolean
+      default: true
+      description: Write the theme file into <configDir>/themes/.
+    set:
+      type: boolean
+      default: true
+      description: Select the theme in <configDir>/tui.json.
+    force:
+      type: boolean
+      default: false
+      description: Rewrite the theme file even when it already matches.
+  required: []
+jobs:
+  - name: main
+    description: Install the theme file, then select it as the active theme.
+    steps:
+      - name: install-theme
+        description: >-
+          Write the theme JSON into <configDir>/themes/. Skipped when
+          `install=false` (for activating an already-installed theme).
+        guard: ${{ inputs.install == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/opencode"
+          modelName: opencode
+          methodName: installTheme
+          globalArgs:
+            configDir: ${{ inputs.configDir }}
+            theme: ${{ inputs.theme }}
+          inputs:
+            theme: ${{ inputs.theme }}
+            themePath: ${{ inputs.themePath }}
+            themeJson: ${{ inputs.themeJson }}
+            force: ${{ inputs.force }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: set-theme
+        description: >-
+          Select the theme in <configDir>/tui.json, preserving other keys.
+          Skipped when `set=false` (install only).
+        guard: ${{ inputs.set == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/opencode"
+          modelName: opencode
+          methodName: setTheme
+          globalArgs:
+            configDir: ${{ inputs.configDir }}
+            theme: ${{ inputs.theme }}
+          inputs:
+            theme: ${{ inputs.theme }}
+        dependsOn:
+          - step: install-theme
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

@@ -78,10 +78,14 @@ go build -o sp .
 ./sp --server ws://host:9090 --token <name>.<secret>   # attach to a remote serve
 ```
 
+A **context-sensitive status bar** at the bottom always shows the keys valid for
+the current state (which pane has focus, or whether you are typing). Hints that
+would overflow a narrow terminal are dropped from the right.
+
 Keys: `s` (or `ctrl+p`) opens the **Spotter** — one search box over models,
 workflows, and the data catalog; type to filter, `↑`/`↓` to move, `enter` to
-jump. Otherwise: `tab`/`h`/`l` switch panes, `↑`/`↓` move, `enter` open, `/`
-filter models, `r` reload, `q` quit.
+jump. Otherwise: `tab`/`h`/`l` switch panes, `↑`/`↓` move (or scroll the Detail
+pane), `enter` open / view content, `/` filter models, `r` reload, `q` quit.
 
 ## Spotter (global search)
 

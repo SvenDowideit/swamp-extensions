@@ -118,3 +118,57 @@ func TestVisibleSpotterRanksAndFilters(t *testing.T) {
 		t.Fatalf("empty query should show up to all items, got %d", len(got))
 	}
 }
+
+func TestHintsAreContextSensitive(t *testing.T) {
+	m := sampleModel()
+
+	m.focus = PaneModels
+	got := strip(renderHints(m.keyHints(), 200))
+	if !strings.Contains(got, "[models]") || !strings.Contains(got, "open") {
+		t.Fatalf("models hints wrong: %q", got)
+	}
+
+	m.focus = PaneDetail
+	got = strip(renderHints(m.keyHints(), 200))
+	if !strings.Contains(got, "[detail]") || !strings.Contains(got, "scroll") {
+		t.Fatalf("detail hints wrong: %q", got)
+	}
+
+	m.focus = PaneData
+	got = strip(renderHints(m.keyHints(), 200))
+	if !strings.Contains(got, "[data]") || !strings.Contains(got, "view content") {
+		t.Fatalf("data hints wrong: %q", got)
+	}
+
+	m.filtering = true
+	got = strip(renderHints(m.keyHints(), 200))
+	if !strings.Contains(got, "filter models") {
+		t.Fatalf("filter hints wrong: %q", got)
+	}
+}
+
+func TestHintsDropWhenNarrow(t *testing.T) {
+	m := sampleModel()
+	m.focus = PaneModels
+	wide := strip(renderHints(m.keyHints(), 400))
+	narrow := strip(renderHints(m.keyHints(), 20))
+	if len(narrow) >= len(wide) {
+		t.Fatalf("narrow bar should drop hints: wide=%q narrow=%q", wide, narrow)
+	}
+	if !strings.Contains(narrow, "[models]") {
+		t.Fatalf("first hint should survive: %q", narrow)
+	}
+}
+
+func TestFooterRendersError(t *testing.T) {
+	m := sampleModel()
+	m.err = errTest{}
+	got := strip(m.renderFooter())
+	if !strings.Contains(got, "boom") {
+		t.Fatalf("footer should show error, got %q", got)
+	}
+}
+
+type errTest struct{}
+
+func (errTest) Error() string { return "boom" }

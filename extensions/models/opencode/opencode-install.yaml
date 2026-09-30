@@ -1,0 +1,202 @@
+id: bf405980-8b08-4c0e-8f6a-f87be78d1d99
+name: '@svendowideit/opencode-install'
+description: |
+  Install or update the opencode CLI on the machine this workflow runs on, and
+  install and activate the bundled borland_modern_blue theme by default.
+
+  Steps (install): fetch-release → install → install-theme → set-theme → verify
+
+  fetch-release calls @svendowideit/github-release-install-fetch, which
+  resolves the newest opencode release, selects the archive for this platform,
+  records its SHA-256, downloads it and verifies the bytes before writing a
+  checksum-verified archive. install then extracts the `opencode` binary from
+  that verified archive, checks it once more, and replaces the installed binary
+  — idempotently: it skips the install when the target version is already
+  present (unless force is set). install-theme writes the theme into
+  `~/.config/opencode/themes/` and set-theme selects it in
+  `~/.config/opencode/tui.json`, preserving other keys. Every step is safe to
+  re-run.
+
+  Run it on any machine to make opencode current, with the Borland theme active:
+
+      swamp workflow run @svendowideit/opencode-install
+
+  Pin a version, or skip the theme steps:
+
+      swamp workflow run @svendowideit/opencode-install \
+        --input version=1.18.33 --input installTheme=false
+
+  The workflow auto-registers the `github-release` and `opencode` model
+  instances on first run; nothing needs creating by hand. The daily trigger
+  upgrades the binary and re-applies the theme as new releases appear; remove
+  `trigger:` if you would rather upgrade by hand.
+tags: {}
+trigger:
+  schedule: "0 5 * * *"
+inputs:
+  properties:
+    repo:
+      type: string
+      default: anomalyco/opencode
+      description: GitHub repository (owner/name) publishing the opencode releases.
+    installDir:
+      type: string
+      default: ""
+      description: >-
+        Directory to install the opencode binary into. Empty picks the first
+        writable of ~/.opencode/bin, /usr/local/bin, ~/.local/bin.
+    downloadDir:
+      type: string
+      default: ~/.cache/opencode
+      description: >-
+        Directory the checksum-verified release archive is staged in before
+        install extracts it.
+    version:
+      type: string
+      default: ""
+      description: >-
+        Release to install (e.g. 1.18.33 or v1.18.33). Empty installs the latest.
+    flavor:
+      type: string
+      enum:
+        - auto
+        - musl
+        - baseline
+      default: auto
+      description: >-
+        opencode build flavor. auto uses the stock build; musl selects the
+        musl build (Alpine), baseline the non-AVX2 build.
+    theme:
+      type: string
+      default: borland_modern_blue
+      description: Theme name to install and activate.
+    installTheme:
+      type: boolean
+      default: true
+      description: >-
+        Install the bundled theme and set it as the default. Set false to
+        update the binary only.
+    force:
+      type: boolean
+      default: false
+      description: >-
+        Reinstall even when the target version is already installed, and
+        rewrite the theme files even if they already match.
+    githubToken:
+      type: string
+      default: ""
+      description: >-
+        GitHub token for the releases API. Empty falls back to GITHUB_TOKEN /
+        GH_TOKEN, then the authenticated `gh` CLI.
+  required: []
+jobs:
+  - name: main
+    description: Fetch and verify the release archive, install the binary, then install and activate the theme.
+    steps:
+      - name: fetch-release
+        description: >-
+          Resolve the newest opencode release, select this platform's archive,
+          download it, and verify it against its digest — landing a
+          checksum-verified archive on disk. This is the only writer of the
+          `release` and `archive` resources in a run.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/github-release-install-fetch"
+          inputs:
+            repo: ${{ inputs.repo }}
+            version: ${{ inputs.version }}
+            stem: opencode
+            assetPattern: '${{ inputs.flavor == "musl" ? "^(?<stem>opencode)[-_](?<os>[A-Za-z0-9]+)[-_](?<arch>[A-Za-z0-9_]+?)-musl(?:\\.(?<ext>tar\\.gz|zip))?$" : inputs.flavor == "baseline" ? "^(?<stem>opencode)[-_](?<os>[A-Za-z0-9]+)[-_](?<arch>[A-Za-z0-9_]+?)-baseline(?:\\.(?<ext>tar\\.gz|zip))?$" : "^(?<stem>opencode)[-_](?<os>[A-Za-z0-9]+)[-_](?<arch>[A-Za-z0-9_]+?)(?:\\.(?<ext>tar\\.gz|zip))?$" }}'
+            outputDir: ${{ inputs.downloadDir }}
+            force: ${{ inputs.force }}
+            githubToken: ${{ inputs.githubToken }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: install
+        description: >-
+          Extract the `opencode` binary from the verified archive, verify it once
+          more against the recorded SHA-256, and install it. The model locates
+          whatever is already installed and skips the install when the target
+          version is present (unless force is set), so this step is safe on every
+          pass. It is the only writer of the `installed` and `install` resources
+          in a run.
+        task:
+          type: model_method
+          modelType: "@svendowideit/opencode"
+          modelName: opencode
+          methodName: install
+          inputs:
+            version: ${{ inputs.version }}
+            installDir: ${{ inputs.installDir }}
+            force: ${{ inputs.force }}
+            archivePath: ${{ data.latest("github-release", "archive").attributes.?path.orValue("") }}
+            archiveName: ${{ data.latest("github-release", "archive").attributes.?archiveName.orValue("") }}
+            releaseVersion: ${{ data.latest("github-release", "archive").attributes.?version.orValue("") }}
+            checksum: ${{ data.latest("github-release", "archive").attributes.?checksum.orValue("") }}
+        dependsOn:
+          - step: fetch-release
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: install-theme
+        description: >-
+          Write the bundled theme into ~/.config/opencode/themes/. Skipped when
+          installTheme is false. Idempotent: an identical file is left alone.
+        guard: ${{ inputs.installTheme == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/opencode"
+          modelName: opencode
+          methodName: installTheme
+          inputs:
+            theme: ${{ inputs.theme }}
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: install
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: set-theme
+        description: >-
+          Select the theme in ~/.config/opencode/tui.json, preserving other keys.
+          Skipped when installTheme is false.
+        guard: ${{ inputs.installTheme == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/opencode"
+          modelName: opencode
+          methodName: setTheme
+          inputs:
+            theme: ${{ inputs.theme }}
+        dependsOn:
+          - step: install-theme
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: verify
+        description: >-
+          Print the installed opencode version, the binary path, and the active
+          theme, so the run log ends with what is now on the machine.
+        task:
+          type: model_method
+          modelType: "@svendowideit/opencode"
+          modelName: opencode
+          methodName: print
+          inputs:
+            theme: ${{ inputs.theme }}
+        dependsOn:
+          - step: install
+            condition:
+              type: always
+          - step: set-theme
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

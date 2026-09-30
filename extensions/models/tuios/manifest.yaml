@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/tuios"
-version: "2026.09.30.2"
+version: "2026.09.30.3"
 description: >
   Keep TUIOS current and always-on: track the latest release, know exactly what
   to download for this machine, install, upgrade, restart or remove it, and run
@@ -15,9 +15,18 @@ description: >
     verifies it, then installs, upgrades or removes the `tuios` binary —
     idempotently, refusing an unverified archive and refusing to fight a system
     package manager. A bundled workflow does the lot: it installs or upgrades,
-    restarts the systemd daemon so it runs the new binary, and prints the
+    restarts the systemd daemon so it runs the new binary, drops in two bundled
+    themes and selects one if you have not chosen a theme yet, and prints the
     version, the binary's path and the exact `systemctl --user status` command
     to inspect the service.
+
+    It also themes TUIOS. Two themes ship with the extension — **Swamp Club**
+    (neon green on near-black) and **Borland Modern Blue** (the classic turbo
+    palette) — installable by id, and any other theme can be installed from an
+    inline JSON document or a file with `installTheme`. `setTheme` flips
+    `appearance.theme` in `config.toml`; TUIOS watches that file, so the change
+    is live without a restart. A reusable `@svendowideit/tuios-theme` workflow
+    wraps both, so another workflow can install and select a theme in one call.
 
     Release resolution, platform selection, checksum lookup and download are
     delegated to `@svendowideit/github-release-install`, so this extension keeps
@@ -55,6 +64,19 @@ description: >
       # Remove the binary (leaving any systemd service in place).
       swamp workflow run @svendowideit/tuios-install --input uninstall=true
 
+      # Install a bundled theme and make it active in one reusable call.
+      swamp workflow run @svendowideit/tuios-theme \
+        --input themeId=borland_modern_blue
+
+      # Install any theme from an inline document (selects it too).
+      swamp workflow run @svendowideit/tuios-theme \
+        --input themeId=solarized \
+        --input themeJson='{"id":"solarized","bg":"#002b36","fg":"#839496"}'
+
+      # Select a theme that is already on disk (nothing is written).
+      swamp workflow run @svendowideit/tuios-theme \
+        --input themeId=dracula --input select=true
+
   CONFIGURE
 
     Workflow inputs (all optional, with defaults):
@@ -70,6 +92,8 @@ description: >
       manageService  Create + start the daemon service   (default true)
       serviceName    systemd user service name           (default tuios)
       uninstall      Remove the binary instead           (default false)
+      installThemes  Install the bundled themes and pick a default (default true)
+      defaultTheme   Theme to select when none is set yet (default swamp_club)
       githubToken    GitHub token for the releases API   (default: GITHUB_TOKEN,
                                                          GH_TOKEN, or `gh auth token`)
 
@@ -90,10 +114,20 @@ description: >
     `manageService` is true it also writes one systemd *user* unit named
     `tuios.service` at `~/.config/systemd/user/`, enables user lingering,
     starts/enables the service so the daemon runs at boot, and restarts it
-    after an upgrade. Nothing else is installed, and `manageService=false`
-    installs no service. Inspect the service at any time with:
+    after an upgrade. It also writes two theme files — `swamp_club.json` and
+    `borland_modern_blue.json` — into the TUIOS themes directory
+    (`$XDG_CONFIG_HOME/tuios/themes`, default `~/.config/tuios/themes`) and, only
+    when `config.toml` has no `appearance.theme` yet, sets it to `swamp_club`; a
+    theme you have already chosen is never overwritten. Set `installThemes=false`
+    to skip the themes entirely. Nothing else is installed, and
+    `manageService=false` installs no service. Inspect the service at any time
+    with:
 
         systemctl --user status tuios.service
+
+    Theme files land at `<themesDir>/<id>.json`; TUIOS re-reads that directory
+    on every call, so a theme is selectable immediately. Check what is present
+    and active with `tuios list-themes --json` (`active` and `themes_dir`).
 
 repository: https://github.com/svendowideit/swamp-extensions
 
@@ -108,6 +142,7 @@ models:
 
 workflows:
   - tuios-install.yaml
+  - tuios-theme.yaml
 
 dependencies:
   - "@svendowideit/github-release-install"
@@ -116,6 +151,8 @@ dependencies:
 additionalFiles:
   - README.md
   - LICENSE.txt
+  - themes/swamp_club.json
+  - themes/borland_modern_blue.json
   - tuios_shared_test.ts
   - tuios_installed_test.ts
   - tuios_installed_methods_test.ts

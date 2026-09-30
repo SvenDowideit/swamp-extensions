@@ -11,16 +11,25 @@ import { assertEquals, assertFalse, assertThrows } from "jsr:@std/assert@1";
 import { TarStream, type TarStreamInput } from "jsr:@std/tar@0.1.10/tar-stream";
 import {
   assertAbsoluteDir,
+  BUNDLED_THEMES,
   compareVersions,
+  DEFAULT_THEME,
   detectPackageManagerOwner,
   expandHome,
   extractFromTarGz,
   isOnPath,
   normalizeVersion,
   parseArchiveName,
+  parseTheme,
   parseVersionOutput,
+  readConfiguredTheme,
   selectInstallDir,
+  setConfiguredTheme,
   stemForFlavor,
+  themeFileName,
+  tuiosConfigDir,
+  tuiosConfigPath,
+  tuiosThemesDir,
   verifySha256,
   versionsEqual,
 } from "./tuios_shared.ts";
@@ -195,4 +204,90 @@ Deno.test("extractFromTarGz returns the named member", async () => {
   const found = await extractFromTarGz(bytes, "tuios");
   assertEquals(new TextDecoder().decode(found!), "the binary");
   assertEquals(await extractFromTarGz(bytes, "README.md"), null);
+});
+
+// ---------------------------------------------------------------------------
+// Themes
+// ---------------------------------------------------------------------------
+
+Deno.test("tuiosConfigDir honours XDG_CONFIG_HOME then falls back to ~/.config", () => {
+  assertEquals(tuiosConfigDir("/home/me", ""), "/home/me/.config/tuios");
+  assertEquals(tuiosConfigDir("/home/me", "/xdg"), "/xdg/tuios");
+  assertEquals(tuiosConfigDir("/home/me", "/xdg/"), "/xdg/tuios");
+  assertEquals(tuiosThemesDir("/home/me", "/xdg"), "/xdg/tuios/themes");
+  assertEquals(
+    tuiosConfigPath("/home/me", ""),
+    "/home/me/.config/tuios/config.toml",
+  );
+});
+
+Deno.test("themeFileName appends .json and sanitises the id", () => {
+  assertEquals(themeFileName("swamp_club"), "swamp_club.json");
+  assertEquals(themeFileName("a/b c"), "a_b_c.json");
+});
+
+Deno.test("BUNDLED_THEMES ships swamp_club and borland_modern_blue, default swamp_club", () => {
+  assertEquals([...BUNDLED_THEMES].sort(), [
+    "borland_modern_blue",
+    "swamp_club",
+  ]);
+  assertEquals(DEFAULT_THEME, "swamp_club");
+});
+
+Deno.test("parseTheme accepts a valid theme and rejects junk", () => {
+  const ok = parseTheme(
+    '{"id":"x","fg":"#fff","bg":"#000","dark":true,"chrome":{"accent":"#0f0"}}',
+  );
+  assertEquals(ok?.id, "x");
+  assertEquals(parseTheme('{"id":"","fg":"#fff"}'), null);
+  assertEquals(parseTheme('{"fg":"#fff"}'), null);
+  assertEquals(parseTheme('{"id":"x","fg":5}'), null);
+  assertEquals(parseTheme('{"id":"x","chrome":{"accent":5}}'), null);
+  assertEquals(parseTheme("not json"), null);
+  assertEquals(parseTheme("[]"), null);
+});
+
+Deno.test("readConfiguredTheme reads only the [appearance] theme line", () => {
+  assertEquals(
+    readConfiguredTheme("[appearance]\ntheme = 'borland_modern_blue'\n"),
+    "borland_modern_blue",
+  );
+  assertEquals(
+    readConfiguredTheme('[appearance]\ntheme = "nord"\n'),
+    "nord",
+  );
+  assertEquals(readConfiguredTheme("[appearance]\ntheme = ''\n"), "");
+  assertEquals(readConfiguredTheme("[dock]\ntheme = 'wrong'\n"), "");
+  assertEquals(readConfiguredTheme("[other]\nx = 1\n"), "");
+  assertEquals(readConfiguredTheme(""), "");
+});
+
+Deno.test("setConfiguredTheme replaces, inserts, or appends the theme", () => {
+  const replaced = setConfiguredTheme(
+    "[appearance]\nborder_style = 'rounded'\ntheme = 'nord'\n",
+    "swamp_club",
+  );
+  assertEquals(replaced.includes("theme = 'swamp_club'"), true);
+  assertEquals(replaced.includes("theme = 'nord'"), false);
+  assertEquals(replaced.includes("border_style = 'rounded'"), true);
+
+  const inserted = setConfiguredTheme(
+    "[appearance]\nborder_style = 'rounded'\n",
+    "swamp_club",
+  );
+  assertEquals(
+    inserted,
+    "[appearance]\ntheme = 'swamp_club'\nborder_style = 'rounded'\n",
+  );
+
+  const appended = setConfiguredTheme("[dock]\n", "swamp_club");
+  assertEquals(appended, "[dock]\n\n[appearance]\ntheme = 'swamp_club'\n");
+
+  // A theme line outside [appearance] is left alone; one is inserted instead.
+  const scoped = setConfiguredTheme(
+    "[dock]\ntheme = 'other'\n[appearance]\nx = 1\n",
+    "swamp_club",
+  );
+  assertEquals(scoped.includes("theme = 'other'"), true);
+  assertEquals(scoped.includes("theme = 'swamp_club'"), true);
 });

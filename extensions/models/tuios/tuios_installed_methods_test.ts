@@ -558,3 +558,246 @@ Deno.test("uninstall rejects a relative installDir", async () => {
     "absolute",
   );
 });
+
+// ---------------------------------------------------------------------------
+// themes
+// ---------------------------------------------------------------------------
+
+const EXT_DIR = new URL(".", import.meta.url).pathname;
+
+/** Point the test context's extensionFile at the real extension directory. */
+function withExtensionFiles<T extends { context: unknown }>(ctx: T): T {
+  (ctx.context as Record<string, unknown>).extensionFile = (rel: string) =>
+    `${EXT_DIR}${rel}`;
+  return ctx;
+}
+
+function runInstallTheme(
+  ctx: { context: unknown },
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const full = {
+    themeId: "",
+    themeJson: "",
+    sourcePath: "",
+    themesDir: "",
+    select: false,
+    force: false,
+    configPath: "",
+    ...args,
+  };
+  return (model.methods.installTheme.execute as unknown as (
+    a: Record<string, unknown>,
+    c: unknown,
+  ) => Promise<unknown>)(full, ctx.context);
+}
+
+function runSetTheme(
+  ctx: { context: unknown },
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const full = { themeId: "", configPath: "", ...args };
+  return (model.methods.setTheme.execute as unknown as (
+    a: Record<string, unknown>,
+    c: unknown,
+  ) => Promise<unknown>)(full, ctx.context);
+}
+
+function runInstallBundledThemes(
+  ctx: { context: unknown },
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const full = {
+    themes: ["swamp_club", "borland_modern_blue"],
+    themesDir: "",
+    defaultTheme: "swamp_club",
+    force: false,
+    configPath: "",
+    ...args,
+  };
+  return (model.methods.installBundledThemes.execute as unknown as (
+    a: Record<string, unknown>,
+    c: unknown,
+  ) => Promise<unknown>)(full, ctx.context);
+}
+
+Deno.test("installTheme writes a bundled theme without selecting it", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const ctx = withExtensionFiles(
+      createModelTestContext({
+        globalArgs: { ...GLOBALS },
+        methodName: "installTheme",
+      }),
+    );
+    await runInstallTheme(ctx, {
+      themeId: "borland_modern_blue",
+      themesDir: dir,
+    });
+
+    const written = await Deno.readTextFile(`${dir}/borland_modern_blue.json`);
+    assertEquals(JSON.parse(written).id, "borland_modern_blue");
+
+    const theme = ctx.getWrittenResources().find((r) => r.specName === "theme");
+    assertEquals(theme?.data.installed, true);
+    assertEquals(theme?.data.selected, false);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("installTheme writes an inline theme and selects it when asked", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const ctx = withExtensionFiles(
+      createModelTestContext({
+        globalArgs: { ...GLOBALS },
+        methodName: "installTheme",
+      }),
+    );
+    const json = JSON.stringify({
+      id: "solarized",
+      bg: "#002b36",
+      fg: "#839496",
+    });
+    await runInstallTheme(ctx, {
+      themeId: "solarized",
+      themeJson: json,
+      themesDir: dir,
+      configPath: `${dir}/config.toml`,
+      select: true,
+    });
+
+    assertEquals(
+      JSON.parse(await Deno.readTextFile(`${dir}/solarized.json`)).fg,
+      "#839496",
+    );
+    const toml = await Deno.readTextFile(`${dir}/config.toml`);
+    assertEquals(toml.includes("theme = 'solarized'"), true);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("installTheme rejects invalid theme JSON", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const ctx = withExtensionFiles(
+      createModelTestContext({
+        globalArgs: { ...GLOBALS },
+        methodName: "installTheme",
+      }),
+    );
+    await assertRejects(
+      () =>
+        runInstallTheme(ctx, {
+          themeId: "bad",
+          themeJson: "not json",
+          themesDir: dir,
+        }),
+      Error,
+      "valid TUIOS theme",
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("installTheme requires content for a non-bundled id", async () => {
+  const ctx = withExtensionFiles(
+    createModelTestContext({
+      globalArgs: { ...GLOBALS },
+      methodName: "installTheme",
+    }),
+  );
+  await assertRejects(
+    () => runInstallTheme(ctx, { themeId: "nope" }),
+    Error,
+    "No theme content",
+  );
+});
+
+Deno.test("setTheme creates config.toml and is idempotent", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const configPath = `${dir}/config.toml`;
+    const ctx = withExtensionFiles(
+      createModelTestContext({
+        globalArgs: { ...GLOBALS },
+        methodName: "setTheme",
+      }),
+    );
+    await runSetTheme(ctx, { themeId: "swamp_club", configPath });
+    assertEquals(
+      (await Deno.readTextFile(configPath)).includes("theme = 'swamp_club'"),
+      true,
+    );
+
+    const second = ctx.getWrittenResources().length;
+    await runSetTheme(ctx, { themeId: "swamp_club", configPath });
+    const set = ctx.getWrittenResources()[second];
+    assertEquals(set.specName, "themeSelection");
+    assertEquals(set.data.changed, false);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("installBundledThemes installs both and selects swamp_club by default", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const configPath = `${dir}/config.toml`;
+    const ctx = withExtensionFiles(
+      createModelTestContext({
+        globalArgs: { ...GLOBALS },
+        methodName: "installBundledThemes",
+      }),
+    );
+    await runInstallBundledThemes(ctx, { themesDir: dir, configPath });
+
+    for (const id of ["swamp_club", "borland_modern_blue"]) {
+      const theme = JSON.parse(await Deno.readTextFile(`${dir}/${id}.json`));
+      assertEquals(theme.id, id);
+    }
+    assertEquals(
+      (await Deno.readTextFile(configPath)).includes("theme = 'swamp_club'"),
+      true,
+    );
+
+    const themes = ctx.getWrittenResources().find((r) =>
+      r.specName === "themes"
+    );
+    assertEquals(themes?.data.selected, true);
+    assertEquals((themes?.data.installed as unknown[]).length, 2);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("installBundledThemes never overwrites a user's chosen theme", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const configPath = `${dir}/config.toml`;
+    await Deno.writeTextFile(
+      configPath,
+      "[appearance]\ntheme = 'borland_modern_blue'\n",
+    );
+    const ctx = withExtensionFiles(
+      createModelTestContext({
+        globalArgs: { ...GLOBALS },
+        methodName: "installBundledThemes",
+      }),
+    );
+    await runInstallBundledThemes(ctx, { themesDir: dir, configPath });
+
+    const toml = await Deno.readTextFile(configPath);
+    assertEquals(toml.includes("theme = 'borland_modern_blue'"), true);
+    const themes = ctx.getWrittenResources().find((r) =>
+      r.specName === "themes"
+    );
+    assertEquals(themes?.data.selected, false);
+    assertEquals(themes?.data.selectedTheme, "borland_modern_blue");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});

@@ -1,0 +1,33 @@
+{
+  "id": "swamp_club",
+  "display_name": "Swamp Club",
+  "dark": true,
+  "fg": "#d1d5db",
+  "bg": "#080808",
+  "cursor": "#39ff14",
+  "black": "#5b6472",
+  "red": "#ff003c",
+  "green": "#39ff14",
+  "yellow": "#fbbf24",
+  "blue": "#22d3ee",
+  "purple": "#a78bfa",
+  "cyan": "#00d2ef",
+  "white": "#d1d5db",
+  "bright_black": "#6a7282",
+  "bright_red": "#fb2c36",
+  "bright_green": "#7dff4d",
+  "bright_yellow": "#fde047",
+  "bright_blue": "#00e5ff",
+  "bright_purple": "#e879f9",
+  "bright_cyan": "#67e8f9",
+  "bright_white": "#ffffff",
+  "chrome": {
+    "accent": "#39ff14",
+    "accent_bright": "#22d3ee",
+    "success": "#05df72",
+    "warning": "#fbbf24",
+    "error": "#ff003c",
+    "info": "#22d3ee",
+    "surface": "#161616"
+  }
+}

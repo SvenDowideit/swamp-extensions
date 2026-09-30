@@ -106,6 +106,19 @@ inputs:
       description: >-
         Remove the tuios binary instead of installing it. The systemd service
         is left in place; remove it separately with @svendowideit/systemd-service.
+    installThemes:
+      type: boolean
+      default: true
+      description: >-
+        Install the bundled TUIOS themes (swamp_club and borland_modern_blue)
+        into the themes directory, and select swamp_club when the user has not
+        chosen a theme yet. Skipped on an uninstall run.
+    defaultTheme:
+      type: string
+      default: swamp_club
+      description: >-
+        Bundled theme to select when config.toml has no `appearance.theme` yet.
+        An existing user choice is never overwritten.
   required: []
 jobs:
   - name: main
@@ -248,6 +261,30 @@ jobs:
               type: always
         weight: 0
         allowFailure: true
+      - name: install-themes
+        description: >-
+          Install the bundled TUIOS themes (swamp_club and borland_modern_blue)
+          into the themes directory, and select `defaultTheme` (swamp_club) in
+          config.toml only when the user has not chosen a theme yet — an
+          existing choice is never overwritten. Idempotent. Skipped on an
+          uninstall run and when installThemes is false. It is the only writer
+          of the `themes` resource. allowFailure, so a theme problem never
+          fails the binary install.
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.installThemes == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/tuios-installed"
+          modelName: tuios-installed
+          methodName: installBundledThemes
+          inputs:
+            defaultTheme: ${{ inputs.defaultTheme }}
+        dependsOn:
+          - step: install
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
       - name: verify
         description: >-
           Print the final installed version, the binary path, and the exact
@@ -269,6 +306,9 @@ jobs:
             condition:
               type: always
           - step: restart-daemon-service
+            condition:
+              type: always
+          - step: install-themes
             condition:
               type: always
         weight: 0

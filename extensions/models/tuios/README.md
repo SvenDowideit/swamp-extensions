@@ -25,14 +25,21 @@ you run swamp on:
   land a checksum-verified archive, then `install` extracts the `tuios` binary
   from it, verifies it once more, and installs it atomically; `uninstall`
   removes it. The workflow also starts a `tuios daemon` systemd *user* service,
-  restarts it after an upgrade, and prints where the binary landed and the exact
+  restarts it after an upgrade, installs the bundled themes and picks a default
+  if you have none, and prints where the binary landed and the exact
   `systemctl --user status` command.
+- **How do I theme it?** Two themes ship with the extension — **Swamp Club**
+  (neon green on near-black) and **Borland Modern Blue** (the classic turbo
+  palette). `installTheme` writes a theme by id, from an inline JSON document,
+  or from a file; `setTheme` makes one active by setting `appearance.theme` in
+  `config.toml`. The reusable `@svendowideit/tuios-theme` workflow wraps both.
 
 Side effects: outbound HTTPS reads from `api.github.com` and the release
 download URL (nothing is written there); install writes a binary into
 `/usr/local/bin`, `~/.local/bin` or `~/bin` and stages the verified archive
-under the download directory; the workflow writes a systemd user unit and
-enables lingering when `manageService` is true.
+under the download directory; the workflow writes a systemd user unit, enables
+lingering when `manageService` is true, and writes theme files plus the
+`appearance.theme` line in `config.toml` when `installThemes` is true.
 
 ## Install
 
@@ -58,6 +65,8 @@ The declared dependencies `@svendowideit/github-release-install` and
 | `manageService` | boolean | `true` | Create and start a systemd user service running the TUIOS daemon. |
 | `serviceName` | string | `tuios` | systemd user service name (without `.service`). |
 | `uninstall` | boolean | `false` | Remove the binary instead of installing it. |
+| `installThemes` | boolean | `true` | Install the bundled themes and select a default when the user has none. |
+| `defaultTheme` | string | `swamp_club` | Theme to select when `config.toml` has no `appearance.theme` yet. |
 | `githubToken` | string | `""` | Token for the releases API (avoids the 60/hour anonymous limit). Empty falls back to `GITHUB_TOKEN`, `GH_TOKEN`, then the authenticated `gh` CLI. |
 
 ### `tuios-installed` global arguments
@@ -67,6 +76,48 @@ The declared dependencies `@svendowideit/github-release-install` and
 | `path` | string | `""` | Path to the `tuios` binary. Empty auto-detects from `PATH` and the usual install locations; when set it is authoritative. |
 | `flavor` | `std` \| `ghostty` | `std` | Build flavor being tracked (reporting only; the archive is chosen by the release workflow). |
 | `serviceName` | string | `tuios` | systemd user service name, used to print the `systemctl --user status` command. |
+
+### Themes — `tuios-installed` methods
+
+TUIOS loads `<id>.json` files from its themes directory and re-reads the
+directory on every call, so a freshly written theme is selectable immediately,
+with no restart. By default the directory is `$XDG_CONFIG_HOME/tuios/themes`,
+falling back to `~/.config/tuios/themes`; both are overridable per call.
+
+| Method | Arguments | Produces |
+| ------ | --------- | -------- |
+| `installTheme` | `themeId`, `themeJson`, `sourcePath`, `themesDir`, `select`, `force`, `configPath` | `theme` — where the theme landed, whether it changed, and whether it was selected. |
+| `setTheme` | `themeId`, `configPath` | `themeSelection` — the previous theme and whether `config.toml` changed. |
+| `installBundledThemes` | `themes`, `themesDir`, `defaultTheme`, `force`, `configPath` | `themes` — the ids installed vs already present, and the theme now selected. |
+
+`installTheme` resolves its content in this order: inline `themeJson` → a
+`sourcePath` file → the bundled theme of the same id. A non-bundled id with no
+content is an error, and a document with no string `id` is refused rather than
+written. `setTheme` writes the `appearance.theme` line in `config.toml`,
+creating the file and the `[appearance]` table if needed.
+
+`installBundledThemes` is what the install workflow runs. It writes both bundled
+themes, then selects `defaultTheme` (Swamp Club) **only if** `config.toml` has
+no `appearance.theme` — a theme the user has already chosen is never
+overwritten.
+
+### Workflow — `@svendowideit/tuios-theme`
+
+A reusable two-step workflow for another workflow to call.
+
+| Input | Type | Default | Description |
+| ----- | ---- | ------- | ----------- |
+| `themeId` | string | `swamp_club` | Theme id to install and/or select. |
+| `themeJson` | string | `""` | Inline theme JSON to write. |
+| `sourcePath` | string | `""` | Theme JSON file to install when `themeJson` is empty. |
+| `themesDir` | string | `""` | Override the themes directory. |
+| `configPath` | string | `""` | Override the `config.toml` path. |
+| `select` | boolean | `true` | Also set `appearance.theme` to `themeId`. |
+| `force` | boolean | `false` | Rewrite the theme file even when identical. |
+
+Steps: `install-theme → select-theme`. `install-theme` is skipped when there is
+nothing to write (no `themeJson`/`sourcePath` and a non-bundled id), so the
+workflow doubles as a pure selector.
 
 ### Release resolution — `@svendowideit/github-release-install-fetch`
 
@@ -140,6 +191,24 @@ swamp model @svendowideit/tuios-installed method run print tuios-installed
 # Track the libghostty-vt build instead of the pure-Go one.
 swamp workflow run @svendowideit/tuios-install --input flavor=ghostty
 
+# Install a bundled theme and make it active — the reusable theme workflow
+# wraps installTheme + setTheme, so another workflow can do this in one call.
+swamp workflow run @svendowideit/tuios-theme --input themeId=borland_modern_blue
+
+# Install a theme from an inline document (and select it).
+swamp workflow run @svendowideit/tuios-theme \
+  --input themeId=solarized \
+  --input themeJson='{"id":"solarized","bg":"#002b36","fg":"#839496"}'
+
+# Install a theme from a file without changing which theme is active.
+swamp workflow run @svendowideit/tuios-theme \
+  --input themeId=my_theme --input sourcePath=~/my_theme.json --input select=false
+
+# Write just the bundled themes and pick a default only if none is set (the
+# step the install workflow runs); ask what ended up installed and selected.
+swamp model @svendowideit/tuios-installed method run installBundledThemes tuios-installed
+swamp data get tuios-installed themes --json
+
 # Remove the binary via the workflow. It stops the daemon service (so a
 # removed binary cannot leave the unit restart-looping) but leaves the unit
 # file; the output says how to remove that too.
@@ -161,6 +230,9 @@ swamp model @svendowideit/tuios-installed method run uninstall tuios-installed \
 | `@svendowideit/tuios-installed` | `install` | `version`, `archivePath`, `archiveName`, `checksum`, `installDir`, `force` | `install` — the install result (or `skipped: true`), with `checksumVerified`, `versionCommand` and `serviceStatusCommand`, and a refreshed `installed` resource. |
 | `@svendowideit/tuios-installed` | `uninstall` | `path`, `installDir`, `force`, `serviceName` | `uninstall` — the removal result (or `skipped: true`), with `serviceNote`/`serviceStatusCommand`, and a refreshed `installed` resource. |
 | `@svendowideit/tuios-installed` | `print` | `serviceName` | `summary` — logs the installed state, the binary path and the `systemctl --user status` command. |
+| `@svendowideit/tuios-installed` | `installTheme` | `themeId`, `themeJson`, `sourcePath`, `themesDir`, `select`, `force`, `configPath` | `theme` — file path, changed flag, and whether it was selected. |
+| `@svendowideit/tuios-installed` | `setTheme` | `themeId`, `configPath` | `themeSelection` — previous theme and whether `config.toml` changed. |
+| `@svendowideit/tuios-installed` | `installBundledThemes` | `themes`, `themesDir`, `defaultTheme`, `force`, `configPath` | `themes` — installed vs skipped ids and the selected theme. |
 
 `install` requires `archivePath` — the checksum-verified archive produced by
 `@svendowideit/github-release-install`'s `download` step. It re-verifies the
@@ -185,16 +257,16 @@ rejected even when the pre-flight check is skipped.
 ### Workflow — `@svendowideit/tuios-install`
 
 Steps: `fetch-release → install → create-daemon-service →
-start-daemon-service → restart-daemon-service → verify`.
+start-daemon-service → restart-daemon-service → install-themes → verify`.
 
 - `fetch-release` calls `@svendowideit/github-release-install-fetch`, which
   resolves the release, selects this platform's archive, records its expected
   SHA-256, downloads it and verifies the bytes, landing a checksum-verified
   archive on disk. It is the only writer of `release`/`archive`.
 - `install` re-verifies the archive and installs the binary. It is the only
-  writer of `installed`/`install`; `uninstall` of `uninstall`; `verify` of
-  `summary`. One writer per resource per run keeps `data.latest(...)`
-  unambiguous.
+  writer of `installed`/`install`; `uninstall` of `uninstall`; `install-themes`
+  of `themes`; `verify` of `summary`. One writer per resource per run keeps
+  `data.latest(...)` unambiguous.
 - `install` is idempotent: it locates the existing binary, and when its version
   already equals the target it records `skipped: true` (pass `force=true` to
   override).
@@ -202,6 +274,11 @@ start-daemon-service → restart-daemon-service → verify`.
   `systemctl --user enable --now` does **not** restart an already-active unit, so
   without this step the daemon would keep running the old binary. It is skipped
   when the install was a no-op, on uninstall, and when `manageService=false`.
+- `install-themes` installs the two bundled themes and selects `defaultTheme`
+  (Swamp Club) only when `config.toml` has no `appearance.theme` yet; a theme the
+  user has already chosen is never overwritten. It is skipped on uninstall and
+  when `installThemes=false`, and is `allowFailure: true`, so a theme problem
+  never fails the binary install.
 - The systemd steps are `allowFailure: true` — an install still succeeds on a
   machine without a user systemd session. Set `manageService=false` to skip
   them entirely.
@@ -214,20 +291,28 @@ start-daemon-service → restart-daemon-service → verify`.
 
 - `tuios_shared.ts` — the TUIOS-specific pure helpers: build flavors and
   archive-name parsing, install-dir and `PATH` selection, the package-manager
-  probe, SHA-256 verification, tar extraction, version parsing and comparison.
+  probe, SHA-256 verification, tar extraction, version parsing and comparison,
+  plus theme helpers (config-dir resolution, theme parsing, and the `config.toml`
+  read/write of `appearance.theme`).
 - `tuios_installed.ts` — the model: `sync`, `install` (verify the staged
-  archive, extract, atomic install, package-manager guard), `uninstall`, `print`.
-- `tuios-install.yaml` — the bundled workflow (created with
+  archive, extract, atomic install, package-manager guard), `uninstall`, `print`,
+  and the theme methods `installTheme`, `setTheme`, `installBundledThemes`.
+- `tuios-install.yaml` — the bundled install/upgrade workflow (created with
   `swamp workflow create`; do not hand-edit its `id`).
+- `tuios-theme.yaml` — the reusable install/select theme workflow.
+- `themes/swamp_club.json`, `themes/borland_modern_blue.json` — the bundled
+  themes, read at runtime through `ctx.extensionFile("themes/<id>.json")` and
+  declared in `additionalFiles` so they travel with the extension.
 - `tuios_shared_test.ts` / `tuios_installed_test.ts` /
   `tuios_installed_methods_test.ts` — pure-helper and execute-level tests; the
   latter drive the real `execute` functions through `createModelTestContext`
   with subprocesses stubbed by `withMockedCommand`. There is no network in the
-  install path — the archive is built on disk by the test.
+  install path — the archive is built on disk by the test. Theme methods are
+  tested against temporary directories, with `extensionFile` pointed at the
+  extension tree.
 
-To change the release repository or asset naming, adjust the workflow's
-`fetch-release` inputs (or the dependency's `assetPattern`). To add a platform,
-TUIOS's own artifact naming is handled by the release extension.
+To add another bundled theme, drop `<id>.json` under `themes/`, add it to
+`additionalFiles`, and add the id to `BUNDLED_THEMES` in `tuios_shared.ts`.
 
 ### Testing
 
@@ -251,10 +336,17 @@ TUIOS's own artifact naming is handled by the release extension.
 # The daemon, if manageService was used (default service name: tuios).
 systemctl --user status tuios.service
 systemctl --user is-enabled tuios.service
+
+# The themes: what TUIOS sees, which is active, and where they live.
+tuios list-themes --json | jq '{active, themes_dir}'
+tuios list-themes swamp_club
 ```
 
 Change the service name with `--input serviceName=<name>` (or the
 `tuios-installed` `serviceName` global) if you use something other than `tuios`.
+Theme files land in the TUIOS themes directory — usually
+`~/.config/tuios/themes` — and the selected theme is the `theme` line of the
+`[appearance]` table in `~/.config/tuios/config.toml`.
 
 ### Caveats
 
@@ -269,6 +361,11 @@ Change the service name with `--input serviceName=<name>` (or the
 - `uninstall` removes the binary and stops the daemon service, but does not
   delete the unit file — remove it with `@svendowideit/systemd-service`'s
   `removeService`. The uninstall output says so.
+- `installBundledThemes` only selects the default theme when `config.toml` has
+  no `appearance.theme`; if you want to change a theme you already picked, run
+  the `tuios-theme` workflow (or `setTheme`) explicitly with the id you want.
+- The themes directory defaults to `~/.config/tuios`; a TUIOS configured with a
+  non-default config location needs `themesDir`/`configPath` passed per call.
 - An upgrade restarts the daemon; that ends any attached clients, but sessions
   persist because the daemon saves them. The daemon runs the binary present at
   the time it started, so a manual binary replacement outside the workflow also

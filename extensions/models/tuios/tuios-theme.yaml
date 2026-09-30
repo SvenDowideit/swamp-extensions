@@ -1,0 +1,136 @@
+id: 2fe5ccef-b1b6-490f-abcb-c7b14a8a3b70
+name: '@svendowideit/tuios-theme'
+description: |
+  Install a TUIOS theme and/or make one active — the reusable "put a theme in
+  place" seam other workflows call.
+
+  Steps: install-theme → select-theme.
+
+  install-theme writes `<themesDir>/<themeId>.json` from an inline `themeJson`,
+  a `sourcePath` file, or one of the two themes bundled with this extension
+  (`swamp_club`, `borland_modern_blue`). TUIOS re-reads the themes directory on
+  every call, so the file is selectable the moment it lands. select-theme sets
+  `appearance.theme` in `config.toml`, which TUIOS watches — the change takes
+  effect without a restart. Both steps are idempotent, so calling this from a
+  larger workflow on every run is safe.
+
+  Install and select a bundled theme:
+
+      swamp workflow run @svendowideit/tuios-theme --input themeId=borland_modern_blue
+
+  Install a theme from a file without selecting it:
+
+      swamp workflow run @svendowideit/tuios-theme \
+        --input themeId=my_theme --input sourcePath=~/my_theme.json \
+        --input select=false
+
+  Install a theme from an inline document and select it:
+
+      swamp workflow run @svendowideit/tuios-theme \
+        --input themeId=solarized --input themeJson='{"id":"solarized","bg":"#002b36","fg":"#839496"}'
+
+  Select a theme that is already present (no file written) — install-theme is
+  skipped when there is nothing to install:
+
+      swamp workflow run @svendowideit/tuios-theme \
+        --input themeId=dracula --input select=true
+
+  Called from another workflow, pass the inputs through and read the result
+  from the `themes` / `theme` resources the model writes.
+tags: {}
+inputs:
+  properties:
+    themeId:
+      type: string
+      default: swamp_club
+      description: >-
+        Theme id to install and/or select. Bundled ids are swamp_club and
+        borland_modern_blue; any other id needs themeJson or sourcePath to
+        install (but can still be selected).
+    themeJson:
+      type: string
+      default: ""
+      description: >-
+        Inline theme JSON document to write as <themeId>.json. Empty installs a
+        bundled theme of the same id, or reads sourcePath.
+    sourcePath:
+      type: string
+      default: ""
+      description: >-
+        Path to a theme JSON file to install (absolute or ~-prefixed). Used
+        when themeJson is empty.
+    themesDir:
+      type: string
+      default: ""
+      description: >-
+        Override the TUIOS themes directory. Empty uses
+        $XDG_CONFIG_HOME/tuios/themes, falling back to ~/.config/tuios/themes.
+    configPath:
+      type: string
+      default: ""
+      description: >-
+        Override the TUIOS config.toml path. Empty uses
+        $XDG_CONFIG_HOME/tuios/config.toml, falling back to
+        ~/.config/tuios/config.toml.
+    select:
+      type: boolean
+      default: true
+      description: >-
+        Also set `appearance.theme` to themeId in config.toml. Set false to
+        install the file only.
+    force:
+      type: boolean
+      default: false
+      description: Rewrite the theme file even when identical content is already present.
+  required: []
+jobs:
+  - name: main
+    description: Write the theme file, then make it the active theme.
+    steps:
+      - name: install-theme
+        description: >-
+          Write <themesDir>/<themeId>.json from themeJson, sourcePath, or the
+          bundled theme of the same id. Skipped when there is no content to
+          install (no themeJson/sourcePath and the id is not bundled), so the
+          workflow can also be used purely to select an existing theme. It is
+          the only writer of the `theme` resource.
+        guard: ${{ inputs.themeJson == "" && inputs.sourcePath == "" && inputs.themeId != "swamp_club" && inputs.themeId != "borland_modern_blue" }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/tuios-installed"
+          modelName: tuios-installed
+          methodName: installTheme
+          inputs:
+            themeId: ${{ inputs.themeId }}
+            themeJson: ${{ inputs.themeJson }}
+            sourcePath: ${{ inputs.sourcePath }}
+            themesDir: ${{ inputs.themesDir }}
+            configPath: ${{ inputs.configPath }}
+            select: false
+            force: ${{ inputs.force }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: select-theme
+        description: >-
+          Set `appearance.theme` to themeId in config.toml. Idempotent: an
+          unchanged value leaves the file untouched. Skipped when select is
+          false. It is the only writer of the `themeSelection` resource.
+        guard: ${{ inputs.select == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/tuios-installed"
+          modelName: tuios-installed
+          methodName: setTheme
+          inputs:
+            themeId: ${{ inputs.themeId }}
+            configPath: ${{ inputs.configPath }}
+        dependsOn:
+          - step: install-theme
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

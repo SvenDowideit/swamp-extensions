@@ -30,15 +30,23 @@
 import { z } from "npm:zod@4";
 import {
   assertAbsoluteDir,
+  BUNDLED_THEMES,
+  DEFAULT_THEME,
   detectPackageManagerOwner,
   expandHome,
   extractFromTarGz,
   isOnPath,
   normalizeVersion,
   parseArchiveName,
+  parseTheme,
   parseVersionOutput,
+  readConfiguredTheme,
   runCapture,
   selectInstallDir,
+  setConfiguredTheme,
+  themeFileName,
+  tuiosConfigPath,
+  tuiosThemesDir,
   verifySha256,
   versionsEqual,
 } from "./tuios_shared.ts";
@@ -77,6 +85,65 @@ const PrintArgsSchema = z.object({
   ),
 });
 type PrintArgs = z.infer<typeof PrintArgsSchema>;
+
+const ThemeIdSchema = z.string().min(1).regex(
+  /^[A-Za-z0-9_.-]+$/,
+  "theme id may contain only letters, digits, '.', '_' and '-'",
+);
+
+const InstallThemeArgsSchema = z.object({
+  themeId: ThemeIdSchema.describe(
+    "Theme id to install. Bundled themes shipped with this extension are swamp_club and borland_modern_blue; any other id is written from `themeJson` or from `sourcePath`.",
+  ),
+  themeJson: z.string().default("").describe(
+    "Theme JSON document to write as themes/<themeId>.json. Empty loads a bundled theme of the same id, or reads `sourcePath` when given.",
+  ),
+  sourcePath: z.string().default("").describe(
+    "Path to a theme JSON file to install when `themeJson` is empty. Absolute or ~-prefixed.",
+  ),
+  themesDir: z.string().default("").describe(
+    "Override the TUIOS themes directory. Empty uses $XDG_CONFIG_HOME/tuios/themes, falling back to ~/.config/tuios/themes.",
+  ),
+  select: z.boolean().default(false).describe(
+    "Also set `appearance.theme` in config.toml to this theme id.",
+  ),
+  force: z.boolean().default(false).describe(
+    "Write the theme file even when an identical file is already present.",
+  ),
+  configPath: z.string().default("").describe(
+    "Override the TUIOS config.toml path used when `select` is true.",
+  ),
+});
+type InstallThemeArgs = z.infer<typeof InstallThemeArgsSchema>;
+
+const SetThemeArgsSchema = z.object({
+  themeId: ThemeIdSchema.describe(
+    "Theme id to make active (written to `appearance.theme`).",
+  ),
+  configPath: z.string().default("").describe(
+    "Override the TUIOS config.toml path. Empty uses $XDG_CONFIG_HOME/tuios/config.toml, falling back to ~/.config/tuios/config.toml.",
+  ),
+});
+type SetThemeArgs = z.infer<typeof SetThemeArgsSchema>;
+
+const InstallBundledThemesArgsSchema = z.object({
+  themes: z.array(ThemeIdSchema).default([...BUNDLED_THEMES]).describe(
+    "Bundled theme ids to install. Defaults to every theme this extension ships.",
+  ),
+  themesDir: z.string().default("").describe(
+    "Override the TUIOS themes directory. Empty uses $XDG_CONFIG_HOME/tuios/themes, falling back to ~/.config/tuios/themes.",
+  ),
+  defaultTheme: z.string().default(DEFAULT_THEME).describe(
+    "Theme to select by default when the user has not chosen one yet (config.toml `appearance.theme` is absent or empty).",
+  ),
+  force: z.boolean().default(false).describe(
+    "Rewrite theme files even when identical content is already present.",
+  ),
+  configPath: z.string().default("").describe(
+    "Override the TUIOS config.toml path checked before setting the default theme.",
+  ),
+});
+type InstallBundledThemesArgs = z.infer<typeof InstallBundledThemesArgsSchema>;
 
 const InstallArgsSchema = z.object({
   version: z.string().default("").describe(
@@ -167,6 +234,41 @@ const PrintResultSchema = z.object({
   lines: z.array(z.string()),
 });
 
+const InstallThemeResultSchema = z.object({
+  installed: z.boolean(),
+  skipped: z.boolean(),
+  themeId: z.string(),
+  themeFile: z.string(),
+  themesDir: z.string(),
+  selected: z.boolean(),
+  previousTheme: z.string(),
+  message: z.string(),
+  installedAt: z.string(),
+});
+
+const SetThemeResultSchema = z.object({
+  themeId: z.string(),
+  configPath: z.string(),
+  previousTheme: z.string(),
+  changed: z.boolean(),
+  present: z.boolean(),
+  message: z.string(),
+  setAt: z.string(),
+});
+
+const InstallThemesResultSchema = z.object({
+  installed: z.array(z.string()),
+  skipped: z.array(z.string()),
+  defaultTheme: z.string(),
+  selected: z.boolean(),
+  selectedTheme: z.string(),
+  previousTheme: z.string(),
+  themesDir: z.string(),
+  configPath: z.string(),
+  message: z.string(),
+  installedAt: z.string(),
+});
+
 // ---------------------------------------------------------------------------
 // Method context
 // ---------------------------------------------------------------------------
@@ -187,6 +289,7 @@ type MethodContext = {
     instanceName: string,
     version?: number,
   ) => Promise<Record<string, unknown> | null>;
+  extensionFile: (relativePath: string) => string;
 };
 
 // ---------------------------------------------------------------------------
@@ -352,6 +455,147 @@ export function targetVersion(version: string, archiveName: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Theme helpers (exported for testing)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the theme JSON to install from the explicit `themeJson`, a
+ * `sourcePath`, or a bundled theme file, in that order. Returns the parsed
+ * theme plus the raw text, or `null` when none was provided. Throws when a
+ * non-empty source names no readable, valid theme — a bad theme is never
+ * silently written.
+ */
+export async function resolveThemeContent(
+  args: { themeId: string; themeJson: string; sourcePath: string },
+  bundledPath: (relativePath: string) => string,
+): Promise<
+  { content: string; theme: Record<string, unknown>; source: string } | null
+> {
+  let content: string | null = null;
+  let source = "";
+
+  const inline = args.themeJson.trim();
+  if (inline) {
+    content = inline;
+    source = "inline themeJson";
+  } else if (args.sourcePath.trim()) {
+    const path = expandHome(args.sourcePath.trim());
+    try {
+      content = await Deno.readTextFile(path);
+    } catch (err) {
+      throw new Error(
+        `Theme source not found at ${path}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+    source = path;
+  } else if ((BUNDLED_THEMES as readonly string[]).includes(args.themeId)) {
+    const path = bundledPath(`themes/${themeFileName(args.themeId)}`);
+    try {
+      content = await Deno.readTextFile(path);
+    } catch (err) {
+      throw new Error(
+        `Bundled theme ${args.themeId} not found at ${path}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+    source = `bundled ${args.themeId}`;
+  } else {
+    return null;
+  }
+
+  const theme = parseTheme(content);
+  if (!theme) {
+    throw new Error(
+      `Not a valid TUIOS theme (${source}): expected a JSON object with a non-empty string "id" and string colour values.`,
+    );
+  }
+  return { content, theme, source };
+}
+
+/** Read the `appearance.theme` currently set in config.toml, or `""`. */
+export async function configuredTheme(configPath: string): Promise<string> {
+  try {
+    return readConfiguredTheme(await Deno.readTextFile(configPath));
+  } catch {
+    return "";
+  }
+}
+
+/** Write a TUIOS theme file, skipping when identical (unless `force`). */
+export async function writeThemeFile(
+  path: string,
+  content: string,
+  force: boolean,
+): Promise<{ changed: boolean }> {
+  if (!force) {
+    try {
+      if ((await Deno.readTextFile(path)) === content) {
+        return { changed: false };
+      }
+    } catch {
+      // no existing file — write it
+    }
+  }
+  await Deno.mkdir(path.replace(/\/[^/]+$/, ""), { recursive: true });
+  const tmp = `${path}.new-${crypto.randomUUID()}`;
+  try {
+    await Deno.writeTextFile(tmp, content);
+    await Deno.rename(tmp, path);
+  } finally {
+    try {
+      await Deno.remove(tmp);
+    } catch {
+      // renamed (the normal path) or never created
+    }
+  }
+  return { changed: true };
+}
+
+/**
+ * Set `appearance.theme` in config.toml, creating the file (and the
+ * `[appearance]` table) when needed. Returns the previous value and whether
+ * the file changed. Throws on a config.toml that exists but cannot be read.
+ */
+export async function setThemeInConfig(
+  configPath: string,
+  themeId: string,
+): Promise<{ previous: string; changed: boolean }> {
+  let existing = "";
+  let present = true;
+  try {
+    existing = await Deno.readTextFile(configPath);
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) present = false;
+    else {
+      throw new Error(
+        `Could not read ${configPath}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+  const previous = present ? readConfiguredTheme(existing) : "";
+  const next = setConfiguredTheme(existing, themeId);
+  if (present && next === existing) return { previous, changed: false };
+  await Deno.mkdir(configPath.replace(/\/[^/]+$/, ""), { recursive: true });
+  const tmp = `${configPath}.new-${crypto.randomUUID()}`;
+  try {
+    await Deno.writeTextFile(tmp, next);
+    await Deno.rename(tmp, configPath);
+  } finally {
+    try {
+      await Deno.remove(tmp);
+    } catch {
+      // renamed (the normal path) or never created
+    }
+  }
+  return { previous, changed: true };
+}
+
+// ---------------------------------------------------------------------------
 // Sync implementation
 // ---------------------------------------------------------------------------
 
@@ -426,13 +670,19 @@ type CheckContext = {
 /** Tracks and installs the TUIOS binary on this machine. */
 export const model = {
   type: "@svendowideit/tuios-installed",
-  version: "2026.09.30.2",
+  version: "2026.09.30.3",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
       toVersion: "2026.09.30.2",
       description:
         "install now consumes the checksum-verified archive produced by @svendowideit/github-release-install (via the bundled workflow) instead of resolving and downloading the release itself: it takes archivePath/archiveName/checksum/version and no longer takes downloadUrl/releaseVersion/os/arch. Release resolution, platform selection, checksum lookup and download moved to the new extension. New archivePath field on the install resource; installed/print drop the latest-release fields (the release workflow reports those).",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.09.30.3",
+      description:
+        "Adds TUIOS theme management: installTheme writes a theme file (inline, from a path, or a bundled swamp_club/borland_modern_blue), setTheme sets appearance.theme in config.toml, and installBundledThemes installs both bundled themes and selects swamp_club only when the user has not chosen one. New theme, themeSelection and themes resources; the bundled tuios-install workflow now installs the themes, and a new reusable tuios-theme workflow wraps installTheme + setTheme.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -478,6 +728,24 @@ export const model = {
     summary: {
       description: "The printed installed summary",
       schema: PrintResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    theme: {
+      description: "The result of the last theme install / selection",
+      schema: InstallThemeResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    themeSelection: {
+      description: "The result of the last `setTheme` call",
+      schema: SetThemeResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    themes: {
+      description: "The result of the last `installBundledThemes` call",
+      schema: InstallThemesResultSchema,
       lifetime: "infinite",
       garbageCollection: 20,
     },
@@ -832,6 +1100,196 @@ export const model = {
           version: stored.version ?? null,
           backend: stored.backend ?? null,
           lines,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    installTheme: {
+      description:
+        "Write one TUIOS theme as `<themesDir>/<themeId>.json`, from an inline " +
+        "`themeJson`, a `sourcePath`, or the bundled themes this extension " +
+        "ships (swamp_club, borland_modern_blue). Idempotent: an identical file " +
+        "is left alone unless `force` is set. TUIOS re-reads the themes " +
+        "directory on every call, so the theme is selectable immediately. With " +
+        "`select=true` it also sets `appearance.theme` in config.toml.",
+      arguments: InstallThemeArgsSchema,
+      execute: async (
+        args: InstallThemeArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        assertAbsoluteDir(args.sourcePath, "sourcePath");
+        assertAbsoluteDir(args.themesDir, "themesDir");
+        assertAbsoluteDir(args.configPath, "configPath");
+
+        const themesDir = args.themesDir.trim()
+          ? expandHome(args.themesDir.trim())
+          : tuiosThemesDir();
+        const resolved = await resolveThemeContent(
+          args,
+          (rel) => context.extensionFile(rel),
+        );
+        if (!resolved) {
+          throw new Error(
+            `No theme content for '${args.themeId}': pass themeJson, a ` +
+              `sourcePath, or one of the bundled theme ids ` +
+              `(${BUNDLED_THEMES.join(", ")}).`,
+          );
+        }
+
+        const themeFile = `${themesDir}/${themeFileName(args.themeId)}`;
+        const { changed } = await writeThemeFile(
+          themeFile,
+          resolved.content,
+          args.force,
+        );
+
+        let selected = false;
+        let previousTheme = "";
+        const configPath = args.configPath.trim()
+          ? expandHome(args.configPath.trim())
+          : tuiosConfigPath();
+        if (args.select) {
+          previousTheme = await configuredTheme(configPath);
+          await setThemeInConfig(configPath, args.themeId);
+          selected = true;
+        }
+
+        const message = changed
+          ? `Installed TUIOS theme '${args.themeId}' to ${themeFile}` +
+            (selected ? `; selected it in ${configPath}` : "")
+          : `TUIOS theme '${args.themeId}' already present at ${themeFile}` +
+            (selected ? `; selected it in ${configPath}` : "");
+        context.logger.info(message);
+
+        const handle = await context.writeResource("theme", "theme", {
+          installed: changed,
+          skipped: !changed,
+          themeId: args.themeId,
+          themeFile,
+          themesDir,
+          selected,
+          previousTheme,
+          message,
+          installedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    setTheme: {
+      description:
+        "Set `appearance.theme` in the TUIOS config.toml to a theme id, so " +
+        "TUIOS uses it (the file is watched; no restart needed). Creates " +
+        "config.toml and the `[appearance]` table when they are absent. " +
+        "Idempotent: re-selecting the current theme leaves the file untouched.",
+      arguments: SetThemeArgsSchema,
+      execute: async (
+        args: SetThemeArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        assertAbsoluteDir(args.configPath, "configPath");
+        const configPath = args.configPath.trim()
+          ? expandHome(args.configPath.trim())
+          : tuiosConfigPath();
+
+        const { previous, changed } = await setThemeInConfig(
+          configPath,
+          args.themeId,
+        );
+        const message = changed
+          ? `Set TUIOS theme to '${args.themeId}' in ${configPath}` +
+            (previous ? ` (was '${previous}')` : "")
+          : `TUIOS theme is already '${args.themeId}' in ${configPath}`;
+        context.logger.info(message);
+
+        const handle = await context.writeResource(
+          "themeSelection",
+          "set-theme",
+          {
+            themeId: args.themeId,
+            configPath,
+            previousTheme: previous,
+            changed,
+            present: true,
+            message,
+            setAt: new Date().toISOString(),
+          },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    installBundledThemes: {
+      description:
+        "Install every theme this extension ships (default swamp_club and " +
+        "borland_modern_blue) into the TUIOS themes directory, then — only if " +
+        "the user has not chosen a theme yet (`appearance.theme` absent or " +
+        "empty) — select `defaultTheme` in config.toml. An existing user " +
+        "choice is never overwritten. Idempotent. This is the step the bundled " +
+        "install workflow runs.",
+      arguments: InstallBundledThemesArgsSchema,
+      execute: async (
+        args: InstallBundledThemesArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        assertAbsoluteDir(args.themesDir, "themesDir");
+        assertAbsoluteDir(args.configPath, "configPath");
+
+        const themesDir = args.themesDir.trim()
+          ? expandHome(args.themesDir.trim())
+          : tuiosThemesDir();
+        const configPath = args.configPath.trim()
+          ? expandHome(args.configPath.trim())
+          : tuiosConfigPath();
+
+        const installed: string[] = [];
+        const skipped: string[] = [];
+        for (const id of args.themes) {
+          const resolved = await resolveThemeContent(
+            { themeId: id, themeJson: "", sourcePath: "" },
+            (rel) => context.extensionFile(rel),
+          );
+          if (!resolved) {
+            throw new Error(
+              `Theme '${id}' is not bundled with this extension ` +
+                `(bundled: ${BUNDLED_THEMES.join(", ")}).`,
+            );
+          }
+          const { changed } = await writeThemeFile(
+            `${themesDir}/${themeFileName(id)}`,
+            resolved.content,
+            args.force,
+          );
+          (changed ? installed : skipped).push(id);
+        }
+
+        const previousTheme = await configuredTheme(configPath);
+        let selected = false;
+        if (previousTheme === "") {
+          await setThemeInConfig(configPath, args.defaultTheme);
+          selected = true;
+        }
+
+        const message =
+          `Themes installed: ${installed.join(", ") || "(none)"}` +
+          `; already present: ${skipped.join(", ") || "(none)"}` +
+          (selected
+            ? `; selected default '${args.defaultTheme}' (no theme was set)`
+            : `; kept the user's chosen theme '${previousTheme}'`);
+        context.logger.info(message);
+
+        const handle = await context.writeResource("themes", "themes", {
+          installed,
+          skipped,
+          defaultTheme: args.defaultTheme,
+          selected,
+          selectedTheme: selected ? args.defaultTheme : previousTheme,
+          previousTheme,
+          themesDir,
+          configPath,
+          message,
+          installedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
       },

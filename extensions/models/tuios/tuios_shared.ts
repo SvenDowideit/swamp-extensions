@@ -22,6 +22,140 @@
 import { UntarStream } from "jsr:@std/tar@0.1.10/untar-stream";
 
 // ---------------------------------------------------------------------------
+// Themes
+// ---------------------------------------------------------------------------
+
+/** Theme ids shipped with this extension (files under `themes/`). */
+export const BUNDLED_THEMES = ["swamp_club", "borland_modern_blue"] as const;
+
+/** A bundled TUIOS theme id. */
+export type BundledTheme = typeof BUNDLED_THEMES[number];
+
+/** The theme selected when the user has not chosen one: Swamp Club. */
+export const DEFAULT_THEME: BundledTheme = "swamp_club";
+
+/**
+ * The TUIOS configuration root: `$XDG_CONFIG_HOME/tuios`, falling back to
+ * `~/.config/tuios`. Matches the directory TUIOS itself reads `config.toml`
+ * and `themes/` from on Linux.
+ */
+export function tuiosConfigDir(
+  home?: string,
+  xdgConfigHome?: string,
+): string {
+  const xdg = (xdgConfigHome ?? Deno.env.get("XDG_CONFIG_HOME") ?? "").trim();
+  const base = xdg || `${home ?? Deno.env.get("HOME") ?? ""}/.config`;
+  return `${base.replace(/\/+$/, "")}/tuios`;
+}
+
+/** The directory TUIOS loads `<id>.json` theme files from. */
+export function tuiosThemesDir(home?: string, xdg?: string): string {
+  return `${tuiosConfigDir(home, xdg)}/themes`;
+}
+
+/** The TUIOS `config.toml` path. */
+export function tuiosConfigPath(home?: string, xdg?: string): string {
+  return `${tuiosConfigDir(home, xdg)}/config.toml`;
+}
+
+/** The theme file name TUIOS expects for a theme id: `<id>.json`. */
+export function themeFileName(themeId: string): string {
+  return `${themeId.replace(/[^A-Za-z0-9_.-]/g, "_")}.json`;
+}
+
+/**
+ * Parse and validate a TUIOS theme JSON document. A theme must be an object
+ * with a non-empty string `id`; every colour key it carries must be a string.
+ * Returns the parsed object on success, or `null` when it is not a theme — so
+ * a bad file is rejected before it is written into the themes directory.
+ */
+export function parseTheme(content: string): Record<string, unknown> | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(content);
+  } catch {
+    return null;
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return null;
+  }
+  const theme = value as Record<string, unknown>;
+  if (typeof theme.id !== "string" || theme.id.trim() === "") return null;
+  for (const [key, v] of Object.entries(theme)) {
+    if (key === "chrome") {
+      if (typeof v !== "object" || v === null || Array.isArray(v)) return null;
+      for (const cv of Object.values(v as Record<string, unknown>)) {
+        if (typeof cv !== "string") return null;
+      }
+      continue;
+    }
+    if (typeof v === "boolean") continue;
+    if (typeof v !== "string") return null;
+  }
+  return theme;
+}
+
+/**
+ * Read the `theme` value from a TUIOS `config.toml`, scanning only the
+ * `[appearance]` table. Returns the bare string (quotes stripped) or `""` when
+ * the key is absent or empty — meaning the user has not chosen a theme yet.
+ */
+export function readConfiguredTheme(toml: string): string {
+  let inAppearance = false;
+  for (const raw of toml.split(/\r?\n/)) {
+    const line = raw.trim();
+    const section = line.match(/^\[([^\]]+)\]/);
+    if (section) {
+      inAppearance = section[1] === "appearance";
+      continue;
+    }
+    if (!inAppearance) continue;
+    const match = line.match(/^theme\s*=\s*(.*)$/);
+    if (match) return tomlString(match[1]);
+  }
+  return "";
+}
+
+/** Strip surrounding single or double quotes from a TOML scalar. */
+function tomlString(value: string): string {
+  const trimmed = value.trim();
+  const quoted = trimmed.match(/^(['"])(.*)\1$/s);
+  return quoted ? quoted[2] : trimmed;
+}
+
+/**
+ * Return `toml` with the `[appearance] theme` set to `themeId`. Replaces an
+ * existing `theme =` line in `[appearance]` in place, inserts one under an
+ * existing `[appearance]` table, or appends a fresh `[appearance]` table when
+ * the file has none. Everything else in the file is left byte-for-byte alone.
+ */
+export function setConfiguredTheme(toml: string, themeId: string): string {
+  const lines = toml.split(/\r?\n/);
+  const assignment = `theme = '${themeId}'`;
+  let inAppearance = false;
+  let appearanceIndex = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const section = line.match(/^\[([^\]]+)\]/);
+    if (section) {
+      inAppearance = section[1] === "appearance";
+      if (inAppearance && appearanceIndex < 0) appearanceIndex = i;
+      continue;
+    }
+    if (inAppearance && /^theme\s*=/.test(line)) {
+      lines[i] = assignment;
+      return lines.join("\n");
+    }
+  }
+  if (appearanceIndex >= 0) {
+    lines.splice(appearanceIndex + 1, 0, assignment);
+    return lines.join("\n");
+  }
+  const body = lines.join("\n").replace(/\n*$/, "");
+  return `${body}${body ? "\n" : ""}\n[appearance]\n${assignment}\n`;
+}
+
+// ---------------------------------------------------------------------------
 // Build flavors
 // ---------------------------------------------------------------------------
 

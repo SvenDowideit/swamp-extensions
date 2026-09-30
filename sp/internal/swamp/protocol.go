@@ -27,6 +27,24 @@ const (
 	ReqRunHistory        = "run.history"
 	ReqRunAttach         = "run.attach"
 	ReqCancel            = "cancel"
+
+	// Vault surface.
+	ReqVaultTypeSearch = "vault.type.search"
+	ReqVaultSearch     = "vault.search"
+	ReqVaultGet        = "vault.get"
+	ReqVaultCreate     = "vault.create"
+	ReqVaultPut        = "vault.put"
+	ReqVaultDelete     = "vault.delete"
+	ReqVaultListKeys   = "vault.list-keys"
+	ReqVaultInspect    = "vault.inspect"
+	ReqVaultReadSecret = "vault.read-secret"
+	ReqVaultAnnotate   = "vault.annotate"
+	ReqVaultAuditTrail = "vault.audit-trail"
+
+	// Extension registry surface (used to pull/add vault extensions).
+	ReqExtensionSearch = "extension.search"
+	ReqExtensionInfo   = "extension.info"
+	ReqExtensionPull   = "extension.pull"
 )
 
 // wireRequest is the client -> server envelope.

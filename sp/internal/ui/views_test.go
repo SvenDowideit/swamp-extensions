@@ -152,12 +152,3 @@ func TestHumanIntAndMeasure(t *testing.T) {
 		t.Errorf("humanizeKey=%q", got)
 	}
 }
-
-func containsStr(ss []string, s string) bool {
-	for _, x := range ss {
-		if x == s {
-			return true
-		}
-	}
-	return false
-}

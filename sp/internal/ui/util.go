@@ -203,6 +203,16 @@ func scrollbarString(total, visible, top, trackH int, track, thumb string) []str
 	return out
 }
 
+// containsStr reports whether ss contains s.
+func containsStr(ss []string, s string) bool {
+	for _, x := range ss {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
 // joinNonEmpty filters empty strings, then joins with sep.
 func joinNonEmpty(sep string, parts ...string) string {
 	kept := parts[:0]

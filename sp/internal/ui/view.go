@@ -62,6 +62,8 @@ func (m *Model) render() string {
 	switch {
 	case m.quitConfirm:
 		return overlayAt(all, m.renderQuitConfirm(), m.width)
+	case m.vault.open:
+		return overlayAt(all, m.renderVaultMode(), m.width)
 	case m.inputOpen:
 		return m.renderInputForm()
 	case m.viewOpen:
@@ -74,6 +76,219 @@ func (m *Model) render() string {
 		return m.renderSpotter()
 	}
 	return all
+}
+
+// renderVaultMode draws the vault browser: an 80%-ish overlay with a left tree
+// (vault extensions with their vaults) and a contextual right pane.
+func (m *Model) renderVaultMode() string {
+	w := clamp(m.width*80/100, 60, m.width-2)
+	ht := clamp(m.height*80/100, 14, m.height-3)
+	innerW := w - 4
+	innerH := ht - 4
+	if innerW < 30 {
+		innerW = 30
+	}
+	if innerH < 5 {
+		innerH = 5
+	}
+
+	// Split: tree | detail. Keep the tree narrow.
+	treeW := clamp(innerW*34/100, 22, 40)
+	detailW := innerW - treeW - 2
+	if detailW < 20 {
+		detailW = 20
+	}
+
+	// Header.
+	head := stylePaneTitle.Render("Vaults") + "  " + styleKind.Render("vaults & secrets")
+	chip := ""
+	if m.vault.busy {
+		chip = styleOrange.Render("◐ working…")
+	} else if m.vault.err != nil {
+		chip = styleError.Render("✗ error")
+	} else if len(m.vault.rows) > 0 {
+		chip = styleMuted.Render(fmt.Sprintf("%d vaults", m.vaultVaultCount()))
+	}
+	gap := innerW - lipgloss.Width(head) - lipgloss.Width(chip)
+	if gap < 1 {
+		gap = 1
+	}
+	headerLine := head + strings.Repeat(" ", gap) + chip
+
+	// Body: two columns of innerH rows.
+	bodyH := innerH - 2 // header + footer
+	if bodyH < 3 {
+		bodyH = 3
+	}
+	left := m.renderVaultTree(treeW, bodyH)
+	right := m.renderVaultDetailPane(detailW, bodyH)
+	body := lipgloss.JoinHorizontal(lipgloss.Top, left, "  ", right)
+
+	// Status/footer.
+	var footer string
+	if m.vault.status != "" {
+		footer = styleMuted.Render(truncStr(m.vault.status, innerW))
+	} else {
+		footer = renderHints(m.vaultHints(), innerW)
+	}
+
+	var b strings.Builder
+	b.WriteString(headerLine)
+	b.WriteString("\n")
+	b.WriteString(body)
+	b.WriteString("\n")
+	b.WriteString(footer)
+	box := stylePaneFocus.Width(w).Height(ht).Render(b.String())
+
+	// Overlay the prompt / confirm dialogs on top.
+	if m.vault.confirmOpen {
+		return overlayAt(box, m.renderVaultConfirm(), w)
+	}
+	if m.vault.promptOpen {
+		return overlayAt(box, m.renderVaultPrompt(), w)
+	}
+	return box
+}
+
+// vaultVaultCount counts configured vaults in the tree.
+func (m *Model) vaultVaultCount() int {
+	n := 0
+	for _, r := range m.vault.rows {
+		if r.kind == "vault" {
+			n++
+		}
+	}
+	return n
+}
+
+// renderVaultTree renders the left column: extensions and their vaults.
+func (m *Model) renderVaultTree(w, h int) string {
+	focused := m.vault.focus == VaultFocusTree
+	title := "Extensions & vaults"
+	if focused {
+		title = "▸ " + title
+	}
+	var lines []string
+	rows := m.vault.rows
+
+	// Scroll to keep selection visible.
+	top := windowTop(len(rows), m.vault.sel, h)
+	end := top + h
+	if end > len(rows) {
+		end = len(rows)
+	}
+	for i := top; i < end; i++ {
+		r := rows[i]
+		indent := ""
+		if r.depth > 0 {
+			indent = "  "
+		}
+		var line string
+		if r.kind == "extension" {
+			line = fmt.Sprintf("%s%s %s", indent, styleKind.Render(vaultRowGlyph(r)),
+				stylePaneTitle.Render(r.name))
+		} else {
+			line = fmt.Sprintf("%s%s %s", indent, styleGreen.Render(vaultRowGlyph(r)),
+				styleItem.Render(r.name))
+		}
+		if i == m.vault.sel && focused {
+			line = styleSelected.Render(fmt.Sprintf("%s%s %s", indent,
+				vaultRowGlyph(r), r.name))
+		}
+		lines = append(lines, line)
+		if r.kind == "vault" && r.sub != "" {
+			lines = append(lines, "    "+styleMuted.Render(shortTime(r.sub)))
+		}
+	}
+	if len(rows) == 0 {
+		lines = append(lines, styleMuted.Render("no vaults or extensions"))
+	}
+	return paneBox(title, focused, strings.Join(lines, "\n"), w, h)
+}
+
+// renderVaultDetailPane renders the right column with a scroll window.
+func (m *Model) renderVaultDetailPane(w, h int) string {
+	focused := m.vault.focus == VaultFocusDetail
+	title := m.vault.detailTitle
+	if title == "" {
+		title = "Detail"
+	}
+	content := m.renderVaultDetail(w-2, h-2)
+	lines := strings.Split(content, "\n")
+	// Apply the detail scroll offset.
+	if m.vault.detailScrol > 0 && m.vault.detailScrol < len(lines) {
+		lines = lines[m.vault.detailScrol:]
+	}
+	return paneBox(title, focused, strings.Join(lines, "\n"), w, h)
+}
+
+// paneBox draws a bordered pane with a title, for the vault overlay.
+func paneBox(title string, focused bool, content string, w, h int) string {
+	st := stylePane
+	titleSt := stylePaneTitleBlur
+	if focused {
+		st = stylePaneFocus
+		titleSt = stylePaneTitle
+	}
+	innerW := w - 4
+	innerH := h - 3
+	if innerW < 1 {
+		innerW = 1
+	}
+	if innerH < 1 {
+		innerH = 1
+	}
+	head := titleSt.Render(title)
+	if lipgloss.Width(head) > innerW {
+		head = truncateANSI(head, innerW)
+	}
+	body := clip(content, innerW, innerH)
+	return st.Width(w).Height(h).Render(head + "\n" + body)
+}
+
+// renderVaultPrompt draws the single-line prompt overlay.
+func (m *Model) renderVaultPrompt() string {
+	w := clamp(m.width*50/100, 40, 80)
+	innerW := w - 4
+	var b strings.Builder
+	b.WriteString(stylePaneTitle.Render(m.vault.promptTitle) + "\n\n")
+	b.WriteString(styleKey.Render(m.vault.promptLabel) + "\n")
+	b.WriteString("  " + m.vault.promptValue + "▏\n\n")
+	b.WriteString(renderHints([]hint{h("enter", "confirm"), h("esc", "cancel")}, innerW))
+	return stylePaneFocus.Width(w).Render(b.String())
+}
+
+// renderVaultConfirm draws the delete confirmation.
+func (m *Model) renderVaultConfirm() string {
+	w := clamp(m.width*50/100, 40, 80)
+	innerW := w - 4
+	var b strings.Builder
+	b.WriteString(styleError.Render(m.vault.confirmTitle) + "\n\n")
+	b.WriteString(m.vault.confirmBody + "\n\n")
+	b.WriteString(renderHints([]hint{h("y", "delete"), h("esc", "cancel")}, innerW))
+	return stylePaneFocus.Width(w).Render(b.String())
+}
+
+// vaultHints is the context key bar for Vault mode.
+func (m *Model) vaultHints() []hint {
+	hs := []hint{h("[vaults]", "")}
+	switch {
+	case m.vault.focus == VaultFocusTree:
+		hs = append(hs, h("↑↓", "move"), h("enter", "open"))
+		if row, ok := m.vaultCurrent(); ok {
+			if row.kind == "extension" {
+				hs = append(hs, h("c", "create vault"), h("P", "pull"))
+			} else {
+				hs = append(hs, h("c", "create"), h("P", "pull"), h("a", "add key"), h("t", "audit"))
+			}
+		}
+	case m.vault.detailKind == "vault" && len(m.vault.keys) > 0:
+		hs = append(hs, h("↑↓", "key"), h("r", "reveal"), h("a", "add"), h("e", "edit"), h("d", "del"), h("n", "annotate"), h("t", "audit"))
+	default:
+		hs = append(hs, h("↑↓", "scroll"))
+	}
+	hs = append(hs, h("tab", "pane"), h("esc", "close"))
+	return hs
 }
 
 // renderPlayground draws the CEL query console as an overlay: an editable
@@ -574,6 +789,7 @@ func (m *Model) keyHints() []hint {
 			h("tab", "pane"),
 			h("s", "search"),
 			h("p", "playground"),
+			h("v", "vaults"),
 			h("r", "reload"),
 			h("q", "quit"),
 		)
@@ -597,6 +813,7 @@ func (m *Model) keyHints() []hint {
 			h("tab", "pane"),
 			h("s", "search"),
 			h("p", "playground"),
+			h("v", "vaults"),
 			h("esc", "root"),
 			h("r", "reload"),
 			h("q", "quit"),
@@ -610,6 +827,7 @@ func (m *Model) keyHints() []hint {
 			h("tab", "pane"),
 			h("s", "search"),
 			h("p", "playground"),
+			h("v", "vaults"),
 			h("esc", "root"),
 			h("r", "reload"),
 			h("q", "quit"),
@@ -623,6 +841,7 @@ func (m *Model) keyHints() []hint {
 			h("tab", "pane"),
 			h("s", "search"),
 			h("p", "playground"),
+			h("v", "vaults"),
 			h("r", "reload"),
 			h("q", "quit"),
 		}

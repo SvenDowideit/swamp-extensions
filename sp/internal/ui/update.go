@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/svendowideit/swamp-project/sp/internal/swamp"
 )
 
 // Init kicks off the initial loads.
@@ -160,6 +161,85 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pgScroll = 0
 		return m, nil
 
+	case vaultTreeLoadedMsg:
+		m.vault.loading = false
+		if msg.err != nil {
+			m.vault.err = msg.err
+			return m, nil
+		}
+		m.vault.err = nil
+		m.vault.rows = buildVaultRows(msg.types, msg.vaults)
+		if m.vault.sel >= len(m.vault.rows) {
+			m.vault.sel = maxInt(0, len(m.vault.rows)-1)
+		}
+		return m, m.selectVaultRow()
+
+	case vaultKeysLoadedMsg:
+		if msg.err != nil {
+			m.vault.err = msg.err
+			return m, nil
+		}
+		m.vault.err = nil
+		m.vault.keys = msg.keys
+		m.vault.keySel = 0
+		m.vault.revealedKey = ""
+		m.vault.revealedValue = ""
+		m.vault.detailKind = "vault"
+		// Fetch metadata for the first key (the table shows sizes/types).
+		if len(msg.keys) > 0 {
+			return m, m.inspectVaultKey(msg.vault, msg.keys[0])
+		}
+		return m, nil
+
+	case vaultMetaLoadedMsg:
+		if m.vault.keyMeta == nil {
+			m.vault.keyMeta = map[string]swamp.VaultKeyMeta{}
+		}
+		if msg.err == nil {
+			m.vault.keyMeta[msg.key] = msg.meta
+		}
+		return m, nil
+
+	case vaultSecretLoadedMsg:
+		if msg.err != nil {
+			m.vault.status = "reveal failed: " + msg.err.Error()
+			return m, nil
+		}
+		m.vault.revealedKey = msg.key
+		m.vault.revealedValue = msg.value
+		return m, nil
+
+	case vaultAuditLoadedMsg:
+		if msg.err != nil {
+			m.vault.status = "audit failed: " + msg.err.Error()
+			return m, nil
+		}
+		m.vault.audit = msg.entries
+		return m, nil
+
+	case vaultExtInfoLoadedMsg:
+		if msg.err != nil {
+			m.vault.err = msg.err
+			m.vault.detailLines = []string{styleError.Render("extension.info: " + msg.err.Error())}
+			return m, nil
+		}
+		m.vault.extInfo = msg.info
+		return m, nil
+
+	case vaultActionMsg:
+		m.vault.busy = false
+		m.vault.status = msg.status
+		if msg.err != nil {
+			return m, nil
+		}
+		if msg.reloadTree {
+			return m, m.loadVaultTree()
+		}
+		if msg.reloadKeys != "" {
+			return m, m.loadVaultKeys(msg.reloadKeys)
+		}
+		return m, nil
+
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	}
@@ -181,6 +261,9 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.runOpen {
 		return m.handleRunKey(msg)
+	}
+	if m.vault.open {
+		return m.handleVaultKey(msg)
 	}
 	if m.pgOpen {
 		return m.handlePlaygroundKey(msg)
@@ -259,6 +342,10 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case "p":
 		return m, m.openPlayground()
+
+	case "v":
+		// Open the vault browser (vaults and secrets).
+		return m, m.openVaultMode()
 
 	case "R":
 		// Run the current root (workflows only).

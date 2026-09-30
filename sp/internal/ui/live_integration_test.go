@@ -352,6 +352,104 @@ func TestLivePlayground(t *testing.T) {
 	t.Logf("playground ok: rows=%d", len(m.pgRows))
 }
 
+// TestLiveVaultMode drives Vault mode against the real server: it loads the
+// vault tree, opens a vault's key table, inspects a key, and reads the audit
+// trail. It never writes, so it is safe against a real repo.
+//
+//	swamp serve --port 9090 --no-schedule &
+//	SP_SERVER=ws://127.0.0.1:9090 go test -tags integration -run TestLiveVaultMode ./internal/ui/
+func TestLiveVaultMode(t *testing.T) {
+	server := os.Getenv("SP_SERVER")
+	if server == "" {
+		server = "ws://127.0.0.1:9090"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	client, err := swamp.Dial(ctx, server, "")
+	if err != nil {
+		t.Skipf("no server at %s: %v", server, err)
+	}
+	defer client.Close()
+
+	m := New(client, "live", nil)
+	m.width, m.height = 150, 42
+	m.Update(m.openVaultMode())
+	tree := m.loadVaultTree()()
+	if _, ok := tree.(vaultTreeLoadedMsg); !ok {
+		t.Fatalf("loadVaultTree returned %T", tree)
+	}
+	m.Update(tree)
+	if m.vault.err != nil {
+		t.Fatalf("vault tree: %v", m.vault.err)
+	}
+	if len(m.vault.rows) == 0 {
+		t.Skip("no vaults configured in this repo")
+	}
+
+	// Find a vault row and open its keys.
+	idx := -1
+	var vaultName string
+	for i, r := range m.vault.rows {
+		if r.kind == "vault" {
+			idx, vaultName = i, r.name
+			break
+		}
+	}
+	if idx < 0 {
+		t.Skip("no configured vault to inspect")
+	}
+	m.vault.sel = idx
+	keysMsg := m.loadVaultKeys(vaultName)()
+	km, ok := keysMsg.(vaultKeysLoadedMsg)
+	if !ok {
+		t.Fatalf("loadVaultKeys returned %T", keysMsg)
+	}
+	if km.err != nil {
+		t.Fatalf("list keys for %q: %v", vaultName, km.err)
+	}
+	m.Update(keysMsg)
+	if len(m.vault.keys) == 0 {
+		t.Skipf("vault %q has no keys", vaultName)
+	}
+
+	// Inspect the first key (metadata only — no value).
+	key := m.vault.keys[0]
+	metaMsg := m.inspectVaultKey(vaultName, key)()
+	mm, ok := metaMsg.(vaultMetaLoadedMsg)
+	if !ok {
+		t.Fatalf("inspectVaultKey returned %T", metaMsg)
+	}
+	if mm.err != nil {
+		t.Fatalf("inspect %s/%s: %v", vaultName, key, mm.err)
+	}
+	m.Update(metaMsg)
+	if m.vault.keyMeta[key].ValueType == "" {
+		t.Fatalf("inspect did not report a value type for %s", key)
+	}
+
+	// Audit trail.
+	auditMsg := m.loadVaultAudit(vaultName)()
+	am, ok := auditMsg.(vaultAuditLoadedMsg)
+	if !ok {
+		t.Fatalf("loadVaultAudit returned %T", auditMsg)
+	}
+	if am.err != nil {
+		t.Fatalf("audit trail for %q: %v", vaultName, am.err)
+	}
+	m.vault.auditShown = true
+	m.Update(auditMsg)
+
+	out := strip(m.render())
+	if !strings.Contains(out, "Vaults") || !strings.Contains(out, vaultName) {
+		t.Fatalf("vault mode did not render the vault:\n%s", out)
+	}
+	if !strings.Contains(out, key) {
+		t.Fatalf("vault mode did not render key %q:\n%s", key, out)
+	}
+	t.Logf("vault %q: %d keys, %d audit entries", vaultName, len(m.vault.keys), len(m.vault.audit))
+}
+
 // TestLiveContextualViews opens real JSON artifacts and checks that the
 // contextual view registry selects a sensible type-specific view (forecast,
 // bars, or table) and that cycling reaches the raw json.

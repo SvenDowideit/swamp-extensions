@@ -217,7 +217,96 @@ type Model struct {
 	pgHelpSel    int
 	pgHelpScroll int
 	pgHelpOff    bool // user explicitly dismissed help for this session
+
+	// Vault mode: a full-screen overlay for browsing, viewing, editing and
+	// creating vaults and their secrets.
+	vault vaultState
 }
+
+// vaultFocus identifies which pane of Vault mode has the keyboard.
+type vaultFocus int
+
+const (
+	VaultFocusTree vaultFocus = iota
+	VaultFocusDetail
+)
+
+// VaultRow is one selectable row in the left tree. A row is either a vault
+// extension (a backend type, with installed vaults nested under it) or a
+// configured vault.
+type VaultRow struct {
+	kind     string // "extension" | "vault"
+	name     string // extension type or vault name
+	typeName string // display name for an extension (or vault type)
+	sub      string
+	depth    int // 0 = extension, 1 = vault under its extension
+	vault    swamp.Vault
+}
+
+// vaultState holds all Vault-mode UI state.
+type vaultState struct {
+	open  bool
+	focus vaultFocus
+
+	// Left tree.
+	rows    []VaultRow
+	sel     int
+	loading bool
+	err     error
+
+	// Right pane contents, keyed by what the selected row is.
+	detailLines []string
+	detailTitle string
+	detailKind  string // "extension" | "vault" | "key" | "audit"
+	detailScrol int
+
+	// When a vault is selected: its secret keys as a table.
+	keys     []string
+	keyMeta  map[string]swamp.VaultKeyMeta
+	keySel   int
+	pendingK int // key index to select once keys load
+
+	// Reveal state for a secret value.
+	revealedKey   string
+	revealedValue string
+
+	// Audit trail (loaded on demand).
+	audit      []swamp.VaultAuditEntry
+	auditShown bool
+
+	// Prompt overlay (single-line text entry for put/annotate/create/etc.).
+	promptOpen    bool
+	promptTitle   string
+	promptLabel   string
+	promptValue   string
+	promptKind    string // what the prompt will do on submit
+	promptVault   string
+	promptKey     string
+	promptRefresh string // optional refresh-from (for put)
+
+	// Confirm overlay (yes/no for delete).
+	confirmOpen  bool
+	confirmTitle string
+	confirmBody  string
+	confirmKind  string
+	confirmVault string
+	confirmKey   string
+
+	// Transient status line inside vault mode.
+	status  string
+	busy    bool
+	extInfo map[string]any // extension.info for the selected extension
+}
+
+// vaultRowGlyph is the leading marker for a tree row.
+func vaultRowGlyph(r VaultRow) string {
+	if r.kind == "extension" {
+		return "▣"
+	}
+	return "•"
+}
+
+// pgQuery is one entry in the Playground query history.
 
 // pgQuery is one entry in the Playground query history.
 type pgQuery struct {

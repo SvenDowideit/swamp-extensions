@@ -67,6 +67,7 @@ sp/
     viewer.go                 # run-output artifact viewer (dialog + fetch)
     views.go                  # contextual view registry (forecast/bars/table/fields/json)
     playground.go             # CEL query console (data.query + shape rendering)
+    vaults.go, vault_keys.go  # vault mode: tree, keys, prompts, actions
     htmlrender.go, mdrender.go, inline.go, richtext.go  # HTML/markdown → text
     styles.go, util.go        # styling + JSON/size helpers
     *_test.go                 # deterministic render/selection tests
@@ -355,6 +356,69 @@ Results are rendered by the shape the select produces:
 CEL errors come back with the server's caret snippet and are shown inline. This
 is the same query primitive Spotter uses to index the catalog, exposed directly.
 
+## Vaults (browse, view, edit, create)
+
+`v` opens **Vault mode** — an 80% overlay for browsing vault extensions and
+vaults, viewing and editing secrets, and creating new vaults, all over `serve`
+(`vault.*` requests; no shelling out).
+
+Two linked panes:
+
+```
+╭──────────────────────────────────────╮ ╭──────────────────────────────────────╮
+│ Extensions & vaults                  │ │ Vault — garmin-secrets               │
+│ ▣ @svendowideit/systemd-creds        │ │  Key              Type    Size        │
+│   • garmin-secrets                   │ │  DREAMHOST_TEST_KEY string 16 B       │
+│   • my-vault                         │ │  GARMIN_EMAIL     string  24 B        │
+│   • zwift-secrets                    │ │  GARMIN_PASSWORD  string  15 B        │
+│ ▣ local_encryption                   │ │                                       │
+│                                      │ │ Key — GARMIN_PASSWORD                 │
+│                                      │ │   value  •••••• (press 'r' to reveal) │
+╰──────────────────────────────────────╯ ╰──────────────────────────────────────╯
+[vaults]  ↑↓ key  r reveal  a add  e edit  d del  n annotate  t audit  tab pane  esc
+```
+
+- The **left tree** lists every available vault **extension** (built-in or
+  installed), with its configured **vaults** nested underneath.
+- Selecting an **extension** shows its manifest information in the right pane:
+  description (the user manual), version, repository (with a verified tick),
+  the vault backend it provides, and dependencies.
+- Selecting a **vault** shows a table of its secret **keys** (name, value type,
+  size, annotation marker) — values are never fetched until you ask.
+
+### Keys and actions
+
+| Key   | Action                                                                    |
+| ----- | ------------------------------------------------------------------------- |
+| `↑↓`  | move the tree selection; in the right pane, move through the vault's keys |
+| `enter` | open the selected extension/vault                                       |
+| `r`   | **reveal** the selected key's value (toggle; hidden again on move)        |
+| `a`   | **add** a key (`KEY=VALUE`)                                               |
+| `e`   | **edit** the selected key's value (re-put, prompted)                      |
+| `d`   | **delete** the selected key (confirmation)                                |
+| `n`   | **annotate** the selected key (URL or notes; blank clears)                |
+| `t`   | toggle the vault's **audit trail**                                        |
+| `c`   | **create** a vault from the selected extension (prompts for a name)       |
+| `P`   | **pull** the selected extension from the registry into the repo           |
+| `tab` | switch between the tree and the detail pane                               |
+
+Values are treated as secrets: they are only requested on an explicit `r`, shown
+in the accent colour, and cleared whenever the selection moves. The add/edit
+prompt keeps the value off the screen until you submit it.
+
+### Usage history
+
+Swamp **does** keep a vault audit trail (`vault.audit-trail`): every `put`,
+`get`, `delete`, and `annotate` is recorded with a timestamp, vault, key, and
+caller context. `t` loads it for the selected vault, so you can see when a key
+was last written and by what (e.g. `cli:vault-put`). It is not per-key history in
+the version-control sense — it is an append-only access log.
+
+> Creating or deleting a vault **configuration** is done by editing the config
+> file (swamp has no vault-delete verb); `d` here deletes a secret **key**, which
+> is the operation swamp exposes. Pulling an extension and creating a vault go
+> through `extension.pull` / `vault.create`.
+
 ## Spotter (global search)
 
 Pressing `s` builds a single in-memory index from three sources — `model.search`,
@@ -383,8 +447,9 @@ tests load the real workflow list, render a DAG, drill into data content,
 `succeeded` terminal state**, open each of a real run's outputs through the
 viewer (including HTML), run real CEL queries through the Playground (records,
 list/map/scalar projections, and a syntax error), select the right contextual
-view for real JSON artifacts (forecast, bars) and cycle to raw json, and verify a
-failed run's step is exposed for resume.
+view for real JSON artifacts (forecast, bars) and cycle to raw json, load the
+real vault tree and a vault's keys plus audit trail in Vault mode (read-only),
+and verify a failed run's step is exposed for resume.
 
 ## Status / next
 
@@ -405,6 +470,9 @@ Prototype. Current surface:
 - **Contextual inspector** (done): JSON artifacts render through a pluggable
   view registry (forecast/bars/table/fields → json), cycled with `v` — the
   moldable, type-specific layer.
+- **Vault mode** (done): `v` opens a two-pane browser for vault extensions and
+  vaults; view/edit/add/delete/annotate secrets, create vaults, pull vault
+  extensions, and read the audit trail — all over `serve`.
 
 The roadmap from `docs/smalltalk-browser-research.md` is now complete through
 Phase 5 (the moldable view registry), with reports (proposal G) as the natural

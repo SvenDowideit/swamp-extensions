@@ -40,7 +40,65 @@ func (m *Model) render() string {
 	dataPane := m.renderData(dataW, bodyH)
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, modelsPane, detailPane, dataPane)
-	return lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+	panes := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+
+	if m.spotterOpen {
+		return m.renderSpotter()
+	}
+	return panes
+}
+
+// renderSpotter draws the global search box centred on the screen.
+func (m *Model) renderSpotter() string {
+	w := clamp(m.width*70/100, 40, 100)
+	results := m.visibleSpotter()
+	const maxRows = 14
+	if len(results) > maxRows {
+		results = results[:maxRows]
+	}
+
+	var b strings.Builder
+	// query line
+	cursor := ""
+	if m.spotterLoaded {
+		cursor = "▏"
+	}
+	b.WriteString(styleKey.Render("search ") + m.spotterQuery + cursor + "\n")
+	if !m.spotterLoaded {
+		b.WriteString(styleMuted.Render("building index (models, workflows, data)…") + "\n")
+	} else if len(results) == 0 {
+		b.WriteString(styleMuted.Render("no matches") + "\n")
+	}
+	for i, it := range results {
+		plainKind := padRight(it.kind, 8)
+		if i == m.spotterSel {
+			text := " " + plainKind + " " + it.label
+			if it.sub != "" {
+				text += "  " + it.sub
+			}
+			b.WriteString(styleSelected.Render(text) + "\n")
+			continue
+		}
+		line := styleKind.Render(plainKind) + " " + it.label
+		if it.sub != "" {
+			line += styleMuted.Render("  " + it.sub)
+		}
+		b.WriteString(line + "\n")
+	}
+
+	box := stylePaneFocus.Width(w).Render(
+		stylePaneTitle.Render("Spotter") + "\n" + b.String())
+	box = box + "\n" + styleMuted.Render("↑↓ move  enter jump  esc close")
+
+	// Centre over the background.
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
+}
+
+func padRight(s string, n int) string {
+	if len(s) >= n {
+		return s
+	}
+	return s + strings.Repeat(" ", n-len(s))
 }
 
 func (m *Model) renderHeader() string {
@@ -69,7 +127,7 @@ func (m *Model) renderFooter() string {
 		b.WriteString(styleMuted.Render("  enter:apply  esc:clear"))
 	} else {
 		b.WriteString(styleMuted.Render(
-			"tab switch  ↑↓ move  enter open  / filter  r reload  q quit"))
+			"s search  tab switch  ↑↓ move  enter open  / filter  r reload  q quit"))
 	}
 	return "\n" + b.String()
 }

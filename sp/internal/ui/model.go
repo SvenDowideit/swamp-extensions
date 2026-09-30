@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -64,6 +65,18 @@ type Model struct {
 	// filter is a live substring filter applied to the model list.
 	filtering bool
 	filter    string
+
+	// pendingData names a data item to select once a model's detail loads
+	// (used by spotter jumps).
+	pendingData string
+
+	// spotter is the global search overlay.
+	spotterOpen    bool
+	spotterQuery   string
+	spotterIndex   []spotterItem // all items, unfiltered
+	spotterResults []spotterItem // current matches
+	spotterSel     int
+	spotterLoaded  bool
 }
 
 // New builds the initial model.
@@ -75,6 +88,97 @@ func New(client *swamp.Client, repo string, serve *swamp.Serve) *Model {
 		focus:  PaneModels,
 		status: "connecting…",
 	}
+}
+
+// spotterItem is one row in the global search overlay.
+type spotterItem struct {
+	kind  string // "model" | "workflow" | "data"
+	label string
+	sub   string
+	// payload for navigation
+	model string // model name (models, data)
+	data  string // data name (data)
+}
+
+// spotterLoadedMsg delivers the assembled global search index.
+type spotterLoadedMsg struct {
+	models    []spotterItem
+	workflows []spotterItem
+	data      []spotterItem
+	err       error
+}
+
+// loadSpotter builds the global index: models, workflows, and the data catalog.
+func (m *Model) loadSpotter() tea.Cmd {
+	client := m.client
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
+		defer cancel()
+
+		var out spotterLoadedMsg
+
+		if res, err := client.SearchModels(ctx, ""); err == nil {
+			for _, r := range asList(res["results"]) {
+				obj, ok := r.(map[string]any)
+				if !ok {
+					continue
+				}
+				out.models = append(out.models, spotterItem{
+					kind: "model", label: str(obj["name"]), sub: str(obj["type"]),
+					model: str(obj["name"]),
+				})
+			}
+		} else {
+			out.err = err
+		}
+
+		if res, err := client.SearchWorkflows(ctx, ""); err == nil {
+			for _, r := range asList(res["results"]) {
+				obj, ok := r.(map[string]any)
+				if !ok {
+					continue
+				}
+				out.workflows = append(out.workflows, spotterItem{
+					kind: "workflow", label: str(obj["name"]),
+					sub: joinNonEmpty(" · ",
+						fmt.Sprintf("%v jobs", obj["jobCount"]),
+						fmt.Sprintf("%v steps", obj["stepCount"])),
+				})
+			}
+		}
+
+		// Data catalog: one projected row per data item.
+		if rows, err := client.DataQuery(ctx,
+			`size >= 0`, `[modelName, name, string(version), dataType, string(size)]`, 2000); err == nil {
+			for _, r := range rows {
+				cols, ok := r.([]any)
+				if !ok || len(cols) < 4 {
+					continue
+				}
+				model, name, ver, typ := str(cols[0]), str(cols[1]), str(cols[2]), str(cols[3])
+				sub := typ + " v" + ver
+				if len(cols) >= 5 {
+					sub += "  " + humanSize(stringToFloat(cols[4]))
+				}
+				out.data = append(out.data, spotterItem{
+					kind: "data", label: name, sub: sub, model: model, data: name,
+				})
+			}
+		}
+
+		return out
+	}
+}
+
+// stringToFloat parses a numeric string produced by a CEL string() projection.
+func stringToFloat(v any) any {
+	if s, ok := v.(string); ok {
+		var f float64
+		if _, err := fmt.Sscanf(s, "%g", &f); err == nil {
+			return f
+		}
+	}
+	return v
 }
 
 // --- async messages ---
@@ -228,6 +332,60 @@ func (m *Model) loadDataContent(modelName, dataName string, width int) tea.Cmd {
 		lines = append(lines, prettyContent(d, width)...)
 		return detailLoadedMsg{title: dataName, lines: lines}
 	}
+}
+
+// visibleSpotter returns the current ranked matches for the query.
+func (m *Model) visibleSpotter() []spotterItem {
+	q := strings.ToLower(strings.TrimSpace(m.spotterQuery))
+	if q == "" {
+		// Show a small, deterministic default: first few models.
+		n := len(m.spotterIndex)
+		if n > 40 {
+			n = 40
+		}
+		return m.spotterIndex[:n]
+	}
+	type scored struct {
+		it    spotterItem
+		score int
+	}
+	var hits []scored
+	for _, it := range m.spotterIndex {
+		label := strings.ToLower(it.label)
+		sub := strings.ToLower(it.sub)
+		var score int
+		switch {
+		case label == q:
+			score = 1000
+		case strings.HasPrefix(label, q):
+			score = 800
+		case strings.Contains(label, q):
+			score = 600
+		case strings.Contains(sub, q):
+			score = 300
+		default:
+			continue
+		}
+		// Prefer models/workflows over data on equal match quality.
+		switch it.kind {
+		case "model":
+			score += 30
+		case "workflow":
+			score += 20
+		}
+		hits = append(hits, scored{it, score})
+	}
+	sort.SliceStable(hits, func(i, j int) bool {
+		if hits[i].score != hits[j].score {
+			return hits[i].score > hits[j].score
+		}
+		return hits[i].it.label < hits[j].it.label
+	})
+	out := make([]spotterItem, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, h.it)
+	}
+	return out
 }
 
 // visibleModels applies the live filter.

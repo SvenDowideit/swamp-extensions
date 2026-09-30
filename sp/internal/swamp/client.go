@@ -361,6 +361,33 @@ func (c *Client) GetData(ctx context.Context, model, name string, version int) (
 	return c.dataRequest(ctx, ReqDataGet, p)
 }
 
+// DataQuery runs a CEL predicate over the data catalog. selectExpr is optional.
+// Returns the projected rows (list or map per the select expression).
+func (c *Client) DataQuery(ctx context.Context, predicate, selectExpr string, limit int) ([]any, error) {
+	p := map[string]any{"predicate": predicate}
+	if selectExpr != "" {
+		p["select"] = selectExpr
+	}
+	if limit > 0 {
+		p["limit"] = limit
+	}
+	res, err := c.dataRequest(ctx, ReqDataQuery, p)
+	if err != nil {
+		return nil, err
+	}
+	// With a --select projection the rows live under projected.rows; without
+	// one they are the raw records under results.
+	if proj, ok := res["projected"].(map[string]any); ok {
+		if rows, ok := proj["rows"].([]any); ok {
+			return rows, nil
+		}
+	}
+	if rows, ok := res["results"].([]any); ok {
+		return rows, nil
+	}
+	return nil, nil
+}
+
 // RunHistory lists recent runs.
 func (c *Client) RunHistory(ctx context.Context, active bool) ([]RunHistoryEntry, error) {
 	raw, err := c.Request(ctx, ReqRunHistory, map[string]any{"active": active})

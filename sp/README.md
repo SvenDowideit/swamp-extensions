@@ -78,8 +78,20 @@ go build -o sp .
 ./sp --server ws://host:9090 --token <name>.<secret>   # attach to a remote serve
 ```
 
-Keys: `tab`/`h`/`l` switch panes, `↑`/`↓` move, `enter` open, `/` filter models,
-`r` reload, `q` quit.
+Keys: `s` (or `ctrl+p`) opens the **Spotter** — one search box over models,
+workflows, and the data catalog; type to filter, `↑`/`↓` to move, `enter` to
+jump. Otherwise: `tab`/`h`/`l` switch panes, `↑`/`↓` move, `enter` open, `/`
+filter models, `r` reload, `q` quit.
+
+## Spotter (global search)
+
+Pressing `s` builds a single in-memory index from three sources — `model.search`,
+`workflow.search`, and a `data.query 'size >= 0'` projection over the data
+catalog — and ranks matches: exact first, then prefix, then substring, then
+subtitle, with models/workflows preferred over data on ties. Jumping to a model
+selects it in the Models pane and loads its detail; jumping to a data item also
+positions the Data pane on that item. (Workflow results are indexed and shown,
+but jumping is stubbed until the workflow pane from the next phase lands.)
 
 ## Tests
 
@@ -94,11 +106,14 @@ rather than owned.
 
 ## Status / next
 
-Prototype. Current surface: browse models → methods + data-output specs → data
-contents (JSON pretty-printed). Deliberately not yet built, in the order the
-research doc recommends:
+Prototype. Current surface:
 
-- Spotter: one search box over models, types, workflows, data, extensions.
+- **Phase 0 — Spotter** (done): global search over models, workflows, and data.
+- **System Browser** (done): models → methods + data-output specs → data
+  contents (JSON pretty-printed), selection-linked panes.
+
+Deliberately not yet built, in the order the research doc recommends:
+
 - Workflow pane + DAG view (`workflow.search` / `workflow.get`).
 - Run browser with live event streaming (`workflow.run` / `run.attach`) and
   resume-at-step.

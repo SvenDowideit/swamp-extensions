@@ -87,3 +87,34 @@ func TestHumanSize(t *testing.T) {
 		}
 	}
 }
+
+func TestVisibleSpotterRanksAndFilters(t *testing.T) {
+	m := New(nil, "r", nil)
+	m.spotterIndex = []spotterItem{
+		{kind: "data", label: "forecast", sub: "resource v9", model: "bom", data: "forecast"},
+		{kind: "model", label: "bom", sub: "@svendowideit/bom-weather", model: "bom"},
+		{kind: "workflow", label: "disk", sub: "1 jobs · 1 steps"},
+		{kind: "model", label: "forecast-service", sub: "x", model: "forecast-service"},
+	}
+	m.spotterQuery = "forecast"
+	got := m.visibleSpotter()
+	if len(got) != 2 {
+		t.Fatalf("want 2 matches, got %d: %+v", len(got), got)
+	}
+	// Exact match ranks first.
+	if got[0].label != "forecast" {
+		t.Fatalf("exact match should rank first, got %q", got[0].label)
+	}
+
+	m.spotterQuery = "bom"
+	got = m.visibleSpotter()
+	if len(got) != 1 || got[0].kind != "model" {
+		t.Fatalf("query 'bom' should match the model, got %+v", got)
+	}
+
+	m.spotterQuery = ""
+	got = m.visibleSpotter()
+	if len(got) != 4 {
+		t.Fatalf("empty query should show up to all items, got %d", len(got))
+	}
+}

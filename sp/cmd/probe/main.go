@@ -66,6 +66,42 @@ func main() {
 		}
 	}
 
+	if wf, err := client.SearchWorkflows(ctx, ""); err == nil {
+		if list, ok := wf["results"].([]any); ok && len(list) > 0 {
+			if first, ok := list[0].(map[string]any); ok {
+				name, _ := first["name"].(string)
+				if detail, err := client.GetWorkflow(ctx, name); err == nil {
+					dump("workflow.get "+name, detail)
+				}
+			}
+		}
+	}
+	if ts, err := client.SearchTypes(ctx, ""); err == nil {
+		if list, ok := ts["results"].([]any); ok && len(list) > 0 {
+			if first, ok := list[0].(map[string]any); ok {
+				raw, _ := first["raw"].(string)
+				if d, err := client.DescribeType(ctx, raw); err == nil {
+					dump("model.type.describe methods["+raw+"]", asMaps(d["methods"]))
+				}
+			}
+		}
+	}
+	if raw, err := client.Request(ctx, swamp.ReqDataQuery, map[string]any{
+		"predicate": `size >= 0`,
+		"select":    `[modelName, name, string(version), dataType]`,
+	}); err == nil {
+		dump("data.query raw payload", json.RawMessage(raw))
+	} else {
+		fmt.Println("data.query failed:", err)
+	}
+	if raw, err := client.Request(ctx, swamp.ReqDataQuery, map[string]any{
+		"predicate": `dataType == "resource"`,
+		"select":    `[modelName, name]`,
+	}); err == nil {
+		dump("data.query predicate2", json.RawMessage(raw))
+	} else {
+		fmt.Println("data.query2 failed:", err)
+	}
 	if m, err := client.SearchModels(ctx, ""); err == nil {
 		if list, ok := m["results"].([]any); ok && len(list) > 0 {
 			if first, ok := list[0].(map[string]any); ok {
@@ -92,6 +128,17 @@ func keys(m map[string]any) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)
+	}
+	return out
+}
+
+func asMaps(v any) []map[string]any {
+	list, _ := v.([]any)
+	out := make([]map[string]any, 0, len(list))
+	for _, it := range list {
+		if m, ok := it.(map[string]any); ok {
+			out = append(out, m)
+		}
 	}
 	return out
 }

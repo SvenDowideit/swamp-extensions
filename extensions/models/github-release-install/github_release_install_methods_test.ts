@@ -172,7 +172,7 @@ Deno.test("check fails when the archive's checksum is missing", async () => {
       await assertRejects(
         () => runCheck(ctx, {}),
         Error,
-        "does not list this archive",
+        "neither the checksums file nor the release API lists a digest",
       );
     });
   });

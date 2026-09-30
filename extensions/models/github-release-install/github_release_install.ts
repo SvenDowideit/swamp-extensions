@@ -38,7 +38,9 @@ import {
   checksumsUrlFor,
   compileAssetPattern,
   DEFAULT_ASSET_PATTERN,
+  CHECKSUM_ALGORITHMS,
   detectArchiveType,
+  digestFromAsset,
   downloadAndVerify,
   expandHome,
   fetchChecksums,
@@ -568,6 +570,9 @@ export const model = {
           repo: g.repo,
         });
 
+        const selectedAsset = releasePlatform.archiveName
+          ? release.assets.find((a) => a.name === releasePlatform.archiveName)
+          : undefined;
         const checksumsUrl = args.fetchChecksums
           ? checksumsUrlFor(release.assets, g.checksumsName)
           : null;
@@ -584,6 +589,22 @@ export const model = {
           checksum = result.sums[releasePlatform.archiveName] ?? null;
           checksumAlgorithm = result.algorithm;
         }
+        // Fall back to the GitHub API per-asset digest when the release
+        // publishes no checksums file listing this archive (opencode).
+        if (!checksum && selectedAsset) {
+          const digest = digestFromAsset(selectedAsset);
+          if (digest) {
+            checksum = digest;
+            checksumAlgorithm = CHECKSUM_ALGORITHMS[digest.length] ?? null;
+            context.logger.debug?.(
+              "Using the GitHub API digest for {name} ({algorithm})",
+              {
+                name: releasePlatform.archiveName,
+                algorithm: checksumAlgorithm,
+              },
+            );
+          }
+        }
         if (
           releasePlatform.archiveName && !checksum && args.fetchChecksums &&
           args.requireChecksum
@@ -597,9 +618,9 @@ export const model = {
               : `No checksum for ${releasePlatform.archiveName} in ` +
                 `${
                   checksumsUrl ?? g.checksumsName
-                } — the checksums file does ` +
-                `not list this archive, so it cannot be verified. Pass ` +
-                `requireChecksum=false to override.`,
+                } — neither the checksums file ` +
+                `nor the release API lists a digest for this archive, so it ` +
+                `cannot be verified. Pass requireChecksum=false to override.`,
           );
         }
         if (releasePlatform.archiveName && !checksum) {

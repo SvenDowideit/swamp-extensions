@@ -39,6 +39,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.items != nil {
 			m.dataItems = msg.items
 			m.dataSel = 0
+			if m.pendingData != "" {
+				for i, it := range m.dataItems {
+					if it.label == m.pendingData {
+						m.dataSel = i
+						break
+					}
+				}
+				m.pendingData = ""
+			}
+		}
+		return m, nil
+
+	case spotterLoadedMsg:
+		m.spotterLoaded = true
+		m.spotterIndex = append(append(append([]spotterItem{},
+			msg.models...), msg.workflows...), msg.data...)
+		if msg.err != nil {
+			m.err = msg.err
 		}
 		return m, nil
 
@@ -50,6 +68,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
+
+	// Spotter overlay consumes all keys while open.
+	if m.spotterOpen {
+		return m.handleSpotterKey(msg)
+	}
 
 	// Filter input mode consumes most keys.
 	if m.filtering {
@@ -87,6 +110,14 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "/":
 		m.filtering = true
 		m.focus = PaneModels
+
+	case "s", "ctrl+p":
+		m.spotterOpen = true
+		m.spotterQuery = ""
+		m.spotterSel = 0
+		if !m.spotterLoaded {
+			return m, m.loadSpotter()
+		}
 
 	case "tab", "l", "right":
 		m.focus = (m.focus + 1) % PaneCount
@@ -139,6 +170,78 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				return m, m.loadDataContent(sel.label, item.label, m.width)
 			}
 		}
+	}
+	return m, nil
+}
+
+// handleSpotterKey processes keys while the global search overlay is open.
+func (m *Model) handleSpotterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	results := m.visibleSpotter()
+
+	switch key {
+	case "esc", "ctrl+p":
+		m.spotterOpen = false
+		return m, nil
+	case "down", "ctrl+j", "tab":
+		if len(results) > 0 {
+			m.spotterSel = clamp(m.spotterSel+1, 0, len(results)-1)
+		}
+		return m, nil
+	case "up", "ctrl+k", "shift+tab":
+		if len(results) > 0 {
+			m.spotterSel = clamp(m.spotterSel-1, 0, len(results)-1)
+		}
+		return m, nil
+	case "backspace":
+		if m.spotterQuery != "" {
+			m.spotterQuery = m.spotterQuery[:len(m.spotterQuery)-1]
+			m.spotterSel = 0
+		}
+		return m, nil
+	case "enter":
+		if len(results) == 0 {
+			return m, nil
+		}
+		pick := results[clamp(m.spotterSel, 0, len(results)-1)]
+		m.spotterOpen = false
+		return m.jumpTo(pick)
+	}
+	if len(msg.Text) > 0 {
+		m.spotterQuery += msg.Text
+		m.spotterSel = 0
+	}
+	return m, nil
+}
+
+// jumpTo navigates the browser to the chosen search result.
+func (m *Model) jumpTo(it spotterItem) (tea.Model, tea.Cmd) {
+	switch it.kind {
+	case "model", "data":
+		// Select the model in the models pane, then load its detail.
+		for i, n := range m.models {
+			if n.label == it.model {
+				m.filter = ""
+				m.filtering = false
+				m.modelSel = i
+				break
+			}
+		}
+		m.focus = PaneModels
+		cmd := m.selectModel()
+		if it.kind == "data" {
+			m.focus = PaneData
+			// After detail loads, select the requested data item. We set a
+			// pending hint consumed in the detailLoadedMsg handler.
+			m.pendingData = it.data
+		}
+		return m, cmd
+	case "workflow":
+		// Workflows are not yet a pane; fall back to filtering the model list
+		// is wrong, so just surface it in the status until the workflow pane
+		// lands. (Next roadmap item.)
+		m.status = "workflow: " + it.label + " (workflow pane coming next)"
+		return m, nil
 	}
 	return m, nil
 }

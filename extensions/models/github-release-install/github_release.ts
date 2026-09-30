@@ -55,6 +55,19 @@ export const ARCHIVE_TYPES = ["auto", "tar.gz", "zip", "raw"] as const;
 export type ArchiveType = typeof ARCHIVE_TYPES[number];
 
 /**
+ * The hash algorithms recognised in a checksums file (or a GitHub per-asset
+ * `digest`), keyed by digest length in hex characters. `sha512` (128) covers
+ * projects such as caddy that publish SHA-512 only; `sha256` (64) is the
+ * GoReleaser default.
+ */
+export const CHECKSUM_ALGORITHMS: Record<number, string> = {
+  40: "sha1",
+  64: "sha256",
+  96: "sha384",
+  128: "sha512",
+};
+
+/**
  * Operating-system tokens grouped into families of equivalent names, so a host
  * probe (`Linux`, from `uname`) matches a publisher that names its assets
  * differently (`linux`, as caddy does). A token absent from every family is
@@ -121,6 +134,7 @@ const ReleaseAssetSchema = z.object({
   url: z.string(),
   size: z.number().optional(),
   version: z.string().optional(),
+  digest: z.string().optional(),
 });
 
 /**
@@ -183,6 +197,24 @@ export interface ReleaseAsset {
   size?: number;
   /** Version parsed from the archive name (no `v` prefix), when parseable. */
   version?: string;
+  /**
+   * Per-asset digest from the GitHub API, e.g. `sha256:abc…`. Some releases
+   * publish no `checksums.txt` (opencode) but the API still carries this.
+   */
+  digest?: string;
+}
+
+/**
+ * The digest portion of a GitHub API per-asset `digest` field (`sha256:abc…`),
+ * lowercased hex, or `null` when absent or in an unrecognised form. Only the
+ * algorithms this extension verifies are accepted.
+ */
+export function digestFromAsset(asset: ReleaseAsset): string | null {
+  const raw = (asset.digest ?? "").trim().toLowerCase();
+  const match = raw.match(/^([a-z0-9]+):([0-9a-f]+)$/);
+  if (!match) return null;
+  if (!CHECKSUM_ALGORITHMS[match[2].length]) return null;
+  return match[2];
 }
 
 /** A release with its assets, as the model stores it. */
@@ -328,6 +360,10 @@ export function versionsEqual(a: string, b: string): boolean {
  * Compile an asset-name pattern, asserting it has the named groups the model
  * needs. Fails loudly on an invalid regex or a missing group rather than
  * silently selecting nothing.
+ *
+ * `version` is **optional**: some publishers (opencode) do not put the version
+ * in the asset name (the release tag carries it), so a pattern may omit the
+ * group. `os` and `arch` remain required.
  */
 export function compileAssetPattern(pattern: string): RegExp {
   let re: RegExp;
@@ -340,7 +376,7 @@ export function compileAssetPattern(pattern: string): RegExp {
       }`,
     );
   }
-  for (const group of ["version", "os", "arch"]) {
+  for (const group of ["os", "arch"]) {
     if (!re.source.includes(`?<${group}>`)) {
       throw new Error(
         `assetPattern must define a named group (?<${group}>…); got ${pattern}`,
@@ -349,6 +385,15 @@ export function compileAssetPattern(pattern: string): RegExp {
   }
   return re;
 }
+
+/**
+ * A pattern for releases whose assets carry **no version** — the OS/arch after
+ * the stem and before the extension, e.g. `opencode-linux-x64.tar.gz` or
+ * `tool-darwin-arm64.zip`. `stem` is non-greedy so the last `-<os>-<arch>`
+ * wins; the version is taken from the release tag instead.
+ */
+export const NO_VERSION_ASSET_PATTERN =
+  "^(?<stem>[^/]+?)[-_](?<os>[A-Za-z0-9]+)[-_](?<arch>[A-Za-z0-9_]+?)(?:\\.(?<ext>tar\\.gz|tgz|zip|gz|exe|bin))?$";
 
 /**
  * Parse an asset file name with a pattern, or `null` when it does not match.
@@ -641,6 +686,7 @@ export function mapAssets(
       url,
       size: typeof record.size === "number" ? record.size : undefined,
       version: parsed?.version,
+      digest: typeof record.digest === "string" ? record.digest : undefined,
     });
   }
   return assets;
@@ -679,18 +725,6 @@ export function checksumsUrlFor(
   const dir = sibling.url.replace(/\/[^/]+$/, "");
   return dir ? `${dir}/${name}` : null;
 }
-
-/**
- * The hash algorithms recognised in a checksums file, keyed by digest length
- * in hex characters. `sha512` (128) covers projects such as caddy that publish
- * SHA-512 only; `sha256` (64) is the GoReleaser default.
- */
-export const CHECKSUM_ALGORITHMS: Record<number, string> = {
-  40: "sha1",
-  64: "sha256",
-  96: "sha384",
-  128: "sha512",
-};
 
 /** A checksums file parsed into per-asset digests plus their algorithm. */
 export interface ParsedChecksums {

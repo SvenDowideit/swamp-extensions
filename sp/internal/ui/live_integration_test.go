@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/svendowideit/swamp-project/sp/internal/swamp"
 )
 
@@ -108,6 +109,153 @@ func TestLiveWorkflowBrowser(t *testing.T) {
 	if strings.Contains(strip(strings.Join(m.detailLines, "\n")), "data.get:") {
 		t.Fatalf("data content failed to load for %s/%s", chosen, item.label)
 	}
+}
+
+// TestLiveRunOutputsAndViewer selects a workflow with a recorded run, opens
+// each of that run's outputs through the viewer, and asserts real content is
+// rendered — including HTML when the workflow produced a file artifact.
+//
+//	swamp serve --port 9090 --no-schedule &
+//	SP_SERVER=ws://127.0.0.1:9090 go test -tags integration -run TestLiveRunOutputsAndViewer ./internal/ui/
+func TestLiveRunOutputsAndViewer(t *testing.T) {
+	server := os.Getenv("SP_SERVER")
+	if server == "" {
+		server = "ws://127.0.0.1:9090"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	client, err := swamp.Dial(ctx, server, "")
+	if err != nil {
+		t.Skipf("no server at %s: %v", server, err)
+	}
+	defer client.Close()
+
+	wfs, err := client.SearchWorkflows(ctx, "")
+	if err != nil {
+		t.Fatalf("workflow.search: %v", err)
+	}
+	var names []string
+	for _, r := range asList(wfs["results"]) {
+		if m, ok := r.(map[string]any); ok {
+			names = append(names, str(m["name"]))
+		}
+	}
+
+	m := New(client, "live", nil)
+	m.width, m.height = 160, 45
+
+	// Find a workflow whose latest run exposes an output that can still be
+	// opened (older runs often had their data garbage-collected). Prefer one
+	// with an HTML file so the HTML path is exercised.
+	var chosen, fallback string
+	for _, name := range names {
+		runs, err := client.SearchWorkflowRuns(ctx, name, 1)
+		if err != nil || len(runs) == 0 {
+			continue
+		}
+		det, err := client.GetWorkflowRun(ctx, runs[0].RunID)
+		if err != nil {
+			continue
+		}
+		outs := outputsFromRun(det)
+		if len(outs) == 0 {
+			continue
+		}
+		if fallback == "" {
+			fallback = name
+		}
+		html := false
+		live := false
+		for _, o := range outs {
+			if o.contentType == "text/html" || strings.HasSuffix(o.name, ".html") {
+				html = true
+			}
+			if _, err := client.GetDataScoped(ctx, false, o.modelName, o.name, o.version); err == nil {
+				live = true
+			}
+		}
+		if live {
+			chosen = name
+			if html {
+				break // best case: live and HTML
+			}
+		}
+	}
+	if chosen == "" {
+		chosen = fallback
+	}
+	if chosen == "" {
+		t.Skip("no workflow with a recorded run output")
+	}
+
+	for _, name := range names {
+		m.workflows = append(m.workflows, node{label: name, kind: "workflow"})
+	}
+	for i, n := range m.workflows {
+		if n.label == chosen {
+			m.wfSel = i
+		}
+	}
+	dmsg := m.selectWorkflow()().(detailLoadedMsg)
+	if dmsg.err != nil {
+		t.Fatalf("selectWorkflow(%s): %v", chosen, dmsg.err)
+	}
+	m.Update(dmsg)
+	if len(m.detailLinks) == 0 {
+		t.Fatalf("workflow %q produced no selectable run outputs", chosen)
+	}
+	if !strings.Contains(strip(strings.Join(m.detailLines, "\n")), "Recent runs") {
+		t.Fatalf("detail lines missing recent runs")
+	}
+
+	// Focusing the Detail pane and moving selects an output; the rendered pane
+	// must then highlight it (the selected row is drawn in reverse video).
+	m.focus = PaneDetail
+	m.detailScroll = 0
+	press(m, tea.KeyDown, "")
+	if m.detailSel != 0 {
+		t.Fatalf("down in detail should select the first output, got %d", m.detailSel)
+	}
+
+	// Open each output and confirm the viewer populates without a hard error.
+	// Older runs may list artifacts whose data was garbage-collected; those
+	// render an explanatory placeholder rather than an error.
+	var htmlSeen bool
+	var opened, gone int
+	limit := len(m.detailLinks)
+	if limit > 30 {
+		limit = 30
+	}
+	for i, lk := range m.detailLinks[:limit] {
+		msg := m.openArtifact(lk)()
+		al, ok := msg.(artifactLoadedMsg)
+		if !ok {
+			t.Fatalf("openArtifact(%d) returned %T", i, msg)
+		}
+		if al.err != nil {
+			t.Fatalf("viewer transport error for %s/%s: %v", lk.artifact.modelName, lk.artifact.name, al.err)
+		}
+		m.Update(al)
+		if len(m.viewLines) == 0 {
+			t.Fatalf("viewer empty for %s", lk.artifact.name)
+		}
+		if strings.Contains(strip(strings.Join(al.lines, "\n")), "no longer available") {
+			gone++
+			continue
+		}
+		opened++
+		if al.kind == "html" {
+			htmlSeen = true
+			if len(al.lines) < 2 {
+				t.Fatalf("html render produced too few lines: %v", al.lines)
+			}
+		}
+	}
+	if opened == 0 {
+		t.Fatalf("workflow %q: no output could actually be opened", chosen)
+	}
+	t.Logf("%s: opened %d outputs (%d gc'd), html=%v", chosen, opened, gone, htmlSeen)
 }
 
 // TestLiveRunStreaming starts a real workflow run over the protocol and drains

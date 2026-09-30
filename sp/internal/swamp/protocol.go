@@ -18,6 +18,7 @@ const (
 	ReqWorkflowResume    = "workflow.resume"
 	ReqWorkflowCancel    = "workflow.cancel"
 	ReqWorkflowRunSearch = "workflow.run.search"
+	ReqWorkflowHistGet   = "workflow.history.get"
 	ReqMethodRun         = "model.method.run"
 	ReqDataList          = "data.list"
 	ReqDataQuery         = "data.query"

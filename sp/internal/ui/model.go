@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,6 +50,41 @@ type node struct {
 	label string
 	sub   string
 	kind  string
+}
+
+// runOutput is one artifact produced by a run step: model data (resource),
+// a report, or a file such as rendered HTML.
+type runOutput struct {
+	step        string
+	kind        string // "resource" | "report" | "file"
+	name        string
+	modelName   string
+	version     int
+	reportName  string
+	contentType string
+}
+
+// recentRun is one entry in a workflow's recent-runs list, with the outputs it
+// produced so they can be browsed directly from the Detail pane.
+type recentRun struct {
+	runID          string
+	status         string
+	startedAt      string
+	durationMS     int64
+	stepsCompleted int
+	stepsTotal     int
+	failedStep     string
+	outputs        []runOutput
+}
+
+// detailLink is a selectable row inside the Detail pane (a run output bullet).
+// line indexes into detailLines; plain is the unstyled row text used to redraw
+// it when selected.
+type detailLink struct {
+	line     int
+	plain    string
+	artifact runOutput
+	runID    string
 }
 
 // Model holds the whole TUI state. It is the bubbletea Model.
@@ -101,6 +137,26 @@ type Model struct {
 	// workflow root, enabling resume-at-step.
 	lastRunID      string
 	lastFailedStep string
+
+	// recentRuns backs the interactive "recent runs" list in the Detail pane,
+	// including each run's data/report/file outputs.
+	recentRuns []recentRun
+
+	// detailLinks are the selectable run-output rows within detailLines, and
+	// detailSel is the chosen one (-1 when none).
+	detailLinks []detailLink
+	detailSel   int
+
+	// Artifact viewer dialog: shows the content of one run output.
+	viewOpen     bool
+	viewTitle    string
+	viewKind     string // "html" | "markdown" | "json" | "text"
+	viewLines    []string
+	viewScroll   int
+	viewLoading  bool
+	viewErr      error
+	viewArtifact runOutput
+	viewRunID    string
 
 	// Run input form (shown before starting a run that declares inputs).
 	inputOpen    bool
@@ -245,6 +301,8 @@ type detailLoadedMsg struct {
 	title          string
 	lines          []string
 	items          []node
+	links          []detailLink
+	runs           []recentRun
 	err            error
 	root           RootKind
 	name           string
@@ -348,12 +406,30 @@ func (m *Model) selectWorkflow() tea.Cmd {
 			inputs = in
 		}
 		var lastRunID, lastFailedStep string
+		var runs []recentRun
+		var links []detailLink
 
-		if runs, err := client.SearchWorkflowRuns(ctx, name, 8); err == nil && len(runs) > 0 {
-			lastRunID = runs[0].RunID
-			lastFailedStep = runs[0].FailedStep
-			lines = append(lines, "", stylePaneTitle.Render(fmt.Sprintf("Recent runs (%d)", len(runs))))
-			for _, r := range runs {
+		if entries, err := client.SearchWorkflowRuns(ctx, name, 8); err == nil && len(entries) > 0 {
+			lastRunID = entries[0].RunID
+			lastFailedStep = entries[0].FailedStep
+			lines = append(lines, "", stylePaneTitle.Render(fmt.Sprintf("Recent runs (%d)", len(entries))))
+			for _, r := range entries {
+				rr := recentRun{
+					runID:          r.RunID,
+					status:         r.Status,
+					startedAt:      r.StartedAt,
+					durationMS:     r.DurationMS,
+					stepsCompleted: r.StepsCompleted,
+					stepsTotal:     r.StepsTotal,
+					failedStep:     r.FailedStep,
+				}
+				// Per-run outputs come from the history record; it is the only
+				// source that links a run to the data/files/reports it made.
+				if det, err := client.GetWorkflowRun(ctx, r.RunID); err == nil {
+					rr.outputs = outputsFromRun(det)
+				}
+				runs = append(runs, rr)
+
 				dot := styleGreen.Render("●")
 				if r.Status != "succeeded" {
 					dot = styleError.Render("●")
@@ -362,11 +438,26 @@ func (m *Model) selectWorkflow() tea.Cmd {
 				if len(when) >= 16 {
 					when = when[5:16] // MM-DDTHH:MM
 				}
-				line := fmt.Sprintf("  %s %-9s %s  %d/%d steps  %dms",
-					dot, r.Status, when, r.StepsCompleted, r.StepsTotal, r.DurationMS)
-				lines = append(lines, line)
+				lines = append(lines, fmt.Sprintf("  %s %-9s %s  %d/%d steps  %dms",
+					dot, r.Status, when, r.StepsCompleted, r.StepsTotal, r.DurationMS))
 				if r.FailedStep != "" {
 					lines = append(lines, "      "+styleError.Render("failed at "+r.FailedStep))
+				}
+				const maxOutputsPerRun = 25
+				shown := rr.outputs
+				if len(shown) > maxOutputsPerRun {
+					shown = shown[:maxOutputsPerRun]
+				}
+				for _, o := range shown {
+					plain := "      " + runOutputGlyph(o) + " " + runOutputLabel(o)
+					links = append(links, detailLink{
+						line: len(lines), plain: plain, artifact: o, runID: r.RunID,
+					})
+					lines = append(lines, styleMuted.Render(plain))
+				}
+				if extra := len(rr.outputs) - len(shown); extra > 0 {
+					lines = append(lines, styleMuted.Render(
+						fmt.Sprintf("      … %d more outputs", extra)))
 				}
 			}
 		}
@@ -374,10 +465,73 @@ func (m *Model) selectWorkflow() tea.Cmd {
 		items := workflowDataItems(ctx, client, name)
 		return detailLoadedMsg{
 			title: name, root: RootWorkflow, name: name,
-			lines: lines, items: items, inputs: inputs,
+			lines: lines, items: items, inputs: inputs, links: links, runs: runs,
 			lastRunID: lastRunID, lastFailedStep: lastFailedStep,
 		}
 	}
+}
+
+// outputsFromRun flattens a run's per-step artifacts into runOutput, tagging
+// each with the step that produced it and de-duplicating the JSON mirror of a
+// report (report-*-json) so the list stays readable.
+func outputsFromRun(det *swamp.RunDetail) []runOutput {
+	var out []runOutput
+	seen := map[string]bool{}
+	for _, s := range det.Steps {
+		for _, a := range s.Artifacts {
+			// Skip the machine-readable JSON twin of a report; the markdown
+			// is what a human wants to read.
+			if a.Kind == "report" && strings.HasSuffix(a.Name, "-json") {
+				continue
+			}
+			key := a.ModelName + "/" + a.Name + "/" + strconv.Itoa(a.Version)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, runOutput{
+				step:        s.Name,
+				kind:        a.Kind,
+				name:        a.Name,
+				modelName:   a.ModelName,
+				version:     a.Version,
+				reportName:  a.ReportName,
+				contentType: a.ContentType,
+			})
+		}
+	}
+	return out
+}
+
+// runOutputGlyph is the leading marker for an output bullet by kind.
+func runOutputGlyph(o runOutput) string {
+	switch o.kind {
+	case "report":
+		return "▤"
+	case "file":
+		return "◫"
+	default:
+		return "◆"
+	}
+}
+
+// runOutputLabel is the human label for a run output row.
+func runOutputLabel(o runOutput) string {
+	name := o.name
+	if o.kind == "report" && o.reportName != "" {
+		name = "report " + o.reportName
+	}
+	detail := o.kind
+	if o.modelName != "" {
+		detail = o.modelName
+	}
+	if o.version > 0 {
+		detail += " v" + strconv.Itoa(o.version)
+	}
+	if o.step != "" {
+		detail = o.step + " · " + detail
+	}
+	return fmt.Sprintf("%s  [%s]", name, detail)
 }
 
 // workflowDataItems loads data produced by a workflow, flattened into nodes.
@@ -413,7 +567,10 @@ func workflowDataItems(ctx context.Context, client *swamp.Client, name string) [
 func renderWorkflowDetail(wf map[string]any) []string {
 	lines := []string{styleKey.Render("name ") + str(wf["name"])}
 	if d := str(wf["description"]); d != "" {
-		lines = append(lines, "", styleMuted.Render(d))
+		lines = append(lines, "")
+		for _, ln := range strings.Split(strings.TrimRight(d, "\n"), "\n") {
+			lines = append(lines, styleMuted.Render(ln))
+		}
 	}
 
 	// Declared inputs.

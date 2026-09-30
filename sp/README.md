@@ -47,7 +47,8 @@ The ownership state is shown in the top-right: `local serve :9090 (owned)` vs
 Matches TUIOS: Go, [`charm.land/bubbletea/v2`](https://charm.land/bubbletea)
 (Elm-architecture TUI runtime) and
 [`charm.land/lipgloss/v2`](https://charm.land/lipgloss) (styling/layout), plus
-`github.com/coder/websocket` for the serve transport.
+`github.com/coder/websocket` for the serve transport and `golang.org/x/net/html`
+for the built-in HTML→text renderer.
 
 ## Layout
 
@@ -63,8 +64,10 @@ sp/
     model.go                  # state + async load commands
     update.go                 # key handling, filtering, selection, pane cycling
     view.go                   # pane layout (workflows/models/detail/data)
+    viewer.go                 # run-output artifact viewer (dialog + fetch)
+    htmlrender.go, mdrender.go, inline.go, richtext.go  # HTML/markdown → text
     styles.go, util.go        # styling + JSON/size helpers
-    view_test.go              # deterministic render tests
+    *_test.go                 # deterministic render/selection tests
   cmd/probe/                  # dev aid: dump live serve response shapes
 ```
 
@@ -105,7 +108,9 @@ Four selection-linked panes, dropped responsively as the terminal narrows:
 - **Models** — from `model.search`. `enter` loads methods and data-output specs
   plus the model's data.
 - **Detail** — the DAG (with recent runs) or method list; scrollable. `R` runs
-  the workflow; `u` resumes at the failed step when the last run failed.
+  the workflow; `u` resumes at the failed step when the last run failed. For a
+  workflow root, each run in **Recent runs** lists its outputs as selectable
+  sub-bullets — see [Browsing a run's outputs](#browsing-a-runs-outputs).
 
 The list panes **scroll to follow the selection**: moving past the bottom (or
 jumping via Spotter) shifts the window so the selected row is always visible, and
@@ -175,6 +180,50 @@ with no declared inputs run immediately.
 If the most recent run failed, `u` sends `workflow.resume` with `from` set to the
 failed step (and the failed `runId`) to re-enter the run at that point.
 
+## Browsing a run's outputs
+
+Workflows often produce things you actually want to *read*: model data, **reports**
+(markdown/JSON), and **files** such as rendered HTML (`index.html`, `board`). The
+Detail pane makes each of those a first-class, clickable bullet.
+
+For a workflow root, every entry in **Recent runs** is followed by its outputs as
+sub-bullets, each tagged by kind and step:
+
+```
+Recent runs (1)
+  ● succeeded 09-21T23:29  5/5 steps  2s
+      ◆ device-list  [sync · garmin-devices v31]        ← model data (resource)
+      ▤ report @swamp/method-summary  [sync · ... v3]   ← a report (markdown)
+      ◫ index.html  [render · pulse v21]                ← a file (e.g. HTML)
+```
+
+- `◆` model data · `▤` report · `◫` file.
+
+Outputs come from `workflow.history.get` (run id → `jobs[].steps[].dataArtifacts`),
+which is the only surface that links a run to the data/reports it produced —
+`workflow.run.search` lists runs but not their artifacts, and reports are
+model-scoped rather than `workflowRunId`-tagged.
+
+In the **Detail** pane, `↑`/`↓` move the selection through these output bullets;
+`enter` opens the selected one in the **artifact viewer** — a large overlay that
+scrolls (`↑`/`↓`, `pgup`/`pgdn`, `g`/`G`) and closes with `esc`. Content is
+fetched with a `data.get` scoped to the owning model and version, then rendered
+by content type:
+
+- **HTML** (`text/html`) → parsed and laid out to terminal text: headings,
+  paragraphs, bullet/ordered lists, tables, blockquotes, fenced code, and inline
+  bold/italic/code/links (link text is styled; the href is dimmed after it). No
+  browser required, and it works over SSH.
+- **Markdown** (`text/markdown`, i.e. reports) → headings, tables, lists,
+  blockquotes, and inline emphasis, wrapped to the pane.
+- **JSON** (`application/json`) → pretty-printed, indented.
+- **Anything else** → wrapped as plain text.
+
+If the run recorded an artifact whose data has since been **garbage-collected**
+(reports keep only a few versions), the viewer says so plainly instead of erroring.
+
+> HTML is rendered to text, not pixels — CSS layout and images are out of scope.
+
 ## Spotter (global search)
 
 Pressing `s` builds a single in-memory index from three sources — `model.search`,
@@ -195,12 +244,13 @@ swamp serve --port 9090 --no-schedule &
 SP_SERVER=ws://127.0.0.1:9090 go test -tags integration ./internal/ui/
 ```
 
-The lifecycle test proves the hard requirement: a spawned server is reachable
-after `EnsureServe`, is gone after `Stop`, and a pre-existing server is adopted
-rather than owned. The live tests load the real workflow list, render a DAG,
-drill into data content, **start a real run and drain its event stream through
-the UI's Update loop to a `succeeded` terminal state**, and verify a failed
-run's step is exposed for resume.
+The lifecycle tests prove the hard requirements: a spawned server is reachable
+after `EnsureServe`, is gone after `Stop`, a pre-existing server is adopted
+rather than owned, and a **detached** server survives `Stop` (`Detach`). The live
+tests load the real workflow list, render a DAG, drill into data content,
+**start a real run and drain its event stream through the UI's Update loop to a
+`succeeded` terminal state**, open each of a real run's outputs through the
+viewer (including HTML), and verify a failed run's step is exposed for resume.
 
 ## Status / next
 
@@ -213,6 +263,9 @@ Prototype. Current surface:
   arrows and nested-workflow steps → workflow data.
 - **Live run browser** (done): `R` streams a workflow run's events into a console
   (with input form and cancel), recent runs in the detail, and `u` resume-at-step.
+- **Run-output inspector** (done): each recent run's data/reports/files are
+  selectable bullets in the Detail pane; `enter` opens an artifact viewer that
+  renders markdown reports, JSON, plain text, and **HTML built-ins**.
 
 Deliberately not yet built, in the order the research doc recommends:
 

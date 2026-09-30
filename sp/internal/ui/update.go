@@ -64,6 +64,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rootInputs = msg.inputs
 		m.lastRunID = msg.lastRunID
 		m.lastFailedStep = msg.lastFailedStep
+		m.detailLinks = msg.links
+		m.detailSel = -1
+		if msg.runs != nil {
+			m.recentRuns = msg.runs
+		}
 		if msg.items != nil {
 			m.dataItems = msg.items
 			m.dataSel = 0
@@ -122,6 +127,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.addRunLine(styleError.Render("failed: " + msg.err.Error()))
 		return m, nil
 
+	case artifactLoadedMsg:
+		m.viewLoading = false
+		m.viewKind = msg.kind
+		if msg.err != nil {
+			m.viewErr = msg.err
+			m.viewLines = []string{styleError.Render("data.get: " + msg.err.Error())}
+			return m, nil
+		}
+		if msg.title != "" {
+			m.viewTitle = msg.title
+		}
+		m.viewLines = msg.lines
+		return m, nil
+
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	}
@@ -137,6 +156,9 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.inputOpen {
 		return m.handleInputKey(msg)
+	}
+	if m.viewOpen {
+		return m.handleViewKey(msg)
 	}
 	if m.runOpen {
 		return m.handleRunKey(msg)
@@ -235,15 +257,13 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case "up", "k":
 		if m.focus == PaneDetail {
-			if m.detailScroll > 0 {
-				m.detailScroll--
-			}
+			m.moveDetailSel(-1)
 		} else {
 			m.moveSelection(-1)
 		}
 	case "down", "j":
 		if m.focus == PaneDetail {
-			m.detailScroll++
+			m.moveDetailSel(1)
 		} else {
 			m.moveSelection(1)
 		}
@@ -271,6 +291,10 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, m.selectWorkflow()
 		case PaneModels:
 			return m, m.selectModel()
+		case PaneDetail:
+			if m.detailSel >= 0 && m.detailSel < len(m.detailLinks) {
+				return m, m.openArtifact(m.detailLinks[m.detailSel])
+			}
 		case PaneData:
 			if len(m.dataItems) > 0 && m.rootName != "" {
 				item := m.dataItems[clamp(m.dataSel, 0, len(m.dataItems)-1)]

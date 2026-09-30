@@ -64,12 +64,56 @@ func (m *Model) render() string {
 		return overlayAt(all, m.renderQuitConfirm(), m.width)
 	case m.inputOpen:
 		return m.renderInputForm()
+	case m.viewOpen:
+		return overlayAt(all, m.renderViewer(), m.width)
 	case m.runOpen:
 		return overlayAt(all, m.renderRunDialog(), m.width)
 	case m.spotterOpen:
 		return m.renderSpotter()
 	}
 	return all
+}
+
+// renderViewer draws the artifact viewer as a large overlay over the browser.
+func (m *Model) renderViewer() string {
+	w := clamp(m.width-4, 40, m.width)
+	ht := clamp(m.height*80/100, 10, m.height-4)
+	innerW := w - 4
+	innerH := ht - 4
+	if innerW < 8 {
+		innerW = 8
+	}
+	if innerH < 1 {
+		innerH = 1
+	}
+
+	kindTag := styleKind.Render("[" + m.viewKind + "]")
+	head := stylePaneTitle.Render(m.viewTitle) + "  " + kindTag
+	if m.viewLoading {
+		head += styleMuted.Render("  loading…")
+	}
+
+	// Scroll window over the rendered content.
+	maxScroll := maxInt(0, len(m.viewLines)-innerH)
+	top := clamp(m.viewScroll, 0, maxScroll)
+	end := top + innerH
+	if end > len(m.viewLines) {
+		end = len(m.viewLines)
+	}
+	textW := innerW
+	bar := len(m.viewLines) > innerH
+	if bar {
+		textW = innerW - 1
+	}
+	body := clip(strings.Join(m.viewLines[top:end], "\n"), textW, innerH)
+	if bar {
+		body = stampScrollbar(body, paneScroll{total: len(m.viewLines), visible: innerH, top: top}, innerW, innerH)
+	}
+
+	hints := []hint{h("↑↓", "scroll"), h("g/G", "top/end"), h("esc", "close")}
+	footer := renderHints(hints, innerW)
+	joined := head + "\n" + body + "\n" + styleMuted.Render(footer)
+	return stylePaneFocus.Width(w).Height(ht).Render(joined)
 }
 
 // renderQuitConfirm draws the "a run is still active" prompt.
@@ -393,8 +437,11 @@ func (m *Model) keyHints() []hint {
 	case m.focus == PaneDetail:
 		hs := []hint{
 			h("[detail]", ""),
-			h("↑↓", "scroll"),
-			h("pgup/pgdn", "page"),
+		}
+		if len(m.detailLinks) > 0 {
+			hs = append(hs, h("↑↓", "select output"), h("enter", "view"))
+		} else {
+			hs = append(hs, h("↑↓", "scroll"), h("pgup/pgdn", "page"))
 		}
 		if m.rootKind == RootWorkflow {
 			hs = append(hs, h("R", "run"))
@@ -511,6 +558,9 @@ func (m *Model) pane(title string, focused bool, content string, w, h int, sc pa
 	if m.focus == PaneModels && title == "Models" && m.filtering {
 		head = titleSt.Render(title) + styleMuted.Render("  /"+m.filter)
 	}
+	if lipgloss.Width(head) > innerW {
+		head = truncateANSI(head, innerW)
+	}
 
 	// Reserve the last inner column for the scrollbar whenever the content
 	// overflows, so the bar is always visible.
@@ -605,12 +655,24 @@ func (m *Model) renderDetail(w, h int) string {
 	if m.detailTitle != "" {
 		title = "Detail — " + m.detailTitle
 	}
-	content := strings.Join(m.detailLines, "\n")
-	// Apply scroll by dropping leading lines.
-	if m.detailScroll > 0 && m.detailScroll < len(m.detailLines) {
-		content = strings.Join(m.detailLines[m.detailScroll:], "\n")
+	// Substitute the highlighted row for the selected run-output link so the
+	// selection reads as interactive (and its artifact kind shows as an accent).
+	lines := m.detailLines
+	if m.detailSel >= 0 && m.detailSel < len(m.detailLinks) {
+		lk := m.detailLinks[m.detailSel]
+		if lk.line >= 0 && lk.line < len(lines) {
+			cp := make([]string, len(lines))
+			copy(cp, lines)
+			cp[lk.line] = styleSelected.Render(lk.plain)
+			lines = cp
+		}
 	}
-	sc := paneScroll{total: len(m.detailLines), visible: h - 3, top: m.detailScroll}
+	content := strings.Join(lines, "\n")
+	// Apply scroll by dropping leading lines.
+	if m.detailScroll > 0 && m.detailScroll < len(lines) {
+		content = strings.Join(lines[m.detailScroll:], "\n")
+	}
+	sc := paneScroll{total: len(lines), visible: h - 3, top: m.detailScroll}
 	return m.pane(title, m.focus == PaneDetail, content, w, h, sc)
 }
 

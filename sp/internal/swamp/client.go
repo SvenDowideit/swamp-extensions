@@ -438,6 +438,93 @@ func (c *Client) GetWorkflow(ctx context.Context, name string) (map[string]any, 
 	return c.dataRequest(ctx, ReqWorkflowGet, map[string]any{"workflowIdOrName": name})
 }
 
+// RunStep is one executed step of a run, with the artifacts it produced.
+type RunStep struct {
+	Name      string
+	Status    string
+	Artifacts []RunArtifact
+}
+
+// RunArtifact is one data artifact produced by a run step. Kind is the artifact
+// tag type ("resource", "report", or "file"); ReportName/ReportScope are set for
+// reports. ModelName is the owning model (used to fetch content).
+type RunArtifact struct {
+	DataID      string
+	Name        string
+	Version     int
+	Kind        string
+	ModelName   string
+	ReportName  string
+	ReportScope string
+	ContentType string
+	Size        int64
+}
+
+// RunDetail is a single workflow run's recorded history, including the data and
+// report artifacts each step produced.
+type RunDetail struct {
+	RunID        string
+	WorkflowName string
+	Status       string
+	Steps        []RunStep
+}
+
+// Artifacts returns every artifact across all steps, in step order.
+func (r *RunDetail) Artifacts() []RunArtifact {
+	var out []RunArtifact
+	for _, s := range r.Steps {
+		out = append(out, s.Artifacts...)
+	}
+	return out
+}
+
+// GetWorkflowRun fetches one run's history by run id (workflow.history.get
+// accepts the run id as its idOrName argument). Unlike workflow.run.search,
+// this includes each step's dataArtifacts — the link between a run and the
+// model data, files, and reports it produced.
+func (c *Client) GetWorkflowRun(ctx context.Context, runID string) (*RunDetail, error) {
+	res, err := c.dataRequest(ctx, ReqWorkflowHistGet, map[string]any{"workflowIdOrName": runID})
+	if err != nil {
+		return nil, err
+	}
+	d := &RunDetail{
+		RunID:        jsonStr(res["id"]),
+		WorkflowName: jsonStr(res["workflowName"]),
+		Status:       jsonStr(res["status"]),
+	}
+	for _, j := range asAnyList(res["jobs"]) {
+		jm, ok := j.(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, s := range asAnyList(jm["steps"]) {
+			sm, ok := s.(map[string]any)
+			if !ok {
+				continue
+			}
+			step := RunStep{Name: jsonStr(sm["name"]), Status: jsonStr(sm["status"])}
+			for _, a := range asAnyList(sm["dataArtifacts"]) {
+				am, ok := a.(map[string]any)
+				if !ok {
+					continue
+				}
+				tags, _ := am["tags"].(map[string]any)
+				step.Artifacts = append(step.Artifacts, RunArtifact{
+					DataID:      jsonStr(am["dataId"]),
+					Name:        jsonStr(am["name"]),
+					Version:     int(num(am["version"])),
+					Kind:        jsonStr(tags["type"]),
+					ModelName:   jsonStr(tags["modelName"]),
+					ReportName:  jsonStr(tags["reportName"]),
+					ReportScope: jsonStr(tags["reportScope"]),
+				})
+			}
+			d.Steps = append(d.Steps, step)
+		}
+	}
+	return d, nil
+}
+
 // ListData lists data for a model.
 func (c *Client) ListData(ctx context.Context, model string) (map[string]any, error) {
 	p := map[string]any{}

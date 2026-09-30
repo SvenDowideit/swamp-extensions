@@ -13,6 +13,11 @@ func strip(s string) string { return ansiRe.ReplaceAllString(s, "") }
 func sampleModel() *Model {
 	m := New(nil, "swamp-project", nil)
 	m.width, m.height = 140, 40
+	m.workflows = []node{
+		{label: "caddy-ensure-proxy", sub: "1 jobs · 2 steps", kind: "workflow"},
+		{label: "disk", sub: "1 jobs · 1 steps", kind: "workflow"},
+	}
+	m.wfSel = 0
 	m.models = []node{
 		{label: "bom", sub: "@svendowideit/bom-weather", kind: "model"},
 		{label: "ideas-factory", sub: "@svendowideit/ideas-factory", kind: "model"},
@@ -39,7 +44,8 @@ func TestRenderContainsPanes(t *testing.T) {
 	out := strip(m.render())
 	for _, want := range []string{
 		"swamp browser", "swamp-project",
-		"Models (3)", "Detail", "Data (2)",
+		"Workflows (2)", "Models (3)", "Detail", "Data (2)",
+		"caddy-ensure-proxy", "disk",
 		"bom", "ideas-factory", "meta-factory",
 		"Methods", "resolve", "sync",
 		"forecast", "hourly",
@@ -172,3 +178,66 @@ func TestFooterRendersError(t *testing.T) {
 type errTest struct{}
 
 func (errTest) Error() string { return "boom" }
+
+func TestRenderWorkflowDAG(t *testing.T) {
+	wf := map[string]any{
+		"name":        "caddy-ensure-proxy",
+		"description": "Ensure Caddy is set up.",
+		"inputs": map[string]any{
+			"properties": map[string]any{
+				"hostname": map[string]any{"type": "string", "description": "Full hostname."},
+			},
+			"required": []any{"hostname"},
+		},
+		"jobs": []any{
+			map[string]any{
+				"name": "main",
+				"steps": []any{
+					map[string]any{
+						"name":      "setup",
+						"task":      map[string]any{"type": "workflow", "workflowIdOrName": "caddy-setup"},
+						"dependsOn": []any{},
+					},
+					map[string]any{
+						"name": "ensure",
+						"task": map[string]any{
+							"type": "model_method", "modelName": "my-caddy", "methodName": "ensureDnsProxy",
+						},
+						"dependsOn": []any{
+							map[string]any{"step": "setup", "condition": map[string]any{"type": "succeeded"}},
+						},
+					},
+				},
+			},
+		},
+	}
+	out := strip(strings.Join(renderWorkflowDetail(wf), "\n"))
+	for _, want := range []string{
+		"Jobs (1)", "main", "setup", "workflow:caddy-setup",
+		"ensure", "my-caddy.ensureDnsProxy", "← setup", "Inputs", "hostname *",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("workflow DAG missing %q in:\n%s", want, out)
+		}
+	}
+}
+
+func TestPaneVisibilityDropsWorkflowsAndData(t *testing.T) {
+	m := sampleModel()
+
+	m.width = 140
+	got := m.visiblePanes()
+	if len(got) != 4 || got[0] != PaneWorkflows {
+		t.Fatalf("width 140 panes=%v want all four starting at Workflows", got)
+	}
+	m.width = 100
+	got = m.visiblePanes()
+	if len(got) != 3 || got[0] != PaneModels {
+		t.Fatalf("width 100 panes=%v want Models/Detail/Data", got)
+	}
+	m.width = 70
+	got = m.visiblePanes()
+	if len(got) != 2 {
+		t.Fatalf("width 70 panes=%v want Models/Detail only", got)
+	}
+}

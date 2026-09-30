@@ -15,7 +15,8 @@ import (
 type Pane int
 
 const (
-	PaneModels Pane = iota
+	PaneWorkflows Pane = iota
+	PaneModels
 	PaneDetail
 	PaneData
 	PaneCount // sentinel
@@ -23,6 +24,8 @@ const (
 
 func (p Pane) Title() string {
 	switch p {
+	case PaneWorkflows:
+		return "Workflows"
 	case PaneModels:
 		return "Models"
 	case PaneDetail:
@@ -32,6 +35,14 @@ func (p Pane) Title() string {
 	}
 	return "?"
 }
+
+// RootKind selects which class of object the Detail and Data panes describe.
+type RootKind int
+
+const (
+	RootWorkflow RootKind = iota
+	RootModel
+)
 
 // node is a selectable row in a pane.
 type node struct {
@@ -50,6 +61,8 @@ type Model struct {
 	focus         Pane
 
 	// Pane data
+	workflows    []node
+	wfSel        int
 	models       []node
 	modelSel     int
 	detailLines  []string
@@ -58,15 +71,23 @@ type Model struct {
 	dataItems    []node
 	dataSel      int
 
-	loading bool
-	status  string
-	err     error
+	// rootKind/rootName identify the object the Detail and Data panes describe
+	// (the selected workflow or model).
+	rootKind RootKind
+	rootName string
 
-	// filter is a live substring filter applied to the model list.
+	loading      bool
+	status       string
+	err          error
+	wfLoaded     bool
+	modelLoaded  bool
+	bootstrapped bool
+
+	// filter is a live substring filter applied to the focused list pane.
 	filtering bool
 	filter    string
 
-	// pendingData names a data item to select once a model's detail loads
+	// pendingData names a data item to select once the root's detail loads
 	// (used by spotter jumps).
 	pendingData string
 
@@ -193,6 +214,13 @@ type detailLoadedMsg struct {
 	lines []string
 	items []node
 	err   error
+	root  RootKind
+	name  string
+}
+
+type workflowsLoadedMsg struct {
+	workflows []node
+	err       error
 }
 
 // --- commands ---
@@ -222,6 +250,207 @@ func (m *Model) loadModels() tea.Cmd {
 		sort.Slice(models, func(i, j int) bool { return models[i].label < models[j].label })
 		return modelsLoadedMsg{models: models}
 	}
+}
+
+func (m *Model) loadWorkflows() tea.Cmd {
+	client := m.client
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		res, err := client.SearchWorkflows(ctx, "")
+		if err != nil {
+			return workflowsLoadedMsg{err: err}
+		}
+		results := asList(res["results"])
+		wfs := make([]node, 0, len(results))
+		for _, r := range results {
+			obj, ok := r.(map[string]any)
+			if !ok {
+				continue
+			}
+			name := str(obj["name"])
+			if name == "" {
+				continue
+			}
+			wfs = append(wfs, node{
+				label: name,
+				sub: joinNonEmpty(" · ",
+					fmt.Sprintf("%v jobs", obj["jobCount"]),
+					fmt.Sprintf("%v steps", obj["stepCount"])),
+				kind: "workflow",
+			})
+		}
+		sort.Slice(wfs, func(i, j int) bool { return wfs[i].label < wfs[j].label })
+		return workflowsLoadedMsg{workflows: wfs}
+	}
+}
+
+// selectWorkflow loads a workflow's detail (its job/step DAG) and workflow data.
+func (m *Model) selectWorkflow() tea.Cmd {
+	wfs := m.visibleWorkflows()
+	if len(wfs) == 0 {
+		return nil
+	}
+	sel := wfs[clamp(m.wfSel, 0, len(wfs)-1)]
+	name := sel.label
+	client := m.client
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		wf, err := client.GetWorkflow(ctx, name)
+		if err != nil {
+			return detailLoadedMsg{
+				title: name, root: RootWorkflow, name: name,
+				lines: []string{styleError.Render("workflow.get: " + err.Error())},
+				err:   err,
+			}
+		}
+		lines := renderWorkflowDetail(wf)
+
+		items := workflowDataItems(ctx, client, name)
+		return detailLoadedMsg{title: name, root: RootWorkflow, name: name, lines: lines, items: items}
+	}
+}
+
+// workflowDataItems loads data produced by a workflow, flattened into nodes.
+func workflowDataItems(ctx context.Context, client *swamp.Client, name string) []node {
+	items := []node{}
+	dl, err := client.ListWorkflowData(ctx, name)
+	if err != nil {
+		return items
+	}
+	for _, grp := range asList(dl["groups"]) {
+		gm, ok := grp.(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, it := range asList(gm["items"]) {
+			im, ok := it.(map[string]any)
+			if !ok {
+				continue
+			}
+			sub := str(im["type"]) + " v" + str(im["version"]) + "  " + humanSize(im["size"])
+			if step := str(im["stepName"]); step != "" {
+				sub = step + " · " + sub
+			}
+			items = append(items, node{label: str(im["name"]), sub: sub, kind: "data"})
+		}
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].label < items[j].label })
+	return items
+}
+
+// renderWorkflowDetail formats a workflow.get payload into display lines,
+// showing jobs and their step dependency edges as a simple DAG.
+func renderWorkflowDetail(wf map[string]any) []string {
+	lines := []string{styleKey.Render("name ") + str(wf["name"])}
+	if d := str(wf["description"]); d != "" {
+		lines = append(lines, "", styleMuted.Render(d))
+	}
+
+	// Declared inputs.
+	if inputs, ok := wf["inputs"].(map[string]any); ok {
+		props, _ := inputs["properties"].(map[string]any)
+		if len(props) > 0 {
+			keys := make([]string, 0, len(props))
+			for k := range props {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			lines = append(lines, "", stylePaneTitle.Render("Inputs"))
+			for _, k := range keys {
+				pm, _ := props[k].(map[string]any)
+				req := ""
+				for _, r := range asList(inputs["required"]) {
+					if str(r) == k {
+						req = " *"
+					}
+				}
+				lines = append(lines, "  "+styleKey.Render(k)+req+
+					styleMuted.Render("  "+str(pm["type"])+"  "+firstLine(str(pm["description"]))))
+			}
+		}
+	}
+
+	jobs := asList(wf["jobs"])
+	lines = append(lines, "", stylePaneTitle.Render(fmt.Sprintf("Jobs (%d)", len(jobs))))
+	for _, j := range jobs {
+		jm, ok := j.(map[string]any)
+		if !ok {
+			continue
+		}
+		lines = append(lines, "  "+styleKind.Render("▸ "+str(jm["name"])))
+		if d := str(jm["description"]); d != "" {
+			lines = append(lines, "      "+styleMuted.Render(firstLine(d)))
+		}
+		steps := asList(jm["steps"])
+		for _, s := range steps {
+			sm, ok := s.(map[string]any)
+			if !ok {
+				continue
+			}
+			task, _ := sm["task"].(map[string]any)
+			deps := stepDeps(sm)
+			arrow := ""
+			if len(deps) > 0 {
+				arrow = styleMuted.Render(" ← " + strings.Join(deps, ", "))
+			}
+			target := taskTarget(task)
+			lines = append(lines, "    "+styleGreen.Render("•")+" "+str(sm["name"])+
+				styleMuted.Render("  "+target)+arrow)
+		}
+	}
+	return lines
+}
+
+// stepDeps extracts the names this step depends on from its dependsOn list,
+// which may be bare strings or {step, condition} objects.
+func stepDeps(step map[string]any) []string {
+	var deps []string
+	for _, d := range asList(step["dependsOn"]) {
+		switch t := d.(type) {
+		case string:
+			deps = append(deps, t)
+		case map[string]any:
+			if s := str(t["step"]); s != "" {
+				deps = append(deps, s)
+			}
+		}
+	}
+	return deps
+}
+
+// taskTarget summarises a step's task as "model.method" or "workflow:<name>".
+func taskTarget(task map[string]any) string {
+	if task == nil {
+		return ""
+	}
+	switch str(task["type"]) {
+	case "model_method":
+		mn := firstNonEmpty(
+			str(task["modelName"]),
+			str(task["modelIdOrName"]),
+			str(task["modelType"]),
+		)
+		if mn == "" {
+			return str(task["methodName"])
+		}
+		return mn + "." + str(task["methodName"])
+	case "workflow":
+		return "workflow:" + firstNonEmpty(str(task["workflowIdOrName"]), str(task["workflowName"]))
+	}
+	return str(task["type"])
+}
+
+// firstNonEmpty returns the first non-empty string.
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // selectModel loads detail for the currently selected model and its data list.
@@ -310,21 +539,26 @@ func (m *Model) selectModel() tea.Cmd {
 			}
 			sort.Slice(items, func(i, j int) bool { return items[i].label < items[j].label })
 		}
-		return detailLoadedMsg{title: name, lines: lines, items: items}
+		return detailLoadedMsg{title: name, root: RootModel, name: name, lines: lines, items: items}
 	}
 }
 
-// loadDataContent fetches one data item's content and formats it.
-func (m *Model) loadDataContent(modelName, dataName string, width int) tea.Cmd {
+// loadDataContent fetches one data item's content and formats it. For workflow
+// data it uses the workflow-scoped data.get (modelIdOrName is empty).
+func (m *Model) loadDataContent(rootKind RootKind, rootName, dataName string, width int) tea.Cmd {
 	client := m.client
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		d, err := client.GetData(ctx, modelName, dataName, 0)
+		d, err := client.GetDataScoped(ctx, rootKind == RootWorkflow, rootName, dataName, 0)
 		if err != nil {
 			return detailLoadedMsg{title: dataName, lines: []string{styleError.Render("data.get: " + err.Error())}, err: err}
 		}
-		lines := []string{styleKey.Render("data  ") + dataName, styleKey.Render("model ") + modelName}
+		scope := "model "
+		if rootKind == RootWorkflow {
+			scope = "wf    "
+		}
+		lines := []string{styleKey.Render("data  ") + dataName, styleKey.Render(scope) + rootName}
 		if ct := str(d["contentType"]); ct != "" {
 			lines = append(lines, styleKey.Render("ctype ")+ct)
 		}
@@ -388,15 +622,26 @@ func (m *Model) visibleSpotter() []spotterItem {
 	return out
 }
 
-// visibleModels applies the live filter.
+// visibleModels applies the live filter to the model list.
 func (m *Model) visibleModels() []node {
-	if m.filter == "" {
-		return m.models
+	return filterNodes(m.models, m.filter)
+}
+
+// visibleWorkflows applies the live filter to the workflow list.
+func (m *Model) visibleWorkflows() []node {
+	return filterNodes(m.workflows, m.filter)
+}
+
+// filterNodes returns nodes whose label or sub matches the (lowercased) filter.
+func filterNodes(nodes []node, filter string) []node {
+	if filter == "" {
+		return nodes
 	}
-	f := strings.ToLower(m.filter)
-	out := make([]node, 0, len(m.models))
-	for _, n := range m.models {
-		if strings.Contains(strings.ToLower(n.label), f) || strings.Contains(strings.ToLower(n.sub), f) {
+	f := strings.ToLower(filter)
+	out := make([]node, 0, len(nodes))
+	for _, n := range nodes {
+		if strings.Contains(strings.ToLower(n.label), f) ||
+			strings.Contains(strings.ToLower(n.sub), f) {
 			out = append(out, n)
 		}
 	}

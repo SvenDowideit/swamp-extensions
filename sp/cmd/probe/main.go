@@ -102,6 +102,39 @@ func main() {
 	} else {
 		fmt.Println("data.query2 failed:", err)
 	}
+	// Workflow-scoped data: pick the first workflow that has produced data.
+	if wf, err := client.SearchWorkflows(ctx, ""); err == nil {
+		if list, ok := wf["results"].([]any); ok {
+			for _, r := range list {
+				obj, _ := r.(map[string]any)
+				name, _ := obj["name"].(string)
+				if name == "" {
+					continue
+				}
+				dl, err := client.ListWorkflowData(ctx, name)
+				if err != nil {
+					continue
+				}
+				var items []any
+				groups, _ := dl["groups"].([]any)
+				for _, g := range groups {
+					gm, _ := g.(map[string]any)
+					its, _ := gm["items"].([]any)
+					items = append(items, its...)
+				}
+				if len(items) == 0 {
+					continue
+				}
+				dump("workflow data "+name, dl)
+				im, _ := items[0].(map[string]any)
+				dname, _ := im["name"].(string)
+				if d, err := client.GetDataScoped(ctx, true, name, dname, 0); err == nil {
+					dump("wf-scoped data.get "+name+"/"+dname, d)
+				}
+				break
+			}
+		}
+	}
 	if m, err := client.SearchModels(ctx, ""); err == nil {
 		if list, ok := m["results"].([]any); ok && len(list) > 0 {
 			if first, ok := list[0].(map[string]any); ok {

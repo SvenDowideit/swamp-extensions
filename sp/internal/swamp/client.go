@@ -343,7 +343,7 @@ func (c *Client) GetWorkflow(ctx context.Context, name string) (map[string]any, 
 	return c.dataRequest(ctx, ReqWorkflowGet, map[string]any{"workflowIdOrName": name})
 }
 
-// ListData lists data for a model or workflow.
+// ListData lists data for a model.
 func (c *Client) ListData(ctx context.Context, model string) (map[string]any, error) {
 	p := map[string]any{}
 	if model != "" {
@@ -352,9 +352,25 @@ func (c *Client) ListData(ctx context.Context, model string) (map[string]any, er
 	return c.dataRequest(ctx, ReqDataList, p)
 }
 
-// GetData fetches one data item (optionally a version), including content.
+// ListWorkflowData lists data produced by a workflow.
+func (c *Client) ListWorkflowData(ctx context.Context, workflow string) (map[string]any, error) {
+	return c.dataRequest(ctx, ReqDataList, map[string]any{"workflowName": workflow})
+}
+
+// GetData fetches one model data item (optionally a version), with content.
 func (c *Client) GetData(ctx context.Context, model, name string, version int) (map[string]any, error) {
-	p := map[string]any{"modelIdOrName": model, "dataName": name, "includeContent": true}
+	return c.GetDataScoped(ctx, false, model, name, version)
+}
+
+// GetDataScoped fetches one data item with content. When byWorkflow is true the
+// lookup is scoped by workflowName instead of modelIdOrName.
+func (c *Client) GetDataScoped(ctx context.Context, byWorkflow bool, root, name string, version int) (map[string]any, error) {
+	p := map[string]any{"dataName": name, "includeContent": true}
+	if byWorkflow {
+		p["workflowName"] = root
+	} else {
+		p["modelIdOrName"] = root
+	}
 	if version > 0 {
 		p["version"] = version
 	}

@@ -8,26 +8,47 @@ import (
 
 // Init kicks off the initial loads.
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(m.loadModels(), m.tick())
+	return tea.Batch(m.loadWorkflows(), m.loadModels(), m.tick())
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		// If a resize hid the focused pane, move focus to the nearest visible
+		// one so keys never target an invisible pane.
+		if !m.paneVisible(m.focus) {
+			panes := m.visiblePanes()
+			if len(panes) > 0 {
+				m.focus = panes[0]
+			}
+		}
 		return m, nil
 
-	case modelsLoadedMsg:
+	case workflowsLoadedMsg:
+		m.wfLoaded = true
 		if msg.err != nil {
 			m.err = msg.err
 			m.status = "error"
-			return m, nil
+			return m, m.bootstrapCmd()
+		}
+		m.workflows = msg.workflows
+		m.loading = false
+		m.status = "ready"
+		return m, m.bootstrapCmd()
+
+	case modelsLoadedMsg:
+		m.modelLoaded = true
+		if msg.err != nil {
+			m.err = msg.err
+			m.status = "error"
+			return m, m.bootstrapCmd()
 		}
 		m.models = msg.models
 		m.err = nil
 		m.loading = false
 		m.status = "ready"
-		return m, m.selectModel()
+		return m, m.bootstrapCmd()
 
 	case detailLoadedMsg:
 		if msg.err != nil {
@@ -36,6 +57,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.detailTitle = msg.title
 		m.detailLines = msg.lines
 		m.detailScroll = 0
+		if msg.name != "" {
+			m.rootKind = msg.root
+			m.rootName = msg.name
+		}
 		if msg.items != nil {
 			m.dataItems = msg.items
 			m.dataSel = 0
@@ -80,18 +105,18 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "esc":
 			m.filtering = false
 			m.filter = ""
-			m.modelSel = 0
+			m.resetListSel()
 		case "enter":
 			m.filtering = false
 		case "backspace":
 			if m.filter != "" {
 				m.filter = m.filter[:len(m.filter)-1]
 			}
-			m.modelSel = 0
+			m.resetListSel()
 		default:
 			if len(msg.Text) > 0 {
 				m.filter += msg.Text
-				m.modelSel = 0
+				m.resetListSel()
 			}
 		}
 		return m, nil
@@ -103,13 +128,22 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case "esc":
-		if m.focus != PaneModels {
+		// Return to the pane that owns the current root (workflow or model).
+		switch {
+		case m.rootKind == RootWorkflow && m.width >= 110:
+			m.focus = PaneWorkflows
+		default:
 			m.focus = PaneModels
 		}
 
 	case "/":
 		m.filtering = true
-		m.focus = PaneModels
+		m.filter = ""
+		if m.focus == PaneWorkflows {
+			m.focus = PaneWorkflows
+		} else {
+			m.focus = PaneModels
+		}
 
 	case "s", "ctrl+p":
 		m.spotterOpen = true
@@ -120,10 +154,10 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "tab", "l", "right":
-		m.focus = (m.focus + 1) % PaneCount
+		m.focus = m.cyclePane(1)
 
 	case "shift+tab", "h", "left":
-		m.focus = (m.focus + PaneCount - 1) % PaneCount
+		m.focus = m.cyclePane(-1)
 
 	case "up", "k":
 		if m.focus == PaneDetail {
@@ -155,19 +189,19 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case "r":
 		m.status = "reloading…"
-		return m, m.loadModels()
+		return m, tea.Batch(m.loadWorkflows(), m.loadModels())
 
 	case "enter":
-		if m.focus == PaneModels {
+		switch m.focus {
+		case PaneWorkflows:
+			return m, m.selectWorkflow()
+		case PaneModels:
 			return m, m.selectModel()
-		}
-		if m.focus == PaneData {
-			models := m.visibleModels()
-			if len(models) > 0 && len(m.dataItems) > 0 {
-				sel := models[clamp(m.modelSel, 0, len(models)-1)]
+		case PaneData:
+			if len(m.dataItems) > 0 && m.rootName != "" {
 				item := m.dataItems[clamp(m.dataSel, 0, len(m.dataItems)-1)]
 				m.focus = PaneDetail
-				return m, m.loadDataContent(sel.label, item.label, m.width)
+				return m, m.loadDataContent(m.rootKind, m.rootName, item.label, m.width)
 			}
 		}
 	}
@@ -216,13 +250,21 @@ func (m *Model) handleSpotterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 // jumpTo navigates the browser to the chosen search result.
 func (m *Model) jumpTo(it spotterItem) (tea.Model, tea.Cmd) {
+	m.filter = ""
+	m.filtering = false
 	switch it.kind {
+	case "workflow":
+		for i, n := range m.workflows {
+			if n.label == it.label {
+				m.wfSel = i
+				break
+			}
+		}
+		m.focus = PaneWorkflows
+		return m, m.selectWorkflow()
 	case "model", "data":
-		// Select the model in the models pane, then load its detail.
 		for i, n := range m.models {
 			if n.label == it.model {
-				m.filter = ""
-				m.filtering = false
 				m.modelSel = i
 				break
 			}
@@ -231,19 +273,76 @@ func (m *Model) jumpTo(it spotterItem) (tea.Model, tea.Cmd) {
 		cmd := m.selectModel()
 		if it.kind == "data" {
 			m.focus = PaneData
-			// After detail loads, select the requested data item. We set a
-			// pending hint consumed in the detailLoadedMsg handler.
+			// After detail loads, select the requested data item.
 			m.pendingData = it.data
 		}
 		return m, cmd
-	case "workflow":
-		// Workflows are not yet a pane; fall back to filtering the model list
-		// is wrong, so just surface it in the status until the workflow pane
-		// lands. (Next roadmap item.)
-		m.status = "workflow: " + it.label + " (workflow pane coming next)"
-		return m, nil
 	}
 	return m, nil
+}
+
+// bootstrapCmd selects the initial root once, after both top-level lists have
+// loaded, so the choice does not depend on which response arrives first.
+func (m *Model) bootstrapCmd() tea.Cmd {
+	if m.bootstrapped || !m.wfLoaded || !m.modelLoaded {
+		return nil
+	}
+	m.bootstrapped = true
+	if m.rootName != "" {
+		return nil
+	}
+	m.wfSel = 0
+	m.modelSel = 0
+	// Prefer a workflow as the initial root; fall back to a model.
+	if len(m.visibleWorkflows()) > 0 {
+		m.focus = PaneWorkflows
+		return m.selectWorkflow()
+	}
+	if len(m.visibleModels()) > 0 {
+		m.focus = PaneModels
+		return m.selectModel()
+	}
+	return nil
+}
+
+// visiblePanes lists the panes shown at the current width, in focus order.
+func (m *Model) visiblePanes() []Pane {
+	panes := []Pane{}
+	if m.width >= 110 {
+		panes = append(panes, PaneWorkflows)
+	}
+	panes = append(panes, PaneModels, PaneDetail)
+	if m.width >= 84 {
+		panes = append(panes, PaneData)
+	}
+	return panes
+}
+
+// paneVisible reports whether p is shown at the current width.
+func (m *Model) paneVisible(p Pane) bool {
+	for _, v := range m.visiblePanes() {
+		if v == p {
+			return true
+		}
+	}
+	return false
+}
+
+// cyclePane moves focus to the next/previous visible pane.
+func (m *Model) cyclePane(dir int) Pane {
+	panes := m.visiblePanes()
+	if len(panes) == 0 {
+		return m.focus
+	}
+	cur := 0
+	for i, p := range panes {
+		if p == m.focus {
+			cur = i
+			break
+		}
+	}
+	next := (cur + dir + len(panes)) % len(panes)
+	return panes[next]
 }
 
 // tick is currently unused but reserved for periodic refresh.
@@ -251,6 +350,12 @@ func (m *Model) tick() tea.Cmd { return nil }
 
 func (m *Model) moveSelection(delta int) {
 	switch m.focus {
+	case PaneWorkflows:
+		n := len(m.visibleWorkflows())
+		if n == 0 {
+			return
+		}
+		m.wfSel = clamp(m.wfSel+delta, 0, n-1)
 	case PaneModels:
 		n := len(m.visibleModels())
 		if n == 0 {
@@ -268,11 +373,19 @@ func (m *Model) moveSelection(delta int) {
 	}
 }
 
+// resetListSel clears the focused list pane's selection after a filter change.
+func (m *Model) resetListSel() {
+	m.wfSel = 0
+	m.modelSel = 0
+}
+
 func (m *Model) setSel(which int) {
 	if which == 0 {
-		m.modelSel = 0
-		m.dataSel = 0
+		m.wfSel, m.modelSel, m.dataSel = 0, 0, 0
 		return
+	}
+	if s := m.visibleWorkflows(); len(s) > 0 {
+		m.wfSel = len(s) - 1
 	}
 	if s := m.visibleModels(); len(s) > 0 {
 		m.modelSel = len(s) - 1

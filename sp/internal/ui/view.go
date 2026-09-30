@@ -30,25 +30,38 @@ func (m *Model) render() string {
 	if bodyH < 4 {
 		bodyH = 4
 	}
-	// column widths: 28% models, flexible detail, 26% data
-	modelsW := clamp(m.width*28/100, 20, 44)
-	dataW := clamp(m.width*26/100, 20, 44)
-	detailW := m.width - modelsW - dataW - 4
+	// Column widths. Narrow terminals drop the Workflows pane first, then
+	// Data, so the Detail pane always has room.
+	wfW := clamp(m.width*22/100, 18, 34)
+	modelsW := clamp(m.width*24/100, 18, 38)
+	dataW := clamp(m.width*22/100, 18, 38)
+	showWf := m.width >= 110
+	showData := m.width >= 84
+	if !showWf {
+		wfW = 0
+	}
+	if !showData {
+		dataW = 0
+	}
+	detailW := m.width - wfW - modelsW - dataW - 4
 	if detailW < 20 {
 		detailW = 20
 	}
 
-	modelsPane := m.renderModels(modelsW, bodyH)
-	detailPane := m.renderDetail(detailW, bodyH)
-	dataPane := m.renderData(dataW, bodyH)
-
-	body := lipgloss.JoinHorizontal(lipgloss.Top, modelsPane, detailPane, dataPane)
-	panes := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+	panes := []string{m.renderModels(modelsW, bodyH), m.renderDetail(detailW, bodyH)}
+	if showWf {
+		panes = append([]string{m.renderWorkflows(wfW, bodyH)}, panes...)
+	}
+	if showData {
+		panes = append(panes, m.renderData(dataW, bodyH))
+	}
+	body := lipgloss.JoinHorizontal(lipgloss.Top, panes...)
+	all := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
 
 	if m.spotterOpen {
 		return m.renderSpotter()
 	}
-	return panes
+	return all
 }
 
 // renderSpotter draws the global search box centred on the screen.
@@ -143,6 +156,17 @@ func (m *Model) keyHints() []hint {
 			h("enter", "apply"),
 			h("esc", "clear"),
 		}
+	case m.focus == PaneWorkflows:
+		return []hint{
+			h("[workflows]", ""),
+			h("↑↓", "move"),
+			h("enter", "open DAG"),
+			h("/", "filter"),
+			h("tab", "pane"),
+			h("s", "search"),
+			h("r", "reload"),
+			h("q", "quit"),
+		}
 	case m.focus == PaneDetail:
 		return []hint{
 			h("[detail]", ""),
@@ -150,7 +174,7 @@ func (m *Model) keyHints() []hint {
 			h("pgup/pgdn", "page"),
 			h("tab", "pane"),
 			h("s", "search"),
-			h("esc", "models"),
+			h("esc", "root"),
 			h("r", "reload"),
 			h("q", "quit"),
 		}
@@ -161,7 +185,7 @@ func (m *Model) keyHints() []hint {
 			h("enter", "view content"),
 			h("tab", "pane"),
 			h("s", "search"),
-			h("esc", "models"),
+			h("esc", "root"),
 			h("r", "reload"),
 			h("q", "quit"),
 		}
@@ -249,6 +273,27 @@ func (m *Model) pane(title string, focused bool, content string, w, h int) strin
 	body := clip(content, innerW, innerH)
 	joined := head + "\n" + body
 	return st.Width(w).Height(h).Render(joined)
+}
+
+func (m *Model) renderWorkflows(w, h int) string {
+	wfs := m.visibleWorkflows()
+	var b strings.Builder
+	for i, n := range wfs {
+		line := styleItem.Render(n.label)
+		if i == m.wfSel && m.focus == PaneWorkflows {
+			line = styleSelected.Render(" " + n.label)
+		} else if i == m.wfSel {
+			line = styleSelectedBlur.Render(" " + n.label)
+		}
+		b.WriteString(line)
+		b.WriteString("\n")
+		b.WriteString(styleItemSub.Render("   " + n.sub))
+		b.WriteString("\n")
+	}
+	if len(wfs) == 0 {
+		b.WriteString(styleMuted.Render("(no workflows)"))
+	}
+	return m.pane(fmt.Sprintf("Workflows (%d)", len(wfs)), m.focus == PaneWorkflows, b.String(), w, h)
 }
 
 func (m *Model) renderModels(w, h int) string {

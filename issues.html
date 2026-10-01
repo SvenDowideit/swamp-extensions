@@ -67,8 +67,40 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2703"><span class="tier A">A</span>gatorwalk-factory: project a work item parked by its dispatc</a><a href="#issue-2772"><span class="tier A">A</span>gatorwalk-factory: lifecycle entries carry issue-lifecycle&#39;s</a><a href="#issue-2911"><span class="tier A">A</span>gatorwalk-factory: remove the static design page (design_pag</a><a href="#issue-2896"><span class="tier A">A</span>A force-exited workflow run stays running with a dead pid: r</a><a href="#issue-2890"><span class="tier A">A</span>Server fallback content extraction drops quoted method keys </a><a href="#issue-2712"><span class="tier A">A</span>gatorwalk-factory: claim can wedge a ticket on a reservation</a><a href="#issue-2841"><span class="tier A">A</span>gatorwalk-factory studio: file-watch and page edge cases lef</a><a href="#issue-2736"><span class="tier A">A</span>A nested workflow that suspends on manual approval forwards </a><a href="#issue-2799"><span class="tier A">A</span>gatorwalk-factory: mark a duplicate and move its work to the</a><a href="#issue-2897"><span class="tier A">A</span>workflow cancel SIGKILLs the run 2 s after SIGTERM, cutting </a><a href="#issue-2889"><span class="tier A">A</span>gatorwalk-factory studio: a factory whose model file is brie</a><a href="#issue-2714"><span class="tier A">A</span>gatorwalk-factory: publish can undo a manual status move aft</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2915"><span class="tier A">A</span>model cancel --all on a running workflow leaves its method-r</a><a href="#issue-2910"><span class="tier A">A</span>model cancel SIGKILLs the owner 2 s after SIGTERM, before th</a><a href="#issue-2895"><span class="tier A">A</span>workflow cancel and supersede of a suspended run leave its j</a><a href="#issue-2231"><span class="tier A">A</span>Auth gate: enforce authentication and add background proof r</a><a href="#issue-2703"><span class="tier A">A</span>gatorwalk-factory: project a work item parked by its dispatc</a><a href="#issue-2772"><span class="tier A">A</span>gatorwalk-factory: lifecycle entries carry issue-lifecycle&#39;s</a><a href="#issue-2911"><span class="tier A">A</span>gatorwalk-factory: remove the static design page (design_pag</a><a href="#issue-2896"><span class="tier A">A</span>A force-exited workflow run stays running with a dead pid: r</a><a href="#issue-2890"><span class="tier A">A</span>Server fallback content extraction drops quoted method keys </a><a href="#issue-2712"><span class="tier A">A</span>gatorwalk-factory: claim can wedge a ticket on a reservation</a><a href="#issue-2841"><span class="tier A">A</span>gatorwalk-factory studio: file-watch and page edge cases lef</a><a href="#issue-2736"><span class="tier A">A</span>A nested workflow that suspends on manual approval forwards </a></aside><div>
 
+<article class="item" id="issue-2915">
+<h2><span class="tier A">A</span>model cancel --all on a running workflow leaves its method-run records at running, or records them failed instead of cancelled</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-01T20:32:03.644Z">2026-10-01T20:32:03.644Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2915" rel="noopener">lab#2915</a></div>
+</article>
+<article class="item" id="issue-2910">
+<h2><span class="tier A">A</span>model cancel SIGKILLs the owner 2 s after SIGTERM, before the step executor&#39;s own 3 s kill grace, so the run never records its own cancellation</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-01T20:32:03.570Z">2026-10-01T20:32:03.570Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2910" rel="noopener">lab#2910</a></div>
+</article>
+<article class="item" id="issue-2895">
+<h2><span class="tier A">A</span>workflow cancel and supersede of a suspended run leave its jobs running in the cancelled record</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-01T20:31:40.447Z">2026-10-01T20:31:40.447Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2895" rel="noopener">lab#2895</a></div>
+</article>
+<article class="item" id="issue-2231">
+<h2><span class="tier A">A</span>Auth gate: enforce authentication and add background proof refresh</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-01T20:26:21.182Z">2026-10-01T20:26:21.182Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2231" rel="noopener">lab#2231</a></div>
+</article>
 <article class="item" id="issue-2703">
 <h2><span class="tier A">A</span>gatorwalk-factory: project a work item parked by its dispatch cap (GW-17 follow-up)</h2>
 <p class="lede">Shipped feature</p>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2736" rel="noopener">lab#2736</a></div>
 </article>
-<article class="item" id="issue-2799">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2799">
 <h2><span class="tier A">A</span>gatorwalk-factory: mark a duplicate and move its work to the primary</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-01T18:30:53.982Z">2026-10-01T18:30:53.982Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2714" rel="noopener">lab#2714</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2710">
+<article class="item" id="issue-2710">
 <h2><span class="tier A">A</span>gatorwalk-factory: publish explains a stuck status step, and every refused lifecycle copy (GW-17 follow-up)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-01T18:19:21.240Z">2026-10-01T18:19:21.240Z</time></span></div>
@@ -485,21 +517,61 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-2915">
-<h2><span class="tier B">B</span>model cancel --all on a running workflow leaves its method-run records at running, or records them failed instead of cancelled</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T20:06:18.819Z">2026-10-01T20:06:18.819Z</time></span></div>
+<article class="item" id="issue-2924">
+<h2><span class="tier B">B</span>Auth gate blocks nested swamp in workflow shell steps when the credential is in SWAMP_API_KEY</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-01T21:01:44.864Z">2026-10-01T21:01:44.864Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2915" rel="noopener">lab#2915</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2924" rel="noopener">lab#2924</a></div>
 </article>
-<article class="item" id="issue-2910">
-<h2><span class="tier B">B</span>model cancel SIGKILLs the owner 2 s after SIGTERM, before the step executor&#39;s own 3 s kill grace, so the run never records its own cancellation</h2>
+<article class="item" id="issue-2927">
+<h2><span class="tier B">B</span>Nested swamp structural command in a shell step times out on its parent&#39;s per-model lock (SWAMP_LOCK_HOLDER_PID is stripped)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-01T21:00:48.102Z">2026-10-01T21:00:48.102Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2927" rel="noopener">lab#2927</a></div>
+</article>
+<article class="item" id="issue-2916">
+<h2><span class="tier B">B</span>Auth gate follow-ups: fail closed when the fail-open window can&#39;t be recorded, UX polish (swamp-club#2231)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-01T21:00:47.020Z">2026-10-01T21:00:47.020Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2916" rel="noopener">lab#2916</a></div>
+</article>
+<article class="item" id="issue-2923">
+<h2><span class="tier B">B</span>swamp model create crashes with an [FTL] ZodError stack trace on an invalid (uppercase) model name</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T20:06:18.725Z">2026-10-01T20:06:18.725Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-01T20:55:32.898Z">2026-10-01T20:55:32.898Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2910" rel="noopener">lab#2910</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2923" rel="noopener">lab#2923</a></div>
+</article>
+<article class="item" id="issue-2925">
+<h2><span class="tier B">B</span>swamp workflow create crashes with an [FTL] ZodError stack trace on an invalid (uppercase) workflow name</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-01T20:53:20.394Z">2026-10-01T20:53:20.394Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2925" rel="noopener">lab#2925</a></div>
+</article>
+<article class="item" id="issue-2918">
+<h2><span class="tier B">B</span>A cancelled workflow exits before its steps stop, leaving their method-run records at running</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-01T20:50:19.387Z">2026-10-01T20:50:19.387Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2918" rel="noopener">lab#2918</a></div>
+</article>
+<article class="item" id="issue-2914">
+<h2><span class="tier B">B</span>model cancel SIGTERMs a running swamp serve process when the method run belongs to a serve-run workflow</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-01T20:48:38.583Z">2026-10-01T20:48:38.583Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2914" rel="noopener">lab#2914</a></div>
 </article>
 <article class="item" id="issue-2644">
 <h2><span class="tier B">B</span>Codegen/Vercel: create-only required fields block read methods in generated Vercel models</h2>
@@ -517,14 +589,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article>
-<article class="item" id="issue-2895">
-<h2><span class="tier B">B</span>workflow cancel and supersede of a suspended run leave its jobs running in the cancelled record</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T20:01:49.863Z">2026-10-01T20:01:49.863Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2895" rel="noopener">lab#2895</a></div>
-</article>
 <article class="item" id="issue-2912">
 <h2><span class="tier B">B</span>gatorwalk-factory skill: an eval suite (claude plugin eval) that keeps authoring and driving behaviour from regressing</h2>
 <p class="lede">Issue triaged</p>
@@ -532,30 +596,46 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2912" rel="noopener">lab#2912</a></div>
-</article>
-<article class="item" id="issue-2231">
-<h2><span class="tier B">B</span>Auth gate: enforce authentication and add background proof refresh</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T19:17:58.019Z">2026-10-01T19:17:58.019Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2231" rel="noopener">lab#2231</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2899">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2921">
+<h2><span class="tier C">C</span>Docs: swamp skill says cancelling a parent run cancels its nested child runs; the child is left suspended</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-01T20:54:45.963Z">2026-10-01T20:54:45.963Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2921" rel="noopener">lab#2921</a></div>
+</article>
+<article class="item" id="issue-2926">
+<h2><span class="tier C">C</span>Worker dispatch rebuilds the definition with Definition.create, so a legacy-named model cannot run on a worker</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-01T20:51:28.546Z">2026-10-01T20:51:28.546Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2926" rel="noopener">lab#2926</a></div>
+</article>
+<article class="item" id="issue-2573">
+<h2><span class="tier C">C</span>S3 datastore rejects valid cache paths as traversal on Windows</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-01T20:39:32.539Z">2026-10-01T20:39:32.539Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2573" rel="noopener">lab#2573</a></div>
+</article>
+<article class="item" id="issue-2922">
+<h2><span class="tier C">C</span>Tell timeouts apart from cancels in method-run records, and review the hidden 30 s fallback timer for step-called model methods</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-01T20:22:47.173Z">2026-10-01T20:22:47.173Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2922" rel="noopener">lab#2922</a></div>
+</article>
+<article class="item" id="issue-2899">
 <h2><span class="tier C">C</span>workflow approve on a run that is not suspended prints a fatal error with a stack trace</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-01T19:55:34.499Z">2026-10-01T19:55:34.499Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2899" rel="noopener">lab#2899</a></div>
-</article>
-<article class="item" id="issue-2921">
-<h2><span class="tier C">C</span>Docs: swamp skill says cancelling a parent run cancels its nested child runs; the child is left suspended</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T19:55:32.997Z">2026-10-01T19:55:32.997Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2921" rel="noopener">lab#2921</a></div>
 </article>
 <article class="item" id="issue-2920">
 <h2><span class="tier C">C</span>workflow cancel cannot cancel a suspended run whose workflow file was deleted, and cancel --all silently skips it</h2>
@@ -573,22 +653,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2919" rel="noopener">lab#2919</a></div>
 </article>
-<article class="item" id="issue-2918">
-<h2><span class="tier C">C</span>A cancelled workflow exits before its steps stop, leaving their method-run records at running</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T19:35:54.625Z">2026-10-01T19:35:54.625Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2918" rel="noopener">lab#2918</a></div>
-</article>
-<article class="item" id="issue-2914">
-<h2><span class="tier C">C</span>model cancel SIGTERMs a running swamp serve process when the method run belongs to a serve-run workflow</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T19:29:31.387Z">2026-10-01T19:29:31.387Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2914" rel="noopener">lab#2914</a></div>
-</article>
 <article class="item" id="issue-2917">
 <h2><span class="tier C">C</span>Run tracker keeps some interrupted workflow rows forever: retention waits for markSettled, which several paths never call</h2>
 <p class="lede">Open issue</p>
@@ -596,14 +660,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2917" rel="noopener">lab#2917</a></div>
-</article>
-<article class="item" id="issue-2916">
-<h2><span class="tier C">C</span>Auth gate follow-ups: fail closed when the fail-open window can&#39;t be recorded, UX polish (swamp-club#2231)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T19:01:34.843Z">2026-10-01T19:01:34.843Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2916" rel="noopener">lab#2916</a></div>
 </article>
 <article class="item" id="issue-2913">
 <h2><span class="tier C">C</span>gatorwalk-factory studio: a replaced directory that gets the same inode number is still not watched again</h2>
@@ -910,13 +966,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2800" rel="noopener">lab#2800</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>105 items across 1 source(s) in this window:
-0 critical, 52 notable, 7 routine,
+<p>112 items across 1 source(s) in this window:
+0 critical, 56 notable, 10 routine,
 46 minor.</p>
-<ul><li><strong>issues</strong> — 105</li></ul></section>
+<ul><li><strong>issues</strong> — 112</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-01T20:11:00.205Z">2026-10-01T20:11:00.205Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-01T21:03:30.097Z">2026-10-01T21:03:30.097Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

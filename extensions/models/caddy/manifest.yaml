@@ -1,16 +1,19 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.09.21.1"
+version: "2026.10.01.3"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
   WHAT IT DOES
 
     Manages a Caddy reverse proxy on a Linux host with systemd — install the
-    binary, run it as a systemd user service, and drive routes and TLS live
-    through Caddy's admin API. Prefer it over hand-editing a Caddyfile or a Go
-    Caddy plugin when you want routes added and removed without a restart and
-    managed from swamp; no Go toolchain is needed.
+    binary, run it as a systemd user service, and drive routes, static file
+    serving, and TLS live through Caddy's admin API. Prefer it over hand-editing
+    a Caddyfile or a Go Caddy plugin when you want routes added and removed
+    without a restart and managed from swamp; no Go toolchain is needed. It can
+    also publish a settings/document directory over HTTP(S) with file_server, and
+    issue wildcard certificates through DNS-challenge providers (including
+    multi-field ones like Gandi, Namecheap, and DreamHost).
 
     It runs unprivileged (plain HTTP on high ports) or as a Let's Encrypt TLS
     proxy on 80/443, and routes persist across restarts via autosave + --resume.
@@ -45,6 +48,21 @@ description: >
       swamp workflow run caddy-ensure-proxy \
         --input hostname=foo.example.com --input upstream=127.0.0.1:8080
 
+      # Publish a directory of documents over HTTPS at a hostname.
+      swamp model method run my-caddy serveSettings \
+        --input hostname=settings.example.com --input root=/srv/settings/current
+
+      # Grant CAP_NET_BIND_SERVICE so the unprivileged user service can bind
+      # 80/443. If sudo is unavailable this prints the exact `sudo setcap`
+      # command to run by hand (also tried automatically during installCaddy).
+      swamp model method run my-caddy setCapabilities
+
+      # Issue a wildcard cert via a multi-field DNS provider (Gandi).
+      swamp model method run my-caddy configureTls \
+        --input dnsProvider=gandi \
+        --input 'providerConfig:json={"bearer_token":"GANDI_TOKEN"}' \
+        --input 'subjects:json=["*.example.com","example.com"]'
+
   CONFIGURE
 
     All arguments are optional and set as global args when creating/editing the
@@ -58,16 +76,26 @@ description: >
       adminApiAddr       Admin API address (or unix//path)
       vaultName          Vault used by storeConfig
 
+    Ports 80/443 need CAP_NET_BIND_SERVICE on the binary: installCaddy tries to
+    grant it (setCapabilities=false to skip), setCapabilities can (re)apply it
+    or print the sudo command, and upgradeCaddy reapplies it after replacing the
+    binary.
+
     Override per call with --input, e.g. addProxyService --input serviceName=app
     --input upstream=127.0.0.1:8080, or configureTls --input
-    dnsProvider=cloudflare --input 'subjects:json=["*.example.com"]'.
+    dnsProvider=cloudflare --input 'subjects:json=["*.example.com"]'. For
+    multi-field DNS providers pass a providerConfig map of credential field to
+    environment variable, e.g. Gandi '{"bearer_token":"GANDI_TOKEN"}',
+    Namecheap '{"api_key":"NC_KEY","user":"NC_USER"}', DreamHost
+    '{"api_key":"DH_KEY"}'.
 
   WHAT IT INSTALLS
 
-    A Caddy binary at caddyBinPath (default ~/.local/bin/caddy), a systemd
+    A Caddy binary at caddyBinPath (default ~/.local/bin/caddy) — optionally
+    with CAP_NET_BIND_SERVICE set so it can bind 80/443 unprivileged — a systemd
     *user* service (default caddy.service), a Caddyfile under ~/.config/caddy,
-    and network-facing reverse-proxy routes via Caddy's admin API. It installs
-    no cron triggers or webhooks.
+    and network-facing reverse-proxy and file_server routes via Caddy's admin
+    API. It installs no cron triggers or webhooks.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

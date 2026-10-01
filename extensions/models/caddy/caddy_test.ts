@@ -5,6 +5,7 @@ import {
   automaticHttpsConfig,
   baseConfig,
   buildCurlArgs,
+  buildFileServerRoute,
   buildRoute,
   caddyArch,
   caddyDownloadUrl,
@@ -12,25 +13,32 @@ import {
   deriveHostname,
   detectSwampServeServices,
   dnsProviderPlugin,
+  ensureFileServerRoute,
   ensureRoute,
   ensureServerDefaults,
   expandHome,
   findRouteByHost,
+  hasNetBindService,
   listProxyServices,
   mergeTlsConfig,
   model,
   parseAdminAddr,
   parseCaddyVersion,
+  parseGetcap,
   parseUpstream,
+  PRIVILEGED_PORT_CAPABILITIES,
   reconcileProxyServices,
   removeRouteFromConfig,
   renderAdminConfig,
   renderDomainConflictError,
   renderMinimalConfig,
+  renderPrivilegedPortGuidance,
   renderServiceUnit,
+  renderSetcapCommand,
   renderSettingsGuidance,
   renderTlsAutomation,
   renderUpgradeConfirmation,
+  routeFileServerRoot,
   routeUpstream,
   validateBaseDomain,
   validateEmail,
@@ -190,6 +198,13 @@ Deno.test("renderServiceUnit includes binary, config, and --resume, but no --adm
     .split("\n")
     .some((line) => line.startsWith("ExecReload="));
   assertEquals(hasExecReload, false);
+  // LimitNPROC must NOT be set: for a systemd *user* service it is per-UID
+  // across all the user's processes, so a low value makes Go fail to spawn a
+  // thread (EAGAIN) and Caddy exits status=2.
+  const hasLimitNPROC = unit
+    .split("\n")
+    .some((line) => line.startsWith("LimitNPROC="));
+  assertEquals(hasLimitNPROC, false);
 });
 
 Deno.test("renderMinimalConfig is a valid empty Caddyfile with defaults", () => {
@@ -572,6 +587,180 @@ Deno.test("renderTlsAutomation omits DNS challenge when no provider", () => {
   const policyList = automation.policies as Array<Record<string, unknown>>;
   const issuer = (policyList[0].issuers as Array<Record<string, unknown>>)[0];
   assertEquals(issuer.challenges, undefined);
+});
+
+Deno.test("dnsProviderPlugin maps gandi and dreamhost", () => {
+  assertEquals(dnsProviderPlugin("gandi"), "github.com/caddy-dns/gandi");
+  assertEquals(
+    dnsProviderPlugin("DreamHost"),
+    "github.com/caddy-dns/dreamhost",
+  );
+});
+
+Deno.test("renderTlsAutomation uses providerConfig field -> env mappings", () => {
+  const tls = renderTlsAutomation({
+    email: "admin@example.com",
+    dnsProvider: "gandi",
+    providerConfig: { bearer_token: "GANDI_TOKEN" },
+  });
+  const policyList =
+    ((tls.apps as Record<string, unknown>).tls as Record<string, unknown>)
+      .automation as Record<string, unknown>;
+  const issuer = ((policyList.policies as Array<Record<string, unknown>>)[0]
+    .issuers as Array<Record<string, unknown>>)[0];
+  const provider =
+    ((issuer.challenges as Record<string, unknown>).dns as Record<
+      string,
+      unknown
+    >).provider as Record<string, unknown>;
+  assertEquals(provider.name, "gandi");
+  assertEquals(provider.bearer_token, "{env.GANDI_TOKEN}");
+  assertEquals(provider.api_token, undefined);
+});
+
+Deno.test("renderTlsAutomation supports multi-field providers (namecheap)", () => {
+  const tls = renderTlsAutomation({
+    email: "admin@example.com",
+    dnsProvider: "namecheap",
+    providerConfig: { api_key: "NC_KEY", user: "NC_USER" },
+  });
+  const policyList =
+    ((tls.apps as Record<string, unknown>).tls as Record<string, unknown>)
+      .automation as Record<string, unknown>;
+  const issuer = ((policyList.policies as Array<Record<string, unknown>>)[0]
+    .issuers as Array<Record<string, unknown>>)[0];
+  const provider =
+    ((issuer.challenges as Record<string, unknown>).dns as Record<
+      string,
+      unknown
+    >).provider as Record<string, unknown>;
+  assertEquals(provider.api_key, "{env.NC_KEY}");
+  assertEquals(provider.user, "{env.NC_USER}");
+});
+
+Deno.test("renderTlsAutomation defaults to api_token when no providerConfig", () => {
+  const tls = renderTlsAutomation({
+    email: "admin@example.com",
+    dnsProvider: "dreamhost",
+  });
+  const policyList =
+    ((tls.apps as Record<string, unknown>).tls as Record<string, unknown>)
+      .automation as Record<string, unknown>;
+  const issuer = ((policyList.policies as Array<Record<string, unknown>>)[0]
+    .issuers as Array<Record<string, unknown>>)[0];
+  const provider =
+    ((issuer.challenges as Record<string, unknown>).dns as Record<
+      string,
+      unknown
+    >).provider as Record<string, unknown>;
+  assertEquals(provider.api_token, "{env.CADDY_DNS_API_TOKEN}");
+});
+
+Deno.test("ensureFileServerRoute adds, is idempotent, and updates root", () => {
+  const config = baseConfig();
+  const added = ensureFileServerRoute(
+    config,
+    "settings.otel.fi.gy",
+    "/srv/otel/current",
+  );
+  assertEquals(added.changed, true);
+  const route = findRouteByHost(added.config, "settings.otel.fi.gy");
+  assertEquals(routeFileServerRoot(route!.route), "/srv/otel/current");
+
+  const again = ensureFileServerRoute(
+    added.config,
+    "settings.otel.fi.gy",
+    "/srv/otel/current",
+  );
+  assertEquals(again.changed, false);
+
+  const moved = ensureFileServerRoute(
+    added.config,
+    "settings.otel.fi.gy",
+    "/srv/otel/v2",
+  );
+  assertEquals(moved.changed, true);
+  assertEquals(
+    routeFileServerRoot(
+      findRouteByHost(moved.config, "settings.otel.fi.gy")!.route,
+    ),
+    "/srv/otel/v2",
+  );
+});
+
+Deno.test("buildFileServerRoute renders a terminal file_server handler", () => {
+  const route = buildFileServerRoute("settings.otel.fi.gy", "/srv/otel", true);
+  assertEquals(route.terminal, true);
+  const handle = route.handle as Array<Record<string, unknown>>;
+  assertEquals(handle[0].handler, "file_server");
+  assertEquals(handle[0].root, "/srv/otel");
+  // browse is an object in Caddy's config, not a bool.
+  assertEquals(handle[0].browse, {});
+
+  const noBrowse = buildFileServerRoute("settings.otel.fi.gy", "/srv/otel");
+  const nb = noBrowse.handle as Array<Record<string, unknown>>;
+  assertEquals(nb[0].browse, undefined);
+});
+
+Deno.test("parseGetcap extracts capabilities from getcap output", () => {
+  assertEquals(
+    parseGetcap("/home/u/.local/bin/caddy cap_net_bind_service=ep"),
+    ["cap_net_bind_service=ep"],
+  );
+  assertEquals(parseGetcap(""), []);
+  assertEquals(parseGetcap("/path/to/bin"), []);
+});
+
+Deno.test("hasNetBindService detects the capability in any form", () => {
+  assertEquals(hasNetBindService(["cap_net_bind_service=ep"]), true);
+  assertEquals(hasNetBindService(["cap_net_bind_service+eip"]), true);
+  assertEquals(hasNetBindService(["cap_sys_admin=ep"]), false);
+  assertEquals(hasNetBindService([]), false);
+});
+
+Deno.test("renderSetcapCommand produces the copy-paste sudo command", () => {
+  const cmd = renderSetcapCommand("/home/u/.local/bin/caddy");
+  assertEquals(
+    cmd,
+    "sudo setcap 'cap_net_bind_service=+ep' /home/u/.local/bin/caddy",
+  );
+  assertEquals(PRIVILEGED_PORT_CAPABILITIES, ["cap_net_bind_service=+ep"]);
+});
+
+Deno.test("renderPrivilegedPortGuidance explains why and when", () => {
+  const text = renderPrivilegedPortGuidance("/home/u/.local/bin/caddy");
+  assertStringIncludes(text, "cap_net_bind_service=+ep");
+  assertStringIncludes(text, "after every");
+  assertStringIncludes(text, "autoHttps=off");
+});
+
+Deno.test("setCapabilities method records the command when it cannot apply", async () => {
+  let captured: Record<string, unknown> = {};
+  const ctx = {
+    globalArgs: {
+      caddyBinPath: "/nonexistent/caddy",
+      adminApiAddr: "localhost:2019",
+      configPath: "~/.config/caddy/Caddyfile",
+      autoHttps: "on",
+      listenAddrs: [":443", ":80"],
+      serviceName: "caddy",
+      plugins: [],
+    },
+    logger: { info: () => {} },
+    writeResource: (
+      _spec: string,
+      _name: string,
+      data: Record<string, unknown>,
+    ) => {
+      captured = data;
+      return Promise.resolve({ name: "capabilities" });
+    },
+    // deno-lint-ignore no-explicit-any
+  } as any;
+  await model.methods.setCapabilities.execute({ quiet: true }, ctx);
+  assertEquals(typeof captured.command, "string");
+  assertStringIncludes(captured.command as string, "sudo setcap");
+  assertEquals(captured.applied, false);
 });
 
 Deno.test("mergeTlsConfig replaces the tls app in a config", () => {

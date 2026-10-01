@@ -114,6 +114,21 @@ const InstallArgsSchema = z.object({
   force: z.boolean().default(false).describe(
     "Reinstall even if the binary already exists",
   ),
+  setCapabilities: z.boolean().default(true).describe(
+    "After install, try to grant the binary CAP_NET_BIND_SERVICE so the unprivileged systemd user service can bind 80/443. Without sudo this records the exact `sudo setcap` command to run by hand.",
+  ),
+});
+
+const SetCapabilitiesArgsSchema = z.object({
+  capabilities: z.array(z.string()).optional().describe(
+    "Linux capabilities to grant (default ['cap_net_bind_service=+ep'])",
+  ),
+  binPath: z.string().optional().describe(
+    "Override the Caddy binary path (defaults to global caddyBinPath)",
+  ),
+  quiet: z.boolean().default(false).describe(
+    "Suppress the log message describing the command",
+  ),
 });
 
 const ServiceArgsSchema = z.object({
@@ -176,10 +191,25 @@ const ConfigureTlsArgsSchema = z.object({
     "DNS provider name for DNS-challenge issuance (e.g. cloudflare)",
   ),
   dnsEnvVar: z.string().optional().describe(
-    "Environment variable holding the DNS provider credential (default CADDY_DNS_API_TOKEN)",
+    "Environment variable holding a single-field DNS provider credential (default CADDY_DNS_API_TOKEN). Ignored when providerConfig is set.",
+  ),
+  providerConfig: z.record(z.string(), z.string()).optional().describe(
+    'Provider credential field -> environment variable, for multi-field providers. e.g. \'{"bearer_token":"GANDI_TOKEN"}\' for Gandi, \'{"api_key":"NC_KEY","user":"NC_USER"}\' for Namecheap',
   ),
   subjects: z.array(z.string()).optional().describe(
     "Subjects for the TLS policy (e.g. *.example.com, example.com)",
+  ),
+});
+
+const ServeSettingsArgsSchema = z.object({
+  hostname: z.string().min(1).describe(
+    "Full hostname to serve the settings documents on (e.g. settings.otel.fi.gy)",
+  ),
+  root: z.string().min(1).describe(
+    "Directory holding the rendered settings documents (e.g. ~/.local/share/otel-settings/current)",
+  ),
+  browse: z.boolean().default(false).describe(
+    "Enable directory browsing (off by default; individual documents remain fetchable)",
   ),
 });
 
@@ -223,6 +253,9 @@ const InstallOutputSchema = z.object({
   arch: z.string(),
   plugins: z.array(z.string()),
   installedAt: z.string(),
+  capabilities: z.array(z.string()),
+  canBindPrivilegedPorts: z.boolean(),
+  needsSudoForPorts: z.string(),
 });
 
 const ServiceOutputSchema = z.object({
@@ -265,6 +298,7 @@ const TlsConfigOutputSchema = z.object({
   email: z.string(),
   dnsProvider: z.string(),
   subjects: z.array(z.string()),
+  credentialFields: z.array(z.string()),
   configuredAt: z.string(),
 });
 
@@ -282,6 +316,18 @@ const UpgradeOutputSchema = z.object({
   plugins: z.array(z.string()),
   restarted: z.boolean(),
   upgradedAt: z.string(),
+  capabilities: z.array(z.string()),
+});
+
+const SetCapabilitiesOutputSchema = z.object({
+  binPath: z.string(),
+  capabilities: z.array(z.string()),
+  changed: z.boolean(),
+  applied: z.boolean(),
+  requiresSudo: z.boolean(),
+  command: z.string(),
+  message: z.string(),
+  checkedAt: z.string(),
 });
 
 const HealthOutputSchema = z.object({
@@ -298,6 +344,14 @@ const EnsureProxyOutputSchema = z.object({
   upstream: z.string(),
   changed: z.boolean(),
   ensuredAt: z.string(),
+});
+
+const ServeSettingsOutputSchema = z.object({
+  hostname: z.string(),
+  root: z.string(),
+  browse: z.boolean(),
+  changed: z.boolean(),
+  servedAt: z.string(),
 });
 
 // ---------------------------------------------------------------------------
@@ -332,6 +386,58 @@ export function parseCaddyVersion(stdout: string): string {
   return first;
 }
 
+/** The capabilities Caddy needs to bind privileged ports as a user service. */
+export const PRIVILEGED_PORT_CAPABILITIES = ["cap_net_bind_service=+ep"];
+
+/**
+ * Parse the capabilities from `getcap <path>` output (e.g.
+ * `/home/u/.local/bin/caddy cap_net_bind_service=ep`). Returns `[]` when the
+ * file has no capabilities.
+ */
+export function parseGetcap(output: string): string[] {
+  const trimmed = output.trim();
+  if (!trimmed) return [];
+  // Drop the leading path, keep the rest (space-separated capability entries).
+  const firstSpace = trimmed.indexOf(" ");
+  const caps = firstSpace === -1 ? "" : trimmed.slice(firstSpace + 1).trim();
+  return caps ? caps.split(/\s+/) : [];
+}
+
+/** Whether a capability list includes CAP_NET_BIND_SERVICE (any form). */
+export function hasNetBindService(caps: string[]): boolean {
+  return caps.some((c) => c.toLowerCase().includes("cap_net_bind_service"));
+}
+
+/** Render the `sudo setcap` command a user runs to grant one capability. */
+export function renderSetcapCommand(
+  binPath: string,
+  capabilities: string[] = PRIVILEGED_PORT_CAPABILITIES,
+): string {
+  return `sudo setcap '${capabilities.join(" ")}' ${binPath}`;
+}
+
+/**
+ * Human guidance for enabling privileged ports, including the exact `setcap`
+ * command — so an operator can copy-paste it when sudo is not available to the
+ * swarm model.
+ */
+export function renderPrivilegedPortGuidance(
+  binPath: string,
+  capabilities: string[] = PRIVILEGED_PORT_CAPABILITIES,
+): string {
+  return [
+    "To let the unprivileged systemd *user* service bind ports 80/443,",
+    "grant the Caddy binary the CAP_NET_BIND_SERVICE capability:",
+    "",
+    `    ${renderSetcapCommand(binPath, capabilities)}`,
+    "",
+    "This is a one-time, per-binary operation. Re-run it after every",
+    "upgradeCaddy/installCaddy with force, because replacing the binary drops",
+    "the capability. (Alternative: run Caddy as a root system service, or keep",
+    "it unprivileged on high ports with autoHttps=off.)",
+  ].join("\n");
+}
+
 /**
  * Render the systemd *user* service unit file content for Caddy.
  *
@@ -349,6 +455,24 @@ export function renderServiceUnit(opts: {
   configPath: string;
 }): string {
   const { binPath, configPath } = opts;
+  // We deliberately set neither LimitNPROC nor the mount-namespace options
+  // (ProtectSystem/PrivateTmp) — each breaks a user service in a different way:
+  //
+  //  * LimitNPROC is per-UID for a systemd *user* service, so it counts every
+  //    process/thread the logged-in user already runs. A low value (e.g. 512)
+  //    makes Caddy's Go runtime fail to spawn a thread with EAGAIN ("failed to
+  //    create new OS thread … may need to increase ulimit -u"), exiting
+  //    status=2. The user manager's TasksMax already bounds the slice.
+  //
+  //  * ProtectSystem=full / PrivateTmp=true need a mount namespace, which an
+  //    unprivileged user service can only create inside a *child user
+  //    namespace*. A process in a child userns cannot bind host privileged
+  //    ports even with CAP_NET_BIND_SERVICE set on the binary: the kernel's
+  //    ns_capable() check tests the network namespace's owning (parent) userns,
+  //    so binding 80/443 fails with EACCES. Since binding 80/443 is the whole
+  //    point of the capability, we keep the service out of a userns.
+  //
+  // If you do not need privileged ports, hardening can be added back.
   return `# Managed by @svendowideit/caddy — do not edit by hand.
 [Unit]
 Description=Caddy web server
@@ -363,9 +487,6 @@ Restart=on-failure
 RestartSec=5
 TimeoutStopSec=5
 LimitNOFILE=1048576
-LimitNPROC=512
-PrivateTmp=true
-ProtectSystem=full
 
 [Install]
 WantedBy=default.target
@@ -402,8 +523,10 @@ export function renderSettingsGuidance(opts: {
   baseDomain: string;
   letsEncryptEmail: string;
   adminApiAddr: string;
+  binPath?: string;
 }): string {
   const { baseDomain, letsEncryptEmail, adminApiAddr } = opts;
+  const binPath = opts.binPath ?? "~/.local/bin/caddy";
   return [
     "Caddy is installed and running. To make it a useful Let's Encrypt",
     "TLS-configured reverse proxy, provide these minimal settings:",
@@ -418,6 +541,13 @@ export function renderSettingsGuidance(opts: {
     "  3. admin API token  — protect the admin API (recommended by Caddy)",
     `     admin API listens on: ${adminApiAddr}`,
     "     store the token in the swamp Vault (e.g. caddy/admin-token)",
+    "",
+    "  4. privileged ports — to serve 80/443 from the unprivileged user",
+    "     service, grant the binary CAP_NET_BIND_SERVICE once:",
+    "",
+    `         ${renderSetcapCommand(binPath)}`,
+    "",
+    "     (run this yourself if the model lacked sudo; re-run after upgrades)",
     "",
     "Provide these via the model's global arguments or the swamp Vault.",
     "See the README for the exact keys and helper methods.",
@@ -472,6 +602,35 @@ export function parseUpstream(
   }
   const port = url.port || (url.protocol === "https:" ? "443" : "80");
   return { dial: `${url.hostname}:${port}`, https: url.protocol === "https:" };
+}
+
+/** Build a Caddy `file_server` route for a hostname + document root. */
+export function buildFileServerRoute(
+  hostname: string,
+  root: string,
+  browse = false,
+): CaddyRoute {
+  // Caddy's file_server `browse` is an object (an empty object enables it);
+  // omit the field entirely for the default (browsing disabled).
+  const handle: Record<string, unknown> = { handler: "file_server", root };
+  if (browse) handle.browse = {};
+  return {
+    match: [{ host: [hostname] }],
+    handle: [handle],
+    terminal: true,
+  };
+}
+
+/** Read the file_server root from a route (empty string when not a file server). */
+export function routeFileServerRoot(route: CaddyRoute): string {
+  const handle = route.handle;
+  if (Array.isArray(handle) && handle.length > 0) {
+    const first = handle[0] as Record<string, unknown>;
+    if (first.handler === "file_server" && typeof first.root === "string") {
+      return first.root;
+    }
+  }
+  return "";
 }
 
 /** Build a Caddy reverse-proxy route for a hostname + upstream. */
@@ -801,6 +960,8 @@ const DNS_PROVIDER_PLUGINS: Record<string, string> = {
   duckdns: "github.com/caddy-dns/duckdns",
   porkbun: "github.com/caddy-dns/porkbun",
   namecheap: "github.com/caddy-dns/namecheap",
+  gandi: "github.com/caddy-dns/gandi",
+  dreamhost: "github.com/caddy-dns/dreamhost",
 };
 
 /**
@@ -825,19 +986,24 @@ export function renderTlsAutomation(opts: {
   email?: string;
   dnsProvider?: string;
   dnsEnvVar?: string;
+  providerConfig?: Record<string, string>;
   subjects?: string[];
 }): CaddyConfig {
   const issuer: Record<string, unknown> = { module: "acme" };
   if (opts.email) issuer.email = opts.email;
   if (opts.dnsProvider) {
-    issuer.challenges = {
-      dns: {
-        provider: {
-          name: opts.dnsProvider,
-          api_token: `{env.${opts.dnsEnvVar ?? "CADDY_DNS_API_TOKEN"}}`,
-        },
-      },
-    };
+    // Each provider has its own credential field names: Cloudflare/Route53/
+    // DigitalOcean/DuckDNS/Porkbun take a single `api_token`, but Gandi uses
+    // `bearer_token`, Namecheap needs `api_key`+`user`, DreamHost `api_key`,
+    // and so on. `providerConfig` maps each field to the env var holding its
+    // value; when absent we fall back to the historical single `api_token`.
+    const credentials: Record<string, string> = opts.providerConfig ??
+      { api_token: opts.dnsEnvVar ?? "CADDY_DNS_API_TOKEN" };
+    const provider: Record<string, string> = { name: opts.dnsProvider };
+    for (const [field, envVar] of Object.entries(credentials)) {
+      provider[field] = `{env.${envVar}}`;
+    }
+    issuer.challenges = { dns: { provider } };
   }
   const policy: Record<string, unknown> = { issuers: [issuer] };
   if (opts.subjects && opts.subjects.length > 0) {
@@ -978,6 +1144,35 @@ export function ensureRoute(
   return { config: next, changed: true };
 }
 
+/** Idempotently ensure a hostname serves static files from a root directory. */
+export function ensureFileServerRoute(
+  config: CaddyConfig,
+  hostname: string,
+  root: string,
+  browse = false,
+): { config: CaddyConfig; changed: boolean } {
+  const existing = findRouteByHost(config, hostname);
+  const route = buildFileServerRoute(hostname, root, browse);
+  if (!existing) {
+    return { config: addRouteToConfig(config, route), changed: true };
+  }
+  const current = existing.route.handle as Array<Record<string, unknown>>;
+  const isFileServer = Array.isArray(current) &&
+    current[0]?.handler === "file_server";
+  const currentBrowse = isFileServer && current[0]?.browse !== undefined;
+  if (
+    isFileServer && routeFileServerRoot(existing.route) === root &&
+    currentBrowse === browse
+  ) {
+    return { config, changed: false };
+  }
+  const next = structuredClone(config);
+  const routes = getRoutes(next);
+  routes[existing.index] = route;
+  setRoutes(next, routes);
+  return { config: next, changed: true };
+}
+
 // ---------------------------------------------------------------------------
 // Command helpers
 // ---------------------------------------------------------------------------
@@ -1090,6 +1285,54 @@ async function verifyCaddy(binPath: string): Promise<{
 function dirnameOf(path: string): string {
   const idx = path.lastIndexOf("/");
   return idx === -1 ? "." : path.slice(0, idx);
+}
+
+/** Read the current capabilities on a binary via `getcap` (empty if none). */
+async function readCapabilities(binPath: string): Promise<string[]> {
+  const result = await runCmd("getcap", [binPath]);
+  if (result.code !== 0) return [];
+  return parseGetcap(result.stdout);
+}
+
+/**
+ * Try to grant capabilities with `sudo -n setcap` (non-interactive).
+ *
+ * Returns whether it was applied, whether it needed sudo, and the command the
+ * operator can run by hand. Never throws: a missing/failed setcap is reported,
+ * not fatal, so the install flow can still finish and print guidance.
+ */
+async function applyCapabilities(
+  binPath: string,
+  capabilities: string[],
+): Promise<{ applied: boolean; requiresSudo: boolean; message: string }> {
+  const command = renderSetcapCommand(binPath, capabilities);
+  const direct = await runCmd("setcap", [capabilities.join(" "), binPath]);
+  if (direct.code === 0) {
+    return {
+      applied: true,
+      requiresSudo: false,
+      message: `Applied via: ${command}`,
+    };
+  }
+  // Try non-interactive sudo (works only if the user has passwordless sudo).
+  const sudo = await runCmd("sudo", [
+    "-n",
+    "setcap",
+    capabilities.join(" "),
+    binPath,
+  ]);
+  if (sudo.code === 0) {
+    return {
+      applied: true,
+      requiresSudo: true,
+      message: `Applied via: ${command}`,
+    };
+  }
+  return {
+    applied: false,
+    requiresSudo: true,
+    message: renderPrivilegedPortGuidance(binPath, capabilities),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1334,7 +1577,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.09.21.1",
+  version: "2026.10.01.3",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -1343,6 +1586,7 @@ export const model = {
       labels: ["policy"],
       appliesTo: [
         "installCaddy",
+        "setCapabilities",
         "createService",
         "startService",
         "stopService",
@@ -1354,6 +1598,7 @@ export const model = {
         "removeProxyService",
         "ensureDnsProxy",
         "autoProxySwampServe",
+        "serveSettings",
         "upgradeCaddy",
       ],
       execute: (
@@ -1444,6 +1689,24 @@ export const model = {
         "Robustness: downloads write to a temp file and rename atomically (no truncated binary on failure); removeProxyService is now idempotent (removing an absent route is a no-op). Adds valid-config and platform-supported pre-flight checks. Schema unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.1",
+      description:
+        "Adds gandi and dreamhost to the DNS-provider map; configureTls accepts a providerConfig map (credential field -> env var) for multi-field providers (Gandi bearer_token, Namecheap api_key+user, DreamHost api_key) while keeping the single api_token default; adds a serveSettings method that serves a static settings directory over HTTP(S) via Caddy file_server. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.2",
+      description:
+        "Adds a setCapabilities method and grants CAP_NET_BIND_SERVICE during installCaddy (setCapabilities arg, default true), so the unprivileged systemd user service can bind ports 80/443. When sudo is unavailable it records the exact `sudo setcap` command; upgradeCaddy now reapplies the capability since replacing the binary drops it. install/upgrade resources gain capabilities fields. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.3",
+      description:
+        "Fix the generated systemd user unit so Caddy can actually bind 80/443: drop LimitNPROC (per-UID for a user service, so a low value made Go fail to create a thread with EAGAIN and exit status=2) and drop ProtectSystem/PrivateTmp (they force a child user namespace, in which CAP_NET_BIND_SERVICE cannot bind host privileged ports). Re-run createService to regenerate the unit. Schema unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -1506,6 +1769,18 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 10,
     },
+    serveSettings: {
+      description: "Settings file_server route status",
+      schema: ServeSettingsOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    capabilities: {
+      description: "Linux capabilities on the Caddy binary",
+      schema: SetCapabilitiesOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
   },
   methods: {
     installCaddy: {
@@ -1547,13 +1822,99 @@ export const model = {
           { version: verified.version, binPath, arch },
         );
 
+        // Grant CAP_NET_BIND_SERVICE so the unprivileged user service can bind
+        // 80/443. Without sudo this records the command for the operator to run
+        // by hand; it is never fatal.
+        let capabilities: string[] = [];
+        let canBindPrivilegedPorts = false;
+        let needsSudoForPorts = "";
+        if (args.setCapabilities) {
+          const result = await applyCapabilities(
+            binPath,
+            PRIVILEGED_PORT_CAPABILITIES,
+          );
+          capabilities = await readCapabilities(binPath);
+          canBindPrivilegedPorts = hasNetBindService(capabilities);
+          if (canBindPrivilegedPorts) {
+            context.logger?.info(
+              "Granted CAP_NET_BIND_SERVICE to {binPath}; Caddy can bind 80/443 as a user service",
+              { binPath },
+            );
+          } else {
+            needsSudoForPorts = result.message;
+            context.logger?.info(needsSudoForPorts);
+          }
+        }
+
         const handle = await context.writeResource("install", "current", {
           binPath,
           version: verified.version,
           arch,
           plugins,
           installedAt: new Date().toISOString(),
+          capabilities,
+          canBindPrivilegedPorts,
+          needsSudoForPorts,
         });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    setCapabilities: {
+      description:
+        "Grant CAP_NET_BIND_SERVICE to the Caddy binary (via sudo) so the unprivileged user service can bind 80/443, or record the exact command to run by hand",
+      arguments: SetCapabilitiesArgsSchema,
+      execute: async (
+        args: z.infer<typeof SetCapabilitiesArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const binPath = expandHome(args.binPath ?? g.caddyBinPath);
+        const capabilities = args.capabilities ?? PRIVILEGED_PORT_CAPABILITIES;
+
+        const before = await readCapabilities(binPath);
+        const already = capabilities.every((c) => before.includes(c));
+        const result = already
+          ? {
+            applied: true,
+            requiresSudo: false,
+            message: "Already granted",
+          }
+          : await applyCapabilities(binPath, capabilities);
+        const after = await readCapabilities(binPath);
+        const applied = capabilities.every((c) => after.includes(c));
+        const command = renderSetcapCommand(binPath, capabilities);
+
+        if (!args.quiet) {
+          if (applied) {
+            context.logger?.info(
+              "Caddy binary {binPath} can bind privileged ports ({caps})",
+              { binPath, caps: after.join(" ") || "(none)" },
+            );
+          } else {
+            context.logger?.info(
+              result.message ||
+                renderPrivilegedPortGuidance(binPath, capabilities),
+            );
+          }
+        }
+
+        const handle = await context.writeResource(
+          "capabilities",
+          "current",
+          {
+            binPath,
+            capabilities: after,
+            changed: !already,
+            applied,
+            requiresSudo: result.requiresSudo,
+            command,
+            message: applied
+              ? `Granted ${capabilities.join(" ")}`
+              : `Run by hand: ${command}`,
+            checkedAt: new Date().toISOString(),
+          },
+        );
         return { dataHandles: [handle] };
       },
     },
@@ -1679,6 +2040,7 @@ export const model = {
           baseDomain,
           letsEncryptEmail,
           adminApiAddr: g.adminApiAddr,
+          binPath: expandHome(g.caddyBinPath),
         });
 
         context.logger?.info(guidance);
@@ -1967,6 +2329,7 @@ export const model = {
           email,
           dnsProvider: args.dnsProvider,
           dnsEnvVar: args.dnsEnvVar,
+          providerConfig: args.providerConfig,
           subjects: args.subjects,
         });
 
@@ -1979,6 +2342,12 @@ export const model = {
         const next = mergeTlsConfig(config, tlsConfig);
         await writeConfig(g.adminApiAddr, next, g.adminApiToken);
 
+        const credentialFields = args.providerConfig
+          ? Object.keys(args.providerConfig)
+          : args.dnsProvider
+          ? ["api_token"]
+          : [];
+
         context.logger?.info(
           "Configured TLS: email={email} dnsProvider={dnsProvider}",
           { email, dnsProvider: args.dnsProvider ?? "(none)" },
@@ -1988,6 +2357,7 @@ export const model = {
           email,
           dnsProvider: args.dnsProvider ?? "",
           subjects: args.subjects ?? [],
+          credentialFields,
           configuredAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
@@ -2095,6 +2465,11 @@ export const model = {
         const plugins = args.plugins ?? g.plugins;
         const arch = caddyArch();
 
+        // Replacing the binary drops any file capabilities, so remember whether
+        // CAP_NET_BIND_SERVICE was set and reapply it after the download.
+        const priorCaps = await readCapabilities(binPath);
+        const hadNetBind = hasNetBindService(priorCaps);
+
         context.logger?.info(
           "Downloading Caddy binary ({arch}, packages: {plugins}) to {binPath}",
           {
@@ -2106,6 +2481,16 @@ export const model = {
         await downloadCaddy(binPath, arch, plugins);
 
         const verified = await verifyCaddy(binPath);
+
+        if (hadNetBind) {
+          const caps = await applyCapabilities(
+            binPath,
+            PRIVILEGED_PORT_CAPABILITIES,
+          );
+          if (!caps.applied) {
+            context.logger?.info(caps.message);
+          }
+        }
 
         const restart = await systemctl(["restart", g.serviceName]);
         if (restart.code !== 0) {
@@ -2127,6 +2512,7 @@ export const model = {
           plugins,
           restarted: true,
           upgradedAt: new Date().toISOString(),
+          capabilities: await readCapabilities(binPath),
         });
         return { dataHandles: [handle] };
       },
@@ -2281,6 +2667,58 @@ export const model = {
           upstream: upstream.dial,
           changed,
           ensuredAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    serveSettings: {
+      description:
+        "Idempotently serve a static settings document directory over HTTP(S) at a hostname via Caddy file_server",
+      arguments: ServeSettingsArgsSchema,
+      execute: async (
+        args: z.infer<typeof ServeSettingsArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const root = expandHome(args.root);
+        if (!root.startsWith("/")) {
+          throw new Error(
+            `root must be an absolute path (or start with ~): got '${args.root}'`,
+          );
+        }
+
+        const config = await readConfig(
+          g.adminApiAddr,
+          g.adminApiToken,
+          g.listenAddrs,
+          g.autoHttps,
+        );
+        const { config: next, changed } = ensureFileServerRoute(
+          config,
+          args.hostname,
+          root,
+          args.browse,
+        );
+        if (changed) {
+          await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+        }
+
+        context.logger?.info(
+          "serveSettings {hostname} -> {root} ({action})",
+          {
+            hostname: args.hostname,
+            root,
+            action: changed ? "updated" : "unchanged",
+          },
+        );
+
+        const handle = await context.writeResource("serveSettings", "current", {
+          hostname: args.hostname,
+          root,
+          browse: args.browse,
+          changed,
+          servedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
       },

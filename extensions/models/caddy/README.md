@@ -21,8 +21,13 @@ restarts and reboots** (Caddy autosave + `--resume`). It can:
 - **Proxy services** — add/remove reverse-proxy routes live through the admin
   API (no restart), or declare the route you want and let `ensureDnsProxy`
   reconcile it.
+- **Serve static files** — publish a directory (e.g. a rendered settings bundle)
+  over HTTP(S) at a hostname with `serveSettings` (`file_server`), so documents
+  are fetchable network-wide without running another server.
 - **Terminate TLS** — configure ACME (Let's Encrypt/ZeroSSL), including DNS
-  challenge providers for wildcard certificates.
+  challenge providers for wildcard certificates. Supports single-field providers
+  (`api_token`) and multi-field ones (Gandi `bearer_token`; Namecheap
+  `api_key`+`user`; DreamHost `api_key`) via `providerConfig`.
 - **Operate it** — health checks, service lifecycle, config snapshots,
   Vault-backed settings, and binary upgrades.
 
@@ -121,12 +126,41 @@ swamp model create @svendowideit/caddy my-caddy \
 swamp model method run my-caddy installCaddy
 ```
 
-Wildcard certificate via a DNS ACME challenge:
+Wildcard certificate via a single-field DNS ACME challenge:
 
 ```sh
+# Cloudflare et al. use one `api_token` field, read from dnsEnvVar.
 swamp model method run my-caddy configureTls \
   --input dnsProvider=cloudflare \
+  --input dnsEnvVar=CLOUDFLARE_API_TOKEN \
   --input 'subjects:json=["*.example.com","example.com"]'
+```
+
+Wildcard certificate via a multi-field DNS provider (Gandi / Namecheap):
+
+```sh
+# Gandi's libdns driver expects `bearer_token`, not `api_token`; map each
+# credential field to the environment variable that holds it.
+swamp model method run my-caddy configureTls \
+  --input dnsProvider=gandi \
+  --input 'providerConfig:json={"bearer_token":"GANDI_TOKEN"}' \
+  --input 'subjects:json=["*.otel.fi.gy","otel.fi.gy"]'
+
+# Namecheap needs both `api_key` and `user` (and a whitelisted client IP).
+swamp model method run my-caddy configureTls \
+  --input dnsProvider=namecheap \
+  --input 'providerConfig:json={"api_key":"NAMECHEAP_API_KEY","user":"NAMECHEAP_USER"}' \
+  --input 'subjects:json=["*.example.com"]'
+```
+
+Serve a rendered settings directory over HTTPS at a hostname:
+
+```sh
+# Publishes /srv/otel/current as static files at settings.otel.fi.gy; Caddy
+# terminates TLS for the hostname if automatic HTTPS is configured.
+swamp model method run my-caddy serveSettings \
+  --input hostname=settings.otel.fi.gy \
+  --input root=/srv/otel/current
 ```
 
 Plain HTTP on unprivileged ports:
@@ -151,7 +185,8 @@ it exposes, with its per-run arguments:
 
 | Method | Arguments | Purpose |
 | ------ | --------- | ------- |
-| `installCaddy` | `plugins` (array), `force` (boolean) | Download the binary (with module packages compiled in), place it at `caddyBinPath`, verify it runs (`caddy version` + `caddy list-modules`). |
+| `installCaddy` | `plugins` (array), `force` (boolean), `setCapabilities` (boolean, default true) | Download the binary (with module packages compiled in), place it at `caddyBinPath`, verify it runs (`caddy version` + `caddy list-modules`), and try to grant `CAP_NET_BIND_SERVICE` (see [Privileged ports](#privileged-ports-80443)). |
+| `setCapabilities` | `capabilities` (array), `binPath` (string), `quiet` (boolean) | Grant `CAP_NET_BIND_SERVICE` to the binary via `setcap` (then `sudo -n setcap`), or record the exact `sudo setcap` command when sudo is unavailable. Idempotent. |
 | `createService` | `serviceName` (string) | Write the systemd user unit (`~/.config/systemd/user/caddy.service`) and a minimal Caddyfile. |
 | `startService` | `serviceName` (string) | `systemctl --user enable --now caddy` and verify the admin API responds on `localhost:2019`. |
 | `stopService` | `serviceName` (string) | Stop the Caddy systemd user service. |
@@ -161,19 +196,21 @@ it exposes, with its per-run arguments:
 | `addProxyService` | `serviceName`, `upstream`, `baseDomain` | Derive a hostname (`<service-name>.<base-domain>`) and add a reverse-proxy route via the admin API (`POST /config/`) — live, no restart. |
 | `removeProxyService` | `serviceName`, `baseDomain` | Stop the backend systemd service and remove the Caddy route for the derived domain. |
 | `ensureDnsProxy` | `hostname`, `upstream` | Idempotently ensure a full hostname proxies to a backend `host:port` (add if missing, update if the upstream changed, no-op if correct). Safe to run repeatedly — the desired-state entry point. |
+| `serveSettings` | `hostname`, `root`, `browse` (boolean) | Idempotently serve a static directory (e.g. a rendered settings bundle) at a full hostname via Caddy `file_server` (add if missing, update if the root or browse flag changed, no-op if correct). |
 | `startBackendService` | `serviceName` | Start a backend systemd user service by name. |
 | `stopBackendService` | `serviceName` | Stop a backend systemd user service by name. |
 | `restartBackendService` | `serviceName` | Restart a backend systemd user service by name. |
 | `storeConfig` | `baseDomain`, `letsEncryptEmail`, `adminApiToken`, `vaultName` | Validate and write the base domain, ACME email, and admin API token to the swamp Vault (`swamp vault put`). |
 | `syncConfig` | none | Snapshot the effective config into a swamp resource. |
 | `getConfig` | none | Read the stored config back from the swamp resource. |
-| `configureTls` | `email`, `dnsProvider`, `dnsEnvVar`, `subjects` | Configure the Caddy TLS app with the ACME email and an optional DNS provider for wildcard / DNS-challenge issuance. |
+| `configureTls` | `email`, `dnsProvider`, `dnsEnvVar`, `providerConfig` (object), `subjects` (array) | Configure the Caddy TLS app with the ACME email and an optional DNS provider for wildcard / DNS-challenge issuance. Single-field providers use `dnsEnvVar` (rendered as `api_token`); multi-field providers use `providerConfig` (field → env var), e.g. Gandi `{bearer_token: GANDI_TOKEN}`. |
 | `autoProxySwampServe` | `baseDomain`, `prefix`, `port` | Detect running `swamp serve` systemd user services (prefix `swamp-serve-`), derive hostnames, and reconcile their reverse-proxy routes (adds new, removes stopped). |
 | `upgradeCaddy` | `plugins` (array), `confirm` (string) | Replace the Caddy binary (current release, with module packages) after explicit confirmation (`confirm=upgrade`), then restart the service. Existing configuration is preserved. |
 
-Resources: the model writes a `install` resource (binary status), `service`,
-`guidance`, `proxyServices`, `config` (via `syncConfig`), `tlsConfig`,
-`autoProxy`, `upgrade`, `health`, and `ensureProxy`.
+Resources: the model writes a `install` resource (binary status + capabilities),
+`service`, `guidance`, `proxyServices`, `config` (via `syncConfig`), `tlsConfig`,
+`autoProxy`, `upgrade`, `health`, `ensureProxy`, `serveSettings`, and
+`capabilities`.
 
 ### Extra Caddy modules (`plugins`)
 
@@ -207,17 +244,23 @@ library, one module per provider (`github.com/caddy-dns/<provider>`).
    `plugins` (see [Extra Caddy modules](#extra-caddy-modules-plugins)) and
    install — the API compiles it into the binary server-side. `configureTls`
    maps these provider names: `cloudflare`, `route53`, `digitalocean`,
-   `duckdns`, `porkbun`, `namecheap`. Any module on the
+   `duckdns`, `porkbun`, `namecheap`, `gandi`, `dreamhost`. Any module on the
    [Caddy download page](https://caddyserver.com/download) can be requested via
-   `plugins` directly (append `@version` to pin).
+   `plugins` directly (append `@version` to pin). Remember to also add the
+   `github.com/caddy-dns/<provider>` package to `plugins` so the driver is
+   compiled in.
 
 2. **Set the libdns provider credentials.** Each provider reads its credentials
-   from an **environment variable** (e.g. `CLOUDFLARE_API_TOKEN`,
-   `AWS_ACCESS_KEY_ID`). Caddy references these in the config as `{env.VAR}`;
-   `configureTls` renders the credential as `{env.CADDY_DNS_API_TOKEN}` by
-   default (override with `dnsEnvVar`). The Caddy process must have that
-   variable in its environment. Add it to the systemd user unit, preferring an
-   `EnvironmentFile` with restricted permissions (or `systemd-creds`) over a
+   from **environment variables** (e.g. `CLOUDFLARE_API_TOKEN`,
+   `AWS_ACCESS_KEY_ID`) and the field names differ per provider — most take a
+   single `api_token`, but **Gandi** uses `bearer_token`, **Namecheap** needs
+   `api_key`+`user`, and **DreamHost** uses `api_key`. Caddy references the
+   values in the config as `{env.VAR}`. For a single `api_token` provider,
+   `configureTls` renders `{env.CADDY_DNS_API_TOKEN}` by default (override with
+   `dnsEnvVar`); for multi-field providers, pass `providerConfig` mapping each
+   field to its environment variable. The Caddy process must have those
+   variables in its environment. Add them to the systemd user unit, preferring
+   an `EnvironmentFile` with restricted permissions (or `systemd-creds`) over a
    plaintext `Environment=` line:
 
    ```ini
@@ -243,6 +286,57 @@ library, one module per provider (`github.com/caddy-dns/<provider>`).
    auto-renews certificates for those subjects using the provider's DNS API.
    Verify with `checkHealth` and by requesting a proxied domain over HTTPS.
 
+### Privileged ports (80/443)
+
+Caddy runs as an unprivileged systemd **user** service, so by default it cannot
+bind ports 80/443. Grant the binary the `CAP_NET_BIND_SERVICE` capability:
+
+```sh
+# installCaddy tries this automatically (setCapabilities defaults to true).
+# Run it on its own to (re)apply or to get the exact command:
+swamp model method run my-caddy setCapabilities
+
+# If the model had no sudo, run the printed command once by hand:
+sudo setcap 'cap_net_bind_service=+ep' ~/.local/bin/caddy
+```
+
+Details:
+
+- `setCapabilities` first tries `setcap`, then non-interactive `sudo -n setcap`.
+  If neither works it does **not** fail — it records the exact `sudo setcap …`
+  command in the `capabilities` resource (field `command`) and logs it, so you
+  can copy-paste it. `installCaddy` does the same and stores it in the `install`
+  resource as `needsSudoForPorts`.
+- **Replacing the binary drops the capability.** `upgradeCaddy` and
+  `installCaddy force=true` reapply it automatically if it was set before; if you
+  ever download a new binary by other means, re-run `setCapabilities`.
+- **The generated unit is kept out of a user namespace** (no `ProtectSystem` /
+  `PrivateTmp`) and does not set `LimitNPROC`, because both would silently break
+  privileged binding — see [Why the unit has no hardening](#why-the-unit-has-no-hardening).
+  Re-run `createService` after upgrading from an older version to regenerate it.
+- Alternatives if you cannot or will not use capabilities: run Caddy as a root
+  system service, or keep it unprivileged on high ports (`listenAddrs=[":8080"]`,
+  `autoHttps=off`) behind a separate TLS terminator.
+
+### Why the unit has no hardening
+
+Two systemd options that look sensible actively prevent an unprivileged user
+service from binding 80/443, so `createService` omits them:
+
+- **`LimitNPROC`** is per-UID for a systemd *user* service, so it counts every
+  process and thread you are already running. A low value (e.g. `512`) makes
+  Caddy's Go runtime fail to spawn a thread with `EAGAIN` and exit `status=2`
+  ("failed to create new OS thread … may need to increase ulimit -u"). The user
+  manager's `TasksMax` already bounds the slice.
+- **`ProtectSystem=full` / `PrivateTmp=true`** require a mount namespace, which
+  an unprivileged user service can only create inside a **child user
+  namespace**. A process in a child userns cannot bind host privileged ports
+  even with `CAP_NET_BIND_SERVICE` set: the kernel's `ns_capable()` check tests
+  the network namespace's owning (parent) userns, so the bind fails `EACCES`.
+
+If you do not need privileged ports, you can add hardening back by editing the
+unit after `createService` (swamp will rewrite it on the next `createService`).
+
 ### Plain HTTP / unprivileged ports
 
 To run Caddy as an unprivileged systemd user service (no
@@ -264,6 +358,10 @@ reloads it when started with `--resume`. The systemd unit therefore runs:
 ```
 ExecStart=... run --resume --config <Caddyfile> --adapter caddyfile
 ```
+
+Replacing the binary (upgrade) clears file capabilities, which is why
+`upgradeCaddy` reapplies `CAP_NET_BIND_SERVICE` after the download — otherwise a
+running 443 listener would fail to come back up.
 
 On a fresh install there is no autosave file yet, so Caddy falls back to the
 generated Caddyfile; on subsequent restarts it resumes the last admin-API

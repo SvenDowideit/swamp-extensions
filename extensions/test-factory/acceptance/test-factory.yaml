@@ -1,0 +1,80 @@
+# Acceptance tests for @svendowideit/test-factory itself.
+#
+# These confirm the user-facing outcomes the README documents, in an ephemeral
+# container that has just installed swamp and registered this extension. They
+# deliberately avoid Docker-in-Docker: they exercise the model's catalog and
+# method surface, which is what a first-time user meets.
+#
+# Each test uses its own model instance name so the tests are independent when
+# they share one container.
+tests:
+  - name: list-scenarios-prints-the-catalog
+    confirms: >
+      `swamp model @svendowideit/test-factory method run listScenarios` prints
+      the distro catalog and the resolved scenarios, as the README's "List the
+      catalog before you choose something to run" example shows.
+    cannot: >
+      must not exit non-zero, and must not omit the common distros a user would
+      look for.
+    documents: README.md#examples
+    steps:
+      - name: create-model
+        run: swamp model create @svendowideit/test-factory tf-selftest-list --json
+        expect:
+          exitCode: 0
+      - name: list
+        run: >
+          swamp model @svendowideit/test-factory method run listScenarios
+          tf-selftest-list
+        expect:
+          exitCode: 0
+          outputContains:
+            - ubuntu
+            - debian
+            - rocky-standalone
+          outputNotContains:
+            - panic
+
+  - name: list-scenarios-filters-by-distro
+    confirms: >
+      Passing `--input distro=rocky` narrows `listScenarios` to the Rocky
+      scenarios, so a user can discover exactly what will run for one distro.
+    cannot: >
+      must not exit non-zero, and must not list scenarios for a distro that was
+      not requested.
+    documents: README.md#configuration
+    steps:
+      - name: create-model
+        run: swamp model create @svendowideit/test-factory tf-selftest-filter --json
+        expect:
+          exitCode: 0
+      - name: list-rocky
+        run: >
+          swamp model @svendowideit/test-factory method run listScenarios
+          tf-selftest-filter --input distro=rocky
+        expect:
+          exitCode: 0
+          outputContains:
+            - rocky-standalone
+          outputNotContains:
+            - alpine
+
+  - name: type-describe-names-the-methods
+    confirms: >
+      The registered model type advertises the methods the README's Details
+      table documents — listScenarios, test, testAll and cleanup — so a user
+      can discover them from swamp itself.
+    cannot: >
+      must not exit non-zero, and must not fail to list the documented methods.
+    documents: README.md#details
+    steps:
+      - name: describe
+        run: swamp model type describe @svendowideit/test-factory --json
+        expect:
+          exitCode: 0
+          outputContains:
+            - listScenarios
+            - testAll
+            - cleanup
+          outputNotContains:
+            - panic

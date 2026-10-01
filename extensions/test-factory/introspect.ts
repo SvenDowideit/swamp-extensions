@@ -20,6 +20,8 @@ export interface ExtensionManifest {
   vaults: string[];
   datastores: string[];
   webhooks: string[];
+  /** Extra files the extension ships, e.g. README and its test-factory.yaml. */
+  additionalFiles: string[];
 }
 
 /** Parse an extension manifest's list fields and identity. */
@@ -33,6 +35,7 @@ export function parseExtensionManifest(text: string): ExtensionManifest {
     vaults: [],
     datastores: [],
     webhooks: [],
+    additionalFiles: [],
   };
   const lines = text.split("\n");
   let currentList: keyof ExtensionManifest | null = null;
@@ -63,14 +66,16 @@ export function parseExtensionManifest(text: string): ExtensionManifest {
         case "reports":
         case "vaults":
         case "datastores":
-        case "webhooks": {
+        case "webhooks":
+        case "additionalFiles": {
           const listKey = key as
             | "models"
             | "workflows"
             | "reports"
             | "vaults"
             | "datastores"
-            | "webhooks";
+            | "webhooks"
+            | "additionalFiles";
           currentList = listKey;
           // Inline list form: `models: [a.ts, b.ts]`
           const inline = /^\[(.*)\]$/.exec(value.trim());
@@ -137,6 +142,12 @@ export async function inspectExtension(
   modelTypes: string[];
   workflowNames: string[];
   dir: string;
+  /**
+   * Absolute path to the candidate's `test-factory.yaml`, discovered from the
+   * manifest's `additionalFiles:` (any entry whose basename matches). Empty
+   * when the candidate ships no acceptance tests.
+   */
+  testsPath: string;
 }> {
   const dir = dirname(resolve(manifestPath));
   const manifest = parseExtensionManifest(
@@ -168,5 +179,10 @@ export async function inspectExtension(
     workflowNames.push(name);
   }
 
-  return { manifest, modelTypes, workflowNames, dir };
+  const testsEntry = manifest.additionalFiles.find(
+    (f) => basename(f) === "test-factory.yaml",
+  );
+  const testsPath = testsEntry ? resolve(dir, testsEntry) : "";
+
+  return { manifest, modelTypes, workflowNames, dir, testsPath };
 }

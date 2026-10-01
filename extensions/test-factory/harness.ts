@@ -11,6 +11,19 @@
  *
  * @module
  */
+import { buildTestsPhaseScript } from "./tests.ts";
+import type {
+  Expectation,
+  HarnessTest,
+  StepResult,
+  TestSpec,
+  TestStep,
+} from "./tests.ts";
+
+// Re-exported so the public `HarnessPlan`/`HarnessResult` shapes (and the types
+// nested inside them) can be named without a `private-type-ref` slow-type
+// diagnostic.
+export type { Expectation, HarnessTest, StepResult, TestSpec, TestStep };
 
 /** One fixture-driven method invocation. */
 export interface FixtureRun {
@@ -46,6 +59,8 @@ export interface HarnessPlan {
   phases: HarnessPhase[];
   /** Fixture-driven method runs (only when `fixtures` is in `phases`). */
   fixtures: FixtureRun[];
+  /** Declarative acceptance tests (only when `tests` is in `phases`). */
+  tests: TestSpec[];
   /** Base URL for release downloads (overridable for mirrors). */
   releaseBaseUrl: string;
   /** When true, assert systemd is running as PID 1 (`systemctl` works). */
@@ -53,7 +68,12 @@ export interface HarnessPlan {
 }
 
 /** A named phase of the in-container test. */
-export type HarnessPhase = "smoke" | "load" | "definitions" | "fixtures";
+export type HarnessPhase =
+  | "smoke"
+  | "load"
+  | "definitions"
+  | "tests"
+  | "fixtures";
 
 /** Default GitHub releases base URL. */
 export const DEFAULT_RELEASE_BASE =
@@ -168,6 +188,23 @@ export function phaseClaims(plan: HarnessPlan): PhaseClaim[] {
       commands: commands.length > 0
         ? commands
         : ["(no model types or workflows declared)"],
+    });
+  }
+
+  if (want("tests")) {
+    const commands = plan.tests.flatMap((t) =>
+      t.steps.map((s) => `${s.run}   # test ${t.name} · step ${s.name}`)
+    );
+    const names = plan.tests.map((t) => t.name).join(", ");
+    out.push({
+      phase: "tests",
+      claim: plan.tests.length > 0
+        ? `the ${plan.tests.length} documented acceptance test(s) pass — ` +
+          `each step meets its exit-code and output assertions — proving: ` +
+          `${names}`
+        : "no test-factory.yaml tests were supplied, so this phase proves " +
+          "nothing beyond what the other phases already checked",
+      commands: commands.length > 0 ? commands : ["(no tests supplied)"],
     });
   }
 
@@ -331,8 +368,10 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     push(
       "MISSING='[]'",
       "for T in $(echo \"$MODEL_TYPES\" | jq -r '.[]'); do",
-      '  if ! echo "$REGISTERED" | jq -e --arg t "$T" \'index($t)\' >/dev/null 2>&1; then',
-      '    MISSING=$(echo "$MISSING" | jq -c --arg t "$T" \'. + [$t]\')',
+      // `printf '%s'` (not `echo`) because the container /bin/sh is dash, whose
+      // builtin `echo` interprets backslash escapes and would corrupt JSON.
+      "  if ! printf '%s' \"$REGISTERED\" | jq -e --arg t \"$T\" 'index($t)' >/dev/null 2>&1; then",
+      "    MISSING=$(printf '%s' \"$MISSING\" | jq -c --arg t \"$T\" '. + [$t]')",
       "  fi",
       "done",
       'record missingTypes "$MISSING"',
@@ -386,10 +425,15 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     push("");
   }
 
-  // --- 4. fixtures ----------------------------------------------------------
+  // --- 4. tests -------------------------------------------------------------
+  if (want("tests")) {
+    push(...buildTestsPhaseScript(plan.tests));
+  }
+
+  // --- 5. fixtures ----------------------------------------------------------
   if (want("fixtures")) {
     push(
-      "# --- 4. fixtures ---------------------------------------------------------",
+      "# --- 5. fixtures ---------------------------------------------------------",
     );
     plan.fixtures.forEach((f, i) => {
       const args = Object.entries(f.inputs)
@@ -434,38 +478,67 @@ export function buildHarnessScript(plan: HarnessPlan): string {
 
 /** Parsed outcome of a harness run. */
 export interface HarnessResult {
+  /** Whether swamp downloaded and ran. */
   installOk: boolean;
+  /** Why the install failed, when it did. */
   installError?: string;
+  /** The swamp version string the container reported. */
   swampVersion: string;
+  /** `swamp doctor extensions` overall status (`pass`, `fail`, …). */
   doctorStatus: string;
+  /** Per-kind catalog state counts from `doctor extensions --json`. */
   doctorStates: Record<string, number>;
   /** `systemctl is-system-running` output when systemd was expected. */
   systemd?: string;
+  /** Whether the extension source was added successfully. */
   sourceAddOk: boolean;
+  /** Model types `swamp model type search` reported as registered. */
   registeredTypes: string[];
+  /** Model types the candidate manifest declares. */
   modelTypes: string[];
+  /** Declared types that did not register. */
   missingTypes: string[];
+  /** Per-type `swamp model create` outcomes. */
   definitions: Array<{
+    /** Declared model type. */
     type: string;
+    /** Instance name the create used. */
     name: string;
+    /** Whether the create succeeded. */
     ok: boolean;
+    /** Captured error output when it failed. */
     error?: string;
   }>;
+  /** Per-workflow `swamp workflow validate` outcomes. */
   workflows: Array<{
+    /** Workflow name. */
     name: string;
+    /** Whether validation succeeded. */
     ok: boolean;
+    /** `valid`, `absent`, or `invalid`. */
     status: string;
+    /** Captured error output when invalid. */
     error?: string;
   }>;
+  /** Fixture-driven method-run outcomes. */
   fixtures: Array<{
+    /** Model type. */
     type: string;
+    /** Method name. */
     method: string;
+    /** Model instance name. */
     instance: string;
+    /** Process exit code. */
     code: number;
+    /** Whether the run met its expectation. */
     ok: boolean;
+    /** Whether the expected substring was found (`null` when none required). */
     matched: boolean | null;
+    /** Combined stdout/stderr (tail-capped). */
     output: string;
   }>;
+  /** Declarative acceptance test outcomes (no prose — merged later). */
+  tests: HarnessTest[];
 }
 
 /** Parse the JSON result the harness script wrote. */
@@ -485,6 +558,7 @@ export function parseHarnessResult(text: string): HarnessResult {
     definitions: parsed.definitions ?? [],
     workflows: parsed.workflows ?? [],
     fixtures: parsed.fixtures ?? [],
+    tests: parsed.tests ?? [],
   };
 }
 
@@ -568,6 +642,7 @@ const PHASE_ORDER: HarnessPhase[] = [
   "smoke",
   "load",
   "definitions",
+  "tests",
   "fixtures",
 ];
 
@@ -580,6 +655,8 @@ export function phaseLabel(phase: HarnessPhase): string {
       return "load (types register)";
     case "definitions":
       return "definitions (create + validate)";
+    case "tests":
+      return "tests (documented outcomes)";
     case "fixtures":
       return "fixtures (run methods)";
   }
@@ -669,6 +746,23 @@ export function evaluateResult(
   });
   if (want("definitions") && !defsOk && expectPass) {
     errors.push(`definitions: ${out[out.length - 1].detail}`);
+  }
+
+  if (want("tests")) {
+    const failedTests = result.tests.filter((t) => !t.ok);
+    const testsOk = failedTests.length === 0 && result.tests.length > 0;
+    const detail = result.tests.length === 0
+      ? "no test-factory.yaml tests supplied"
+      : testsOk
+      ? `${result.tests.length} documented test(s) passed`
+      : failedTests.map((t) => {
+        const bad = t.steps.find((s) => !s.ok);
+        return `${t.name}: step "${bad?.name ?? "?"}" failed`;
+      }).join("; ");
+    out.push({ phase: "tests", ok: testsOk, detail });
+    if (want("tests") && !testsOk && expectPass) {
+      errors.push(`tests: ${detail}`);
+    }
   }
 
   if (want("fixtures")) {

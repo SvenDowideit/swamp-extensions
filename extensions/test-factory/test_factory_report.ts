@@ -88,6 +88,70 @@ function renderClaims(attrs: Record<string, unknown>): string[] {
   return lines;
 }
 
+/**
+ * Render the documented acceptance tests: each test's prose (`confirms` /
+ * `cannot`), its verdict, and the full per-step logs. This is the reader's
+ * evidence that the tests did what they claim — not just that they passed.
+ */
+export function renderTests(attrs: Record<string, unknown>): string[] {
+  const tests = arr(attrs.tests) as Record<string, unknown>[];
+  if (tests.length === 0) return [];
+  const passed = tests.filter((t) => t.ok === true).length;
+  const lines: string[] = [
+    `### Documented tests — ${passed}/${tests.length} passed`,
+    "",
+    "| Test | Result | Steps |",
+    "| ---- | ------ | ----- |",
+  ];
+  for (const t of tests) {
+    const steps = arr(t.steps) as Record<string, unknown>[];
+    const okSteps = steps.filter((s) => s.ok === true).length;
+    lines.push(
+      `| ${str(t.name)} | ${
+        badge(t.ok === true)
+      } | ${okSteps}/${steps.length} |`,
+    );
+  }
+  lines.push("");
+  for (const t of tests) {
+    lines.push(
+      `#### ${str(t.name)} — ${badge(t.ok === true)}`,
+      "",
+      `- **confirms**: ${str(t.confirms)}`,
+      `- **cannot**: ${str(t.cannot)}`,
+      "",
+    );
+    for (const s of arr(t.steps) as Record<string, unknown>[]) {
+      lines.push(
+        `<details><summary>${badge(s.ok === true)} · ${str(s.name)} (exit ${
+          num(s.exitCode)
+        })</summary>`,
+        "",
+        "```sh",
+        str(s.run),
+        "```",
+        "",
+      );
+      const matched = arr(s.matched) as unknown[];
+      if (matched.length > 0) {
+        lines.push("Assertions:");
+        for (const m of matched) lines.push(`- ${str(m)}`);
+        lines.push("");
+      }
+      const stdout = str(s.stdout);
+      if (stdout) {
+        lines.push("stdout:", "", "```", stdout, "```", "");
+      }
+      const stderr = str(s.stderr);
+      if (stderr) {
+        lines.push("stderr:", "", "```", stderr, "```", "");
+      }
+      lines.push("</details>", "");
+    }
+  }
+  return lines;
+}
+
 /** Render one `result` resource as a Markdown card. */
 export function renderResult(attrs: Record<string, unknown>): string {
   const lines: string[] = [];
@@ -170,6 +234,8 @@ export function renderResult(attrs: Record<string, unknown>): string {
     lines.push("");
   }
 
+  lines.push(...renderTests(attrs));
+
   const fixtures = arr(attrs.fixtures);
   if (fixtures.length > 0) {
     lines.push("| Fixture | Result | Exit |");
@@ -220,6 +286,14 @@ export function renderSummary(attrs: Record<string, unknown>): string {
     `${num(attrs.count)} scenario(s): **${num(attrs.passCount)} passed**, ` +
       `${num(attrs.failCount)} failed, ${num(attrs.errorCount)} errored.`,
   );
+  if (num(attrs.testCount) > 0) {
+    lines.push(
+      `Documented tests: **${num(attrs.testsPassed)}/${
+        num(attrs.testCount)
+      }** ` +
+        `passed (each test runs once per scenario).`,
+    );
+  }
   lines.push("");
   lines.push(...renderClaims(attrs));
   lines.push("| Scenario | Distro | Topology | Expected | Result |");
@@ -252,19 +326,7 @@ export const report = {
       };
     }
 
-    const summaryHandle = context.dataHandles.find(
-      (h) => h.specName === "summary",
-    );
-    if (summaryHandle) {
-      const summary = await readJson<Record<string, unknown>>(
-        context,
-        summaryHandle,
-      );
-      if (summary) {
-        return { markdown: renderSummary(summary), json: summary };
-      }
-    }
-
+    // Gather the result cards first — they carry the per-test prose and logs.
     const resultHandles = context.dataHandles.filter(
       (h) => h.specName === "result",
     );
@@ -273,6 +335,25 @@ export const report = {
       const data = await readJson<Record<string, unknown>>(context, handle);
       if (data) results.push(data);
     }
+
+    const summaryHandle = context.dataHandles.find(
+      (h) => h.specName === "summary",
+    );
+    const summary = summaryHandle
+      ? await readJson<Record<string, unknown>>(context, summaryHandle)
+      : null;
+
+    // A summary (a `test`/`testAll` fan-out) is followed by every result card,
+    // so the counted roll-up *and* the full per-test logs are both reported.
+    if (summary) {
+      const detail = results.map(renderResult).join("\n\n---\n\n");
+      return {
+        markdown: [renderSummary(summary), detail].filter((s) => s.length > 0)
+          .join("\n\n---\n\n"),
+        json: { summary, results } as unknown as Record<string, unknown>,
+      };
+    }
+
     if (results.length === 0) {
       return { markdown: "", json: {} };
     }

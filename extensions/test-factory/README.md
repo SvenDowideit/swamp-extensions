@@ -18,7 +18,71 @@ walks the layers in order and reports each separately:
 | `smoke` | swamp installs and `swamp doctor extensions` reports `pass`. |
 | `load` | every declared model type registers (`swamp model type search`). |
 | `definitions` | `swamp model create` succeeds for each type, and every declared workflow validates. |
+| `tests` | the extension's own documented acceptance tests (`test-factory.yaml`) pass. |
 | `fixtures` | caller-supplied method runs execute (and optionally match expected output). |
+
+### Acceptance tests: `test-factory.yaml`
+
+An extension can ship a `test-factory.yaml` (listed in its `manifest.yaml`
+`additionalFiles:`) declaring the **user-facing outcomes** it promises. The
+`tests` phase runs them per distro/topology and reports each test — and the
+exact commands behind it — so a reader can judge both whether the tests were
+adequate and whether they exercised what they claim.
+
+The file pairs human prose with deterministic, runnable steps. There is no
+runtime model call: the `confirms` and `cannot` prose and the `steps` are
+authored together, and a lint enforces that every `confirms` claim has a
+positive assertion and every `cannot` claim a negative one — a test cannot pass
+while proving nothing.
+
+```yaml
+tests:
+  - name: check-prints-latest
+    confirms: >
+      `check` prints the latest release tag for a public repo, as README "Run"
+      shows.
+    cannot: >
+      must not exit non-zero, and must not print an error.
+    documents: README.md#run          # where the outcome is documented
+    variables:
+      REPO: caddyserver/caddy
+    steps:
+      - name: create
+        run: swamp model create @acme/thing check-me
+        expect: { exitCode: 0 }
+      - name: run
+        run: >
+          swamp model @acme/thing method run check check-me --input repo=$REPO
+        expect:
+          exitCode: 0
+          outputContains: [caddy_]        # stdout or stderr
+          outputNotContains: [error, not found]
+          outputMatches: "caddy_v\\d"
+        timeoutSeconds: 120
+```
+
+Step fields: `name`, `run` (single line or `|` block), `workingDir`,
+`timeoutSeconds` (default 120), `continueOnFailure`, and `expect`. `expect`
+supports `exitCode` (number or list), `stdoutContains` / `stdoutNotContains` /
+`stderrContains` / `stderrNotContains`, `stdoutMatches` / `stdoutNotMatches`
+(POSIX ERE), `outputContains` / `outputNotContains` / `outputMatches` (stdout
+and stderr combined — useful because swamp logs to stderr and data to stdout),
+and `fileExists`.
+
+Discovery is driven by the candidate's own manifest: the factory uses any
+`additionalFiles:` entry whose basename is `test-factory.yaml` (a subdirectory
+is fine). A run auto-enables the `tests` phase when the candidate ships that
+file; an explicit `--input phases=...` always overrides. A malformed or
+non-proving file fails loudly before any container boots.
+
+> **Note on a swamp warning.** swamp's workflow auto-discovery enumerates every
+> `.yaml`/`.yml` under an extension directory (skipping only `manifest.yaml`) and
+> ignores `additionalFiles:` when doing so. It therefore tries to parse the
+> candidate's `test-factory.yaml` as a workflow and logs
+> `Skipping broken extension workflow … Unknown key 'tests'`. This is cosmetic:
+> extension install, `swamp doctor extensions`, the documentation score, and the
+> `tests` phase itself are all unaffected. The `tests` key is intentionally a
+> test-factory schema, not a workflow schema.
 
 Beyond a single node it can stand up a real deployment:
 
@@ -109,7 +173,9 @@ Global arguments are set at model creation (`swamp model create
 Per-run overrides on `test`: `manifest` (required), `scenario`, `distro`,
 `topology`, `systemd`, `workers`, `phases`, `fixturesFile`, `scenarioFile`,
 `expected`. `testAll` adds `root` and `gitOnly`. `cleanup` takes `prefix`;
-`listScenarios` takes `distro`.
+`listScenarios` takes `distro`. The `tests` phase is added automatically when
+the candidate ships a `test-factory.yaml`; pass `phases=smoke,load,definitions`
+to skip it deliberately.
 
 ## Examples
 
@@ -182,6 +248,22 @@ swamp model create @svendowideit/test-factory tf \
   --global-arg 'swampApiKey=${{ vault.get(other-vault, MY_TOKEN) }}'
 ```
 
+Run an extension's own documented acceptance tests — this is the fastest way to
+see whether the outcomes its README promises actually hold on a given host. When
+the candidate ships a `test-factory.yaml`, the `tests` phase is auto-enabled:
+
+```sh
+swamp model @svendowideit/test-factory method run test tf \
+  --input manifest=extensions/models/github-release-install/manifest.yaml \
+  --input scenario=debian-standalone
+```
+
+Read just the documented-test breakdown from the last run:
+
+```sh
+swamp report get @svendowideit/test-factory-report --model tf --markdown
+```
+
 Run a fixture-backed method and require a marker in its output, so the fixture
 proves behaviour rather than just exit code:
 
@@ -242,17 +324,20 @@ Resources:
 - `result` — one scenario's outcome: the candidate `extension` and
   `extensionVersion`, the `intent`, the per-phase `claims` (assertion + literal
   commands), distro, topology, expected verdict, per-phase results,
-  definition/workflow/fixture detail, the `topologyResult` (serve ready, workers
+  definition/workflow/fixture detail, the documented `tests` (each with its
+  prose and full per-step output), the `topologyResult` (serve ready, workers
   enrolled, dispatch ok), errors, the tail-capped `logs` (`logsTruncated` marks
   when the cap bit), and the resolved swamp version.
 - `summary` — the rollup from a `test`/`testAll` fan-out: extension and version,
-  the shared `claims`, counts and one row per scenario.
+  the shared `claims`, scenario counts, documented-test counts
+  (`testCount`/`testsPassed`), and one row per scenario.
 
 Reports and workflows:
 
 - `@svendowideit/test-factory-report` — renders a scenario result card (intent,
   "What this run proves", "How it was proved", phase table, definitions,
-  workflows, fixtures, errors, logs), or the fan-out summary. Scope: method.
+  workflows, documented tests, fixtures, errors, logs), or the fan-out summary.
+  Scope: method.
 - `@svendowideit/test-factory` workflow — runs `test` then asserts
   `failCount == 0 && errorCount == 0`; use it as a CI gate.
 - `@svendowideit/test-factory-sweep` workflow — runs `testAll` over git-tracked
@@ -266,6 +351,7 @@ orchestration:
 | File | Responsibility |
 | ---- | -------------- |
 | `scenarios.ts` | The distro catalog, the scenario catalog, filter resolution, and scenario-file parsing. Pure. |
+| `tests.ts` | Parses `test-factory.yaml`, lints prose against assertions, generates the tests phase script, and merges harness outcomes with the authored prose. Pure. |
 | `harness.ts` | Builds the in-container `sh` script from a typed plan, and parses/evaluates its JSON result. Pure. |
 | `topology.ts` | Builds the `swamp serve` / token / worker / probe scripts for the `serve` and `fleet` topologies. Pure. |
 | `introspect.ts` | Reads a manifest's declared model types and workflow names, and parses the manifest itself (tiny YAML subset). |
@@ -294,7 +380,15 @@ To add a distro: add a `Distro` entry in `scenarios.ts` and a `case` in
 `distroDockerfile`. To add a topology: extend `Topology` and add its scripts to
 `topology.ts`. To assert something new in a container: add a phase to
 `HarnessPhase` and a block to `buildHarnessScript`, then a check in
-`evaluateResult` and a field on `ResultSchema`.
+`evaluateResult` and a field on `ResultSchema`. For a new *expectation* in the
+`tests` phase, extend `Expectation` in `tests.ts`, emit it in
+`buildTestBlock`, and teach the positive/negative helpers about it so
+`lintTests` keeps prose and assertions in agreement.
+
+`@svendowideit/test-factory` tests itself: `acceptance/test-factory.yaml` (listed
+in `additionalFiles:`) confirms the catalog, filtering and method surface the
+README documents, and is exercised end-to-end by the `debian-standalone`
+self-test above.
 
 ### Developing and testing
 

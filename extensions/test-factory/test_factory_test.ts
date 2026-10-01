@@ -12,11 +12,19 @@ import {
   assertEquals,
   assertRejects,
   assertStringIncludes,
+  assertThrows,
 } from "jsr:@std/assert@1";
 import { createModelTestContext } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 
 import type { CmdResult } from "./docker.ts";
-import { containerEnv, model, resolveApiKey } from "./test_factory.ts";
+import {
+  containerEnv,
+  model,
+  preflightTests,
+  resolveApiKey,
+  resolvePhases,
+} from "./test_factory.ts";
+import type { TestSpec } from "./tests.ts";
 
 type Call = [string, ...string[]];
 
@@ -95,8 +103,16 @@ function stubRunner(
 }
 
 /** A temp candidate extension the model can inspect. */
-async function writeCandidate(): Promise<{ manifest: string; dir: string }> {
+async function writeCandidate(
+  opts: { withTests?: boolean } = {},
+): Promise<{ manifest: string; dir: string }> {
   const dir = await Deno.makeTempDir({ prefix: "tf-candidate-" });
+  const additional = opts.withTests
+    ? `additionalFiles:
+  - README.md
+  - test-factory.yaml
+`
+    : "";
   await Deno.writeTextFile(
     `${dir}/manifest.yaml`,
     `manifestVersion: 1
@@ -104,7 +120,7 @@ name: "@acme/thing"
 version: "2026.01.01.1"
 models:
   - thing.ts
-`,
+${additional}`,
   );
   // Concatenated so the loader's raw-text scan does not register this fixture
   // as a real model (which would collide on `@acme/thing` across test files).
@@ -112,6 +128,22 @@ models:
     `${dir}/thing.ts`,
     `export const ` + `model = { type: "@acme/thing", version: "1" };`,
   );
+  if (opts.withTests) {
+    await Deno.writeTextFile(
+      `${dir}/test-factory.yaml`,
+      `tests:
+  - name: version-prints
+    confirms: the binary runs and prints a version.
+    cannot: must not exit non-zero or print an error.
+    steps:
+      - name: version
+        run: swamp --version
+        expect:
+          exitCode: 0
+          stdoutNotContains: [error]
+`,
+    );
+  }
   return { manifest: `${dir}/manifest.yaml`, dir };
 }
 
@@ -201,6 +233,57 @@ Deno.test("test writes a result and a summary", async () => {
       (summaries[0].data.claims as unknown[]).length,
       3,
     );
+  } finally {
+    await Deno.remove(dir, { recursive: true }).catch(() => {});
+  }
+});
+
+Deno.test("a candidate shipping test-factory.yaml runs the tests phase", async () => {
+  const { runner } = stubRunner();
+  const { manifest, dir } = await writeCandidate({ withTests: true });
+  try {
+    const { promise, ctx } = await runMethod(
+      "test",
+      { manifest, scenario: "debian-standalone", _run: runner },
+      {
+        repoDir: dir,
+        harness: harnessResult({
+          tests: [{
+            name: "version-prints",
+            ok: true,
+            steps: [{
+              name: "version",
+              run: "swamp --version",
+              ok: true,
+              exitCode: 0,
+              matched: ["exitCode 0 ok"],
+              stdout: "swamp 2026.09.30.1",
+              stderr: "",
+            }],
+          }],
+        }),
+      },
+    );
+    await promise;
+    const result = ctx.getWrittenResources().find((r) =>
+      r.specName === "result"
+    )!;
+    // `tests` was auto-enabled (no explicit `phases`), and the run passed.
+    assertStringIncludes(
+      (result.data.phasesRequested as string[]).join(","),
+      "tests",
+    );
+    const tests = result.data.tests as Array<Record<string, unknown>>;
+    assertEquals(tests.length, 1);
+    assertEquals(tests[0].name, "version-prints");
+    assertEquals(tests[0].ok, true);
+    assertStringIncludes(tests[0].confirms as string, "prints a version");
+    assertEquals(result.data.status, "pass");
+    const summary = ctx.getWrittenResources().find((r) =>
+      r.specName === "summary"
+    )!;
+    assertEquals(summary.data.testCount, 1);
+    assertEquals(summary.data.testsPassed, 1);
   } finally {
     await Deno.remove(dir, { recursive: true }).catch(() => {});
   }
@@ -469,4 +552,51 @@ Deno.test("listScenarios writes no data", async () => {
   const { promise } = await runMethod("listScenarios", {}, { repoDir: "/tmp" });
   const result = await promise;
   assertEquals(result.dataHandles, []);
+});
+
+Deno.test("resolvePhases auto-enables tests after definitions", () => {
+  assertEquals(
+    resolvePhases("", "smoke,load,definitions", true),
+    ["smoke", "load", "definitions", "tests"],
+  );
+  // An explicit override always wins.
+  assertEquals(
+    resolvePhases("smoke,load", "smoke,load,definitions", true),
+    ["smoke", "load"],
+  );
+  // No tests file → no tests phase.
+  assertEquals(
+    resolvePhases("", "smoke,load,definitions", false),
+    ["smoke", "load", "definitions"],
+  );
+});
+
+const soundTest: TestSpec = {
+  name: "t",
+  confirms: "does the thing",
+  cannot: "must not error",
+  variables: {},
+  steps: [{
+    name: "s",
+    run: "swamp --version",
+    timeoutSeconds: 30,
+    continueOnFailure: false,
+    expect: { exitCode: 0, stdoutNotContains: ["error"] },
+  }],
+};
+
+Deno.test("preflightTests throws on a non-proving test", () => {
+  const broken: TestSpec = {
+    ...soundTest,
+    steps: [{ ...soundTest.steps[0], expect: { exitCode: 0 } }],
+  };
+  assertThrows(
+    () => preflightTests([broken], ["tests"]),
+    Error,
+    "no step asserts a negative",
+  );
+});
+
+Deno.test("preflightTests is a no-op when tests are not requested", () => {
+  preflightTests([{ ...soundTest, confirms: "" }], ["smoke"]);
 });

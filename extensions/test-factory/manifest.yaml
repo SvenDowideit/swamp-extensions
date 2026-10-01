@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/test-factory"
-version: "2026.10.01.2"
+version: "2026.10.01.3"
 description: >
   Run a swamp extension inside containers on different Linux distributions and
   swamp deployment topologies, and report exactly where it breaks. Prefer it
@@ -51,6 +51,15 @@ description: >
       swamp model @svendowideit/test-factory method run test tf \
         --input manifest=extensions/models/caddy/manifest.yaml \
         --input distro=ubuntu,fedora,rocky
+
+      # Run an extension's own documented acceptance tests. When the candidate
+      # ships a `test-factory.yaml` (listed in its manifest `additionalFiles:`),
+      # the `tests` phase is added automatically and each test is reported with
+      # its prose and full logs. This runs test-factory's own tests, which ship
+      # in `extensions/test-factory/acceptance/test-factory.yaml`.
+      swamp model @svendowideit/test-factory method run test tf \
+        --input manifest=extensions/test-factory/manifest.yaml \
+        --input scenario=debian-standalone
 
       # Exercise remote execution: a serve orchestrator plus two workers that
       # run the dispatched probe step.
@@ -143,12 +152,15 @@ additionalFiles:
   - harness.ts
   - topology.ts
   - introspect.ts
+  - tests.ts
   - scenarios_test.ts
   - harness_test.ts
   - topology_test.ts
   - introspect_test.ts
   - docker_test.ts
+  - tests_test.ts
   - test_factory_report_test.ts
   - test_factory_test.ts
+  - acceptance/test-factory.yaml
 
 platforms: []

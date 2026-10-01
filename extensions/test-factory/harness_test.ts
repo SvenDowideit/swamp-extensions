@@ -25,6 +25,7 @@ const plan: HarnessPlan = {
   workflows: ["acme-flow"],
   phases: ["smoke", "load", "definitions"],
   fixtures: [],
+  tests: [],
   releaseBaseUrl: "https://example.test/releases",
   expectSystemd: false,
 };
@@ -71,6 +72,31 @@ Deno.test("buildHarnessScript omits phases that are not requested", () => {
   const script = buildHarnessScript({ ...plan, phases: ["smoke"] });
   assertEquals(script.includes("swamp model create"), false);
   assertEquals(script.includes("swamp workflow validate"), false);
+  assertEquals(script.includes("declarative acceptance"), false);
+});
+
+Deno.test("buildHarnessScript emits the tests phase only when requested", () => {
+  const withTests = buildHarnessScript({
+    ...plan,
+    phases: ["tests"],
+    tests: [{
+      name: "t1",
+      confirms: "it works",
+      cannot: "must not error",
+      variables: {},
+      steps: [{
+        name: "s1",
+        run: "swamp --version",
+        timeoutSeconds: 30,
+        continueOnFailure: false,
+        expect: { exitCode: 0, stdoutNotContains: ["error"] },
+      }],
+    }],
+  });
+  assertStringIncludes(withTests, "# --- tests (declarative acceptance)");
+  assertStringIncludes(withTests, "append tests");
+  const without = buildHarnessScript({ ...plan, phases: ["smoke"] });
+  assertEquals(without.includes("declarative acceptance"), false);
 });
 
 function result(overrides: Partial<HarnessResult> = {}): HarnessResult {
@@ -86,9 +112,67 @@ function result(overrides: Partial<HarnessResult> = {}): HarnessResult {
     definitions: [{ type: "@acme/thing", name: "tf-def-1", ok: true }],
     workflows: [{ name: "acme-flow", ok: true, status: "valid" }],
     fixtures: [],
+    tests: [],
     ...overrides,
   };
 }
+
+Deno.test("evaluateResult passes when all documented tests pass", () => {
+  const e = evaluateResult(
+    result({
+      tests: [{
+        name: "t1",
+        ok: true,
+        steps: [{
+          name: "s1",
+          run: "x",
+          ok: true,
+          exitCode: 0,
+          matched: [],
+          stdout: "",
+          stderr: "",
+        }],
+      }],
+    }),
+    ["tests"],
+    "pass",
+  );
+  assertEquals(e.ok, true);
+  assertEquals(e.errors, []);
+});
+
+Deno.test("evaluateResult fails when a documented test fails", () => {
+  const e = evaluateResult(
+    result({
+      tests: [{
+        name: "t1",
+        ok: false,
+        steps: [{
+          name: "s1",
+          run: "x",
+          ok: false,
+          exitCode: 1,
+          matched: [],
+          stdout: "",
+          stderr: "",
+        }],
+      }],
+    }),
+    ["tests"],
+    "pass",
+  );
+  assertEquals(e.ok, false);
+  assertEquals(e.errors.some((m) => m.includes('step "s1" failed')), true);
+});
+
+Deno.test("evaluateResult reports an empty tests phase honestly", () => {
+  const e = evaluateResult(result({ tests: [] }), ["tests"], "pass");
+  assertEquals(e.ok, false);
+  assertEquals(
+    e.phases.find((p) => p.phase === "tests")?.detail,
+    "no test-factory.yaml tests supplied",
+  );
+});
 
 Deno.test("evaluateResult passes a clean run", () => {
   const e = evaluateResult(result(), ["smoke", "load", "definitions"], "pass");

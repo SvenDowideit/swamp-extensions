@@ -1,5 +1,9 @@
-import { assertStringIncludes } from "jsr:@std/assert@1";
-import { renderResult, renderSummary } from "./test_factory_report.ts";
+import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import {
+  renderResult,
+  renderSummary,
+  renderTests,
+} from "./test_factory_report.ts";
 
 Deno.test("renderResult shows the scenario, distro, topology and phases", () => {
   const md = renderResult({
@@ -127,6 +131,75 @@ Deno.test("renderResult renders fixtures", () => {
   });
   assertStringIncludes(md, "| @a/b/check | FAIL | 1 |");
   assertStringIncludes(md, "- fixtures: @a/b/check: exit 1");
+});
+
+Deno.test("renderResult renders documented tests with prose and logs", () => {
+  const md = renderResult({
+    scenario: "debian-standalone",
+    distro: "debian",
+    systemd: false,
+    topology: "standalone",
+    workers: 0,
+    expected: "pass",
+    status: "fail",
+    ok: false,
+    phases: [{ phase: "tests", ok: false, detail: 't1: step "run" failed' }],
+    definitions: [],
+    workflows: [],
+    fixtures: [],
+    tests: [{
+      name: "check-prints-latest",
+      confirms: "the check method prints the latest release tag",
+      cannot: "must not exit non-zero",
+      ok: false,
+      steps: [{
+        name: "run",
+        run: "swamp model @acme/thing method run check c",
+        ok: false,
+        exitCode: 1,
+        matched: ["expected exitCode 0, got 1"],
+        stdout: "boom",
+        stderr: "panic",
+      }],
+    }],
+    errors: ['tests: check-prints-latest: step "run" failed'],
+    logs: "",
+  });
+  assertStringIncludes(md, "### Documented tests — 0/1 passed");
+  assertStringIncludes(md, "#### check-prints-latest — FAIL");
+  assertStringIncludes(md, "**confirms**: the check method prints");
+  assertStringIncludes(md, "**cannot**: must not exit non-zero");
+  assertStringIncludes(md, "expected exitCode 0, got 1");
+  assertStringIncludes(md, "panic");
+});
+
+Deno.test("renderTests counts passes per test", () => {
+  const lines = renderTests({
+    tests: [
+      { name: "a", confirms: "x", cannot: "y", ok: true, steps: [] },
+      { name: "b", confirms: "x", cannot: "y", ok: false, steps: [] },
+    ],
+  }).join("\n");
+  assertStringIncludes(lines, "### Documented tests — 1/2 passed");
+});
+
+Deno.test("renderTests is empty when there are no tests", () => {
+  assertEquals(renderTests({ tests: [] }), []);
+});
+
+Deno.test("renderSummary shows test counts", () => {
+  const md = renderSummary({
+    extension: "@acme/thing",
+    count: 1,
+    passCount: 1,
+    failCount: 0,
+    errorCount: 0,
+    testCount: 4,
+    testsPassed: 3,
+    claims: [],
+    results: [],
+  });
+  assertStringIncludes(md, "Documented tests: **3/4** passed");
 });
 
 Deno.test("renderSummary shows the version and claims", () => {

@@ -64,6 +64,12 @@ import {
   phaseClaims,
 } from "./harness.ts";
 import { inspectExtension } from "./introspect.ts";
+import { lintTests, mergeTests, parseTests } from "./tests.ts";
+import type { Expectation, TestSpec, TestStep } from "./tests.ts";
+
+// Re-exported so the public `preflightTests` signature (and the types nested in
+// `TestSpec`) can be named without a `private-type-ref` slow-type diagnostic.
+export type { Expectation, TestSpec, TestStep };
 import {
   buildProbeRunScript,
   buildServeScript,
@@ -233,6 +239,25 @@ const FixtureResultSchema = z.object({
   output: z.string(),
 });
 
+const TestStepResultSchema = z.object({
+  name: z.string(),
+  run: z.string(),
+  ok: z.boolean(),
+  exitCode: z.number(),
+  matched: z.array(z.string()),
+  stdout: z.string(),
+  stderr: z.string(),
+});
+
+/** A documented acceptance test's outcome, with its authored prose. */
+const TestResultSchema = z.object({
+  name: z.string(),
+  confirms: z.string(),
+  cannot: z.string(),
+  ok: z.boolean(),
+  steps: z.array(TestStepResultSchema),
+});
+
 const TopologySchema = z.object({
   serveReady: z.boolean(),
   workersEnrolled: z.number(),
@@ -274,6 +299,8 @@ const ResultSchema = z.object({
   definitions: z.array(DefinitionResultSchema),
   workflows: z.array(WorkflowResultSchema),
   fixtures: z.array(FixtureResultSchema),
+  /** Documented acceptance tests (from the candidate's test-factory.yaml). */
+  tests: z.array(TestResultSchema),
   topologyResult: TopologySchema.optional(),
   errors: z.array(z.string()),
   durationMs: z.number(),
@@ -295,6 +322,9 @@ const SummarySchema = z.object({
   passCount: z.number(),
   failCount: z.number(),
   errorCount: z.number(),
+  /** Documented acceptance tests run across the fan-out. */
+  testCount: z.number().default(0),
+  testsPassed: z.number().default(0),
   /** What each requested phase proves, and the commands that prove it. */
   claims: z.array(PhaseClaimSchema).default([]),
   results: z.array(z.object({
@@ -378,6 +408,8 @@ interface Candidate {
   version: string;
   modelTypes: string[];
   workflowNames: string[];
+  /** Documented acceptance tests declared in the candidate's test-factory.yaml. */
+  tests: TestSpec[];
 }
 
 /** Per-scenario options that do not come from the catalog. */
@@ -455,6 +487,7 @@ function blankResult(
     definitions: [],
     workflows: [],
     fixtures: [],
+    tests: mergeTests(candidate.tests, []),
     errors: [],
     durationMs: 0,
     container: containers.join(","),
@@ -511,6 +544,7 @@ async function runScenario(
     workflows: candidate.workflowNames,
     phases: opts.phases as HarnessPlan["phases"],
     fixtures: opts.fixtures,
+    tests: candidate.tests,
     releaseBaseUrl: deps.releaseBaseUrl,
     expectSystemd: scenario.systemd,
   };
@@ -635,7 +669,7 @@ async function runScenario(
       const cap = captureLogs(await logs(deps.runFn, target));
       result.logs = cap.logs;
       result.logsTruncated = cap.truncated;
-      finalize(result, raw, scenario, opts);
+      finalize(result, raw, scenario, opts, candidate.tests);
       return finished();
     }
 
@@ -645,7 +679,7 @@ async function runScenario(
     } catch {
       harnessResult = null;
     }
-    finalize(result, raw, scenario, opts, harnessResult);
+    finalize(result, raw, scenario, opts, candidate.tests, harnessResult);
 
     const topology = await runTopology(
       scenario,
@@ -719,6 +753,7 @@ function finalize(
   raw: string,
   scenario: Scenario,
   opts: RunOptions,
+  tests: TestSpec[],
   preParsed?: HarnessResult | null,
 ): Result {
   let harness: HarnessResult | null = preParsed ?? null;
@@ -759,6 +794,7 @@ function finalize(
   result.definitions = harness.definitions;
   result.workflows = harness.workflows;
   result.fixtures = harness.fixtures;
+  result.tests = mergeTests(tests, harness.tests);
   result.errors.push(...evaluation.errors);
   return result;
 }
@@ -945,7 +981,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.01.2",
+  version: "2026.10.01.3",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -962,6 +998,12 @@ export const model = {
       toVersion: "2026.10.01.2",
       description:
         "Record an audit trail on every result and summary: the candidate extension name and version, a one-line `intent`, and a per-phase `claims` array naming what a PASS proves and the literal commands that prove it. The report renders all of it. These are new fields on the written resources; no schema or argument change to existing fields.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.3",
+      description:
+        "Add the `tests` phase: an extension can ship a `test-factory.yaml` (listed in its manifest `additionalFiles:`) declaring the user-facing outcomes it promises as prose plus runnable steps with executable pass/fail assertions. The phase is auto-enabled when the candidate ships that file; a lint enforces that every `confirms`/`cannot` claim has a matching positive/negative assertion. Results and summaries gain `tests` with per-step logs and `testCount`/`testsPassed`; the report renders the prose and the full logs. New resources fields only — no change to existing arguments.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1050,9 +1092,12 @@ export const model = {
           throw new Error("no scenarios matched the filter");
         }
 
-        const phases = args.phases
-          ? splitList(args.phases)
-          : splitList(context.globalArgs.defaultPhases);
+        const phases = resolvePhases(
+          args.phases,
+          context.globalArgs.defaultPhases,
+          candidate.tests.length > 0,
+        );
+        preflightTests(candidate.tests, phases);
         const fixtures = args.fixturesFile
           ? parseFixtures(
             await Deno.readTextFile(
@@ -1116,9 +1161,6 @@ export const model = {
         if (scenarios.length === 0) {
           throw new Error("no scenarios matched the filter");
         }
-        const phases = args.phases
-          ? splitList(args.phases)
-          : splitList(context.globalArgs.defaultPhases);
         const fixtures = args.fixturesFile
           ? parseFixtures(
             await Deno.readTextFile(
@@ -1126,14 +1168,6 @@ export const model = {
             ),
           )
           : [];
-        const opts: RunOptions = {
-          phases,
-          fixtures,
-          keepOnFailure: context.globalArgs.keepOnFailure,
-          probe: context.globalArgs.probe,
-          outBaseDir: args._outBaseDir,
-          scopeByExtension: true,
-        };
 
         context.logger?.info(
           `Sweeping ${manifests.length} extension(s) across ${scenarios.length} scenario(s)`,
@@ -1145,6 +1179,22 @@ export const model = {
             manifestPath,
             context.repoDir,
           );
+          // Auto-enable `tests` per candidate, since only some may ship a
+          // test-factory.yaml. An explicit `phases` override still wins.
+          const phases = resolvePhases(
+            args.phases,
+            context.globalArgs.defaultPhases,
+            candidate.tests.length > 0,
+          );
+          preflightTests(candidate.tests, phases);
+          const opts: RunOptions = {
+            phases,
+            fixtures,
+            keepOnFailure: context.globalArgs.keepOnFailure,
+            probe: context.globalArgs.probe,
+            outBaseDir: args._outBaseDir,
+            scopeByExtension: true,
+          };
           const { handles: h } = await executeScenarios(
             candidate,
             scenarios,
@@ -1203,6 +1253,10 @@ async function executeScenarios(
 ): Promise<{ handles: Array<{ name: string }> }> {
   const handles: Array<{ name: string }> = [];
   const summaries: z.infer<typeof SummarySchema>["results"] = [];
+  // Documented tests run once per scenario; count both the total and passes so
+  // the summary can report `tests N/M passed` alongside the scenario counts.
+  let testCount = 0;
+  let testsPassed = 0;
   // A `testAll` sweep runs several extensions through the same scenarios, so
   // result and summary instance names are namespaced by extension. A single
   // `test` keeps the bare scenario name so its data is easy to find.
@@ -1223,6 +1277,7 @@ async function executeScenarios(
     workflows: candidate.workflowNames,
     phases: opts.phases as HarnessPlan["phases"],
     fixtures: opts.fixtures,
+    tests: candidate.tests,
     releaseBaseUrl: deps.releaseBaseUrl,
     expectSystemd: false,
   });
@@ -1252,6 +1307,8 @@ async function executeScenarios(
       result,
     );
     handles.push(handle);
+    testCount += result.tests.length;
+    testsPassed += result.tests.filter((t) => t.ok).length;
     summaries.push({
       scenario: result.scenario,
       distro: result.distro,
@@ -1283,6 +1340,7 @@ async function executeScenarios(
     workflows: candidate.workflowNames,
     phases: opts.phases as HarnessPlan["phases"],
     fixtures: opts.fixtures,
+    tests: candidate.tests,
     releaseBaseUrl: deps.releaseBaseUrl,
     expectSystemd: false,
   };
@@ -1297,6 +1355,8 @@ async function executeScenarios(
       passCount,
       failCount: summaries.filter((s) => s.status === "fail").length,
       errorCount: summaries.filter((s) => s.status === "error").length,
+      testCount,
+      testsPassed,
       claims: phaseClaims(summaryPlan),
       results: summaries,
       checkedAt: new Date().toISOString(),
@@ -1369,13 +1429,16 @@ async function findManifests(root: string): Promise<string[]> {
   return out;
 }
 
-/** Resolve the candidate manifest and its declared types/workflows. */
+/** Resolve the candidate manifest, its declared types/workflows, and its tests. */
 async function resolveCandidate(
   manifest: string,
   repoDir: string,
 ): Promise<Candidate> {
   const manifestAbs = resolve(repoDir, manifest);
   const info = await inspectExtension(manifestAbs);
+  const tests: TestSpec[] = info.testsPath
+    ? parseTests(await Deno.readTextFile(info.testsPath))
+    : [];
   return {
     manifestAbs,
     dir: dirname(manifestAbs),
@@ -1383,7 +1446,45 @@ async function resolveCandidate(
     version: info.manifest.version,
     modelTypes: info.modelTypes,
     workflowNames: info.workflowNames,
+    tests,
   };
+}
+
+/**
+ * Resolve the phases to run, auto-enabling `tests` when the candidate ships a
+ * `test-factory.yaml` and the caller did not pass an explicit `phases` override.
+ *
+ * An explicit `--input phases=...` always wins, so a caller can deliberately
+ * skip the acceptance tests. The auto-added phase is placed after `definitions`
+ * and before `fixtures`, matching the canonical phase order.
+ */
+export function resolvePhases(
+  explicit: string,
+  defaultPhases: string,
+  hasTests: boolean,
+): string[] {
+  const phases = explicit ? splitList(explicit) : splitList(defaultPhases);
+  if (explicit || !hasTests || phases.includes("tests")) return phases;
+  const at = phases.indexOf("definitions");
+  const insertAt = at >= 0 ? at + 1 : phases.length;
+  phases.splice(insertAt, 0, "tests");
+  return phases;
+}
+
+/**
+ * Lint the candidate's acceptance tests and throw on any issue.
+ *
+ * Runs before any container boots so a malformed or non-proving `test-factory.yaml`
+ * fails loudly rather than silently passing. A no-op when there are no tests.
+ */
+export function preflightTests(tests: TestSpec[], phases: string[]): void {
+  if (!phases.includes("tests") || tests.length === 0) return;
+  const issues = lintTests(tests);
+  if (issues.length > 0) {
+    throw new Error(
+      `test-factory.yaml failed validation:\n  - ${issues.join("\n  - ")}`,
+    );
+  }
 }
 
 /** Turn method args and the catalog into the scenarios to run. */

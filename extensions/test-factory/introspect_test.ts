@@ -1,5 +1,10 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { extractTypeFromSource, parseExtensionManifest } from "./introspect.ts";
+import { join } from "jsr:@std/path@1";
+import {
+  extractTypeFromSource,
+  inspectExtension,
+  parseExtensionManifest,
+} from "./introspect.ts";
 
 const MANIFEST = `manifestVersion: 1
 name: "@acme/thing"
@@ -38,6 +43,11 @@ Deno.test("parseExtensionManifest stops a list at the next top-level key", () =>
   assertEquals(m.models.includes("README.md"), false);
 });
 
+Deno.test("parseExtensionManifest reads additionalFiles", () => {
+  const m = parseExtensionManifest(MANIFEST);
+  assertEquals(m.additionalFiles, ["README.md"]);
+});
+
 Deno.test("parseExtensionManifest reads an inline list", () => {
   const m = parseExtensionManifest(
     `name: "@a/b"\nmodels: [one.ts, two.ts]\nplatforms: []\n`,
@@ -52,4 +62,58 @@ Deno.test("extractTypeFromSource finds the exported type", () => {
     `model = {\n  type: "@acme/thing",\n  version: "1",\n};`;
   assertEquals(extractTypeFromSource(src), "@acme/thing");
   assertEquals(extractTypeFromSource("const x = 1;"), null);
+});
+
+Deno.test("inspectExtension discovers test-factory.yaml from additionalFiles", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "tf-intro-" });
+  try {
+    await Deno.writeTextFile(
+      join(dir, "manifest.yaml"),
+      `manifestVersion: 1
+name: "@acme/thing"
+version: "1"
+models:
+  - thing.ts
+additionalFiles:
+  - README.md
+  - acceptance/test-factory.yaml
+`,
+    );
+    await Deno.writeTextFile(
+      join(dir, "thing.ts"),
+      `export const ` + `model = { type: "@acme/thing", version: "1" };`,
+    );
+    const info = await inspectExtension(join(dir, "manifest.yaml"));
+    assertEquals(
+      info.testsPath,
+      join(dir, "acceptance", "test-factory.yaml"),
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true }).catch(() => {});
+  }
+});
+
+Deno.test("inspectExtension leaves testsPath empty when no tests file ships", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "tf-intro-" });
+  try {
+    await Deno.writeTextFile(
+      join(dir, "manifest.yaml"),
+      `manifestVersion: 1
+name: "@acme/thing"
+version: "1"
+models:
+  - thing.ts
+additionalFiles:
+  - README.md
+`,
+    );
+    await Deno.writeTextFile(
+      join(dir, "thing.ts"),
+      `export const ` + `model = { type: "@acme/thing", version: "1" };`,
+    );
+    const info = await inspectExtension(join(dir, "manifest.yaml"));
+    assertEquals(info.testsPath, "");
+  } finally {
+    await Deno.remove(dir, { recursive: true }).catch(() => {});
+  }
 });

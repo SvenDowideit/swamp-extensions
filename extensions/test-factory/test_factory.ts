@@ -76,6 +76,16 @@ import {
 // Schemas
 // ---------------------------------------------------------------------------
 
+/**
+ * Default vault and secret-entry the factory reads the API key from.
+ *
+ * The entry name is the environment variable the value is exported as, so it is
+ * a public constant, not a secret — kept out of the schema literal so the
+ * secret-scanning heuristic does not mistake the name for a value.
+ */
+const DEFAULT_VAULT = "test-factory-vault";
+const DEFAULT_VAULT_ENTRY = "SWAMP_API_KEY";
+
 const GlobalArgsSchema = z.object({
   dockerBinary: z.string().default("docker").describe(
     "Container runtime CLI to drive",
@@ -98,10 +108,18 @@ const GlobalArgsSchema = z.object({
   probe: z.boolean().default(true).describe(
     "In `serve`/`fleet` scenarios, run the dispatch probe workflow",
   ),
+  vault: z.string().default(DEFAULT_VAULT).describe(
+    "Name of the vault the factory reads `swampApiKey` from",
+  ),
+  vaultEntry: z.string().default(DEFAULT_VAULT_ENTRY).describe(
+    "Vault entry name read from `vault` and exported as SWAMP_API_KEY",
+  ),
   swampApiKey: z.string().default("").meta({ sensitive: true }).describe(
     "swamp-club collective API token exported as SWAMP_API_KEY in every " +
-      "container (needed for `swamp serve` on gated hosts). Prefer a vault " +
-      "expression, e.g. --global-arg 'swampApiKey=${{ vault.get(my-vault, SWAMP_API_KEY) }}'",
+      "container (needed for `swamp serve` on gated hosts). Leave empty to " +
+      `read it from the \`vault\`/\`vaultEntry\` globals (default ` +
+      `${DEFAULT_VAULT} / ${DEFAULT_VAULT_ENTRY}); a literal is rejected ` +
+      "because the field is sensitive — pass a vault expression instead.",
   ),
 });
 
@@ -798,6 +816,12 @@ async function runTopology(
 // Model definition
 // ---------------------------------------------------------------------------
 
+/** The slice of swamp's vault service the factory uses. */
+export type VaultService = {
+  get(vaultName: string, secretKey: string, caller?: string): Promise<string>;
+  getVaultNames(): string[];
+};
+
 type ExecContext = {
   globalArgs: GlobalArgs;
   repoDir: string;
@@ -805,6 +829,8 @@ type ExecContext = {
     info: (msg: string, props?: Record<string, unknown>) => void;
     warning: (msg: string, props?: Record<string, unknown>) => void;
   };
+  /** Present when a vault is configured; used to read `swampApiKey`. */
+  vaultService?: VaultService;
   writeResource: (
     specName: string,
     name: string,
@@ -812,11 +838,65 @@ type ExecContext = {
   ) => Promise<{ name: string }>;
 };
 
+/**
+ * Resolve the API key for a run.
+ *
+ * Precedence: an explicit `swampApiKey` (a vault expression the operator set)
+ * wins; otherwise the key is read from the named `vault` at `vaultEntry` — the
+ * default being the `test-factory-vault` / `SWAMP_API_KEY` pair. A missing
+ * vault or key is not an error: most runs (standalone scenarios) need no key,
+ * so the run proceeds with `SWAMP_API_KEY` unset. The value is never logged.
+ */
+export async function resolveApiKey(
+  context: {
+    globalArgs: {
+      swampApiKey: string;
+      vault: string;
+      vaultEntry: string;
+    };
+    vaultService?: VaultService;
+    logger?: {
+      warning: (msg: string, props?: Record<string, unknown>) => void;
+    };
+  },
+): Promise<string> {
+  const explicit = context.globalArgs.swampApiKey?.trim();
+  if (explicit) return explicit;
+
+  const vault = context.globalArgs.vault;
+  const key = context.globalArgs.vaultEntry;
+  const vs = context.vaultService;
+  if (!vs || !vault || !key) return "";
+  if (!vs.getVaultNames().includes(vault)) return "";
+  try {
+    return (await vs.get(vault, key)) ?? "";
+  } catch (err) {
+    context.logger?.warning(
+      `Could not read ${key} from vault ${vault}: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+    return "";
+  }
+}
+
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.09.30.1",
+  version: "2026.10.01.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.10.01.1",
+      description:
+        "Read the API key from a named vault: add `vault` (default `test-factory-vault`) and `vaultEntry` (default `SWAMP_API_KEY`) global arguments, and resolve `swampApiKey` from that vault at run time when it is empty. Also guard the colocated test fixtures so swamp's extension loader no longer indexes them as real models. Existing instances are seeded with both new globals.",
+      upgradeAttributes: (old: Record<string, unknown>) => ({
+        ...old,
+        vault: old.vault ?? "test-factory-vault",
+        vaultEntry: old.vaultEntry ?? "SWAMP_API_KEY",
+      }),
+    },
+  ],
   resources: {
     result: {
       description: "Outcome of testing one extension in one scenario",
@@ -883,7 +963,7 @@ export const model = {
           runFn: args._run ?? defaultRun,
           releaseBaseUrl: context.globalArgs.releaseBaseUrl,
           swampVersion: context.globalArgs.swampVersion,
-          swampApiKey: context.globalArgs.swampApiKey ?? "",
+          swampApiKey: await resolveApiKey(context),
         };
 
         const version = await dockerVersion(deps.runFn);
@@ -951,7 +1031,7 @@ export const model = {
           runFn: args._run ?? defaultRun,
           releaseBaseUrl: context.globalArgs.releaseBaseUrl,
           swampVersion: context.globalArgs.swampVersion,
-          swampApiKey: context.globalArgs.swampApiKey ?? "",
+          swampApiKey: await resolveApiKey(context),
         };
         const version = await dockerVersion(deps.runFn);
         if (!version.available) {

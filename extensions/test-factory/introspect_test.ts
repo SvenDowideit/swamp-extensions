@@ -46,8 +46,10 @@ Deno.test("parseExtensionManifest reads an inline list", () => {
 });
 
 Deno.test("extractTypeFromSource finds the exported type", () => {
-  const src =
-    `export const model = {\n  type: "@acme/thing",\n  version: "1",\n};`;
+  // Concatenated so the loader's raw-text scan does not register this fixture
+  // as a real model (which would collide on `@acme/thing` across test files).
+  const src = `export const ` +
+    `model = {\n  type: "@acme/thing",\n  version: "1",\n};`;
   assertEquals(extractTypeFromSource(src), "@acme/thing");
   assertEquals(extractTypeFromSource("const x = 1;"), null);
 });

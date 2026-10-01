@@ -12,7 +12,7 @@ import { assertEquals, assertRejects } from "jsr:@std/assert@1";
 import { createModelTestContext } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 
 import type { CmdResult } from "./docker.ts";
-import { containerEnv, model } from "./test_factory.ts";
+import { containerEnv, model, resolveApiKey } from "./test_factory.ts";
 
 type Call = [string, ...string[]];
 
@@ -102,9 +102,11 @@ models:
   - thing.ts
 `,
   );
+  // Concatenated so the loader's raw-text scan does not register this fixture
+  // as a real model (which would collide on `@acme/thing` across test files).
   await Deno.writeTextFile(
     `${dir}/thing.ts`,
-    `export const model = { type: "@acme/thing", version: "1" };`,
+    `export const ` + `model = { type: "@acme/thing", version: "1" };`,
   );
   return { manifest: `${dir}/manifest.yaml`, dir };
 }
@@ -296,7 +298,7 @@ Deno.test("testAll sweeps every git-tracked manifest", async () => {
       );
       await Deno.writeTextFile(
         `${dir}/extensions/${name}/${name}.ts`,
-        `export const model = { type: "@acme/${name}", version: "1" };`,
+        `export const ` + `model = { type: "@acme/${name}", version: "1" };`,
       );
     }
     const { promise } = await runMethod(
@@ -319,6 +321,89 @@ Deno.test("testAll sweeps every git-tracked manifest", async () => {
   } finally {
     await Deno.remove(dir, { recursive: true }).catch(() => {});
   }
+});
+
+/** A fake vault service for resolveApiKey tests. */
+function fakeVault(
+  names: string[],
+  secrets: Record<string, string>,
+): {
+  getVaultNames: () => string[];
+  get: (v: string, k: string) => Promise<string>;
+} {
+  return {
+    getVaultNames: () => names,
+    get: (v, k) => {
+      const id = `${v}/${k}`;
+      if (id in secrets) return Promise.resolve(secrets[id]);
+      return Promise.reject(new Error(`no secret ${id}`));
+    },
+  };
+}
+
+Deno.test("resolveApiKey reads the named vault by default", async () => {
+  const key = await resolveApiKey({
+    globalArgs: {
+      vault: "test-factory-vault",
+      vaultEntry: "SWAMP_API_KEY",
+      swampApiKey: "",
+    },
+    vaultService: fakeVault(["test-factory-vault"], {
+      "test-factory-vault/SWAMP_API_KEY": "swamp_org_from_vault",
+    }),
+  });
+  assertEquals(key, "swamp_org_from_vault");
+});
+
+Deno.test("an explicit swampApiKey wins over the vault", async () => {
+  const key = await resolveApiKey({
+    globalArgs: {
+      vault: "test-factory-vault",
+      vaultEntry: "SWAMP_API_KEY",
+      swampApiKey: "swamp_org_explicit",
+    },
+    vaultService: fakeVault(["test-factory-vault"], {
+      "test-factory-vault/SWAMP_API_KEY": "swamp_org_from_vault",
+    }),
+  });
+  assertEquals(key, "swamp_org_explicit");
+});
+
+Deno.test("a missing vault or key yields no key, not an error", async () => {
+  assertEquals(
+    await resolveApiKey({
+      globalArgs: {
+        vault: "other-vault",
+        vaultEntry: "SWAMP_API_KEY",
+        swampApiKey: "",
+      },
+      vaultService: fakeVault(["test-factory-vault"], {
+        "test-factory-vault/SWAMP_API_KEY": "x",
+      }),
+    }),
+    "",
+  );
+  assertEquals(
+    await resolveApiKey({
+      globalArgs: {
+        vault: "test-factory-vault",
+        vaultEntry: "MISSING",
+        swampApiKey: "",
+      },
+      vaultService: fakeVault(["test-factory-vault"], {}),
+    }),
+    "",
+  );
+  assertEquals(
+    await resolveApiKey({
+      globalArgs: {
+        vault: "test-factory-vault",
+        vaultEntry: "SWAMP_API_KEY",
+        swampApiKey: "",
+      },
+    }),
+    "",
+  );
 });
 
 Deno.test("containerEnv sets SWAMP_API_KEY only when provided", () => {

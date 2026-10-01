@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/test-factory"
-version: "2026.09.30.1"
+version: "2026.10.01.1"
 description: >
   Run a swamp extension inside containers on different Linux distributions and
   swamp deployment topologies, and report exactly where it breaks. Prefer it
@@ -36,7 +36,8 @@ description: >
     scenarios. The only network access is the swamp release download. No
     swamp-club account is required by default, because `serve`/`fleet` run
     `swamp serve` on loopback with `--auth-mode none`; a host where that team
-    feature is gated needs `swampApiKey`, below.
+    feature is gated reads a token from the `test-factory-vault` vault, below.
+    The systemd-creds vault used in the example needs systemd v256+.
 
   RUN
 
@@ -64,13 +65,14 @@ description: >
         --input manifest=extensions/test-factory/manifest.yaml \
         --input scenario=debian-standalone
 
-      # On a host where `swamp serve` is gated, give every container an API
-      # token. A literal is rejected for a sensitive field, so create a vault,
-      # store the token in it, and reference that secret.
-      swamp vault create local_encryption my-vault
-      swamp vault put my-vault SWAMP_API_KEY     # then paste the token
-      swamp model create @svendowideit/test-factory tf \
-        --global-arg 'swampApiKey=${{ vault.get(my-vault, SWAMP_API_KEY) }}'
+      # On a host where `swamp serve` is gated, give every container a
+      # collective API token. The factory reads it from the vault named
+      # `test-factory-vault` under the key `SWAMP_API_KEY` (override with the
+      # `vault`/`vaultEntry` globals), so create that vault, mint a token, and
+      # store it — every run then picks it up with no extra arguments.
+      swamp auth token create --collective my-collective --scopes 'serve:*'
+      swamp vault create @svendowideit/systemd-creds test-factory-vault
+      swamp vault put test-factory-vault SWAMP_API_KEY   # paste the token
       swamp model @svendowideit/test-factory method run test tf \
         --input manifest=extensions/models/caddy/manifest.yaml \
         --input topology=fleet --input workers=2
@@ -91,13 +93,15 @@ description: >
       workers          worker count for `fleet` scenarios  (default 2)
       keepOnFailure    leave containers up on failure      (default false)
       probe            run the serve/fleet dispatch probe  (default true)
-      swampApiKey      collective API token exported as SWAMP_API_KEY in every
-                       container (default unset); sensitive, so store it in a
-                       vault and reference the secret:
-                       swamp vault create local_encryption my-vault
-                       swamp vault put my-vault SWAMP_API_KEY
-                       then --global-arg
-                       'swampApiKey=${{ vault.get(my-vault, SWAMP_API_KEY) }}'
+      vault            vault the API key is read from
+                                              (default test-factory-vault)
+      vaultEntry         secret key read from that vault
+                                              (default SWAMP_API_KEY)
+      swampApiKey      collective API token, exported as SWAMP_API_KEY in every
+                       container. Leave empty (the default) and it is read from
+                       `vault`/`vaultEntry`; a literal is rejected because the
+                       field is sensitive, so an override must be a vault
+                       expression: 'swampApiKey=${{ vault.get(<vault>, <key>) }}'
 
     Per-run overrides: `manifest` (required), `scenario`, `distro`, `topology`,
     `systemd`, `workers`, `phases`, `fixturesFile`, `scenarioFile`, `expected`

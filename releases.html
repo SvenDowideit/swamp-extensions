@@ -67,30 +67,12 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261001-073437-0-sha-acf6214e"><span class="tier C">C</span>swamp 20261001.073437.0-sha.acf6214e</a><a href="#release-swamp-club-swamp-v20261001-070022-0-sha-34f7a84c"><span class="tier C">C</span>swamp 20261001.070022.0-sha.34f7a84c</a><a href="#release-swamp-club-swamp-v20261001-065457-0-sha-93a88f84"><span class="tier C">C</span>swamp 20261001.065457.0-sha.93a88f84</a><a href="#release-swamp-club-swamp-v20261001-065103-0-sha-70eff6a6"><span class="tier C">C</span>swamp 20261001.065103.0-sha.70eff6a6</a><a href="#release-swamp-club-swamp-v20261001-060930-0-sha-ccae15a5"><span class="tier C">C</span>swamp 20261001.060930.0-sha.ccae15a5</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261001-070022-0-sha-34f7a84c"><span class="tier A">A</span>exclude null_type and guard CEL top-level identifiers agains</a><a href="#release-swamp-club-swamp-v20261001-065457-0-sha-93a88f84"><span class="tier A">A</span>restore Windows Compatibility CI (swamp-club#2879) (#2760)</a><a href="#release-swamp-club-swamp-v20261001-065103-0-sha-70eff6a6"><span class="tier A">A</span>exclude cel-js built-in names from CEL property test identif</a><a href="#release-swamp-club-swamp-v20261001-060930-0-sha-ccae15a5"><span class="tier A">A</span>read the collective API key from a file (swamp-club#2790) (#</a><a href="#release-swamp-club-swamp-v20261001-073437-0-sha-acf6214e"><span class="tier C">C</span>shared in-memory remote and recording sync service for pre-r</a></aside><div>
 
-<article class="item" id="release-swamp-club-swamp-v20261001-073437-0-sha-acf6214e">
-<h2><span class="tier C">C</span>swamp 20261001.073437.0-sha.acf6214e</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T07:36:15Z">2026-10-01T07:36:15Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>test(datastore): shared in-memory remote and recording sync service for pre-refactor tests (swamp-club#2854) (#2762)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Pre-refactor test infrastructure for the datastore rework (swamp-club#2854, tracked under swamp-club#2865). There are no production code changes.</p>
-<ul>
-<li><strong><code>createInMemoryRemote()</code></strong> (<code>packages/testing</code>) is an in-memory remote datastore that several simulated machines can share. <code>connect(cacheDir)</code> returns a sync service with two-phase push. It also provides <code>failNext</code>, <code>offline</code>, an operation log (<code>ops()</code>), <code>files()</code> and <code>resetSidecar()</code>. <strong>Experimental:</strong> by default it reproduces what <code>@swamp/s3-datastore</code> and <code>@swamp/gcs-datastore</code> do today, gaps included. It was checked line by line against swamp-extensions <code>5368cb002</code>, so a test that passes against it cannot lose data that production would keep. Three of those gaps can be switched off for later phases of the rework (<code>pullDeletes</code>, <code>bulkDisablesDeletes</code>, <code>pullClearsPendingPush</code>).</li>
-<li><strong><code>createRecordingSyncService()</code></strong> (<code>packages/testing</code>) records marks, pulls and pushes, and does nothing else. It replaces two hand-rolled recorders, in <code>src/cli/repo_context_test.ts</code> and <code>integration/mark_dirty_hook_sync_test.ts</code>, without changing their assertions.</li>
-<li><strong><code>registerTestDatastoreType(remote)</code></strong> (<code>src/infrastructure/testing</code>, test-only) registers a per-run <code>@test/remote-&lt;uuid&gt;</code> datastore type. With it, <code>requireInitializedRepo</code> wires the real repository factory, the <code>markDirty</code> hook and th</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214e" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
-</article>
 <article class="item" id="release-swamp-club-swamp-v20261001-070022-0-sha-34f7a84c">
-<h2><span class="tier C">C</span>swamp 20261001.070022.0-sha.34f7a84c</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T07:01:54Z">2026-10-01T07:01:54Z</time></span></div>
+<h2><span class="tier A">A</span>exclude null_type and guard CEL top-level identifiers against cel-js constants (swamp-club#2851) (#2761)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T07:01:54Z">2026-10-01T07:01:54Z</time></span><span>tests</span><span>fix</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(tests): exclude null_type and guard CEL top-level identifiers against cel-js constants (swamp-club#2851) (#2761)</li>
@@ -109,12 +91,12 @@ footer .ver{color:var(--acc)}
 </ul>
 <p>  Each key list is typed against its interface. <code>ExpressionContext</code> uses a <code>DeclaredKeys&lt;T&gt;</code> helper that strips its index signature. Adding</p></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.070022.0-sha.34f7a84c" rel="noopener">release v20261001.070022.0-sha.34f7a84c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/34f7a84c" rel="noopener">34f7a84c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2761" rel="noopener">#2761</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2759" rel="noopener">#2759</a>𝗔 <a href="https://swamp-club.com/lab/2851" rel="noopener">lab#2851</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.070022.0-sha.34f7a84c" rel="noopener">release v20261001.070022.0-sha.34f7a84c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/34f7a84cfa68dc4d0facbf29a70a66e784eaafdb" rel="noopener">34f7a84c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2761" rel="noopener">#2761</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2759" rel="noopener">#2759</a>𝗔 <a href="https://swamp-club.com/lab/2851" rel="noopener">lab#2851</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261001-065457-0-sha-93a88f84">
-<h2><span class="tier C">C</span>swamp 20261001.065457.0-sha.93a88f84</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T06:56:21Z">2026-10-01T06:56:21Z</time></span></div>
+<h2><span class="tier A">A</span>restore Windows Compatibility CI (swamp-club#2879) (#2760)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T06:56:21Z">2026-10-01T06:56:21Z</time></span><span>windows</span><span>fix</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(windows): restore Windows Compatibility CI (swamp-club#2879) (#2760)</li>
@@ -129,12 +111,12 @@ footer .ver{color:var(--acc)}
 <li>The five failing tests are th</li>
 </ul></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.065457.0-sha.93a88f84" rel="noopener">release v20261001.065457.0-sha.93a88f84</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/93a88f84" rel="noopener">93a88f84</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2760" rel="noopener">#2760</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.065457.0-sha.93a88f84" rel="noopener">release v20261001.065457.0-sha.93a88f84</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/93a88f846ec4665e5ba7287333398c4a37a6f2e6" rel="noopener">93a88f84</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2760" rel="noopener">#2760</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261001-065103-0-sha-70eff6a6">
-<h2><span class="tier C">C</span>swamp 20261001.065103.0-sha.70eff6a6</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T06:52:45Z">2026-10-01T06:52:45Z</time></span></div>
+<h2><span class="tier A">A</span>exclude cel-js built-in names from CEL property test identifiers (swamp-club#2500) (#2759)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T06:52:45Z">2026-10-01T06:52:45Z</time></span><span>tests</span><span>fix</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>fix(tests): exclude cel-js built-in names from CEL property test identifiers (swamp-club#2500) (#2759)</li>
@@ -158,12 +140,12 @@ footer .ver{color:var(--acc)}
 <p>```bash</p>
 <p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20261001.06" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20261001.06</a></p></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.065103.0-sha.70eff6a6" rel="noopener">release v20261001.065103.0-sha.70eff6a6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/70eff6a6" rel="noopener">70eff6a6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2759" rel="noopener">#2759</a>𝗔 <a href="https://swamp-club.com/lab/2500" rel="noopener">lab#2500</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.065103.0-sha.70eff6a6" rel="noopener">release v20261001.065103.0-sha.70eff6a6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/70eff6a6fbcbfb2ea75d7da313401b6a4ee63f67" rel="noopener">70eff6a6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2759" rel="noopener">#2759</a>𝗔 <a href="https://swamp-club.com/lab/2500" rel="noopener">lab#2500</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261001-060930-0-sha-ccae15a5">
-<h2><span class="tier C">C</span>swamp 20261001.060930.0-sha.ccae15a5</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T06:11:13Z">2026-10-01T06:11:13Z</time></span></div>
+<h2><span class="tier A">A</span>read the collective API key from a file (swamp-club#2790) (#2758)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T06:11:13Z">2026-10-01T06:11:13Z</time></span><span>serve</span><span>feat</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>feat(serve): read the collective API key from a file (swamp-club#2790) (#2758)</li>
@@ -196,18 +178,36 @@ footer .ver{color:var(--acc)}
 <p>  is the only code that reads the key. <code>AuthRepository</code>, whoami, serve&#39;s</p>
 <p>  <code>clubApiKey</code>, check-config, quest and auth login/logout all go through it.</p>
 <p>  The</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.060930.0-sha.ccae15a5" rel="noopener">release v20261001.060930.0-sha.ccae15a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ccae15a5" rel="noopener">ccae15a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2758" rel="noopener">#2758</a>𝗔 <a href="https://swamp-club.com/lab/2866" rel="noopener">lab#2866</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.060930.0-sha.ccae15a5" rel="noopener">release v20261001.060930.0-sha.ccae15a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ccae15a547ef51d5186e3d21f5492683bea56882" rel="noopener">ccae15a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2758" rel="noopener">#2758</a>𝗔 <a href="https://swamp-club.com/lab/2866" rel="noopener">lab#2866</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261001-073437-0-sha-acf6214e">
+<h2><span class="tier C">C</span>shared in-memory remote and recording sync service for pre-refactor tests (swamp-club#2854) (#2762)</h2>
+<p class="lede">`test` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T07:36:15Z">2026-10-01T07:36:15Z</time></span><span>datastore</span><span>test</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>test(datastore): shared in-memory remote and recording sync service for pre-refactor tests (swamp-club#2854) (#2762)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Pre-refactor test infrastructure for the datastore rework (swamp-club#2854, tracked under swamp-club#2865). There are no production code changes.</p>
+<ul>
+<li><strong><code>createInMemoryRemote()</code></strong> (<code>packages/testing</code>) is an in-memory remote datastore that several simulated machines can share. <code>connect(cacheDir)</code> returns a sync service with two-phase push. It also provides <code>failNext</code>, <code>offline</code>, an operation log (<code>ops()</code>), <code>files()</code> and <code>resetSidecar()</code>. <strong>Experimental:</strong> by default it reproduces what <code>@swamp/s3-datastore</code> and <code>@swamp/gcs-datastore</code> do today, gaps included. It was checked line by line against swamp-extensions <code>5368cb002</code>, so a test that passes against it cannot lose data that production would keep. Three of those gaps can be switched off for later phases of the rework (<code>pullDeletes</code>, <code>bulkDisablesDeletes</code>, <code>pullClearsPendingPush</code>).</li>
+<li><strong><code>createRecordingSyncService()</code></strong> (<code>packages/testing</code>) records marks, pulls and pushes, and does nothing else. It replaces two hand-rolled recorders, in <code>src/cli/repo_context_test.ts</code> and <code>integration/mark_dirty_hook_sync_test.ts</code>, without changing their assertions.</li>
+<li><strong><code>registerTestDatastoreType(remote)</code></strong> (<code>src/infrastructure/testing</code>, test-only) registers a per-run <code>@test/remote-&lt;uuid&gt;</code> datastore type. With it, <code>requireInitializedRepo</code> wires the real repository factory, the <code>markDirty</code> hook and th</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/testing.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/testing.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article>
 
 <section class="tail"><h2>Final thoughts</h2>
 <p>5 items across 1 source(s) in this window:
-0 critical, 0 notable, 0 routine,
-5 minor.</p>
-<ul><li><strong>changes</strong> — 5</li></ul></section>
+0 critical, 4 notable, 0 routine,
+1 minor.</p>
+<ul><li><strong>fix</strong> — 3</li><li><strong>feat</strong> — 1</li><li><strong>test</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-01T12:09:26.405Z">2026-10-01T12:09:26.405Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-01T13:02:23.098Z">2026-10-01T13:02:23.098Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

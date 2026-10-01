@@ -67,8 +67,48 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2915"><span class="tier A">A</span>model cancel --all on a running workflow leaves its method-r</a><a href="#issue-2910"><span class="tier A">A</span>model cancel SIGKILLs the owner 2 s after SIGTERM, before th</a><a href="#issue-2895"><span class="tier A">A</span>workflow cancel and supersede of a suspended run leave its j</a><a href="#issue-2231"><span class="tier A">A</span>Auth gate: enforce authentication and add background proof r</a><a href="#issue-2703"><span class="tier A">A</span>gatorwalk-factory: project a work item parked by its dispatc</a><a href="#issue-2772"><span class="tier A">A</span>gatorwalk-factory: lifecycle entries carry issue-lifecycle&#39;s</a><a href="#issue-2911"><span class="tier A">A</span>gatorwalk-factory: remove the static design page (design_pag</a><a href="#issue-2896"><span class="tier A">A</span>A force-exited workflow run stays running with a dead pid: r</a><a href="#issue-2890"><span class="tier A">A</span>Server fallback content extraction drops quoted method keys </a><a href="#issue-2712"><span class="tier A">A</span>gatorwalk-factory: claim can wedge a ticket on a reservation</a><a href="#issue-2841"><span class="tier A">A</span>gatorwalk-factory studio: file-watch and page edge cases lef</a><a href="#issue-2736"><span class="tier A">A</span>A nested workflow that suspends on manual approval forwards </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2927"><span class="tier A">A</span>Nested swamp structural command in a shell step times out on</a><a href="#issue-2924"><span class="tier A">A</span>Auth gate blocks nested swamp in workflow shell steps when t</a><a href="#issue-2925"><span class="tier A">A</span>swamp workflow create crashes with an [FTL] ZodError stack t</a><a href="#issue-2923"><span class="tier A">A</span>swamp model create crashes with an [FTL] ZodError stack trac</a><a href="#issue-2914"><span class="tier A">A</span>model cancel SIGTERMs a running swamp serve process when the</a><a href="#issue-2915"><span class="tier A">A</span>model cancel --all on a running workflow leaves its method-r</a><a href="#issue-2910"><span class="tier A">A</span>model cancel SIGKILLs the owner 2 s after SIGTERM, before th</a><a href="#issue-2895"><span class="tier A">A</span>workflow cancel and supersede of a suspended run leave its j</a><a href="#issue-2231"><span class="tier A">A</span>Auth gate: enforce authentication and add background proof r</a><a href="#issue-2703"><span class="tier A">A</span>gatorwalk-factory: project a work item parked by its dispatc</a><a href="#issue-2772"><span class="tier A">A</span>gatorwalk-factory: lifecycle entries carry issue-lifecycle&#39;s</a><a href="#issue-2911"><span class="tier A">A</span>gatorwalk-factory: remove the static design page (design_pag</a></aside><div>
 
+<article class="item" id="issue-2927">
+<h2><span class="tier A">A</span>Nested swamp structural command in a shell step times out on its parent&#39;s per-model lock (SWAMP_LOCK_HOLDER_PID is stripped)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-01T22:46:53.629Z">2026-10-01T22:46:53.629Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2927" rel="noopener">lab#2927</a></div>
+</article>
+<article class="item" id="issue-2924">
+<h2><span class="tier A">A</span>Auth gate blocks nested swamp in workflow shell steps when the credential is in SWAMP_API_KEY</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-01T22:46:53.414Z">2026-10-01T22:46:53.414Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2924" rel="noopener">lab#2924</a></div>
+</article>
+<article class="item" id="issue-2925">
+<h2><span class="tier A">A</span>swamp workflow create crashes with an [FTL] ZodError stack trace on an invalid (uppercase) workflow name</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-01T22:19:14.769Z">2026-10-01T22:19:14.769Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2925" rel="noopener">lab#2925</a></div>
+</article>
+<article class="item" id="issue-2923">
+<h2><span class="tier A">A</span>swamp model create crashes with an [FTL] ZodError stack trace on an invalid (uppercase) model name</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-01T22:19:14.695Z">2026-10-01T22:19:14.695Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2923" rel="noopener">lab#2923</a></div>
+</article>
+<article class="item" id="issue-2914">
+<h2><span class="tier A">A</span>model cancel SIGTERMs a running swamp serve process when the method run belongs to a serve-run workflow</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-01T22:07:07.691Z">2026-10-01T22:07:07.691Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2914" rel="noopener">lab#2914</a></div>
+</article>
 <article class="item" id="issue-2915">
 <h2><span class="tier A">A</span>model cancel --all on a running workflow leaves its method-run records at running, or records them failed instead of cancelled</h2>
 <p class="lede">Shipped bug fix</p>
@@ -125,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2911" rel="noopener">lab#2911</a></div>
 </article>
-<article class="item" id="issue-2896">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2896">
 <h2><span class="tier A">A</span>A force-exited workflow run stays running with a dead pid: resume, recover and run doctor --fix cannot clear it</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-01T19:08:22.365Z">2026-10-01T19:08:22.365Z</time></span></div>
@@ -165,7 +205,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2736" rel="noopener">lab#2736</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2799">
+<article class="item" id="issue-2799">
 <h2><span class="tier A">A</span>gatorwalk-factory: mark a duplicate and move its work to the primary</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-01T18:30:53.982Z">2026-10-01T18:30:53.982Z</time></span></div>
@@ -517,53 +557,13 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-2925">
-<h2><span class="tier B">B</span>swamp workflow create crashes with an [FTL] ZodError stack trace on an invalid (uppercase) workflow name</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T22:00:53.339Z">2026-10-01T22:00:53.339Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2925" rel="noopener">lab#2925</a></div>
-</article>
-<article class="item" id="issue-2923">
-<h2><span class="tier B">B</span>swamp model create crashes with an [FTL] ZodError stack trace on an invalid (uppercase) model name</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T22:00:53.241Z">2026-10-01T22:00:53.241Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2923" rel="noopener">lab#2923</a></div>
-</article>
-<article class="item" id="issue-2927">
-<h2><span class="tier B">B</span>Nested swamp structural command in a shell step times out on its parent&#39;s per-model lock (SWAMP_LOCK_HOLDER_PID is stripped)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T21:59:19.545Z">2026-10-01T21:59:19.545Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2927" rel="noopener">lab#2927</a></div>
-</article>
-<article class="item" id="issue-2924">
-<h2><span class="tier B">B</span>Auth gate blocks nested swamp in workflow shell steps when the credential is in SWAMP_API_KEY</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T21:59:19.451Z">2026-10-01T21:59:19.451Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2924" rel="noopener">lab#2924</a></div>
-</article>
 <article class="item" id="issue-2918">
 <h2><span class="tier B">B</span>A cancelled workflow exits before its steps stop, leaving their method-run records at running</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T21:57:27.245Z">2026-10-01T21:57:27.245Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-01T22:42:00.642Z">2026-10-01T22:42:00.642Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2918" rel="noopener">lab#2918</a></div>
-</article>
-<article class="item" id="issue-2914">
-<h2><span class="tier B">B</span>model cancel SIGTERMs a running swamp serve process when the method run belongs to a serve-run workflow</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T21:57:08.795Z">2026-10-01T21:57:08.795Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2914" rel="noopener">lab#2914</a></div>
 </article>
 <article class="item" id="issue-2916">
 <h2><span class="tier B">B</span>Auth gate follow-ups: fail closed when the fail-open window can&#39;t be recorded, UX polish (swamp-club#2231)</h2>
@@ -991,12 +991,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>115 items across 1 source(s) in this window:
-0 critical, 56 notable, 10 routine,
+0 critical, 61 notable, 5 routine,
 49 minor.</p>
 <ul><li><strong>issues</strong> — 115</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-01T22:02:30.955Z">2026-10-01T22:02:30.955Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-01T23:03:28.248Z">2026-10-01T23:03:28.248Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

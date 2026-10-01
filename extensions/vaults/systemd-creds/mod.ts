@@ -5,7 +5,13 @@ const ConfigSchema = z.object({
   credstoreDir: z
     .string()
     .default("~/.config/credstore")
-    .describe("Directory for encrypted .cred files"),
+    .describe("Base directory for encrypted .cred files"),
+  global: z
+    .boolean()
+    .default(false)
+    .describe(
+      "Address the shared global directory (credstoreDir itself) instead of this vault's own subdirectory. This is the pre-per-vault legacy location; use it to inspect or migrate secrets stored before per-vault isolation.",
+    ),
 });
 
 /** Injectable runner so tests can stub the `systemd-creds` binary. */
@@ -93,6 +99,66 @@ function credFilename(secretKey: string): string {
 }
 
 /**
+ * Reject a vault name that could escape the credstore base directory.
+ *
+ * A per-vault provider stores its secrets in `<credstoreDir>/<name>/`, so the
+ * name becomes a path segment. swamp validates vault names (lowercase letters,
+ * numbers, hyphens), but the provider must not rely on that: a `..` or a
+ * separator would let a vault read or write outside the base directory.
+ */
+export function assertSafeVaultName(name: string): void {
+  if (
+    name.length === 0 ||
+    name.includes("..") ||
+    name.includes("/") ||
+    name.includes("\\") ||
+    name.includes("\0")
+  ) {
+    throw new Error(
+      `Invalid vault name '${name}': must not be empty or contain '..', '/', '\\', or null bytes`,
+    );
+  }
+}
+
+/** The directory a provider reads and writes its own secrets in. */
+function vaultDirFor(
+  name: string,
+  credstoreDir: string,
+  global: boolean,
+): string {
+  if (global) return credstoreDir;
+  assertSafeVaultName(name);
+  return `${credstoreDir}/${name}`;
+}
+
+/** Report whether a path exists as a regular file. */
+async function isFile(path: string): Promise<boolean> {
+  try {
+    const info = await Deno.stat(path);
+    return info.isFile;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return false;
+    throw error;
+  }
+}
+
+/** List the `*.cred` key names in one directory (sorted, [] if missing). */
+async function listCreds(dir: string): Promise<string[]> {
+  const keys: string[] = [];
+  try {
+    for await (const entry of Deno.readDir(dir)) {
+      if (entry.isFile && entry.name.endsWith(".cred")) {
+        keys.push(entry.name.replace(/\.cred$/, ""));
+      }
+    }
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return [];
+    throw error;
+  }
+  return keys.sort();
+}
+
+/**
  * Reject secret keys that could escape `credstoreDir`.
  *
  * The key becomes part of a file path, so a `..`, a path separator, or a null
@@ -118,16 +184,28 @@ export function assertSafeSecretKey(secretKey: string): void {
 /**
  * systemd-creds vault provider.
  *
- * Stores each secret as an AES256-GCM-encrypted `<key>.cred` file in
- * `credstoreDir`, using `systemd-creds --user` so the file is bound to the
- * caller's UID and the host's machine-id. `get`/`put` throw with the secret key
- * and systemd's stderr on failure; `list` returns sorted key names only.
+ * Stores each secret as an AES256-GCM-encrypted `<key>.cred` file, using
+ * `systemd-creds --user` so the file is bound to the caller's UID and the
+ * host's machine-id. `get`/`put` throw with the secret key and systemd's stderr
+ * on failure; `list` returns sorted key names only.
+ *
+ * Storage layout — per-vault by default:
+ *
+ *   `<credstoreDir>/<vault name>/<key>.cred`
+ *
+ * Each vault instance owns a subdirectory, so two vaults never share keys. Set
+ * `global: true` on a vault to address `<credstoreDir>` itself: that flat
+ * directory is the pre-isolation location, kept readable (and writable) so
+ * existing installs keep working and can be migrated. A `list` on a per-vault
+ * vault shows its own keys plus any same-named keys in the global directory, so
+ * the transition is not silent — see the companion `@svendowideit/systemd-creds-admin`
+ * model's `migrate` method to move them.
  */
 export const vault = {
   type: "@svendowideit/systemd-creds",
   name: "systemd-creds Vault",
   description:
-    "Stores secrets encrypted at rest using systemd-creds --user (AES256-GCM, bound to UID + machine-id). Requires systemd v256+.",
+    "Stores secrets encrypted at rest using systemd-creds --user (AES256-GCM, bound to UID + machine-id), one subdirectory per vault. Requires systemd v256+.",
   configSchema: ConfigSchema,
   createProvider: (
     name: string,
@@ -137,11 +215,34 @@ export const vault = {
     const parsed = ConfigSchema.parse(config);
     const credstoreDir = expandTilde(parsed.credstoreDir);
     const runCommand = _runCommand ?? defaultRunCommand;
+    const global = parsed.global;
+    // The directory this vault stores new secrets in.
+    const ownDir = vaultDirFor(name, credstoreDir, global);
+    // The shared legacy directory, resolved only when this vault is per-vault.
+    const legacyDir = global ? null : credstoreDir;
+
+    /** Resolve the file to read: own dir first, then the legacy global dir. */
+    const resolveExisting = async (
+      secretKey: string,
+    ): Promise<string | null> => {
+      const ownFile = `${ownDir}/${credFilename(secretKey)}`;
+      if (await isFile(ownFile)) return ownFile;
+      if (legacyDir !== null) {
+        const legacyFile = `${legacyDir}/${credFilename(secretKey)}`;
+        if (await isFile(legacyFile)) return legacyFile;
+      }
+      return null;
+    };
 
     return {
       get: async (secretKey: string): Promise<string> => {
         assertSafeSecretKey(secretKey);
-        const filePath = `${credstoreDir}/${credFilename(secretKey)}`;
+        const filePath = await resolveExisting(secretKey);
+        if (filePath === null) {
+          throw new Error(
+            `Secret '${secretKey}' not found in vault '${name}'`,
+          );
+        }
         const { stdout, stderr, code } = await runCommand([
           "decrypt",
           filePath,
@@ -156,8 +257,8 @@ export const vault = {
       },
       put: async (secretKey: string, secretValue: string): Promise<void> => {
         assertSafeSecretKey(secretKey);
-        await Deno.mkdir(credstoreDir, { recursive: true });
-        const filePath = `${credstoreDir}/${credFilename(secretKey)}`;
+        await Deno.mkdir(ownDir, { recursive: true });
+        const filePath = `${ownDir}/${credFilename(secretKey)}`;
         const { stderr, code } = await runCommand(
           ["encrypt", "-", filePath],
           secretValue,
@@ -168,21 +269,40 @@ export const vault = {
           );
         }
       },
-      list: async (): Promise<string[]> => {
-        const keys: string[] = [];
-        try {
-          for await (const entry of Deno.readDir(credstoreDir)) {
-            if (entry.isFile && entry.name.endsWith(".cred")) {
-              keys.push(entry.name.replace(/\.cred$/, ""));
-            }
+      /**
+       * Remove a key from this vault's own directory. A key that lives only in
+       * the shared global directory is refused: no single vault owns it, and
+       * deleting it from here would silently affect every other vault. Migrate
+       * it first (the companion admin model), or manage the global store with a
+       * `global: true` vault.
+       */
+      delete: async (secretKey: string): Promise<void> => {
+        assertSafeSecretKey(secretKey);
+        const ownFile = `${ownDir}/${credFilename(secretKey)}`;
+        if (!(await isFile(ownFile))) {
+          if (
+            legacyDir !== null &&
+            (await isFile(`${legacyDir}/${credFilename(secretKey)}`))
+          ) {
+            throw new Error(
+              `Secret '${secretKey}' lives in the shared global credstore, not in vault '${name}'. ` +
+                `Migrate it into this vault first, or delete it via a 'global: true' vault.`,
+            );
           }
-        } catch (error) {
-          if (error instanceof Deno.errors.NotFound) {
-            return [];
-          }
-          throw error;
+          return; // already absent — a no-op delete
         }
-        return keys.sort();
+        await Deno.remove(ownFile);
+      },
+      /**
+       * List this vault's own keys only.
+       *
+       * Keys in the shared global directory are deliberately NOT included, so
+       * `list-keys <vault>` shows exactly what belongs to that vault. Reads
+       * still fall back (see `get`), so existing references keep resolving; to
+       * see and manage the shared set, address it with a `global: true` vault.
+       */
+      list: async (): Promise<string[]> => {
+        return await listCreds(ownDir);
       },
       getName: (): string => name,
     };

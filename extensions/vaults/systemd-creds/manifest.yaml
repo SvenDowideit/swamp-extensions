@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/systemd-creds"
-version: "2026.09.23.1"
+version: "2026.10.01.1"
 description: >
   A swamp vault backend that stores secrets encrypted at rest with
   `systemd-creds --user`, so the encrypted files are useless without your UID
@@ -8,12 +8,14 @@ description: >
 
   WHAT IT DOES
 
-    Stores swamp vault secrets in a directory of AES256-GCM-encrypted `.cred`
-    files via `systemd-creds --user`. Prefer it over a plaintext file or a
-    keychain-daemon vault when you want secrets that stay encrypted on disk and
-    are bound to your Linux user and host: a `.cred` file copied to another
-    machine, or to another user, will not decrypt. It protects data at rest
-    only — a live compromise of your user session can still decrypt secrets.
+    Stores swamp vault secrets as AES256-GCM-encrypted `.cred` files via
+    `systemd-creds --user`, one subdirectory per vault. Prefer it over a
+    plaintext file or a keychain-daemon vault when you want secrets that stay
+    encrypted on disk and are bound to your Linux user and host: a `.cred` file
+    copied to another machine, or to another user, will not decrypt. It protects
+    data at rest only — a live compromise of your user session can still decrypt
+    secrets. Ships a companion `@svendowideit/vault-migrate` model so you can
+    move or copy secrets between vaults of this (or any) type.
 
   INSTALL
 
@@ -39,17 +41,41 @@ description: >
       # List the stored key names without exposing any value.
       swamp vault list-keys my-vault
 
+      # Address the shared pre-isolation store as a vault (create once). Its
+      # list-keys shows the keys that every pre-isolation vault used to share.
+      swamp vault create @svendowideit/systemd-creds legacy \
+        --config '{"global":true}'
+
+      # Dry-run a move to see what would copy. `keys` is an optional JSON array;
+      # omit it to target every key in the source.
+      swamp model method run @svendowideit/vault-migrate plan vault-migrate \
+        --input from=legacy --input to=my-vault \
+        --input 'keys=["MY_API_KEY"]'
+
+      # Move ONE secret — this copies it to my-vault and deletes it from the
+      # shared store. Run this per vault to route each key to where it belongs.
+      swamp model method run @svendowideit/vault-migrate migrate vault-migrate \
+        --input from=legacy --input to=my-vault --input 'keys=["MY_API_KEY"]'
+
+      # Move SEVERAL at once into the same vault. Add --input force=true to
+      # overwrite a name that already exists in the target.
+      swamp model method run @svendowideit/vault-migrate migrate vault-migrate \
+        --input from=legacy --input to=my-vault \
+        --input 'keys=["GARMIN_EMAIL","GARMIN_PASSWORD"]'
+
   CONFIGURE
 
-    Set the optional `credstoreDir` when creating the vault, or in `.swamp.yaml`
-    as `vault.config.credstoreDir` (default `~/.config/credstore`). Per-command
-    overrides use the standard swamp vault options; this backend takes no other
-    arguments.
+    Set `credstoreDir` when creating the vault, or in `.swamp.yaml` as
+    `vault.config.credstoreDir` (default `~/.config/credstore`). Each vault owns
+    `<credstoreDir>/<vault name>/`. Set `global: true` to address the shared
+    pre-isolation directory `<credstoreDir>` itself — a vault created before this
+    version keeps working through it, and per-vault reads fall back to it so
+    existing secrets remain visible until migrated.
 
   WHAT IT INSTALLS
 
     No services, daemons, triggers, or webhooks. It writes encrypted `.cred`
-    files into `credstoreDir` when you store a secret, and reads them back on
+    files under `credstoreDir` when you store a secret, and reads them back on
     request.
 
 repository: https://github.com/svendowideit/swamp-extensions
@@ -58,6 +84,9 @@ license: MIT
 
 paths:
   base: manifest
+
+models:
+  - migrate.ts
 
 vaults:
   - mod.ts

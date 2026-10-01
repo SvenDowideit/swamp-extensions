@@ -8,7 +8,11 @@
  *
  * @module
  */
-import { assertEquals, assertRejects } from "jsr:@std/assert@1";
+import {
+  assertEquals,
+  assertRejects,
+  assertStringIncludes,
+} from "jsr:@std/assert@1";
 import { createModelTestContext } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 
 import type { CmdResult } from "./docker.ts";
@@ -175,10 +179,28 @@ Deno.test("test writes a result and a summary", async () => {
     assertEquals(results[0].name, "debian-standalone");
     assertEquals(results[0].data.ok, true);
     assertEquals(results[0].data.doctorStatus, "pass");
+    // The result records what was tested, and what each phase proves.
+    assertEquals(results[0].data.extension, "@acme/thing");
+    assertEquals(results[0].data.extensionVersion, "2026.01.01.1");
+    assertStringIncludes(
+      results[0].data.intent as string,
+      "@acme/thing@2026.01.01.1",
+    );
+    const claims = results[0].data.claims as Array<Record<string, unknown>>;
+    assertEquals(claims.map((c) => c.phase), ["smoke", "load", "definitions"]);
+    assertStringIncludes(
+      (claims[2].commands as string[]).join("\n"),
+      "swamp model create '@acme/thing'",
+    );
     const summaries = written.filter((r) => r.specName === "summary");
     assertEquals(summaries.length, 1);
     assertEquals(summaries[0].data.passCount, 1);
     assertEquals(summaries[0].data.count, 1);
+    assertEquals(summaries[0].data.version, "2026.01.01.1");
+    assertEquals(
+      (summaries[0].data.claims as unknown[]).length,
+      3,
+    );
   } finally {
     await Deno.remove(dir, { recursive: true }).catch(() => {});
   }

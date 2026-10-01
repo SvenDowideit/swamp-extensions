@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/test-factory"
-version: "2026.10.01.1"
+version: "2026.10.01.2"
 description: >
   Run a swamp extension inside containers on different Linux distributions and
   swamp deployment topologies, and report exactly where it breaks. Prefer it
@@ -16,14 +16,13 @@ description: >
     define or run on a given host. This extension closes that gap: it boots the
     candidate in a fresh container of a chosen distro, installs swamp, registers
     the extension, and checks each layer in turn — swamp installs and
-    `swamp doctor extensions` passes, every declared model type registers,
-    `swamp model create` works and each declared workflow validates, and any
-    caller-supplied fixtures execute. The `serve` topology starts a real
-    orchestrator and `fleet` adds enrolled worker containers that run a
-    dispatched probe step. Alpine (musl-only) is expected to fail, proving the
-    harness diagnoses rather than hangs. It learns what to test from the
-    manifest itself, and downloads swamp in-container at the version under test,
-    so images cache across runs.
+    `swamp doctor extensions` passes, every declared type registers,
+    `swamp model create` works, each declared workflow validates, and any
+    fixtures execute. Every run records an audit trail, not just a pass/fail:
+    the candidate name and version, a one-line intent, and per phase the
+    assertion a PASS stands for plus the literal commands that proved it — so
+    you can judge adequacy and whether the test did what it claims. Alpine
+    (musl-only) is expected to fail, proving the harness diagnoses not hangs.
 
   INSTALL
 

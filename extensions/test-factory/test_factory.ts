@@ -61,6 +61,7 @@ import {
   type HarnessResult,
   parseFixtures,
   parseHarnessResult,
+  phaseClaims,
 } from "./harness.ts";
 import { inspectExtension } from "./introspect.ts";
 import {
@@ -195,6 +196,19 @@ const PhaseSchema = z.object({
   detail: z.string(),
 });
 
+/**
+ * What a phase proves and the literal commands that prove it.
+ *
+ * Recorded on every result so a reader can judge whether the test was adequate
+ * for their needs *and* whether it actually exercised what it claims — the
+ * commands come from the same plan that generated the in-container script.
+ */
+const PhaseClaimSchema = z.object({
+  phase: z.string(),
+  claim: z.string(),
+  commands: z.array(z.string()),
+});
+
 const DefinitionResultSchema = z.object({
   type: z.string(),
   name: z.string(),
@@ -230,6 +244,12 @@ const TopologySchema = z.object({
 /** Resource schema for one scenario's outcome. */
 const ResultSchema = z.object({
   scenario: z.string(),
+  /** The candidate extension's manifest name, e.g. `@acme/thing`. */
+  extension: z.string(),
+  /** The candidate extension's manifest version. */
+  extensionVersion: z.string(),
+  /** One line describing what this run set out to prove. */
+  intent: z.string(),
   distro: z.string(),
   distroImage: z.string(),
   systemd: z.boolean(),
@@ -239,6 +259,8 @@ const ResultSchema = z.object({
   ok: z.boolean(),
   status: z.enum(["pass", "fail", "error"]),
   phasesRequested: z.array(z.string()),
+  /** What each requested phase claims to prove, and the commands that prove it. */
+  claims: z.array(PhaseClaimSchema),
   swampVersion: z.string(),
   installOk: z.boolean(),
   installError: z.string().optional(),
@@ -268,10 +290,13 @@ const ResultSchema = z.object({
 const SummarySchema = z.object({
   manifest: z.string(),
   extension: z.string(),
+  version: z.string().default(""),
   count: z.number(),
   passCount: z.number(),
   failCount: z.number(),
   errorCount: z.number(),
+  /** What each requested phase proves, and the commands that prove it. */
+  claims: z.array(PhaseClaimSchema).default([]),
   results: z.array(z.object({
     scenario: z.string(),
     distro: z.string(),
@@ -350,6 +375,7 @@ interface Candidate {
   manifestAbs: string;
   dir: string;
   name: string;
+  version: string;
   modelTypes: string[];
   workflowNames: string[];
 }
@@ -371,6 +397,30 @@ interface RunOptions {
 
 type Result = z.infer<typeof ResultSchema>;
 
+/**
+ * One line naming what a scenario set out to prove.
+ *
+ * Surfaces on every result so a reader sees the intent next to the verdict,
+ * rather than having to reconstruct it from the scenario name.
+ */
+function scenarioIntent(
+  scenario: Scenario,
+  candidate: Candidate,
+  phases: string[],
+): string {
+  const topo = scenario.topology === "standalone"
+    ? "a standalone host"
+    : scenario.topology === "serve"
+    ? "a swamp serve orchestrator"
+    : `a swamp serve orchestrator with ${scenario.workers} enrolled worker(s)`;
+  const host = `${scenario.distro}${scenario.systemd ? " + systemd" : ""}`;
+  return `Prove ${candidate.name}@${
+    candidate.version || "?"
+  } installs, registers and behaves on ${host} under ${topo}, across phase(s) ${
+    phases.join(", ") || "(none)"
+  }.`;
+}
+
 /** Build the default (unrun) result for a scenario. */
 function blankResult(
   scenario: Scenario,
@@ -378,9 +428,13 @@ function blankResult(
   opts: RunOptions,
   deps: Deps,
   containers: string[],
+  plan: HarnessPlan,
 ): Result {
   return {
     scenario: scenario.name,
+    extension: candidate.name,
+    extensionVersion: candidate.version,
+    intent: scenarioIntent(scenario, candidate, opts.phases),
     distro: scenario.distro,
     distroImage: distroByName(scenario.distro)?.image ?? "",
     systemd: scenario.systemd,
@@ -390,6 +444,7 @@ function blankResult(
     ok: false,
     status: "error",
     phasesRequested: opts.phases,
+    claims: phaseClaims(plan),
     swampVersion: deps.swampVersion,
     installOk: false,
     sourceAddOk: false,
@@ -447,17 +502,6 @@ async function runScenario(
     ? [`tf-${slug}-${suffix}`]
     : [orchestrator, ...workerNames];
 
-  const result = blankResult(scenario, candidate, opts, deps, containers);
-  const finished = (): Result => {
-    result.durationMs = Date.now() - started;
-    return result;
-  };
-
-  if (!distro) {
-    result.errors.push(`unknown distro: ${scenario.distro}`);
-    return finished();
-  }
-
   const plan: HarnessPlan = {
     swampVersion: scenario.swampVersion ?? deps.swampVersion,
     repoDir: "/work/repo",
@@ -470,6 +514,24 @@ async function runScenario(
     releaseBaseUrl: deps.releaseBaseUrl,
     expectSystemd: scenario.systemd,
   };
+
+  const result = blankResult(
+    scenario,
+    candidate,
+    opts,
+    deps,
+    containers,
+    plan,
+  );
+  const finished = (): Result => {
+    result.durationMs = Date.now() - started;
+    return result;
+  };
+
+  if (!distro) {
+    result.errors.push(`unknown distro: ${scenario.distro}`);
+    return finished();
+  }
 
   const serveCfg = {
     repoDir: "/work/repo",
@@ -883,7 +945,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.01.1",
+  version: "2026.10.01.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -895,6 +957,12 @@ export const model = {
         vault: old.vault ?? "test-factory-vault",
         vaultEntry: old.vaultEntry ?? "SWAMP_API_KEY",
       }),
+    },
+    {
+      toVersion: "2026.10.01.2",
+      description:
+        "Record an audit trail on every result and summary: the candidate extension name and version, a one-line `intent`, and a per-phase `claims` array naming what a PASS proves and the literal commands that prove it. The report renders all of it. These are new fields on the written resources; no schema or argument change to existing fields.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   resources: {
@@ -1143,9 +1211,39 @@ async function executeScenarios(
   const resultName = (s: Scenario) =>
     scoped ? `${extSlug}-${scenarioSlug(s)}` : scenarioSlug(s);
 
+  // Announce what the run is about to prove before it does it, so the console
+  // log is self-describing rather than just a stream of pass/fail lines. The
+  // same claims are written to every result and the summary.
+  const plannedClaims = phaseClaims({
+    swampVersion: deps.swampVersion,
+    repoDir: "/work/repo",
+    extensionMount: "/opt/ext",
+    extensionName: "under-test",
+    modelTypes: candidate.modelTypes,
+    workflows: candidate.workflowNames,
+    phases: opts.phases as HarnessPlan["phases"],
+    fixtures: opts.fixtures,
+    releaseBaseUrl: deps.releaseBaseUrl,
+    expectSystemd: false,
+  });
+  context.logger?.info(
+    `${candidate.name}@${
+      candidate.version || "?"
+    }: about to prove ${plannedClaims.length} phase(s) — ${
+      plannedClaims
+        .map((c) => c.phase)
+        .join(", ")
+    }`,
+  );
+  for (const claim of plannedClaims) {
+    context.logger?.info(`  ${claim.phase}: ${claim.claim}`);
+  }
+
   for (const scenario of scenarios) {
     context.logger?.info(
-      `${candidate.name} · scenario ${scenario.name}: starting`,
+      `${candidate.name} · scenario ${scenario.name}: starting — ${
+        scenarioIntent(scenario, candidate, opts.phases)
+      }`,
     );
     const result = await runScenario(scenario, candidate, opts, deps);
     const handle = await context.writeResource(
@@ -1172,16 +1270,34 @@ async function executeScenarios(
   }
 
   const passCount = summaries.filter((s) => s.ok).length;
+  // Every scenario in a run shares the same phases, fixtures, types and
+  // workflows, so the summary's claims are built once from a representative
+  // plan. `swampVersion` is the resolved global (a scenario may pin otherwise,
+  // in which case its own result carries the pinned claim).
+  const summaryPlan: HarnessPlan = {
+    swampVersion: deps.swampVersion,
+    repoDir: "/work/repo",
+    extensionMount: "/opt/ext",
+    extensionName: "under-test",
+    modelTypes: candidate.modelTypes,
+    workflows: candidate.workflowNames,
+    phases: opts.phases as HarnessPlan["phases"],
+    fixtures: opts.fixtures,
+    releaseBaseUrl: deps.releaseBaseUrl,
+    expectSystemd: false,
+  };
   const summaryHandle = await context.writeResource(
     "summary",
     scoped ? extSlug : "rollup",
     {
       manifest: candidate.manifestAbs,
       extension: candidate.name,
+      version: candidate.version,
       count: summaries.length,
       passCount,
       failCount: summaries.filter((s) => s.status === "fail").length,
       errorCount: summaries.filter((s) => s.status === "error").length,
+      claims: phaseClaims(summaryPlan),
       results: summaries,
       checkedAt: new Date().toISOString(),
     },
@@ -1264,6 +1380,7 @@ async function resolveCandidate(
     manifestAbs,
     dir: dirname(manifestAbs),
     name: info.manifest.name || dirname(manifest).split("/").pop() || "unknown",
+    version: info.manifest.version,
     modelTypes: info.modelTypes,
     workflowNames: info.workflowNames,
   };

@@ -4,6 +4,9 @@ import { renderResult, renderSummary } from "./test_factory_report.ts";
 Deno.test("renderResult shows the scenario, distro, topology and phases", () => {
   const md = renderResult({
     scenario: "ubuntu-systemd-fleet-2",
+    extension: "@acme/thing",
+    extensionVersion: "2026.01.01.1",
+    intent: "Prove @acme/thing@2026.01.01.1 installs and behaves.",
     distro: "ubuntu",
     systemd: true,
     topology: "fleet",
@@ -31,9 +34,49 @@ Deno.test("renderResult shows the scenario, distro, topology and phases", () => 
     md,
     "## ubuntu-systemd-fleet-2 — PASS",
   );
+  assertStringIncludes(md, "Extension **@acme/thing@2026.01.01.1**");
+  assertStringIncludes(md, "_Prove @acme/thing@2026.01.01.1 installs");
   assertStringIncludes(md, "topology **fleet** (2 workers)");
   assertStringIncludes(md, "| smoke | PASS | doctor: pass |");
   assertStringIncludes(md, "workers 2/2");
+});
+
+Deno.test("renderResult explains what each phase proves and how", () => {
+  const md = renderResult({
+    scenario: "debian-standalone",
+    extension: "@acme/thing",
+    extensionVersion: "1",
+    intent: "Prove @acme/thing installs.",
+    distro: "debian",
+    systemd: false,
+    topology: "standalone",
+    workers: 0,
+    expected: "pass",
+    status: "pass",
+    ok: true,
+    phases: [{ phase: "smoke", ok: true, detail: "doctor: pass" }],
+    claims: [
+      {
+        phase: "smoke",
+        claim: "swamp installs and doctor reports pass",
+        commands: [
+          "curl -fsSL -o /usr/local/bin/swamp https://example.test/swamp",
+          "swamp doctor extensions --json",
+        ],
+      },
+    ],
+    definitions: [],
+    workflows: [],
+    errors: [],
+    logs: "",
+  });
+  assertStringIncludes(md, "### What this run proves");
+  assertStringIncludes(
+    md,
+    "- **smoke** — swamp installs and doctor reports pass",
+  );
+  assertStringIncludes(md, "### How it was proved");
+  assertStringIncludes(md, "swamp doctor extensions --json");
 });
 
 Deno.test("renderResult lists errors", () => {
@@ -86,6 +129,34 @@ Deno.test("renderResult renders fixtures", () => {
   assertStringIncludes(md, "- fixtures: @a/b/check: exit 1");
 });
 
+Deno.test("renderSummary shows the version and claims", () => {
+  const md = renderSummary({
+    extension: "@acme/thing",
+    version: "2026.01.01.1",
+    count: 1,
+    passCount: 1,
+    failCount: 0,
+    errorCount: 0,
+    claims: [{
+      phase: "load",
+      claim: "every declared model type registers",
+      commands: ["swamp model type search --json"],
+    }],
+    results: [{
+      scenario: "debian-standalone",
+      distro: "debian",
+      topology: "standalone",
+      expected: "pass",
+      ok: true,
+      status: "pass",
+    }],
+  });
+  assertStringIncludes(md, "# Test factory — @acme/thing@2026.01.01.1");
+  assertStringIncludes(md, "### What this run proves");
+  assertStringIncludes(md, "- **load** — every declared model type registers");
+  assertStringIncludes(md, "swamp model type search --json");
+});
+
 Deno.test("renderSummary totals and tabulates", () => {
   const md = renderSummary({
     extension: "@acme/thing",
@@ -114,6 +185,7 @@ Deno.test("renderSummary totals and tabulates", () => {
   });
   assertStringIncludes(md, "# Test factory — @acme/thing");
   assertStringIncludes(md, "2 scenario(s): **1 passed**, 1 failed");
+  assertStringIncludes(md, "| Scenario | Distro | Topology |");
   assertStringIncludes(
     md,
     "| debian-standalone | debian | standalone | pass | PASS (pass) |",

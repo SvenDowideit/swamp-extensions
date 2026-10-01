@@ -77,6 +77,127 @@ export function shellQuote(value: string): string {
 }
 
 /**
+ * The release asset URL the harness downloads swamp from.
+ *
+ * `$SWAMP_ARCH` is left literal: the in-container script resolves it from
+ * `uname -m`. Building the URL in one place keeps the generated script and the
+ * recorded mechanics (below) in lockstep.
+ */
+export function releaseAssetUrl(base: string, version: string): string {
+  const v = version && version !== "latest" ? version : "latest";
+  const path = v === "latest" ? "latest/download" : `download/${v}`;
+  return `${base}/${path}/swamp-linux-$SWAMP_ARCH`;
+}
+
+/**
+ * What one phase proves, and the exact commands that prove it.
+ *
+ * This is the audit record: a phase's `claim` is the assertion a PASS stands
+ * for, and `commands` are the literal command lines the generated harness runs
+ * to establish it. {@link phaseClaims} and {@link buildHarnessScript} are built
+ * from the same {@link HarnessPlan}, so the recorded mechanics always match the
+ * script that ran.
+ */
+export interface PhaseClaim {
+  /** Phase name (`smoke`, `load`, `definitions`, `fixtures`). */
+  phase: string;
+  /** The assertion a PASS on this phase demonstrates. */
+  claim: string;
+  /** The literal command lines the harness runs for this phase. */
+  commands: string[];
+}
+
+/**
+ * Describe what each requested phase proves and the commands it runs.
+ *
+ * Only the phases present in `plan.phases` are returned, in canonical order.
+ */
+export function phaseClaims(plan: HarnessPlan): PhaseClaim[] {
+  const want = (p: HarnessPhase) => plan.phases.includes(p);
+  const out: PhaseClaim[] = [];
+  const version = plan.swampVersion && plan.swampVersion !== "latest"
+    ? plan.swampVersion
+    : "latest";
+
+  if (want("smoke")) {
+    const label = version === "latest"
+      ? "the latest release"
+      : `release ${version}`;
+    out.push({
+      phase: "smoke",
+      claim:
+        `swamp (${label}) installs and runs on the host, the candidate is ` +
+        `registered as an extension source, and \`swamp doctor extensions\` ` +
+        `reports pass`,
+      commands: [
+        `curl -fsSL -o /usr/local/bin/swamp ${
+          releaseAssetUrl(plan.releaseBaseUrl, plan.swampVersion)
+        }`,
+        "swamp --version",
+        "swamp init --tool none",
+        `swamp extension source add <repo>/extensions/${plan.extensionName}`,
+        "swamp doctor extensions --json",
+      ],
+    });
+  }
+
+  if (want("load")) {
+    const types = plan.modelTypes.length > 0
+      ? plan.modelTypes.join(", ")
+      : "(none declared)";
+    out.push({
+      phase: "load",
+      claim: `every model type the manifest declares is registered and ` +
+        `discoverable — ${types}`,
+      commands: ["swamp model type search --json"],
+    });
+  }
+
+  if (want("definitions")) {
+    const commands = [
+      ...plan.modelTypes.map((t, i) =>
+        `swamp model create ${shellQuote(t)} ${shellQuote(`tf-def-${i + 1}`)}`
+      ),
+      ...plan.workflows.map((w) => `swamp workflow validate ${shellQuote(w)}`),
+    ];
+    out.push({
+      phase: "definitions",
+      claim: `\`swamp model create\` succeeds for each of the ` +
+        `${plan.modelTypes.length} declared model type(s), and each declared ` +
+        `workflow (${plan.workflows.length}) validates as a DAG`,
+      commands: commands.length > 0
+        ? commands
+        : ["(no model types or workflows declared)"],
+    });
+  }
+
+  if (want("fixtures")) {
+    const commands = plan.fixtures.map((f) => {
+      const args = Object.entries(f.inputs)
+        .map(([k, v]) => `--input ${k}=${v}`)
+        .join(" ");
+      const expect = f.expectContains
+        ? `   # expects output containing ${shellQuote(f.expectContains)}`
+        : "";
+      return `swamp model ${shellQuote(f.type)} method run ${
+        shellQuote(f.method)
+      } ${shellQuote(f.instance)}${args ? " " + args : ""}${expect}`;
+    });
+    out.push({
+      phase: "fixtures",
+      claim: plan.fixtures.length > 0
+        ? `the ${plan.fixtures.length} caller-supplied method run(s) execute ` +
+          `and, where an expectation is given, print the expected output`
+        : "no fixtures were supplied, so this phase proves nothing beyond " +
+          "what the other phases already checked",
+      commands: commands.length > 0 ? commands : ["(no fixtures supplied)"],
+    });
+  }
+
+  return out;
+}
+
+/**
  * Build the in-container `sh` script.
  *
  * The script records failures into the result JSON instead of aborting, so a
@@ -121,12 +242,7 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     '  *) SWAMP_ARCH="$ARCH" ;;',
     "esac",
   );
-  const version = plan.swampVersion && plan.swampVersion !== "latest"
-    ? plan.swampVersion
-    : "latest";
-  const url = `${plan.releaseBaseUrl}/${
-    version === "latest" ? "latest/download" : `download/${version}`
-  }/swamp-linux-$SWAMP_ARCH`;
+  const url = releaseAssetUrl(plan.releaseBaseUrl, plan.swampVersion);
   push(
     `SWAMP_URL="${url}"`,
     'log "downloading swamp from $SWAMP_URL"',

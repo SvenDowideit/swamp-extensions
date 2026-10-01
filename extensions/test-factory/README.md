@@ -55,6 +55,25 @@ tested.
 A scenario is a known-good/known-bad expectation: `expected: fail` scenarios
 (such as Alpine) pass when the run indeed fails, so the harness is validated too.
 
+### What each run records, and why
+
+A pass/fail badge is not enough to judge a test. Every `result` and `summary`
+carries an audit record so you can decide **whether the tests were adequate for
+your needs**, and **whether they actually tested what they claim**:
+
+- `extension` and `extensionVersion` — exactly which build was under test.
+- `intent` — one sentence naming what the scenario set out to prove (host,
+  topology, phases).
+- `claims[]` — for every requested phase, the assertion a PASS stands for
+  (`claim`) and the literal command lines the harness ran to establish it
+  (`commands`). These are generated from the same plan as the in-container
+  script, so the recorded mechanics cannot drift from what actually ran.
+
+The markdown report renders all of this (a "What this run proves" list and a
+"How it was proved" block of the exact commands), and the console log announces
+the claims before the run starts. A `fixtures` phase with no fixtures is
+recorded as proving nothing — honestly, rather than vacuously passing.
+
 ## Install
 
 ```sh
@@ -220,18 +239,20 @@ swamp report get @svendowideit/test-factory-report --model tf --markdown
 
 Resources:
 
-- `result` — one scenario's outcome: distro, topology, expected verdict, per-phase
-  results, definition/workflow/fixture detail, the `topologyResult` (serve ready,
-  workers enrolled, dispatch ok), errors, the tail-capped `logs`
-  (`logsTruncated` marks when the cap bit), and the resolved swamp version.
-- `summary` — the rollup from a `test`/`testAll` fan-out: counts and one row per
-  scenario.
+- `result` — one scenario's outcome: the candidate `extension` and
+  `extensionVersion`, the `intent`, the per-phase `claims` (assertion + literal
+  commands), distro, topology, expected verdict, per-phase results,
+  definition/workflow/fixture detail, the `topologyResult` (serve ready, workers
+  enrolled, dispatch ok), errors, the tail-capped `logs` (`logsTruncated` marks
+  when the cap bit), and the resolved swamp version.
+- `summary` — the rollup from a `test`/`testAll` fan-out: extension and version,
+  the shared `claims`, counts and one row per scenario.
 
 Reports and workflows:
 
-- `@svendowideit/test-factory-report` — renders a scenario result card (phase
-  table, definitions, workflows, fixtures, errors, logs), or the fan-out summary
-  table. Scope: method.
+- `@svendowideit/test-factory-report` — renders a scenario result card (intent,
+  "What this run proves", "How it was proved", phase table, definitions,
+  workflows, fixtures, errors, logs), or the fan-out summary. Scope: method.
 - `@svendowideit/test-factory` workflow — runs `test` then asserts
   `failCount == 0 && errorCount == 0`; use it as a CI gate.
 - `@svendowideit/test-factory-sweep` workflow — runs `testAll` over git-tracked

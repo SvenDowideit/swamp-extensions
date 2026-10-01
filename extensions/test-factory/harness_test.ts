@@ -7,6 +7,7 @@ import {
   type HarnessResult,
   parseFixtures,
   parseHarnessResult,
+  phaseClaims,
   phaseLabel,
   shellQuote,
 } from "./harness.ts";
@@ -220,4 +221,72 @@ Deno.test("parseFixtures reads a JSON array", () => {
 Deno.test("phaseLabel is human readable", () => {
   assertEquals(phaseLabel("smoke"), "smoke (install + doctor)");
   assertEquals(phaseLabel("fixtures"), "fixtures (run methods)");
+});
+
+Deno.test("phaseClaims describes each requested phase in order", () => {
+  const claims = phaseClaims(plan);
+  assertEquals(claims.map((c) => c.phase), ["smoke", "load", "definitions"]);
+  assertStringIncludes(claims[0].claim, "installs and runs");
+  assertStringIncludes(claims[1].claim, "@acme/thing, @acme/other");
+  assertStringIncludes(claims[2].claim, "2 declared model type(s)");
+  assertStringIncludes(claims[2].claim, "1");
+});
+
+Deno.test("recorded definitions commands match the generated script", () => {
+  const claims = phaseClaims(plan);
+  const script = buildHarnessScript(plan);
+  const definitions = claims.find((c) => c.phase === "definitions")!;
+  for (const cmd of definitions.commands) {
+    // The recorded mechanics are the literal command lines the script runs.
+    assertStringIncludes(script, cmd);
+  }
+});
+
+Deno.test("recorded smoke release URL matches the generated script", () => {
+  const claims = phaseClaims(plan);
+  const smoke = claims.find((c) => c.phase === "smoke")!;
+  const script = buildHarnessScript(plan);
+  // The recorded curl names the exact asset URL; the script assigns that same
+  // URL to SWAMP_URL before downloading it.
+  assertStringIncludes(
+    smoke.commands.join("\n"),
+    "download/v1.2.3/swamp-linux-$SWAMP_ARCH",
+  );
+  assertStringIncludes(
+    script,
+    'SWAMP_URL="https://example.test/releases/download/v1.2.3/swamp-linux-$SWAMP_ARCH"',
+  );
+});
+
+Deno.test("phaseClaims omits phases that were not requested", () => {
+  const claims = phaseClaims({ ...plan, phases: ["smoke"] });
+  assertEquals(claims.map((c) => c.phase), ["smoke"]);
+});
+
+Deno.test("phaseClaims flags an empty fixtures phase honestly", () => {
+  const claims = phaseClaims({ ...plan, phases: ["fixtures"], fixtures: [] });
+  assertEquals(claims.length, 1);
+  assertStringIncludes(claims[0].claim, "no fixtures were supplied");
+  assertEquals(claims[0].commands, ["(no fixtures supplied)"]);
+});
+
+Deno.test("phaseClaims records fixture expectations", () => {
+  const claims = phaseClaims({
+    ...plan,
+    phases: ["fixtures"],
+    fixtures: [{
+      type: "@acme/thing",
+      method: "check",
+      instance: "fix-one",
+      inputs: { repo: "owner/name" },
+      allowFailure: false,
+      expectContains: "ok",
+    }],
+  });
+  assertStringIncludes(
+    claims[0].commands.join("\n"),
+    "--input repo=owner/name",
+  );
+  assertStringIncludes(claims[0].commands.join("\n"), "owner/name");
+  assertStringIncludes(claims[0].commands.join("\n"), "'ok'");
 });

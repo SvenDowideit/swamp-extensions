@@ -65,12 +65,46 @@ function badge(ok: boolean): string {
   return ok ? "PASS" : "FAIL";
 }
 
+/**
+ * Render the "what this run proves" block: each phase's claim plus the literal
+ * commands that establish it, so a reader can judge both adequacy and whether
+ * the test exercised what it says.
+ */
+function renderClaims(attrs: Record<string, unknown>): string[] {
+  const claims = arr(attrs.claims) as Record<string, unknown>[];
+  if (claims.length === 0) return [];
+  const lines: string[] = ["### What this run proves", ""];
+  for (const c of claims) {
+    lines.push(`- **${str(c.phase)}** — ${str(c.claim)}`);
+  }
+  lines.push("");
+  lines.push("### How it was proved", "");
+  for (const c of claims) {
+    lines.push(`**${str(c.phase)}**`, "");
+    lines.push("```sh");
+    for (const cmd of arr(c.commands)) lines.push(str(cmd));
+    lines.push("```", "");
+  }
+  return lines;
+}
+
 /** Render one `result` resource as a Markdown card. */
 export function renderResult(attrs: Record<string, unknown>): string {
   const lines: string[] = [];
   const ok = attrs.ok === true;
   lines.push(`## ${str(attrs.scenario, "scenario")} — ${badge(ok)}`);
   lines.push("");
+  const ext = str(attrs.extension);
+  if (ext) {
+    const version = str(attrs.extensionVersion);
+    lines.push(`Extension **${ext}${version ? `@${version}` : ""}**`);
+    lines.push("");
+  }
+  const intent = str(attrs.intent);
+  if (intent) {
+    lines.push(`_${intent}_`);
+    lines.push("");
+  }
   lines.push(
     `**${str(attrs.distro)}**${attrs.systemd ? " + systemd" : ""} · ` +
       `topology **${str(attrs.topology)}**` +
@@ -80,6 +114,7 @@ export function renderResult(attrs: Record<string, unknown>): string {
       }**`,
   );
   lines.push("");
+  lines.push(...renderClaims(attrs));
 
   const topo = attrs.topologyResult as Record<string, unknown> | undefined;
   if (topo) {
@@ -174,13 +209,19 @@ export function renderResult(attrs: Record<string, unknown>): string {
 /** Render a `summary` resource as a Markdown table. */
 export function renderSummary(attrs: Record<string, unknown>): string {
   const lines: string[] = [];
-  lines.push(`# Test factory — ${str(attrs.extension, "extension")}`);
+  const version = str(attrs.version);
+  lines.push(
+    `# Test factory — ${str(attrs.extension, "extension")}${
+      version ? `@${version}` : ""
+    }`,
+  );
   lines.push("");
   lines.push(
     `${num(attrs.count)} scenario(s): **${num(attrs.passCount)} passed**, ` +
       `${num(attrs.failCount)} failed, ${num(attrs.errorCount)} errored.`,
   );
   lines.push("");
+  lines.push(...renderClaims(attrs));
   lines.push("| Scenario | Distro | Topology | Expected | Result |");
   lines.push("| -------- | ------ | -------- | -------- | ------ |");
   for (const r of arr(attrs.results)) {

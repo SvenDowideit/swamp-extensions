@@ -15,6 +15,7 @@ import {
   caddyTargetKey,
   computeHealth,
   configuredListens,
+  defaultStatusHostnames,
   deriveHostname,
   detectSwampServeServices,
   diffRoutes,
@@ -29,6 +30,7 @@ import {
   isStatusPageRoute,
   isSwampRoute,
   listProxyServices,
+  liveTlsInfo,
   mergeDesired,
   mergeTlsConfig,
   model,
@@ -796,6 +798,29 @@ Deno.test("setCapabilities method records the command when it cannot apply", asy
   assertEquals(captured.applied, false);
 });
 
+Deno.test("defaultStatusHostnames is the default for configured names, minus routed", () => {
+  const hosts = defaultStatusHostnames({
+    tlsSubjects: ["x1yoga.fi.gy", "*.fi.gy"],
+    explicit: [],
+    routedHostnames: ["app.fi.gy"],
+  });
+  // Loopback always present; TLS subjects become defaults; a routed host is not.
+  assert(hosts.includes("localhost"));
+  assert(hosts.includes("127.0.0.1"));
+  assert(hosts.includes("x1yoga.fi.gy"));
+  assert(hosts.includes("*.fi.gy"));
+  assertEquals(hosts.includes("app.fi.gy"), false);
+});
+
+Deno.test("defaultStatusHostnames excludes routed hosts even if a TLS subject", () => {
+  const hosts = defaultStatusHostnames({
+    tlsSubjects: ["app.fi.gy"],
+    routedHostnames: ["app.fi.gy"],
+  });
+  assertEquals(hosts.includes("app.fi.gy"), false);
+  assert(hosts.includes("localhost"));
+});
+
 Deno.test("statusPageHostnames covers localhost and loopback", () => {
   const hosts = statusPageHostnames();
   assertStringIncludes(hosts.join(","), "localhost");
@@ -1482,6 +1507,28 @@ Deno.test("diffRoutes reports in-sync when desired matches actual", () => {
   assertEquals(diff.onlyDesired, []);
   assertEquals(diff.onlyActual, []);
   assertEquals(diff.inSync, true);
+});
+
+Deno.test("liveTlsInfo reads subjects and DNS challenge from a caddy config", () => {
+  const empty = liveTlsInfo(baseConfig());
+  assertEquals(empty.subjects, []);
+  assertEquals(empty.hasDnsChallenge, false);
+  assertEquals(empty.dnsProvider, "");
+
+  const withTls = liveTlsInfo(
+    mergeTlsConfig(
+      baseConfig(),
+      renderTlsAutomation({
+        email: "a@b.com",
+        dnsProvider: "gandi",
+        providerConfig: { bearer_token: "GANDI_BEARER_TOKEN" },
+        subjects: ["*.example.com", "example.com"],
+      }),
+    ),
+  );
+  assertEquals(withTls.subjects, ["*.example.com", "example.com"]);
+  assertEquals(withTls.hasDnsChallenge, true);
+  assertEquals(withTls.dnsProvider, "gandi");
 });
 
 Deno.test("renderNextCommands tells the user the unmerged/merged/actual steps", () => {

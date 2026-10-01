@@ -52,6 +52,30 @@ type UnmergedModel = {
   statusPage: boolean;
 };
 
+type TlsView = {
+  desired: Array<{
+    model: string;
+    email: string;
+    dnsProvider: string;
+    subjects: string[];
+    providerConfigFields: string[];
+  }>;
+  desiredSubjects: string[];
+  liveSubjects: string[];
+  liveHasDnsChallenge: boolean;
+  liveDnsProvider: string;
+  issuedDomains: string[];
+  subjectsWithoutCert: string[];
+  statusPageHostnames: string[];
+  pluginsWanted: string[];
+  pluginsCompiled: string[];
+  pluginsMissing: string[];
+  environmentFile: string;
+  environmentFileExists: boolean;
+  environmentFileKeys: string[];
+  inSync: boolean;
+};
+
 type CaddyView = {
   target: string;
   adminApiAddr: string;
@@ -60,6 +84,7 @@ type CaddyView = {
   unmerged?: UnmergedModel[];
   runModel?: string;
   nextCommands?: string;
+  tls?: TlsView;
   conflicts: string[];
   desiredRoutes: RouteRow[];
   actualSwampRoutes: Array<{ id: string; hostnames: string[] }>;
@@ -151,6 +176,101 @@ function formatCadies(cadies: CaddyView[]): string {
       const to = r.kind === "file_server" ? `files: ${r.root}` : r.upstream;
       lines.push(`| ${r.hostname} | ${r.kind} | ${to} | \`${r.model}\` |`);
     }
+    // TLS / DNS / plugin layer — this is what makes a wildcard/DNS-01 setup
+    // (e.g. the Gandi libdns driver + bearer token) visible.
+    if (c.tls) {
+      const t = c.tls;
+      lines.push("");
+      lines.push("TLS / DNS:");
+      lines.push("");
+      if (t.desired.length === 0) {
+        const setup = t.pluginsWanted.length > 0 || t.environmentFile
+          ? " — the DNS driver and env file are set up, so run `configureTls` next"
+          : "";
+        lines.push(
+          `- Desired: none (no \`configureTls\` recorded by any model)${setup}`,
+        );
+      } else {
+        for (const d of t.desired) {
+          lines.push(
+            `- Desired (by \`${d.model}\`): provider \`${
+              d.dnsProvider || "none"
+            }\`, ` +
+              `email \`${d.email}\`, subjects ${
+                d.subjects.map((s) => `\`${s}\``).join(", ") || "—"
+              }${
+                d.providerConfigFields.length
+                  ? `, creds ${d.providerConfigFields.join("+")}`
+                  : ""
+              }`,
+          );
+        }
+      }
+      lines.push(
+        `- Live config: ${
+          t.liveSubjects.length
+            ? t.liveSubjects.map((s) => `\`${s}\``).join(", ")
+            : "no TLS automation in the running config"
+        }${
+          t.liveHasDnsChallenge ? ` (DNS-01 via \`${t.liveDnsProvider}\`)` : ""
+        }`,
+      );
+      if (t.desiredSubjects.length > 0) {
+        // Issued certificates are the proof the DNS-01 challenge actually
+        // worked — "live config" alone does not mean a cert exists.
+        const issued = t.desiredSubjects.filter((s) =>
+          t.issuedDomains.includes(s)
+        );
+        lines.push(
+          `- Certificates issued: ${
+            issued.length
+              ? issued.map((s) => `\`${s}\``).join(", ")
+              : "NONE yet"
+          }${
+            t.subjectsWithoutCert.length
+              ? ` — still pending: ${
+                t.subjectsWithoutCert.map((s) => `\`${s}\``).join(", ")
+              }`
+              : ""
+          }`,
+        );
+      }
+      if (t.pluginsWanted.length > 0) {
+        lines.push(
+          `- Plugins wanted: ${t.pluginsWanted.join(", ")} — ` +
+            (t.pluginsMissing.length === 0
+              ? "all compiled in"
+              : `MISSING: ${
+                t.pluginsMissing.join(", ")
+              } (re-run installCaddy)`),
+        );
+      }
+      if (t.environmentFile) {
+        lines.push(
+          `- Env file: \`${t.environmentFile}\` — ` +
+            (t.environmentFileExists
+              ? `present, keys: ${t.environmentFileKeys.join(", ") || "(none)"}`
+              : "MISSING (create it, then createService + restartService)"),
+        );
+      }
+      if (t.statusPageHostnames.length > 0) {
+        lines.push(
+          `- Status page also answers on: ${
+            t.statusPageHostnames.map((s) => `\`${s}\``).join(", ")
+          }`,
+        );
+      }
+      lines.push(
+        t.desired.length === 0
+          ? "- TLS in sync: n/a (nothing desired yet)"
+          : `- TLS in sync: ${
+            t.inSync
+              ? "✓"
+              : "✗ (desired subjects/provider not live, or certificate not issued yet)"
+          }`,
+      );
+    }
+
     if (c.unmerged && c.unmerged.length > 0) {
       lines.push("");
       lines.push("Unmerged — each model's own desired state:");

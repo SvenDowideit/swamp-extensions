@@ -543,8 +543,7 @@ unit after `createService` (swamp will rewrite it on the next `createService`).
 ### The default status page
 
 A fresh Caddy has no routes, so it answers nothing useful. `installCaddy`
-(default) and `startService` install a status page that answers
-`http://localhost` and `https://localhost`, showing:
+(default) and `startService` install a status page showing:
 
 - the installed Caddy version, base domain, and ACME email,
 - whether `CAP_NET_BIND_SERVICE` is set (i.e. whether 80/443 will work),
@@ -554,8 +553,20 @@ A fresh Caddy has no routes, so it answers nothing useful. `installCaddy`
 - a link to the Caddy admin API (`http://localhost:2019/config/`), and
 - a link per configured proxy route.
 
-It is a single Caddy `static_response` route matching `localhost` / `127.0.0.1`
-/ `[::1]` — no file on disk. Manage it directly:
+**It answers on every hostname your models name, as a fallback.** The page's
+hostnames are the loopback set (`localhost`, `127.0.0.1`, `[::1]`) **plus every
+TLS subject and explicit status hostname** any model declares, **minus any
+hostname that already has its own route**. So:
+
+- a configured hostname (e.g. `x1yoga.fi.gy`) is never a blank 404 — it serves the
+  status page until a real route claims it;
+- an explicit route always wins (the status route is written last);
+- crucially, because the hostname now appears in a route match, **Caddy requests a
+  certificate for it**. Caddy only issues certs for names it sees in a route, so
+  without this a "configured" hostname would get no cert and `dig` would fail.
+
+It is a single Caddy `static_response` route — no file on disk. Manage it
+directly:
 
 ```sh
 # (Re)install it after changing routes or domains, or set a custom title.
@@ -632,6 +643,39 @@ Three layers, each inspectable and each named in the Next commands output:
 - **Merged** — `plan`'s `desiredConfig` (the whole config the extension would
   apply), or `swamp data get <runModel> plan --json | jq '.content.desiredConfig'`.
 - **Actual** — the live config at the admin API.
+
+A `TLS / DNS` section reports the certificate layer too, so a DNS-01 setup is not
+hidden:
+
+```
+TLS / DNS:
+- Desired (by `my-caddy`): provider `gandi`, email `admin@example.com`,
+  subjects `*.example.com`, creds bearer_token
+- Live: `*.example.com` (DNS-01 via `gandi`)
+- Plugins wanted: github.com/caddy-dns/gandi — all compiled in
+- Env file: `~/.config/caddy/dns.env` — present, keys: GANDI_BEARER_TOKEN
+- TLS in sync: ✓
+```
+
+It compares the provider/email/subjects and credential fields your models want
+against the running TLS config, checks each wanted plugin is compiled into the
+binary (and names any missing ones — re-run `installCaddy`), and verifies the
+`environmentFile` exists with the expected keys. If the driver and env file are
+set up but no model has run `configureTls` yet, the section says so and tells you
+to run it.
+
+It also reports **certificates actually issued** (read from Caddy's data
+directory) and lists any desired subject with no cert yet:
+
+```
+- Live config: `x1yoga.fi.gy` (DNS-01 via `gandi`)
+- Certificates issued: NONE yet — still pending: `x1yoga.fi.gy`
+```
+
+That distinction matters: "config present" is not "certificate issued". When a
+cert is pending, the ACME failure is in the Caddy log
+(`journalctl --user -u caddy`) — e.g. a Gandi PAT without record-write
+permission returns `LiveDNS returned a 403 (Access was denied to this resource)`.
 
 To compare the **whole desired config** against the **live config** for one
 Caddy, use `plan` (same merge, but stores both full configs):

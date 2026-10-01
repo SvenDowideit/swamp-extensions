@@ -37,6 +37,29 @@ function ctx(overrides: Record<string, unknown> = {}): any {
               inSync: false,
               reachable: true,
               error: "",
+              tls: {
+                desired: [{
+                  model: "a",
+                  email: "x@e.com",
+                  dnsProvider: "gandi",
+                  subjects: ["*.example.com"],
+                  providerConfigFields: ["bearer_token"],
+                }],
+                desiredSubjects: ["*.example.com"],
+                liveSubjects: [],
+                liveHasDnsChallenge: false,
+                liveDnsProvider: "",
+                issuedDomains: [],
+                subjectsWithoutCert: ["*.example.com"],
+                statusPageHostnames: ["localhost"],
+                pluginsWanted: ["github.com/caddy-dns/gandi"],
+                pluginsCompiled: ["github.com/caddy-dns/gandi"],
+                pluginsMissing: [],
+                environmentFile: "/home/u/.config/caddy/dns.env",
+                environmentFileExists: true,
+                environmentFileKeys: ["GANDI_BEARER_TOKEN"],
+                inSync: false,
+              },
             },
           ],
           modelCount: 2,
@@ -57,6 +80,10 @@ Deno.test("caddy-status report renders a table per caddy", async () => {
   assertStringIncludes(markdown, "`a`");
   assertStringIncludes(markdown, "Wanted but not live");
   assertStringIncludes(markdown, "manual.example.com");
+  // TLS / DNS layer is shown.
+  assertStringIncludes(markdown, "TLS / DNS");
+  assertStringIncludes(markdown, "gandi");
+  assertStringIncludes(markdown, "GANDI_BEARER_TOKEN");
 });
 
 Deno.test("caddy-status report is silent for unrelated methods", async () => {

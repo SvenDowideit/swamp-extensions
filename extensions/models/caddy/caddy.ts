@@ -453,6 +453,12 @@ const DesiredStateSchema = z.object({
   baseDomain: z.string().default(""),
   autoHttps: z.string().default("on"),
   listenAddrs: z.array(z.string()).default([]),
+  /** Caddy modules this model asks to be compiled in (e.g. the gandi driver). */
+  plugins: z.array(z.string()).default([]),
+  /** systemd EnvironmentFile holding DNS-provider credentials. */
+  environmentFile: z.string().default(""),
+  /** Path to the Caddy binary (to inspect compiled plugins). */
+  caddyBinPath: z.string().default("~/.local/bin/caddy"),
   routes: z.array(DesiredRouteSchema).default([]),
   tls: DesiredTlsSchema.nullable().default(null),
   statusPage: DesiredStatusPageSchema.nullable().default(null),
@@ -489,6 +495,35 @@ const AuditCaddySchema = z.object({
   adminApiAddr: z.string(),
   serviceName: z.string(),
   models: z.array(z.string()),
+  /** TLS/DNS layer: what models want vs what the binary/live config has. */
+  tls: z.object({
+    desired: z.array(
+      z.object({
+        model: z.string(),
+        email: z.string(),
+        dnsProvider: z.string(),
+        subjects: z.array(z.string()),
+        providerConfigFields: z.array(z.string()),
+      }),
+    ),
+    desiredSubjects: z.array(z.string()),
+    liveSubjects: z.array(z.string()),
+    liveHasDnsChallenge: z.boolean(),
+    liveDnsProvider: z.string(),
+    /** Domains with a certificate on disk (proves issuance, not just config). */
+    issuedDomains: z.array(z.string()),
+    /** Subjects desired but with no certificate on disk yet. */
+    subjectsWithoutCert: z.array(z.string()),
+    /** Hostnames the status page answers on (defaults for configured names). */
+    statusPageHostnames: z.array(z.string()),
+    pluginsWanted: z.array(z.string()),
+    pluginsCompiled: z.array(z.string()),
+    pluginsMissing: z.array(z.string()),
+    environmentFile: z.string(),
+    environmentFileExists: z.boolean(),
+    environmentFileKeys: z.array(z.string()),
+    inSync: z.boolean(),
+  }),
   /** Each model's OWN desired state, before merging. */
   unmerged: z.array(UnmergedModelSchema),
   /** The scratch/model name `plan`/`audit` was run on (for the next commands). */
@@ -812,24 +847,49 @@ export function routeFileServerRoot(route: CaddyRoute): string {
 }
 
 /**
- * The hostnames the default status page answers on. `localhost` is matched
- * explicitly because Caddy's automatic HTTPS issues a locally-trusted
- * certificate for it; `127.0.0.1`/`[::1]` are added for direct-IP requests.
+ * The always-present status-page hostnames: loopback, so `https://localhost`
+ * works even before any hostname is configured.
  */
 export function statusPageHostnames(): string[] {
   return ["localhost", "127.0.0.1", "[::1]"];
 }
 
 /**
- * A JSON `static_response` route matching the status hostnames, returning the
- * given HTML body. Caddy can serve a canned response with no file on disk.
+ * Every hostname the default status page should answer on: the loopback base
+ * plus every hostname the models name (TLS subjects and explicit status
+ * hostnames), minus any hostname that already has its own route. So the status
+ * page is the DEFAULT for each configured hostname, and a specific route
+ * overrides it. Wildcards (e.g. `*.example.com`) are kept as-is.
  */
-export function buildStatusPageRoute(html: string): CaddyRoute {
+export function defaultStatusHostnames(opts: {
+  tlsSubjects?: string[];
+  explicit?: string[];
+  routedHostnames?: string[];
+}): string[] {
+  const out = new Set(statusPageHostnames());
+  for (const s of opts.tlsSubjects ?? []) if (s) out.add(s);
+  for (const s of opts.explicit ?? []) if (s) out.add(s);
+  // A hostname that already has a real route is served by that route, so it is
+  // not a status-page default.
+  for (const h of opts.routedHostnames ?? []) out.delete(h);
+  return [...out].sort();
+}
+
+/**
+ * A JSON `static_response` route matching the given hostnames, returning the
+ * given HTML body. Defaults to the loopback status hostnames.
+ */
+export function buildStatusPageRoute(
+  html: string,
+  hostnames: string[] = statusPageHostnames(),
+): CaddyRoute {
   return {
-    match: [{ host: statusPageHostnames() }],
+    match: [{ host: hostnames }],
     handle: [
       {
         handler: "static_response",
+        // Caddy's static_response headers are map[string][]string; a bare
+        // string fails to decode ("cannot unmarshal string into ... []string").
         headers: { "Content-Type": ["text/html; charset=utf-8"] },
         body: html,
       },
@@ -838,8 +898,18 @@ export function buildStatusPageRoute(html: string): CaddyRoute {
   };
 }
 
-/** Whether a route is the generated status page (a static_response we own). */
+/**
+ * Whether a route is the generated status page. Identified by its `swamp:` @id
+ * ending in `:status`, or (for routes written by older versions before tagging)
+ * a `static_response` on a loopback hostname.
+ */
 export function isStatusPageRoute(route: CaddyRoute): boolean {
+  const id = route["@id"];
+  if (
+    typeof id === "string" && id.startsWith("swamp:") && id.endsWith(":status")
+  ) {
+    return true;
+  }
   const match = route.match;
   if (!Array.isArray(match) || match.length === 0) return false;
   const hosts = (match[0] as Record<string, unknown>).host;
@@ -1200,6 +1270,12 @@ export interface DesiredState {
   autoHttps: string;
   /** Server listen addresses. */
   listenAddrs: string[];
+  /** Caddy modules this model asks to be compiled in. */
+  plugins: string[];
+  /** systemd EnvironmentFile holding DNS-provider credentials. */
+  environmentFile: string;
+  /** Path to the Caddy binary (to inspect compiled plugins). */
+  caddyBinPath: string;
   /** Desired routes. */
   routes: DesiredRoute[];
   /** Desired TLS automation, or null. */
@@ -1410,11 +1486,19 @@ export function buildReconciledConfig(
     // Re-render against the *merged* routes/listens so the page never shows a
     // stale list after another model adds/removes a route.
     const sp = merged.statusPage;
+    const routedHostnames = merged.routes.map((r) => r.hostname);
+    // The status page is the DEFAULT for every hostname the models name (TLS
+    // subjects + explicit status hostnames) EXCEPT those with a real route, so
+    // a configured hostname is never a blank 404 — and, because it appears in a
+    // route match, Caddy requests a certificate for it.
+    const statusHostnames = defaultStatusHostnames({
+      tlsSubjects: merged.tls?.subjects ?? [],
+      explicit: sp.hostnames,
+      routedHostnames,
+    });
     const links = statusPageLinks({
       routes: merged.routes,
-      statusHostnames: sp.hostnames.length > 0
-        ? sp.hostnames
-        : statusPageHostnames(),
+      statusHostnames,
       extra: sp.extraLinks,
     });
     const html = renderStatusPage({
@@ -1430,7 +1514,8 @@ export function buildReconciledConfig(
       modelName: merged.statusPageModel,
       plugins: sp.plugins,
     });
-    const route = buildStatusPageRoute(html);
+    // Pushed LAST so explicit routes (added above) match first and win.
+    const route = buildStatusPageRoute(html, statusHostnames);
     route["@id"] = routeId(merged.statusPageModel, "status");
     built.push(route);
   }
@@ -2472,6 +2557,9 @@ function emptyDesired(
     baseDomain: g.baseDomain ?? "",
     autoHttps: g.autoHttps,
     listenAddrs: g.listenAddrs,
+    plugins: g.plugins,
+    environmentFile: g.environmentFile ?? "",
+    caddyBinPath: g.caddyBinPath,
     routes: [],
     tls: null,
     statusPage: null,
@@ -2615,6 +2703,79 @@ export function renderNextCommands(opts: {
   return lines.join("\n");
 }
 
+/** Caddy's data directory (where certificates are stored). */
+export function caddyDataDir(home?: string): string {
+  const xdg = Deno.env.get("XDG_DATA_HOME");
+  const h = home ?? Deno.env.get("HOME") ?? "";
+  return xdg ? `${xdg}/caddy` : `${h}/.local/share/caddy`;
+}
+
+/** List the domains that have a certificate on disk (issuer dirs skipped). */
+export function listIssuedDomains(dataDir: string): string[] {
+  const out = new Set<string>();
+  const certRoot = `${dataDir}/certificates`;
+  let issuers: Deno.DirEntry[];
+  try {
+    issuers = [...Deno.readDirSync(certRoot)];
+  } catch {
+    return [];
+  }
+  for (const issuer of issuers) {
+    if (!issuer.isDirectory) continue;
+    // The `local` issuer holds Caddy's internal/self-signed certs (localhost,
+    // 127.0.0.1); real ACME issuers are like `acme-v02.api.letsencrypt.org-
+    // directory`. We report all, but the caller can tell them apart.
+    try {
+      for (const dom of Deno.readDirSync(`${certRoot}/${issuer.name}`)) {
+        if (dom.isDirectory) out.add(dom.name);
+      }
+    } catch {
+      // ignore unreadable issuer dirs
+    }
+  }
+  return [...out].sort();
+}
+
+/** The `tls` block of a live Caddy config (empty object when absent). */
+export function liveTlsInfo(config: CaddyConfig): {
+  subjects: string[];
+  hasDnsChallenge: boolean;
+  dnsProvider: string;
+} {
+  const apps = config.apps as Record<string, unknown> | undefined;
+  const tls = apps?.tls as Record<string, unknown> | undefined;
+  const automation = tls?.automation as Record<string, unknown> | undefined;
+  const policies = automation?.policies;
+  const subjects: string[] = [];
+  let hasDnsChallenge = false;
+  let dnsProvider = "";
+  if (Array.isArray(policies)) {
+    for (const p of policies) {
+      const pol = p as Record<string, unknown>;
+      if (Array.isArray(pol.subjects)) {
+        for (const s of pol.subjects) {
+          if (typeof s === "string") subjects.push(s);
+        }
+      }
+      const issuers = pol.issuers;
+      if (Array.isArray(issuers)) {
+        for (const iss of issuers) {
+          const ch = (iss as Record<string, unknown>).challenges as
+            | Record<string, unknown>
+            | undefined;
+          const dns = ch?.dns as Record<string, unknown> | undefined;
+          const provider = dns?.provider as Record<string, unknown> | undefined;
+          if (provider) {
+            hasDnsChallenge = true;
+            if (typeof provider.name === "string") dnsProvider = provider.name;
+          }
+        }
+      }
+    }
+  }
+  return { subjects, hasDnsChallenge, dnsProvider };
+}
+
 /**
  * Compute the desired-vs-actual picture for one Caddy, merging `states` (or
  * gathering peers of `own` when not supplied). Read-only: does not change
@@ -2651,6 +2812,29 @@ async function computeCaddyPlan(
   }>;
   runModel: string;
   nextCommands: string;
+  tls: {
+    desired: Array<{
+      model: string;
+      email: string;
+      dnsProvider: string;
+      subjects: string[];
+      providerConfigFields: string[];
+    }>;
+    desiredSubjects: string[];
+    liveSubjects: string[];
+    liveHasDnsChallenge: boolean;
+    liveDnsProvider: string;
+    issuedDomains: string[];
+    subjectsWithoutCert: string[];
+    statusPageHostnames: string[];
+    pluginsWanted: string[];
+    pluginsCompiled: string[];
+    pluginsMissing: string[];
+    environmentFile: string;
+    environmentFileExists: boolean;
+    environmentFileKeys: string[];
+    inSync: boolean;
+  };
   actualSwampRoutes: Array<{ id: string; hostnames: string[] }>;
   foreignRoutes: string[];
   onlyDesired: string[];
@@ -2734,6 +2918,82 @@ async function computeCaddyPlan(
     listenAddrs: merged.listenAddrs,
   });
 
+  // --- TLS / DNS / plugin layer: what models want vs what is actually there. ---
+  const tlsDesired = group
+    .filter((s) => s.tls)
+    .map((s) => ({
+      model: s.modelName,
+      email: s.tls!.email,
+      dnsProvider: s.tls!.dnsProvider,
+      subjects: s.tls!.subjects,
+      providerConfigFields: Object.keys(s.tls!.providerConfig),
+    }));
+  const live = liveTlsInfo(actual);
+  // Which of the wanted plugins are compiled into the binary.
+  const binPath = expandHome(own.caddyBinPath || "~/.local/bin/caddy");
+  const pluginsWanted: string[] = [];
+  for (const s of group) for (const p of s.plugins ?? []) pluginsWanted.push(p);
+  const pluginsCompiled: string[] = [];
+  if (await fileExists(binPath)) {
+    const lm = await runCmd(binPath, ["list-modules", "--packages"]);
+    if (lm.code === 0) {
+      for (const line of lm.stdout.split("\n")) {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 2 && parts[1].startsWith("github.com")) {
+          pluginsCompiled.push(parts[1]);
+        }
+      }
+    }
+  }
+  // A wanted plugin is present if any compiled module's package matches it
+  // (allow a bare prefix, e.g. github.com/caddy-dns/gandi).
+  const pluginsMissing = pluginsWanted.filter((want) => {
+    const bare = want.split("@")[0];
+    return !pluginsCompiled.some((c) => c === bare || c.startsWith(bare));
+  });
+  // Environment file may be set on any model in the group; take the first
+  // non-empty (and note conflicts implicitly via the env keys shown).
+  const environmentFile = own.environmentFile ||
+    group.map((s) => s.environmentFile).find((f) => f) || "";
+  const envPath = environmentFile ? expandHome(environmentFile) : "";
+  const environmentFileExists = envPath ? await fileExists(envPath) : false;
+  const environmentFileKeys: string[] = [];
+  if (environmentFileExists) {
+    try {
+      const body = await Deno.readTextFile(envPath);
+      for (const line of body.split("\n")) {
+        const eq = line.indexOf("=");
+        if (eq > 0 && !line.trimStart().startsWith("#")) {
+          environmentFileKeys.push(line.slice(0, eq).trim());
+        }
+      }
+    } catch {
+      // unreadable env file: leave keys empty
+    }
+  }
+  const desiredSubjects = merged.tls?.subjects ?? [];
+  // Issued certificates prove the DNS-01 challenge actually worked; config
+  // alone does not. Read from Caddy's data dir; a wildcard subject is stored
+  // under its literal form (e.g. `*.example.com`), so compare literally.
+  const issuedDomains = listIssuedDomains(caddyDataDir());
+  const hasCertFor = (subject: string): boolean =>
+    issuedDomains.includes(subject);
+  const subjectsWithoutCert = desiredSubjects.filter((s) => !hasCertFor(s));
+  // The hostnames the status page answers on for this Caddy (defaults).
+  const statusPageHostnamesForCaddy = merged.statusPage?.enabled
+    ? defaultStatusHostnames({
+      tlsSubjects: desiredSubjects,
+      explicit: merged.statusPage.hostnames,
+      routedHostnames: merged.routes.map((r) => r.hostname),
+    })
+    : [];
+  const tlsInSync = desiredSubjects.length > 0
+    ? desiredSubjects.every((s) => live.subjects.includes(s)) &&
+      (!merged.tls?.dnsProvider || live.hasDnsChallenge) &&
+      pluginsMissing.length === 0 &&
+      subjectsWithoutCert.length === 0
+    : live.subjects.length === 0 && live.hasDnsChallenge === false;
+
   return {
     target: caddyTargetKey(own.target, own.serviceName),
     adminApiAddr: own.adminApiAddr || "localhost:2019",
@@ -2742,6 +3002,23 @@ async function computeCaddyPlan(
     unmerged,
     runModel,
     nextCommands,
+    tls: {
+      desired: tlsDesired,
+      desiredSubjects,
+      liveSubjects: live.subjects,
+      liveHasDnsChallenge: live.hasDnsChallenge,
+      liveDnsProvider: live.dnsProvider,
+      issuedDomains,
+      subjectsWithoutCert,
+      statusPageHostnames: statusPageHostnamesForCaddy,
+      pluginsWanted: [...new Set(pluginsWanted)],
+      pluginsCompiled: [...new Set(pluginsCompiled)],
+      pluginsMissing,
+      environmentFile,
+      environmentFileExists,
+      environmentFileKeys,
+      inSync: tlsInSync,
+    },
     conflicts: errors,
     desiredRoutes,
     actualSwampRoutes: diff.actualSwampRoutes,
@@ -2944,7 +3221,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.01.11",
+  version: "2026.10.01.13",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -3122,6 +3399,18 @@ export const model = {
       toVersion: "2026.10.01.11",
       description:
         "plan/audit now include an `unmerged` view (each model's own desired state before merging) and a `nextCommands` field: the exact commands to inspect the unmerged per-model state, the merged desiredConfig, and the desired-vs-actual diff. The caddy-status report prints both the Unmerged table and a 'Next commands' section, so a user never has to look elsewhere. Models that want nothing (e.g. the scratch instance an audit runs on) are filtered from the models/unmerged lists. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.12",
+      description:
+        "plan/audit now report the TLS/DNS layer, so a libdns DNS-01 setup (e.g. the Gandi driver + bearer token) is visible instead of hidden: per-model desired provider/email/subjects and credential fields, the live TLS subjects and whether a DNS challenge is configured, which wanted plugins are compiled into the binary (and which are missing), and whether the environmentFile exists with which keys. desired state stores plugins/environmentFile/caddyBinPath so this is available. The caddy-status report prints a 'TLS / DNS' section and says to run configureTls when the driver/env are set up but no TLS is desired yet. Schema is additive — existing models upgrade with no changes; re-run any method on an older model to refresh its stored desired state.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.13",
+      description:
+        "The default status page is now the fallback for EVERY hostname the models name (TLS subjects + explicit status hostnames), not just localhost — minus any hostname that has its own route. It is pushed last so explicit routes win. This also makes Caddy request a certificate for those hostnames (Caddy only issues for names in a route match), fixing 'configured hostname gets no cert / is a blank 404'. audit/plan TLS section now reports certificates actually ISSUED (read from Caddy's data dir) and the subjects still without a cert, so config-presence is no longer mistaken for a working DNS-01 challenge, and lists the status page's extra hostnames. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -26,7 +26,7 @@ func TestBuildVaultRowsTree(t *testing.T) {
 		{Name: "a-vault", Type: "@x/systemd-creds"},
 		{Name: "local-one", Type: "local_encryption"},
 	}
-	rows := buildVaultRows(types, vaults)
+	rows := buildVaultRows(types, vaults, nil)
 
 	// Extension rows first, each followed by its (sorted) vaults.
 	if rows[0].kind != "extension" || rows[0].name != "@x/systemd-creds" {
@@ -50,6 +50,99 @@ func TestBuildVaultRowsTree(t *testing.T) {
 	}
 	if !sawLocal {
 		t.Fatalf("local_encryption extension missing from tree: %+v", rows)
+	}
+}
+
+func TestVaultTreeRowShowsInstalledVersionAndChannel(t *testing.T) {
+	types := []swamp.VaultType{{Type: "@x/v", Name: "V"}}
+	vaults := []swamp.Vault{{Name: "prod", Type: "@x/v"}}
+	installed := map[string]swamp.Extension{
+		"@x/v": {Name: "@x/v", Version: "2026.10.01.1", Channel: "beta", PulledAt: "2026-10-01T02:31:42Z"},
+	}
+	rows := buildVaultRows(types, vaults, installed)
+	if rows[0].kind != "extension" {
+		t.Fatalf("expected extension row first, got %+v", rows[0])
+	}
+	if !strings.Contains(rows[0].sub, "2026.10.01.1") || !strings.Contains(rows[0].sub, "beta") {
+		t.Fatalf("extension row must show installed version+channel, got %q", rows[0].sub)
+	}
+}
+
+func TestVaultExtensionPaneShowsInstalledAuthoritatively(t *testing.T) {
+	m := vaultModel()
+	m.vault.rows = []VaultRow{{kind: "extension", name: "@x/systemd-creds", typeName: "systemd-creds"}}
+	m.vault.sel = 0
+	m.vault.detailKind = "extension"
+	m.vault.detailTitle = "Vault extension — @x/systemd-creds"
+	// Installed = beta 2026.10.01.1; registry latest stable = 2026.09.23.1.
+	m.vault.installed = map[string]swamp.Extension{
+		"@x/systemd-creds": {Name: "@x/systemd-creds", Version: "2026.10.01.1", Channel: "beta", PulledAt: "2026-10-01T02:31:42Z"},
+	}
+	m.Update(vaultExtInfoLoadedMsg{name: "@x/systemd-creds", info: map[string]any{
+		"name":          "@x/systemd-creds",
+		"latestVersion": "2026.09.23.1",
+		"latestBeta":    "2026.10.01.1",
+		"description":   "registry stable text",
+	}})
+	out := strip(m.render())
+	// The installed record must lead and be labelled as installed/beta.
+	for _, want := range []string{"Installed (this repo)", "2026.10.01.1", "beta", "active"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("pane missing %q:\n%s", want, out)
+		}
+	}
+	// Registry latest stable must be shown and clearly labelled as registry.
+	if !strings.Contains(out, "Registry (latest release)") || !strings.Contains(out, "2026.09.23.1") {
+		t.Errorf("pane must show the registry release separately:\n%s", out)
+	}
+	// The registry description must not be presented as the installed docs.
+	if !strings.Contains(out, "About (registry release)") {
+		t.Errorf("registry About must be labelled:\n%s", out)
+	}
+}
+
+func TestVaultExtensionPaneNotInstalled(t *testing.T) {
+	m := vaultModel()
+	m.vault.rows = []VaultRow{{kind: "extension", name: "@x/new", typeName: "New"}}
+	m.vault.sel = 0
+	m.vault.detailKind = "extension"
+	m.vault.installed = map[string]swamp.Extension{}
+	m.Update(vaultExtInfoLoadedMsg{name: "@x/new", info: map[string]any{
+		"name": "@x/new", "latestVersion": "2026.10.01.1",
+	}})
+	out := strip(m.render())
+	if !strings.Contains(out, "not installed") {
+		t.Fatalf("pane must say the extension is not installed:\n%s", out)
+	}
+	if !strings.Contains(out, "pull") {
+		t.Fatalf("pane must offer pulling it:\n%s", out)
+	}
+}
+
+func TestRegistryNewerThanInstalled(t *testing.T) {
+	info := map[string]any{"latestVersion": "2026.09.23.1", "latestBeta": "2026.10.01.1"}
+	if got := registryNewerThanInstalled(info, "2026.09.23.1"); got != "2026.10.01.1" {
+		t.Fatalf("expected beta flagged as newer, got %q", got)
+	}
+	if got := registryNewerThanInstalled(info, "2026.10.01.1"); got != "" {
+		t.Fatalf("installed-is-newest should report nothing, got %q", got)
+	}
+}
+
+func TestCompareCalVerNumeric(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want int
+	}{
+		{"2026.10.1.1", "2026.9.23.1", 1},
+		{"2026.9.23.1", "2026.10.1.1", -1},
+		{"2026.10.01.1", "2026.10.1.1", 0},
+		{"2026.10.01.2", "2026.10.01.1", 1},
+	}
+	for _, c := range cases {
+		if got := compareCalVer(c.a, c.b); got != c.want {
+			t.Errorf("compareCalVer(%q,%q)=%d want %d", c.a, c.b, got, c.want)
+		}
 	}
 }
 

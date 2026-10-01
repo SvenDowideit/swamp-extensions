@@ -14,11 +14,13 @@ import (
 
 // --- async messages ---
 
-// vaultTreeLoadedMsg delivers the vault tree (extensions + vaults).
+// vaultTreeLoadedMsg delivers the vault tree (extensions + vaults), plus the
+// extensions actually installed in the repo the server is bound to.
 type vaultTreeLoadedMsg struct {
-	types  []swamp.VaultType
-	vaults []swamp.Vault
-	err    error
+	types     []swamp.VaultType
+	vaults    []swamp.Vault
+	installed map[string]swamp.Extension
+	err       error
 }
 
 // vaultKeysLoadedMsg delivers a vault's key list.
@@ -84,12 +86,17 @@ func (m *Model) loadVaultTree() tea.Cmd {
 		if err != nil {
 			return vaultTreeLoadedMsg{err: err}
 		}
-		return vaultTreeLoadedMsg{types: types, vaults: vaults}
+		// Installed extensions are the authoritative record of what is active
+		// in this repo; a failure here must not break the tree.
+		installed, _ := client.ListInstalledExtensions(ctx)
+		return vaultTreeLoadedMsg{types: types, vaults: vaults, installed: installed}
 	}
 }
 
-// buildVaultRows turns types + vaults into the flattened tree.
-func buildVaultRows(types []swamp.VaultType, vaults []swamp.Vault) []VaultRow {
+// buildVaultRows turns types + vaults into the flattened tree. installed maps
+// extension name -> the version/channel pulled into this repo, shown on the
+// extension row so the active version is visible without opening the pane.
+func buildVaultRows(types []swamp.VaultType, vaults []swamp.Vault, installed map[string]swamp.Extension) []VaultRow {
 	byType := map[string][]swamp.Vault{}
 	var order []string
 	for _, v := range vaults {
@@ -116,7 +123,18 @@ func buildVaultRows(types []swamp.VaultType, vaults []swamp.Vault) []VaultRow {
 		if count != 1 {
 			sub += "s"
 		}
-		if desc != "" {
+		// Lead with the installed version/channel when present, so the active
+		// record is visible in the tree itself.
+		if inst, ok := installed[typ]; ok && inst.Version != "" {
+			sub = "v" + inst.Version
+			if inst.Channel != "" {
+				sub += " [" + inst.Channel + "]"
+			}
+			sub += fmt.Sprintf("  ·  %d vault", count)
+			if count != 1 {
+				sub += "s"
+			}
+		} else if desc != "" {
 			sub = firstLine(desc)
 		}
 		rows = append(rows, VaultRow{kind: "extension", name: typ, typeName: name, sub: sub, depth: 0})
@@ -250,90 +268,202 @@ func (m *Model) renderVaultDetail(width, height int) string {
 	}
 }
 
-// renderVaultExtension renders extension.info: the manifest description plus the
-// vault type metadata (name, config schema) and actions.
+// renderVaultExtension renders the selected extension's pane. It leads with the
+// version and channel ACTUALLY installed in the repo (from extension.list — the
+// authoritative, active record), then shows the registry's latest release as a
+// separate, clearly-labelled block. extension.info describes the registry's
+// latest stable, so it must never be presented as "the" installed version.
 func (m *Model) renderVaultExtension(width, height int) string {
 	row, _ := m.vaultCurrent()
 	info := m.vault.extInfo
 	var lines []string
-	if info == nil {
-		if m.vault.err != nil {
-			lines = append(lines, styleError.Render("✗ "+m.vault.err.Error()))
-		} else {
-			lines = append(lines, styleMuted.Render("loading…"))
+
+	lines = append(lines, styleKey.Render("extension ")+row.name)
+
+	// --- Installed (authoritative for this repo) -------------------------
+	inst, installed := m.vault.installed[row.name]
+	lines = append(lines, "", stylePaneTitle.Render("Installed (this repo)"))
+	if installed && inst.Version != "" {
+		line := "  " + styleKey.Render("version ") + styleGreen.Render(inst.Version)
+		if inst.Channel != "" {
+			line += "  " + channelChip(inst.Channel)
 		}
-		return clip(strings.Join(lines, "\n"), width, height)
+		lines = append(lines, line)
+		if inst.PulledAt != "" {
+			lines = append(lines, "  "+styleKey.Render("pulled  ")+styleMuted.Render(shortTime(inst.PulledAt)))
+		}
+		lines = append(lines, "  "+styleGreen.Render("✓ active")+
+			styleMuted.Render("  used by any vault of this type below"))
+	} else if m.vaultExtensionBuiltin(row.name) {
+		lines = append(lines, "  "+styleGreen.Render("✓ built-in")+
+			styleMuted.Render("  ships with swamp; nothing to pull"))
+	} else {
+		lines = append(lines, "  "+styleMuted.Render("✗ not installed in this repo"))
+		lines = append(lines, "  "+styleKey.Render("P")+styleMuted.Render("  pull it from the registry"))
 	}
 
-	lines = append(lines, styleKey.Render("extension ")+str(info["name"]))
-	if v := str(info["latestVersion"]); v != "" {
-		lines = append(lines, styleKey.Render("latest    ")+v)
-	}
-	if ct := strList(info["contentTypes"]); len(ct) > 0 {
-		lines = append(lines, styleKey.Render("provides  ")+strings.Join(ct, ", "))
-	}
-	if r := str(info["repository"]); r != "" {
-		verified := ""
-		if b, _ := info["repositoryVerified"].(bool); b {
-			verified = styleGreen.Render("  ✓ verified")
+	// --- Registry (what the registry currently offers) -------------------
+	if info != nil {
+		lines = append(lines, "", stylePaneTitle.Render("Registry (latest release)"))
+		if v := str(info["latestVersion"]); v != "" {
+			lines = append(lines, "  "+styleKey.Render("stable  ")+v)
 		}
-		lines = append(lines, styleKey.Render("repo      ")+r+verified)
-	}
-
-	// The vault type this extension provides (from contentMetadata.vaults).
-	if cm, ok := info["contentMetadata"].(map[string]any); ok {
-		for _, v := range asList(cm["vaults"]) {
-			vm, _ := v.(map[string]any)
-			if vm == nil {
-				continue
+		if v := str(info["latestBeta"]); v != "" {
+			lines = append(lines, "  "+styleKey.Render("beta    ")+styleOrange.Render(v))
+		}
+		if v := str(info["latestRc"]); v != "" {
+			lines = append(lines, "  "+styleKey.Render("rc      ")+v)
+		}
+		if r := str(info["repository"]); r != "" {
+			verified := ""
+			if b, _ := info["repositoryVerified"].(bool); b {
+				verified = styleGreen.Render("  ✓ verified")
 			}
-			lines = append(lines, "", stylePaneTitle.Render("Vault backend"))
-			lines = append(lines, "  "+styleKey.Render("type  ")+str(vm["type"]))
-			if n := str(vm["name"]); n != "" {
-				lines = append(lines, "  "+styleKey.Render("name  ")+n)
-			}
-			if d := str(vm["description"]); d != "" {
-				lines = append(lines, "  "+styleMuted.Render(truncStr(d, width-4)))
+			lines = append(lines, "  "+styleKey.Render("repo    ")+r+verified)
+		}
+		if ct := strList(info["contentTypes"]); len(ct) > 0 {
+			lines = append(lines, "  "+styleKey.Render("provides ")+strings.Join(ct, ", "))
+		}
+		// Warn when the registry's newest differs from what is installed —
+		// the exact confusion this pane exists to prevent.
+		if installed && inst.Version != "" {
+			if newer := registryNewerThanInstalled(info, inst.Version); newer != "" {
+				lines = append(lines, "  "+styleOrange.Render("↑ "+newer+" is available (not installed)"))
 			}
 		}
-	}
-
-	// The manifest description (the user manual).
-	if d := str(info["description"]); d != "" {
-		lines = append(lines, "", stylePaneTitle.Render("About"))
-		lines = append(lines, wrapString(d, width-2)...)
-	}
-	if deps := strList(info["dependencies"]); len(deps) > 0 {
-		lines = append(lines, "", stylePaneTitle.Render("Dependencies"))
-		for _, d := range deps {
-			lines = append(lines, "  "+styleMuted.Render(d))
+		// The vault type this extension provides (contentMetadata.vaults).
+		if cm, ok := info["contentMetadata"].(map[string]any); ok {
+			for _, v := range asList(cm["vaults"]) {
+				vm, _ := v.(map[string]any)
+				if vm == nil {
+					continue
+				}
+				lines = append(lines, "", stylePaneTitle.Render("Vault backend (registry)"))
+				lines = append(lines, "  "+styleKey.Render("type  ")+str(vm["type"]))
+				if n := str(vm["name"]); n != "" {
+					lines = append(lines, "  "+styleKey.Render("name  ")+n)
+				}
+				if d := str(vm["description"]); d != "" {
+					lines = append(lines, "  "+styleMuted.Render(truncStr(d, width-4)))
+				}
+			}
 		}
+		if d := str(info["description"]); d != "" {
+			lines = append(lines, "", stylePaneTitle.Render("About (registry release)"))
+			lines = append(lines, wrapString(d, width-2)...)
+		}
+		if deps := strList(info["dependencies"]); len(deps) > 0 {
+			lines = append(lines, "", stylePaneTitle.Render("Dependencies"))
+			for _, d := range deps {
+				lines = append(lines, "  "+styleMuted.Render(d))
+			}
+		}
+	} else if m.vault.err != nil {
+		lines = append(lines, "", styleError.Render("registry metadata: "+m.vault.err.Error()))
 	}
 
 	// Actions for the extension.
 	lines = append(lines, "", stylePaneTitle.Render("Actions"))
-	installed := m.vaultExtensionInstalled(row.name)
-	if installed {
-		lines = append(lines, "  "+styleGreen.Render("✓ installed")+styleMuted.Render("  (a create vault below uses it)"))
-	} else {
+	if !installed && !m.vaultExtensionBuiltin(row.name) {
 		lines = append(lines, "  "+styleKey.Render("P")+styleMuted.Render("  pull this extension into the repo"))
 	}
 	lines = append(lines, "  "+styleKey.Render("c")+styleMuted.Render("  create a vault using this extension"))
 	return clip(strings.Join(lines, "\n"), width, height)
 }
 
+// channelChip renders the release channel with a colour: stable green, beta/rc
+// orange, unknown muted.
+func channelChip(channel string) string {
+	switch strings.ToLower(channel) {
+	case "stable":
+		return styleGreen.Render("[" + channel + "]")
+	case "beta", "rc":
+		return styleOrange.Render("[" + channel + "]")
+	default:
+		return styleMuted.Render("[" + channel + "]")
+	}
+}
+
+// registryNewerThanInstalled returns the newest registry version when it is
+// strictly newer than the installed one, else "". Versions are CalVer, compared
+// segment-by-segment numerically so "2026.10.1.1" outranks "2026.9.23.1".
+func registryNewerThanInstalled(info map[string]any, installed string) string {
+	newest := ""
+	for _, k := range []string{"latestVersion", "latestRc", "latestBeta"} {
+		v := str(info[k])
+		if v == "" {
+			continue
+		}
+		if newest == "" || compareCalVer(v, newest) > 0 {
+			newest = v
+		}
+	}
+	if newest != "" && compareCalVer(newest, installed) > 0 {
+		return newest
+	}
+	return ""
+}
+
+// compareCalVer compares two CalVer strings numerically (-1, 0, 1). Missing or
+// non-numeric segments compare as 0 so the comparison never panics.
+func compareCalVer(a, b string) int {
+	as := strings.Split(a, ".")
+	bs := strings.Split(b, ".")
+	n := len(as)
+	if len(bs) > n {
+		n = len(bs)
+	}
+	atoi := func(s string) int {
+		v := 0
+		for _, r := range s {
+			if r < '0' || r > '9' {
+				return 0
+			}
+			v = v*10 + int(r-'0')
+		}
+		return v
+	}
+	for i := 0; i < n; i++ {
+		var av, bv int
+		if i < len(as) {
+			av = atoi(as[i])
+		}
+		if i < len(bs) {
+			bv = atoi(bs[i])
+		}
+		if av != bv {
+			if av < bv {
+				return -1
+			}
+			return 1
+		}
+	}
+	return 0
+}
+
+// vaultExtensionBuiltin reports whether a vault type ships with swamp (no pull
+// needed).
+func (m *Model) vaultExtensionBuiltin(name string) bool {
+	switch name {
+	case "local_encryption", "aws-sm", "azure-kv", "1password":
+		return true
+	}
+	return false
+}
+
 // vaultExtensionInstalled reports whether an extension type is available (its
-// vaults exist or a vault type with that name is known).
+// vaults exist or it is built-in).
 func (m *Model) vaultExtensionInstalled(name string) bool {
+	if m.vaultExtensionBuiltin(name) {
+		return true
+	}
+	if _, ok := m.vault.installed[name]; ok {
+		return true
+	}
 	for _, r := range m.vault.rows {
 		if r.kind == "vault" && r.vault.Type == name {
 			return true
 		}
-	}
-	// Built-in types ship with swamp and need no pull.
-	switch name {
-	case "local_encryption", "aws-sm", "azure-kv", "1password":
-		return true
 	}
 	return false
 }

@@ -379,10 +379,23 @@ Two linked panes:
 ```
 
 - The **left tree** lists every available vault **extension** (built-in or
-  installed), with its configured **vaults** nested underneath.
-- Selecting an **extension** shows its manifest information in the right pane:
-  description (the user manual), version, repository (with a verified tick),
-  the vault backend it provides, and dependencies.
+  installed), with its configured **vaults** nested underneath. An installed
+  extension's row shows the **version and channel actually pulled into this
+  repo** (e.g. `v2026.10.01.1 [beta]`), from `extension.list`.
+- Selecting an **extension** shows two clearly-separated blocks in the right
+  pane:
+  - **Installed (this repo)** — the version, channel, and pull time of the
+    extension actually active in the repo `sp` is talking to
+    (`extension.list`). This is authoritative: it is what runs.
+  - **Registry (latest release)** — what the registry currently offers
+    (`extension.info`): `stable`/`beta`/`rc` versions, repository (with a
+    verified tick), the vault backend it provides, and its README/description.
+    Labelled as registry data, so it is never mistaken for the installed docs.
+
+  sp never presents registry metadata as "the" installed version. This matters
+  because a newer beta/rc changes the registry's description while the
+  version you have installed is unchanged; sp shows the installed version first
+  and flags when the registry has a newer one.
 - Selecting a **vault** shows a table of its secret **keys** (name, value type,
   size, annotation marker) — values are never fetched until you ask.
 

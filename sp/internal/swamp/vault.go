@@ -61,6 +61,10 @@ type Extension struct {
 	Verified     bool
 	Installed    bool
 	Version      string
+	// Channel is the release channel the installed version came from
+	// (stable/beta/rc); PulledAt is when it was pulled into this repo.
+	Channel  string
+	PulledAt string
 }
 
 // SearchVaultTypes lists the available vault backend types.
@@ -287,9 +291,31 @@ func (c *Client) SearchExtensions(ctx context.Context, query, contentType string
 	return out, nil
 }
 
-// GetExtensionInfo returns detail for one extension (manifest description etc.).
+// GetExtensionInfo returns registry metadata for one extension (the latest
+// stable description, versions per channel, etc.). This is registry/catalog
+// data, NOT the manifest of the version pulled into this repo — use
+// ListInstalledExtensions for what is actually installed.
 func (c *Client) GetExtensionInfo(ctx context.Context, name string) (map[string]any, error) {
 	return c.dataRequest(ctx, ReqExtensionInfo, map[string]any{"extensionName": name})
+}
+
+// ListInstalledExtensions lists the extensions pulled into the repository the
+// server is bound to. This is the authoritative source for the version and
+// channel actually installed and active — unlike extension.info, which
+// describes the registry's latest release.
+func (c *Client) ListInstalledExtensions(ctx context.Context) (map[string]Extension, error) {
+	res, err := c.dataRequest(ctx, ReqExtensionList, nil)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]Extension{}
+	for _, r := range asAnyList(res["extensions"]) {
+		e := extensionFromMap(r)
+		if e.Name != "" {
+			out[e.Name] = e
+		}
+	}
+	return out, nil
 }
 
 // PullExtension installs an extension from the registry into the repo.
@@ -314,6 +340,8 @@ func extensionFromMap(r any) Extension {
 		Repository:  jsonStr(m["repository"]),
 		Verified:    boolVal(m["repositoryVerified"]),
 		Version:     jsonStr(m["version"]),
+		Channel:     jsonStr(m["channel"]),
+		PulledAt:    jsonStr(m["pulledAt"]),
 	}
 	for _, ct := range asAnyList(m["contentTypes"]) {
 		e.ContentTypes = append(e.ContentTypes, jsonStr(ct))

@@ -45,6 +45,8 @@ const (
 	ReqExtensionSearch = "extension.search"
 	ReqExtensionInfo   = "extension.info"
 	ReqExtensionPull   = "extension.pull"
+	// ReqExtensionList lists extensions pulled into the repo serve is bound to.
+	ReqExtensionList = "extension.list"
 )
 
 // wireRequest is the client -> server envelope.

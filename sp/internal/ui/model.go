@@ -295,7 +295,12 @@ type vaultState struct {
 	// Transient status line inside vault mode.
 	status  string
 	busy    bool
-	extInfo map[string]any // extension.info for the selected extension
+	extInfo map[string]any // extension.info (registry) for the selected extension
+
+	// installed maps extension name -> the version/channel pulled into this
+	// repo (from extension.list). This is authoritative for what is active;
+	// extInfo describes the registry's latest release, which may differ.
+	installed map[string]swamp.Extension
 }
 
 // vaultRowGlyph is the leading marker for a tree row.

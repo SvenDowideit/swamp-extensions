@@ -196,7 +196,11 @@ func (m *Model) renderVaultTree(w, h int) string {
 				vaultRowGlyph(r), r.name))
 		}
 		lines = append(lines, line)
-		if r.kind == "vault" && r.sub != "" {
+		switch {
+		case r.kind == "extension" && r.sub != "":
+			// Extensions show their installed version/channel subtitle.
+			lines = append(lines, "    "+styleMuted.Render(truncStr(r.sub, w-6)))
+		case r.kind == "vault" && r.sub != "":
 			lines = append(lines, "    "+styleMuted.Render(shortTime(r.sub)))
 		}
 	}

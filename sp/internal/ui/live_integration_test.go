@@ -387,6 +387,18 @@ func TestLiveVaultMode(t *testing.T) {
 		t.Skip("no vaults configured in this repo")
 	}
 
+	// The installed-extension map is what makes sp report the version and
+	// channel actually active in this repo (not the registry's latest). Assert
+	// it loaded and that each entry has a version.
+	if len(m.vault.installed) == 0 {
+		t.Fatalf("extension.list returned no installed extensions")
+	}
+	for name, e := range m.vault.installed {
+		if e.Version == "" {
+			t.Errorf("installed extension %q has no version", name)
+		}
+	}
+
 	// Find a vault row and open its keys.
 	idx := -1
 	var vaultName string
@@ -694,9 +706,10 @@ func TestLiveResumeRendersFailedStep(t *testing.T) {
 	if m.lastRunID == "" {
 		t.Fatalf("expected a lastRunID for %q", chosen)
 	}
-	out := strip(m.render())
-	if !strings.Contains(out, "Recent runs") {
-		t.Fatalf("detail missing recent runs:\n%s", out)
+	// Check the detail content, not the clipped render: "Recent runs" can sit
+	// below the visible fold for a workflow with a long description.
+	if !strings.Contains(strip(strings.Join(m.detailLines, "\n")), "Recent runs") {
+		t.Fatalf("detail lines missing recent runs")
 	}
 	t.Logf("%s: last failed step %q", chosen, m.lastFailedStep)
 }

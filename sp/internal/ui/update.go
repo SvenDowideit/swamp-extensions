@@ -168,7 +168,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.vault.err = nil
-		m.vault.rows = buildVaultRows(msg.types, msg.vaults)
+		m.vault.installed = msg.installed
+		m.vault.rows = buildVaultRows(msg.types, msg.vaults, m.vault.installed)
 		if m.vault.sel >= len(m.vault.rows) {
 			m.vault.sel = maxInt(0, len(m.vault.rows)-1)
 		}

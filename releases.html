@@ -67,9 +67,147 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><p class="empty">No releases in this window.</p></main>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261001-073437-0-sha-acf6214e"><span class="tier C">C</span>swamp 20261001.073437.0-sha.acf6214e</a><a href="#release-swamp-club-swamp-v20261001-070022-0-sha-34f7a84c"><span class="tier C">C</span>swamp 20261001.070022.0-sha.34f7a84c</a><a href="#release-swamp-club-swamp-v20261001-065457-0-sha-93a88f84"><span class="tier C">C</span>swamp 20261001.065457.0-sha.93a88f84</a><a href="#release-swamp-club-swamp-v20261001-065103-0-sha-70eff6a6"><span class="tier C">C</span>swamp 20261001.065103.0-sha.70eff6a6</a><a href="#release-swamp-club-swamp-v20261001-060930-0-sha-ccae15a5"><span class="tier C">C</span>swamp 20261001.060930.0-sha.ccae15a5</a></aside><div>
+
+<article class="item" id="release-swamp-club-swamp-v20261001-073437-0-sha-acf6214e">
+<h2><span class="tier C">C</span>swamp 20261001.073437.0-sha.acf6214e</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T07:36:15Z">2026-10-01T07:36:15Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>test(datastore): shared in-memory remote and recording sync service for pre-refactor tests (swamp-club#2854) (#2762)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Pre-refactor test infrastructure for the datastore rework (swamp-club#2854, tracked under swamp-club#2865). There are no production code changes.</p>
+<ul>
+<li><strong><code>createInMemoryRemote()</code></strong> (<code>packages/testing</code>) is an in-memory remote datastore that several simulated machines can share. <code>connect(cacheDir)</code> returns a sync service with two-phase push. It also provides <code>failNext</code>, <code>offline</code>, an operation log (<code>ops()</code>), <code>files()</code> and <code>resetSidecar()</code>. <strong>Experimental:</strong> by default it reproduces what <code>@swamp/s3-datastore</code> and <code>@swamp/gcs-datastore</code> do today, gaps included. It was checked line by line against swamp-extensions <code>5368cb002</code>, so a test that passes against it cannot lose data that production would keep. Three of those gaps can be switched off for later phases of the rework (<code>pullDeletes</code>, <code>bulkDisablesDeletes</code>, <code>pullClearsPendingPush</code>).</li>
+<li><strong><code>createRecordingSyncService()</code></strong> (<code>packages/testing</code>) records marks, pulls and pushes, and does nothing else. It replaces two hand-rolled recorders, in <code>src/cli/repo_context_test.ts</code> and <code>integration/mark_dirty_hook_sync_test.ts</code>, without changing their assertions.</li>
+<li><strong><code>registerTestDatastoreType(remote)</code></strong> (<code>src/infrastructure/testing</code>, test-only) registers a per-run <code>@test/remote-&lt;uuid&gt;</code> datastore type. With it, <code>requireInitializedRepo</code> wires the real repository factory, the <code>markDirty</code> hook and th</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214e" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261001-070022-0-sha-34f7a84c">
+<h2><span class="tier C">C</span>swamp 20261001.070022.0-sha.34f7a84c</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T07:01:54Z">2026-10-01T07:01:54Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(tests): exclude null_type and guard CEL top-level identifiers against cel-js constants (swamp-club#2851) (#2761)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2851.</p>
+<p>cel-js 7.6.1 registers some names as constants, and those constants win over context variables. The names are the type keywords (<code>string</code>, <code>bool</code>, <code>int</code>, <code>uint</code>, <code>double</code>, <code>map</code>, <code>list</code>, <code>bytes</code>, <code>null_type</code>, <code>type</code>) plus the <code>cel</code>, <code>google</code> and <code>optional</code> namespaces. So <code>evaluate(&#39;cel&#39;, { cel: &#39;&#39; })</code> returns <code>{}</code> instead of <code>&#39;&#39;</code>.</p>
+<p>This builds on #2759 (swamp-club#2500), which already excluded <code>cel</code>, <code>google</code> and <code>optional</code> from the CEL property test&#39;s generated identifiers and stopped the reported flake. This PR:</p>
+<ul>
+<li>Adds <code>null_type</code> to <code>CEL_RESERVED</code>. It is also a registered type constant, and #2759 missed it.</li>
+<li>Pins the shadowing behaviour in <code>cel_evaluator_test.ts</code>. If a cel-js upgrade changes which names shadow context variables, this test fails, which is the signal to revisit the exclusion list.</li>
+<li>Adds guard tests for every top-level identifier swamp binds in CEL, each run in the environment that actually evaluates it:</li>
+<li><code>ExpressionContext</code> keys, through <code>CelEvaluator</code></li>
+<li><code>DataRecord</code> fields plus the <code>ns</code> alias, through <code>DataQueryService</code>&#39;s own query environment (<code>select</code> projection)</li>
+<li><code>WorkflowRunFilterContext</code> fields, through <code>evaluateWorkflowRunFilter</code></li>
+</ul>
+<p>  Each key list is typed against its interface. <code>ExpressionContext</code> uses a <code>DeclaredKeys&lt;T&gt;</code> helper that strips its index signature. Adding</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.070022.0-sha.34f7a84c" rel="noopener">release v20261001.070022.0-sha.34f7a84c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/34f7a84c" rel="noopener">34f7a84c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2761" rel="noopener">#2761</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2759" rel="noopener">#2759</a>𝗔 <a href="https://swamp-club.com/lab/2851" rel="noopener">lab#2851</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261001-065457-0-sha-93a88f84">
+<h2><span class="tier C">C</span>swamp 20261001.065457.0-sha.93a88f84</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T06:56:21Z">2026-10-01T06:56:21Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(windows): restore Windows Compatibility CI (swamp-club#2879) (#2760)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Windows Compatibility has failed on every push to <code>main</code> since 2026-09-30. Five tests failed, from three causes:</p>
+<p>1. <strong><code>utime</code> → <code>PermissionDenied</code> (3 tests, fails every run).</strong> Installs write <code>manifest.yaml</code> as <code>0o444</code>, which on Windows sets the read-only attribute. <code>copyTreePreservingTimes</code> copies a nested entry&#39;s root with <code>Deno.copyFile</code>, which carries the attribute over, and Windows refuses to set times on a read-only file. This also broke real installs: upgrading a parent extension that has a nested entry failed on Windows. Now, if setting the times fails with <code>PermissionDenied</code> on Windows, <code>copyTimes</code> makes the file writable, sets the times, then makes it read-only again.</p>
+<p>2. <strong>Tar source handle never released (1 test, intermittent).</strong> Aborting a <code>pipeThrough</code> signal cancels the source only after the pending write settles. A write into a backpressured <code>DecompressionStream</code> never settles once the consumer stops reading, so the archive file stayed open. <code>untarGz</code> now wraps the source in <code>cancelOnAbort</code>, which cancels the source reader directly when the abort fires. <code>listTarGzEntries</code> passes no signal, so its behaviour is unchanged.</p>
+<p>3. <strong>Unset <code>HOME</code> (1 test, fails every run).</strong> The mixed runtime expressions test read <code>env[&quot;HOME&quot;]</code>, which Windows runners don&#39;t set. It now reads a variable supplied through <code>withMockedEnv</code>.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>The five failing tests are th</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.065457.0-sha.93a88f84" rel="noopener">release v20261001.065457.0-sha.93a88f84</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/93a88f84" rel="noopener">93a88f84</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2760" rel="noopener">#2760</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261001-065103-0-sha-70eff6a6">
+<h2><span class="tier C">C</span>swamp 20261001.065103.0-sha.70eff6a6</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T06:52:45Z">2026-10-01T06:52:45Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(tests): exclude cel-js built-in names from CEL property test identifiers (swamp-club#2500) (#2759)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2500, a flake in the scheduled flaky-test detection run.</p>
+<p>The CEL evaluator property tests generate variable names, put them in the evaluation context, and expect evaluating the name to return the context value. cel-js binds <code>cel</code>, <code>google</code> and <code>optional</code> itself. Evaluating those names returns the built-in namespace object rather than the context value. Run 36040862015 (ubuntu, seed 847670571) drew <code>cel</code> and got <code>{}a</code> instead of <code>0a</code> in the embedded interpolation property.</p>
+<p>This adds those three names to <code>CEL_RESERVED</code>, the same fix as swamp-club#2054. It only changes the test.</p>
+<p>User expressions are not affected. Swamp&#39;s CEL contexts only expose fixed top-level names (<code>model</code>, <code>inputs</code>, <code>env</code>, <code>vault</code>, <code>data</code>, <code>file</code>, ...), and none of them collide with the cel-js bindings.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Replayed seed 847670571 against the unfixed file. It failed with the original counterexample (<code>cel</code> → <code>{}a</code>).</li>
+<li>With the fix, the same seed passes.</li>
+<li><code>deno test --repeats 3</code> on <code>src/infrastructure/cel/cel_evaluator_property_test.ts</code> passes.</li>
+<li>verify-build, verify-reviews and verify-skills passed. The attestation was posted for commit 0c26da6d.</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20261001.06" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20261001.06</a></p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.065103.0-sha.70eff6a6" rel="noopener">release v20261001.065103.0-sha.70eff6a6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/70eff6a6" rel="noopener">70eff6a6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2759" rel="noopener">#2759</a>𝗔 <a href="https://swamp-club.com/lab/2500" rel="noopener">lab#2500</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261001-060930-0-sha-ccae15a5">
+<h2><span class="tier C">C</span>swamp 20261001.060930.0-sha.ccae15a5</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T06:11:13Z">2026-10-01T06:11:13Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(serve): read the collective API key from a file (swamp-club#2790) (#2758)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2790. Until now, serve read its collective key only from the</p>
+<p><code>SWAMP_API_KEY</code> env var (<code>clubApiKey</code> in <code>serve.ts</code>). That key drives headless</p>
+<p>OAuth client registration, admin and allowed-user name lookup, instance</p>
+<p>registration and the club heartbeat, so it had to live in the serve process&#39;s</p>
+<p>environment. This PR lets the key come from a file.</p>
+<ul>
+<li><strong><code>SWAMP_API_KEY_FILE</code></strong>: a path to a file that holds the key. It works for</li>
+</ul>
+<p>  every command that accepts <code>SWAMP_API_KEY</code>.</p>
+<ul>
+<li><strong><code>--club-api-key-file &lt;path&gt;</code></strong>: available on <code>swamp serve</code> and</li>
+</ul>
+<p>  <code>swamp serve check-config</code>. <code>swamp serve daemon enable</code> forwards it as an</p>
+<p>  absolute path, so the service unit stores the path and never the key. Daemon</p>
+<p>  units don&#39;t inherit the enabling shell&#39;s environment, so this flag is how a</p>
+<p>  daemon gets a key from a file.</p>
+<p>The order of precedence is <code>--club-api-key-file</code>, then <code>SWAMP_API_KEY_FILE</code>,</p>
+<p>then <code>SWAMP_API_KEY</code>. Setting both env vars is an error. Whitespace around the</p>
+<p>key is trimmed. A missing, unreadable, empty or directory path is an error that</p>
+<p>names the source and the path, and the path is marked for telemetry redaction.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong>One place resolves the key.</strong> <code>src/infrastructure/persistence/api_key_source.ts</code></li>
+</ul>
+<p>  is the only code that reads the key. <code>AuthRepository</code>, whoami, serve&#39;s</p>
+<p>  <code>clubApiKey</code>, check-config, quest and auth login/logout all go through it.</p>
+<p>  The</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.060930.0-sha.ccae15a5" rel="noopener">release v20261001.060930.0-sha.ccae15a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ccae15a5" rel="noopener">ccae15a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2758" rel="noopener">#2758</a>𝗔 <a href="https://swamp-club.com/lab/2866" rel="noopener">lab#2866</a></div>
+</article>
+
+<section class="tail"><h2>Final thoughts</h2>
+<p>5 items across 1 source(s) in this window:
+0 critical, 0 notable, 0 routine,
+5 minor.</p>
+<ul><li><strong>changes</strong> — 5</li></ul></section>
+</div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-01T07:03:24.658Z">2026-10-01T07:03:24.658Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-01T08:02:24.945Z">2026-10-01T08:02:24.945Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

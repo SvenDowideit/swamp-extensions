@@ -1,45 +1,64 @@
-import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 
 import {
   addRouteToConfig,
+  adminApiUrlString,
   automaticHttpsConfig,
   baseConfig,
   buildCurlArgs,
   buildFileServerRoute,
+  buildReconciledConfig,
   buildRoute,
+  buildStatusPageRoute,
   caddyArch,
   caddyDownloadUrl,
+  caddyTargetKey,
   computeHealth,
+  configuredListens,
   deriveHostname,
   detectSwampServeServices,
+  diffRoutes,
   dnsProviderPlugin,
   ensureFileServerRoute,
   ensureRoute,
   ensureServerDefaults,
+  ensureStatusPageRoute,
   expandHome,
   findRouteByHost,
   hasNetBindService,
+  isStatusPageRoute,
+  isSwampRoute,
   listProxyServices,
+  mergeDesired,
   mergeTlsConfig,
   model,
   parseAdminAddr,
   parseCaddyVersion,
   parseGetcap,
+  parseModules,
   parseUpstream,
   PRIVILEGED_PORT_CAPABILITIES,
   reconcileProxyServices,
   removeRouteFromConfig,
+  removeStatusPageRoute,
   renderAdminConfig,
   renderDomainConflictError,
   renderMinimalConfig,
+  renderNextCommands,
   renderPrivilegedPortGuidance,
   renderServiceUnit,
   renderSetcapCommand,
   renderSettingsGuidance,
+  renderStatusPage,
   renderTlsAutomation,
   renderUpgradeConfirmation,
   routeFileServerRoot,
+  routeHostnames,
+  routeId,
   routeUpstream,
+  statusPageHostnames,
+  statusPageLinks,
+  thirdPartyPlugins,
   validateBaseDomain,
   validateEmail,
 } from "./caddy.ts";
@@ -205,6 +224,20 @@ Deno.test("renderServiceUnit includes binary, config, and --resume, but no --adm
     .split("\n")
     .some((line) => line.startsWith("LimitNPROC="));
   assertEquals(hasLimitNPROC, false);
+  // No EnvironmentFile unless one is configured.
+  assertEquals(unit.includes("EnvironmentFile="), false);
+});
+
+Deno.test("renderServiceUnit adds a tolerant EnvironmentFile when configured", () => {
+  const unit = renderServiceUnit({
+    binPath: "/home/alice/.local/bin/caddy",
+    configPath: "/home/alice/.config/caddy/Caddyfile",
+    environmentFile: "/home/alice/.config/caddy/dns.env",
+  });
+  assertStringIncludes(
+    unit,
+    "EnvironmentFile=-/home/alice/.config/caddy/dns.env",
+  );
 });
 
 Deno.test("renderMinimalConfig is a valid empty Caddyfile with defaults", () => {
@@ -763,6 +796,305 @@ Deno.test("setCapabilities method records the command when it cannot apply", asy
   assertEquals(captured.applied, false);
 });
 
+Deno.test("statusPageHostnames covers localhost and loopback", () => {
+  const hosts = statusPageHostnames();
+  assertStringIncludes(hosts.join(","), "localhost");
+  assertStringIncludes(hosts.join(","), "127.0.0.1");
+});
+
+Deno.test("buildStatusPageRoute is a terminal static_response on localhost", () => {
+  const route = buildStatusPageRoute("<html>hi</html>");
+  assertEquals(route.terminal, true);
+  const match = route.match as Array<Record<string, unknown>>;
+  assertEquals((match[0].host as string[]).includes("localhost"), true);
+  const handle = route.handle as Array<Record<string, unknown>>;
+  assertEquals(handle[0].handler, "static_response");
+  assertEquals(handle[0].body, "<html>hi</html>");
+  assertEquals(isStatusPageRoute(route), true);
+});
+
+Deno.test("ensureStatusPageRoute is idempotent and replaces on change", () => {
+  const config = baseConfig();
+  const first = ensureStatusPageRoute(config, "<html>v1</html>");
+  assertEquals(first.changed, true);
+  assertEquals(isStatusPageRoute(getRoutesHelper(first.config)[0]), true);
+
+  const again = ensureStatusPageRoute(first.config, "<html>v1</html>");
+  assertEquals(again.changed, false);
+
+  const changed = ensureStatusPageRoute(first.config, "<html>v2</html>");
+  assertEquals(changed.changed, true);
+  const handle = getRoutesHelper(changed.config)[0].handle as Array<
+    Record<string, unknown>
+  >;
+  assertEquals(handle[0].body, "<html>v2</html>");
+});
+
+Deno.test("removeStatusPageRoute removes it and is idempotent", () => {
+  const config = ensureStatusPageRoute(baseConfig(), "<html>x</html>").config;
+  const removed = removeStatusPageRoute(config);
+  assertEquals(removed.changed, true);
+  assertEquals(getRoutesHelper(removed.config).length, 0);
+  const again = removeStatusPageRoute(removed.config);
+  assertEquals(again.changed, false);
+});
+
+Deno.test("renderStatusPage includes install facts and links", () => {
+  const html = renderStatusPage({
+    title: "Caddy",
+    version: "v2.11.4",
+    adminUrl: "http://localhost:2019/config/",
+    baseDomain: "otel.fi.gy",
+    email: "admin@example.com",
+    capabilities: ["cap_net_bind_service=ep"],
+    links: [
+      { label: "Admin API", url: "http://localhost:2019/config/" },
+      {
+        label: "app.otel.fi.gy",
+        url: "https://app.otel.fi.gy",
+        description: "→ 127.0.0.1:8080",
+      },
+    ],
+  });
+  assertStringIncludes(html, "v2.11.4");
+  assertStringIncludes(html, "otel.fi.gy");
+  assertStringIncludes(html, "admin@example.com");
+  assertStringIncludes(html, "CAP_NET_BIND_SERVICE set");
+  assertStringIncludes(html, "https://app.otel.fi.gy");
+  assertStringIncludes(html, "localhost");
+});
+
+Deno.test("renderStatusPage warns when the capability is missing", () => {
+  const html = renderStatusPage({
+    title: "Caddy",
+    version: "v2",
+    adminUrl: "",
+    baseDomain: "",
+    email: "",
+    capabilities: [],
+    links: [],
+  });
+  assertStringIncludes(html, "capability not set");
+  assertStringIncludes(html, "not set");
+});
+
+Deno.test("statusPageLinks derives from routes, excludes status hostnames", () => {
+  const links = statusPageLinks({
+    routes: [
+      {
+        hostname: "app.example.com",
+        kind: "proxy",
+        upstream: "127.0.0.1:8080",
+      },
+      // The status page's own hostnames must NOT appear as services.
+      { hostname: "localhost", kind: "proxy", upstream: "127.0.0.1:1" },
+    ],
+    statusHostnames: ["localhost", "127.0.0.1", "[::1]"],
+    extra: [{ label: "Docs", url: "https://example.com/docs" }],
+  });
+  const urls = links.map((l) => l.url);
+  assertStringIncludes(urls.join(","), "https://app.example.com");
+  assertStringIncludes(urls.join(","), "https://example.com/docs");
+  assert(!urls.some((u) => u === "https://localhost"), "localhost excluded");
+  assertEquals(links.length, 2);
+});
+
+Deno.test("adminApiUrlString yields a URL for http and none for unix", () => {
+  assertEquals(
+    adminApiUrlString("localhost:2019"),
+    "http://localhost:2019/config/",
+  );
+  assertEquals(adminApiUrlString("unix//run/user/1000/caddy.sock"), "");
+});
+
+Deno.test("parseModules parses caddy list-modules --json", () => {
+  const json = JSON.stringify([
+    {
+      module_name: "http.handlers.reverse_proxy",
+      module_type: "standard",
+      version: "v2.11.4",
+      package_url: "github.com/caddyserver/caddy/v2",
+    },
+    {
+      module_name: "dns.providers.gandi",
+      module_type: "non-standard",
+      version: "v1.0.0",
+      package_url: "github.com/caddy-dns/gandi",
+    },
+  ]);
+  const modules = parseModules(json);
+  assertEquals(modules.length, 2);
+  assertEquals(modules[1].name, "dns.providers.gandi");
+  assertEquals(modules[1].type, "non-standard");
+  assertEquals(modules[1].packagePath, "github.com/caddy-dns/gandi");
+  // Invalid JSON / non-array yields [] rather than throwing.
+  assertEquals(parseModules("not json"), []);
+  assertEquals(parseModules("{}"), []);
+});
+
+Deno.test("thirdPartyPlugins groups non-standard modules by package", () => {
+  const modules = parseModules(JSON.stringify([
+    {
+      module_name: "dns.providers.gandi",
+      module_type: "non-standard",
+      version: "v1.0.0",
+      package_url: "github.com/caddy-dns/gandi",
+    },
+    {
+      module_name: "dns.providers.gandi.sub",
+      module_type: "non-standard",
+      version: "v1.0.0",
+      package_url: "github.com/caddy-dns/gandi",
+    },
+    {
+      module_name: "http.handlers.file_server",
+      module_type: "standard",
+      version: "v2.11.4",
+      package_url: "github.com/caddyserver/caddy/v2",
+    },
+  ]));
+  const plugins = thirdPartyPlugins(modules);
+  assertEquals(plugins.length, 1);
+  assertEquals(plugins[0].packagePath, "github.com/caddy-dns/gandi");
+  assertEquals(plugins[0].modules.sort(), [
+    "dns.providers.gandi",
+    "dns.providers.gandi.sub",
+  ]);
+  assertEquals(thirdPartyPlugins([]), []);
+});
+
+Deno.test("configuredListens extracts and dedupes server listen addresses", () => {
+  const config = baseConfig([":443", ":80"]);
+  assertEquals(configuredListens(config), [":443", ":80"]);
+  assertEquals(configuredListens({}), []);
+  // Multiple servers merge and dedupe.
+  const multi = {
+    apps: {
+      http: {
+        servers: {
+          a: { listen: [":443", ":80"] },
+          b: { listen: [":80", ":8080"] },
+        },
+      },
+    },
+  };
+  assertEquals(configuredListens(multi), [":443", ":80", ":8080"]);
+});
+
+Deno.test("renderStatusPage shows what Caddy is listening on", () => {
+  const html = renderStatusPage({
+    title: "Caddy",
+    version: "v2.11.4",
+    adminUrl: "http://localhost:2019/config/",
+    baseDomain: "otel.fi.gy",
+    email: "admin@example.com",
+    capabilities: ["cap_net_bind_service=ep"],
+    links: [],
+    modules: [],
+    listens: [":443", ":80"],
+  });
+  assertStringIncludes(html, "Listening on");
+  assertStringIncludes(html, "<code>:443</code>");
+  assertStringIncludes(html, "<code>:80</code>");
+
+  const none = renderStatusPage({
+    title: "Caddy",
+    version: "v2",
+    adminUrl: "",
+    baseDomain: "",
+    email: "",
+    capabilities: [],
+    links: [],
+    modules: [],
+    listens: [],
+  });
+  assertStringIncludes(none, "Nothing — no server addresses are configured");
+});
+
+Deno.test("renderStatusPage always shows a Routes & services section", () => {
+  const empty = renderStatusPage({
+    title: "Caddy",
+    version: "v2",
+    adminUrl: "",
+    baseDomain: "",
+    email: "",
+    capabilities: [],
+    links: [],
+    modules: [],
+    listens: [],
+  });
+  // The section is present even with no routes, with guidance.
+  assertStringIncludes(empty, "Routes &amp; services");
+  assertStringIncludes(empty, "No routes are managed by swamp models yet");
+
+  const withLinks = renderStatusPage({
+    title: "Caddy",
+    version: "v2",
+    adminUrl: "",
+    baseDomain: "",
+    email: "",
+    capabilities: [],
+    links: [{ label: "app.example.com", url: "https://app.example.com" }],
+    modules: [],
+    listens: [":443"],
+  });
+  assertStringIncludes(withLinks, "https://app.example.com");
+  assert(!withLinks.includes("No routes are managed"));
+});
+
+Deno.test("renderStatusPage lists compiled-in plugins or says stock", () => {
+  const withPlugins = renderStatusPage({
+    title: "Caddy",
+    version: "v2.11.4",
+    adminUrl: "http://localhost:2019/config/",
+    baseDomain: "",
+    email: "",
+    capabilities: [],
+    links: [],
+    modules: parseModules(JSON.stringify([
+      {
+        module_name: "dns.providers.gandi",
+        module_type: "non-standard",
+        version: "v1.0.0",
+        package_url: "github.com/caddy-dns/gandi",
+      },
+    ])),
+  });
+  assertStringIncludes(withPlugins, "Compiled-in plugins");
+  assertStringIncludes(withPlugins, "github.com/caddy-dns/gandi");
+  assertStringIncludes(withPlugins, "dns.providers.gandi");
+
+  const stock = renderStatusPage({
+    title: "Caddy",
+    version: "v2.11.4",
+    adminUrl: "",
+    baseDomain: "",
+    email: "",
+    capabilities: [],
+    links: [],
+    modules: parseModules(JSON.stringify([
+      {
+        module_name: "http.handlers.file_server",
+        module_type: "standard",
+        version: "v2.11.4",
+        package_url: "github.com/caddyserver/caddy/v2",
+      },
+    ])),
+  });
+  assertStringIncludes(stock, "stock Caddy binary");
+});
+
+// Helper: read the routes array out of a config for assertions.
+function getRoutesHelper(
+  config: Record<string, unknown>,
+): Array<Record<string, unknown>> {
+  const apps = config.apps as Record<string, unknown>;
+  const http = apps.http as Record<string, unknown>;
+  const servers = http.servers as Record<string, unknown>;
+  const srv0 = servers.srv0 as Record<string, unknown>;
+  return (srv0.routes as Array<Record<string, unknown>>) ?? [];
+}
+
 Deno.test("mergeTlsConfig replaces the tls app in a config", () => {
   const config = baseConfig();
   const tls = renderTlsAutomation({ email: "admin@example.com" });
@@ -847,6 +1179,332 @@ Deno.test("routeUpstream extracts the dial address from a route", () => {
   });
   assertEquals(routeUpstream(route), "127.0.0.1:8080");
   assertEquals(routeUpstream({}), "");
+});
+
+/** Build a minimal DesiredState for merge tests. */
+function desired(
+  modelName: string,
+  over: Partial<Record<string, unknown>> = {},
+): Parameters<typeof mergeDesired>[0][number] {
+  return {
+    modelName,
+    target: "host-a",
+    serviceName: "caddy",
+    baseDomain: "example.com",
+    autoHttps: "on",
+    listenAddrs: [":443", ":80"],
+    routes: [],
+    tls: null,
+    statusPage: null,
+    updatedAt: "now",
+    ...over,
+    // deno-lint-ignore no-explicit-any
+  } as any;
+}
+
+Deno.test("caddyTargetKey merges same host+service and separates others", () => {
+  assertEquals(
+    caddyTargetKey("host-a", "caddy"),
+    caddyTargetKey("host-a", "caddy"),
+  );
+  assert(
+    caddyTargetKey("host-a", "caddy") !== caddyTargetKey("host-b", "caddy"),
+  );
+  assert(
+    caddyTargetKey("host-a", "caddy") !== caddyTargetKey("host-a", "caddy-2"),
+  );
+});
+
+Deno.test("mergeDesired unions routes from several models", () => {
+  const { merged, errors } = mergeDesired([
+    desired("a", {
+      routes: [{
+        hostname: "a.example.com",
+        kind: "proxy",
+        upstream: "127.0.0.1:8080",
+        root: "",
+        browse: false,
+      }],
+    }),
+    desired("b", {
+      routes: [{
+        hostname: "b.example.com",
+        kind: "proxy",
+        upstream: "127.0.0.1:9090",
+        root: "",
+        browse: false,
+      }],
+    }),
+  ]);
+  assertEquals(errors, []);
+  assertEquals(merged.routes.map((r) => r.hostname), [
+    "a.example.com",
+    "b.example.com",
+  ]);
+  assertEquals(merged.models.sort(), ["a", "b"]);
+});
+
+Deno.test("mergeDesired errors on a real route conflict", () => {
+  const { errors } = mergeDesired([
+    desired("a", {
+      routes: [{
+        hostname: "x.example.com",
+        kind: "proxy",
+        upstream: "127.0.0.1:1",
+        root: "",
+        browse: false,
+      }],
+    }),
+    desired("b", {
+      routes: [{
+        hostname: "x.example.com",
+        kind: "proxy",
+        upstream: "127.0.0.1:2",
+        root: "",
+        browse: false,
+      }],
+    }),
+  ]);
+  assert(
+    errors.some((e) =>
+      e.includes("route conflict") && e.includes("x.example.com")
+    ),
+  );
+});
+
+Deno.test("mergeDesired errors on differing TLS email or provider", () => {
+  const { errors } = mergeDesired([
+    desired("a", {
+      tls: {
+        email: "a@x.com",
+        dnsProvider: "gandi",
+        dnsEnvVar: "",
+        providerConfig: {},
+        subjects: ["*.example.com"],
+      },
+    }),
+    desired("b", {
+      tls: {
+        email: "b@x.com",
+        dnsProvider: "gandi",
+        dnsEnvVar: "",
+        providerConfig: {},
+        subjects: ["example.com"],
+      },
+    }),
+  ]);
+  assert(errors.some((e) => e.includes("TLS email conflict")));
+});
+
+Deno.test("mergeDesired unions TLS subjects and picks one status page", () => {
+  const { merged, errors } = mergeDesired([
+    desired("a", {
+      tls: {
+        email: "x@e.com",
+        dnsProvider: "gandi",
+        dnsEnvVar: "G",
+        providerConfig: {},
+        subjects: ["*.example.com"],
+      },
+    }),
+    desired("b", {
+      tls: {
+        email: "x@e.com",
+        dnsProvider: "gandi",
+        dnsEnvVar: "G",
+        providerConfig: {},
+        subjects: ["example.com"],
+      },
+    }),
+    desired("a", {
+      statusPage: {
+        enabled: true,
+        title: "A",
+        html: "<h1>A</h1>",
+        hostnames: ["localhost"],
+        links: [],
+      },
+    }),
+    desired("b", {
+      statusPage: {
+        enabled: true,
+        title: "B",
+        html: "<h1>B</h1>",
+        hostnames: ["localhost"],
+        links: [],
+      },
+    }),
+  ]);
+  assertEquals(errors, []);
+  assertEquals(merged.tls!.subjects, ["*.example.com", "example.com"]);
+  assertEquals(merged.statusPage!.title, "A");
+});
+
+Deno.test("buildReconciledConfig tags swamp routes and preserves foreign ones", () => {
+  // A hand-added (untagged) route must survive reconcile.
+  const current = addRouteToConfig(
+    baseConfig(),
+    buildRoute("manual.example.com", { dial: "127.0.0.1:1", https: false }),
+  );
+  const config = buildReconciledConfig(current, {
+    routes: [{
+      hostname: "app.example.com",
+      kind: "proxy",
+      upstream: "127.0.0.1:8080",
+      root: "",
+      browse: false,
+      model: "a",
+    }],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: null,
+    statusPage: null,
+    statusPageModel: "",
+  });
+  const hosts = getRoutesHelper(config).flatMap((r) =>
+    (r.match as Array<{ host: string[] }>).flatMap((m) => m.host)
+  );
+  assert(hosts.includes("manual.example.com"));
+  assert(hosts.includes("app.example.com"));
+  const swampRoute = getRoutesHelper(config).find((r) => isSwampRoute(r))!;
+  assertEquals(swampRoute["@id"], routeId("a", "app.example.com"));
+});
+
+Deno.test("buildReconciledConfig replaces prior swamp routes, keeps foreign", () => {
+  // First reconcile wrote a swamp route; second reconcile must not duplicate it.
+  const first = buildReconciledConfig(baseConfig(), {
+    routes: [{
+      hostname: "app.example.com",
+      kind: "proxy",
+      upstream: "127.0.0.1:8080",
+      root: "",
+      browse: false,
+      model: "a",
+    }],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: null,
+    statusPage: null,
+    statusPageModel: "",
+  });
+  const withManual = addRouteToConfig(
+    first,
+    buildRoute("manual.example.com", { dial: "127.0.0.1:1", https: false }),
+  );
+  const second = buildReconciledConfig(withManual, {
+    routes: [{
+      hostname: "new.example.com",
+      kind: "proxy",
+      upstream: "127.0.0.1:9090",
+      root: "",
+      browse: false,
+      model: "b",
+    }],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: null,
+    statusPage: null,
+    statusPageModel: "",
+  });
+  const ids = getRoutesHelper(second).map((r) => r["@id"]).filter(Boolean);
+  assertEquals(ids, [routeId("b", "new.example.com")]);
+  const hosts = getRoutesHelper(second).flatMap((r) =>
+    (r.match as Array<{ host: string[] }>).flatMap((m) => m.host)
+  );
+  assert(hosts.includes("manual.example.com"));
+});
+
+Deno.test("diffRoutes reports drift between desired and actual", () => {
+  // Build an actual config with one swamp route + one foreign route.
+  let actual = buildReconciledConfig(baseConfig(), {
+    routes: [{
+      hostname: "a.example.com",
+      kind: "proxy",
+      upstream: "127.0.0.1:8080",
+      root: "",
+      browse: false,
+      model: "m",
+    }],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: null,
+    statusPage: null,
+    statusPageModel: "",
+  });
+  actual = addRouteToConfig(
+    actual,
+    buildRoute("manual.example.com", { dial: "127.0.0.1:1", https: false }),
+  );
+
+  // Desired has a different route (b), missing the actual a.
+  const diff = diffRoutes(
+    [{
+      hostname: "b.example.com",
+      kind: "proxy",
+      upstream: "127.0.0.1:9090",
+      root: "",
+      model: "m",
+    }],
+    actual,
+  );
+  assertEquals(diff.onlyDesired, ["b.example.com"]);
+  assertEquals(diff.onlyActual, ["a.example.com"]);
+  assertEquals(diff.foreignRoutes, ["manual.example.com"]);
+  assertEquals(diff.inSync, false);
+});
+
+Deno.test("diffRoutes reports in-sync when desired matches actual", () => {
+  const actual = buildReconciledConfig(baseConfig(), {
+    routes: [{
+      hostname: "a.example.com",
+      kind: "proxy",
+      upstream: "127.0.0.1:8080",
+      root: "",
+      browse: false,
+      model: "m",
+    }],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: null,
+    statusPage: null,
+    statusPageModel: "",
+  });
+  const diff = diffRoutes(
+    [{
+      hostname: "a.example.com",
+      kind: "proxy",
+      upstream: "127.0.0.1:8080",
+      root: "",
+      model: "m",
+    }],
+    actual,
+  );
+  assertEquals(diff.onlyDesired, []);
+  assertEquals(diff.onlyActual, []);
+  assertEquals(diff.inSync, true);
+});
+
+Deno.test("renderNextCommands tells the user the unmerged/merged/actual steps", () => {
+  const cmds = renderNextCommands({
+    runModel: "scratch",
+    models: ["otel-caddy", "caddy-web"],
+    adminApiAddr: "localhost:2019",
+    listenAddrs: [":443", ":80"],
+  });
+  assertStringIncludes(cmds, "swamp data get otel-caddy desired");
+  assertStringIncludes(cmds, "swamp data get caddy-web desired");
+  assertStringIncludes(cmds, "swamp data get scratch plan");
+  assertStringIncludes(cmds, "curl -s localhost:2019/config/");
+  assertStringIncludes(cmds, "diff -u");
+});
+
+Deno.test("routeHostnames extracts match hosts", () => {
+  assertEquals(
+    routeHostnames(
+      buildRoute("x.example.com", { dial: "127.0.0.1:1", https: false }),
+    ),
+    ["x.example.com"],
+  );
 });
 
 Deno.test("ensureRoute adds a missing route", () => {
@@ -1025,9 +1683,12 @@ Deno.test("ensureDnsProxy adds a route via the admin API", async () => {
       args: { hostname: "foo.example.com", upstream: "127.0.0.1:8080" },
     }));
   const written = result.ctx.getWrittenResources();
-  assertEquals(written[0].specName, "ensureProxy");
-  assertEquals(written[0].data.changed, true);
-  assertEquals(written[0].data.upstream, "127.0.0.1:8080");
+  const ensure = written.find((w) => w.specName === "ensureProxy")!;
+  assertEquals(ensure.data.changed, true);
+  assertEquals(ensure.data.upstream, "127.0.0.1:8080");
+  // It also records desired state and applies the merged config.
+  assert(written.some((w) => w.specName === "desired"));
+  assert(written.some((w) => w.specName === "reconcile"));
 });
 
 Deno.test("removeProxyService is a no-op when the route is already gone", async () => {
@@ -1046,8 +1707,8 @@ Deno.test("removeProxyService is a no-op when the route is already gone", async 
         args: { serviceName: "my-app" },
       })));
   const written = result.result.ctx.getWrittenResources();
-  assertEquals(written[0].specName, "proxyServices");
-  // No route was present, so nothing was removed and no POST was needed.
+  const services = written.find((w) => w.specName === "proxyServices")!;
+  // No route was present, so nothing was removed.
   // deno-lint-ignore no-explicit-any
-  assertEquals((written[0].data.services as any[]).length, 0);
+  assertEquals((services.data.services as any[]).length, 0);
 });

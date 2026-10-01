@@ -24,6 +24,10 @@ restarts and reboots** (Caddy autosave + `--resume`). It can:
 - **Serve static files** — publish a directory (e.g. a rendered settings bundle)
   over HTTP(S) at a hostname with `serveSettings` (`file_server`), so documents
   are fetchable network-wide without running another server.
+- **A default status page** — a fresh install answers `http://localhost` and
+  `https://localhost` with a page summarising what's installed (version, domain,
+  ACME email, privileged-port capability) and linking to the admin API and any
+  configured routes, so a new host is never a blank 404.
 - **Terminate TLS** — configure ACME (Let's Encrypt/ZeroSSL), including DNS
   challenge providers for wildcard certificates. Supports single-field providers
   (`api_token`) and multi-field ones (Gandi `bearer_token`; Namecheap
@@ -64,6 +68,7 @@ when it is unset.
 | `letsEncryptEmail` | string | *(unset)* | ACME / Let's Encrypt email (`configureTls`). |
 | `plugins` | array | `[]` | Module packages to compile into the downloaded binary, each optionally `@version`-pinned. |
 | `vaultName` | string | *(unset)* | Vault used by `storeConfig` to write secrets. |
+| `environmentFile` | string | *(unset)* | Path to a systemd `EnvironmentFile` for secrets (e.g. `~/.config/caddy/dns.env`, chmod 600), rendered as `EnvironmentFile=-<path>`. Required for DNS-challenge credentials — see [Wildcard certificates with a DNS provider](#wildcard-certificates-with-a-dns-provider-step-by-step). |
 
 Methods also take **per-run arguments** (`--input …`) that override the global
 for that call. See the [method reference](#methods) for every argument. Several
@@ -178,6 +183,123 @@ swamp model get my-caddy --json | jq '.globalArguments'
 swamp model edit my-caddy
 ```
 
+## Managing the model: find, change, and multiple models
+
+### Which Caddy model is "the" one?
+
+There is no registry of "the active model" — a swamp model is just a definition
+file, and the extension is driven by *which model you name in the command*. To
+find the ones you have:
+
+```sh
+# List every model of this type in the repo:
+swamp model list --json | jq -r '.results[] | select(.type=="@svendowideit/caddy") | .name'
+# -> otel-caddy
+
+# Inspect one: its global args (ports, domain, plugins, serviceName) and type version.
+swamp model get otel-caddy --json | jq '{name, typeVersion, globalArguments}'
+```
+
+What makes a model "the active one" is its **`serviceName`** (default `caddy`):
+that is the systemd unit, and `adminApiAddr` (`localhost:2019`) is the single
+running Caddy's admin API. Two models that share the same `serviceName` /
+`adminApiAddr` describe **the same running Caddy**; whichever you run a method
+on edits that one service. Which model last configured it is recorded on the
+status page itself ("Managed by swamp model `<name>`").
+
+### Change an existing model
+
+`swamp model create` fails on an existing name (`Model already exists:
+otel-caddy`) — that guard stops you clobbering a model by accident. To change
+one, use `swamp model edit`. It is interactive by default; for scripts, feed it
+the full definition on stdin (`--json`), including the fields you want to keep:
+
+```sh
+# Read the current definition, change one field, write it back.
+swamp model get otel-caddy --json \
+  | jq '{name, version, tags, globalArguments} | .globalArguments.baseDomain = "new.example.com"' \
+  | swamp model edit otel-caddy --json
+
+# Verify the change.
+swamp model get otel-caddy --json | jq '.globalArguments.baseDomain'
+```
+
+Changing a global arg does **not** touch the running service — global args are
+only read when you next run a method. So after editing, re-run whatever consumes
+it: edit `plugins` → `installCaddy` (+ `setCapabilities`); edit `listenAddrs` /
+`autoHttps` / `environmentFile` → `createService` + `restartService`; edit
+`baseDomain` → `configureTls`, `configureStatusPage`, etc.
+
+### More than one Caddy model: they merge, they don't fight
+
+You can (and should) split configuration across several models — e.g. one for
+TLS + the status page, another per application or per team. Because only one
+process can own :80/:443, those models must cooperate, and the extension makes
+them: **every mutating method records what that model wants, then reconciles the
+union of all models managing the same Caddy into one valid config.**
+
+A model's Caddy is identified by **(`target`, `serviceName`)**, where `target`
+defaults to this machine's hostname. Models with the same pair are merged;
+models with a different `serviceName` (or `target`) manage a *separate* Caddy.
+
+How the merge behaves:
+
+- **Routes union.** Each model contributes its routes; a duplicate hostname is a
+  real conflict, reported by name (see below).
+- **`listenAddrs` and TLS subjects union.**
+- **Real conflicts error, naming the models** — rather than a silent last-writer
+  wins. Conflicts are: two different upstreams for the same hostname, two
+  different TLS emails, or two different DNS providers.
+- **Only swamp-managed routes are replaced.** Every route swamp writes carries a
+  Caddy `@id` of `swamp:<model>:<hostname>`; reconcile adds/updates/removes only
+  those, so routes a human added through the admin API are preserved.
+- **The status page is a singleton** on localhost; several models may request one
+  (installs do so automatically), and the extension picks one deterministically.
+
+So this is the normal, supported way to work:
+
+```sh
+# Model A owns TLS; model B adds an app route. Both manage the same Caddy.
+swamp model method run caddy-tls configureTls \
+  --input dnsProvider=gandi \
+  --input 'providerConfig:json={"bearer_token":"GANDI_BEARER_TOKEN"}' \
+  --input 'subjects:json=["*.example.com"]'
+swamp model method run caddy-apps ensureDnsProxy \
+  --input hostname=shop.example.com --input upstream=127.0.0.1:8080
+
+# The running config contains BOTH: the TLS policy and shop.example.com.
+# Adding another route from either model never removes the other's.
+```
+
+A conflicting edit is rejected and **not** committed:
+
+```sh
+# If caddy-apps and another model both claim shop.example.com with different
+# upstreams, this fails loudly and changes nothing:
+#   Caddy reconcile conflict for target 'host:caddy':
+#   route conflict for 'shop.example.com': desired by 'caddy-b' and 'caddy-apps'
+```
+
+To manage a genuinely separate Caddy on the same host (e.g. a second, unprivileged
+instance on high ports), give it distinct identity so it does not merge:
+
+```sh
+swamp model create @svendowideit/caddy caddy-lab \
+  --global-arg serviceName=caddy-lab \
+  --global-arg adminApiAddr=localhost:2020 \
+  --global-arg configPath=~/.config/caddy-lab/Caddyfile \
+  --global-arg caddyBinPath=~/.local/bin/caddy-lab \
+  --global-arg autoHttps=off \
+  --global-arg 'listenAddrs:json=[":8080"]'
+swamp model method run caddy-lab installCaddy
+swamp model method run caddy-lab createService
+swamp model method run caddy-lab startService
+```
+
+Set `reconcile=false` on a model if you want it to write only its own config and
+ignore peers (rarely what you want). The `reconcile` resource records which
+models were merged on the last run, and the status page names the owning model.
+
 ## Details
 
 `@svendowideit/caddy` ships one model type (`@svendowideit/caddy`). Every method
@@ -185,8 +307,11 @@ it exposes, with its per-run arguments:
 
 | Method | Arguments | Purpose |
 | ------ | --------- | ------- |
-| `installCaddy` | `plugins` (array), `force` (boolean), `setCapabilities` (boolean, default true) | Download the binary (with module packages compiled in), place it at `caddyBinPath`, verify it runs (`caddy version` + `caddy list-modules`), and try to grant `CAP_NET_BIND_SERVICE` (see [Privileged ports](#privileged-ports-80443)). |
+| `installCaddy` | `plugins` (array), `force` (boolean), `setCapabilities` (boolean, default true), `configureStatusPage` (boolean, default true) | Download the binary (with module packages compiled in), place it at `caddyBinPath`, verify it runs (`caddy version` + `caddy list-modules`), grant `CAP_NET_BIND_SERVICE` (see [Privileged ports](#privileged-ports-80443)), and install the status page when the admin API is up. |
 | `setCapabilities` | `capabilities` (array), `binPath` (string), `quiet` (boolean) | Grant `CAP_NET_BIND_SERVICE` to the binary via `setcap` (then `sudo -n setcap`), or record the exact `sudo setcap` command when sudo is unavailable. Idempotent. |
+| `configureStatusPage` | `title` (string), `extraLinks` (array of `{label,url}`), `disabled` (boolean) | Install (or, with `disabled=true`, remove) the status page answering `http://localhost` / `https://localhost`. Idempotent. |
+| `plan` | none | Read-only: for **one** Caddy, merge all its models' desired state, compute the config that would be applied, read the live config, and record desired/actual routes, `onlyDesired`/`onlyActual` drift, foreign routes, and both full configs for diffing. Changes nothing. |
+| `audit` | none | Read-only, and the one-command entry point: find **every** caddy model, group by the Caddy each manages, and per Caddy report the merged routes (and which model wants each), desired-vs-actual drift, and reachability. Prints a table via the `@svendowideit/caddy-status` report. |
 | `createService` | `serviceName` (string) | Write the systemd user unit (`~/.config/systemd/user/caddy.service`) and a minimal Caddyfile. |
 | `startService` | `serviceName` (string) | `systemctl --user enable --now caddy` and verify the admin API responds on `localhost:2019`. |
 | `stopService` | `serviceName` (string) | Stop the Caddy systemd user service. |
@@ -209,8 +334,9 @@ it exposes, with its per-run arguments:
 
 Resources: the model writes a `install` resource (binary status + capabilities),
 `service`, `guidance`, `proxyServices`, `config` (via `syncConfig`), `tlsConfig`,
-`autoProxy`, `upgrade`, `health`, `ensureProxy`, `serveSettings`, and
-`capabilities`.
+`autoProxy`, `upgrade`, `health`, `ensureProxy`, `serveSettings`, `capabilities`,
+`statusPage`, `desired` (what this model wants from its Caddy), and `reconcile`
+(which peer models were merged on the last run).
 
 ### Extra Caddy modules (`plugins`)
 
@@ -259,32 +385,109 @@ library, one module per provider (`github.com/caddy-dns/<provider>`).
    `configureTls` renders `{env.CADDY_DNS_API_TOKEN}` by default (override with
    `dnsEnvVar`); for multi-field providers, pass `providerConfig` mapping each
    field to its environment variable. The Caddy process must have those
-   variables in its environment. Add them to the systemd user unit, preferring
-   an `EnvironmentFile` with restricted permissions (or `systemd-creds`) over a
-   plaintext `Environment=` line:
-
-   ```ini
-   # ~/.config/systemd/user/caddy.service
-   [Service]
-   EnvironmentFile=-%h/.config/caddy/dns.env
-   ```
-
-   ```sh
-   # ~/.config/caddy/dns.env  (chmod 600)
-   CADDY_DNS_API_TOKEN=your-cloudflare-api-token
-   ```
-
-   Prefer storing the token in the Vault rather than committing it:
-
-   ```sh
-   echo "your-token" | swamp vault put caddy-secrets caddy-dns-token
-   ```
+   variables in its environment — set the model's **`environmentFile`** global
+   arg and `createService` renders `EnvironmentFile=-<path>` into the unit (do
+   **not** hand-edit the unit; the next `createService` overwrites it).
 
 3. **Configure the DNS ACME challenge.** Run `configureTls` with the provider
    and the subjects (wildcard + apex). This writes a `tls.automation` policy
    with an ACME issuer using the DNS challenge; Caddy then obtains and
    auto-renews certificates for those subjects using the provider's DNS API.
    Verify with `checkHealth` and by requesting a proxied domain over HTTPS.
+
+### Wildcard certificates with a DNS provider (step by step)
+
+The HTTP-01 challenge can't issue **wildcard** certs (`*.example.com`), so a
+wildcard needs the ACME **DNS-01** challenge, which writes a `_acme-challenge`
+TXT record through the provider's API. This walkthrough uses **Gandi**, whose
+libdns driver reads a Personal Access Token from the `bearer_token` field.
+
+**1. Get a Gandi Personal Access Token** with permission to manage the zone's
+records (Gandi's old "API key" is not supported by the driver). Create it in
+your Gandi account; it looks like a long opaque string.
+
+**2. Create the model with the DNS plugin compiled in, an environment file, and
+your ACME email.** The DNS driver is a Caddy module, so it must be in `plugins`:
+
+```sh
+# baseDomain is the zone; plugins compiles the Gandi driver into the binary;
+# environmentFile is where the PAT will live; letsEncryptEmail is the ACME account.
+swamp model create @svendowideit/caddy my-caddy \
+  --global-arg baseDomain=example.com \
+  --global-arg letsEncryptEmail=admin@example.com \
+  --global-arg 'plugins:json=["github.com/caddy-dns/gandi"]' \
+  --global-arg environmentFile=~/.config/caddy/dns.env
+```
+
+**3. Write the token into the environment file (chmod 600).** Use the model's
+`environmentFile` path; the variable name must match the one you pass to
+`providerConfig` in step 5:
+
+```sh
+# Create the env file with the Gandi PAT. Keep it out of version control.
+install -d -m 700 ~/.config/caddy
+printf 'GANDI_BEARER_TOKEN=%s\n' "$YOUR_GANDI_PAT" > ~/.config/caddy/dns.env
+chmod 600 ~/.config/caddy/dns.env
+```
+
+(Alternatively, keep the token in a swamp vault and write it out at deploy time
+from `vault.get(...)` rather than pasting it here.)
+
+**4. Install the binary and (re)create the service so the unit loads the env
+file.** `createService` renders `EnvironmentFile=-~/.config/caddy/dns.env`:
+
+```sh
+swamp model method run my-caddy installCaddy
+swamp model method run my-caddy createService
+swamp model method run my-caddy startService
+
+# Confirm the unit now reads the env file:
+grep EnvironmentFile ~/.config/systemd/user/caddy.service
+# -> EnvironmentFile=-/home/you/.config/caddy/dns.env
+
+# Confirm Caddy can actually see the variable (it must print the name, not the value):
+systemctl --user show caddy -p Environment | grep -o GANDI_BEARER_TOKEN
+```
+
+**5. Configure the DNS-01 challenge.** Map the driver's credential field
+(`bearer_token`) to the env var name (`GANDI_BEARER_TOKEN`) with
+`providerConfig`, and list the subjects (wildcard + apex). This writes the
+`tls.automation` ACME issuer with the DNS challenge:
+
+```sh
+swamp model method run my-caddy configureTls \
+  --input dnsProvider=gandi \
+  --input 'providerConfig:json={"bearer_token":"GANDI_BEARER_TOKEN"}' \
+  --input 'subjects:json=["*.example.com","example.com"]'
+```
+
+The resulting TLS policy is equivalent to this Caddyfile, which is what Caddy
+uses to create the `_acme-challenge` record and prove control of the zone:
+
+```caddyfile
+example.com {
+  tls {
+    dns gandi {env.GANDI_BEARER_TOKEN}
+  }
+}
+```
+
+**6. Verify.** Point a route at a backend under the wildcard, then request it
+over HTTPS; Caddy issues the cert on first use:
+
+```sh
+swamp model method run my-caddy ensureDnsProxy \
+  --input hostname=app.example.com --input upstream=127.0.0.1:8080
+
+# First request triggers issuance (may take a few seconds); a valid cert means
+# the DNS-01 challenge succeeded.
+curl -sv https://app.example.com/ 2>&1 | grep -iE 'SSL certificate|subject:'
+```
+
+If issuance fails, Caddy logs the ACME error (`journalctl --user -u caddy`),
+which usually names the provider problem directly — e.g. an unauthorized/expired
+PAT, or a token without permission on the zone. The status page's
+"Compiled-in plugins" line confirms `github.com/caddy-dns/gandi` is present.
 
 ### Privileged ports (80/443)
 
@@ -337,6 +540,41 @@ service from binding 80/443, so `createService` omits them:
 If you do not need privileged ports, you can add hardening back by editing the
 unit after `createService` (swamp will rewrite it on the next `createService`).
 
+### The default status page
+
+A fresh Caddy has no routes, so it answers nothing useful. `installCaddy`
+(default) and `startService` install a status page that answers
+`http://localhost` and `https://localhost`, showing:
+
+- the installed Caddy version, base domain, and ACME email,
+- whether `CAP_NET_BIND_SERVICE` is set (i.e. whether 80/443 will work),
+- the **third-party plugins compiled into the binary** (parsed from
+  `caddy list-modules --json`), grouped by Go package with version and module
+  names — or a note that the binary is stock,
+- a link to the Caddy admin API (`http://localhost:2019/config/`), and
+- a link per configured proxy route.
+
+It is a single Caddy `static_response` route matching `localhost` / `127.0.0.1`
+/ `[::1]` — no file on disk. Manage it directly:
+
+```sh
+# (Re)install it after changing routes or domains, or set a custom title.
+swamp model method run my-caddy configureStatusPage
+swamp model method run my-caddy configureStatusPage --input title="My Caddy"
+
+# Add your own links (label + url objects).
+swamp model method run my-caddy configureStatusPage \
+  --input 'extraLinks:json=[{"label":"Grafana","url":"http://localhost:3000"}]'
+
+# Remove it if you want localhost to be handled by a real site.
+swamp model method run my-caddy configureStatusPage --input disabled=true
+```
+
+Because `installCaddy` runs before the service exists, the status page is
+installed on a best-effort basis there (it needs the admin API) and is reliably
+(re)installed by `startService`; the `caddy-setup` workflow also calls
+`configureStatusPage` after `start`.
+
 ### Plain HTTP / unprivileged ports
 
 To run Caddy as an unprivileged systemd user service (no
@@ -348,6 +586,103 @@ automation and HTTP→HTTPS redirects; use `disable_redirects` to keep cert
 automation but skip the redirect server, or `disable_certs` to keep redirects
 but skip issuance. `createService` writes these into the generated Caddyfile,
 and the admin API config keeps them when adding routes.
+
+### One command to see what's going on
+
+You do **not** need to know (or look up) any model names. This single command
+finds every caddy model in the repo, groups them by the Caddy they manage, merges
+what each wants, reads each Caddy's live config, and prints a table plus the
+drift:
+
+```sh
+# `<anyname>` is just a scratch instance to run the method on; it is
+# auto-created and can be any name. Nothing is changed.
+swamp model method run @svendowideit/caddy audit caddy-status
+```
+
+It prints, per Caddy:
+
+```
+# Caddy status
+## x1yoga · caddy — ✓ in sync
+- Models: `otel-caddy`, `caddy-web`
+- Admin API: localhost:2019
+| URL (route)       | Kind  | Target         | Wanted by  |
+| alpha.otel.fi.gy  | proxy | 127.0.0.1:8081 | otel-caddy |
+| beta.otel.fi.gy   | proxy | 127.0.0.1:8082 | caddy-web  |
+```
+
+`✗ DRIFT` and "Wanted but not live" / "Live but not wanted" lines appear when the
+merged desire and the running config disagree; `⚠ unreachable` when a Caddy's
+admin API can't be read. The output also includes an **Unmerged** table — each
+model's *own* desired state before merging — and a **Next commands** block with
+the exact commands to inspect each layer, so you never have to guess or look
+elsewhere. The same data is stored for scripting:
+
+```sh
+swamp data get caddy-status audit --json | jq '.content.cadies[] | {
+  target, models, unmerged, desiredRoutes, onlyDesired, onlyActual, inSync,
+  nextCommands }'
+```
+
+Three layers, each inspectable and each named in the Next commands output:
+
+- **Unmerged** — one row per model (`unmerged` in the output, or
+  `swamp data get <model> desired --json | jq .content`).
+- **Merged** — `plan`'s `desiredConfig` (the whole config the extension would
+  apply), or `swamp data get <runModel> plan --json | jq '.content.desiredConfig'`.
+- **Actual** — the live config at the admin API.
+
+To compare the **whole desired config** against the **live config** for one
+Caddy, use `plan` (same merge, but stores both full configs):
+
+```sh
+swamp model method run @svendowideit/caddy plan caddy-status
+swamp data get caddy-status plan --json \
+  | jq '.content.desiredConfig' > /tmp/desired.json
+swamp data get caddy-status plan --json \
+  | jq '.content.actualConfig'  > /tmp/actual.json
+diff -u /tmp/desired.json /tmp/actual.json
+```
+
+The three layers, if you want them separately:
+
+| Layer | Meaning | Where |
+| ----- | ------- | ----- |
+| **Desired** | what the models want (one file each) | `swamp data get <model> desired --json` |
+| **Merged/actions** | what reconcile computed & applied | `swamp data get <model> reconcile --json` |
+| **Actual** | what the running Caddy serves | `curl -s http://localhost:2019/config/ \| jq` |
+
+`onlyDesired` non-empty means a model wants a route that is **not** live (re-run
+the mutating method; a reconcile normally does it). `onlyActual` non-empty means
+a swamp-tagged route is live that no model wants (a leftover; the next reconcile
+removes it). `foreignRoutes` are routes added through the admin API by hand —
+swamp never removes these. Routes are tagged `swamp:<model>:<host>`, so you can
+also list just ours from Caddy:
+
+```sh
+curl -s http://localhost:2019/config/apps/http/servers/srv0/routes \
+  | jq '[.[] | select(."@id" | startswith("swamp:")) | {id: ."@id", hosts: [.match[].host[]]}]'
+```
+
+Checking one hostname end-to-end:
+
+```sh
+swamp model method run @svendowideit/caddy ensureDnsProxy caddy-web \
+  --input hostname=shop.example.com --input upstream=127.0.0.1:8080
+
+# desired: shop.example.com should be here
+swamp data get caddy-web desired --json | jq '.content.routes[].hostname'
+# actual: and the live config should agree
+curl -s http://localhost:2019/config/apps/http/servers/srv0/routes | jq '[.[]."@id"]'
+# 3. if they differ, plan tells you which side is missing what
+swamp model method run otel-caddy plan
+swamp data get otel-caddy plan --json | jq '.content | {onlyDesired, onlyActual, inSync}'
+```
+
+Note DNS is a separate system: a route existing in Caddy does not create a DNS
+record (that is `@svendowideit/libdns` / your provider's API, §7.1 of the plan),
+so `dig` failing while the route exists is expected until the record is added.
 
 ### Config persistence
 

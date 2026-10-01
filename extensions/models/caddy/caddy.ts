@@ -103,6 +103,15 @@ const GlobalArgsSchema = z.object({
   vaultName: z.string().optional().describe(
     "Vault name used by storeConfig to write secrets (e.g. caddy-secrets)",
   ),
+  environmentFile: z.string().optional().describe(
+    "Path to a systemd EnvironmentFile the service reads for secrets such as DNS provider tokens (e.g. ~/.config/caddy/dns.env, chmod 600). Rendered as EnvironmentFile=-<path> in the unit; the leading '-' means a missing file does not stop the service.",
+  ),
+  target: z.string().default("").describe(
+    "Host this model's Caddy runs on (e.g. a worker hostname, or an SSH host). Empty defaults to this machine's hostname. Together with serviceName it identifies the running Caddy; models sharing (target, serviceName) are merged into one config by reconcile, so use distinct serviceName values for a second Caddy on the same host.",
+  ),
+  reconcile: z.boolean().default(true).describe(
+    "When true, every mutating method rebuilds the running config from the union of all models sharing this target (so several models cooperate instead of fighting). Set false to write only this model's config.",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -116,6 +125,9 @@ const InstallArgsSchema = z.object({
   ),
   setCapabilities: z.boolean().default(true).describe(
     "After install, try to grant the binary CAP_NET_BIND_SERVICE so the unprivileged systemd user service can bind 80/443. Without sudo this records the exact `sudo setcap` command to run by hand.",
+  ),
+  configureStatusPage: z.boolean().default(true).describe(
+    "After install, install a default status page answering on localhost, summarising the install and linking to the admin API. Requires the admin API to be reachable (a running service); skips with a log otherwise.",
   ),
 });
 
@@ -243,6 +255,23 @@ const EnsureDnsProxyArgsSchema = z.object({
   ),
 });
 
+const ConfigureStatusPageArgsSchema = z.object({
+  title: z.string().default("Caddy").describe(
+    "Heading shown on the status page",
+  ),
+  extraLinks: z.array(
+    z.object({
+      label: z.string(),
+      url: z.string(),
+    }),
+  ).default([]).describe(
+    "Additional links to show on the status page",
+  ),
+  disabled: z.boolean().default(false).describe(
+    "Set true to remove the status page route instead of adding it",
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Resource output schemas
 // ---------------------------------------------------------------------------
@@ -354,6 +383,152 @@ const ServeSettingsOutputSchema = z.object({
   servedAt: z.string(),
 });
 
+const StatusPageOutputSchema = z.object({
+  modelName: z.string(),
+  hostnames: z.array(z.string()),
+  title: z.string(),
+  adminUrl: z.string(),
+  listens: z.array(z.string()),
+  links: z.array(z.object({ label: z.string(), url: z.string() })),
+  plugins: z.array(
+    z.object({
+      packagePath: z.string(),
+      version: z.string(),
+      modules: z.array(z.string()),
+    }),
+  ),
+  changed: z.boolean(),
+  removed: z.boolean(),
+  configuredAt: z.string(),
+});
+
+// Desired-state: what ONE model wants from its Caddy. reconcile() unions these
+// across every model sharing the same target and writes the result, so several
+// models cooperate on one Caddy instead of overwriting each other.
+const DesiredRouteSchema = z.object({
+  hostname: z.string(),
+  kind: z.enum(["proxy", "file_server"]).default("proxy"),
+  upstream: z.string().default(""),
+  root: z.string().default(""),
+  browse: z.boolean().default(false),
+});
+
+const DesiredTlsSchema = z.object({
+  email: z.string().default(""),
+  dnsProvider: z.string().default(""),
+  dnsEnvVar: z.string().default(""),
+  providerConfig: z.record(z.string(), z.string()).default({}),
+  subjects: z.array(z.string()).default([]),
+});
+
+const DesiredStatusPageSchema = z.object({
+  enabled: z.boolean().default(false),
+  title: z.string().default("Caddy"),
+  hostnames: z.array(z.string()).default([]),
+  extraLinks: z.array(z.object({ label: z.string(), url: z.string() }))
+    .default([]),
+  // Snapshot inputs (install facts) so reconcile can RE-RENDER the page against
+  // the current routes/listens instead of repeating a stale HTML snapshot.
+  version: z.string().default(""),
+  adminUrl: z.string().default(""),
+  baseDomain: z.string().default(""),
+  email: z.string().default(""),
+  capabilities: z.array(z.string()).default([]),
+  plugins: z.array(
+    z.object({
+      packagePath: z.string(),
+      version: z.string(),
+      modules: z.array(z.string()),
+    }),
+  ).default([]),
+  // Derived at reconcile time from the merged routes (not stored by hand).
+  links: z.array(z.object({ label: z.string(), url: z.string() })).default([]),
+});
+
+const DesiredStateSchema = z.object({
+  modelName: z.string(),
+  target: z.string(),
+  serviceName: z.string(),
+  adminApiAddr: z.string().default("localhost:2019"),
+  baseDomain: z.string().default(""),
+  autoHttps: z.string().default("on"),
+  listenAddrs: z.array(z.string()).default([]),
+  routes: z.array(DesiredRouteSchema).default([]),
+  tls: DesiredTlsSchema.nullable().default(null),
+  statusPage: DesiredStatusPageSchema.nullable().default(null),
+  updatedAt: z.string(),
+});
+
+const ReconcileOutputSchema = z.object({
+  target: z.string(),
+  models: z.array(z.string()),
+  routeCount: z.number(),
+  fileServerCount: z.number(),
+  statusPageModel: z.string(),
+  tlsModels: z.array(z.string()),
+  changed: z.boolean(),
+  reconciledAt: z.string(),
+});
+
+const UnmergedModelSchema = z.object({
+  model: z.string(),
+  routes: z.array(
+    z.object({
+      hostname: z.string(),
+      kind: z.string(),
+      upstream: z.string(),
+      root: z.string(),
+    }),
+  ),
+  tlsSubjects: z.array(z.string()),
+  statusPage: z.boolean(),
+});
+
+const AuditCaddySchema = z.object({
+  target: z.string(),
+  adminApiAddr: z.string(),
+  serviceName: z.string(),
+  models: z.array(z.string()),
+  /** Each model's OWN desired state, before merging. */
+  unmerged: z.array(UnmergedModelSchema),
+  /** The scratch/model name `plan`/`audit` was run on (for the next commands). */
+  runModel: z.string(),
+  /** Ready-to-paste commands to inspect unmerged, merged, and actual. */
+  nextCommands: z.string(),
+  conflicts: z.array(z.string()),
+  desiredRoutes: z.array(
+    z.object({
+      hostname: z.string(),
+      kind: z.string(),
+      upstream: z.string(),
+      root: z.string(),
+      model: z.string(),
+    }),
+  ),
+  actualSwampRoutes: z.array(
+    z.object({ id: z.string(), hostnames: z.array(z.string()) }),
+  ),
+  foreignRoutes: z.array(z.string()),
+  onlyDesired: z.array(z.string()),
+  onlyActual: z.array(z.string()),
+  inSync: z.boolean(),
+  reachable: z.boolean(),
+  error: z.string(),
+  desiredConfig: z.record(z.string(), z.unknown()),
+  actualConfig: z.record(z.string(), z.unknown()),
+});
+
+const AuditOutputSchema = z.object({
+  cadies: z.array(AuditCaddySchema),
+  modelCount: z.number(),
+  inSync: z.boolean(),
+  auditedAt: z.string(),
+});
+
+const PlanOutputSchema = AuditCaddySchema.extend({
+  plannedAt: z.string(),
+});
+
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for unit testing)
 // ---------------------------------------------------------------------------
@@ -453,6 +628,7 @@ export function renderPrivilegedPortGuidance(
 export function renderServiceUnit(opts: {
   binPath: string;
   configPath: string;
+  environmentFile?: string;
 }): string {
   const { binPath, configPath } = opts;
   // We deliberately set neither LimitNPROC nor the mount-namespace options
@@ -486,7 +662,9 @@ ExecStart=${binPath} run --resume --config ${configPath} --adapter caddyfile
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=5
-LimitNOFILE=1048576
+LimitNOFILE=1048576${
+    opts.environmentFile ? `\nEnvironmentFile=-${opts.environmentFile}` : ""
+  }
 
 [Install]
 WantedBy=default.target
@@ -631,6 +809,720 @@ export function routeFileServerRoot(route: CaddyRoute): string {
     }
   }
   return "";
+}
+
+/**
+ * The hostnames the default status page answers on. `localhost` is matched
+ * explicitly because Caddy's automatic HTTPS issues a locally-trusted
+ * certificate for it; `127.0.0.1`/`[::1]` are added for direct-IP requests.
+ */
+export function statusPageHostnames(): string[] {
+  return ["localhost", "127.0.0.1", "[::1]"];
+}
+
+/**
+ * A JSON `static_response` route matching the status hostnames, returning the
+ * given HTML body. Caddy can serve a canned response with no file on disk.
+ */
+export function buildStatusPageRoute(html: string): CaddyRoute {
+  return {
+    match: [{ host: statusPageHostnames() }],
+    handle: [
+      {
+        handler: "static_response",
+        headers: { "Content-Type": ["text/html; charset=utf-8"] },
+        body: html,
+      },
+    ],
+    terminal: true,
+  };
+}
+
+/** Whether a route is the generated status page (a static_response we own). */
+export function isStatusPageRoute(route: CaddyRoute): boolean {
+  const match = route.match;
+  if (!Array.isArray(match) || match.length === 0) return false;
+  const hosts = (match[0] as Record<string, unknown>).host;
+  if (!Array.isArray(hosts) || hosts.length === 0) return false;
+  const hasLocalhost = hosts.some((h) =>
+    typeof h === "string" &&
+    (h === "localhost" || h === "127.0.0.1" || h === "[::1]")
+  );
+  if (!hasLocalhost) return false;
+  const handle = route.handle;
+  return Array.isArray(handle) &&
+    handle.length > 0 &&
+    (handle[0] as Record<string, unknown>).handler === "static_response";
+}
+
+/** A discovered service link for the status page. */
+export interface StatusLink {
+  /** Link label. */
+  label: string;
+  /** Absolute URL. */
+  url: string;
+  /** Optional one-line description. */
+  description?: string;
+}
+
+/** A module compiled into the Caddy binary (from `caddy list-modules --json`). */
+export interface CaddyModule {
+  /** Module name (e.g. `dns.providers.gandi`). */
+  name: string;
+  /** Standard (ships with Caddy) or non-standard (a compiled-in plugin). */
+  type: string;
+  /** Module version (usually the Caddy version for standard modules). */
+  version: string;
+  /** Go import path. */
+  packagePath: string;
+}
+
+/**
+ * Parse `caddy list-modules --json` output. Returns one entry per module. The
+ * `type` distinguishes `standard` (ships with Caddy) from `non-standard`
+ * (a third-party plugin compiled into this binary).
+ */
+export function parseModules(json: string): CaddyModule[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  const modules: CaddyModule[] = [];
+  for (const entry of parsed) {
+    if (!entry || typeof entry !== "object") continue;
+    const e = entry as Record<string, unknown>;
+    if (typeof e.module_name !== "string") continue;
+    modules.push({
+      name: e.module_name,
+      type: typeof e.module_type === "string" ? e.module_type : "",
+      version: typeof e.version === "string" ? e.version : "",
+      packagePath: typeof e.package_url === "string" ? e.package_url : "",
+    });
+  }
+  return modules;
+}
+
+/**
+ * The third-party plugins in a module list: non-standard modules grouped by Go
+ * package, so several modules from one plugin collapse to a single entry with
+ * its module names and version.
+ */
+export function thirdPartyPlugins(
+  modules: CaddyModule[],
+): Array<{ packagePath: string; version: string; modules: string[] }> {
+  const byPackage = new Map<
+    string,
+    { packagePath: string; version: string; modules: string[] }
+  >();
+  for (const m of modules) {
+    if (m.type !== "non-standard") continue;
+    const key = m.packagePath || m.name;
+    const entry = byPackage.get(key) ??
+      { packagePath: m.packagePath, version: m.version, modules: [] };
+    entry.modules.push(m.name);
+    if (!entry.version && m.version) entry.version = m.version;
+    byPackage.set(key, entry);
+  }
+  return [...byPackage.values()].sort((a, b) =>
+    a.packagePath.localeCompare(b.packagePath)
+  );
+}
+
+/** Render the default status page HTML for a Caddy install. */
+export function renderStatusPage(opts: {
+  title: string;
+  version: string;
+  adminUrl: string;
+  baseDomain: string;
+  email: string;
+  capabilities: string[];
+  links: StatusLink[];
+  modules?: CaddyModule[];
+  /** Precomputed third-party plugins (used instead of `modules` when given). */
+  plugins?: Array<{ packagePath: string; version: string; modules: string[] }>;
+  /** Hostnames/IPs Caddy is configured to listen on (e.g. [":443", ":80"]). */
+  listens?: string[];
+  /** The swamp model instance that owns this service. */
+  modelName?: string;
+}): string {
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  const canBind = hasNetBindService(opts.capabilities);
+  const links = opts.links.filter((l) => l.url);
+  const listens = opts.listens ?? [];
+  const listenRows = listens.map((l) => `      <li><code>${esc(l)}</code></li>`)
+    .join("\n");
+  const listensSection = listens.length > 0
+    ? `<h2>Listening on</h2>
+  <ul>
+${listenRows}
+  </ul>`
+    : `<h2>Listening on</h2>
+  <p class="muted">Nothing — no server addresses are configured in the running
+  config.</p>`;
+  const linkRows = links.map((l) =>
+    `      <li><a href="${esc(l.url)}">${esc(l.label)}</a>${
+      l.description ? ` — <span class="muted">${esc(l.description)}</span>` : ""
+    }</li>`
+  ).join("\n");
+  const routesSection = links.length > 0
+    ? `<ul>\n${linkRows}\n  </ul>`
+    : `<p class="muted">No routes are managed by swamp models yet. Add one with
+  <code>swamp model method run @svendowideit/caddy ensureDnsProxy NAME
+  --input hostname=app.example.com --input upstream=127.0.0.1:8080</code>.</p>`;
+  const plugins = opts.plugins ?? thirdPartyPlugins(opts.modules ?? []);
+  const pluginRows = plugins.map((p) =>
+    `      <li><code>${esc(p.packagePath)}</code>${
+      p.version ? ` <span class="muted">${esc(p.version)}</span>` : ""
+    }<br><span class="muted">${p.modules.map(esc).join(", ")}</span></li>`
+  ).join("\n");
+  const pluginsSection = plugins.length > 0
+    ? `<h2>Compiled-in plugins</h2>
+  <ul>
+${pluginRows}
+  </ul>`
+    : `<h2>Compiled-in plugins</h2>
+  <p class="muted">None — this is the stock Caddy binary. Add DNS providers and
+  other modules with the <code>plugins</code> global arg, then reinstall.</p>`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${esc(opts.title)}</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+           max-width: 46rem; margin: 3rem auto; padding: 0 1.25rem; line-height: 1.5; }
+    h1 { margin-bottom: .25rem; }
+    .muted { color: #6b7280; }
+    table { border-collapse: collapse; margin: 1rem 0; }
+    td { padding: .15rem 1rem .15rem 0; vertical-align: top; }
+    code { background: rgba(127,127,127,.15); padding: .1rem .35rem; border-radius: .25rem; }
+    ul { padding-left: 1.1rem; }
+    .ok { color: #059669; } .warn { color: #b45309; }
+  </style>
+</head>
+<body>
+  <h1>${esc(opts.title)}</h1>
+  <p class="muted">This is the default Caddy status page. No site is configured
+  for this address yet — routes are added with
+  <code>swamp model method run … ensureDnsProxy</code>.</p>
+  ${
+    opts.modelName
+      ? `<p class="muted">Managed by swamp model <code>${
+        esc(opts.modelName)
+      }</code>.</p>`
+      : ""
+  }
+
+  <h2>Installed</h2>
+  <table>
+    <tr><td>Caddy version</td><td><code>${esc(opts.version)}</code></td></tr>
+    <tr><td>Base domain</td><td>${
+    opts.baseDomain
+      ? `<code>${esc(opts.baseDomain)}</code>`
+      : '<span class="muted">not set</span>'
+  }</td></tr>
+    <tr><td>ACME email</td><td>${
+    opts.email
+      ? `<code>${esc(opts.email)}</code>`
+      : '<span class="muted">not set</span>'
+  }</td></tr>
+    <tr><td>Privileged ports</td><td>${
+    canBind
+      ? '<span class="ok">CAP_NET_BIND_SERVICE set (80/443 available)</span>'
+      : '<span class="warn">capability not set — run setCapabilities for 80/443</span>'
+  }</td></tr>
+  </table>
+
+  ${listensSection}
+
+  <h2>Admin</h2>
+  <ul>
+    <li><a href="${esc(opts.adminUrl)}">Caddy admin API</a> —
+      <span class="muted">live JSON config (<code>${
+    esc(opts.adminUrl)
+  }</code>)</span></li>
+    <li><a href="https://caddyserver.com/docs/">Caddy documentation</a></li>
+  </ul>
+
+  <h2>Routes &amp; services</h2>
+  ${routesSection}
+
+  ${pluginsSection}
+
+  <p class="muted">Generated by <code>@svendowideit/caddy</code>.</p>
+</body>
+</html>
+`;
+}
+
+/**
+ * The server listen addresses from a Caddy config, deduplicated and sorted, so
+ * the status page can show what addresses Caddy is actually bound to.
+ */
+export function configuredListens(config: CaddyConfig): string[] {
+  const seen = new Set<string>();
+  const http = (config.apps as Record<string, unknown> | undefined)?.http as
+    | Record<string, unknown>
+    | undefined;
+  const servers = http?.servers as Record<string, unknown> | undefined;
+  if (!servers) return [];
+  for (const srv of Object.values(servers)) {
+    const listen = (srv as Record<string, unknown>)?.listen;
+    if (Array.isArray(listen)) {
+      for (const addr of listen) {
+        if (typeof addr === "string") seen.add(addr);
+      }
+    }
+  }
+  return [...seen].sort();
+}
+
+/**
+ * Build the status-page "Routes & services" links from the *merged desired*
+ * routes (the source of truth), plus any caller-supplied links. Deriving from
+ * routes rather than re-parsing the config avoids listing the status page's own
+ * localhost hostnames and keeps out-of-domain names intact.
+ *
+ * `statusHostnames` are excluded because they are the page's own match, not a
+ * managed service.
+ */
+export function statusPageLinks(opts: {
+  routes: Array<
+    { hostname: string; kind: string; upstream?: string; root?: string }
+  >;
+  statusHostnames: string[];
+  extra: Array<{ label: string; url: string }>;
+}): StatusLink[] {
+  const own = new Set(opts.statusHostnames);
+  const links: StatusLink[] = [];
+  for (const r of opts.routes) {
+    if (!r.hostname || own.has(r.hostname)) continue;
+    links.push({
+      label: r.hostname,
+      url: `https://${r.hostname}`,
+      description: r.kind === "file_server"
+        ? (r.root ? `files: ${r.root}` : "static files")
+        : (r.upstream ? `→ ${r.upstream}` : undefined),
+    });
+  }
+  for (const e of opts.extra) {
+    links.push({ label: e.label, url: e.url });
+  }
+  return links;
+}
+
+/** A browsable URL for the admin API (http:// only; unix sockets yield ""). */
+export function adminApiUrlString(adminApiAddr: string): string {
+  const parsed = parseAdminAddr(adminApiAddr);
+  if (parsed.kind === "unix") return "";
+  const addr = adminApiAddr || "localhost:2019";
+  return `http://${addr}/config/`;
+}
+
+// ---------------------------------------------------------------------------
+// Desired-state merge (exported for unit testing)
+// ---------------------------------------------------------------------------
+
+/** One model's desired route. */
+export interface DesiredRoute {
+  /** Full hostname to match. */
+  hostname: string;
+  /** `proxy` (reverse_proxy) or `file_server`. */
+  kind: "proxy" | "file_server";
+  /** Upstream host:port for a proxy route. */
+  upstream: string;
+  /** Document root for a file_server route. */
+  root: string;
+  /** Enable directory browsing for a file_server route. */
+  browse: boolean;
+}
+
+/** One model's desired TLS automation. */
+export interface DesiredTls {
+  /** ACME email. */
+  email: string;
+  /** DNS provider name (empty = HTTP-01). */
+  dnsProvider: string;
+  /** Single-field credential env var. */
+  dnsEnvVar: string;
+  /** Multi-field credential map (field -> env var). */
+  providerConfig: Record<string, string>;
+  /** TLS subjects. */
+  subjects: string[];
+}
+
+/** One model's desired status page. */
+export interface DesiredStatusPage {
+  /** Whether this model wants a status page. */
+  enabled: boolean;
+  /** Page heading. */
+  title: string;
+  /** Hostnames the page answers on. */
+  hostnames: string[];
+  /** Caller-supplied extra links. */
+  extraLinks: Array<{ label: string; url: string }>;
+  /** Snapshot install facts (version, admin URL, email, capabilities). */
+  version: string;
+  /** Admin API URL shown on the page. */
+  adminUrl: string;
+  /** Base domain shown on the page. */
+  baseDomain: string;
+  /** ACME email shown on the page. */
+  email: string;
+  /** Binary capabilities (for the privileged-ports line). */
+  capabilities: string[];
+  /** Third-party plugins compiled into the binary. */
+  plugins: Array<{ packagePath: string; version: string; modules: string[] }>;
+  /** Links shown on the page (derived from merged routes at reconcile time). */
+  links: Array<{ label: string; url: string }>;
+}
+
+/** What one model wants from its Caddy. */
+export interface DesiredState {
+  /** The model instance name. */
+  modelName: string;
+  /** Host/service identity of the Caddy. */
+  target: string;
+  /** systemd unit name. */
+  serviceName: string;
+  /** Admin API address of this Caddy (to read its live config). */
+  adminApiAddr: string;
+  /** Base domain. */
+  baseDomain: string;
+  /** auto_https mode. */
+  autoHttps: string;
+  /** Server listen addresses. */
+  listenAddrs: string[];
+  /** Desired routes. */
+  routes: DesiredRoute[];
+  /** Desired TLS automation, or null. */
+  tls: DesiredTls | null;
+  /** Desired status page, or null. */
+  statusPage: DesiredStatusPage | null;
+  /** Last update timestamp. */
+  updatedAt: string;
+}
+
+/** The merge key for a Caddy: which host + which service name. */
+export function caddyTargetKey(target: string, serviceName: string): string {
+  return `${target || "local"}\u0000${serviceName || "caddy"}`;
+}
+
+/** The Caddy `@id` we tag a route with, so reconcile only touches our own. */
+export function routeId(modelName: string, hostname: string): string {
+  const safe = modelName.replace(/[^a-zA-Z0-9_-]/g, "-");
+  return `swamp:${safe}:${hostname}`;
+}
+
+/**
+ * Merge several models' desired state for one target into a single config.
+ *
+ * Routes union by hostname (a duplicate hostname is a real conflict). listenAddrs
+ * and TLS subjects union; a genuine contradiction (two different emails, two
+ * different DNS providers, incompatible listen addrs) is an error naming the
+ * models rather than a silent last-writer-wins. Only one status page is allowed;
+ * more than one model requesting one is a conflict.
+ */
+export function mergeDesired(states: DesiredState[]): {
+  merged: {
+    routes: DesiredRoute[];
+    listenAddrs: string[];
+    autoHttps: string;
+    tls: DesiredTls | null;
+    statusPage: DesiredStatusPage | null;
+    models: string[];
+    tlsModels: string[];
+    statusPageModel: string;
+  };
+  errors: string[];
+} {
+  const errors: string[] = [];
+  const routeByHost = new Map<string, { route: DesiredRoute; model: string }>();
+  const listenSet = new Set<string>();
+  const models: string[] = [];
+
+  for (const s of states) {
+    models.push(s.modelName);
+    for (const addr of s.listenAddrs) listenSet.add(addr);
+    for (const r of s.routes) {
+      const existing = routeByHost.get(r.hostname);
+      if (existing && existing.model !== s.modelName) {
+        // Same hostname from two models is only OK if they're identical.
+        if (JSON.stringify(existing.route) !== JSON.stringify(r)) {
+          errors.push(
+            `route conflict for '${r.hostname}': desired by '${existing.model}' and '${s.modelName}'`,
+          );
+        }
+        continue;
+      }
+      routeByHost.set(r.hostname, { route: r, model: s.modelName });
+    }
+  }
+
+  // Singleton settings: union where sensible, error on contradiction.
+  const autoHttpsValues = new Set(states.map((s) => s.autoHttps));
+  if (autoHttpsValues.size > 1) {
+    errors.push(
+      `autoHttps conflict across models ${models.join(", ")}: ${
+        [...autoHttpsValues].join(" vs ")
+      }`,
+    );
+  }
+
+  // TLS: union subjects/maps; a differing email or provider is a conflict.
+  const tlsStates = states.filter((s) => s.tls);
+  let tls: DesiredTls | null = null;
+  const tlsModels: string[] = [];
+  if (tlsStates.length > 0) {
+    const emails = new Set(tlsStates.map((s) => s.tls!.email));
+    const providers = new Set(tlsStates.map((s) => s.tls!.dnsProvider));
+    if (emails.size > 1) {
+      errors.push(
+        `TLS email conflict across models ${
+          tlsStates.map((s) => s.modelName).join(", ")
+        }: ${[...emails].join(" vs ")}`,
+      );
+    }
+    if (providers.size > 1) {
+      errors.push(
+        `TLS DNS provider conflict across models ${
+          tlsStates.map((s) => s.modelName).join(", ")
+        }: ${[...providers].join(" vs ")}`,
+      );
+    }
+    const subjects = new Set<string>();
+    const providerConfig: Record<string, string> = {};
+    let dnsEnvVar = "";
+    for (const s of tlsStates) {
+      tlsModels.push(s.modelName);
+      for (const sub of s.tls!.subjects) subjects.add(sub);
+      Object.assign(providerConfig, s.tls!.providerConfig);
+      dnsEnvVar = dnsEnvVar || s.tls!.dnsEnvVar;
+    }
+    tls = {
+      email: [...emails][0] ?? "",
+      dnsProvider: [...providers][0] ?? "",
+      dnsEnvVar,
+      providerConfig,
+      subjects: [...subjects].sort(),
+    };
+  }
+
+  // The status page is a singleton on localhost. Several models may request one
+  // (installCaddy/startService do so automatically), so this is not a conflict:
+  // pick deterministically by model name so the result is stable. An explicit
+  // configureStatusPage on one model is how you change its title.
+  const statusStates = states
+    .filter((s) => s.statusPage?.enabled)
+    .sort((a, b) => a.modelName.localeCompare(b.modelName));
+  const statusPage = statusStates.length > 0
+    ? statusStates[0].statusPage
+    : null;
+
+  const routes = [...routeByHost.values()]
+    .map((v) => ({ ...v.route, model: v.model }))
+    .sort((a, b) => a.hostname.localeCompare(b.hostname));
+  const listenAddrs = [...listenSet].sort();
+
+  return {
+    merged: {
+      routes,
+      listenAddrs,
+      autoHttps: states[0]?.autoHttps ?? "on",
+      tls,
+      statusPage,
+      models,
+      tlsModels,
+      statusPageModel: statusStates[0]?.modelName ?? "",
+    },
+    errors,
+  };
+}
+
+/**
+ * Build a Caddy config from merged desired state, preserving only the
+ * `swamp:`-tagged routes we own (so hand-added routes survive reconcile).
+ * Proxy and file_server routes are tagged with a stable `@id`; the status page
+ * is a static_response on its hostnames.
+ */
+export function buildReconciledConfig(
+  current: CaddyConfig,
+  merged: {
+    routes: Array<DesiredRoute & { model?: string }>;
+    listenAddrs: string[];
+    autoHttps: string;
+    tls: DesiredTls | null;
+    statusPage: DesiredStatusPage | null;
+    statusPageModel: string;
+  },
+): CaddyConfig {
+  const base = baseConfig(
+    merged.listenAddrs.length > 0 ? merged.listenAddrs : [":443", ":80"],
+    merged.autoHttps,
+  );
+  // Keep routes we do not own. `isStatusPageRoute` also recognises a status
+  // route written by an earlier version that predates `@id` tagging, so an
+  // upgrade does not leave a duplicate localhost route behind.
+  const kept = getRoutes(current).filter(
+    (r) => !isSwampRoute(r) && !isStatusPageRoute(r),
+  );
+  const built: CaddyRoute[] = [...kept];
+  for (const r of merged.routes) {
+    const id = routeId(
+      r.model ?? merged.statusPageModel ?? "caddy",
+      r.hostname,
+    );
+    if (r.kind === "file_server") {
+      const handle: Record<string, unknown> = {
+        handler: "file_server",
+        root: r.root,
+      };
+      if (r.browse) handle.browse = {};
+      built.push({
+        "@id": id,
+        match: [{ host: [r.hostname] }],
+        handle: [handle],
+        terminal: true,
+      });
+    } else {
+      const upstream = parseUpstream(r.upstream);
+      const handle: Record<string, unknown> = {
+        handler: "reverse_proxy",
+        upstreams: [{ dial: upstream.dial }],
+      };
+      if (upstream.https) handle.transport = { protocol: "http", tls: {} };
+      built.push({
+        "@id": id,
+        match: [{ host: [r.hostname] }],
+        handle: [handle],
+        terminal: true,
+      });
+    }
+  }
+  if (merged.statusPage?.enabled) {
+    // Re-render against the *merged* routes/listens so the page never shows a
+    // stale list after another model adds/removes a route.
+    const sp = merged.statusPage;
+    const links = statusPageLinks({
+      routes: merged.routes,
+      statusHostnames: sp.hostnames.length > 0
+        ? sp.hostnames
+        : statusPageHostnames(),
+      extra: sp.extraLinks,
+    });
+    const html = renderStatusPage({
+      title: sp.title,
+      version: sp.version,
+      adminUrl: sp.adminUrl,
+      baseDomain: sp.baseDomain,
+      email: sp.email,
+      capabilities: sp.capabilities,
+      links,
+      modules: [],
+      listens: merged.listenAddrs,
+      modelName: merged.statusPageModel,
+      plugins: sp.plugins,
+    });
+    const route = buildStatusPageRoute(html);
+    route["@id"] = routeId(merged.statusPageModel, "status");
+    built.push(route);
+  }
+  const next = base;
+  setRoutes(next, built);
+  if (merged.tls) {
+    const tlsConfig = renderTlsAutomation({
+      email: merged.tls.email,
+      dnsProvider: merged.tls.dnsProvider || undefined,
+      dnsEnvVar: merged.tls.dnsEnvVar || undefined,
+      providerConfig: Object.keys(merged.tls.providerConfig).length > 0
+        ? merged.tls.providerConfig
+        : undefined,
+      subjects: merged.tls.subjects,
+    });
+    return mergeTlsConfig(next, tlsConfig);
+  }
+  return next;
+}
+
+/** Whether a route is one swamp tagged (so reconcile only owns its own). */
+export function isSwampRoute(route: CaddyRoute): boolean {
+  const id = route["@id"];
+  return typeof id === "string" && id.startsWith("swamp:");
+}
+
+/** The hostnames a route matches on. */
+export function routeHostnames(route: CaddyRoute): string[] {
+  const match = route.match;
+  if (!Array.isArray(match)) return [];
+  const hosts: string[] = [];
+  for (const m of match) {
+    const h = (m as Record<string, unknown>).host;
+    if (Array.isArray(h)) {
+      for (const x of h) if (typeof x === "string") hosts.push(x);
+    }
+  }
+  return hosts;
+}
+
+/**
+ * Compare the merged desired routes against what is actually in the running
+ * Caddy, so "should be" can be diffed against "is". Returns the two sides,
+ * the split of swamp vs foreign routes, and the drift on each side.
+ */
+export function diffRoutes(
+  desired: Array<
+    {
+      hostname: string;
+      kind: string;
+      upstream: string;
+      root: string;
+      model: string;
+    }
+  >,
+  actual: CaddyConfig,
+): {
+  desiredRoutes: typeof desired;
+  actualSwampRoutes: Array<{ id: string; hostnames: string[] }>;
+  foreignRoutes: string[];
+  onlyDesired: string[];
+  onlyActual: string[];
+  inSync: boolean;
+} {
+  const actualSwampRoutes: Array<{ id: string; hostnames: string[] }> = [];
+  const foreignRoutes: string[] = [];
+  const actualHosts = new Set<string>();
+  for (const r of getRoutes(actual)) {
+    const hosts = routeHostnames(r);
+    if (isSwampRoute(r) && !isStatusPageRoute(r)) {
+      actualSwampRoutes.push({
+        id: String(r["@id"]),
+        hostnames: hosts,
+      });
+      for (const h of hosts) actualHosts.add(h);
+    } else if (!isStatusPageRoute(r)) {
+      foreignRoutes.push(...hosts);
+    }
+  }
+  const desiredHosts = new Set(desired.map((d) => d.hostname));
+  const onlyDesired = [...desiredHosts].filter((h) => !actualHosts.has(h))
+    .sort();
+  const onlyActual = [...actualHosts].filter((h) => !desiredHosts.has(h))
+    .sort();
+  return {
+    desiredRoutes: desired,
+    actualSwampRoutes,
+    foreignRoutes: foreignRoutes.sort(),
+    onlyDesired,
+    onlyActual,
+    inSync: onlyDesired.length === 0 && onlyActual.length === 0,
+  };
 }
 
 /** Build a Caddy reverse-proxy route for a hostname + upstream. */
@@ -1173,6 +2065,48 @@ export function ensureFileServerRoute(
   return { config: next, changed: true };
 }
 
+/**
+ * Ensure the default status page route is present (idempotent). The route is a
+ * single `static_response` matching the status hostnames, so it returns the same
+ * page on http://localhost and https://localhost. Replaces an existing status
+ * route when the HTML changed.
+ */
+export function ensureStatusPageRoute(
+  config: CaddyConfig,
+  html: string,
+): { config: CaddyConfig; changed: boolean } {
+  const routes = getRoutes(config);
+  const idx = routes.findIndex(isStatusPageRoute);
+  const route = buildStatusPageRoute(html);
+  const next = structuredClone(config);
+  const nextRoutes = getRoutes(next);
+  if (idx === -1) {
+    nextRoutes.push(route);
+    setRoutes(next, nextRoutes);
+    return { config: next, changed: true };
+  }
+  if (JSON.stringify(nextRoutes[idx]) === JSON.stringify(route)) {
+    return { config, changed: false };
+  }
+  nextRoutes[idx] = route;
+  setRoutes(next, nextRoutes);
+  return { config: next, changed: true };
+}
+
+/** Remove the default status page route (idempotent). */
+export function removeStatusPageRoute(
+  config: CaddyConfig,
+): { config: CaddyConfig; changed: boolean } {
+  const routes = getRoutes(config);
+  const idx = routes.findIndex(isStatusPageRoute);
+  if (idx === -1) return { config, changed: false };
+  const next = structuredClone(config);
+  const nextRoutes = getRoutes(next);
+  nextRoutes.splice(idx, 1);
+  setRoutes(next, nextRoutes);
+  return { config: next, changed: true };
+}
+
 // ---------------------------------------------------------------------------
 // Command helpers
 // ---------------------------------------------------------------------------
@@ -1285,6 +2219,16 @@ async function verifyCaddy(binPath: string): Promise<{
 function dirnameOf(path: string): string {
   const idx = path.lastIndexOf("/");
   return idx === -1 ? "." : path.slice(0, idx);
+}
+
+/** Whether a path exists as a regular file. */
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    const stat = await Deno.stat(path);
+    return stat.isFile;
+  } catch {
+    return false;
+  }
 }
 
 /** Read the current capabilities on a binary via `getcap` (empty if none). */
@@ -1501,6 +2445,424 @@ async function writeConfig(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Desired-state reconciliation (multi-model → one Caddy)
+// ---------------------------------------------------------------------------
+
+/** The host a model's Caddy lives on: explicit `target`, or this hostname. */
+function resolveTarget(target: string): string {
+  if (target) return target;
+  try {
+    return Deno.hostname();
+  } catch {
+    return "local";
+  }
+}
+
+/** Build a fresh desired-state object from global args + this model's name. */
+function emptyDesired(
+  modelName: string,
+  g: GlobalArgs,
+): DesiredState {
+  return {
+    modelName,
+    target: resolveTarget(g.target),
+    serviceName: g.serviceName,
+    adminApiAddr: g.adminApiAddr,
+    baseDomain: g.baseDomain ?? "",
+    autoHttps: g.autoHttps,
+    listenAddrs: g.listenAddrs,
+    routes: [],
+    tls: null,
+    statusPage: null,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Read this model's previously stored desired state and refresh the
+ * model-level fields (target/serviceName/listenAddrs/autoHttps) from the
+ * current global args, keeping the accumulated routes/tls/statusPage.
+ */
+async function loadOwnDesired(
+  context: MethodContext,
+  g: GlobalArgs,
+): Promise<DesiredState> {
+  const modelName = context.definition?.name ?? "";
+  const base = emptyDesired(modelName, g);
+  let stored: Partial<DesiredState> | null = null;
+  try {
+    stored = await context.readResource("desired") as
+      | Partial<DesiredState>
+      | null;
+  } catch {
+    stored = null;
+  }
+  if (!stored) return base;
+  return {
+    ...base,
+    routes: Array.isArray(stored.routes) ? stored.routes : [],
+    tls: stored.tls ?? null,
+    statusPage: stored.statusPage ?? null,
+  };
+}
+
+/** Extract a desired state from a cross-model data record (shape-tolerant). */
+function desiredFromRecord(rec: Record<string, unknown>): DesiredState | null {
+  let obj: unknown = rec.attributes;
+  if (!obj && typeof rec.content === "string") {
+    try {
+      obj = JSON.parse(rec.content);
+    } catch {
+      return null;
+    }
+  }
+  if (!obj) obj = rec.content;
+  if (!obj || typeof obj !== "object") return null;
+  const d = obj as Record<string, unknown>;
+  if (typeof d.target !== "string" || typeof d.serviceName !== "string") {
+    return null;
+  }
+  return d as unknown as DesiredState;
+}
+
+/** Collect this model's + every peer's desired state for the same target. */
+async function gatherDesiredForTarget(
+  context: MethodContext,
+  own: DesiredState,
+  includePeers = true,
+): Promise<DesiredState[]> {
+  const key = caddyTargetKey(own.target, own.serviceName);
+  const states: DesiredState[] = [own];
+  if (!includePeers || !context.queryData) return states;
+  let records: unknown[] = [];
+  try {
+    records = await context.queryData(
+      'modelType == "@svendowideit/caddy" && specName == "desired"',
+    );
+  } catch {
+    return states;
+  }
+  for (const r of records) {
+    const rec = r as Record<string, unknown>;
+    const name = typeof rec.modelName === "string"
+      ? rec.modelName
+      : (rec.tags as Record<string, string> | undefined)?.modelName;
+    if (!name || name === own.modelName) continue;
+    const d = desiredFromRecord(rec);
+    if (d && caddyTargetKey(d.target, d.serviceName) === key) states.push(d);
+  }
+  return states;
+}
+
+/** Every caddy model's desired state, across all targets (for `audit`). */
+async function gatherAllDesired(
+  context: MethodContext,
+): Promise<DesiredState[]> {
+  if (!context.queryData) return [];
+  let records: unknown[] = [];
+  try {
+    records = await context.queryData(
+      'modelType == "@svendowideit/caddy" && specName == "desired"',
+    );
+  } catch {
+    return [];
+  }
+  const seen = new Set<string>();
+  const out: DesiredState[] = [];
+  for (const r of records) {
+    const d = desiredFromRecord(r as Record<string, unknown>);
+    if (!d) continue;
+    const key = `${d.modelName}\u0000${d.target}\u0000${d.serviceName}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(d);
+  }
+  return out;
+}
+
+/**
+ * The commands a user should run next to inspect each layer: the unmerged
+ * per-model desired state, the merged result, and the desired-vs-actual diff.
+ * Rendered into the plan/audit output so the user is never left to guess.
+ */
+export function renderNextCommands(opts: {
+  runModel: string;
+  models: string[];
+  adminApiAddr: string;
+  listenAddrs: string[];
+}): string {
+  const admin = opts.adminApiAddr || "localhost:2019";
+  const lines: string[] = [];
+  lines.push("# 1. What EACH swamp model wants (unmerged):");
+  for (const m of opts.models) {
+    lines.push(
+      `swamp data get ${m} desired --json | jq '.content | {routes, tls, statusPage}'`,
+    );
+  }
+  lines.push("");
+  lines.push("# 2. What they look like MERGED (this plan's desiredConfig):");
+  lines.push(
+    `swamp data get ${opts.runModel} plan --json | jq '.content.desiredConfig'`,
+  );
+  lines.push("");
+  lines.push("# 3. Compare desired (merged) vs ACTUAL Caddy config:");
+  lines.push(
+    `swamp data get ${opts.runModel} plan --json | jq '.content.desiredConfig' > /tmp/desired.json`,
+  );
+  lines.push(`curl -s ${admin}/config/ > /tmp/actual.json`);
+  lines.push("diff -u /tmp/desired.json /tmp/actual.json");
+  return lines.join("\n");
+}
+
+/**
+ * Compute the desired-vs-actual picture for one Caddy, merging `states` (or
+ * gathering peers of `own` when not supplied). Read-only: does not change
+ * anything, only reads the live config for comparison.
+ */
+async function computeCaddyPlan(
+  context: MethodContext,
+  own: DesiredState,
+  adminToken: string | undefined,
+  states?: DesiredState[],
+): Promise<{
+  target: string;
+  adminApiAddr: string;
+  serviceName: string;
+  models: string[];
+  conflicts: string[];
+  desiredRoutes: Array<{
+    hostname: string;
+    kind: string;
+    upstream: string;
+    root: string;
+    model: string;
+  }>;
+  unmerged: Array<{
+    model: string;
+    routes: Array<{
+      hostname: string;
+      kind: string;
+      upstream: string;
+      root: string;
+    }>;
+    tlsSubjects: string[];
+    statusPage: boolean;
+  }>;
+  runModel: string;
+  nextCommands: string;
+  actualSwampRoutes: Array<{ id: string; hostnames: string[] }>;
+  foreignRoutes: string[];
+  onlyDesired: string[];
+  onlyActual: string[];
+  inSync: boolean;
+  reachable: boolean;
+  error: string;
+  desiredConfig: CaddyConfig;
+  actualConfig: CaddyConfig;
+}> {
+  const group = states ?? await gatherDesiredForTarget(context, own, true);
+  const { merged, errors } = mergeDesired(group);
+  const desiredRoutes = merged.routes.map((r) => ({
+    hostname: r.hostname,
+    kind: r.kind,
+    upstream: r.upstream,
+    root: r.root,
+    model: (r as { model?: string }).model ?? "",
+  }));
+
+  let actual: CaddyConfig = {};
+  let reachable = true;
+  let error = "";
+  try {
+    actual = await readConfig(
+      own.adminApiAddr || "localhost:2019",
+      adminToken,
+      own.listenAddrs,
+      own.autoHttps,
+    );
+  } catch (err) {
+    reachable = false;
+    error = err instanceof Error ? err.message : String(err);
+    actual = {};
+  }
+
+  const desiredConfig = buildReconciledConfig(actual, merged);
+  const diff = reachable ? diffRoutes(desiredRoutes, actual) : {
+    actualSwampRoutes: [],
+    foreignRoutes: [],
+    onlyDesired: desiredRoutes.map((r) => r.hostname),
+    onlyActual: [],
+    inSync: false,
+  };
+
+  // Each model's own desired state, before merging (ordered, deduped by name).
+  // A model that wants nothing (e.g. a scratch instance an audit ran on) is
+  // omitted so it does not read as an empty participant.
+  const seenModels = new Set<string>();
+  const unmerged = [];
+  for (const s of group) {
+    if (seenModels.has(s.modelName)) continue;
+    seenModels.add(s.modelName);
+    const wantsSomething = s.routes.length > 0 ||
+      (s.tls?.subjects.length ?? 0) > 0 ||
+      (s.statusPage?.enabled ?? false);
+    if (!wantsSomething) continue;
+    unmerged.push({
+      model: s.modelName,
+      routes: s.routes.map((r) => ({
+        hostname: r.hostname,
+        kind: r.kind,
+        upstream: r.upstream,
+        root: r.root,
+      })),
+      tlsSubjects: s.tls?.subjects ?? [],
+      statusPage: s.statusPage?.enabled ?? false,
+    });
+  }
+
+  const runModel = context.definition?.name ?? own.modelName;
+  // Only models that actually contribute appear in the models list / commands.
+  const contributingModels = unmerged.map((u) => u.model);
+  const models = contributingModels.length > 0
+    ? contributingModels
+    : merged.models;
+  const nextCommands = renderNextCommands({
+    runModel,
+    models,
+    adminApiAddr: own.adminApiAddr || "localhost:2019",
+    listenAddrs: merged.listenAddrs,
+  });
+
+  return {
+    target: caddyTargetKey(own.target, own.serviceName),
+    adminApiAddr: own.adminApiAddr || "localhost:2019",
+    serviceName: own.serviceName,
+    models,
+    unmerged,
+    runModel,
+    nextCommands,
+    conflicts: errors,
+    desiredRoutes,
+    actualSwampRoutes: diff.actualSwampRoutes,
+    foreignRoutes: diff.foreignRoutes,
+    onlyDesired: diff.onlyDesired,
+    onlyActual: diff.onlyActual,
+    inSync: reachable && diff.inSync && errors.length === 0,
+    reachable,
+    error,
+    desiredConfig,
+    actualConfig: actual,
+  };
+}
+
+/**
+ * Merge every model's desired state for this target and apply the result to the
+ * running Caddy. Throws on a real conflict (so it is surfaced, not silently
+ * resolved) and returns the merged summary.
+ */
+async function applyReconcile(
+  context: MethodContext,
+  g: GlobalArgs,
+  own: DesiredState,
+): Promise<{
+  models: string[];
+  routeCount: number;
+  fileServerCount: number;
+  statusPageModel: string;
+  tlsModels: string[];
+  changed: boolean;
+  desiredHandle: { name: string };
+}> {
+  const states = await gatherDesiredForTarget(context, own, g.reconcile);
+  const { merged, errors } = mergeDesired(states);
+  if (errors.length > 0) {
+    throw new Error(
+      `Caddy reconcile conflict for target '${own.target}:${own.serviceName}': ${
+        errors.join("; ")
+      }`,
+    );
+  }
+  // Persist this model's desired state only after the merge validated, so a
+  // conflicting edit is rejected before it can be committed and read back by
+  // peers.
+  const desiredHandle = await context.writeResource(
+    "desired",
+    "desired",
+    own as unknown as Record<string, unknown>,
+  );
+  const current = await readConfig(
+    g.adminApiAddr,
+    g.adminApiToken,
+    g.listenAddrs,
+    g.autoHttps,
+  );
+  const next = buildReconciledConfig(current, merged);
+  const changed = JSON.stringify(next) !== JSON.stringify(current);
+  if (changed) {
+    await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+  }
+  return {
+    models: merged.models,
+    routeCount: merged.routes.filter((r) => r.kind === "proxy").length,
+    fileServerCount: merged.routes.filter((r) => r.kind === "file_server")
+      .length,
+    statusPageModel: merged.statusPageModel,
+    tlsModels: merged.tlsModels,
+    changed,
+    desiredHandle,
+  };
+}
+
+/**
+ * Persist this model's desired state and apply the config for its target
+ * (merging peers when `reconcile` is on). Returns the desired handle and the
+ * reconcile summary.
+ */
+async function saveAndReconcile(
+  context: MethodContext,
+  g: GlobalArgs,
+  own: DesiredState,
+): Promise<{
+  dataHandles: [{ name: string }];
+  summary: Awaited<ReturnType<typeof applyReconcile>>;
+}> {
+  own.updatedAt = new Date().toISOString();
+  // applyReconcile validates the merge first, then persists desired state only
+  // if it is accepted, so a conflict cannot be half-committed.
+  const summary = await applyReconcile(context, g, own);
+  const desiredHandle = summary.desiredHandle;
+  const reconcileHandle = await context.writeResource(
+    "reconcile",
+    "reconcile",
+    {
+      target: caddyTargetKey(own.target, own.serviceName),
+      models: summary.models,
+      routeCount: summary.routeCount,
+      fileServerCount: summary.fileServerCount,
+      statusPageModel: summary.statusPageModel,
+      tlsModels: summary.tlsModels,
+      changed: summary.changed,
+      reconciledAt: new Date().toISOString(),
+    },
+  );
+  void reconcileHandle;
+  return { dataHandles: [desiredHandle], summary };
+}
+
+/** Upsert a route in a desired-state list, keyed by hostname. */
+function upsertRoute(state: DesiredState, route: DesiredRoute): void {
+  state.routes = [
+    ...state.routes.filter((r) => r.hostname !== route.hostname),
+    route,
+  ];
+}
+
+/** Remove a route from a desired-state list by hostname. */
+function dropRoute(state: DesiredState, hostname: string): void {
+  state.routes = state.routes.filter((r) => r.hostname !== hostname);
+}
+
 /** Write a secret to the swamp Vault via `swamp vault put` (value on stdin). */
 async function vaultPut(
   vaultName: string,
@@ -1548,6 +2910,7 @@ async function backendServiceAction(
 
 type MethodContext = {
   globalArgs: GlobalArgs;
+  definition?: { id: string; name: string; version: string };
   logger?: {
     info: (msg: string, props?: Record<string, unknown>) => void;
     debug?: (msg: string, props?: Record<string, unknown>) => void;
@@ -1563,6 +2926,10 @@ type MethodContext = {
     instanceName: string,
     version?: number,
   ) => Promise<Record<string, unknown> | null>;
+  queryData?: (
+    predicate: string,
+    select?: string,
+  ) => Promise<Array<Record<string, unknown> | unknown>>;
 };
 
 /** Context available to pre-flight checks (no data writers). */
@@ -1577,7 +2944,8 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.01.3",
+  version: "2026.10.01.11",
+  reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -1587,6 +2955,7 @@ export const model = {
       appliesTo: [
         "installCaddy",
         "setCapabilities",
+        "configureStatusPage",
         "createService",
         "startService",
         "stopService",
@@ -1707,6 +3076,54 @@ export const model = {
         "Fix the generated systemd user unit so Caddy can actually bind 80/443: drop LimitNPROC (per-UID for a user service, so a low value made Go fail to create a thread with EAGAIN and exit status=2) and drop ProtectSystem/PrivateTmp (they force a child user namespace, in which CAP_NET_BIND_SERVICE cannot bind host privileged ports). Re-run createService to regenerate the unit. Schema unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.01.4",
+      description:
+        "Adds a configureStatusPage method and installs a default status page (installCaddy arg configureStatusPage, default true; also ensured by startService once the admin API is up). The page answers on http://localhost and https://localhost, summarises the install (version, base domain, ACME email, privileged-port capability) and links to the admin API and configured routes. Adds the statusPage resource. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.5",
+      description:
+        "The status page now lists the third-party plugins compiled into the binary (parsed from `caddy list-modules --json`), grouped by Go package with version and module names, or states that the binary is stock. Adds a `plugins` field to the statusPage resource. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.6",
+      description:
+        "Status page regains a 'Listening on' section showing the configured server listen addresses (e.g. :443, :80) alongside routes and plugins; the statusPage resource gains a `listens` field. Adds an `environmentFile` global arg so createService renders EnvironmentFile=-<path>: DNS-provider tokens (e.g. GANDI_BEARER_TOKEN) then reach Caddy without hand-editing the unit, which the next createService would discard. Re-run createService to apply. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.7",
+      description:
+        "The status page now names the swamp model that manages the service (from context.definition.name), and the statusPage resource gains a `modelName` field, so a host with several Caddy models is unambiguous. Documentation only otherwise: the manifest and README explain how to find the model(s), modify an existing model with `swamp model edit` (create fails on an existing name by design), and how multiple models are handled. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.8",
+      description:
+        "Multi-model reconciliation: models that manage the same Caddy (same host + serviceName) no longer overwrite each other. Each mutating method records what the model wants in a `desired` resource, then reconcile merges every peer model's desired state for the target into one valid config and applies it. Routes are tagged with a Caddy @id (swamp:<model>:<host>) so only swamp-managed routes are replaced and hand-added routes survive; listenAddrs/TLS subjects union, and a real conflict (two different upstreams for one host, differing TLS email/provider) is reported naming the models instead of silently resolving. Adds `target` (defaults to the local hostname) and `reconcile` (default true) global args, plus `desired` and `reconcile` resources. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.9",
+      description:
+        "Adds a `plan` method and `plan` resource: it merges the desired state, computes the config that WOULD be applied, reads the LIVE Caddy config, and reports desired/actual routes, only-desired vs only-actual drift, foreign (hand-added) routes, and stores both configs so they can be diffed. Also fixes the status page to re-render against the merged routes on every reconcile (it was a stale snapshot) and to stop listing its own localhost hostnames as services. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.10",
+      description:
+        "Adds an `audit` method and `audit` resource: one command finds every caddy model across the repo (no names needed — `swamp model method run @svendowideit/caddy audit <anyname>` auto-creates a scratch instance), groups them by the Caddy each manages, and reports per Caddy the merged desired routes (with the owning model), desired-vs-actual drift, and reachability. Adds a @svendowideit/caddy-status method report that prints the result as a table. The status page again always shows a 'Routes & services' section listing the URLs the Caddy serves (with guidance when empty), which an earlier version dropped. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.01.11",
+      description:
+        "plan/audit now include an `unmerged` view (each model's own desired state before merging) and a `nextCommands` field: the exact commands to inspect the unmerged per-model state, the merged desiredConfig, and the desired-vs-actual diff. The caddy-status report prints both the Unmerged table and a 'Next commands' section, so a user never has to look elsewhere. Models that want nothing (e.g. the scratch instance an audit runs on) are filtered from the models/unmerged lists. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -1780,6 +3197,38 @@ export const model = {
       schema: SetCapabilitiesOutputSchema,
       lifetime: "infinite",
       garbageCollection: 10,
+    },
+    statusPage: {
+      description: "Default status page configuration",
+      schema: StatusPageOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    desired: {
+      description: "What this model wants from its Caddy (merged across peers)",
+      schema: DesiredStateSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    reconcile: {
+      description: "Result of merging and applying peer models' desired state",
+      schema: ReconcileOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    plan: {
+      description:
+        "Desired (merged) vs actual (live) config, with drift and the full configs to diff",
+      schema: PlanOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    audit: {
+      description:
+        "Every caddy model grouped by the Caddy it manages, each with desired-vs-actual drift",
+      schema: AuditOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
     },
   },
   methods: {
@@ -1856,6 +3305,24 @@ export const model = {
           canBindPrivilegedPorts,
           needsSudoForPorts,
         });
+
+        // Install the default localhost status page when the admin API is up.
+        // It needs a running service, so on a bare install we skip with a log
+        // rather than fail; startService calls this too once it is running.
+        if (args.configureStatusPage) {
+          try {
+            await applyStatusPage(
+              { title: "Caddy", extraLinks: [], disabled: false },
+              context,
+              { version: verified.version, capabilities },
+            );
+          } catch (err) {
+            context.logger?.info(
+              "Skipped status page (admin API not reachable yet): {error}",
+              { error: err instanceof Error ? err.message : String(err) },
+            );
+          }
+        }
         return { dataHandles: [handle] };
       },
     },
@@ -1934,7 +3401,13 @@ export const model = {
           `~/.config/systemd/user/${serviceName}.service`,
         );
 
-        const unit = renderServiceUnit({ binPath, configPath });
+        const unit = renderServiceUnit({
+          binPath,
+          configPath,
+          environmentFile: g.environmentFile
+            ? expandHome(g.environmentFile)
+            : undefined,
+        });
         await writeUnitFile(unitPath, unit);
 
         // Write a minimal config so the service can actually start.
@@ -2021,6 +3494,21 @@ export const model = {
           adminApiReachable,
           checkedAt: new Date().toISOString(),
         });
+
+        // Ensure the default status page exists now the admin API is up (it may
+        // not have been reachable during installCaddy).
+        if (adminApiReachable) {
+          try {
+            await applyStatusPage(
+              { title: "Caddy", extraLinks: [], disabled: false },
+              context,
+            );
+          } catch (err) {
+            context.logger?.info("Skipped status page: {error}", {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        }
         return { dataHandles: [handle] };
       },
     },
@@ -2072,7 +3560,16 @@ export const model = {
         }
         const hostname = deriveHostname(args.serviceName, baseDomain);
         const upstream = parseUpstream(args.upstream);
-        const route = buildRoute(hostname, upstream);
+
+        const own = await loadOwnDesired(context, g);
+        upsertRoute(own, {
+          hostname,
+          kind: "proxy",
+          upstream: upstream.dial,
+          root: "",
+          browse: false,
+        });
+        await saveAndReconcile(context, g, own);
 
         const config = await readConfig(
           g.adminApiAddr,
@@ -2080,10 +3577,7 @@ export const model = {
           g.listenAddrs,
           g.autoHttps,
         );
-        const next = addRouteToConfig(config, route); // throws on domain conflict
-        await writeConfig(g.adminApiAddr, next, g.adminApiToken);
-
-        const services = listProxyServices(next, baseDomain);
+        const services = listProxyServices(config, baseDomain);
         context.logger?.info(
           "Added proxy service {serviceName} -> {hostname} -> {upstream}",
           { serviceName: args.serviceName, hostname, upstream: upstream.dial },
@@ -2127,22 +3621,20 @@ export const model = {
           );
         }
 
+        const own = await loadOwnDesired(context, g);
+        const had = own.routes.some((r) => r.hostname === hostname);
+        dropRoute(own, hostname);
+        await saveAndReconcile(context, g, own);
+
         const config = await readConfig(
           g.adminApiAddr,
           g.adminApiToken,
           g.listenAddrs,
           g.autoHttps,
         );
-        // Idempotent: removing an already-absent route is a no-op, not an error.
-        const removal = removeRouteFromConfig(config, hostname);
-        const next = removal.config;
-        if (removal.changed) {
-          await writeConfig(g.adminApiAddr, next, g.adminApiToken);
-        }
-
-        const services = listProxyServices(next, baseDomain);
+        const services = listProxyServices(config, baseDomain);
         context.logger?.info(
-          removal.changed
+          had
             ? "Removed proxy service {serviceName} ({hostname})"
             : "Proxy service {serviceName} ({hostname}) already absent — nothing to remove",
           { serviceName: args.serviceName, hostname },
@@ -2325,22 +3817,15 @@ export const model = {
         }
         validateEmail(email);
 
-        const tlsConfig = renderTlsAutomation({
+        const own = await loadOwnDesired(context, g);
+        own.tls = {
           email,
-          dnsProvider: args.dnsProvider,
-          dnsEnvVar: args.dnsEnvVar,
-          providerConfig: args.providerConfig,
-          subjects: args.subjects,
-        });
-
-        const config = await readConfig(
-          g.adminApiAddr,
-          g.adminApiToken,
-          g.listenAddrs,
-          g.autoHttps,
-        );
-        const next = mergeTlsConfig(config, tlsConfig);
-        await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+          dnsProvider: args.dnsProvider ?? "",
+          dnsEnvVar: args.dnsEnvVar ?? "",
+          providerConfig: args.providerConfig ?? {},
+          subjects: args.subjects ?? [],
+        };
+        await saveAndReconcile(context, g, own);
 
         const credentialFields = args.providerConfig
           ? Object.keys(args.providerConfig)
@@ -2388,60 +3873,57 @@ export const model = {
           upstream: `127.0.0.1:${args.port}`,
         }));
 
+        // Fold the detected swamp-serve routes into this model's desired state,
+        // and drop any it previously detected but that are now gone. Other
+        // models' routes are untouched because reconcile only merges desired
+        // state (and only replaces swamp-tagged routes).
+        const own = await loadOwnDesired(context, g);
+        let previousNames: string[] = [];
+        try {
+          const prev = await context.readResource("autoProxy") as
+            | { detected?: string[] }
+            | null;
+          previousNames = prev?.detected ?? [];
+        } catch {
+          previousNames = [];
+        }
+        const nowHosts = new Set(desired.map((d) => d.hostname));
+        for (const name of previousNames) {
+          const host = deriveHostname(name, baseDomain);
+          if (!nowHosts.has(host)) dropRoute(own, host);
+        }
+        for (const d of desired) {
+          upsertRoute(own, {
+            hostname: d.hostname,
+            kind: "proxy",
+            upstream: d.upstream,
+            root: "",
+            browse: false,
+          });
+        }
+        await saveAndReconcile(context, g, own);
+
         const config = await readConfig(
           g.adminApiAddr,
           g.adminApiToken,
           g.listenAddrs,
           g.autoHttps,
         );
-        const { toEnsure, toRemove } = reconcileProxyServices(
-          desired,
-          config,
-          baseDomain,
-        );
-
-        let next = config;
-        let changed = false;
-        const added: string[] = [];
-        const updated: string[] = [];
-        for (const item of toEnsure) {
-          const existed = findRouteByHost(next, item.hostname) !== null;
-          const result = ensureRoute(
-            next,
-            item.hostname,
-            parseUpstream(item.upstream),
-          );
-          if (result.changed) {
-            next = result.config;
-            changed = true;
-            (existed ? updated : added).push(item.hostname);
-          }
-        }
-        for (const hostname of toRemove) {
-          const removal = removeRouteFromConfig(next, hostname);
-          next = removal.config;
-          if (removal.changed) changed = true;
-        }
-        if (changed) {
-          await writeConfig(g.adminApiAddr, next, g.adminApiToken);
-        }
-
+        const removed = previousNames.map((n) => deriveHostname(n, baseDomain))
+          .filter((h) => !nowHosts.has(h));
         context.logger?.info(
-          "Auto-proxy reconciled: {added} added, {updated} updated, {removed} removed",
-          {
-            added: added.length,
-            updated: updated.length,
-            removed: toRemove.length,
-          },
+          "Auto-proxy reconciled: {count} swamp serve route(s), {removed} removed",
+          { count: desired.length, removed: removed.length },
         );
 
         const handle = await context.writeResource("autoProxy", "current", {
           detected: serviceNames,
-          added,
-          updated,
-          removed: toRemove,
+          added: desired.map((d) => d.hostname),
+          updated: [],
+          removed,
           reconciledAt: new Date().toISOString(),
         });
+        void config;
         return { dataHandles: [handle] };
       },
     },
@@ -2638,34 +4120,29 @@ export const model = {
         const g = context.globalArgs;
         const upstream = parseUpstream(args.upstream);
 
-        const config = await readConfig(
-          g.adminApiAddr,
-          g.adminApiToken,
-          g.listenAddrs,
-          g.autoHttps,
-        );
-        const { config: next, changed } = ensureRoute(
-          config,
-          args.hostname,
-          upstream,
-        );
-        if (changed) {
-          await writeConfig(g.adminApiAddr, next, g.adminApiToken);
-        }
+        const own = await loadOwnDesired(context, g);
+        upsertRoute(own, {
+          hostname: args.hostname,
+          kind: "proxy",
+          upstream: upstream.dial,
+          root: "",
+          browse: false,
+        });
+        const { summary } = await saveAndReconcile(context, g, own);
 
         context.logger?.info(
           "ensureDnsProxy {hostname} -> {upstream} ({action})",
           {
             hostname: args.hostname,
             upstream: upstream.dial,
-            action: changed ? "updated" : "unchanged",
+            action: summary.changed ? "updated" : "unchanged",
           },
         );
 
         const handle = await context.writeResource("ensureProxy", "current", {
           hostname: args.hostname,
           upstream: upstream.dial,
-          changed,
+          changed: summary.changed,
           ensuredAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
@@ -2688,28 +4165,22 @@ export const model = {
           );
         }
 
-        const config = await readConfig(
-          g.adminApiAddr,
-          g.adminApiToken,
-          g.listenAddrs,
-          g.autoHttps,
-        );
-        const { config: next, changed } = ensureFileServerRoute(
-          config,
-          args.hostname,
+        const own = await loadOwnDesired(context, g);
+        upsertRoute(own, {
+          hostname: args.hostname,
+          kind: "file_server",
+          upstream: "",
           root,
-          args.browse,
-        );
-        if (changed) {
-          await writeConfig(g.adminApiAddr, next, g.adminApiToken);
-        }
+          browse: args.browse,
+        });
+        const { summary } = await saveAndReconcile(context, g, own);
 
         context.logger?.info(
           "serveSettings {hostname} -> {root} ({action})",
           {
             hostname: args.hostname,
             root,
-            action: changed ? "updated" : "unchanged",
+            action: summary.changed ? "updated" : "unchanged",
           },
         );
 
@@ -2717,11 +4188,229 @@ export const model = {
           hostname: args.hostname,
           root,
           browse: args.browse,
-          changed,
+          changed: summary.changed,
           servedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    configureStatusPage: {
+      description:
+        "Install (or remove) a default status page answering on localhost, summarising the install and linking to the admin API and configured routes",
+      arguments: ConfigureStatusPageArgsSchema,
+      execute: (
+        args: z.infer<typeof ConfigureStatusPageArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> =>
+        applyStatusPage(args, context),
+    },
+
+    plan: {
+      description:
+        "Show ALL models for this Caddy merged, beside the live config, with drift and both configs to diff",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const own = await loadOwnDesired(context, g);
+        const caddy = await computeCaddyPlan(context, own, g.adminApiToken);
+        context.logger?.info(
+          "Plan for {target}: models [{models}], {desired} desired swamp route(s), in sync: {sync}",
+          {
+            target: caddy.target,
+            models: caddy.models.join(", "),
+            desired: caddy.desiredRoutes.length,
+            sync: caddy.inSync,
+          },
+        );
+        const handle = await context.writeResource("plan", "plan", {
+          ...caddy,
+          plannedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    audit: {
+      description:
+        "One command: find every caddy model, group them by the Caddy they manage, and report each Caddy's merged desired-vs-actual config and drift",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        // Every caddy model in the repo, gathered directly (not just this
+        // target), so the caller does not need to know any model names.
+        const all = await gatherAllDesired(context);
+        const own = await loadOwnDesired(context, g);
+        if (all.length === 0) all.push(own);
+
+        // Group models by the Caddy they manage.
+        const groups = new Map<string, DesiredState[]>();
+        for (const s of all) {
+          const key = caddyTargetKey(s.target, s.serviceName);
+          const list = groups.get(key) ?? [];
+          list.push(s);
+          groups.set(key, list);
+        }
+
+        const cadies = [];
+        for (const [, states] of groups) {
+          const representative = states[0];
+          const caddy = await computeCaddyPlan(
+            context,
+            representative,
+            g.adminApiToken,
+            states,
+          );
+          cadies.push(caddy);
+        }
+
+        const inSync = cadies.every((c) => c.inSync) && cadies.length > 0;
+        context.logger?.info(
+          "Audit: {cadies} Caddy instance(s), {models} model(s) total, all in sync: {sync}",
+          { cadies: cadies.length, models: all.length, sync: inSync },
+        );
+        const handle = await context.writeResource("audit", "audit", {
+          cadies,
+          modelCount: all.length,
+          inSync,
+          auditedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
       },
     },
   },
 };
+
+/**
+ * Shared status-page installer used by both the `configureStatusPage` method and
+ * `installCaddy` (which installs the page by default). Writes the `statusPage`
+ * resource and returns its handle.
+ */
+async function applyStatusPage(
+  args: {
+    title: string;
+    extraLinks: Array<{ label: string; url: string }>;
+    disabled: boolean;
+  },
+  context: MethodContext,
+  facts?: { version: string; capabilities: string[] },
+): Promise<{ dataHandles: [{ name: string }] }> {
+  const g = context.globalArgs;
+  const config = await readConfig(
+    g.adminApiAddr,
+    g.adminApiToken,
+    g.listenAddrs,
+    g.autoHttps,
+  );
+
+  if (args.disabled) {
+    const own = await loadOwnDesired(context, g);
+    own.statusPage = null;
+    const { summary } = await saveAndReconcile(context, g, own);
+    context.logger?.info(
+      "Status page removed (reconciled)",
+      { changed: summary.changed },
+    );
+    const handle = await context.writeResource("statusPage", "current", {
+      modelName: context.definition?.name ?? "",
+      hostnames: statusPageHostnames(),
+      title: args.title,
+      adminUrl: "",
+      listens: [],
+      links: [],
+      plugins: [],
+      changed: summary.changed,
+      removed: true,
+      configuredAt: new Date().toISOString(),
+    });
+    return { dataHandles: [handle] };
+  }
+
+  // Gather install facts (best-effort) to describe what's been installed.
+  // Prefer facts passed in from installCaddy; otherwise read the install
+  // resource, and for the binary version/capabilities fall back to the live
+  // binary so the page never shows a stale capability warning.
+  let version = facts?.version ?? "";
+  let capabilities = facts?.capabilities ?? [];
+  if (!facts) {
+    const install = await context.readResource("install").catch(() => null);
+    if (install && typeof install.version === "string") {
+      version = install.version;
+    }
+    if (install && Array.isArray(install.capabilities)) {
+      capabilities = install.capabilities as string[];
+    }
+  }
+  const binPath = expandHome(g.caddyBinPath);
+  const binExists = await fileExists(binPath);
+  if (!version && binExists) {
+    const v = await runCmd(binPath, ["version"]);
+    if (v.code === 0) version = parseCaddyVersion(v.stdout);
+  }
+  if (!hasNetBindService(capabilities) && binExists) {
+    capabilities = await readCapabilities(binPath);
+  }
+  // Which modules (plugins) are compiled into this binary.
+  let modules: CaddyModule[] = [];
+  if (binExists) {
+    const lm = await runCmd(binPath, ["list-modules", "--json"]);
+    if (lm.code === 0) modules = parseModules(lm.stdout);
+  }
+  const plugins = thirdPartyPlugins(modules);
+  const listens = configuredListens(config);
+  const adminUrl = adminApiUrlString(g.adminApiAddr);
+
+  // Store the page's INPUTS on desired state; reconcile re-renders the HTML
+  // against the merged routes each run, so the page is never a stale snapshot.
+  const own = await loadOwnDesired(context, g);
+  own.statusPage = {
+    enabled: true,
+    title: args.title,
+    hostnames: statusPageHostnames(),
+    extraLinks: args.extraLinks,
+    version,
+    adminUrl,
+    baseDomain: g.baseDomain ?? "",
+    email: g.letsEncryptEmail ?? "",
+    capabilities,
+    plugins,
+    links: [],
+  };
+  const { summary } = await saveAndReconcile(context, g, own);
+
+  // The links actually rendered are derived from the merged (desired) routes.
+  const links = statusPageLinks({
+    routes: own.routes,
+    statusHostnames: statusPageHostnames(),
+    extra: args.extraLinks,
+  });
+
+  context.logger?.info(
+    "Status page {action} on {hosts} ({links} links)",
+    {
+      action: summary.changed ? "installed" : "unchanged",
+      hosts: statusPageHostnames().join(", "),
+      links: links.length,
+    },
+  );
+
+  const handle = await context.writeResource("statusPage", "current", {
+    modelName: context.definition?.name ?? "",
+    hostnames: statusPageHostnames(),
+    title: args.title,
+    adminUrl,
+    listens,
+    links,
+    plugins,
+    changed: summary.changed,
+    removed: false,
+    configuredAt: new Date().toISOString(),
+  });
+  return { dataHandles: [handle] };
+}

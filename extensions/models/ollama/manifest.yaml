@@ -9,18 +9,17 @@ description: >
   WHAT IT DOES
 
     Closes the loop around an Ollama install on this machine: it reads the
-    installed `ollama --version`, resolves the newest release, and compares the
-    two — downloading a checksum-verified archive and installing the binary and
-    its `lib/ollama` runtime only when an update is actually needed (never
-    re-downloading a multi-gigabyte release for a current machine). It picks the
-    right build for this OS/architecture and accelerator (Linux/NVIDIA via the
-    base build, Linux/AMD ROCm, NVIDIA Jetson, macOS, Windows). It then keeps
-    `ollama serve` alive under systemd,
-    creating a unit when none exists (making the unprivileged `ollama` user for
-    a system unit) or writing a drop-in override when one does. Prefer it over
-    Ollama's own `install.sh` when you want the same result as repeatable swamp
-    workflows, with service settings (host, models path, environment, serve
-    flags) managed as configuration rather than hand-edited unit files.
+    installed `ollama --version`, resolves the newest release, and installs a
+    checksum-verified build for this OS/architecture/accelerator (Linux/NVIDIA
+    via the base build, Linux/AMD ROCm, NVIDIA Jetson, macOS, Windows) only when
+    an update is actually needed — never re-downloading a multi-gigabyte release
+    for a current machine. It then keeps `ollama serve` alive under systemd,
+    creating a unit when none exists (making the unprivileged `ollama` user for a
+    system unit) or writing a drop-in override when one does. When a step needs
+    root and the host has no passwordless `sudo`, it detects that up front and
+    prints the exact `sudo` commands to run by hand instead of failing. Prefer it
+    over Ollama's own `install.sh` when you want repeatable swamp workflows with
+    service settings managed as configuration rather than hand-edited units.
 
   INSTALL
 
@@ -53,6 +52,10 @@ description: >
       # Ask what is installed and how the service is doing.
       swamp model @svendowideit/ollama method run sync ollama
       swamp model @svendowideit/ollama method run status ollama
+
+      # No passwordless sudo? Learn exactly what this run can and cannot do,
+      # and get the copy-paste commands for anything it cannot escalate.
+      swamp model @svendowideit/ollama method run privilege ollama
 
       # Change just the service settings later, without reinstalling.
       swamp workflow run @svendowideit/ollama-install \
@@ -91,6 +94,15 @@ description: >
       uninstall       Remove binary and lib instead          (default false)
       purgeService    Also remove the unit on uninstall      (default false)
 
+    If a system-scope install needs root and the run cannot escalate (no
+    passwordless `sudo`), the `privilege` method — and the `platform` resource
+    written by `plan` — report the situation, and `install`/`createService`/
+    `configureService` return `manualCommands`: ready-to-paste `sudo` commands
+    (directory creation, extraction, `useradd`, the unit `tee` heredoc,
+    `systemctl daemon-reload && enable --now`). Pass `--input sudoNonInteractive=
+    false` if a real terminal can answer the prompt, or `--input
+    serviceScope=user` to avoid root entirely.
+
     The releases API allows only 60 anonymous requests per hour per IP, so
     authenticate for scheduled runs: run `gh auth login` once (its token is then
     used automatically), or export `GITHUB_TOKEN=$(gh auth token)`. The release
@@ -109,9 +121,11 @@ description: >
     `configureService` writes a `<name>.service.d/10-swamp.conf` drop-in with
     your settings (and creates the unit when missing), so an existing upstream
     unit is customised, never overwritten; `restartService` enables and restarts
-    it so it starts at boot. Remove the unit with `removeService`. macOS and
-    Windows releases install the binary only — no service management. Inspect
-    the service at any time with:
+    it so it starts at boot. Remove the unit with `removeService`. When a
+    privileged step cannot escalate, the methods write their `manualCommands`
+    instead of acting, so nothing is half-done. macOS and Windows releases
+    install the binary only — no service management. Inspect the service at any
+    time with:
 
         systemctl status ollama.service
 

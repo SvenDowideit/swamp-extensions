@@ -408,6 +408,367 @@ export function dirnameOf(path: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Privilege escalation
+// ---------------------------------------------------------------------------
+
+/** How this process can run privileged commands. */
+export type PrivilegeMode =
+  | "root" // already uid 0
+  | "sudo" // `sudo -n` works without a password
+  | "sudo-prompt" // sudo exists but needs an interactive password
+  | "none"; // no usable escalation
+
+/** The resolved privilege situation for a run, plus copy-paste guidance. */
+export interface PrivilegeStatus {
+  /** The process uid (0 means root). */
+  uid: number;
+  /** Whether this user is root. */
+  isRoot: boolean;
+  /** Whether `sudo` is on `$PATH`. */
+  sudoAvailable: boolean;
+  /** Whether `sudo -n true` succeeds (passwordless). */
+  passwordless: boolean;
+  /** The command used to escalate (`sudo`). */
+  sudoCommand: string;
+  /** Whether the non-interactive flag is configured. */
+  nonInteractive: boolean;
+  /** The overall mode. */
+  mode: PrivilegeMode;
+  /** One-line human explanation. */
+  message: string;
+}
+
+/**
+ * Detect whether a privileged action can run without an interactive prompt.
+ *
+ * Swamp methods have no tty, so `sudo` only works when passwordless
+ * (`sudo -n`). This probes once and returns a structured status so a caller can
+ * decide between doing the work and handing the user exact commands to run.
+ */
+export async function detectPrivilege(
+  opts: {
+    sudoCommand?: string;
+    nonInteractive?: boolean;
+    runner?: CommandRunner;
+    uid?: number;
+  } = {},
+): Promise<PrivilegeStatus> {
+  const runner = opts.runner ?? runCapture;
+  const sudoCommand = (opts.sudoCommand ?? "sudo").trim() || "sudo";
+  const nonInteractive = opts.nonInteractive ?? true;
+  let uid = opts.uid;
+  if (uid === undefined) {
+    // Probe via `id -u` rather than Deno.uid(), which needs --allow-sys that a
+    // model method may not hold. Absent/failed `id` reports -1 (not root).
+    const idResult = await runner("id", ["-u"]);
+    uid = idResult.code === 0
+      ? Number.parseInt(idResult.stdout.trim(), 10)
+      : -1;
+    if (Number.isNaN(uid)) uid = -1;
+  }
+  const isRoot = uid === 0;
+
+  if (isRoot) {
+    return {
+      uid,
+      isRoot,
+      sudoAvailable: true,
+      passwordless: true,
+      sudoCommand,
+      nonInteractive,
+      mode: "root",
+      message: "Running as root; privileged steps can run directly.",
+    };
+  }
+
+  const which = await runner("which", [sudoCommand]);
+  const sudoAvailable = which.code === 0;
+  if (!sudoAvailable) {
+    return {
+      uid,
+      isRoot,
+      sudoAvailable,
+      passwordless: false,
+      sudoCommand,
+      nonInteractive,
+      mode: "none",
+      message:
+        `'${sudoCommand}' is not installed; privileged steps cannot run. ` +
+        `Run them yourself with the commands below, or set serviceScope=user.`,
+    };
+  }
+
+  const probe = await runner(sudoCommand, ["-n", "true"]);
+  const passwordless = probe.code === 0;
+  return {
+    uid,
+    isRoot,
+    sudoAvailable,
+    passwordless,
+    sudoCommand,
+    nonInteractive,
+    mode: passwordless ? "sudo" : "sudo-prompt",
+    message: passwordless
+      ? `'${sudoCommand} -n' works without a password; privileged steps can run.`
+      : `'${sudoCommand}' exists but needs a password, and a swamp run has no tty. ` +
+        `Run the printed commands yourself, configure passwordless sudo, or set serviceScope=user.`,
+  };
+}
+
+/** The escalation argv prefix, or `[]` when the action runs unprivileged. */
+export function escalationPrefix(
+  status: PrivilegeStatus,
+  needsRoot: boolean,
+): string[] {
+  if (!needsRoot) return [];
+  if (status.isRoot) return [];
+  if (status.sudoAvailable && status.passwordless) {
+    return status.nonInteractive
+      ? [status.sudoCommand, "-n"]
+      : [status.sudoCommand];
+  }
+  // No usable escalation; the caller must print manual instructions instead.
+  return [];
+}
+
+/** Whether a privileged action can run automatically for this status. */
+export function canEscalate(
+  status: PrivilegeStatus,
+  needsRoot: boolean,
+): boolean {
+  return escalationPrefix(status, needsRoot).length > 0 || !needsRoot ||
+    status.isRoot;
+}
+
+/**
+ * Quote a string for safe inclusion in a copy-paste shell command. Uses
+ * single-quote quoting (the one form that never interpolates), escaping any
+ * embedded single quote.
+ */
+export function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/** A manual step the user must run because swamp cannot escalate. */
+export interface ManualCommand {
+  /** What the user should run (a single line, copy-pasteable). */
+  command: string;
+  /** Short explanation of why. */
+  reason: string;
+}
+
+/**
+ * Render the manual commands a user can copy-paste when swamp cannot perform a
+ * privileged step itself. Returns the header line plus one line per command, so
+ * a method can both log them and store them on a resource.
+ */
+export function manualInstructions(
+  intro: string,
+  commands: ManualCommand[],
+  outro?: string,
+): string[] {
+  // No leading indent: the block is meant to be copied verbatim, and a heredoc
+  // body indented by even two spaces would land in the written file. Comments
+  // and commands are separated by blank lines for readability.
+  const lines = [intro];
+  for (const { command, reason } of commands) {
+    lines.push("");
+    lines.push(`# ${reason}`);
+    for (const ln of command.split("\n")) lines.push(ln);
+  }
+  if (outro) {
+    lines.push("");
+    lines.push(outro);
+  }
+  return lines;
+}
+
+/**
+ * A `tee`-heredoc command that writes `content` to a privileged path, quoted so
+ * the whole block is safe to paste into a shell. The quoted heredoc (`<<'TAG'`)
+ * means nothing inside is expanded, so the unit's `$`/backticks are literal.
+ */
+export function teeHeredoc(path: string, content: string, tag: string): string {
+  const body = content.endsWith("\n") ? content : `${content}\n`;
+  return `sudo tee ${path} >/dev/null <<'${tag}'\n${body}${tag}`;
+}
+
+/** The manual sudo command that extracts a verified archive into a root dir. */
+export function manualExtractCommand(
+  archivePath: string,
+  format: OllamaArchiveFormat,
+  destRoot: string,
+): string {
+  const q = shellQuote(archivePath);
+  const dest = shellQuote(destRoot);
+  if (format === "zip") {
+    return `sudo unzip -o ${q} -d ${dest}`;
+  }
+  if (format === "tar.zst") {
+    // Prefer GNU tar's zstd filter; fall back to piping through zstd.
+    return `sudo tar --zstd -xf ${q} -C ${dest} || zstd -dc ${q} | sudo tar -xf - -C ${dest}`;
+  }
+  return `sudo tar -xzf ${q} -C ${dest}`;
+}
+
+/**
+ * Build the full set of copy-paste commands to install Ollama at system scope
+ * when swamp cannot escalate. Includes the user creation, extraction and the
+ * systemd unit/enable steps.
+ */
+export function manualSystemInstallCommands(opts: {
+  archivePath: string;
+  format: OllamaArchiveFormat;
+  installDir: string;
+  libDir: string;
+  serviceName: string;
+  serviceUser: string;
+  serviceGroup: string;
+  unitPath: string;
+  unitContent: string;
+  dropInPath?: string;
+  dropInContent?: string;
+  restart?: boolean;
+}): ManualCommand[] {
+  const commands: ManualCommand[] = [];
+  const root = dirnameOf(opts.installDir.replace(/\/+$/, "")) || "/usr/local";
+  commands.push({
+    command: `sudo mkdir -p ${opts.installDir} ${opts.libDir}`,
+    reason:
+      `create the install directories (${opts.installDir}, ${opts.libDir})`,
+  });
+  commands.push({
+    command: manualExtractCommand(opts.archivePath, opts.format, root),
+    reason:
+      "extract the verified archive's bin/ and lib/ollama/ into the install root",
+  });
+  if (opts.serviceUser.trim()) {
+    commands.push({
+      command:
+        `id -u ${opts.serviceUser} >/dev/null 2>&1 || sudo useradd -r -s /bin/false -U -m -d /usr/share/${opts.serviceUser} ${opts.serviceUser}`,
+      reason: `create the unprivileged '${opts.serviceUser}' run-as user`,
+    });
+  }
+  commands.push({
+    command: teeHeredoc(opts.unitPath, opts.unitContent, "OLLAMA_UNIT"),
+    reason: `write the systemd unit at ${opts.unitPath}`,
+  });
+  if (opts.dropInPath && opts.dropInContent) {
+    commands.push({
+      command: `sudo mkdir -p ${dirnameOf(opts.dropInPath)}`,
+      reason: "create the drop-in directory",
+    });
+    commands.push({
+      command: teeHeredoc(opts.dropInPath, opts.dropInContent, "OLLAMA_DROPIN"),
+      reason: `write your service settings at ${opts.dropInPath}`,
+    });
+  }
+  commands.push({
+    command:
+      `sudo systemctl daemon-reload && sudo systemctl enable --now ${opts.serviceName}.service`,
+    reason: "reload systemd and start the service at boot",
+  });
+  if (opts.restart) {
+    commands.push({
+      command: `sudo systemctl restart ${opts.serviceName}.service`,
+      reason: "restart so the running daemon is the new binary/configuration",
+    });
+  }
+  return commands;
+}
+
+/**
+ * The copy-paste commands to apply a service unit/drop-in and reload/restart
+ * when swamp cannot escalate (used by createService/configureService).
+ */
+export function manualServiceCommands(opts: {
+  serviceName: string;
+  unitPath: string;
+  unitContent: string;
+  dropInPath?: string;
+  dropInContent?: string;
+  serviceUser?: string;
+  restart?: boolean;
+}): ManualCommand[] {
+  const commands: ManualCommand[] = [];
+  if (opts.serviceUser && opts.serviceUser.trim()) {
+    commands.push({
+      command:
+        `id -u ${opts.serviceUser} >/dev/null 2>&1 || sudo useradd -r -s /bin/false -U -m -d /usr/share/${opts.serviceUser} ${opts.serviceUser}`,
+      reason:
+        `create the unprivileged '${opts.serviceUser}' run-as user (if missing)`,
+    });
+  }
+  if (opts.dropInPath && opts.dropInContent) {
+    commands.push({
+      command: `sudo mkdir -p ${dirnameOf(opts.dropInPath)}`,
+      reason: `create the drop-in directory ${dirnameOf(opts.dropInPath)}`,
+    });
+    commands.push({
+      command: teeHeredoc(opts.dropInPath, opts.dropInContent, "OLLAMA_DROPIN"),
+      reason: `write your service settings at ${opts.dropInPath}`,
+    });
+  } else {
+    commands.push({
+      command: teeHeredoc(opts.unitPath, opts.unitContent, "OLLAMA_UNIT"),
+      reason: `write the systemd unit at ${opts.unitPath}`,
+    });
+  }
+  commands.push({
+    command:
+      `sudo systemctl daemon-reload && sudo systemctl enable --now ${opts.serviceName}.service`,
+    reason:
+      "reload systemd so the new settings take effect and the service is enabled",
+  });
+  if (opts.restart) {
+    commands.push({
+      command: `sudo systemctl restart ${opts.serviceName}.service`,
+      reason: "restart the service to pick up the new configuration",
+    });
+  }
+  return commands;
+}
+
+/** The copy-paste commands to remove the service and/or binary as root. */
+export function manualRemoveCommands(opts: {
+  serviceName: string;
+  unitPath: string;
+  dropInPath?: string;
+  installDir?: string;
+  libDir?: string;
+  purgeService?: boolean;
+  purgeBinary?: boolean;
+}): ManualCommand[] {
+  const commands: ManualCommand[] = [];
+  if (opts.purgeService) {
+    commands.push({
+      command:
+        `sudo systemctl stop ${opts.serviceName}.service; sudo systemctl disable ${opts.serviceName}.service`,
+      reason: "stop and disable the service",
+    });
+    commands.push({
+      command: `sudo rm -f ${opts.unitPath}${
+        opts.dropInPath ? ` ${opts.dropInPath}` : ""
+      }`,
+      reason: "remove the unit and drop-in files",
+    });
+    commands.push({
+      command: "sudo systemctl daemon-reload",
+      reason: "reload systemd after removing the unit",
+    });
+  }
+  if (opts.purgeBinary) {
+    commands.push({
+      command: `sudo rm -rf ${opts.installDir ?? "/usr/local/bin"}/ollama ${
+        opts.libDir ?? "/usr/local/lib/ollama"
+      }`,
+      reason: "remove the binary and its runtime",
+    });
+  }
+  return commands;
+}
+
+// ---------------------------------------------------------------------------
 // Archive handling
 // ---------------------------------------------------------------------------
 

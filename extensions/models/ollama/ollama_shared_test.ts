@@ -18,10 +18,13 @@ import {
   assetFileName,
   assetStem,
   buildEnvironment,
+  canEscalate,
   detectAccel,
   detectArchiveFormat,
+  detectPrivilege,
   dirIsWritable,
   dirnameOf,
+  escalationPrefix,
   expandHome,
   extractArchive,
   findBinaryMember,
@@ -29,6 +32,10 @@ import {
   isLibMember,
   isUnitNotFound,
   isWindowsOs,
+  manualInstructions,
+  manualRemoveCommands,
+  manualServiceCommands,
+  manualSystemInstallCommands,
   mapUnameArch,
   mapUnameOs,
   normalizeMemberPath,
@@ -38,6 +45,8 @@ import {
   parseVersionOutput,
   renderServiceUnit,
   resolveOsArch,
+  shellQuote,
+  teeHeredoc,
   verifyChecksum,
   versionsEqual,
 } from "./ollama_shared.ts";
@@ -426,4 +435,154 @@ Deno.test("extractArchive rejects a corrupt archive", async () => {
   await assertRejects(() =>
     extractArchive(new Uint8Array([1, 2, 3, 4]), "tgz")
   );
+});
+
+// ---------------------------------------------------------------------------
+// Privilege detection & manual instructions
+// ---------------------------------------------------------------------------
+
+Deno.test("detectPrivilege reports root for uid 0", async () => {
+  const status = await detectPrivilege({ uid: 0 });
+  assertEquals(status.mode, "root");
+  assertEquals(status.isRoot, true);
+  assertEquals(canEscalate(status, true), true);
+});
+
+Deno.test("detectPrivilege reports passwordless sudo", async () => {
+  const runner = (bin: string, args: string[]) => {
+    if (bin === "which") {
+      return Promise.resolve({
+        stdout: "/usr/bin/sudo\n",
+        stderr: "",
+        code: 0,
+      });
+    }
+    if (bin === "sudo" && args[0] === "-n") {
+      return Promise.resolve({ stdout: "", stderr: "", code: 0 });
+    }
+    return Promise.resolve({ stdout: "", stderr: "", code: 1 });
+  };
+  const status = await detectPrivilege({ uid: 1000, runner });
+  assertEquals(status.mode, "sudo");
+  assertEquals(status.passwordless, true);
+  assertEquals(escalationPrefix(status, true), ["sudo", "-n"]);
+});
+
+Deno.test("detectPrivilege reports a sudo prompt", async () => {
+  const runner = (bin: string, _args: string[]) => {
+    if (bin === "which") {
+      return Promise.resolve({
+        stdout: "/usr/bin/sudo\n",
+        stderr: "",
+        code: 0,
+      });
+    }
+    if (bin === "sudo") {
+      return Promise.resolve({
+        stdout: "",
+        stderr: "a password is required",
+        code: 1,
+      });
+    }
+    return Promise.resolve({ stdout: "", stderr: "", code: 1 });
+  };
+  const status = await detectPrivilege({ uid: 1000, runner });
+  assertEquals(status.mode, "sudo-prompt");
+  assertEquals(canEscalate(status, true), false);
+  assertEquals(escalationPrefix(status, true), []);
+});
+
+Deno.test("detectPrivilege reports none when sudo is absent", async () => {
+  const runner = () => Promise.resolve({ stdout: "", stderr: "", code: 1 });
+  const status = await detectPrivilege({ uid: 1000, runner });
+  assertEquals(status.mode, "none");
+  assertEquals(status.sudoAvailable, false);
+});
+
+Deno.test("shellQuote single-quotes and escapes embedded quotes", () => {
+  assertEquals(shellQuote("/a/b c"), "'/a/b c'");
+  assertEquals(shellQuote("it's"), "'it'\\''s'");
+});
+
+Deno.test("teeHeredoc writes content verbatim with a quoted tag", () => {
+  const out = teeHeredoc(
+    "/etc/systemd/system/x.service",
+    "[Unit]\n$a=`id`\n",
+    "TAG",
+  );
+  assertStringIncludes(
+    out,
+    "sudo tee /etc/systemd/system/x.service >/dev/null <<'TAG'",
+  );
+  assertStringIncludes(out, "$a=`id`");
+  assertEquals(out.trimEnd().endsWith("TAG"), true);
+});
+
+Deno.test("manualSystemInstallCommands covers the whole install", () => {
+  const cmds = manualSystemInstallCommands({
+    archivePath: "/tmp/a.tar.zst",
+    format: "tar.zst",
+    installDir: "/usr/local/bin",
+    libDir: "/usr/local/lib/ollama",
+    serviceName: "ollama",
+    serviceUser: "ollama",
+    serviceGroup: "ollama",
+    unitPath: "/etc/systemd/system/ollama.service",
+    unitContent: "[Unit]\nDescription=Ollama\n",
+  });
+  const joined = cmds.map((c) => c.command).join("\n");
+  assertStringIncludes(
+    joined,
+    "sudo mkdir -p /usr/local/bin /usr/local/lib/ollama",
+  );
+  assertStringIncludes(joined, "sudo tar --zstd");
+  assertStringIncludes(joined, "sudo useradd");
+  assertStringIncludes(joined, "sudo tee /etc/systemd/system/ollama.service");
+  assertStringIncludes(joined, "daemon-reload");
+  assertStringIncludes(joined, "systemctl enable --now ollama.service");
+});
+
+Deno.test("manualServiceCommands writes a drop-in and reloads", () => {
+  const cmds = manualServiceCommands({
+    serviceName: "ollama",
+    unitPath: "/etc/systemd/system/ollama.service",
+    unitContent: "unit",
+    dropInPath: "/etc/systemd/system/ollama.service.d/10-swamp.conf",
+    dropInContent: "[Service]\nEnvironment=OLLAMA_HOST=0.0.0.0:11434\n",
+    restart: true,
+  });
+  const joined = cmds.map((c) => c.command).join("\n");
+  assertStringIncludes(joined, "mkdir -p /etc/systemd/system/ollama.service.d");
+  assertStringIncludes(joined, "Environment=OLLAMA_HOST=0.0.0.0:11434");
+  assertStringIncludes(joined, "systemctl restart ollama.service");
+});
+
+Deno.test("manualRemoveCommands stops, removes and reloads", () => {
+  const cmds = manualRemoveCommands({
+    serviceName: "ollama",
+    unitPath: "/etc/systemd/system/ollama.service",
+    dropInPath: "/etc/systemd/system/ollama.service.d/10-swamp.conf",
+    installDir: "/usr/local/bin",
+    libDir: "/usr/local/lib/ollama",
+    purgeService: true,
+    purgeBinary: true,
+  });
+  const joined = cmds.map((c) => c.command).join("\n");
+  assertStringIncludes(joined, "systemctl stop ollama.service");
+  assertStringIncludes(joined, "rm -f /etc/systemd/system/ollama.service");
+  assertStringIncludes(
+    joined,
+    "rm -rf /usr/local/bin/ollama /usr/local/lib/ollama",
+  );
+});
+
+Deno.test("manualInstructions renders comments and commands", () => {
+  const lines = manualInstructions("Run these:", [
+    { command: "sudo foo", reason: "do a thing" },
+  ], "then retry");
+  const text = lines.join("\n");
+  assertStringIncludes(text, "Run these:");
+  assertStringIncludes(text, "# do a thing");
+  assertStringIncludes(text, "sudo foo");
+  assertStringIncludes(text, "then retry");
 });

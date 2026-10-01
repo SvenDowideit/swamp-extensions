@@ -4,12 +4,16 @@ description: |
   Install or upgrade Ollama on this machine and keep its systemd service
   running with your configuration — the whole loop in one idempotent run.
 
-  Steps (install): plan → sync → resolve → assess → download → install →
-  create-service → configure-service → restart-service → verify
+  Steps (install): plan → privilege → sync → resolve → assess → download →
+  install → create-service → configure-service → restart-service → verify
 
   plan resolves this machine's OS/architecture and accelerator (NVIDIA CUDA,
   AMD ROCm, Jetson, or the base build), the exact release asset name to fetch,
-  and whether the service is a system or user unit. sync reads the installed
+  and whether the service is a system or user unit. privilege detects whether
+  this run can escalate to root: if a system install is needed but `sudo` would
+  prompt for a password (a swamp run has no tty), the run logs the exact
+  copy-paste commands to complete the install, and the install/service steps
+  hand back their own commands instead of failing. sync reads the installed
   `ollama --version`. resolve calls @svendowideit/github-release-install to read
   the newest Ollama release and the asset's expected SHA-256 from its
   sha256sum.txt, and assess compares the two. download fetches the
@@ -39,6 +43,11 @@ description: |
 
       swamp workflow run @svendowideit/ollama-install \
         --input serviceScope=user --input manageService=false
+
+  No passwordless sudo? Ask what this run can do, and read the exact commands
+  to run by hand when it cannot do a privileged step:
+
+      swamp model @svendowideit/ollama method run privilege ollama
 
   Remove the binary (and optionally the service) again:
 
@@ -213,6 +222,23 @@ jobs:
         dependsOn: []
         weight: 0
         allowFailure: false
+      - name: privilege
+        description: >-
+          Detect whether this run can escalate to root (root, passwordless sudo,
+          sudo-with-prompt, or none). When it cannot and a system install is
+          required, it logs the exact copy-paste commands to run by hand. Always
+          runs so the run log states the situation up front.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama"
+          modelName: ollama
+          methodName: privilege
+        dependsOn:
+          - step: plan
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
       - name: sync
         description: >-
           Read the installed `ollama --version` so `assess` can decide whether an
@@ -225,7 +251,7 @@ jobs:
           modelName: ollama
           methodName: sync
         dependsOn:
-          - step: plan
+          - step: privilege
             condition:
               type: succeeded
         weight: 0

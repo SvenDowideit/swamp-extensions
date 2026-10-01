@@ -21,7 +21,7 @@ import {
   withMockedCommand,
 } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 
-import { model } from "./ollama.ts";
+import { model, resetPrivilegeCache } from "./ollama.ts";
 import { OLLAMA_ASSET_PATTERN } from "./ollama_shared.ts";
 
 // ---------------------------------------------------------------------------
@@ -54,6 +54,9 @@ function baseGlobals(overrides: Record<string, unknown> = {}) {
 
 // deno-lint-ignore no-explicit-any
 async function runMethod(name: string, opts: any = {}) {
+  // The privilege probe is memoized per process; clear it so a test that
+  // simulates a different host (root vs no-sudo) is not served a stale result.
+  resetPrivilegeCache();
   const ctx = createModelTestContext({
     globalArgs: baseGlobals(opts.globalArgs ?? {}),
     methodName: name,
@@ -64,12 +67,27 @@ async function runMethod(name: string, opts: any = {}) {
   // deno-lint-ignore no-explicit-any
   const schema = (model.methods as any)[name].arguments;
   const parsed = schema.parse(opts.args ?? {});
+  // The command layer is always mocked so the tests are deterministic: the
+  // default handler reports root (uid 0) and success, so privileged paths run
+  // without touching the host. Tests that assert the no-escalation path pass
+  // their own `handler`.
   // deno-lint-ignore no-explicit-any
-  const result = await (model.methods as any)[name].execute(
-    parsed,
+  let result: any;
+  if (opts.raw) {
+    // Run against the real command layer. Needed for the tar.zst install tests:
+    // extraction streams through `zstd` via Deno.Command.spawn(), which the
+    // command mock cannot intercept (and temp-dir installs need no escalation).
     // deno-lint-ignore no-explicit-any
-    ctx.context as any,
-  );
+    const methodsAny = model.methods as any;
+    result = await methodsAny[name].execute(parsed, ctx.context);
+  } else {
+    const handler = opts.handler ?? rootHandler();
+    await withMockedCommand(handler, async () => {
+      // deno-lint-ignore no-explicit-any
+      const methodsAny = model.methods as any;
+      result = await methodsAny[name].execute(parsed, ctx.context);
+    });
+  }
   // Mechanical schema-write conformance: every resource a method writes must
   // validate against the schema declared for that spec in the model.
   for (const w of ctx.getWrittenResources()) {
@@ -99,8 +117,12 @@ async function runMethod(name: string, opts: any = {}) {
   return { result, ctx };
 }
 
-/** A command handler where everything succeeds and uname reports Linux/x86_64. */
-function okHandler() {
+/**
+ * A command handler simulating a host where swamp runs as root (or has
+ * passwordless sudo): `id -u` reports 0, every command succeeds, and uname
+ * reports Linux/x86_64.
+ */
+function rootHandler() {
   return (command: string, args: string[]) => {
     if (command === "uname" && args[0] === "-s") {
       return { stdout: "Linux\n", code: 0 };
@@ -111,8 +133,40 @@ function okHandler() {
     if (command === "zstd" && args[0] === "--version") {
       return { stdout: "zstd 1.5.5\n", code: 0 };
     }
+    if (command === "id" && args[0] === "-u") {
+      return { stdout: "0\n", code: 0 };
+    }
     if (command === "systemctl") return { stdout: "", code: 0 };
     if (command === "id") return { stdout: "0\n", code: 0 };
+    return { stdout: "", code: 0 };
+  };
+}
+
+/**
+ * A command handler simulating a host where swamp runs as an ordinary user
+ * (uid 1000) with no passwordless sudo. `sudo -n true` fails, so methods that
+ * need root must hand back manual instructions instead of escalating.
+ */
+function noSudoHandler() {
+  return (command: string, args: string[]) => {
+    if (command === "uname" && args[0] === "-s") {
+      return { stdout: "Linux\n", code: 0 };
+    }
+    if (command === "uname" && args[0] === "-m") {
+      return { stdout: "x86_64\n", code: 0 };
+    }
+    if (command === "id" && args[0] === "-u") {
+      return { stdout: "1000\n", code: 0 };
+    }
+    if (command === "id") return { stdout: "1000\n", code: 0 };
+    if (command === "which" && args[0] === "sudo") {
+      return { stdout: "/usr/bin/sudo\n", code: 0 };
+    }
+    // `sudo -n true` and any escalated command fail as they would with no tty.
+    if (command === "sudo") {
+      return { stdout: "", stderr: "sudo: a password is required\n", code: 1 };
+    }
+    if (command === "systemctl") return { stdout: "", code: 0 };
     return { stdout: "", code: 0 };
   };
 }
@@ -245,6 +299,7 @@ Deno.test("install extracts a verified tar.zst into the install dir", async () =
   const installDir = await Deno.makeTempDir();
   try {
     const { ctx } = await runMethod("install", {
+      raw: true,
       globalArgs: { installDir, serviceScope: "user", unitDir: installDir },
       args: {
         archivePath: fixture.path,
@@ -282,21 +337,21 @@ Deno.test("install verifies the archive checksum and refuses a mismatch", async 
   try {
     await assertRejects(
       () =>
-        withMockedCommand(okHandler(), () =>
-          runMethod("install", {
-            globalArgs: {
-              installDir,
-              serviceScope: "user",
-              unitDir: installDir,
-            },
-            args: {
-              archivePath: fixture.path,
-              archiveName: "ollama-linux-amd64.tar.zst",
-              version: "0.35.0",
-              checksum: "0".repeat(64),
-              verifyArchive: true,
-            },
-          })),
+        runMethod("install", {
+          raw: true,
+          globalArgs: {
+            installDir,
+            serviceScope: "user",
+            unitDir: installDir,
+          },
+          args: {
+            archivePath: fixture.path,
+            archiveName: "ollama-linux-amd64.tar.zst",
+            version: "0.35.0",
+            checksum: "0".repeat(64),
+            verifyArchive: true,
+          },
+        }),
       Error,
       "Checksum mismatch",
     );
@@ -316,6 +371,7 @@ Deno.test("install accepts a matching archive checksum", async () => {
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
     const { ctx } = await runMethod("install", {
+      raw: true,
       globalArgs: { installDir, serviceScope: "user", unitDir: installDir },
       args: {
         archivePath: fixture.path,
@@ -347,6 +403,7 @@ Deno.test("install skips when the target version is already installed", async ()
     );
     await Deno.chmod(`${installDir}/ollama`, 0o755);
     const { ctx } = await runMethod("install", {
+      raw: true,
       globalArgs: { installDir, serviceScope: "user", unitDir: installDir },
       args: {
         archivePath: fixture.path,
@@ -386,6 +443,7 @@ Deno.test("install extracts a macOS tgz (binary at the archive root)", async () 
       0,
     );
     const { ctx } = await runMethod("install", {
+      raw: true,
       globalArgs: { installDir, serviceScope: "user", unitDir: installDir },
       args: {
         archivePath,
@@ -522,7 +580,7 @@ Deno.test("restartService enables, restarts and verifies active", async () => {
   const calls: string[] = [];
   const unitDir = await Deno.makeTempDir();
   try {
-    await withMockedCommand((command, args) => {
+    const handler = (command: string, args: string[]) => {
       calls.push([command, ...args].join(" "));
       if (command === "uname" && args[0] === "-s") {
         return { stdout: "Linux\n", code: 0 };
@@ -530,18 +588,22 @@ Deno.test("restartService enables, restarts and verifies active", async () => {
       if (command === "uname" && args[0] === "-m") {
         return { stdout: "x86_64\n", code: 0 };
       }
+      if (command === "id" && args[0] === "-u") {
+        return { stdout: "0\n", code: 0 };
+      }
       if (command === "systemctl") return { stdout: "active\n", code: 0 };
       return { stdout: "", code: 0 };
-    }, async () => {
-      const { ctx } = await runMethod("restartService", {
-        globalArgs: { serviceScope: "user", unitDir },
-        args: { enable: true },
-      });
-      const d = ctx.getWrittenResources().find(
-        (r) => r.specName === "service",
-      )!.data as Record<string, unknown>;
-      assertEquals(d.active, true);
+    };
+    const { ctx } = await runMethod("restartService", {
+      globalArgs: { serviceScope: "user", unitDir },
+      args: { enable: true },
+      // deno-lint-ignore no-explicit-any
+      handler: handler as any,
     });
+    const d = ctx.getWrittenResources().find(
+      (r) => r.specName === "service",
+    )!.data as Record<string, unknown>;
+    assertEquals(d.active, true);
     assertEquals(
       calls.some((c) => c.includes("systemctl --user enable ollama")),
       true,
@@ -568,6 +630,7 @@ Deno.test("uninstall removes the binary and reports it gone", async () => {
     );
     await Deno.chmod(`${installDir}/ollama`, 0o755);
     const { ctx } = await runMethod("uninstall", {
+      raw: true,
       globalArgs: { serviceScope: "user", unitDir: installDir },
       args: { path: `${installDir}/ollama` },
     });
@@ -589,6 +652,7 @@ Deno.test("uninstall is a no-op when no binary is present", async () => {
   const installDir = await Deno.makeTempDir();
   try {
     const { ctx } = await runMethod("uninstall", {
+      raw: true,
       globalArgs: { serviceScope: "user", unitDir: installDir },
       args: { path: `${installDir}/ollama` },
     });
@@ -599,5 +663,125 @@ Deno.test("uninstall is a no-op when no binary is present", async () => {
     assertEquals(d.skipped, true);
   } finally {
     await Deno.remove(installDir, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Privilege detection and manual instructions
+// ---------------------------------------------------------------------------
+
+Deno.test("privilege reports root when the process is root", async () => {
+  const { ctx } = await runMethod("privilege", {
+    globalArgs: { serviceScope: "system" },
+  });
+  const d = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+  assertEquals(d.isRoot, true);
+  assertEquals(d.mode, "root");
+});
+
+Deno.test("privilege reports passwordless sudo", async () => {
+  const handler = (command: string, args: string[]) => {
+    if (command === "id" && args[0] === "-u") {
+      return { stdout: "1000\n", code: 0 };
+    }
+    if (command === "which" && args[0] === "sudo") {
+      return { stdout: "/usr/bin/sudo\n", code: 0 };
+    }
+    if (command === "sudo" && args[0] === "-n") {
+      return { stdout: "", code: 0 };
+    }
+    return { stdout: "", code: 0 };
+  };
+  const { ctx } = await runMethod("privilege", {
+    // deno-lint-ignore no-explicit-any
+    handler: handler as any,
+  });
+  const d = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+  assertEquals(d.mode, "sudo");
+  assertEquals(d.passwordless, true);
+});
+
+Deno.test("privilege reports sudo-prompt when a password is required", async () => {
+  const { ctx } = await runMethod("privilege", {
+    // deno-lint-ignore no-explicit-any
+    handler: noSudoHandler() as any,
+  });
+  const d = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+  assertEquals(d.mode, "sudo-prompt");
+  assertEquals(d.passwordless, false);
+});
+
+Deno.test("plan warns and emits manual commands when root is unreachable", async () => {
+  const { ctx } = await runMethod("plan", {
+    globalArgs: { serviceScope: "system", installDir: "/usr/local/bin" },
+    // deno-lint-ignore no-explicit-any
+    handler: noSudoHandler() as any,
+  });
+  const d = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+  assertEquals(d.canEscalate, false);
+  assertEquals(d.requiresRoot, true);
+  assertEquals(d.privilegeMode, "sudo-prompt");
+  const manual = d.manualCommands as string[];
+  assertEquals(manual.length > 0, true);
+  assertStringIncludes(manual.join("\n"), "serviceScope=user");
+});
+
+Deno.test("install prints manual commands instead of failing without root", async () => {
+  const fixture = await buildOllamaTarZst();
+  // A root-owned directory: /usr/local/bin is not writable in the test env.
+  try {
+    const { ctx } = await runMethod("install", {
+      globalArgs: { serviceScope: "system", installDir: "/usr/local/bin" },
+      args: {
+        archivePath: fixture.path,
+        archiveName: "ollama-linux-amd64.tar.zst",
+        version: "0.35.0",
+        verifyArchive: false,
+      },
+      // deno-lint-ignore no-explicit-any
+      handler: noSudoHandler() as any,
+    });
+    const d = ctx.getWrittenResources().find(
+      (r) => r.specName === "install",
+    )!.data as Record<string, unknown>;
+    assertEquals(d.skipped, true);
+    assertEquals(d.installed, false);
+    assertEquals(d.requiresRoot, true);
+    const manual = d.manualCommands as string[];
+    assertEquals(manual.length > 0, true);
+    const joined = manual.join("\n");
+    assertStringIncludes(joined, "sudo");
+    assertStringIncludes(joined, "useradd");
+    assertStringIncludes(joined, "systemctl daemon-reload");
+    assertStringIncludes(joined, "OLLAMA_UNIT");
+  } finally {
+    await Deno.remove(fixture.dir, { recursive: true });
+  }
+});
+
+Deno.test("createService prints manual commands for a system unit without root", async () => {
+  const unitDir = await Deno.makeTempDir();
+  try {
+    const { ctx } = await runMethod("createService", {
+      globalArgs: { serviceScope: "system", unitDir },
+      args: { binaryPath: "/usr/local/bin/ollama" },
+      // deno-lint-ignore no-explicit-any
+      handler: noSudoHandler() as any,
+    });
+    const d = ctx.getWrittenResources().find(
+      (r) => r.specName === "serviceCreate",
+    )!.data as Record<string, unknown>;
+    assertEquals(d.requiresRoot, true);
+    assertEquals(d.written, false);
+    const joined = (d.manualCommands as string[]).join("\n");
+    assertStringIncludes(joined, "sudo tee");
+    assertStringIncludes(joined, "systemctl daemon-reload");
+    // The unit file was NOT written.
+    assertEquals(
+      await Deno.stat(`${unitDir}/ollama.service`).catch(() => null),
+      null,
+    );
+  } finally {
+    await Deno.remove(unitDir, { recursive: true });
   }
 });

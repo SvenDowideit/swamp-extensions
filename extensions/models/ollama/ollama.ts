@@ -51,22 +51,31 @@ import {
   assetFileName,
   assetStem,
   buildEnvironment,
+  canEscalate,
   compareVersions,
   type ConcreteAccel,
   detectAccel,
   detectArchiveFormat,
+  detectPrivilege,
   digestHex,
   dirIsWritable,
   dirnameOf,
+  escalationPrefix,
   expandHome,
   extractArchive,
   isDarwinOs,
   isWindowsOs,
+  type ManualCommand,
+  manualInstructions,
+  manualRemoveCommands,
+  manualServiceCommands,
+  manualSystemInstallCommands,
   normalizeVersion,
   OLLAMA_ASSET_PATTERN,
   type OllamaArchiveFormat,
   parseEnvironmentBlock,
   parseVersionOutput,
+  type PrivilegeStatus,
   renderServiceUnit,
   resolveOsArch,
   runCapture,
@@ -294,8 +303,25 @@ const PlanResultSchema = z.object({
   serviceScope: z.string(),
   supported: z.boolean(),
   serviceStatusCommand: z.string().nullable(),
+  requiresRoot: z.boolean(),
+  canEscalate: z.boolean(),
+  privilegeMode: z.string(),
+  privilegeMessage: z.string(),
+  manualCommands: z.array(z.string()),
   plannedAt: z.string(),
   message: z.string(),
+});
+
+const PrivilegeResultSchema = z.object({
+  uid: z.number(),
+  isRoot: z.boolean(),
+  sudoAvailable: z.boolean(),
+  passwordless: z.boolean(),
+  sudoCommand: z.string(),
+  nonInteractive: z.boolean(),
+  mode: z.string(),
+  message: z.string(),
+  checkedAt: z.string(),
 });
 
 const AssessmentResultSchema = z.object({
@@ -337,6 +363,9 @@ const InstallResultSchema = z.object({
   message: z.string(),
   versionCommand: z.string().nullable(),
   serviceStatusCommand: z.string().nullable(),
+  requiresRoot: z.boolean(),
+  manualCommands: z.array(z.string()),
+  manualInstructions: z.string(),
 });
 
 const UninstallResultSchema = z.object({
@@ -349,6 +378,7 @@ const UninstallResultSchema = z.object({
   removedAt: z.string(),
   message: z.string(),
   serviceStatusCommand: z.string().nullable(),
+  manualCommands: z.array(z.string()),
 });
 
 const ServiceResultSchema = z.object({
@@ -369,6 +399,9 @@ const CreateServiceResultSchema = z.object({
   existed: z.boolean(),
   checkedAt: z.string(),
   message: z.string(),
+  requiresRoot: z.boolean(),
+  manualCommands: z.array(z.string()),
+  manualInstructions: z.string(),
 });
 
 const ConfigResultSchema = z.object({
@@ -386,6 +419,9 @@ const ConfigResultSchema = z.object({
   restarted: z.boolean(),
   message: z.string(),
   setAt: z.string(),
+  requiresRoot: z.boolean(),
+  manualCommands: z.array(z.string()),
+  manualInstructions: z.string(),
 });
 
 const PrintResultSchema = z.object({
@@ -711,12 +747,60 @@ function dropInContent(
 // Privilege escalation + commands
 // ---------------------------------------------------------------------------
 
-/** Build the argv prefix that escalates, or `[]` when not needed. */
-function sudoPrefix(g: GlobalArgs, needsRoot: boolean): string[] {
-  if (!needsRoot) return [];
-  if (typeof Deno.uid === "function" && Deno.uid() === 0) return [];
-  const cmd = g.sudo.trim() || "sudo";
-  return g.sudoNonInteractive ? [cmd, "-n"] : [cmd];
+/**
+ * Resolve the privilege situation for this run, from the configured sudo.
+ * Memoized per process (keyed by the settings) so the `sudo -n true` probe runs
+ * at most once even though many helpers need it; a method executes in a fresh
+ * process, so the cache never goes stale across runs.
+ */
+const privilegeCache = new Map<string, Promise<PrivilegeStatus>>();
+
+/** Clear the memoized privilege probe (used by tests that vary the host). */
+export function resetPrivilegeCache(): void {
+  privilegeCache.clear();
+}
+
+function privilegeFor(g: GlobalArgs): Promise<PrivilegeStatus> {
+  const key = `${g.sudo}\0${g.sudoNonInteractive}`;
+  let cached = privilegeCache.get(key);
+  if (!cached) {
+    cached = detectPrivilege({
+      sudoCommand: g.sudo,
+      nonInteractive: g.sudoNonInteractive,
+    });
+    privilegeCache.set(key, cached);
+  }
+  return cached;
+}
+
+/**
+ * Build the argv prefix that escalates, or `[]` when the action runs
+ * unprivileged OR when escalation is unavailable. Callers that must not
+ * silently degrade check {@link canEscalate} and print manual instructions.
+ */
+function sudoPrefix(priv: PrivilegeStatus, needsRoot: boolean): string[] {
+  return escalationPrefix(priv, needsRoot);
+}
+
+/**
+ * Throw a detailed, copy-pasteable error when a privileged step cannot run
+ * because this user has no usable escalation. The message names the exact
+ * commands, so the operator can complete the step by hand.
+ */
+function requireEscalation(
+  priv: PrivilegeStatus,
+  needsRoot: boolean,
+  intro: string,
+  commands: ManualCommand[],
+  outro?: string,
+): void {
+  if (!needsRoot || canEscalate(priv, needsRoot)) return;
+  const lines = manualInstructions(
+    `${priv.message} ${intro}`,
+    commands,
+    outro,
+  );
+  throw new Error(lines.join("\n"));
 }
 
 /**
@@ -740,14 +824,14 @@ const READ_ONLY_SYSTEMCTL = new Set([
  * Read-only verbs are never escalated.
  */
 async function systemctl(
-  g: GlobalArgs,
+  priv: PrivilegeStatus,
   scope: "system" | "user",
   args: string[],
   runner: Runner,
 ): Promise<CommandResult> {
   const base = scope === "user" ? ["--user", ...args] : args;
   const readOnly = READ_ONLY_SYSTEMCTL.has(args[0] ?? "");
-  const prefix = sudoPrefix(g, scope === "system" && !readOnly);
+  const prefix = sudoPrefix(priv, scope === "system" && !readOnly);
   if (prefix.length) {
     return await runner(prefix[0], [...prefix.slice(1), "systemctl", ...base]);
   }
@@ -760,12 +844,13 @@ async function systemctl(
  * `sudo install`. Returns whether the content changed.
  */
 async function writeFileMaybeRoot(
-  g: GlobalArgs,
+  priv: PrivilegeStatus,
   path: string,
   content: string,
   mode: number,
   needsRoot: boolean,
   runner: Runner,
+  manualPath: ManualCommand[] = [],
 ): Promise<{ changed: boolean }> {
   let existing = "";
   try {
@@ -775,7 +860,21 @@ async function writeFileMaybeRoot(
   }
   if (existing === content) return { changed: false };
 
-  const prefix = sudoPrefix(g, needsRoot);
+  if (needsRoot && !canEscalate(priv, true)) {
+    requireEscalation(
+      priv,
+      true,
+      `Cannot write ${path} without root. Run these commands yourself:`,
+      manualPath.length ? manualPath : [{
+        command:
+          `sudo tee ${path} >/dev/null <<'OLLAMA_UNIT'\n${content}OLLAMA_UNIT`,
+        reason: `write ${path}`,
+      }],
+    );
+    return { changed: false };
+  }
+
+  const prefix = sudoPrefix(priv, needsRoot);
   if (prefix.length === 0) {
     await Deno.mkdir(dirnameOf(path), { recursive: true });
     const tmp = `${path}.new-${crypto.randomUUID()}`;
@@ -825,12 +924,12 @@ async function writeFileMaybeRoot(
 
 /** Remove a file, escalating for a root-owned path. */
 async function removeFileMaybeRoot(
-  g: GlobalArgs,
+  priv: PrivilegeStatus,
   path: string,
   needsRoot: boolean,
   runner: Runner,
 ): Promise<void> {
-  const prefix = sudoPrefix(g, needsRoot);
+  const prefix = sudoPrefix(priv, needsRoot);
   if (prefix.length === 0) {
     try {
       await Deno.remove(path);
@@ -876,9 +975,10 @@ async function resolveScope(
   const unitOpts = { home, unitDir: g.unitDir };
   if (unitFileExists("system", serviceName, unitOpts)) return "system";
   if (unitFileExists("user", serviceName, unitOpts)) return "user";
-  const sys = await systemctl(g, "system", ["cat", serviceName], runner);
+  // `cat` is read-only, so no privilege status is needed; run it directly.
+  const sys = await runner("systemctl", ["cat", serviceName]);
   if (sys.code === 0) return "system";
-  const user = await systemctl(g, "user", ["cat", serviceName], runner);
+  const user = await runner("systemctl", ["--user", "cat", serviceName]);
   if (user.code === 0) return "user";
   return "system";
 }
@@ -1075,11 +1175,12 @@ async function digestFile(
  * directories are written with `sudo`.
  */
 async function installTree(
-  g: GlobalArgs,
+  priv: PrivilegeStatus,
   stagingDir: string,
   installDir: string,
   os: string,
   runner: Runner,
+  manualPath: ManualCommand[] = [],
 ): Promise<{ path: string; libDir: string | null; fileCount: number }> {
   const exe = isWindowsOs(os) ? "ollama.exe" : "ollama";
   const binSrc = (await existingFile(`${stagingDir}/bin/${exe}`)) ??
@@ -1093,11 +1194,20 @@ async function installTree(
 
   const needsRoot = !dirIsWritable(installDir) &&
     !dirIsWritable(dirnameOf(installDir));
-  const prefix = sudoPrefix(g, needsRoot);
+  const prefix = sudoPrefix(priv, needsRoot);
   const libSrcStat = await Deno.stat(`${stagingDir}/lib/ollama`).catch(() =>
     null
   );
   const libDir = libSrcStat?.isDirectory ? libDirFor(installDir) : null;
+
+  if (needsRoot && !canEscalate(priv, true)) {
+    requireEscalation(
+      priv,
+      true,
+      `Cannot install into ${installDir} without root. Run these commands yourself:`,
+      manualPath,
+    );
+  }
 
   if (prefix.length === 0) {
     await Deno.mkdir(installDir, { recursive: true });
@@ -1260,17 +1370,30 @@ async function performSync(
 
 /** Ensure the run-as user and group exist for a system service. */
 async function ensureUserGroup(
-  g: GlobalArgs,
+  priv: PrivilegeStatus,
   user: string,
   group: string,
   runner: Runner,
   logger: Logger,
 ): Promise<void> {
   if (!user.trim()) return;
-  const prefix = sudoPrefix(g, true);
+  const hasUser = await runner("id", ["-u", user]);
+  if (hasUser.code !== 0 && !canEscalate(priv, true)) {
+    requireEscalation(
+      priv,
+      true,
+      `The run-as user '${user}' does not exist and cannot be created without root. Run:`,
+      [{
+        command:
+          `sudo useradd -r -s /bin/false -U -m -d /usr/share/${user} ${user}`,
+        reason: `create the unprivileged '${user}' user`,
+      }],
+    );
+    return;
+  }
+  const prefix = sudoPrefix(priv, true);
   const sudo = prefix[0] ?? "sudo";
   const sudoArgs = prefix.slice(1);
-  const hasUser = await runner("id", ["-u", user]);
   if (hasUser.code !== 0) {
     const add = await runner(sudo, [
       ...sudoArgs,
@@ -1294,6 +1417,18 @@ async function ensureUserGroup(
   if (group.trim() && group !== user) {
     const hasGroup = await runner("getent", ["group", group]);
     if (hasGroup.code !== 0) {
+      if (!canEscalate(priv, true)) {
+        requireEscalation(
+          priv,
+          true,
+          `The group '${group}' does not exist and cannot be created without root. Run:`,
+          [{
+            command: `sudo groupadd -r ${group}`,
+            reason: `create the '${group}' group`,
+          }],
+        );
+        return;
+      }
       await runner(sudo, [...sudoArgs, "groupadd", "-r", group]);
     }
   }
@@ -1316,6 +1451,13 @@ export const model = {
       schema: PlanResultSchema,
       lifetime: "infinite",
       garbageCollection: 20,
+    },
+    privilege: {
+      description:
+        "How this run can escalate to root (root/passwordless-sudo/sudo-prompt/none)",
+      schema: PrivilegeResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
     },
     assessment: {
       description:
@@ -1429,9 +1571,54 @@ export const model = {
         const statusCommand = isDarwinOs(os) || isWindowsOs(os)
           ? null
           : serviceStatusCommandFor(g.serviceName, scope);
+        // Privilege: system scope + a root-owned install dir means the install
+        // steps need root. Probe now so we can tell the user up front whether
+        // swamp can do it or whether they will need the printed commands.
+        const priv = await privilegeFor(g);
+        const needsRoot = scope === "system" &&
+          (statusCommand !== null) &&
+          (!dirIsWritable(installDir) ||
+            !dirIsWritable(dirnameOf(installDir)));
+        const escalate = canEscalate(priv, needsRoot);
+        const manualCommands: string[] = [];
+        if (needsRoot && !escalate) {
+          context.logger.warn?.(
+            "System install requires root and this run cannot escalate: {message}",
+            { message: priv.message },
+          );
+          manualCommands.push(
+            ...manualInstructions(
+              `${priv.message} This run cannot install a system service or write ${installDir}.`,
+              [
+                {
+                  command:
+                    `echo "\${USER} ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/swamp-ollama && sudo chmod 0440 /etc/sudoers.d/swamp-ollama`,
+                  reason:
+                    "grant passwordless sudo (then re-run this workflow; adjust to least privilege)",
+                },
+                {
+                  command:
+                    "swamp workflow run @svendowideit/ollama-install --input serviceScope=user",
+                  reason:
+                    "or skip root entirely: a ~/.local install and a user-scope service",
+                },
+                {
+                  command:
+                    "swamp model @svendowideit/ollama method run install ollama --input serviceScope=system",
+                  reason:
+                    "or run the install step once where a real terminal can answer the sudo password prompt (sudoNonInteractive=false)",
+                },
+              ],
+            ),
+          );
+        }
+
         const message = supported
           ? `Plan: ${os}/${arch} accel=${accel} → ${assetName} (${format}); ` +
-            `install to ${installDir}; service ${g.serviceName} (${scope})`
+            `install to ${installDir}; service ${g.serviceName} (${scope})` +
+            (needsRoot && !escalate
+              ? `; WARNING: needs root, cannot escalate — see manualCommands`
+              : "")
           : `Unsupported platform ${os}/${arch} — no Ollama build is known.`;
         if (!supported) context.logger.warn?.(message);
         else context.logger.info(message);
@@ -1450,8 +1637,55 @@ export const model = {
           serviceScope: scope,
           supported,
           serviceStatusCommand: statusCommand,
+          requiresRoot: needsRoot,
+          canEscalate: escalate,
+          privilegeMode: priv.mode,
+          privilegeMessage: priv.message,
+          manualCommands,
           plannedAt: new Date().toISOString(),
           message,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    privilege: {
+      description:
+        "Report how this run can escalate to root (root / passwordless sudo / " +
+        "sudo-with-prompt / none) and, when it cannot, the exact commands to run " +
+        "the privileged steps by hand.",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const priv = await privilegeFor(g);
+        context.logger.info(priv.message);
+        if (priv.mode === "none" || priv.mode === "sudo-prompt") {
+          for (
+            const line of manualInstructions(
+              "To let swamp perform privileged steps automatically, do one of:",
+              [
+                {
+                  command:
+                    `echo "${"$"}USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/swamp-ollama && sudo chmod 0440 /etc/sudoers.d/swamp-ollama`,
+                  reason:
+                    "grant passwordless sudo to this user (adjust to least privilege as needed)",
+                },
+                {
+                  command:
+                    "swamp workflow run @svendowideit/ollama-install --input serviceScope=user",
+                  reason:
+                    "or avoid root entirely with a user-scope service and ~/.local install",
+                },
+              ],
+            )
+          ) context.logger.info(line);
+        }
+        const handle = await context.writeResource("privilege", "privilege", {
+          ...priv,
+          checkedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
       },
@@ -1531,6 +1765,7 @@ export const model = {
           g,
           runner,
         );
+        const priv = await privilegeFor(g);
 
         const archivePath = args.archivePath.trim()
           ? expandHome(args.archivePath.trim())
@@ -1601,8 +1836,75 @@ export const model = {
             message,
             versionCommand: `${existing} --version`,
             serviceStatusCommand: serviceStatusCommandFor(g.serviceName, scope),
+            requiresRoot: false,
+            manualCommands: [],
+            manualInstructions: "",
           });
           await performSync(context, existing ?? "");
+          return { dataHandles: [handle] };
+        }
+
+        // Detect up front whether the install into this dir needs root and
+        // whether we can escalate. If not, print the exact commands and stop
+        // before downloading/extracting anything.
+        const needsRoot = !dirIsWritable(installDir) &&
+          !dirIsWritable(dirnameOf(installDir));
+        if (needsRoot && !canEscalate(priv, true)) {
+          const manualCommands = manualSystemInstallCommands({
+            archivePath,
+            format,
+            installDir,
+            libDir: libDirFor(installDir),
+            serviceName: g.serviceName,
+            serviceUser: g.serviceUser,
+            serviceGroup: g.serviceGroup,
+            unitPath: `${
+              unitDirFor(scope, { unitDir: g.unitDir })
+            }/${g.serviceName}.service`,
+            unitContent: fullUnitContent(
+              g.serviceName,
+              scope,
+              `${installDir}/${exe}`,
+              execArgsFor(g.extraArgs),
+              g.serviceUser,
+              g.serviceGroup,
+              serviceEnvironment("", [], ""),
+              g.restart,
+              g.restartSec,
+            ),
+          });
+          const lines = manualInstructions(
+            `${priv.message} This run cannot install into ${installDir} without root. ` +
+              `Download the verified archive first, then run these commands yourself:`,
+            manualCommands,
+            `Or re-run with --input serviceScope=user to install into ~/.local/bin with no root.`,
+          );
+          for (const line of lines) context.logger.warn?.(line);
+          const message = lines.join("\n");
+          const handle = await context.writeResource("install", "install", {
+            installed: false,
+            skipped: true,
+            version: version || null,
+            previousVersion,
+            path: null,
+            installDir,
+            libDir: libDirFor(installDir),
+            archiveName: args.archiveName || null,
+            archivePath,
+            checksumVerified: null,
+            accel: parsed?.accel ?? null,
+            os: parsed?.os ?? null,
+            arch: parsed?.arch || null,
+            bytes: null,
+            fileCount: 0,
+            installedAt: new Date().toISOString(),
+            message,
+            versionCommand: null,
+            serviceStatusCommand: serviceStatusCommandFor(g.serviceName, scope),
+            requiresRoot: true,
+            manualCommands: manualCommands.map((c) => c.command),
+            manualInstructions: message,
+          });
           return { dataHandles: [handle] };
         }
 
@@ -1642,7 +1944,7 @@ export const model = {
           await extractToDir(archivePath, format, stagingDir, runner);
           context.logger.info("Installing to {dir}…", { dir: installDir });
           installResult = await installTree(
-            g,
+            priv,
             stagingDir,
             installDir,
             archiveOs,
@@ -1688,6 +1990,9 @@ export const model = {
           message,
           versionCommand: `${installResult.path} --version`,
           serviceStatusCommand: statusCommand,
+          requiresRoot: needsRoot,
+          manualCommands: [],
+          manualInstructions: "",
         });
         await performSync(context, installResult.path);
         return { dataHandles: [handle] };
@@ -1712,6 +2017,7 @@ export const model = {
           g,
           runner,
         );
+        const priv = await privilegeFor(g);
 
         const explicitPath = args.path.trim();
         const explicitDir = args.installDir.trim() || g.installDir.trim();
@@ -1726,6 +2032,7 @@ export const model = {
         let libDir: string | null = null;
         let purgedService = false;
         let message: string;
+        let manualCommands: string[] = [];
 
         if (!target) {
           message = "No ollama binary found — nothing to remove.";
@@ -1741,10 +2048,55 @@ export const model = {
             );
             libDir = libDirFor(dirnameOf(target));
             const needsRoot = !dirIsWritable(dirnameOf(target));
-            await removeFileMaybeRoot(g, target, needsRoot, runner);
+            if (needsRoot && !canEscalate(priv, true)) {
+              const lines = manualInstructions(
+                `${priv.message} This run cannot remove ${target} or its runtime without root. Run:`,
+                manualRemoveCommands({
+                  serviceName,
+                  unitPath: `${
+                    unitDirFor(scope, { unitDir: g.unitDir })
+                  }/${serviceName}.service`,
+                  dropInPath: `${
+                    unitDirFor(scope, { unitDir: g.unitDir })
+                  }/${serviceName}.service.d/10-swamp.conf`,
+                  installDir: dirnameOf(target),
+                  libDir: libDir,
+                  purgeService: args.purge,
+                  purgeBinary: true,
+                }),
+                `Or re-run with --input serviceScope=user for a ~/.local install.`,
+              );
+              for (const line of lines) context.logger.warn?.(line);
+              manualCommands = lines;
+              message = lines.join("\n");
+              const handle = await context.writeResource(
+                "uninstall",
+                "uninstall",
+                {
+                  removed: false,
+                  skipped: true,
+                  path: target,
+                  libDir,
+                  version,
+                  purgedService: false,
+                  removedAt: new Date().toISOString(),
+                  message,
+                  serviceStatusCommand: serviceStatusCommandFor(
+                    serviceName,
+                    scope,
+                  ),
+                  manualCommands,
+                },
+              );
+              return { dataHandles: [handle] };
+            }
+            await removeFileMaybeRoot(priv, target, needsRoot, runner);
             const libStat = await Deno.stat(libDir).catch(() => null);
             if (libStat?.isDirectory) {
-              const prefix = sudoPrefix(g, !dirIsWritable(dirnameOf(libDir)));
+              const prefix = sudoPrefix(
+                priv,
+                !dirIsWritable(dirnameOf(libDir)),
+              );
               if (prefix.length) {
                 await runner(prefix[0], [
                   ...prefix.slice(1),
@@ -1771,25 +2123,40 @@ export const model = {
         if (args.purge) {
           const unitDir = unitDirFor(scope, { unitDir: g.unitDir });
           const needsRoot = scope === "system";
-          await systemctl(g, scope, ["stop", serviceName], runner);
-          await systemctl(g, scope, ["disable", serviceName], runner);
-          await removeFileMaybeRoot(
-            g,
-            `${unitDir}/${serviceName}.service`,
-            needsRoot,
-            runner,
-          );
-          await removeFileMaybeRoot(
-            g,
-            `${unitDir}/${serviceName}.service.d/10-swamp.conf`,
-            needsRoot,
-            runner,
-          );
-          await systemctl(g, scope, ["daemon-reload"], runner);
-          purgedService = true;
-          context.logger.info("Removed systemd service {name}", {
-            name: serviceName,
-          });
+          if (needsRoot && !canEscalate(priv, true)) {
+            const lines = manualInstructions(
+              `${priv.message} This run cannot remove the system service without root. Run:`,
+              manualRemoveCommands({
+                serviceName,
+                unitPath: `${unitDir}/${serviceName}.service`,
+                dropInPath: `${unitDir}/${serviceName}.service.d/10-swamp.conf`,
+                purgeService: true,
+                purgeBinary: false,
+              }),
+            );
+            for (const line of lines) context.logger.warn?.(line);
+            manualCommands = [...manualCommands, ...lines];
+          } else {
+            await systemctl(priv, scope, ["stop", serviceName], runner);
+            await systemctl(priv, scope, ["disable", serviceName], runner);
+            await removeFileMaybeRoot(
+              priv,
+              `${unitDir}/${serviceName}.service`,
+              needsRoot,
+              runner,
+            );
+            await removeFileMaybeRoot(
+              priv,
+              `${unitDir}/${serviceName}.service.d/10-swamp.conf`,
+              needsRoot,
+              runner,
+            );
+            await systemctl(priv, scope, ["daemon-reload"], runner);
+            purgedService = true;
+            context.logger.info("Removed systemd service {name}", {
+              name: serviceName,
+            });
+          }
         }
 
         const handle = await context.writeResource("uninstall", "uninstall", {
@@ -1802,6 +2169,7 @@ export const model = {
           removedAt: new Date().toISOString(),
           message,
           serviceStatusCommand: serviceStatusCommandFor(serviceName, scope),
+          manualCommands,
         });
         await performSync(context, target ?? "");
         return { dataHandles: [handle] };
@@ -1829,6 +2197,7 @@ export const model = {
           g,
           runner,
         );
+        const priv = await privilegeFor(g);
         const unitDir = unitDirFor(scope, { unitDir: g.unitDir });
         const unitPath = `${unitDir}/${serviceName}.service`;
         const existed = unitFileExists(scope, serviceName, {
@@ -1846,36 +2215,53 @@ export const model = {
         const group = args.serviceGroup ?? g.serviceGroup;
 
         let written = false;
+        let manualCommands: string[] = [];
+        let manualInstructionsText = "";
+        const unitContent = fullUnitContent(
+          serviceName,
+          scope,
+          binaryPath,
+          execArgs,
+          user,
+          group,
+          serviceEnvironment("", [], ""),
+          g.restart,
+          g.restartSec,
+        );
         if (existed && !args.force) {
           context.logger.info(
             "Existing systemd unit {path} left in place (pass force=true to overwrite)",
             { path: unitPath },
           );
+        } else if (scope === "system" && !canEscalate(priv, true)) {
+          const lines = manualInstructions(
+            `${priv.message} This run cannot write the system unit ${unitPath} without root. Run:`,
+            manualServiceCommands({
+              serviceName,
+              unitPath,
+              unitContent,
+              serviceUser: user,
+              restart: false,
+            }),
+            `Or re-run with --input serviceScope=user for a user-scope service with no root.`,
+          );
+          for (const line of lines) context.logger.warn?.(line);
+          manualCommands = lines;
+          manualInstructionsText = lines.join("\n");
         } else {
           if (scope === "system") {
-            await ensureUserGroup(g, user, group, runner, context.logger);
+            await ensureUserGroup(priv, user, group, runner, context.logger);
           }
-          const content = fullUnitContent(
-            serviceName,
-            scope,
-            binaryPath,
-            execArgs,
-            user,
-            group,
-            serviceEnvironment("", [], ""),
-            g.restart,
-            g.restartSec,
-          );
           const { changed } = await writeFileMaybeRoot(
-            g,
+            priv,
             unitPath,
-            content,
+            unitContent,
             0o644,
             scope === "system",
             runner,
           );
           written = changed;
-          if (written) await systemctl(g, scope, ["daemon-reload"], runner);
+          if (written) await systemctl(priv, scope, ["daemon-reload"], runner);
           context.logger.info(
             written
               ? "Wrote systemd unit {path}"
@@ -1884,12 +2270,15 @@ export const model = {
           );
         }
 
-        const message = existed && !args.force
-          ? `Existing systemd unit left in place at ${unitPath}`
-          : `Systemd unit ${written ? "written" : "up to date"} at ${unitPath}`;
+        const message = manualInstructionsText ||
+          (existed && !args.force
+            ? `Existing systemd unit left in place at ${unitPath}`
+            : `Systemd unit ${
+              written ? "written" : "up to date"
+            } at ${unitPath}`);
         const handle = await context.writeResource(
           "serviceCreate",
-          "current",
+          "created",
           {
             serviceName,
             scope,
@@ -1898,6 +2287,9 @@ export const model = {
             existed,
             checkedAt: new Date().toISOString(),
             message,
+            requiresRoot: manualInstructionsText !== "",
+            manualCommands,
+            manualInstructions: manualInstructionsText,
           },
         );
         return { dataHandles: [handle] };
@@ -1926,6 +2318,7 @@ export const model = {
           g,
           runner,
         );
+        const priv = await privilegeFor(g);
         const unitDir = unitDirFor(scope, { unitDir: g.unitDir });
         const unitPath = `${unitDir}/${serviceName}.service`;
         const dropInDir = `${unitDir}/${serviceName}.service.d`;
@@ -1963,9 +2356,6 @@ export const model = {
           target = dropInPath;
           content = dropInContent(binaryPath, extraArgs ? execArgs : "", env);
         } else if (args.createIfMissing) {
-          if (scope === "system") {
-            await ensureUserGroup(g, user, group, runner, context.logger);
-          }
           unitCreated = true;
           target = unitPath;
           content = fullUnitContent(
@@ -1985,8 +2375,54 @@ export const model = {
           );
         }
 
+        // If this is a root-owned system unit and we cannot escalate, hand the
+        // user the exact commands instead of failing at the write.
+        if (needsRoot && !canEscalate(priv, true)) {
+          const lines = manualInstructions(
+            `${priv.message} This run cannot write ${target} without root. Run:`,
+            manualServiceCommands({
+              serviceName,
+              unitPath,
+              unitContent: content,
+              dropInPath: usedDropIn ? dropInPath : undefined,
+              dropInContent: usedDropIn ? content : undefined,
+              serviceUser: unitCreated ? user : undefined,
+              restart: args.restartService,
+            }),
+            `Then re-run this workflow, or use --input serviceScope=user.`,
+          );
+          for (const line of lines) context.logger.warn?.(line);
+          const message = lines.join("\n");
+          const handle = await context.writeResource("config", "config", {
+            applied: false,
+            serviceName,
+            scope,
+            unitPath,
+            dropInPath: usedDropIn ? dropInPath : null,
+            usedDropIn,
+            unitCreated,
+            unitChanged: false,
+            environment: env,
+            execStart: `${binaryPath} ${execArgs}`.trim(),
+            restartRequested: args.restartService,
+            restarted: false,
+            message,
+            setAt: new Date().toISOString(),
+            requiresRoot: true,
+            manualCommands: lines,
+            manualInstructions: message,
+          });
+          return { dataHandles: [handle] };
+        }
+
+        let applied = true;
+        let manualCommands: string[] = [];
+        let manualInstructionsText = "";
+        if (unitCreated && scope === "system") {
+          await ensureUserGroup(priv, user, group, runner, context.logger);
+        }
         const { changed } = await writeFileMaybeRoot(
-          g,
+          priv,
           target,
           content,
           0o644,
@@ -1994,30 +2430,48 @@ export const model = {
           runner,
         );
         if (unitCreated) unitChanged = changed;
-        if (changed) await systemctl(g, scope, ["daemon-reload"], runner);
+        if (changed) await systemctl(priv, scope, ["daemon-reload"], runner);
 
         let restarted = false;
         if (args.restartService) {
           const result = await systemctl(
-            g,
+            priv,
             scope,
             ["restart", serviceName],
             runner,
           );
           restarted = result.code === 0;
+          if (!restarted && needsRoot && !canEscalate(priv, true)) {
+            applied = false;
+            const lines = manualInstructions(
+              `${priv.message} The configuration was written but the service could not be restarted without root. Run:`,
+              manualServiceCommands({
+                serviceName,
+                unitPath,
+                unitContent: content,
+                dropInPath: usedDropIn ? dropInPath : undefined,
+                dropInContent: usedDropIn ? content : undefined,
+                restart: true,
+              }),
+            );
+            for (const line of lines) context.logger.warn?.(line);
+            manualCommands = lines;
+            manualInstructionsText = lines.join("\n");
+          }
         }
 
-        const message = `Applied Ollama service configuration to ${target} ` +
-          `(${usedDropIn ? "drop-in override" : "unit"})` +
-          (changed ? "" : " — no change") +
-          (args.restartService
-            ? restarted ? "; restarted" : "; restart failed"
-            : "") +
-          (env.length ? `; environment: ${env.join(", ")}` : "");
+        const message = manualInstructionsText ||
+          (`Applied Ollama service configuration to ${target} ` +
+            `(${usedDropIn ? "drop-in override" : "unit"})` +
+            (changed ? "" : " — no change") +
+            (args.restartService
+              ? restarted ? "; restarted" : "; restart failed"
+              : "") +
+            (env.length ? `; environment: ${env.join(", ")}` : ""));
         context.logger.info(message);
 
         const handle = await context.writeResource("config", "config", {
-          applied: true,
+          applied,
           serviceName,
           scope,
           unitPath,
@@ -2031,6 +2485,9 @@ export const model = {
           restarted,
           message,
           setAt: new Date().toISOString(),
+          requiresRoot: manualInstructionsText !== "",
+          manualCommands,
+          manualInstructions: manualInstructionsText,
         });
         return { dataHandles: [handle] };
       },
@@ -2055,9 +2512,37 @@ export const model = {
           g,
           runner,
         );
+        const priv = await privilegeFor(g);
+        const dir = unitDirFor(scope, { unitDir: g.unitDir });
+        if (scope === "system" && !canEscalate(priv, true)) {
+          const lines = manualInstructions(
+            `${priv.message} This run cannot restart the system service without root. Run:`,
+            [{
+              command: `sudo systemctl restart ${serviceName}.service` +
+                (args.enable
+                  ? ` && sudo systemctl enable ${serviceName}.service`
+                  : ""),
+              reason: args.enable
+                ? "restart and enable the service"
+                : "restart the service",
+            }],
+            `Or use --input serviceScope=user.`,
+          );
+          for (const line of lines) context.logger.warn?.(line);
+          const handle = await context.writeResource("service", "current", {
+            serviceName,
+            scope,
+            unitPath: `${dir}/${serviceName}.service`,
+            dropInPath: `${dir}/${serviceName}.service.d/10-swamp.conf`,
+            active: false,
+            enabled: false,
+            checkedAt: new Date().toISOString(),
+          });
+          return { dataHandles: [handle] };
+        }
         if (args.enable) {
           const enable = await systemctl(
-            g,
+            priv,
             scope,
             ["enable", serviceName],
             runner,
@@ -2071,7 +2556,7 @@ export const model = {
           }
         }
         const restart = await systemctl(
-          g,
+          priv,
           scope,
           ["restart", serviceName],
           runner,
@@ -2084,13 +2569,13 @@ export const model = {
           );
         }
         const active = await systemctl(
-          g,
+          priv,
           scope,
           ["is-active", serviceName],
           runner,
         );
         const enabled = await systemctl(
-          g,
+          priv,
           scope,
           ["is-enabled", serviceName],
           runner,
@@ -2111,7 +2596,6 @@ export const model = {
             enabled: enabled.code === 0,
           },
         );
-        const dir = unitDirFor(scope, { unitDir: g.unitDir });
         const handle = await context.writeResource("service", "current", {
           serviceName,
           scope,
@@ -2142,14 +2626,15 @@ export const model = {
           g,
           runner,
         );
+        const priv = await privilegeFor(g);
         const active = await systemctl(
-          g,
+          priv,
           scope,
           ["is-active", serviceName],
           runner,
         );
         const enabled = await systemctl(
-          g,
+          priv,
           scope,
           ["is-enabled", serviceName],
           runner,
@@ -2199,23 +2684,38 @@ export const model = {
           g,
           runner,
         );
+        const priv = await privilegeFor(g);
         const unitDir = unitDirFor(scope, { unitDir: g.unitDir });
         const needsRoot = scope === "system";
-        await systemctl(g, scope, ["stop", serviceName], runner);
-        await systemctl(g, scope, ["disable", serviceName], runner);
+        if (needsRoot && !canEscalate(priv, true)) {
+          const lines = manualInstructions(
+            `${priv.message} This run cannot remove the system service without root. Run:`,
+            manualRemoveCommands({
+              serviceName,
+              unitPath: `${unitDir}/${serviceName}.service`,
+              dropInPath: `${unitDir}/${serviceName}.service.d/10-swamp.conf`,
+              purgeService: true,
+              purgeBinary: false,
+            }),
+          );
+          for (const line of lines) context.logger.warn?.(line);
+          throw new Error(lines.join("\n"));
+        }
+        await systemctl(priv, scope, ["stop", serviceName], runner);
+        await systemctl(priv, scope, ["disable", serviceName], runner);
         await removeFileMaybeRoot(
-          g,
+          priv,
           `${unitDir}/${serviceName}.service`,
           needsRoot,
           runner,
         );
         await removeFileMaybeRoot(
-          g,
+          priv,
           `${unitDir}/${serviceName}.service.d/10-swamp.conf`,
           needsRoot,
           runner,
         );
-        await systemctl(g, scope, ["daemon-reload"], runner);
+        await systemctl(priv, scope, ["daemon-reload"], runner);
         context.logger.info("Removed service {name} ({scope})", {
           name: serviceName,
           scope,
@@ -2274,6 +2774,31 @@ export const model = {
           lines.push(`Check it:     ${statusCommand}`);
         }
         for (const line of lines) context.logger.info(line);
+
+        // If an earlier step could not do a privileged action, repeat the exact
+        // commands to run by hand so they end up in the run log (and the summary
+        // resource), not buried in a skipped step's resource.
+        const pending: string[] = [];
+        for (
+          const spec of ["install", "created", "config", "uninstall"] as const
+        ) {
+          // `created` is createService's instance name; the others share their
+          // spec name. Each method writes only when it ran, so a missing record
+          // simply means that step did not run.
+          const rec = await context.readResource(spec) as {
+            requiresRoot?: boolean;
+            manualInstructions?: string;
+          } | null;
+          if (rec?.requiresRoot && rec.manualInstructions) {
+            pending.push(rec.manualInstructions);
+          }
+        }
+        if (pending.length) {
+          context.logger.warn?.("Some steps need to be completed manually:");
+          for (const block of pending) {
+            for (const line of block.split("\n")) context.logger.warn?.(line);
+          }
+        }
 
         const handle = await context.writeResource("summary", "summary", {
           printed: Boolean(stored),

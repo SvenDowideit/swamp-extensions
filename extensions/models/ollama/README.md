@@ -38,6 +38,14 @@ everything, and changing a service setting means hand-editing a unit file under
   `Environment=` lines and serve arguments, so an existing upstream unit is
   customised, never overwritten; `restartService` enables and restarts it, so
   the running daemon is the new binary with the new settings.
+- **Fails soft when it cannot get root** — a system install needs root, and a
+  swamp run has no tty, so passwordless `sudo` is required. When it is not
+  available, the extension does not just fail: `plan` and the `privilege`
+  method detect it up front and print the exact copy-paste `sudo` commands
+  (create dirs, extract, `useradd`, write the unit, `daemon-reload && enable
+  --now`), and `install`/`createService`/`configureService` record those
+  commands in `manualCommands` instead of half-applying a change. It also
+  offers the `serviceScope=user` path, which needs no root at all.
 
 Side effects: it downloads from `github.com`, writes the `ollama` binary and
 `lib/ollama` runtime (to `/usr/local` for system scope, `~/.local` for user
@@ -89,6 +97,7 @@ these names.
 | Method | Arguments |
 | ------ | --------- |
 | `plan` | `os`, `arch`, `accel`, `serviceScope` |
+| `privilege` | *(none)* |
 | `sync` | `path` |
 | `assess` | `latestVersion` |
 | `install` | `version`, `archivePath`, `archiveName`, `checksum`, `verifyArchive` (default `true`), `installDir`, `serviceScope`, `force` |
@@ -160,6 +169,15 @@ swamp model @svendowideit/ollama method run configureService ollama \
 # Use a user service instead of a root-owned system one (no sudo required).
 swamp workflow run @svendowideit/ollama-install --input serviceScope=user
 
+# No passwordless sudo? Find out exactly what this run can do — and get the
+# copy-paste sudo commands for anything it cannot do automatically.
+swamp model @svendowideit/ollama method run privilege ollama
+
+# Read the manual commands an install left for you to run by hand (no sudo
+# available): the exact mkdir/extract/useradd/tee/systemctl lines, ready to
+# paste. The install step wrote this instead of half-applying a change.
+swamp data get ollama install --json
+
 # Remove the binary and the systemd service again.
 swamp workflow run @svendowideit/ollama-install \
   --input uninstall=true --input purgeService=true
@@ -174,7 +192,8 @@ workflow (`@svendowideit/ollama-install`).
 
 | Method | Description | Resource |
 | ------ | ----------- | -------- |
-| `plan` | Resolve OS/arch/accelerator, the exact asset name, install/lib paths and service scope. | `platform` |
+| `plan` | Resolve OS/arch/accelerator, the exact asset name, install/lib paths, service scope, and whether a privileged install can escalate. | `platform` |
+| `privilege` | Detect how this run can escalate to root and print the commands to run when it cannot. | `privilege` |
 | `sync` | Locate the binary, run `ollama --version`, record the version and path. | `installed` |
 | `assess` | Compare the installed version with the latest release; records whether an update is available. | `assessment` |
 | `install` | Extract the verified archive, install the binary + `lib/ollama` runtime. | `install`, `installed` |

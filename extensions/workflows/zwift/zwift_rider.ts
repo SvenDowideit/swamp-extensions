@@ -43,6 +43,20 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
+ * Vault this model reads credentials from and — critically — the vault swamp
+ * writes the sensitive `session` refresh token into.
+ *
+ * A sensitive resource field is stored in the vault named by the field/spec
+ * `vaultName`, else the repository's `defaultVault`, else the first configured
+ * user vault *alphabetically*. That last fallback is not stable: creating a
+ * vault whose name sorts earlier (e.g. `garmin-secrets` before
+ * `zwift-secrets`) silently redirects the token, and the next run fails with
+ * "not found in vault". Pinning the vault here makes storage independent of
+ * which other vaults exist.
+ */
+export const DEFAULT_VAULT = "zwift-secrets";
+
+/**
  * The name of a vault or a vault key — an identifier, never a secret value.
  *
  * Grouping these in one named schema documents that distinction: a vault key
@@ -54,7 +68,7 @@ import {
 const vaultIdentifier = z.string();
 
 const GlobalArgsSchema = z.object({
-  vaultName: vaultIdentifier.default("zwift-secrets").describe(
+  vaultName: vaultIdentifier.default(DEFAULT_VAULT).describe(
     "Vault the model reads credentials from (and where it persists the " +
       "rotated refresh token)",
   ),
@@ -817,7 +831,18 @@ export function buildAbilityProfile(
 /** The `@svendowideit/zwift-rider` model definition. */
 export const model = {
   type: "@svendowideit/zwift-rider",
-  version: "2026.09.21.1",
+  version: "2026.10.01.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.01.1",
+      description:
+        "The `session` resource is pinned to the `zwift-secrets` vault " +
+        "(vaultName: DEFAULT_VAULT), so the sensitive refresh token is always " +
+        "stored there instead of the first user vault alphabetically — creating " +
+        "another vault can no longer redirect it. Global arguments unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   resources: {
     activity: {
@@ -854,6 +879,7 @@ export const model = {
       schema: SessionSchema,
       lifetime: "infinite",
       garbageCollection: 3,
+      vaultName: DEFAULT_VAULT,
     },
     sync: {
       description: "Summary of the most recent history sync",

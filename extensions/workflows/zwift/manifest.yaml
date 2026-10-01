@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/zwift"
-version: "2026.09.21.1"
+version: "2026.10.01.1"
 description: |
   Recommend which Zwift events to enter, from your own ride history.
 
@@ -88,7 +88,10 @@ description: |
     Nothing on the host — no services, daemons, or webhooks. Two cron triggers
     are registered while 'swamp serve' runs: zwift-sync at 0 6,12,15 * * * and
     zwift-recommend at 30 6,12,15 * * *. All state lives in swamp resources;
-    credentials live in the vault (including the rotated refresh token).
+    credentials live in the vault (including the rotated refresh token). The
+    sensitive session refresh token is pinned to the zwift-secrets vault
+    (vaultName on the session resource spec), so creating another vault can
+    never redirect it — see the README's 'Vault pinning' section.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

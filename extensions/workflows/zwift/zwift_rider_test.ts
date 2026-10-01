@@ -4,6 +4,7 @@ import {
   abilityScoreFromWPerKg,
   buildAbilityProfile,
   categoryBand,
+  DEFAULT_VAULT,
   ftpFromPowerCurve,
   model,
   normalizeActivity,
@@ -247,4 +248,13 @@ Deno.test("model exposes setup and sync plus the resources the workflow wires", 
   for (const spec of ["activity", "history", "profile", "ability", "session"]) {
     assertEquals(spec in model.resources, true);
   }
+});
+
+Deno.test("the session resource is pinned to the zwift-secrets vault", () => {
+  // Regression: without a spec-level vaultName, swamp stores a sensitive
+  // field in the first user vault alphabetically. Creating 'garmin-secrets'
+  // then redirected the refresh token there and sync failed. The session spec
+  // must name the vault explicitly.
+  assertEquals(DEFAULT_VAULT, "zwift-secrets");
+  assertEquals(model.resources.session.vaultName, DEFAULT_VAULT);
 });

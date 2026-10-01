@@ -117,7 +117,7 @@ have no `--input`), or override per run for a one-off.
 
 | Argument                                 | Type    | Default                          | Meaning                                                                    |
 | ---------------------------------------- | ------- | -------------------------------- | -------------------------------------------------------------------------- |
-| `vaultName`                              | string  | `zwift-secrets`                  | Vault to read credentials from and persist the rotated refresh token into. |
+| `vaultName`                              | string  | `zwift-secrets`                  | Vault to read credentials from. The `session` resource is **pinned** to this vault (see [Vault pinning](#vault-pinning)), so the rotated refresh token is always written here. |
 | `usernameKey`                            | string  | `ZWIFT_USERNAME`                 | Vault key for the account email/username.                                  |
 | `passwordKey`                            | string  | `ZWIFT_PASSWORD`                 | Vault key for the account password.                                        |
 | `refreshTokenKey`                        | string  | `ZWIFT_REFRESH_TOKEN`            | Vault key for a pre-obtained refresh token.                                |
@@ -223,7 +223,8 @@ Nothing on the host. Two cron triggers are registered when `swamp serve` runs:
 `zwift-rider` writes: `activity-<id>` (one per ride), `history-current` (all
 rides in one array, for a single CEL expression), `profile-current`,
 `ability-current`, `session-auth` (the refresh token, marked `sensitive: true`
-so swamp stores it in the vault) and `sync-summary`.
+so swamp stores it in the vault; the spec is pinned to `zwift-secrets` — see
+[Vault pinning](#vault-pinning)) and `sync-summary`.
 
 `zwift-events` writes `upcoming` — every event and subgroup in the window.
 
@@ -285,6 +286,8 @@ yesterday's route is suppressed more than one from a fortnight ago.
 - Credentials are read from the vault, never hard-coded. The `session-auth`
   resource stores the rotated refresh token with `z.meta({ sensitive: true })`,
   so swamp keeps the value in the vault, not in the resource file.
+- The `session` resource is **pinned** to the `zwift-secrets` vault
+  (`vaultName: DEFAULT_VAULT` on the spec) — see [Vault pinning](#vault-pinning).
 - A refresh token is preferred over a password, and once stored, the password is
   no longer needed. If the stored token is ever rejected (for example after a
   Zwift client change), the model silently falls back to the password grant and
@@ -296,6 +299,44 @@ yesterday's route is suppressed more than one from a fortnight ago.
   pages until it has `maxActivities` rides or the history is exhausted.
 - Error messages surface Keycloak's own reason and never include the credential.
 - The model is read-only against Zwift.
+
+### Vault pinning
+
+A model author cannot rely on a sensitive field landing in the "right" vault by
+accident. swamp chooses the storage vault for a sensitive field in this order:
+
+1. `vaultName` on the field's `.meta(...)`, else
+2. `vaultName` on the resource spec, else
+3. the repository's `defaultVault`, else
+4. the **first configured user vault in alphabetical order**.
+
+The fourth fallback is unstable: it silently changes when a vault whose name
+sorts earlier is created. This model originally relied on it, so when
+`garmin-secrets` was created (it sorts before `zwift-secrets`) the rotated
+refresh token began being written to `garmin-secrets`. The workflow then failed
+with `Secret '...refreshToken' not found in vault 'garmin-secrets'` because the
+`session-auth` resource still pointed at the vault of the previous run.
+
+The fix is to pin storage explicitly. `zwift_rider.ts` exports
+`DEFAULT_VAULT = "zwift-secrets"` and sets `vaultName: DEFAULT_VAULT` on the
+`session` resource spec, so the refresh token is always written to
+`zwift-secrets` regardless of how many other vaults exist or what they are
+named. The `vaultName` global argument controls _reads_ (credential lookup);
+the spec `vaultName` controls _writes_ (where a sensitive value is stored). Both
+default to `zwift-secrets`, so the out-of-the-box experience is unchanged.
+
+Because the fix changes which vault future writes target, an existing install
+whose `session-auth` resource references the wrong vault must repair it once:
+
+```sh
+# Move the refresh token back to zwift-secrets if a previous run wrote it to
+# another vault (skip if it already resolves under zwift-secrets).
+swamp model @svendowideit/zwift-rider method run sync zwift-rider
+
+# Confirm the session resource now references zwift-secrets.
+swamp data get zwift-rider session-auth --json \
+  | jq '.content.refreshToken'
+```
 
 ### Project structure
 

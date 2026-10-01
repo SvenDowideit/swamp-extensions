@@ -561,7 +561,16 @@ const FetchArgsSchemaFinal = FetchArgsSchema;
 /** The `@svendowideit/zwift-events` model definition. */
 export const model = {
   type: "@svendowideit/zwift-events",
-  version: "2026.09.21.1",
+  version: "2026.10.01.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.01.1",
+      description:
+        "Version bump to stay in step with the @svendowideit/zwift extension; " +
+        "no schema or behaviour change in this model.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   resources: {
     schedule: {

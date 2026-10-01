@@ -433,7 +433,16 @@ const SetupSchema = z.object({ report: z.string() });
 /** The `@svendowideit/garmin-activities` model definition. */
 export const model = {
   type: "@svendowideit/garmin-activities",
-  version: "2026.09.22.1",
+  version: "2026.10.01.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.01.1",
+      description:
+        "Version bump to stay in step with the @svendowideit/garmin extension; " +
+        "no schema or behaviour change in this model.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   resources: {
     activity: {

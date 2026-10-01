@@ -11,10 +11,12 @@
 import { assert, assertEquals, assertThrows } from "jsr:@std/assert@1";
 import {
   cacheKey,
+  DEFAULT_VAULT,
   downloadPath,
   expandHome,
   fnv1a,
   isFresh,
+  model,
   normalizePath,
   sha256Hex,
   tokensFromSession,
@@ -155,4 +157,14 @@ Deno.test("importTokenStore rejects malformed input", () => {
   assertThrows(() =>
     importTokenStore(btoa(JSON.stringify([{ oauth_token: "x" }])), 0)
   );
+});
+
+Deno.test("the session and pendingMfa resources are pinned to garmin-secrets", () => {
+  // Regression: without a spec-level vaultName, swamp stores a sensitive
+  // field in the first user vault alphabetically, so creating another vault
+  // could silently redirect the OAuth tokens. Both sensitive specs must name
+  // the vault explicitly.
+  assertEquals(DEFAULT_VAULT, "garmin-secrets");
+  assertEquals(model.resources.session.vaultName, DEFAULT_VAULT);
+  assertEquals(model.resources.pendingMfa.vaultName, DEFAULT_VAULT);
 });

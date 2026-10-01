@@ -315,7 +315,10 @@ when: ${{ data.latest("garmin-devices", "device-capabilities").attributes.capabi
 `session-auth` (spec `session`) holds the OAuth1 + OAuth2 tokens, each token
 field marked `z.meta({ sensitive: true })` — swamp stores the values in the
 vault and substitutes `${{ vault.get(...) }}` references in the resource file.
-`session-status` (spec `status`) is the guardable readiness record. `device-list`
+The `session` and `pendingMfa` specs are **pinned** to the `garmin-secrets`
+vault (`vaultName: DEFAULT_VAULT`) — see
+[Vault pinning](#vault-pinning). `session-status` (spec `status`) is the
+guardable readiness record. `device-list`
 (spec `devices`) and `device-capabilities` (spec `capabilities`) are the device
 outputs. `activity-list` (spec `list`) is the whole window in one resource;
 `activity-<id>` (spec `activity`) is one normalised activity; `detail-<id>-<kind>`
@@ -360,6 +363,33 @@ unit-testable, and means one model owns authentication and rate limiting.
 - **Rate limiting** is pacing (a persisted `.last-request` timestamp in the
   cache dir) plus backoff on 429/5xx, falling back to a stale cached body when
   retries are exhausted.
+
+### Vault pinning
+
+swamp chooses the storage vault for a sensitive field in this order:
+`vaultName` field metadata → `vaultName` on the resource spec → the repository
+`defaultVault` → the **first configured user vault alphabetically**. The last
+fallback is fragile: it changes as soon as a vault whose name sorts earlier is
+created. `@svendowideit/garmin-connect` sets `vaultName: DEFAULT_VAULT`
+(`"garmin-secrets"`) on both the `session` and `pendingMfa` resource specs, so
+the OAuth tokens and the MFA cookie jar are always written to `garmin-secrets`,
+independent of any other vaults in the repository.
+
+The `vaultName` global argument controls _reads_ (where credentials are
+looked up); the spec `vaultName` controls _writes_ (where sensitive values are
+stored). Both default to `garmin-secrets`, so behaviour is unchanged for a repo
+whose other vaults happen to sort later. If a token was previously written to
+the wrong vault (because another vault sorted first), run `ensure` — or a fresh
+`login` — to re-write it to the pinned vault:
+
+```sh
+# Re-store the session in the pinned vault (no-op if it is already correct).
+swamp model @svendowideit/garmin-connect method run ensure garmin-connect
+
+# Verify the stored session now references garmin-secrets.
+swamp data get garmin-connect session-auth --json \
+  | jq '.content.oauth2.refresh_token'
+```
 
 ### Project structure
 

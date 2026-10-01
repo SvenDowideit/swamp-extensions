@@ -724,7 +724,18 @@ async function downloadOne(
 /** The `@svendowideit/garmin-connect` model definition. */
 export const model = {
   type: "@svendowideit/garmin-connect",
-  version: "2026.09.22.1",
+  version: "2026.10.01.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.01.1",
+      description:
+        "The `session` and `pendingMfa` resources are pinned to the " +
+        "`garmin-secrets` vault (vaultName: DEFAULT_VAULT), so sensitive " +
+        "tokens are always stored there instead of the first user vault " +
+        "alphabetically. Global arguments unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   resources: {
     session: {
@@ -733,6 +744,7 @@ export const model = {
       schema: SessionSchema,
       lifetime: "infinite",
       garbageCollection: 3,
+      vaultName: DEFAULT_VAULT,
     },
     fetch: {
       description: "One cached connectapi response (metadata + raw body)",
@@ -787,6 +799,7 @@ export const model = {
       schema: PendingMfaSchema,
       lifetime: "infinite",
       garbageCollection: 3,
+      vaultName: DEFAULT_VAULT,
     },
   },
   files: {

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/garmin"
-version: "2026.09.22.1"
+version: "2026.10.01.1"
 description: |
   Sync a Garmin Connect account into swamp: one authenticated transport, plus
   domain models that read its cached responses — devices with a capability map
@@ -88,7 +88,7 @@ description: |
     no --input) or overridden per call with --input:
 
       domain               Region domain (default garmin.com; garmin.cn for China)
-      vaultName            Vault for credentials + session (default garmin-secrets)
+      vaultName            Vault for credentials + session (default garmin-secrets). The session and pending-MFA token resources are pinned to garmin-secrets, so sensitive tokens are always written there regardless of other vaults.
       cacheDir             Shared response cache (default ~/.swamp/garmin-cache)
       requestDelayMs       Minimum delay between origin requests (default 500)
       maxRetries           Retries after 429/5xx (default 2)
@@ -115,7 +115,9 @@ description: |
     garmin-activities-sync at 20 5 * * *, garmin-health-sync at 30 5 * * *,
     garmin-body-sync at 40 5 * * *, and garmin-performance-sync at 50 5 * * *.
     Downloads run on demand. All state lives in swamp resources; the session
-    tokens live in the vault (marked sensitive).
+    tokens live in the vault (marked sensitive), pinned to the garmin-secrets
+    vault (vaultName on the session and pendingMfa resource specs) so creating
+    another vault can never redirect them — see the README's 'Vault pinning'.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

@@ -65,6 +65,26 @@ const typeCheck = () => {
 
 Deno.test("model exposes plan and migrate methods", typeCheck);
 
+Deno.test("every action the model can emit is documented in the schema", () => {
+  // The KeyResultSchema `action` description must name each action the code
+  // can produce, so the published method reference is accurate.
+  const ks = model.resources.result.schema.shape.keys;
+  const desc = ks.element.shape.action.description ?? "";
+  const emitted = [
+    "copied",
+    "skipped-exists",
+    "failed",
+    "copied-delete-failed",
+  ];
+  for (const a of emitted) {
+    assertEquals(
+      desc.includes(a),
+      true,
+      `action ${a} must be described in KeyResultSchema`,
+    );
+  }
+});
+
 Deno.test("plan lists keys and marks those already in the target", async () => {
   const { service } = fakeVaultService({
     global: { A: "1", B: "2", C: "3" },

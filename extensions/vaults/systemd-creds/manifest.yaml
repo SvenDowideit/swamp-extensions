@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/systemd-creds"
-version: "2026.10.01.1"
+version: "2026.10.01.2"
 description: >
   A swamp vault backend that stores secrets encrypted at rest with
   `systemd-creds --user`, so the encrypted files are useless without your UID
@@ -61,7 +61,7 @@ description: >
       # overwrite a name that already exists in the target.
       swamp model method run @svendowideit/vault-migrate migrate vault-migrate \
         --input from=legacy --input to=my-vault \
-        --input 'keys=["GARMIN_EMAIL","GARMIN_PASSWORD"]'
+        --input 'keys=["API_KEY","API_SECRET"]'
 
   CONFIGURE
 

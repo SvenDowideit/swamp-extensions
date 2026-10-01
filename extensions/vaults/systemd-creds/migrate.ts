@@ -44,7 +44,11 @@ const MigrateArgsSchema = MigrationArgsSchema.extend({
 /** A single key's migration outcome. */
 const KeyResultSchema = z.object({
   key: z.string(),
-  action: z.string().describe("copied | skipped-exists | failed"),
+  action: z
+    .string()
+    .describe(
+      "copied | skipped-exists | failed | copied-delete-failed (copied to the target but the source delete failed)",
+    ),
   error: z.string().default(""),
 });
 

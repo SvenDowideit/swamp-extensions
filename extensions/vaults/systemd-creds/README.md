@@ -102,15 +102,15 @@ swamp model method run @svendowideit/vault-migrate migrate vault-migrate \
   --input from=legacy --input to=my-vault --input 'keys=["MY_API_KEY"]'
 ```
 
-Repeat per vault — route `GARMIN_EMAIL` to `garmin-secrets`, `ZWIFT_USERNAME` to
-`zwift-secrets`, and so on. Move several at once with a longer array, and add
-`force=true` to overwrite a name that already exists in the target:
+Repeat per vault — route each shared key to the vault it belongs to. Move
+several at once with a longer array, and add `force=true` to overwrite a name
+that already exists in the target:
 
 ```sh
 # Move two keys together; force overwrites a clashing name in the target.
 swamp model method run @svendowideit/vault-migrate migrate vault-migrate \
   --input from=legacy --input to=my-vault --input force=true \
-  --input 'keys=["GARMIN_EMAIL","GARMIN_PASSWORD"]'
+  --input 'keys=["API_KEY","API_SECRET"]'
 
 # Or, if you truly want them all in one vault, omit `keys` to move everything.
 swamp model method run @svendowideit/vault-migrate migrate vault-migrate \
@@ -199,10 +199,10 @@ swamp model method run @svendowideit/vault-migrate plan vault-migrate \
 swamp model method run @svendowideit/vault-migrate migrate vault-migrate \
   --input from=legacy --input to=my-vault --input 'keys=["MY_API_KEY"]'
 
-# 4. Repeat per vault, e.g. GARMIN_* into garmin-secrets:
+# 4. Repeat per vault — route each shared key to the vault it belongs to.
 swamp model method run @svendowideit/vault-migrate migrate vault-migrate \
-  --input from=legacy --input to=garmin-secrets \
-  --input 'keys=["GARMIN_EMAIL","GARMIN_PASSWORD"]'
+  --input from=legacy --input to=team-vault \
+  --input 'keys=["API_KEY","API_SECRET"]'
 ```
 
 `keys` is a JSON array of key names, so it works for one key or many. Omit it to

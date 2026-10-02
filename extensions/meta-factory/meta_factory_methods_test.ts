@@ -190,6 +190,12 @@ async function runMethod(name: string, args: any, ctxOpts: any = {}) {
     methodName: name,
     repoDir: ctxOpts.repoDir,
   });
+  // Attach the cross-model APIs the coverage path uses. swamp's real execute
+  // context exposes these; the test context does not, so a test opts in by
+  // supplying them via `ctxOpts.inject`.
+  if (ctxOpts.inject) {
+    ctxOpts.inject(ctx.context as unknown as Record<string, unknown>);
+  }
   // deno-lint-ignore no-explicit-any
   const methods = model.methods as any;
   // deno-lint-ignore no-explicit-any
@@ -268,6 +274,201 @@ Deno.test("check and checkAll use the same canonical instance name", async () =>
 
     assertEquals(scoreNames.includes(checkName), true);
     assertEquals(checkName, "extensions-my-ext-manifest.yaml");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+/** A minimal test-factory `coverage` payload for the scored manifest. */
+function coverageRecord(manifestAbs: string, version = "2026.09.21.1") {
+  return {
+    attributes: {
+      manifest: manifestAbs,
+      version,
+      testCount: 2,
+      testCommands: ["swamp model create @me/tool t"],
+      documentedCommands: ["swamp model method run t run"],
+      documentedCovered: ["swamp model method run t run"],
+      uncoveredCommands: [],
+      surface: {
+        types: 1,
+        methods: ["@me/tool.run"],
+        methodsCovered: ["@me/tool.run"],
+        workflows: [],
+        workflowsCovered: [],
+      },
+    },
+  };
+}
+
+Deno.test("check reuses an existing fresh coverage resource", async () => {
+  const root = await makeExtension();
+  try {
+    const { runner } = stubRunner({
+      qualityStdout: JSON.stringify({
+        dependencyTrust: { passed: true, errors: [] },
+      }),
+    });
+    let called = 0;
+    const { ctx } = await runMethod(
+      "check",
+      { manifest: "extensions/my-ext/manifest.yaml", _run: runner },
+      {
+        repoDir: root,
+        globalArgs: {
+          threshold: 75,
+          testCoverage: true,
+          testFactoryModel: "test-factory",
+          testFactoryType: "@svendowideit/test-factory",
+        },
+        inject: (c: Record<string, unknown>) => {
+          c.readModelData = (modelName: string, specName?: string) => {
+            if (modelName === "test-factory" && specName === "coverage") {
+              return Promise.resolve([
+                coverageRecord(`${root}/extensions/my-ext/manifest.yaml`),
+              ]);
+            }
+            return Promise.resolve([]);
+          };
+          c.runModel = () => {
+            called++;
+            return Promise.resolve({ ok: true, resources: [] });
+          };
+        },
+      },
+    );
+    const score = ctx.getWrittenResources().find((r) =>
+      r.specName === "score"
+    )!;
+    const tc = score.data.testCoverage as Record<string, unknown>;
+    assertEquals((tc.testCommands as string[]).length, 1);
+    // The existing resource was reused, so checkCoverage was never called.
+    assertEquals(called, 0);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("check computes coverage via checkCoverage when none exists", async () => {
+  const root = await makeExtension();
+  try {
+    const { runner } = stubRunner({
+      qualityStdout: JSON.stringify({
+        dependencyTrust: { passed: true, errors: [] },
+      }),
+    });
+    let calls = 0;
+    const { ctx } = await runMethod(
+      "check",
+      { manifest: "extensions/my-ext/manifest.yaml", _run: runner },
+      {
+        repoDir: root,
+        globalArgs: {
+          threshold: 75,
+          testCoverage: true,
+          testFactoryModel: "test-factory",
+          testFactoryType: "@svendowideit/test-factory",
+        },
+        inject: (c: Record<string, unknown>) => {
+          c.readModelData = (_m: string, specName?: string) =>
+            Promise.resolve(
+              // First read: nothing. After the call: the computed record.
+              specName === "coverage" && calls > 0
+                ? [coverageRecord(`${root}/extensions/my-ext/manifest.yaml`)]
+                : [],
+            );
+          c.runModel = () => {
+            calls++;
+            return Promise.resolve({ ok: true, resources: [] });
+          };
+        },
+      },
+    );
+    const score = ctx.getWrittenResources().find((r) =>
+      r.specName === "score"
+    )!;
+    const tc = score.data.testCoverage as Record<string, unknown>;
+    assertEquals(tc.testCount as number, 2);
+    assertEquals(calls, 1);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("check warns and omits coverage when checkCoverage fails", async () => {
+  const root = await makeExtension();
+  try {
+    const { runner } = stubRunner({
+      qualityStdout: JSON.stringify({
+        dependencyTrust: { passed: true, errors: [] },
+      }),
+    });
+    const { ctx } = await runMethod(
+      "check",
+      { manifest: "extensions/my-ext/manifest.yaml", _run: runner },
+      {
+        repoDir: root,
+        globalArgs: {
+          threshold: 75,
+          testCoverage: true,
+          testFactoryModel: "test-factory",
+          testFactoryType: "@svendowideit/test-factory",
+        },
+        inject: (c: Record<string, unknown>) => {
+          c.readModelData = () => Promise.resolve([]);
+          c.runModel = () =>
+            Promise.resolve({
+              ok: false,
+              error: { message: "no such method" },
+            });
+        },
+      },
+    );
+    const score = ctx.getWrittenResources().find((r) =>
+      r.specName === "score"
+    )!;
+    assertEquals(score.data.testCoverage, null);
+    const warned = ctx.getLogsByLevel("warning")
+      .map((l) => (l as { message: string }).message)
+      .join("\n");
+    assertStringIncludes(warned, "checkCoverage failed");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("check skips coverage entirely when testCoverage is false", async () => {
+  const root = await makeExtension();
+  try {
+    const { runner } = stubRunner({
+      qualityStdout: JSON.stringify({
+        dependencyTrust: { passed: true, errors: [] },
+      }),
+    });
+    let touched = 0;
+    const { ctx } = await runMethod(
+      "check",
+      { manifest: "extensions/my-ext/manifest.yaml", _run: runner },
+      {
+        repoDir: root,
+        globalArgs: { threshold: 75, testCoverage: false },
+        inject: (c: Record<string, unknown>) => {
+          c.readModelData = () => {
+            touched++;
+            return Promise.resolve([]);
+          };
+          c.runModel = () => {
+            touched++;
+            return Promise.resolve({ ok: true });
+          };
+        },
+      },
+    );
+    const score = ctx.getWrittenResources().find((r) =>
+      r.specName === "score"
+    )!;
+    assertEquals(score.data.testCoverage, null);
+    assertEquals(touched, 0);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

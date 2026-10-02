@@ -910,6 +910,10 @@ function testCoverageFor(
   if (!cached) {
     cached = (async () => {
       const ctx = context as unknown as ModelContext;
+      // Reading an existing coverage resource is expected to fail harmlessly
+      // when none exists, so it is not warned; a failure to *compute* it is,
+      // because that is the difference between "no tests shipped" and "the
+      // coverage lookup is broken".
       try {
         const existing = await findCoverage(
           ctx,
@@ -921,7 +925,14 @@ function testCoverageFor(
       } catch {
         // No readable coverage — fall through to computing it.
       }
-      if (!ctx.runModel) return null;
+      if (!ctx.runModel) {
+        context.logger?.warn(
+          "No coverage for {manifest}: the model context exposes no runModel, " +
+            "so test-factory `checkCoverage` cannot be called",
+          { manifest: key },
+        );
+        return null;
+      }
       try {
         const run = await ctx.runModel({
           modelType: deps.testFactoryType,
@@ -930,15 +941,37 @@ function testCoverageFor(
           arguments: { manifest: relativeTo(context.repoDir, key) },
         });
         if (run.ok) {
-          return await findCoverage(
+          const computed = await findCoverage(
             ctx,
             deps.testFactoryModel,
             key,
             version,
           );
+          if (!computed) {
+            context.logger?.warn(
+              "{model}.checkCoverage ran for {manifest} but wrote no matching " +
+                "coverage resource",
+              { model: deps.testFactoryModel, manifest: key },
+            );
+          }
+          return computed;
         }
-      } catch {
-        // Fall through to null.
+        context.logger?.warn(
+          "{model}.checkCoverage failed for {manifest}: {error}",
+          {
+            model: deps.testFactoryModel,
+            manifest: key,
+            error: run.error.message,
+          },
+        );
+      } catch (err) {
+        context.logger?.warn(
+          "Could not obtain coverage for {manifest}: {error}",
+          {
+            manifest: key,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        );
       }
       return null;
     })();
@@ -1246,7 +1279,7 @@ type ExecContext = {
   repoDir: string;
   logger?: {
     info: (msg: string, props?: Record<string, unknown>) => void;
-    warning: (msg: string, props?: Record<string, unknown>) => void;
+    warn: (msg: string, props?: Record<string, unknown>) => void;
   };
   writeResource: (
     specName: string,

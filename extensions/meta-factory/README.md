@@ -56,6 +56,30 @@ are shown in the score card, the `checkAll` rollup, and the scoreboard table.
 They are **reported for information only and never affect the score** — no
 threshold, no rule; the point is to see where the code sits.
 
+Meta-factory depends on `@svendowideit/test-factory`, so every score also
+carries that extension's **test coverage**: the number of tests in the
+candidate's `test-factory.yaml`, the distinct `swamp …` commands those tests
+run, how many of the commands shown in the manifest `description:` those are,
+and how many of the declared methods and workflows the tests exercise — with the
+full command lists, so every ratio expands into the exact commands. Meta-factory
+does not recompute this — it reads an existing test-factory `coverage` resource
+for the manifest (one a prior `test`, `testAll`, or `checkCoverage` run wrote),
+and calls test-factory's `checkCoverage` method to compute it when none exists. A
+reused resource must match both the manifest path *and* the extension version, so
+coverage computed against an older build is treated as stale and recomputed
+rather than reported as current. Coverage is reported in the score card, the
+`checkAll` rollup, and the scoreboard, for information only. Set
+`testCoverage=false` to skip it.
+
+Read the coverage on its own from the test-factory, which stores the complete
+lists:
+
+```sh
+swamp data get test-factory svendowideit-caddy --json \
+  | jq '.content | {testCount, testCommands, documentedCommands,
+                    documentedCovered, uncoveredCommands, surface}'
+```
+
 Every result is written as swamp data, rendered as a readable report, and the
 bundled skill teaches agents to apply the same rules while writing an extension.
 
@@ -95,6 +119,9 @@ Global arguments are set at model creation (`swamp model create
 | `skillName` | string | `"extension-docs"` | Name of the bundled skill directory installed by `installSkill`. |
 | `definitionsRoot` | string | `"."` | Repository directory scanned for hand-written or copied model/workflow/vault definitions. |
 | `auditHours` | integer | `168` | Hours of `swamp audit` history to cross-reference for the creation-command check; `0` disables the audit confirmation. |
+| `testCoverage` | boolean | `true` | Attach `@svendowideit/test-factory` coverage to each score. Set `false` when test-factory is not installed. |
+| `testFactoryModel` | string | `"test-factory"` | Name of the test-factory model whose `coverage` data is read (or whose `checkCoverage` is called when none exists). |
+| `testFactoryType` | string | `"@svendowideit/test-factory"` | Test-factory model type used when calling `checkCoverage`. |
 
 ## Examples
 
@@ -180,11 +207,12 @@ and the `extension-docs` skill. Every method:
 Resources:
 
 - `score` — the full score card for one extension: total, grade, the checks,
-  per-method coverage, manifest/README/definition lint issues, next actions, and
-  the `codeMetrics` block.
+  per-method coverage, manifest/README/definition lint issues, next actions, the
+  `codeMetrics` block, and the `testCoverage` block (when test-factory is
+  installed).
 - `rollup` — the summary written by `checkAll`: counts, average score, every
   extension below the threshold with its top issues, and per-extension
-  `codeMetrics`.
+  `codeMetrics` and `testCoverage`.
 - `definitions` — the standalone creation-command lint written by
   `lintDefinitions`: every config found, its kind, expected creation command,
   its audit-confirmation status, and the issues with their severity.

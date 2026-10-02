@@ -89,6 +89,20 @@ export type ScoreboardScore = {
     averageCrap: number;
     maxCrap: number;
   };
+  /** Acceptance-test coverage from the test-factory, when present. */
+  testCoverage?: {
+    testCount: number;
+    testCommands: string[];
+    documentedCommands: string[];
+    documentedCovered: string[];
+    surface: {
+      types: number;
+      methods: string[];
+      methodsCovered: string[];
+      workflows: string[];
+      workflowsCovered: string[];
+    };
+  } | null;
 };
 
 /** A rendered scoreboard row. */
@@ -106,6 +120,14 @@ export type ScoreboardRow = {
   coverage?: number;
   /** Extension CRAP score (complexity + coverage). */
   crapScore?: number;
+  /** Number of documented acceptance tests. */
+  testCount?: number;
+  /** Documented commands a test runs / total shown in the manifest. */
+  documentedCovered?: number;
+  documentedCommands?: number;
+  /** Declared methods a test runs / total declared. */
+  methodsCovered?: number;
+  methodsDeclared?: number;
 };
 
 /**
@@ -149,6 +171,11 @@ export function buildScoreboard(scores: ScoreboardScore[]): ScoreboardRow[] {
       // than a misleading 0%.
       coverage: m ? (m.coverageAvailable ? m.coverage : undefined) : undefined,
       crapScore: m?.crapScore,
+      testCount: s.testCoverage?.testCount,
+      documentedCovered: s.testCoverage?.documentedCovered.length,
+      documentedCommands: s.testCoverage?.documentedCommands.length,
+      methodsCovered: s.testCoverage?.surface.methodsCovered.length,
+      methodsDeclared: s.testCoverage?.surface.methods.length,
     };
   });
 }
@@ -182,11 +209,15 @@ export function renderScoreboard(rows: ScoreboardRow[]): string {
       `**${perfect}** perfect · **${rows.length - perfect}** with reasons`,
   );
   lines.push("");
+  const frac = (part?: number, whole?: number): string =>
+    part !== undefined && whole !== undefined && whole > 0
+      ? `${part}/${whole}`
+      : "n/a";
   lines.push(
-    "| Extension | Score | Grade | Fns | Avg cx | Coverage | CRAP | Reason not 100 |",
+    "| Extension | Score | Grade | Fns | Avg cx | Coverage | CRAP | Tests | Doc cov | Meth cov | Reason not 100 |",
   );
   lines.push(
-    "| --------- | ----- | ----- | --- | ------ | -------- | ---- | -------------- |",
+    "| --------- | ----- | ----- | --- | ------ | -------- | ---- | ----- | ------- | -------- | -------------- |",
   );
   for (const r of rows) {
     const reason = r.reasons.length === 0
@@ -200,14 +231,50 @@ export function renderScoreboard(rows: ScoreboardRow[]): string {
       ? `${(r.coverage * 100).toFixed(0)}%`
       : "n/a";
     const crap = r.crapScore !== undefined ? r.crapScore.toFixed(2) : "—";
+    const tests = r.testCount !== undefined ? String(r.testCount) : "—";
+    const cmdCov = frac(r.documentedCovered, r.documentedCommands);
+    const methCov = frac(r.methodsCovered, r.methodsDeclared);
     lines.push(
       `| ${
         cell(r.name)
-      } | ${r.score}/100 | ${r.grade} | ${fns} | ${avgCx} | ${cov} | ${crap} | ${
+      } | ${r.score}/100 | ${r.grade} | ${fns} | ${avgCx} | ${cov} | ${crap} | ${tests} | ${cmdCov} | ${methCov} | ${
         cell(reason)
       } |`,
     );
   }
+
+  lines.push("");
+  lines.push(
+    "_`Doc cov` is the share of the commands shown in each extension's manifest " +
+      "`description:` that its `test-factory.yaml` exercises; `Meth cov` is the " +
+      "share of its declared methods. To expand a row into its full score card " +
+      "and coverage command lists, re-run `check` for that extension, then read " +
+      "the report. The exact `check` command per extension:_",
+  );
+  lines.push("");
+  lines.push("```sh");
+  for (const r of rows) {
+    lines.push(
+      `swamp model @svendowideit/meta-factory method run check meta-factory \\\n` +
+        `  --input manifest=${r.manifest}   # ${r.name}`,
+    );
+  }
+  lines.push("```");
+  lines.push("");
+  lines.push("Then, for any one of them:");
+  lines.push("");
+  lines.push("```sh");
+  lines.push(
+    "swamp report get @svendowideit/meta-factory-report --model meta-factory " +
+      "--markdown",
+  );
+  lines.push("```");
+  lines.push("");
+  lines.push(
+    "_To re-read this scoreboard later:_  " +
+      "`swamp report get @svendowideit/meta-factory-scoreboard --workflow " +
+      "@svendowideit/meta-factory-scoreboard --markdown`",
+  );
 
   const imperfect = rows.filter((r) => r.reasons.length > 0);
   if (imperfect.length > 0) {

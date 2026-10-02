@@ -14,7 +14,12 @@ import {
   sanitizeInstanceName,
 } from "./introspect.ts";
 import { parseManifest } from "./quality-rubric.ts";
-import { discoverGitManifests, model, type RunFn } from "./meta_factory.ts";
+import {
+  discoverGitManifests,
+  model,
+  pickCoverage,
+  type RunFn,
+} from "./meta_factory.ts";
 import { renderScore, renderSummary, report } from "./meta_factory_report.ts";
 
 const GOOD_README = `# @me/tool
@@ -241,13 +246,16 @@ Deno.test("the definitionsRoot/auditHours upgrade seeds the new globals", () => 
   assertEquals(entry !== undefined, true);
   // That upgrade seeds the two globals it introduced with their defaults, and
   // must not clobber an existing value.
-  const migrated = entry!.upgradeAttributes({ root: "extensions" });
+  const migrated = entry!.upgradeAttributes({ root: "extensions" }) as Record<
+    string,
+    unknown
+  >;
   assertEquals(migrated.definitionsRoot, ".");
   assertEquals(migrated.auditHours, 168);
   const kept = entry!.upgradeAttributes({
     definitionsRoot: "src",
     auditHours: 5,
-  });
+  }) as Record<string, unknown>;
   assertEquals(kept.definitionsRoot, "src");
   assertEquals(kept.auditHours, 5);
 });
@@ -348,4 +356,77 @@ Deno.test("discoverGitManifests parses git ls-files output", async () => {
     "extensions/models/a/manifest.yaml",
     "extensions/models/b/manifest.yaml",
   ]);
+});
+
+/** A minimal well-formed coverage resource payload. */
+function coverageAttrs(over: Record<string, unknown> = {}) {
+  return {
+    manifest: "/repo/extensions/models/a/manifest.yaml",
+    version: "2026.01.01.1",
+    testCount: 2,
+    testCommands: ["swamp model create @a/b x"],
+    documentedCommands: ["swamp model method run x go"],
+    documentedCovered: ["swamp model method run x go"],
+    uncoveredCommands: [],
+    surface: {
+      types: 1,
+      methods: ["@a/b.go"],
+      methodsCovered: ["@a/b.go"],
+      workflows: [],
+      workflowsCovered: [],
+    },
+    ...over,
+  };
+}
+
+Deno.test("pickCoverage returns a fresh matching record", () => {
+  const picked = pickCoverage(
+    [{ attributes: coverageAttrs() }],
+    "/repo/extensions/models/a/manifest.yaml",
+    "2026.01.01.1",
+  );
+  assertEquals(picked?.testCount, 2);
+});
+
+Deno.test("pickCoverage rejects a stale-version record", () => {
+  const picked = pickCoverage(
+    [{ attributes: coverageAttrs({ version: "2025.12.01.1" }) }],
+    "/repo/extensions/models/a/manifest.yaml",
+    "2026.01.01.1",
+  );
+  assertEquals(picked, null);
+});
+
+Deno.test("pickCoverage accepts when either version is unknown", () => {
+  // Record has no version: reuse is allowed.
+  assertEquals(
+    pickCoverage(
+      [{ attributes: coverageAttrs({ version: "" }) }],
+      "/repo/extensions/models/a/manifest.yaml",
+      "2026.01.01.1",
+    )?.testCount,
+    2,
+  );
+  // Caller has no version: reuse is allowed.
+  assertEquals(
+    pickCoverage(
+      [{ attributes: coverageAttrs() }],
+      "/repo/extensions/models/a/manifest.yaml",
+      "",
+    )?.testCount,
+    2,
+  );
+});
+
+Deno.test("pickCoverage ignores a different manifest path", () => {
+  const picked = pickCoverage(
+    [{
+      attributes: coverageAttrs({
+        manifest: "/repo/extensions/b/manifest.yaml",
+      }),
+    }],
+    "/repo/extensions/models/a/manifest.yaml",
+    "2026.01.01.1",
+  );
+  assertEquals(picked, null);
 });

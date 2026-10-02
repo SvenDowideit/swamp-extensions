@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/meta-factory"
-version: "2026.09.25.1"
+version: "2026.10.02.1"
 description: >
   The documentation quality gate for swamp extensions. Enforces one guiding
   principle — the published manifest plus README must be enough for a user or
@@ -20,6 +20,10 @@ description: >
     so a recent definition with no matching create command is flagged even when
     it carries a plausible id. A second workflow prints a scoreboard — a text
     table of every git-tracked extension with the reasons each is not 100/100.
+    Each score can also carry test-factory coverage: how many of an extension's
+    documented `swamp …` commands, and how many of the methods and workflows it
+    ships, its own `test-factory.yaml` exercises — so a 100/100 scorecard also
+    shows whether the documented behaviour is tested.
 
   INSTALL
 
@@ -27,9 +31,14 @@ description: >
 
   DEPENDENCIES
 
-    None — it uses only the swamp CLI and the bundled deno binary that swamp
-    already ships. Pulling also installs the `extension-docs` skill into your
-    tool's skill directory.
+    `@svendowideit/test-factory` — pulled automatically, because every score
+    also reports how much of an extension's documented and shipped surface its
+    own `test-factory.yaml` exercises (documented commands, methods and
+    workflows). Meta-factory reads an existing test-factory `coverage` resource
+    for the manifest, or calls test-factory's `checkCoverage` method to compute
+    it when none exists. Otherwise it uses only the swamp CLI and the bundled
+    deno binary that swamp already ships. Pulling also installs the
+    `extension-docs` skill into your tool's skill directory.
 
   RUN
 
@@ -75,6 +84,10 @@ description: >
       definitionsRoot  Directory lintDefinitions scans (default .)
       auditHours  Hours of `swamp audit` history to cross-reference for the
                   creation-command check             (default 168; 0 disables)
+      testCoverage     Attach test-factory coverage  (default true)
+      testFactoryModel test-factory model to read/call (default test-factory)
+      testFactoryType  test-factory model type        (default
+                       @svendowideit/test-factory)
 
     Per-run overrides: `manifest`, `root`, `offline`, `writeSummary`, and
     `gitOnly` (score only git-tracked manifests) on checkAll; `force` on
@@ -108,6 +121,9 @@ reports:
 workflows:
   - meta-factory.yaml
   - meta-factory-scoreboard.yaml
+
+dependencies:
+  - "@svendowideit/test-factory"
 
 additionalFiles:
   - README.md

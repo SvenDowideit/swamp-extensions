@@ -83,6 +83,30 @@ export type CodeMetricsData = {
   worstFunctions: FunctionMetricData[];
 };
 
+/** Test-factory acceptance-test coverage, as stored on a `score` resource. */
+export type TestCoverageData = {
+  testCount: number;
+  /** Distinct `swamp …` commands the tests run, as written. */
+  testCommands: string[];
+  /** Distinct `swamp …` commands the manifest description shows, as written. */
+  documentedCommands: string[];
+  /** Documented commands a test also runs, as written. */
+  documentedCovered: string[];
+  /** Documented commands no test runs, as written. */
+  uncoveredCommands: string[];
+  surface: {
+    types: number;
+    /** Every declared method, as `type.method`. */
+    methods: string[];
+    /** Declared methods a test runs. */
+    methodsCovered: string[];
+    /** Every declared workflow name. */
+    workflows: string[];
+    /** Declared workflows a test runs. */
+    workflowsCovered: string[];
+  };
+};
+
 /** Shape of the `score` resource this report renders. */
 export type ScoreData = {
   name: string;
@@ -110,6 +134,8 @@ export type ScoreData = {
     path?: string;
   }[];
   codeMetrics?: CodeMetricsData;
+  /** Acceptance-test coverage from the test-factory, when available. */
+  testCoverage?: TestCoverageData | null;
 };
 /** Shape of the `rollup` summary resource this report renders. */
 export type SummaryData = {
@@ -131,6 +157,7 @@ export type SummaryData = {
     score: number;
     grade: string;
     codeMetrics?: CodeMetricsData;
+    testCoverage?: TestCoverageData | null;
   }[];
 };
 
@@ -320,7 +347,87 @@ export function renderScore(s: ScoreData): string {
     lines.push("");
     lines.push(...renderCodeMetrics(s.codeMetrics));
   }
+  if (s.testCoverage) {
+    lines.push("");
+    lines.push(...renderTestCoverage(s.testCoverage));
+  }
   return lines.join("\n");
+}
+
+/** `n%` covered, or `0%` when there is nothing of that kind to cover. */
+function percent(part: number, whole: number): string {
+  return whole > 0 ? `${Math.round((part / whole) * 100)}%` : "0%";
+}
+
+/** Append a bulleted, capped list under a heading. */
+function bulletList(lines: string[], heading: string, items: string[]): void {
+  if (items.length === 0) return;
+  lines.push("", `${heading} (${items.length}):`, "");
+  for (const item of items.slice(0, 40)) lines.push(`- \`${item}\``);
+  if (items.length > 40) lines.push(`- … and ${items.length - 40} more`);
+}
+
+/**
+ * Render the acceptance-test coverage block supplied by the test-factory.
+ *
+ * It names each source explicitly (the `test-factory.yaml` tests, the manifest
+ * `description:`, the model type's declared methods, the declared workflows)
+ * and renders the full command lists, so every ratio can be expanded into the
+ * exact commands behind it. Reported for information only — it never affects
+ * the documentation score.
+ */
+export function renderTestCoverage(c: TestCoverageData): string[] {
+  const uncoveredMethods = c.surface.methods.filter((m) =>
+    !c.surface.methodsCovered.includes(m)
+  );
+  const uncoveredWorkflows = c.surface.workflows.filter((w) =>
+    !c.surface.workflowsCovered.includes(w)
+  );
+  const lines: string[] = [
+    "## Test coverage (test-factory)",
+    "",
+    `- **Documented tests**: ${c.testCount} in the candidate's ` +
+    "`test-factory.yaml`",
+    `- **Distinct \`swamp …\` commands the tests run**: ${c.testCommands.length}`,
+    `- **Commands shown in the manifest \`description:\`**: ` +
+    `${c.documentedCommands.length} distinct — ` +
+    `${c.documentedCovered.length} run by a test ` +
+    `(${percent(c.documentedCovered.length, c.documentedCommands.length)})`,
+    `- **Methods declared by the model type(s)**: ${c.surface.methods.length} — ` +
+    `${c.surface.methodsCovered.length} run by a test ` +
+    `(${percent(c.surface.methodsCovered.length, c.surface.methods.length)})`,
+    `- **Workflows declared**: ${c.surface.workflows.length} — ` +
+    `${c.surface.workflowsCovered.length} run by a test ` +
+    `(${
+      percent(c.surface.workflowsCovered.length, c.surface.workflows.length)
+    })`,
+  ];
+  bulletList(
+    lines,
+    "Commands run by the tests (from test-factory.yaml steps)",
+    c.testCommands,
+  );
+  bulletList(
+    lines,
+    "Commands shown in the manifest description that a test runs",
+    c.documentedCovered,
+  );
+  bulletList(
+    lines,
+    "Commands shown in the manifest description that NO test runs",
+    c.uncoveredCommands,
+  );
+  bulletList(lines, "Declared methods a test runs", c.surface.methodsCovered);
+  bulletList(lines, "Declared methods NO test runs", uncoveredMethods);
+  if (c.surface.workflows.length > 0) {
+    bulletList(
+      lines,
+      "Declared workflows a test runs",
+      c.surface.workflowsCovered,
+    );
+    bulletList(lines, "Declared workflows NO test runs", uncoveredWorkflows);
+  }
+  return lines;
 }
 
 /**
@@ -396,12 +503,14 @@ export function renderSummary(s: SummaryData): string {
   );
   lines.push("");
   lines.push(
-    "| Extension | Score | Grade | Functions | Avg complexity | Coverage | CRAP | Manifest |",
+    "| Extension | Score | Grade | Functions | Avg complexity | Coverage | CRAP | Tests | Doc cov | Meth cov | Manifest |",
   );
   lines.push(
-    "| --------- | ----- | ----- | --------- | -------------- | -------- | ---- | -------- |",
+    "| --------- | ----- | ----- | --------- | -------------- | -------- | ---- | ----- | ------- | -------- | -------- |",
   );
   const sorted = [...s.scores].sort((a, b) => a.score - b.score);
+  const frac = (part: number, whole: number): string =>
+    whole > 0 ? `${part}/${whole}` : "n/a";
   for (const row of sorted) {
     const m = row.codeMetrics;
     const functions = m ? String(m.functions) : "—";
@@ -410,10 +519,42 @@ export function renderSummary(s: SummaryData): string {
       ? (m.coverageAvailable ? `${(m.coverage * 100).toFixed(0)}%` : "n/a")
       : "—";
     const crap = m ? m.crapScore.toFixed(2) : "—";
+    const tc = row.testCoverage;
+    const tests = tc ? String(tc.testCount) : "—";
+    const cmdCov = tc
+      ? frac(tc.documentedCovered.length, tc.documentedCommands.length)
+      : "—";
+    const methCov = tc
+      ? frac(tc.surface.methodsCovered.length, tc.surface.methods.length)
+      : "—";
     lines.push(
-      `| ${row.name} | ${row.score}/100 | ${row.grade} | ${functions} | ${avgCx} | ${cov} | ${crap} | \`${row.manifest}\` |`,
+      `| ${row.name} | ${row.score}/100 | ${row.grade} | ${functions} | ${avgCx} | ${cov} | ${crap} | ${tests} | ${cmdCov} | ${methCov} | \`${row.manifest}\` |`,
     );
   }
+  lines.push("");
+  lines.push(
+    "_To expand a row into its full score card (every check, and the complete " +
+      "coverage command lists), re-run `check` for that extension, then read " +
+      "the report. The exact `check` command per extension:_",
+  );
+  lines.push("");
+  lines.push("```sh");
+  for (const row of sorted) {
+    lines.push(
+      `swamp model @svendowideit/meta-factory method run check meta-factory \\\n` +
+        `  --input manifest=${row.manifest}   # ${row.name}`,
+    );
+  }
+  lines.push("```");
+  lines.push("");
+  lines.push("Then, for any one of them:");
+  lines.push("");
+  lines.push("```sh");
+  lines.push(
+    "swamp report get @svendowideit/meta-factory-report --model meta-factory " +
+      "--markdown",
+  );
+  lines.push("```");
   if (s.belowThreshold.length > 0) {
     lines.push("");
     lines.push(`## Below threshold (${s.failCount})`);

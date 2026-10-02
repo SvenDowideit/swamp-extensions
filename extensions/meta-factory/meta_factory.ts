@@ -77,6 +77,15 @@ const GlobalArgsSchema = z.object({
   root: z.string().default(".").describe(
     "Directory scanned by `checkAll` for manifest.yaml files (relative to the repo root)",
   ),
+  testFactoryModel: z.string().default("test-factory").describe(
+    "Name of the @svendowideit/test-factory model whose coverage data is read, or whose checkCoverage method is called when no data exists",
+  ),
+  testFactoryType: z.string().default("@svendowideit/test-factory").describe(
+    "Model type used when calling checkCoverage to compute missing coverage",
+  ),
+  testCoverage: z.boolean().default(true).describe(
+    "Attach each extension's test-factory.yaml coverage (documented commands and shipped surface exercised by its tests)",
+  ),
   threshold: z.number().int().min(0).max(100).default(75).describe(
     "Minimum score to consider an extension 'well documented'",
   ),
@@ -216,6 +225,42 @@ const CodeMetricsSchema = z.object({
   worstFunctions: z.array(FunctionMetricSchema),
 });
 
+/**
+ * Test-coverage block, mirroring `@svendowideit/test-factory`'s `coverage`
+ * resource.
+ *
+ * The meta-factory does not compute this itself: it reads (or triggers) the
+ * test-factory's own coverage so the two extensions agree on one number. Every
+ * field is optional/defaulted so a score written before the test-factory grew
+ * coverage still parses.
+ */
+const TestCoverageSchema = z.object({
+  /** Number of documented acceptance tests in `test-factory.yaml`. */
+  testCount: z.number().default(0),
+  /** Distinct `swamp …` commands the tests run, as written. */
+  testCommands: z.array(z.string()).default([]),
+  /** Distinct `swamp …` commands the manifest description shows, as written. */
+  documentedCommands: z.array(z.string()).default([]),
+  /** Documented commands a test also runs, as written. */
+  documentedCovered: z.array(z.string()).default([]),
+  /** Documented commands no test runs, as written. */
+  uncoveredCommands: z.array(z.string()).default([]),
+  /** Shipped-surface axis: methods/workflows exercised vs declared. */
+  surface: z.object({
+    types: z.number().default(0),
+    methods: z.array(z.string()).default([]),
+    methodsCovered: z.array(z.string()).default([]),
+    workflows: z.array(z.string()).default([]),
+    workflowsCovered: z.array(z.string()).default([]),
+  }).default({
+    types: 0,
+    methods: [],
+    methodsCovered: [],
+    workflows: [],
+    workflowsCovered: [],
+  }),
+});
+
 /** Resource schema for one extension's documentation score card. */
 const ScoreSchema = z.object({
   name: z.string(),
@@ -248,6 +293,8 @@ const ScoreSchema = z.object({
   })).default([]),
   /** Code metrics (complexity, coverage, CRAP) — reported, never scored. */
   codeMetrics: CodeMetricsSchema,
+  /** Acceptance-test coverage from the test-factory, or null when none. */
+  testCoverage: TestCoverageSchema.nullable().default(null),
   checkedAt: z.string(),
 });
 
@@ -272,6 +319,8 @@ const SummarySchema = z.object({
     grade: z.string(),
     /** Code metrics for this extension (complexity/coverage/CRAP). */
     codeMetrics: CodeMetricsSchema,
+    /** Acceptance-test coverage from the test-factory, or null when none. */
+    testCoverage: TestCoverageSchema.nullable().default(null),
   })),
   checkedAt: z.string(),
 });
@@ -378,6 +427,34 @@ export type RunFn = (
   args: string[],
   cwd?: string,
 ) => Promise<CmdResult>;
+
+/** One data record returned by {@link ModelContext.readModelData}. */
+export interface ModelDataRecord {
+  /** Parsed JSON payload of the data item. */
+  attributes: Record<string, unknown>;
+}
+
+/** The slice of swamp's execute context the coverage read/call uses. */
+export interface ModelContext {
+  /** Read another model's latest data by name. */
+  readModelData?: (
+    modelName: string,
+    specName?: string,
+  ) => Promise<ModelDataRecord[]>;
+  /** Call another model's method. */
+  runModel?: (opts: {
+    definition?: string;
+    modelType?: string;
+    name?: string;
+    method: string;
+    arguments?: Record<string, unknown>;
+  }) => Promise<
+    { ok: true; resources?: unknown[] } | {
+      ok: false;
+      error: { message: string };
+    }
+  >;
+}
 
 /**
  * Resolve the bundled deno binary path via `swamp doctor extensions --json`.
@@ -668,6 +745,9 @@ async function collectCodeMetrics(
 // Core scoring
 // ---------------------------------------------------------------------------
 
+/** Test-factory coverage for one extension, as written to a `coverage` resource. */
+type TestCoverage = z.infer<typeof TestCoverageSchema>;
+
 /** Subprocess dependencies resolved once per `check`/`checkAll` run. */
 interface ScoreDeps {
   denoPath: string;
@@ -680,6 +760,14 @@ interface ScoreDeps {
   definitionsCache?: DefinitionScanCache;
   /** Injectable subprocess runner (defaults to the real {@link run}). */
   run?: RunFn;
+  /** Attach test-factory coverage to each score. */
+  testCoverage: boolean;
+  /** The test-factory model name to read/run coverage from. */
+  testFactoryModel: string;
+  /** The test-factory model type used when calling `checkCoverage`. */
+  testFactoryType: string;
+  /** Cached per-extension coverage, shared across a `checkAll`. */
+  coverageCache?: Map<string, Promise<TestCoverage | null>>;
 }
 
 /** Lazily-computed repo-wide definition scan, shared across a `checkAll`. */
@@ -735,6 +823,130 @@ async function definitionIssuesFor(
     }));
 }
 
+/** Pick the coverage-relevant fields from a test-factory `coverage` resource. */
+function toTestCoverage(attrs: Record<string, unknown>): TestCoverage {
+  return TestCoverageSchema.parse({
+    testCount: attrs.testCount,
+    testCommands: attrs.testCommands,
+    documentedCommands: attrs.documentedCommands,
+    documentedCovered: attrs.documentedCovered,
+    uncoveredCommands: attrs.uncoveredCommands,
+    surface: attrs.surface,
+  });
+}
+
+/** The extension version declared in a manifest, or `""` when unreadable. */
+async function manifestVersion(manifestPath: string): Promise<string> {
+  try {
+    return parseManifest(await Deno.readTextFile(manifestPath)).version ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Pick a fresh coverage record from a set of `coverage` resources.
+ *
+ * A record matches when its `manifest` path equals `key` and, when both the
+ * expected `version` and the record's `version` are known, they are equal. A
+ * version mismatch means the resource is stale (the extension changed since the
+ * coverage was computed) and is skipped. Unknown on either side is accepted, so
+ * a versionless manifest cannot defeat reuse. Pure — unit-testable.
+ */
+export function pickCoverage(
+  records: Array<{ attributes?: Record<string, unknown> }>,
+  key: string,
+  version: string,
+): TestCoverage | null {
+  for (const rec of records) {
+    const attrs = rec.attributes ?? {};
+    if (resolve(String(attrs.manifest ?? "")) !== key) continue;
+    const recorded = String(attrs.version ?? "");
+    if (version && recorded && recorded !== version) continue;
+    return toTestCoverage(attrs);
+  }
+  return null;
+}
+
+/**
+ * Find a readable, fresh `coverage` resource for a manifest.
+ *
+ * Thin wrapper over {@link pickCoverage} that reads the test-factory's
+ * `coverage` data through swamp's context API.
+ */
+async function findCoverage(
+  ctx: ModelContext,
+  model: string,
+  key: string,
+  version: string,
+): Promise<TestCoverage | null> {
+  const records = await ctx.readModelData?.(model, "coverage");
+  return pickCoverage(records ?? [], key, version);
+}
+
+/**
+ * Resolve an extension's test-factory coverage.
+ *
+ * Precedence: reuse a *fresh* test-factory `coverage` resource for this manifest
+ * — same path and same extension version, so a previous `test`/`testAll`/
+ * `checkCoverage` run is honoured — and otherwise call the test-factory's
+ * `checkCoverage` method to compute (and store) it. Both go through swamp's
+ * context API — never a `swamp` subprocess. Every failure path yields `null` so
+ * scoring a manifest never fails because coverage could not be obtained.
+ *
+ * Results are cached per manifest path across a `checkAll` so N extensions do
+ * not re-run the same work.
+ */
+function testCoverageFor(
+  deps: ScoreDeps,
+  context: ExecContext,
+  manifestPath: string,
+  version: string,
+): Promise<TestCoverage | null> {
+  if (!deps.testCoverage) return Promise.resolve(null);
+  const key = resolve(manifestPath);
+  deps.coverageCache ??= new Map();
+  let cached = deps.coverageCache.get(key);
+  if (!cached) {
+    cached = (async () => {
+      const ctx = context as unknown as ModelContext;
+      try {
+        const existing = await findCoverage(
+          ctx,
+          deps.testFactoryModel,
+          key,
+          version,
+        );
+        if (existing) return existing;
+      } catch {
+        // No readable coverage — fall through to computing it.
+      }
+      if (!ctx.runModel) return null;
+      try {
+        const run = await ctx.runModel({
+          modelType: deps.testFactoryType,
+          name: deps.testFactoryModel,
+          method: "checkCoverage",
+          arguments: { manifest: relativeTo(context.repoDir, key) },
+        });
+        if (run.ok) {
+          return await findCoverage(
+            ctx,
+            deps.testFactoryModel,
+            key,
+            version,
+          );
+        }
+      } catch {
+        // Fall through to null.
+      }
+      return null;
+    })();
+    deps.coverageCache.set(key, cached);
+  }
+  return cached;
+}
+
 /** Resolve a manifest path to an absolute path. */
 function absManifest(path: string, cwd: string): string {
   return resolve(cwd, path);
@@ -767,6 +979,7 @@ function scoreResource(
     codeMetrics: CodeMetrics;
   },
   wellDocumented: boolean,
+  testCoverage: TestCoverage | null = null,
 ): Record<string, unknown> {
   const { lint, codeMetrics, ...rest } = result;
   return {
@@ -775,6 +988,7 @@ function scoreResource(
     manifestLint: lint.manifest,
     readmeLint: lint.readme,
     codeMetrics,
+    testCoverage,
     checkedAt: new Date().toISOString(),
   };
 }
@@ -1039,12 +1253,14 @@ type ExecContext = {
     name: string,
     data: Record<string, unknown>,
   ) => Promise<{ name: string }>;
+  readModelData?: ModelContext["readModelData"];
+  runModel?: ModelContext["runModel"];
 };
 
 /** Model definition for the extension documentation meta-factory. */
 export const model = {
   type: "@svendowideit/meta-factory",
-  version: "2026.09.25.1",
+  version: "2026.10.02.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1062,6 +1278,17 @@ export const model = {
       description:
         "Add code metrics (complexity, coverage, CRAP) to every score and the summary rollup. These are reported in the score card, the rollup, and the scoreboard table; they do NOT affect the 0-100 documentation score. No schema or argument change — only new fields on the written resources.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
+      description:
+        'Attach test-factory acceptance-test coverage to every score and the rollup: how many of a manifest\'s documented `swamp …` commands, and how many of the shipped methods and workflows, the candidate\'s `test-factory.yaml` exercises. Coverage is read from an existing @svendowideit/test-factory `coverage` resource, or computed by calling its `checkCoverage` method when none exists; it is reported in the score card, the checkAll rollup, and the scoreboard, and never affects the documentation score. Three new global arguments are added with defaults: `testCoverage` (true), `testFactoryModel` ("test-factory"), and `testFactoryType` ("@svendowideit/test-factory").',
+      upgradeAttributes: (old: Record<string, unknown>) => ({
+        ...old,
+        testCoverage: old.testCoverage ?? true,
+        testFactoryModel: old.testFactoryModel ?? "test-factory",
+        testFactoryType: old.testFactoryType ?? "@svendowideit/test-factory",
+      }),
     },
   ],
   resources: {
@@ -1103,16 +1330,25 @@ export const model = {
           ),
           auditHours: context.globalArgs.auditHours ?? 0,
           run: args._run,
+          testCoverage: context.globalArgs.testCoverage,
+          testFactoryModel: context.globalArgs.testFactoryModel,
+          testFactoryType: context.globalArgs.testFactoryType,
         };
         const path = absManifest(args.manifest, context.repoDir);
         context.logger?.info("Scoring {path}", { path });
         const result = await scoreManifest(path, deps);
         const wellDocumented = result.score >= context.globalArgs.threshold;
+        const coverage = await testCoverageFor(
+          deps,
+          context,
+          path,
+          await manifestVersion(path),
+        );
 
         const handle = await context.writeResource(
           "score",
           scoreInstanceName(context.repoDir, path),
-          scoreResource(result, wellDocumented),
+          scoreResource(result, wellDocumented, coverage),
         );
         context.logger?.info("Score {score}/100 ({grade}) for {name}", {
           score: result.score,
@@ -1140,6 +1376,9 @@ export const model = {
           ),
           auditHours: context.globalArgs.auditHours ?? 0,
           run: args._run,
+          testCoverage: context.globalArgs.testCoverage,
+          testFactoryModel: context.globalArgs.testFactoryModel,
+          testFactoryType: context.globalArgs.testFactoryType,
         };
         const root = resolve(context.repoDir, context.globalArgs.root);
         const entries: ManifestEntry[] = args.manifest
@@ -1170,15 +1409,22 @@ export const model = {
           grade: string;
           topIssues: string[];
           codeMetrics: CodeMetrics;
+          testCoverage: TestCoverage | null;
         }> = [];
 
         for (const entry of entries) {
           const result = await scoreManifest(entry.path, deps);
           const wellDocumented = result.score >= context.globalArgs.threshold;
+          const coverage = await testCoverageFor(
+            deps,
+            context,
+            entry.path,
+            await manifestVersion(entry.path),
+          );
           const handle = await context.writeResource(
             "score",
             scoreInstanceName(context.repoDir, entry.path),
-            scoreResource(result, wellDocumented),
+            scoreResource(result, wellDocumented, coverage),
           );
           handles.push(handle);
           scores.push({
@@ -1188,6 +1434,7 @@ export const model = {
             grade: result.grade,
             topIssues: result.nextActions.slice(0, 3),
             codeMetrics: result.codeMetrics,
+            testCoverage: coverage,
           });
           context.logger?.info("{name}: {score}/100 ({grade})", {
             name: result.name,
@@ -1225,6 +1472,7 @@ export const model = {
                 score: s.score,
                 grade: s.grade,
                 codeMetrics: s.codeMetrics,
+                testCoverage: s.testCoverage,
               })),
               checkedAt: new Date().toISOString(),
             },

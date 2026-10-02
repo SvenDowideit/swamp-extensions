@@ -84,16 +84,16 @@ Deno.test("renderScoreboard produces a table with a reason column", () => {
   const md = renderScoreboard(rows);
   assertStringIncludes(
     md,
-    "| Extension | Score | Grade | Fns | Avg cx | Coverage | CRAP | Reason not 100 |",
+    "| Extension | Score | Grade | Fns | Avg cx | Coverage | CRAP | Tests | Doc cov | Meth cov | Reason not 100 |",
   );
   // No code metrics on these fixtures: the metric cells fall back to placeholders.
   assertStringIncludes(
     md,
-    "| @me/bad | 55/100 | D | — | — | n/a | — | 1 issue(s) |",
+    "| @me/bad | 55/100 | D | — | — | n/a | — | — | n/a | n/a | 1 issue(s) |",
   );
   assertStringIncludes(
     md,
-    "| @me/perfect | 100/100 | A | — | — | n/a | — | — |",
+    "| @me/perfect | 100/100 | A | — | — | n/a | — | — | n/a | n/a | — |",
   );
   assertStringIncludes(md, "## Reasons");
   assertStringIncludes(md, "install: no `swamp extension pull` command found");
@@ -142,6 +142,50 @@ Deno.test("renderScoreboard shows code metrics when present", () => {
   const md = renderScoreboard(rows);
   assertStringIncludes(
     md,
-    "| @me/code | 100/100 | A | 42 | 3.25 | 88% | 3.25 | — |",
+    "| @me/code | 100/100 | A | 42 | 3.25 | 88% | 3.25 | — | n/a | n/a | — |",
   );
+});
+
+Deno.test("renderScoreboard shows test coverage when present", () => {
+  const rows = buildScoreboard([
+    score({
+      name: "@me/cov",
+      score: 100,
+      grade: "A",
+      testCoverage: {
+        testCount: 3,
+        testCommands: ["swamp model create @a/b x"],
+        documentedCommands: [
+          "swamp model method run my-thing installCaddy",
+          "swamp model method run my-thing plan",
+          "swamp workflow run caddy-setup",
+        ],
+        documentedCovered: [
+          "swamp model method run my-thing installCaddy",
+          "swamp model method run my-thing plan",
+        ],
+        surface: {
+          types: 1,
+          methods: ["@a/b.a", "@a/b.b", "@a/b.c"],
+          methodsCovered: ["@a/b.a", "@a/b.b"],
+          workflows: ["caddy-setup"],
+          workflowsCovered: [],
+        },
+      },
+    }),
+  ]);
+  const md = renderScoreboard(rows);
+  assertStringIncludes(md, "| @me/cov | 100/100 | A |");
+  assertStringIncludes(md, "| 3 | 2/3 | 2/3 | — |");
+  // The table points the reader at the report that expands each row, with the
+  // exact manifest path filled in (never the `<manifest.yaml>` placeholder).
+  assertStringIncludes(
+    md,
+    "--input manifest=extensions/models/tool/manifest.yaml   # @me/cov",
+  );
+  assertStringIncludes(
+    md,
+    "swamp report get @svendowideit/meta-factory-report",
+  );
+  assertEquals(md.includes("<manifest.yaml>"), false);
 });

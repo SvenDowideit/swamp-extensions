@@ -8,7 +8,106 @@ import {
   renderDefinitions,
   renderScore,
   renderSummary,
+  renderTestCoverage,
 } from "./meta_factory_report.ts";
+
+const COVERAGE = {
+  testCount: 3,
+  testCommands: [
+    "swamp model method run e2e installCaddy",
+    "swamp model method run e2e plan",
+  ],
+  documentedCommands: [
+    "swamp model method run my-thing installCaddy",
+    "swamp model method run my-thing plan",
+    "swamp workflow run caddy-setup",
+  ],
+  documentedCovered: [
+    "swamp model method run my-thing installCaddy",
+    "swamp model method run my-thing plan",
+  ],
+  uncoveredCommands: ["swamp workflow run caddy-setup"],
+  surface: {
+    types: 1,
+    methods: ["@me/tool.installCaddy", "@me/tool.plan", "@me/tool.sync"],
+    methodsCovered: ["@me/tool.installCaddy", "@me/tool.plan"],
+    workflows: ["caddy-setup"],
+    workflowsCovered: [],
+  },
+};
+
+Deno.test("renderTestCoverage reports documented and shipped-surface coverage", () => {
+  const md = renderTestCoverage(COVERAGE).join("\n");
+  assertStringIncludes(md, "## Test coverage (test-factory)");
+  assertStringIncludes(
+    md,
+    "Commands shown in the manifest `description:`**: 3 distinct — 2 run by a test (67%)",
+  );
+  assertStringIncludes(
+    md,
+    "Methods declared by the model type(s)**: 3 — 2 run by a test (67%)",
+  );
+  assertStringIncludes(
+    md,
+    "Workflows declared**: 1 — 0 run by a test (0%)",
+  );
+  assertStringIncludes(md, "- `swamp model method run e2e plan`");
+  assertStringIncludes(md, "- `swamp workflow run caddy-setup`");
+  assertStringIncludes(md, "- `@me/tool.sync`");
+});
+
+Deno.test("renderScore includes the test-coverage block", () => {
+  const md = renderScore({
+    name: "@me/tool",
+    manifest: "manifest.yaml",
+    score: 90,
+    grade: "A",
+    earned: 90,
+    earnedMax: 100,
+    wellDocumented: true,
+    checks: [],
+    coverage: [],
+    examples: [],
+    nextActions: [],
+    manifestLint: [],
+    readmeLint: [],
+    testCoverage: COVERAGE,
+  });
+  assertStringIncludes(md, "## Test coverage (test-factory)");
+  assertStringIncludes(md, "2 run by a test (67%)");
+});
+
+Deno.test("renderSummary shows test-coverage columns", () => {
+  const md = renderSummary({
+    root: "extensions",
+    threshold: 75,
+    count: 1,
+    averageScore: 90,
+    passCount: 1,
+    failCount: 0,
+    belowThreshold: [],
+    scores: [{
+      name: "@me/tool",
+      manifest: "manifest.yaml",
+      score: 90,
+      grade: "A",
+      testCoverage: COVERAGE,
+    }],
+  });
+  assertStringIncludes(md, "| Tests | Doc cov | Meth cov |");
+  assertStringIncludes(md, "| 3 | 2/3 | 2/3 |");
+  // The table points the reader at the report that expands each row, with the
+  // exact manifest path filled in (never the `<manifest.yaml>` placeholder).
+  assertStringIncludes(
+    md,
+    "--input manifest=manifest.yaml   # @me/tool",
+  );
+  assertStringIncludes(
+    md,
+    "swamp report get @svendowideit/meta-factory-report",
+  );
+  assertEquals(md.includes("<manifest.yaml>"), false);
+});
 
 Deno.test("renderScore marks a below-threshold extension", () => {
   const md = renderScore({

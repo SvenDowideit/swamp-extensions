@@ -14,7 +14,13 @@ import {
   expandHome,
   isAlreadyStopped,
   model,
+  parseCgroupPids,
+  parseDeclaredPorts,
+  parseSsListeners,
+  renderAuditTable,
   renderServiceUnit,
+  resolveCgroupRoot,
+  stateFor,
 } from "./systemd_service.ts";
 
 Deno.test("expandHome expands a leading ~ to the home directory", () => {
@@ -235,6 +241,431 @@ Deno.test("restartService throws when the service is not active afterwards", asy
         ),
       Error,
       "not active",
+    );
+  });
+});
+
+Deno.test("parseDeclaredPorts finds flags, env vars, and host:port", () => {
+  assertEquals(
+    parseDeclaredPorts([
+      "ExecStart=/x --host 127.0.0.1 --port 8765",
+      "Environment=FEEDBACK_PORT=8765",
+    ]),
+    [8765],
+  );
+  assertEquals(
+    parseDeclaredPorts(["ExecStart=/usr/bin/api --port=8080"]),
+    [8080],
+  );
+  assertEquals(parseDeclaredPorts(["ExecStart=/x -p 9090"]), [9090]);
+  assertEquals(parseDeclaredPorts(["Environment=PORT=3000"]), [3000]);
+  assertEquals(
+    parseDeclaredPorts(["Environment=GTD_PORT=8878"]),
+    [8878],
+  );
+  // A PATH value must not be mistaken for a port.
+  assertEquals(
+    parseDeclaredPorts(["Environment=PATH=/usr/local/bin:/usr/bin:/bin"]),
+    [],
+  );
+  // Out-of-range values are dropped.
+  assertEquals(parseDeclaredPorts(["ExecStart=/x --port 99999"]), []);
+});
+
+Deno.test("parseDeclaredPorts sorts and dedupes", () => {
+  assertEquals(
+    parseDeclaredPorts([
+      "ExecStart=/x --port 9000",
+      "ExecStart=/x --port 8000",
+      "Environment=PORT=9000",
+    ]),
+    [8000, 9000],
+  );
+});
+
+Deno.test("parseSsListeners reads IPv4, IPv6, and process owners", () => {
+  const output = [
+    'LISTEN 0      511   127.0.0.1:8765   0.0.0.0:*    users:(("deno",pid=2121,fd=20))',
+    "LISTEN 0      4096  [::1]%lo:64315      [::]:*",
+    "LISTEN 0      4096  0.0.0.0:22        0.0.0.0:*",
+    'LISTEN 0      511   [::]:9090         [::]:*     users:(("swamp",pid=751571,fd=23))',
+  ].join("\n");
+  const listeners = parseSsListeners(output);
+  assertEquals(listeners.length, 4);
+  assertEquals(listeners[0], {
+    protocol: "tcp",
+    localAddress: "127.0.0.1",
+    port: 8765,
+    process: "deno",
+    pid: 2121,
+  });
+  assertEquals(listeners[1].localAddress, "[::1]");
+  assertEquals(listeners[1].port, 64315);
+  assertEquals(listeners[1].pid, 0);
+  assertEquals(listeners[3].localAddress, "[::]");
+  assertEquals(listeners[3].pid, 751571);
+});
+
+Deno.test("parseSsListeners ignores non-listen lines and junk", () => {
+  assertEquals(
+    parseSsListeners("State Recv-Q\nESTAB 0 0 1.2.3.4:22 5.6.7.8:9\n\n"),
+    [],
+  );
+});
+
+Deno.test("parseCgroupPids reads one pid per line and ignores junk", () => {
+  assertEquals(parseCgroupPids("2121\n2122\n"), [2121, 2122]);
+  assertEquals(parseCgroupPids("2121\n\nnot-a-pid\n"), [2121]);
+  assertEquals(parseCgroupPids(""), []);
+});
+
+Deno.test("resolveCgroupRoot trims slashes and falls back", () => {
+  assertEquals(resolveCgroupRoot("/sys/fs/cgroup/"), "/sys/fs/cgroup");
+  assertEquals(resolveCgroupRoot(""), "/sys/fs/cgroup");
+});
+
+Deno.test("renderAuditTable aligns columns and shows ports/drift", () => {
+  const table = renderAuditTable([
+    {
+      modelName: "feedback-server",
+      serviceName: "feedback-server",
+      state: "running",
+      unitFileState: "enabled",
+      declaredPorts: [8765],
+      listeningPorts: [8765],
+      drift: false,
+    },
+    {
+      modelName: "tuios-daemon",
+      serviceName: "tuios",
+      state: "restarting",
+      unitFileState: "enabled",
+      declaredPorts: [],
+      listeningPorts: [],
+      drift: true,
+    },
+  ]);
+  const lines = table.split("\n");
+  assertEquals(lines.length, 3);
+  assertEquals(lines[0].startsWith("MODEL"), true);
+  assertEquals(lines[0].includes("DECLARED"), true);
+  assertEquals(lines[0].includes("LISTENING"), true);
+  assertEquals(lines[0].includes("DRIFT"), true);
+  // Every body line has the same width as the header.
+  assertEquals(lines[1].length, lines[0].length);
+  assertEquals(lines[2].length, lines[0].length);
+  assertEquals(lines[1].includes("[8765]"), true);
+  assertEquals(lines[2].includes("!"), true);
+});
+
+Deno.test("stateFor maps systemctl properties to a compact state", () => {
+  assertEquals(
+    stateFor({ LoadState: "not-found", ActiveState: "inactive" }),
+    "not-found",
+  );
+  assertEquals(
+    stateFor({ LoadState: "loaded", ActiveState: "active" }),
+    "running",
+  );
+  assertEquals(
+    stateFor({
+      LoadState: "loaded",
+      ActiveState: "activating",
+      SubState: "auto-restart",
+    }),
+    "restarting",
+  );
+  assertEquals(
+    stateFor({ LoadState: "loaded", ActiveState: "activating" }),
+    "starting",
+  );
+  assertEquals(
+    stateFor({ LoadState: "loaded", ActiveState: "failed" }),
+    "failed",
+  );
+  assertEquals(
+    stateFor({ LoadState: "loaded", ActiveState: "deactivating" }),
+    "stopping",
+  );
+});
+
+Deno.test("audit writes a service row per model from the definition repo", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: {
+      denoPath: "~/.swamp/deno/deno",
+      unitDir: "/tmp/swamp-audit-test-missing",
+      cgroupRoot: "/sys/fs/cgroup",
+    },
+    definition: { name: "auditor" },
+    methodName: "audit",
+  });
+  // Inject the cross-model APIs the production context provides.
+  const c = ctx.context as unknown as Record<string, unknown>;
+  c.definitionRepository = {
+    findAllGlobal: () =>
+      Promise.resolve([
+        {
+          definition: { id: "1", name: "svc-a" },
+          type: { raw: "@svendowideit/systemd-service" },
+        },
+        {
+          definition: { id: "2", name: "svc-b" },
+          type: { raw: "@svendowideit/systemd-service" },
+        },
+        {
+          definition: { id: "3", name: "other" },
+          type: { raw: "@svendowideit/caddy" },
+        },
+      ]),
+  };
+  c.queryData = (predicate: string) => {
+    if (!predicate.includes("@svendowideit/systemd-service")) {
+      return Promise.resolve([]);
+    }
+    return Promise.resolve([
+      {
+        modelName: "svc-a",
+        specName: "service",
+        attributes: {
+          serviceName: "svc-a",
+          active: true,
+          enabled: true,
+          checkedAt: "2026-10-01T00:00:00.000Z",
+        },
+      },
+    ]);
+  };
+
+  await withMockedCommand((command, args) => {
+    if (command === "ss") {
+      return {
+        stdout:
+          'LISTEN 0 511 127.0.0.1:7000 0.0.0.0:* users:(("deno",pid=100,fd=20))\n',
+        code: 0,
+      };
+    }
+    if (command === "systemctl") {
+      const name = args[2] ?? "";
+      if (name === "svc-a") {
+        return {
+          stdout: [
+            "LoadState=loaded",
+            "ActiveState=active",
+            "SubState=running",
+            "UnitFileState=enabled",
+            "MainPID=100",
+            "ControlGroup=/user.slice/svc-a.service",
+          ].join("\n"),
+          code: 0,
+        };
+      }
+      if (args.includes("ControlGroup") || args.includes("show")) {
+        return {
+          stdout: [
+            "LoadState=not-found",
+            "ActiveState=inactive",
+            "SubState=dead",
+            "UnitFileState=",
+            "MainPID=0",
+            "ControlGroup=",
+          ].join("\n"),
+          code: 0,
+        };
+      }
+      return { stdout: "", code: 0 };
+    }
+    return { stdout: "", code: 0 };
+  }, async () => {
+    await model.methods.audit.execute(
+      { serviceName: "all" },
+      ctx.context as never,
+    );
+  });
+
+  const written = ctx.getWrittenResources();
+  assertEquals(written.length, 1);
+  assertEquals(written[0].specName, "audit");
+  const data = written[0].data as Record<string, unknown>;
+  const services = data.services as Array<Record<string, unknown>>;
+  // Both systemd-service models are listed; the caddy model is not.
+  assertEquals(services.length, 2);
+  assertEquals(services.map((s) => s.modelName), ["svc-a", "svc-b"]);
+  assertEquals(data.modelCount, 2);
+  assertEquals(data.runningCount, 1);
+  assertEquals(data.absentCount, 1);
+  const a = services[0];
+  assertEquals(a.exists, true);
+  assertEquals(a.state, "running");
+  // svc-a has no unit file in this fixture, so nothing is declared; the live
+  // port is still attributed via MainPID.
+  assertEquals(a.declaredPorts, []);
+  assertEquals(
+    (a.listeningPorts as Array<Record<string, unknown>>)[0].port,
+    7000,
+  );
+  assertEquals(a.drift, false);
+  const b = services[1];
+  assertEquals(b.exists, false);
+  assertEquals(b.state, "not-found");
+});
+
+Deno.test("audit flags drift when the stored state disagrees with systemd", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: {
+      unitDir: "/tmp/swamp-audit-test-missing",
+      cgroupRoot: "/sys/fs/cgroup",
+    },
+    definition: { name: "auditor" },
+    methodName: "audit",
+  });
+  const c = ctx.context as unknown as Record<string, unknown>;
+  c.definitionRepository = {
+    findAllGlobal: () =>
+      Promise.resolve([
+        {
+          definition: { id: "1", name: "svc-a" },
+          type: { raw: "@svendowideit/systemd-service" },
+        },
+      ]),
+  };
+  // The stored snapshot claims active, but systemd reports the unit absent.
+  c.queryData = () =>
+    Promise.resolve([
+      {
+        modelName: "svc-a",
+        specName: "service",
+        attributes: {
+          serviceName: "svc-a",
+          active: true,
+          enabled: true,
+          checkedAt: "2026-10-01T00:00:00.000Z",
+        },
+      },
+    ]);
+  await withMockedCommand((command) => {
+    if (command === "ss") return { stdout: "", code: 0 };
+    return {
+      stdout: [
+        "LoadState=not-found",
+        "ActiveState=inactive",
+        "SubState=dead",
+        "UnitFileState=",
+        "MainPID=0",
+        "ControlGroup=",
+      ].join("\n"),
+      code: 0,
+    };
+  }, async () => {
+    await model.methods.audit.execute(
+      { serviceName: "all" },
+      ctx.context as never,
+    );
+  });
+  const data = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+  const services = data.services as Array<Record<string, unknown>>;
+  assertEquals(services[0].drift, true);
+  assertEquals(services[0].reportedActive, true);
+});
+
+/** Shared fixture: two systemd-service models for scoped-audit tests. */
+function auditScopeContext() {
+  const ctx = createModelTestContext({
+    globalArgs: {
+      unitDir: "/tmp/swamp-audit-test-missing",
+      cgroupRoot: "/sys/fs/cgroup",
+    },
+    definition: { name: "auditor" },
+    methodName: "audit",
+  });
+  const c = ctx.context as unknown as Record<string, unknown>;
+  c.definitionRepository = {
+    findAllGlobal: () =>
+      Promise.resolve([
+        {
+          definition: { id: "1", name: "svc-a" },
+          type: { raw: "@svendowideit/systemd-service" },
+        },
+        {
+          definition: { id: "2", name: "tuios-daemon" },
+          type: { raw: "@svendowideit/systemd-service" },
+        },
+      ]),
+  };
+  c.queryData = () =>
+    Promise.resolve([
+      {
+        modelName: "tuios-daemon",
+        specName: "service",
+        attributes: {
+          serviceName: "tuios",
+          active: true,
+          enabled: true,
+          checkedAt: "2026-10-01T00:00:00.000Z",
+        },
+      },
+    ]);
+  return ctx;
+}
+
+const auditCommands = (command: string) =>
+  command === "ss" ? { stdout: "", code: 0 } : {
+    stdout: [
+      "LoadState=loaded",
+      "ActiveState=active",
+      "SubState=running",
+      "UnitFileState=enabled",
+      "MainPID=0",
+      "ControlGroup=",
+    ].join("\n"),
+    code: 0,
+  };
+
+Deno.test("audit scope 'all' reports every model", async () => {
+  const ctx = auditScopeContext();
+  await withMockedCommand(auditCommands, async () => {
+    await model.methods.audit.execute(
+      { serviceName: "all" },
+      ctx.context as never,
+    );
+  });
+  const data = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+  assertEquals(data.scope, "all");
+  assertEquals(data.modelCount, 2);
+  assertEquals(
+    (data.services as Array<Record<string, unknown>>).map((s) => s.modelName),
+    ["svc-a", "tuios-daemon"],
+  );
+});
+
+Deno.test("audit scope narrows to the model matching the managed unit name", async () => {
+  const ctx = auditScopeContext();
+  // "tuios" is the unit name, not the model name ("tuios-daemon"); it must
+  // still match via the reported serviceName.
+  await withMockedCommand(auditCommands, async () => {
+    await model.methods.audit.execute(
+      { serviceName: "tuios" },
+      ctx.context as never,
+    );
+  });
+  const data = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+  assertEquals(data.scope, "tuios");
+  assertEquals(data.modelCount, 1);
+  const services = data.services as Array<Record<string, unknown>>;
+  assertEquals(services.length, 1);
+  assertEquals(services[0].modelName, "tuios-daemon");
+});
+
+Deno.test("audit scope errors when no model matches", async () => {
+  const ctx = auditScopeContext();
+  await withMockedCommand(auditCommands, async () => {
+    await assertRejects(
+      () =>
+        model.methods.audit.execute(
+          { serviceName: "does-not-exist" },
+          ctx.context as never,
+        ),
+      Error,
+      "No systemd-service model found matching 'does-not-exist'",
     );
   });
 });

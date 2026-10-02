@@ -1,9 +1,10 @@
 manifestVersion: 1
 name: "@svendowideit/systemd-service"
-version: "2026.09.30.1"
+version: "2026.10.02.1"
 description: >
   Generic systemd *user* service management: idempotently create, start, stop,
-  restart, and remove a persistent user service for any command line.
+  restart, and remove a persistent user service for any command line — and
+  audit every service model against the live host in one call.
 
   WHAT IT DOES
 
@@ -14,7 +15,10 @@ description: >
     process (a web service, an API, a queue server) alive: rather than embedding
     systemd logic in every extension, they invoke this model's methods. Because
     these are *user* units, `startService` also enables user lingering so the
-    service starts at boot, not merely at login.
+    service starts at boot, not merely at login. The `audit` method answers
+    "what does swamp expect, what actually exists, and what state is it in?" in
+    one command: every model of this type, its systemd unit state, declared and
+    live TCP ports, stale reported state, drift, and orphan managed units.
 
   INSTALL
 
@@ -22,8 +26,9 @@ description: >
 
   DEPENDENCIES
 
-    None. It shells out to `systemctl --user` and `loginctl`, which ship with
-    systemd; no other extension, package, or service is required.
+    None. It shells out to `systemctl --user`, `loginctl`, and (for `audit`) `ss`
+    and cgroup v2, which ship with systemd; no other extension, package, or
+    service is required.
 
   RUN
 
@@ -44,12 +49,24 @@ description: >
       swamp model @svendowideit/systemd-service method run stopService feedback-server \
         --input 'serviceName=feedback-server'
 
+      # Audit every service model against the live host in one call: each
+      # model, its systemd unit, state, ports, drift, and orphan units.
+      swamp model @svendowideit/systemd-service method run audit feedback-server
+      swamp data get feedback-server audit --json
+
+      # Or run the bundled workflow, which needs no model name and prints an
+      # aligned table to the log (default: every model; --input service=… for one).
+      swamp workflow run @svendowideit/systemd-service-audit
+      swamp workflow run @svendowideit/systemd-service-audit \
+        --input service=feedback-server
+
   CONFIGURE
 
     Global arguments (set at model creation with `--global-arg`):
 
-      denoPath   Path to the Deno binary for Deno services  (default ~/.swamp/deno/deno)
-      unitDir    Directory for systemd user unit files     (default ~/.config/systemd/user)
+      denoPath     Path to the Deno binary for Deno services  (default ~/.swamp/deno/deno)
+      unitDir      Directory for systemd user unit files     (default ~/.config/systemd/user)
+      cgroupRoot   cgroup v2 mount point used by `audit`     (default /sys/fs/cgroup)
 
     Per-call overrides on `createService`: `command`, `description`,
     `workingDirectory`, `environment`, `restart`, `restartSec`, `after`,
@@ -57,6 +74,10 @@ description: >
     control whether user lingering is enabled. `restartService` restarts a
     running (or stopped) unit and verifies it is active — use it after
     replacing the service's executable, which `enable --now` does not restart.
+    `audit` takes one optional input, `serviceName` (default `all`): `all`
+    reports every model of this type, any other value limits the report to the
+    model whose name or managed unit matches it and errors if none is found.
+    The bundled workflow exposes this as `--input service=…`.
 
   WHAT IT INSTALLS
 
@@ -74,6 +95,9 @@ paths:
 
 models:
   - systemd_service.ts
+
+workflows:
+  - systemd-service-audit.yaml
 
 additionalFiles:
   - README.md

@@ -1,0 +1,50 @@
+id: e4dd31e9-f80f-4546-b2c1-c77d6249d2c6
+name: "@svendowideit/systemd-service-audit"
+description: |
+  Audit systemd-service models and units, printing an aligned table to the log.
+
+  Runs @svendowideit/systemd-service `audit` via direct type execution, so no
+  model instance name has to be known or typed. By default it reports every
+  systemd-service model on the host: live systemd unit state, declared and
+  listening TCP ports, stale reported state, drift, and orphan managed units.
+  Set `service` to audit a single model or managed unit instead — the run fails
+  if that service is not found, so a typo is never reported as "all clear".
+
+  Run:
+    swamp workflow run @svendowideit/systemd-service-audit
+    swamp workflow run @svendowideit/systemd-service-audit --input service=feedback-server
+
+  Read the structured result (services[], orphanUnits[], counts):
+    swamp data get systemd-service-audit audit --json
+inputs:
+  properties:
+    service:
+      type: string
+      default: all
+      description: >-
+        Service/model to audit. "all" (the default) audits every
+        systemd-service model; any other value audits only the model whose name
+        or managed unit matches, and fails when none is found.
+  required: []
+tags: {}
+jobs:
+  - name: main
+    description: Audit systemd-service models/units and log a table.
+    steps:
+      - name: audit
+        description: >-
+          Run audit on an auto-managed "systemd-service-audit" instance and
+          print the table to the log.
+        task:
+          type: model_method
+          modelType: "@svendowideit/systemd-service"
+          modelName: systemd-service-audit
+          methodName: audit
+          inputs:
+            serviceName: ${{ inputs.service }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

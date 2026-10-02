@@ -239,7 +239,10 @@ reports a `coverage` block, and every number names its source:
   the subset a test runs, by name.
 
 The full lists are stored, so a ratio always expands into the exact commands.
-Read them from the last run:
+Every `test`/`testAll` run that includes the `tests` phase writes the `coverage`
+resource (as does `checkCoverage` on its own), so a later reader — the
+meta-factory, or you — finds the numbers without re-running anything. Read them
+from the last run:
 
 ```sh
 # Compute (or recompute) coverage without booting a container:
@@ -456,8 +459,10 @@ Resources:
 - `summary` — the rollup from a `test`/`testAll` fan-out: extension and version,
   the shared `claims`, scenario counts, documented-test counts
   (`testCount`/`testsPassed`), the `coverage` block, and one row per scenario.
-- `coverage` — the standalone report written by `checkCoverage`: the same
-  `coverage` block plus the candidate's manifest path, name and version.
+- `coverage` — the standalone report: the same `coverage` block plus the
+  candidate's manifest path, name and version. Written by `checkCoverage`, and
+  also by any `test`/`testAll` run whose phases include `tests`, so a later
+  reader (the meta-factory, or you) can reuse it instead of recomputing.
 
 Reports and workflows:
 

@@ -27,11 +27,6 @@ export interface TypeMethods {
   type: string;
   /** Method keys found in the model's `methods:` block. */
   methods: string[];
-  /**
-   * Whether the source could be read. `false` means "unknown", so a reader can
-   * tell a model with no methods from one whose source was unavailable.
-   */
-  known: boolean;
 }
 
 /** A `swamp …` command found in a manifest description or a test step. */
@@ -319,16 +314,20 @@ export function extractCommands(text: string): CommandRef[] {
 }
 
 /**
- * The normalized matching key for a command.
+ * The normalized matching key for a command, used only for de-duplication.
  *
  * Commands that differ only by instance name collapse to the same key, so a
- * documented `… run my-caddy installCaddy` is matched by a test running
- * `… run e2e-caddy installCaddy`. The method name (and workflow name) is the
- * discriminator; everything else is structural.
+ * documented `… run my-caddy installCaddy` is deduplicated against a test
+ * running `… run e2e-caddy installCaddy`. When a model *type* is present it is
+ * kept, so `@typeA … run sync` and `@typeB … run sync` stay distinct. Instance
+ * names are always dropped.
  */
 export function documentationKey(ref: CommandRef): string {
   if (ref.group === "model" && ref.verb === "method" && ref.method) {
-    return `model.method.${normalizeName(ref.method)}`;
+    const m = normalizeName(ref.method);
+    return ref.type
+      ? `model.method.${normalizeName(ref.type)}.${m}`
+      : `model.method.${m}`;
   }
   if (ref.group === "model") return `model.${normalizeName(ref.verb)}`;
   if (ref.group === "workflow") {
@@ -337,6 +336,42 @@ export function documentationKey(ref: CommandRef): string {
       : `workflow.${normalizeName(ref.verb)}`;
   }
   return `${ref.group}.${normalizeName(ref.verb)}`;
+}
+
+/**
+ * Whether two command types are compatible for matching.
+ *
+ * An unknown type (a command that omits `@type`, e.g. `swamp model method run
+ * my-inst installCaddy`) is compatible with anything — the test bound an
+ * instance, so the type is implicit. Two *known*, different types are not
+ * compatible: running `@alpha … run sync` must not count as covering
+ * `@beta … run sync`.
+ */
+function typeCompatible(a?: string, b?: string): boolean {
+  if (!a || !b) return true;
+  return normalizeName(a) === normalizeName(b);
+}
+
+/**
+ * Whether a tested command `t` exercises a documented/declared command `d`.
+ *
+ * Matching is type-aware for model methods (so a shared method name across two
+ * types is not over-counted) and by name for workflows. For every other verb
+ * (`create`, `get`, …) any test with the same group and verb counts, matching
+ * the previous behaviour.
+ */
+function exercises(d: CommandRef, t: CommandRef): boolean {
+  if (d.group !== t.group || d.verb !== t.verb) return false;
+  if (d.group === "model" && d.verb === "method") {
+    return Boolean(d.method) && Boolean(t.method) &&
+      normalizeName(d.method!) === normalizeName(t.method!) &&
+      typeCompatible(d.type, t.type);
+  }
+  if (d.group === "workflow" && d.verb === "run") {
+    return Boolean(d.workflow) && Boolean(t.workflow) &&
+      normalizeName(d.workflow!) === normalizeName(t.workflow!);
+  }
+  return true;
 }
 
 /**
@@ -376,28 +411,14 @@ export function computeCoverage(opts: {
 }): CoverageReport {
   const documented = extractCommands(opts.description);
   const tested = testCommands(opts.tests);
-  const testedKeys = new Set(tested.map(documentationKey));
 
   const documentedCovered: string[] = [];
   const uncoveredCommands: string[] = [];
   for (const ref of documented) {
     const line = ref.command.trim();
-    if (testedKeys.has(documentationKey(ref))) documentedCovered.push(line);
+    if (tested.some((t) => exercises(ref, t))) documentedCovered.push(line);
     else uncoveredCommands.push(line);
   }
-
-  // A model method is covered when any test runs that method name, regardless of
-  // the type the manifest shows and the instance the test binds.
-  const coveredMethodNames = new Set(
-    tested
-      .filter((r) => r.group === "model" && r.method)
-      .map((r) => normalizeName(r.method!)),
-  );
-  const coveredWorkflows = new Set(
-    tested
-      .filter((r) => r.group === "workflow" && r.verb === "run" && r.workflow)
-      .map((r) => normalizeName(r.workflow!)),
-  );
 
   const methods: string[] = [];
   const methodsCovered: string[] = [];
@@ -405,14 +426,34 @@ export function computeCoverage(opts: {
     for (const name of tm.methods) {
       const label = `${tm.type}.${name}`;
       methods.push(label);
-      if (coveredMethodNames.has(normalizeName(name))) {
+      // A declared method is covered only by a test that runs the same method
+      // on the same type (or on an unspecified type, which binds an instance).
+      if (
+        tested.some((t) =>
+          exercises(
+            {
+              command: "",
+              group: "model",
+              verb: "method",
+              type: tm.type,
+              method: name,
+            },
+            t,
+          )
+        )
+      ) {
         methodsCovered.push(label);
       }
     }
   }
   const workflows = [...opts.workflows].sort();
   const workflowsCovered = workflows.filter((w) =>
-    coveredWorkflows.has(normalizeName(w))
+    tested.some((t) =>
+      exercises(
+        { command: "", group: "workflow", verb: "run", workflow: w },
+        t,
+      )
+    )
   );
 
   const byName = (a: string, b: string) => a.localeCompare(b);

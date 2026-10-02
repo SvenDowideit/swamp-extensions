@@ -161,7 +161,6 @@ Deno.test("computeCoverage measures documented and shipped-surface coverage", ()
       {
         type: "@acme/thing",
         methods: ["installCaddy", "createService", "startService"],
-        known: true,
       },
     ],
     workflows: ["@acme/thing-thing"],
@@ -207,13 +206,49 @@ Deno.test("computeCoverage reports full coverage when tests exercise everything"
   const report = computeCoverage({
     description,
     tests,
-    typeMethods: [{ type: "@a/b", methods: ["installCaddy"], known: true }],
+    typeMethods: [{ type: "@a/b", methods: ["installCaddy"] }],
     workflows: ["flow-one"],
   });
   assertEquals(report.documentedCovered, report.documentedCommands);
   assertEquals(report.surface.methodsCovered, ["@a/b.installCaddy"]);
   assertEquals(report.surface.workflowsCovered, ["flow-one"]);
   assertEquals(report.uncoveredCommands, []);
+});
+
+Deno.test("computeCoverage credits an untyped method run to any type", () => {
+  // `swamp model method run <instance> <method>` names no type, so the method
+  // name alone is the evidence — it covers every declared type's same method.
+  const report = computeCoverage({
+    description: "",
+    tests: [testWithRun("t", "swamp model method run e2e sync")],
+    typeMethods: [
+      { type: "@collective/alpha", methods: ["sync"] },
+      { type: "@collective/beta", methods: ["sync"] },
+    ],
+    workflows: [],
+  });
+  assertEquals(report.surface.methodsCovered, [
+    "@collective/alpha.sync",
+    "@collective/beta.sync",
+  ]);
+});
+
+Deno.test("computeCoverage does not credit a typed method run to another type", () => {
+  const report = computeCoverage({
+    description: "",
+    tests: [
+      testWithRun(
+        "t",
+        "swamp model @collective/alpha method run sync alpha-i",
+      ),
+    ],
+    typeMethods: [
+      { type: "@collective/alpha", methods: ["sync"] },
+      { type: "@collective/beta", methods: ["sync"] },
+    ],
+    workflows: [],
+  });
+  assertEquals(report.surface.methodsCovered, ["@collective/alpha.sync"]);
 });
 
 Deno.test("normalizeName lower-cases and strips quotes", () => {

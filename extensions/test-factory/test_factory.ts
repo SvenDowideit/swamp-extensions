@@ -1487,14 +1487,11 @@ export const model = {
           args.manifest,
           context.repoDir,
         );
-        const name = extensionSlug(candidate.name);
-        const handle = await context.writeResource("coverage", name, {
-          manifest: candidate.manifestAbs,
-          extension: candidate.name,
-          version: candidate.version,
-          ...candidate.coverage,
-          checkedAt: new Date().toISOString(),
-        });
+        const handle = await context.writeResource(
+          "coverage",
+          extensionSlug(candidate.name),
+          coverageResourceBody(candidate),
+        );
         const c = candidate.coverage;
         context.logger?.info(
           `${candidate.name}: ${c.testCount} documented test(s) run ` +
@@ -1677,6 +1674,20 @@ async function executeScenarios(
     },
   );
   handles.push(summaryHandle);
+
+  // Also write the standalone `coverage` resource (when tests ran) so a later
+  // reader — the meta-factory, or `swamp data get <model> <ext>` — finds it
+  // without re-running anything. It is instance-named by the extension slug,
+  // matching `checkCoverage`.
+  if (opts.phases.includes("tests") && candidate.tests.length > 0) {
+    handles.push(
+      await context.writeResource(
+        "coverage",
+        extensionSlug(candidate.name),
+        coverageResourceBody(candidate),
+      ),
+    );
+  }
   context.logger?.info(
     `${candidate.name}: tested ${summaries.length} scenario(s), ${passCount} passed, ${
       summaries.length - passCount
@@ -1773,6 +1784,25 @@ async function resolveCandidate(
     tests,
     system,
     coverage,
+  };
+}
+
+/**
+ * The `coverage` resource body for a candidate.
+ *
+ * Shared by `checkCoverage` and the `test`/`testAll` fan-out so every path
+ * writes the same shape (and the same instance name — the extension slug), and
+ * a later reader finds one consistent record.
+ */
+function coverageResourceBody(
+  candidate: Candidate,
+): Record<string, unknown> {
+  return {
+    manifest: candidate.manifestAbs,
+    extension: candidate.name,
+    version: candidate.version,
+    ...candidate.coverage,
+    checkedAt: new Date().toISOString(),
   };
 }
 

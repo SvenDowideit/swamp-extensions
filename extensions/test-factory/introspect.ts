@@ -46,7 +46,13 @@ export function parseExtensionManifest(text: string): ExtensionManifest {
   let inDescription = false;
   const description: string[] = [];
   for (const raw of lines) {
-    const line = raw.replace(/\s+#.*$/, "");
+    // Strip a trailing `# comment` only *outside* a description block: a
+    // documented command may legitimately contain a `#` (inside a quoted
+    // argument, or an inline comment that is part of what the user sees), and
+    // stripping it mid-block would corrupt the stored command.
+    const line = inDescription
+      ? raw.replace(/\s+$/, "")
+      : raw.replace(/\s+#.*$/, "");
     if (!line.trim()) continue;
     // Top-level key ending in a list value or opening a block.
     if (/^\S/.test(line)) {
@@ -232,7 +238,7 @@ export async function inspectExtension(
           if (!existing.methods.includes(m)) existing.methods.push(m);
         }
       } else {
-        typeMethods.push({ type, methods, known: true });
+        typeMethods.push({ type, methods });
       }
     } catch {
       // Unreadable source — skip; the load phase will fail loudly instead.

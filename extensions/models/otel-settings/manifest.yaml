@@ -1,0 +1,85 @@
+manifestVersion: 1
+name: "@svendowideit/otel-settings"
+version: "2026.10.02.1"
+description: >
+  One observability contract for a whole fleet, rendered as fetchable HTTP
+  documents.
+
+  WHAT IT DOES
+
+    Resolves a single typed observability contract — OTLP endpoint names per
+    mesh, resource-attribute conventions, sampling, retention, cardinality
+    budget, and per-tier agent defaults — and emits both a swamp resource other
+    models reference via CEL and the HTTP document set every host consumes at
+    runtime (otel.json, otel.env, per-tier agent configs, install manifests,
+    markdown, and an index.html landing page). It is the "source of truth" piece
+    of an OTel fleet: change the
+    settings in one place, and swamp publishes the contract while every agent
+    fetches it, so you never hand-edit hundreds of collector configs. Generic —
+    it knows nothing about your domains beyond the zone you give it.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/otel-settings
+
+  DEPENDENCIES
+
+    None. Optional: serve the rendered directory over HTTP(S) with
+    @svendowideit/caddy's serveSettings (wired automatically by
+    @svendowideit/settings-server).
+
+  RUN
+
+      # Create a model for your observability zone.
+      swamp model create @svendowideit/otel-settings otel \
+        --global-arg domain=otel.fi.gy \
+        --global-arg deploymentEnvironment=dev
+
+      # Resolve the contract and write the document set + current pointer.
+      swamp model method run otel render
+
+      # Read the resolved contract for scripting.
+      swamp data get otel settings --json
+
+  CONFIGURE
+
+    All arguments are optional except domain, set as global args at creation:
+
+      domain                  Observability zone; settings URL derives as settings.<domain>
+      deploymentEnvironment   deployment.environment attribute (dev/uat/prod)
+      endpoints               Gateway endpoints per mesh (otlp_grpc/otlp_http/mesh)
+      defaultMesh             Endpoint mesh to mark as default
+      attributes              Extra resource attributes merged into every agent
+      tiers                   Device tiers with agent defaults (T0-T4 shipped by default)
+      sampling                Sampling policy object
+      retention               Retention by signal, in days
+      cardinalityBudget       Maximum active metric series
+      installBaseUrl          Release-asset base URL (derived from domain if empty)
+      outputDir               Where documents are written (a current pointer lives inside)
+      authMethod              How agents authenticate (bearer/mtls/none)
+
+    Methods `validate` and `status` take no arguments; `render` accepts optional
+    outputDir and version overrides with --input.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — it only writes a document directory (default
+    ~/.local/share/otel-settings) and swamp resources. No services, cron, or
+    webhooks.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - otel_settings.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - otel_settings_test.ts
+
+platforms: []

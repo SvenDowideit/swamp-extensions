@@ -67,8 +67,56 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html" class="active">Changes</a><a href="releases.html">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-extensions-27b2fe16ef9df27e030478392d368a839f6d522a"><span class="tier A">A</span>long work-item keys no longer break the studio Board, and th</a><a href="#commit-swamp-club-swamp-37696c50340d4a45378db10cd73743874d92011e"><span class="tier A">A</span>make doctor workflows check the files the workflow loader re</a><a href="#commit-swamp-club-swamp-165ad458b9a71d3e18333ad13e35d8084d87a918"><span class="tier A">A</span>report no credential when auth.json holds only an env-key id</a><a href="#commit-swamp-club-swamp-extensions-0878be7c658df4edb7425f67413777fd60922ec8"><span class="tier A">A</span>the studio&#39;s work-item page, /w/&lt;key&gt; (swamp-club #2944) (#4</a><a href="#commit-swamp-club-swamp-extensions-824309c26ff39f89432405fc1fbe36ac1fb032fd"><span class="tier A">A</span>prepare for publication: explicit specifiers, JSDoc, depende</a><a href="#commit-swamp-club-swamp-extensions-d0b460c46cffdf5987a9624d7c903ee59a9d4dac"><span class="tier A">A</span>getting started and the authoring interview ask one question</a><a href="#commit-swamp-club-swamp-extensions-2bc9313e4e5ab7eb2d076aa687654dfb81576c98"><span class="tier A">A</span>the studio&#39;s Board view, view addresses, and the work item&#39;s</a><a href="#commit-swamp-club-swamp-extensions-9b7f2577ef88beaa874becae4e625c9e70490903"><span class="tier A">A</span>the Linear adapter assigns the issue when work starts (swamp</a><a href="#commit-swamp-club-swamp-9f9302582b39ea0e4d3b20072f7a65c575bf02bb"><span class="tier A">A</span>cap per-model lock backoff at 250ms so queued waiters stay n</a><a href="#commit-swamp-club-swamp-7970ba20f6dffccf4ed5ffc437c9feaa41de6962"><span class="tier A">A</span>stop treating non-workflow extension YAML as broken workflow</a><a href="#commit-swamp-club-swamp-extensions-5051735f7767e49c0ace451646c404df6f8aac0d"><span class="tier A">A</span>a getting-started walkthrough for a first factory, and incid</a><a href="#commit-swamp-club-swamp-extensions-a91d0770f94660c73cf188b6361d24497de0574f"><span class="tier A">A</span>rename gatorwalk-factory to stagecraft for first release (sw</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-aafdc60814c30e8d828be4f5da9124ce92ed2137"><span class="tier A">A</span>keep one latest version per data name when several workflow </a><a href="#commit-swamp-club-swamp-06412dc5571f298f13e798d6fa3d87fdaeb6125a"><span class="tier A">A</span>stop repo upgrade wiring a second audit hook beside an exist</a><a href="#commit-swamp-club-swamp-5bbe1e79c5aa675c60eaa63a63515853d1da3cf1"><span class="tier A">A</span>stop concurrent runs clearing the lock-holder marker (swamp-</a><a href="#commit-swamp-club-swamp-0e7933508be10f51291571ce551639fd795250c6"><span class="tier A">A</span>stop the redactor reading file names like settings.local.jso</a><a href="#commit-swamp-club-swamp-extensions-dc6f12e27806e3066ee329d4baf6a29f2951d5ed"><span class="tier A">A</span>short work-item ids: a tracker prefix plus a counter, the ti</a><a href="#commit-swamp-club-swamp-f095d238bf24748f84ee64c5d503e8dac1b4b2e3"><span class="tier A">A</span>deprecate data get in favor of data query (swamp-club#2948) </a><a href="#commit-swamp-club-swamp-extensions-27b2fe16ef9df27e030478392d368a839f6d522a"><span class="tier A">A</span>long work-item keys no longer break the studio Board, and th</a><a href="#commit-swamp-club-swamp-37696c50340d4a45378db10cd73743874d92011e"><span class="tier A">A</span>make doctor workflows check the files the workflow loader re</a><a href="#commit-swamp-club-swamp-165ad458b9a71d3e18333ad13e35d8084d87a918"><span class="tier A">A</span>report no credential when auth.json holds only an env-key id</a><a href="#commit-swamp-club-swamp-extensions-0878be7c658df4edb7425f67413777fd60922ec8"><span class="tier A">A</span>the studio&#39;s work-item page, /w/&lt;key&gt; (swamp-club #2944) (#4</a><a href="#commit-swamp-club-swamp-extensions-824309c26ff39f89432405fc1fbe36ac1fb032fd"><span class="tier A">A</span>prepare for publication: explicit specifiers, JSDoc, depende</a><a href="#commit-swamp-club-swamp-extensions-d0b460c46cffdf5987a9624d7c903ee59a9d4dac"><span class="tier A">A</span>getting started and the authoring interview ask one question</a></aside><div>
 
+<article class="item" id="commit-swamp-club-swamp-aafdc60814c30e8d828be4f5da9124ce92ed2137">
+<h2><span class="tier A">A</span>keep one latest version per data name when several workflow steps write it (swamp-club#2520) (#2800)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-02T17:49:05Z">2026-10-02T17:49:05Z</time></span><span>data</span><span>fix</span></div>
+<div class="body"><p>fix(data): keep one latest version per data name when several workflow steps write it (swamp-club#2520) (#2800)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/aafdc60814c30e8d828be4f5da9124ce92ed2137" rel="noopener">aafdc608</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2800" rel="noopener">#2800</a>𝗔 <a href="https://swamp-club.com/lab/2520" rel="noopener">lab#2520</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-06412dc5571f298f13e798d6fa3d87fdaeb6125a">
+<h2><span class="tier A">A</span>stop repo upgrade wiring a second audit hook beside an existing one (swamp-club#2881) (#2799)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-02T17:46:26Z">2026-10-02T17:46:26Z</time></span><span>audit</span><span>fix</span></div>
+<div class="body"><p>fix(audit): stop repo upgrade wiring a second audit hook beside an existing one (swamp-club#2881) (#2799)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/06412dc5571f298f13e798d6fa3d87fdaeb6125a" rel="noopener">06412dc5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2799" rel="noopener">#2799</a>𝗔 <a href="https://swamp-club.com/lab/2881" rel="noopener">lab#2881</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-5bbe1e79c5aa675c60eaa63a63515853d1da3cf1">
+<h2><span class="tier A">A</span>stop concurrent runs clearing the lock-holder marker (swamp-club#2659) (#2798)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-02T17:41:02Z">2026-10-02T17:41:02Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><p>fix(datastore): stop concurrent runs clearing the lock-holder marker (swamp-club#2659) (#2798)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5bbe1e79c5aa675c60eaa63a63515853d1da3cf1" rel="noopener">5bbe1e79</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2798" rel="noopener">#2798</a>𝗔 <a href="https://swamp-club.com/lab/2659" rel="noopener">lab#2659</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-0e7933508be10f51291571ce551639fd795250c6">
+<h2><span class="tier A">A</span>stop the redactor reading file names like settings.local.json as hostnames (swamp-club#2882) (#2797)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-02T17:23:51Z">2026-10-02T17:23:51Z</time></span><span>issues</span><span>fix</span></div>
+<div class="body"><p>fix(issues): stop the redactor reading file names like settings.local.json as hostnames (swamp-club#2882) (#2797)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0e7933508be10f51291571ce551639fd795250c6" rel="noopener">0e793350</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2797" rel="noopener">#2797</a>𝗔 <a href="https://swamp-club.com/lab/2882" rel="noopener">lab#2882</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-dc6f12e27806e3066ee329d4baf6a29f2951d5ed">
+<h2><span class="tier A">A</span>short work-item ids: a tracker prefix plus a counter, the ticket&#39;s id for external trackers, and -2 for later work (swamp-club #2966) (#443)</h2>
+<p class="lede">`feat` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-10-02T17:22:19Z">2026-10-02T17:22:19Z</time></span><span>stagecraft</span><span>feat</span></div>
+<div class="body"><p>feat(stagecraft): short work-item ids: a tracker prefix plus a counter, the ticket&#39;s id for external trackers, and -2 for later work (swamp-club #2966) (#443)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/dc6f12e27806e3066ee329d4baf6a29f2951d5ed" rel="noopener">dc6f12e2</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/443" rel="noopener">#443</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2966" rel="noopener">#2966</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-f095d238bf24748f84ee64c5d503e8dac1b4b2e3">
+<h2><span class="tier A">A</span>deprecate data get in favor of data query (swamp-club#2948) (#2796)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-02T17:19:41Z">2026-10-02T17:19:41Z</time></span><span>data</span><span>feat</span></div>
+<div class="body"><p>feat(data): deprecate data get in favor of data query (swamp-club#2948) (#2796)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f095d238bf24748f84ee64c5d503e8dac1b4b2e3" rel="noopener">f095d238</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2796" rel="noopener">#2796</a>𝗔 <a href="https://swamp-club.com/lab/2948" rel="noopener">lab#2948</a></div>
+</article>
 <article class="item" id="commit-swamp-club-swamp-extensions-27b2fe16ef9df27e030478392d368a839f6d522a">
 <h2><span class="tier A">A</span>long work-item keys no longer break the studio Board, and the key is not repeated (swamp-club #2963) (#442)</h2>
 <p class="lede">`fix` change · swamp-club/swamp-extensions</p>
@@ -117,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/d0b460c46cffdf5987a9624d7c903ee59a9d4dac" rel="noopener">d0b460c4</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/439" rel="noopener">#439</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2950" rel="noopener">#2950</a></div>
 </article>
-<article class="item" id="commit-swamp-club-swamp-extensions-2bc9313e4e5ab7eb2d076aa687654dfb81576c98">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-extensions-2bc9313e4e5ab7eb2d076aa687654dfb81576c98">
 <h2><span class="tier A">A</span>the studio&#39;s Board view, view addresses, and the work item&#39;s title (swamp-club #2943) (#438)</h2>
 <p class="lede">`feat` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-10-02T15:24:05Z">2026-10-02T15:24:05Z</time></span><span>stagecraft</span><span>feat</span></div>
@@ -165,7 +213,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/a91d0770f94660c73cf188b6361d24497de0574f" rel="noopener">a91d0770</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/431" rel="noopener">#431</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2932" rel="noopener">#2932</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-extensions-eb80ae4ea56582a97b26106c05617d2a2cc73460">
+<article class="item" id="commit-swamp-club-swamp-extensions-eb80ae4ea56582a97b26106c05617d2a2cc73460">
 <h2><span class="tier A">A</span>close out the initial-release review follow-ups (swamp-club #2936) (#430)</h2>
 <p class="lede">`fix` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-10-02T01:42:46Z">2026-10-02T01:42:46Z</time></span><span>tailscale</span><span>fix</span></div>
@@ -558,13 +606,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/7dbd8d5ff29f8e1fcf15f230b7993d3823bb99ba" rel="noopener">7dbd8d5f</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/436" rel="noopener">#436</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2819" rel="noopener">#2819</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>61 items across 2 source(s) in this window:
-0 critical, 58 notable, 2 routine,
+<p>67 items across 2 source(s) in this window:
+0 critical, 64 notable, 2 routine,
 1 minor.</p>
-<ul><li><strong>fix</strong> — 30</li><li><strong>feat</strong> — 28</li><li><strong>chore</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
+<ul><li><strong>fix</strong> — 34</li><li><strong>feat</strong> — 30</li><li><strong>chore</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-02T17:02:04.433Z">2026-10-02T17:02:04.433Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-02T18:02:05.331Z">2026-10-02T18:02:05.331Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

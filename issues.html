@@ -67,8 +67,56 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2963"><span class="tier A">A</span>stagecraft studio: long work-item keys overflow Board cards,</a><a href="#issue-2942"><span class="tier A">A</span>swamp doctor workflows misses nested and .yml extension work</a><a href="#issue-2954"><span class="tier A">A</span>verify-reviews reports provider-error when a passing review </a><a href="#issue-2928"><span class="tier A">A</span>auth whoami says the stored API key is no longer valid when </a><a href="#issue-2921"><span class="tier A">A</span>Docs: swamp skill says cancelling a parent run cancels its n</a><a href="#issue-2944"><span class="tier A">A</span>stagecraft studio: a work-item view showing where one item i</a><a href="#issue-2947"><span class="tier A">A</span>stagecraft: prepare for publication: manifest, swamp&#39;s exten</a><a href="#issue-2850"><span class="tier A">A</span>audit_deps does not scan gatorwalk-factory&#39;s lockfile</a><a href="#issue-2950"><span class="tier A">A</span>stagecraft skill: getting started asks every question at onc</a><a href="#issue-2943"><span class="tier A">A</span>stagecraft studio: a Board view of every work item by stage</a><a href="#issue-2941"><span class="tier A">A</span>Namespace advice in the slow-lock warning is wrong for a sin</a><a href="#issue-2945"><span class="tier A">A</span>stagecraft: the Linear adapter assigns the issue when work s</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2520"><span class="tier A">A</span>Versions written by different steps of one workflow run all </a><a href="#issue-2881"><span class="tier A">A</span>`swamp repo upgrade` adds its canonical Claude audit hook ne</a><a href="#issue-2659"><span class="tier A">A</span>acquireModelLocks writes SWAMP_LOCK_HOLDER_PID to process-gl</a><a href="#issue-2882"><span class="tier A">A</span>`swamp issue bug` redactor treats the file name `settings.lo</a><a href="#issue-2966"><span class="tier A">A</span>stagecraft: short work-item ids: a tracker prefix plus a cou</a><a href="#issue-2948"><span class="tier A">A</span>data get --workflow silently returns an arbitrary step&#39;s dat</a><a href="#issue-2963"><span class="tier A">A</span>stagecraft studio: long work-item keys overflow Board cards,</a><a href="#issue-2942"><span class="tier A">A</span>swamp doctor workflows misses nested and .yml extension work</a><a href="#issue-2954"><span class="tier A">A</span>verify-reviews reports provider-error when a passing review </a><a href="#issue-2928"><span class="tier A">A</span>auth whoami says the stored API key is no longer valid when </a><a href="#issue-2921"><span class="tier A">A</span>Docs: swamp skill says cancelling a parent run cancels its n</a><a href="#issue-2944"><span class="tier A">A</span>stagecraft studio: a work-item view showing where one item i</a></aside><div>
 
+<article class="item" id="issue-2520">
+<h2><span class="tier A">A</span>Versions written by different steps of one workflow run all stay isLatest=true (data query / readModelData / queryData return stale &quot;latest&quot;)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-02T18:00:30.585Z">2026-10-02T18:00:30.585Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2520" rel="noopener">lab#2520</a></div>
+</article>
+<article class="item" id="issue-2881">
+<h2><span class="tier A">A</span>`swamp repo upgrade` adds its canonical Claude audit hook next to an existing variant, so every command is recorded twice</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-02T17:49:11.242Z">2026-10-02T17:49:11.242Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2881" rel="noopener">lab#2881</a></div>
+</article>
+<article class="item" id="issue-2659">
+<h2><span class="tier A">A</span>acquireModelLocks writes SWAMP_LOCK_HOLDER_PID to process-global env, so concurrent runs in one process clobber each other</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-02T17:43:22.268Z">2026-10-02T17:43:22.268Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2659" rel="noopener">lab#2659</a></div>
+</article>
+<article class="item" id="issue-2882">
+<h2><span class="tier A">A</span>`swamp issue bug` redactor treats the file name `settings.local.json` as a hostname and rewrites it to `[HOST-1].json`</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-02T17:26:21.604Z">2026-10-02T17:26:21.604Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2882" rel="noopener">lab#2882</a></div>
+</article>
+<article class="item" id="issue-2966">
+<h2><span class="tier A">A</span>stagecraft: short work-item ids: a tracker prefix plus a counter (blog-12), the ticket&#39;s id for external trackers (abc-12), and -2 for later work on the same ticket</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-02T17:22:32.006Z">2026-10-02T17:22:32.006Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2966" rel="noopener">lab#2966</a></div>
+</article>
+<article class="item" id="issue-2948">
+<h2><span class="tier A">A</span>data get --workflow silently returns an arbitrary step&#39;s data when several steps share a data name</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-02T17:21:57.359Z">2026-10-02T17:21:57.359Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2948" rel="noopener">lab#2948</a></div>
+</article>
 <article class="item" id="issue-2963">
 <h2><span class="tier A">A</span>stagecraft studio: long work-item keys overflow Board cards, and the built-in tracker ref repeats the key</h2>
 <p class="lede">Shipped bug fix</p>
@@ -117,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2944" rel="noopener">lab#2944</a></div>
 </article>
-<article class="item" id="issue-2947">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2947">
 <h2><span class="tier A">A</span>stagecraft: prepare for publication: manifest, swamp&#39;s extension checks (fmt, quality, push --dry-run), repo verification, packaged install</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-02T16:02:43.286Z">2026-10-02T16:02:43.286Z</time></span></div>
@@ -165,7 +213,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2945" rel="noopener">lab#2945</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2819">
+<article class="item" id="issue-2819">
 <h2><span class="tier A">A</span>stagecraft: a user-facing README for first release (what it is, getting started, studio, trackers)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-02T13:25:02.575Z">2026-10-02T13:25:02.575Z</time></span></div>
@@ -757,61 +805,77 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-2843">
+<h2><span class="tier B">B</span>deployments: sync fails after adopt/get because stored state has id, not uid</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-02T18:01:34.628Z">2026-10-02T18:01:34.628Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2843" rel="noopener">lab#2843</a></div>
+</article>
+<article class="item" id="issue-2962">
+<h2><span class="tier B">B</span>data query: confirm catalog parity with data get for custom datastores</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-02T18:01:22.989Z">2026-10-02T18:01:22.989Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2962" rel="noopener">lab#2962</a></div>
+</article>
+<article class="item" id="issue-2961">
+<h2><span class="tier B">B</span>data query: single-result --json mode for scripts migrating from data get</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-02T18:00:37.932Z">2026-10-02T18:00:37.932Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2961" rel="noopener">lab#2961</a></div>
+</article>
+<article class="item" id="issue-2904">
+<h2><span class="tier B">B</span>Extension content extractor truncates metadata when a string, comment or regex contains an unpaired brace</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-02T18:00:16.024Z">2026-10-02T18:00:16.024Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2904" rel="noopener">lab#2904</a></div>
+</article>
+<article class="item" id="issue-2970">
+<h2><span class="tier B">B</span>Datastore rework Phase 1: UnitOfWork port and legacy adapter (no behaviour change)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-02T17:58:58.517Z">2026-10-02T17:58:58.517Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2970" rel="noopener">lab#2970</a></div>
+</article>
 <article class="item" id="issue-2949">
 <h2><span class="tier B">B</span>extension push: eval()/new Function() safety check is a substring match and blocks obj.eval( method calls in bundled libraries</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-02T17:01:20.877Z">2026-10-02T17:01:20.877Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-02T17:57:51.382Z">2026-10-02T17:57:51.382Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2949" rel="noopener">lab#2949</a></div>
 </article>
-<article class="item" id="issue-2520">
-<h2><span class="tier B">B</span>Versions written by different steps of one workflow run all stay isLatest=true (data query / readModelData / queryData return stale &quot;latest&quot;)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-02T17:00:42.480Z">2026-10-02T17:00:42.480Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2520" rel="noopener">lab#2520</a></div>
-</article>
-<article class="item" id="issue-2659">
-<h2><span class="tier B">B</span>acquireModelLocks writes SWAMP_LOCK_HOLDER_PID to process-global env, so concurrent runs in one process clobber each other</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-02T16:50:00.195Z">2026-10-02T16:50:00.195Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2659" rel="noopener">lab#2659</a></div>
-</article>
-<article class="item" id="issue-2948">
-<h2><span class="tier B">B</span>data get --workflow silently returns an arbitrary step&#39;s data when several steps share a data name</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-02T16:47:22.205Z">2026-10-02T16:47:22.205Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2948" rel="noopener">lab#2948</a></div>
-</article>
-<article class="item" id="issue-2966">
-<h2><span class="tier B">B</span>stagecraft: short work-item ids: a tracker prefix plus a counter (blog-12), the ticket&#39;s id for external trackers (abc-12), and -2 for later work on the same ticket</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-02T16:43:44.479Z">2026-10-02T16:43:44.479Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2966" rel="noopener">lab#2966</a></div>
-</article>
-<article class="item" id="issue-2882">
-<h2><span class="tier B">B</span>`swamp issue bug` redactor treats the file name `settings.local.json` as a hostname and rewrites it to `[HOST-1].json`</h2>
+<article class="item" id="issue-2846">
+<h2><span class="tier B">B</span>Model add-ons that extend a built-in model type never attach in CLI processes</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-02T16:21:52.313Z">2026-10-02T16:21:52.313Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-02T17:54:29.129Z">2026-10-02T17:54:29.129Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2882" rel="noopener">lab#2882</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2846" rel="noopener">lab#2846</a></div>
 </article>
-<article class="item" id="issue-2881">
-<h2><span class="tier B">B</span>`swamp repo upgrade` adds its canonical Claude audit hook next to an existing variant, so every command is recorded twice</h2>
+<article class="item" id="issue-2955">
+<h2><span class="tier B">B</span>A nested structural swamp spawned by swamp serve skips every lock serve holds, including other runs&#39; locks</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-02T16:10:55.764Z">2026-10-02T16:10:55.764Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-02T17:53:54.686Z">2026-10-02T17:53:54.686Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2881" rel="noopener">lab#2881</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2955" rel="noopener">lab#2955</a></div>
+</article>
+<article class="item" id="issue-2969">
+<h2><span class="tier B">B</span>stagecraft studio: a Ticket tab on the work-item page (description, comments, relations), and the nav shows where you are</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-02T17:51:12.958Z">2026-10-02T17:51:12.958Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2969" rel="noopener">lab#2969</a></div>
 </article>
 <article class="item" id="issue-2868">
 <h2><span class="tier B">B</span>managedConfig: model/vault create and other bulk-push commands re-upload a stale extension lockfile and erase peers&#39; entries</h2>
@@ -821,7 +885,63 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2959">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2975">
+<h2><span class="tier C">C</span>findBySpec/findByTag lose a workflow step&#39;s output after a version is deleted, pruned or rolled back</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T17:53:18.950Z">2026-10-02T17:53:18.950Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2975" rel="noopener">lab#2975</a></div>
+</article>
+<article class="item" id="issue-2973">
+<h2><span class="tier C">C</span>Docs: document data query --single and fix the stale --limit default in reference/data.md</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T17:51:50.331Z">2026-10-02T17:51:50.331Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2973" rel="noopener">lab#2973</a></div>
+</article>
+<article class="item" id="issue-2974">
+<h2><span class="tier C">C</span>stagecraft: stop relying on the CLI&#39;s swamp data get</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T17:51:38.555Z">2026-10-02T17:51:38.555Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2974" rel="noopener">lab#2974</a></div>
+</article>
+<article class="item" id="issue-2956">
+<h2><span class="tier C">C</span>stagecraft studio work-item page: follow-ups from the #2944 reviews</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T17:42:16.135Z">2026-10-02T17:42:16.135Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2956" rel="noopener">lab#2956</a></div>
+</article>
+<article class="item" id="issue-2972">
+<h2><span class="tier C">C</span>data query: does not follow data rename forwarding that data get follows</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T17:41:06.002Z">2026-10-02T17:41:06.002Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2972" rel="noopener">lab#2972</a></div>
+</article>
+<article class="item" id="issue-2971">
+<h2><span class="tier C">C</span>Datastore rework Phase 1: optional ambient unit of work in repositories (no behaviour change)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T17:28:53.495Z">2026-10-02T17:28:53.495Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2971" rel="noopener">lab#2971</a></div>
+</article>
+<article class="item" id="issue-2864">
+<h2><span class="tier C">C</span>CI: run swamp-uat&#39;s datastore suite against the PR binary for PRs touching datastore code</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T17:23:52.436Z">2026-10-02T17:23:52.436Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2864" rel="noopener">lab#2864</a></div>
+</article>
+<article class="item" id="issue-2959">
 <h2><span class="tier C">C</span>data query: binary content lacks contentEncoding/base64 parity with data get</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-02T16:28:29.797Z">2026-10-02T16:28:29.797Z</time></span></div>
@@ -852,30 +972,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2965" rel="noopener">lab#2965</a></div>
-</article>
-<article class="item" id="issue-2956">
-<h2><span class="tier C">C</span>stagecraft studio work-item page: follow-ups from the #2944 reviews</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-02T16:01:07.997Z">2026-10-02T16:01:07.997Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2956" rel="noopener">lab#2956</a></div>
-</article>
-<article class="item" id="issue-2962">
-<h2><span class="tier C">C</span>data query: confirm catalog parity with data get for custom datastores</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-02T15:57:32.299Z">2026-10-02T15:57:32.299Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2962" rel="noopener">lab#2962</a></div>
-</article>
-<article class="item" id="issue-2961">
-<h2><span class="tier C">C</span>data query: single-result --json mode for scripts migrating from data get</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-02T15:57:31.028Z">2026-10-02T15:57:31.028Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2961" rel="noopener">lab#2961</a></div>
 </article>
 <article class="item" id="issue-2960">
 <h2><span class="tier C">C</span>data query: model lookup by id and orphan recovery parity with data get</h2>
@@ -908,14 +1004,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2937" rel="noopener">lab#2937</a></div>
-</article>
-<article class="item" id="issue-2955">
-<h2><span class="tier C">C</span>A nested structural swamp spawned by swamp serve skips every lock serve holds, including other runs&#39; locks</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-02T15:52:11.233Z">2026-10-02T15:52:11.233Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2955" rel="noopener">lab#2955</a></div>
 </article>
 <article class="item" id="issue-2953">
 <h2><span class="tier C">C</span>Show the redaction diff and ask for confirmation before submitting an issue in log mode</h2>
@@ -1189,14 +1277,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2905" rel="noopener">lab#2905</a></div>
 </article>
-<article class="item" id="issue-2904">
-<h2><span class="tier C">C</span>Extension content extractor truncates metadata when a string, comment or regex contains an unpaired brace</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T17:14:22.457Z">2026-10-01T17:14:22.457Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2904" rel="noopener">lab#2904</a></div>
-</article>
 <article class="item" id="issue-2891">
 <h2><span class="tier C">C</span>gatorwalk-factory studio: Simulate follow-ups from #2808&#39;s reviews (stuck Run tab on an unrunnable walk, settling states)</h2>
 <p class="lede">Open issue</p>
@@ -1326,13 +1406,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2800" rel="noopener">lab#2800</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>157 items across 1 source(s) in this window:
-0 critical, 86 notable, 8 routine,
-63 minor.</p>
-<ul><li><strong>issues</strong> — 157</li></ul></section>
+<p>167 items across 1 source(s) in this window:
+0 critical, 92 notable, 10 routine,
+65 minor.</p>
+<ul><li><strong>issues</strong> — 167</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-02T17:02:04.433Z">2026-10-02T17:02:04.433Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-02T18:02:05.331Z">2026-10-02T18:02:05.331Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

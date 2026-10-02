@@ -67,8 +67,30 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261002-134558-0-sha-9f930258"><span class="tier A">A</span>cap per-model lock backoff at 250ms so queued waiters stay n</a><a href="#release-swamp-club-swamp-v20261002-133824-0-sha-7970ba20"><span class="tier A">A</span>stop treating non-workflow extension YAML as broken workflow</a><a href="#release-swamp-club-swamp-v20261002-023954-0-sha-7a5db14e"><span class="tier A">A</span>keep --json stderr one JSON document when an offline run fai</a><a href="#release-swamp-club-swamp-v20261002-011819-0-sha-0c4d819d"><span class="tier A">A</span>settle method runs a dead owner left running, and close a ki</a><a href="#release-swamp-club-swamp-v20261002-005436-0-sha-8a5e1aec"><span class="tier A">A</span>run the config rejection tests in-process so the auth gate c</a><a href="#release-swamp-club-swamp-v20261002-002942-0-sha-ef563473"><span class="tier A">A</span>honest offline warning when the fail-open window can&#39;t be re</a><a href="#release-swamp-club-swamp-v20261002-000056-0-sha-a1e4cae5"><span class="tier A">A</span>rebuild the dispatched definition with fromData so a legacy-</a><a href="#release-swamp-club-swamp-v20261001-230653-0-sha-fc260909"><span class="tier A">A</span>wait for a cancelled run&#39;s in-flight model methods so their </a><a href="#release-swamp-club-swamp-v20261001-224247-0-sha-5b6d5372"><span class="tier A">A</span>never hand the signin token down, and bound nested-pass proo</a><a href="#release-swamp-club-swamp-v20261001-221437-0-sha-798ded85"><span class="tier A">A</span>reject an invalid model or workflow name with a validation e</a><a href="#release-swamp-club-swamp-v20261001-215953-0-sha-74761180"><span class="tier A">A</span>never let model cancel signal a swamp serve process (swamp-c</a><a href="#release-swamp-club-swamp-v20261001-202145-0-sha-a3515474"><span class="tier A">A</span>let model cancel wait out the step&#39;s kill grace so the run r</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261002-150312-0-sha-bb99a01a"><span class="tier A">A</span>give namespace advice on a slow lock only when a namespace c</a><a href="#release-swamp-club-swamp-v20261002-134558-0-sha-9f930258"><span class="tier A">A</span>cap per-model lock backoff at 250ms so queued waiters stay n</a><a href="#release-swamp-club-swamp-v20261002-133824-0-sha-7970ba20"><span class="tier A">A</span>stop treating non-workflow extension YAML as broken workflow</a><a href="#release-swamp-club-swamp-v20261002-023954-0-sha-7a5db14e"><span class="tier A">A</span>keep --json stderr one JSON document when an offline run fai</a><a href="#release-swamp-club-swamp-v20261002-011819-0-sha-0c4d819d"><span class="tier A">A</span>settle method runs a dead owner left running, and close a ki</a><a href="#release-swamp-club-swamp-v20261002-005436-0-sha-8a5e1aec"><span class="tier A">A</span>run the config rejection tests in-process so the auth gate c</a><a href="#release-swamp-club-swamp-v20261002-002942-0-sha-ef563473"><span class="tier A">A</span>honest offline warning when the fail-open window can&#39;t be re</a><a href="#release-swamp-club-swamp-v20261002-000056-0-sha-a1e4cae5"><span class="tier A">A</span>rebuild the dispatched definition with fromData so a legacy-</a><a href="#release-swamp-club-swamp-v20261001-230653-0-sha-fc260909"><span class="tier A">A</span>wait for a cancelled run&#39;s in-flight model methods so their </a><a href="#release-swamp-club-swamp-v20261001-224247-0-sha-5b6d5372"><span class="tier A">A</span>never hand the signin token down, and bound nested-pass proo</a><a href="#release-swamp-club-swamp-v20261001-221437-0-sha-798ded85"><span class="tier A">A</span>reject an invalid model or workflow name with a validation e</a><a href="#release-swamp-club-swamp-v20261001-215953-0-sha-74761180"><span class="tier A">A</span>never let model cancel signal a swamp serve process (swamp-c</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261002-150312-0-sha-bb99a01a">
+<h2><span class="tier A">A</span>give namespace advice on a slow lock only when a namespace can help (swamp-club#2941) (#2792)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-02T15:05:06Z">2026-10-02T15:05:06Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): give namespace advice on a slow lock only when a namespace can help (swamp-club#2941) (#2792)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A lock wait over 5 s printed advice to run <code>swamp datastore namespace set</code>, even for one repo on its own local datastore. In the reported case (a wide <code>forEach</code> against one model instance), the wait was on the <strong>per-model</strong> lock inside a single process. Per-model lock keys are already scoped by model type and id, so a namespace could never help.</p>
+<ul>
+<li>New domain policy <code>slowLockAdvice</code> and query <code>isShareableDatastore</code> (<code>src/domain/datastore/slow_lock_advice.ts</code>).</li>
+<li><strong>Per-model lock:</strong> the misleading advice is replaced by a warning naming the real cause: <code>Lock on model &quot;&lt;type&gt;/&lt;id&gt;&quot; took Nms — concurrent runs against one model instance take turns on its lock</code>.</li>
+<li><strong>Global lock:</strong> namespace advice only when no namespace is set and another repo can reach the datastore. Extension datastores always count as shareable; a filesystem datastore counts unless it is the repo&#39;s own <code>.swamp</code>.</li>
+<li><code>registerDatastoreSyncNamed</code> takes an optional <code>slowLockScope</code>, and every lock caller passes one. The push paths in <code>repo_context.ts</code> share the same advice text, and their output is unchanged.</li>
+<li>The filesystem global-lock registration now passes its namespace, so namespaced filesystem repos aren&#39;t told to set one. That registration has no sync service, so nothing else reads it.</li>
+<li><code>design/enablers/datastores.md</code> documents the slow-lock advice.</li>
+</ul>
+<p>Lock behaviour is</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.150312.0-sha.bb99a01a" rel="noopener">release v20261002.150312.0-sha.bb99a01a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb99a01a51fb1b0084b2a49402996a55ec962f43" rel="noopener">bb99a01a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2792" rel="noopener">#2792</a>𝗔 <a href="https://swamp-club.com/lab/2941" rel="noopener">lab#2941</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261002-134558-0-sha-9f930258">
 <h2><span class="tier A">A</span>cap per-model lock backoff at 250ms so queued waiters stay near the release (swamp-club#2870) (#2791)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -319,7 +341,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.215953.0-sha.74761180" rel="noopener">release v20261001.215953.0-sha.74761180</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7476118097d901c408c7ac4d0a39925e84eace82" rel="noopener">74761180</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2780" rel="noopener">#2780</a>𝗔 <a href="https://swamp-club.com/lab/2914" rel="noopener">lab#2914</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261001-202145-0-sha-a3515474">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261001-202145-0-sha-a3515474">
 <h2><span class="tier A">A</span>let model cancel wait out the step&#39;s kill grace so the run records its own cancellation (swamp-club#2910) (#2779)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-01T20:23:21Z">2026-10-01T20:23:21Z</time></span><span>model</span><span>fix</span></div>
@@ -339,7 +361,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.202145.0-sha.a3515474" rel="noopener">release v20261001.202145.0-sha.a3515474</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a35154745f2f71973fc1b03958c5e3512761ee6a" rel="noopener">a3515474</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2779" rel="noopener">#2779</a>𝗔 <a href="https://swamp-club.com/lab/2910" rel="noopener">lab#2910</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261001-200003-0-sha-20038a2c">
+<article class="item" id="release-swamp-club-swamp-v20261001-200003-0-sha-20038a2c">
 <h2><span class="tier A">A</span>settle a cancelled run&#39;s unfinished jobs and steps on every cancel path (swamp-club#2895) (#2778)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-01T20:01:46Z">2026-10-01T20:01:46Z</time></span><span>workflows</span><span>fix</span></div>
@@ -749,9 +771,9 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.060930.0-sha.ccae15a5" rel="noopener">release v20261001.060930.0-sha.ccae15a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ccae15a547ef51d5186e3d21f5492683bea56882" rel="noopener">ccae15a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2758" rel="noopener">#2758</a>𝗔 <a href="https://swamp-club.com/lab/2866" rel="noopener">lab#2866</a></div>
 </article></section>
 <section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261002-155715-0-sha-be148809">
-<h2><span class="tier C">C</span>swamp 20261002.155715.0-sha.be148809</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-02T15:58:57Z">2026-10-02T15:58:57Z</time></span></div>
+<h2><span class="tier C">C</span>say a cancelled suspended parent leaves its nested child suspended (swamp-club#2921) (#2793)</h2>
+<p class="lede">`docs` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-02T15:58:57Z">2026-10-02T15:58:57Z</time></span><span>skill</span><span>docs</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>docs(skill): say a cancelled suspended parent leaves its nested child suspended (swamp-club#2921) (#2793)</li>
@@ -769,29 +791,7 @@ footer .ver{color:var(--acc)}
 </ul>
 <p><code>design/primitives/workflows.md</code> and <code>nested-workflows.md</code> already describe this correctly, so neithe</p></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.155715.0-sha.be148809" rel="noopener">release v20261002.155715.0-sha.be148809</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/be148809" rel="noopener">be148809</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2793" rel="noopener">#2793</a>𝗔 <a href="https://swamp-club.com/lab/2921" rel="noopener">lab#2921</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261002-150312-0-sha-bb99a01a">
-<h2><span class="tier C">C</span>swamp 20261002.150312.0-sha.bb99a01a</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-02T15:05:06Z">2026-10-02T15:05:06Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(datastore): give namespace advice on a slow lock only when a namespace can help (swamp-club#2941) (#2792)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>A lock wait over 5 s printed advice to run <code>swamp datastore namespace set</code>, even for one repo on its own local datastore. In the reported case (a wide <code>forEach</code> against one model instance), the wait was on the <strong>per-model</strong> lock inside a single process. Per-model lock keys are already scoped by model type and id, so a namespace could never help.</p>
-<ul>
-<li>New domain policy <code>slowLockAdvice</code> and query <code>isShareableDatastore</code> (<code>src/domain/datastore/slow_lock_advice.ts</code>).</li>
-<li><strong>Per-model lock:</strong> the misleading advice is replaced by a warning naming the real cause: <code>Lock on model &quot;&lt;type&gt;/&lt;id&gt;&quot; took Nms — concurrent runs against one model instance take turns on its lock</code>.</li>
-<li><strong>Global lock:</strong> namespace advice only when no namespace is set and another repo can reach the datastore. Extension datastores always count as shareable; a filesystem datastore counts unless it is the repo&#39;s own <code>.swamp</code>.</li>
-<li><code>registerDatastoreSyncNamed</code> takes an optional <code>slowLockScope</code>, and every lock caller passes one. The push paths in <code>repo_context.ts</code> share the same advice text, and their output is unchanged.</li>
-<li>The filesystem global-lock registration now passes its namespace, so namespaced filesystem repos aren&#39;t told to set one. That registration has no sync service, so nothing else reads it.</li>
-<li><code>design/enablers/datastores.md</code> documents the slow-lock advice.</li>
-</ul>
-<p>Lock behaviour is</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.150312.0-sha.bb99a01a" rel="noopener">release v20261002.150312.0-sha.bb99a01a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb99a01a" rel="noopener">bb99a01a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2792" rel="noopener">#2792</a>𝗔 <a href="https://swamp-club.com/lab/2941" rel="noopener">lab#2941</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.155715.0-sha.be148809" rel="noopener">release v20261002.155715.0-sha.be148809</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/be1488096b823ad3a72b6a8a2b802283b4754722" rel="noopener">be148809</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2793" rel="noopener">#2793</a>𝗔 <a href="https://swamp-club.com/lab/2921" rel="noopener">lab#2921</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261001-174510-0-sha-265caa01">
 <h2><span class="tier C">C</span>repository mark coverage, peer propagation, remote failures, sync-service round-trip conformance (swamp-club#2855) (#2774)</h2>
@@ -831,12 +831,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>33 items across 1 source(s) in this window:
-0 critical, 29 notable, 0 routine,
-4 minor.</p>
-<ul><li><strong>fix</strong> — 25</li><li><strong>feat</strong> — 4</li><li><strong>changes</strong> — 2</li><li><strong>test</strong> — 2</li></ul></section>
+0 critical, 30 notable, 0 routine,
+3 minor.</p>
+<ul><li><strong>fix</strong> — 26</li><li><strong>feat</strong> — 4</li><li><strong>test</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-02T16:01:59.456Z">2026-10-02T16:01:59.456Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-02T17:02:04.433Z">2026-10-02T17:02:04.433Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

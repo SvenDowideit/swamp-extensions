@@ -1,0 +1,108 @@
+manifestVersion: 1
+name: "@svendowideit/mdns"
+version: "2026.10.02.2"
+description: >
+  Advertise and discover services on the LAN with mDNS (Avahi) — the bootstrap
+  layer before DNS exists.
+
+  WHAT IT DOES
+
+    Advertises a service over mDNS via a managed avahi-publish-service systemd
+    user unit (written, daemon-reloaded, started and enabled), and browses for
+    mDNS services via avahi-browse, turning results
+    into a typed resource other models can consume. Prefer it over ad-hoc avahi
+    commands when you need a fleet's core node to be discoverable before DNS is
+    configured: a fresh or isolated host can find `_otlp-http._tcp` on the LAN,
+    then be handed its real DNS name and switch to it. Generic — it advertises
+    and discovers whatever service type you name.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/mdns
+
+  DEPENDENCIES
+
+    avahi-utils on the host (avahi-publish-service, avahi-browse). Any
+    Debian/Ubuntu/RPiOS package of that name works; no other services needed.
+
+  RUN
+
+      # Create a model for the local host's mDNS identity. serviceName is the
+      # unit-NAME PREFIX shared by this model's advertisements; leave hostName
+      # empty so avahi advertises the host's own <hostname>.local (only set
+      # hostName to a name that actually resolves).
+      swamp model create @svendowideit/mdns mdns \
+        --global-arg serviceName=otel-mdns
+
+      # Advertise the OTLP/HTTP gateway. Each advertisement gets its OWN systemd
+      # user unit named <serviceName>-<instance>, so you can add many and remove
+      # one without disturbing the rest. Writes the unit, daemon-reloads, and
+      # starts + enables it.
+      swamp model method run mdns advertise \
+        --input instance=otel-http \
+        --input serviceType=_otlp-http._tcp \
+        --input port=4318 \
+        --input 'txt:json={"path":"/v1"}'
+
+      # A second, independent advertisement (gRPC) on the same model — it does
+      # NOT replace the first, because the instance names the unit.
+      swamp model method run mdns advertise \
+        --input instance=otel-grpc \
+        --input serviceType=_otel._tcp \
+        --input port=4317
+
+      # Discover what the LAN advertises (bounded browse) and record it as a
+      # typed resource other models can consume.
+      swamp model method run mdns discover \
+        --input serviceType=_otlp-http._tcp \
+        --input timeoutMs=8000
+
+      # List every advertisement this model owns and whether each is ACTIVE.
+      swamp model method run mdns status
+
+      # Remove ONE advertisement (stop + disable + delete just that unit); the
+      # others keep running. Omit instance to remove every one this model owns.
+      swamp model method run mdns remove --input instance=otel-grpc
+
+  CONFIGURE
+
+    Set as global args at model creation:
+
+      serviceName    systemd unit-name PREFIX for this model's advertisements
+                     (each advertisement is <serviceName>-<instance>.service)
+      serviceType    default mDNS service type (default _otlp-http._tcp)
+      hostName       default advertised hostname; use the machine's real mDNS
+                     name (e.g. <hostname>.local) or leave empty, since
+                     discovery can only resolve a name that actually answers
+      unitDir        where the systemd user unit is written
+      advertiseArgs  extra raw arguments appended to avahi-publish-service
+
+    Override per call with --input, e.g. advertise
+    --input serviceType=_otel._tcp --input port=4317, or discover
+    --input timeoutMs=8000.
+
+  WHAT IT INSTALLS
+
+    A systemd *user* unit (default ~/.config/systemd/user/<serviceName>.service)
+    that runs avahi-publish-service, staying active so the mDNS advertisement
+    persists across restarts. No cron triggers or webhooks. `remove` stops,
+    disables and deletes the unit.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - mdns.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - mdns_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64

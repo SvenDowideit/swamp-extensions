@@ -3810,7 +3810,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.02.5",
+  version: "2026.10.02.6",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -4030,6 +4030,12 @@ export const model = {
       toVersion: "2026.10.02.5",
       description:
         "Static DNS records now default to a 5-minute TTL (new dnsTtl global; a record's own ttl overrides it), so a new or changed record propagates to public resolvers within minutes instead of the zone default. README adds a 'Diagnosing a record (propagation vs. serving)' section: query the zone's own nameservers for ground truth, public resolvers for propagation, and curl --resolve to talk straight to the host while DNS is still propagating. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.6",
+      description:
+        "Ships a black-box acceptance test (`test-factory.yaml` + `test/bind/`) that runs @svendowideit/test-factory's new container test system: an authoritative BIND container accepting RFC2136 dynamic updates over TSIG, the swamp container on two networks, and tests that install/run Caddy as a systemd user service, prove `dig` resolves the A records Caddy wrote, and prove `curl` answers 200/418/404 from the right endpoints. No model schema or argument changes — the test assets are additive `additionalFiles`.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

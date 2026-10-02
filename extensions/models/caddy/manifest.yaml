@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.10.02.5"
+version: "2026.10.02.6"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -262,6 +262,11 @@ additionalFiles:
   - LICENSE.txt
   - caddy_test.ts
   - caddy_report_test.ts
+  - test-factory.yaml
+  - test/bind/Dockerfile.txt
+  - test/bind/named.conf.txt
+  - test/bind/db.example.com.txt
+  - test/bind/tsig.key.txt
 
 platforms:
   - linux-x86_64

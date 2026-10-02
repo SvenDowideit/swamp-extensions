@@ -912,6 +912,50 @@ to regenerate the unit with `--resume`.
 - The bundled workflows `caddy-setup` and `caddy-ensure-proxy` ship alongside
   the extension (in this repo's `workflows/`); all their steps are idempotent.
 
+## Testing
+
+This extension ships a black-box acceptance suite (`test-factory.yaml` +
+`test/bind/`) that runs it inside containers, end to end, with no real DNS or
+network access. `@svendowideit/test-factory` reads the file and stands up the
+container system it declares:
+
+- **`bind`** — an authoritative BIND for `example.com`, accepting RFC2136
+  dynamic updates over TSIG (the same key Caddy's `dns.providers.rfc2136` writes
+  with).
+- **`harness`** — the swamp container, on **two networks** so it has two IP
+  endpoints; Caddy is installed and run here as a systemd *user* service.
+
+The tests form an ordered narrative that builds one running Caddy and exercises
+it:
+
+1. **Install + service + health contract** — the binary downloads with the
+   `rfc2136` provider, the systemd user service starts and its admin API comes
+   up, and each configured hostname serves `/` -> 200, `/teapot` -> 418, other ->
+   404.
+2. **Write A records** — `applyDnsRecords` writes the declared records into BIND;
+   `dig @bind` proves `alpha` resolves to both endpoints, `beta` to the first,
+   and `gamma` to the second.
+3. **Edit and delete** — re-editing `dnsRecords` prunes/changes records (alpha
+   drops an endpoint, beta moves, delta is added as a CNAME) and `dnsRemovals`
+   deletes an RRset; `dig` confirms the result.
+
+Run it on a systemd distro (the model drives a systemd user service):
+
+```sh
+# One scenario: Ubuntu + systemd, standalone.
+swamp model @svendowideit/test-factory method run test tf \
+  --input manifest=extensions/models/caddy/manifest.yaml \
+  --input scenario=ubuntu-systemd-standalone
+
+# Read the per-test breakdown (prose, assertions, and full step output).
+swamp report get @svendowideit/test-factory-report --model tf --markdown
+```
+
+The suite needs a local container runtime and network access to the swamp
+release download and `caddyserver.com`. The bind assets are in `test/bind/`
+(`Dockerfile.txt`, `named.conf`, `db.example.com`, `tsig.key`; the Dockerfile is
+`.txt` because swamp's `additionalFiles` allowlist only accepts text files).
+
 ## License
 
 MIT — see LICENSE.txt.

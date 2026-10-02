@@ -1,0 +1,246 @@
+# Acceptance tests for @svendowideit/caddy — the black-box, containerised
+# system the README's "Static DNS records" example promises.
+#
+# A two-part container topology mirrors the module's own e2e suite:
+#   - bind   : authoritative BIND for example.com, accepting RFC2136 dynamic
+#              updates over TSIG (the key Caddy's rfc2136 provider writes with)
+#   - harness: the swamp container, joined to two networks so it has two IP
+#              endpoints; this is where every step runs (Caddy is installed and
+#              run here as a systemd *user* service)
+#
+# The tests are an ordered narrative that builds one running Caddy and then
+# exercises it: install + service + health contract, write A records into BIND,
+# then prune/change/remove those records. `dig` (from the swamp container to
+# BIND) proves the records Caddy wrote; `curl --resolve` proves each name is
+# served from the endpoint(s) its records point to.
+#
+# Run it on a systemd host (the caddy model drives a systemd user service):
+#   swamp model @svendowideit/test-factory method run test tf \
+#     --input manifest=extensions/models/caddy/manifest.yaml \
+#     --input scenario=ubuntu-systemd-standalone
+#
+# Network access: the swamp release download plus https://caddyserver.com (the
+# Caddy binary is downloaded with the rfc2136 provider compiled in).
+
+networks:
+  net1:
+    subnet: 192.0.2.0/24
+  net2:
+    subnet: 198.51.100.0/24
+
+harness:
+  dig: true
+  networks:
+    net1:
+      ipv4_address: 192.0.2.10
+    net2:
+      ipv4_address: 198.51.100.10
+
+services:
+  bind:
+    build: ./test/bind
+    dockerfile: Dockerfile.txt
+    networks:
+      net1:
+        ipv4_address: 192.0.2.11
+    healthcheck:
+      command:
+        ["dig", "+short", "+time=1", "+tries=1", "@127.0.0.1", "example.com", "SOA"]
+      intervalSeconds: 1
+      retries: 30
+
+tests:
+  - name: installs-binary-service-and-health-contract
+    confirms: >
+      @svendowideit/caddy downloads the Caddy binary with the rfc2136 DNS
+      provider compiled in, writes and starts a systemd *user* service, brings
+      up its admin API, and serves the default health contract on each
+      configured hostname — `/` -> 200, `/teapot` -> 418, other -> 404 — from
+      the addresses its DNS records point to.
+    cannot: >
+      must not leave the service inactive or the admin API unreachable, and must
+      not answer `/`, `/teapot` or an unknown path with any code other than
+      200, 418 and 404 respectively.
+    documents: README.md#examples
+    steps:
+      - name: systemd-user-manager-is-running
+        run: systemctl --user is-system-running
+        expect:
+          stdoutContains: ["running"]
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-caddy \
+            --global-arg autoHttps=off \
+            --global-arg 'listenAddrs:json=[":80"]' \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env \
+            --global-arg baseDomain=example.com
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: install-caddy-binary
+        run: >
+          swamp model method run e2e-caddy installCaddy
+          --input setCapabilities=false --input configureStatusPage=false
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 300
+      - name: write-dns-provider-credentials
+        run: |
+          mkdir -p /root/.config/caddy
+          printf 'TSIG_KEY_NAME=e2e-key\nTSIG_KEY=cWnu6Ju9zOki4f7Q+da2KKGo0KOXbCf6Pej6hW3geC4=\nTSIG_KEY_ALG=hmac-sha256\nTSIG_SERVER=bind:53\n' > /root/.config/caddy/dns.env
+        expect:
+          fileExists: ["/root/.config/caddy/dns.env"]
+      - name: create-service
+        run: swamp model method run e2e-caddy createService
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: start-service
+        run: swamp model method run e2e-caddy startService
+        expect:
+          exitCode: 0
+          outputNotContains: ["is not active", "panic"]
+      - name: install-status-page
+        run: swamp model method run e2e-caddy configureStatusPage
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: configure-provider-and-health-hostnames
+        run: |
+          swamp model method run e2e-caddy configureTls \
+            --input dnsProvider=rfc2136 \
+            --input email=admin@example.com \
+            --input 'providerConfig:json={"key_name":"TSIG_KEY_NAME","key":"TSIG_KEY","key_alg":"TSIG_KEY_ALG","server":"TSIG_SERVER"}' \
+            --input 'subjects:json=["alpha.example.com","beta.example.com","gamma.example.com"]'
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: health-root-is-200
+        run: >
+          curl -s -o /dev/null -w '%{http_code}'
+          --resolve alpha.example.com:80:$TF_HARNESS_IP_NET1
+          http://alpha.example.com/
+        expect:
+          stdoutContains: ["200"]
+          stdoutNotContains: ["000"]
+      - name: health-teapot-is-418
+        run: >
+          curl -s -o /dev/null -w '%{http_code}'
+          --resolve alpha.example.com:80:$TF_HARNESS_IP_NET1
+          http://alpha.example.com/teapot
+        expect:
+          stdoutContains: ["418"]
+      - name: health-unknown-path-is-404
+        run: >
+          curl -s -o /dev/null -w '%{http_code}'
+          --resolve alpha.example.com:80:$TF_HARNESS_IP_NET1
+          http://alpha.example.com/nope
+        expect:
+          stdoutContains: ["404"]
+          stdoutNotContains: ["200"]
+
+  - name: writes-a-records-into-authoritative-dns
+    confirms: >
+      Declaring dnsRecords and running applyDnsRecords makes Caddy write them
+      into the authoritative BIND server through the rfc2136 provider: alpha
+      resolves to both Caddy endpoints (proving a single name can serve from
+      more than one address), beta to the first endpoint only, and gamma to the
+      second only.
+    cannot: >
+      must not leave any of the three names unresolved, and must not resolve
+      beta or gamma to an address their records do not declare.
+    documents: README.md#configuration
+    variables:
+      DNS_SERVER: bind
+    steps:
+      - name: declare-dns-records
+        run: |
+          swamp model get e2e-caddy --json \
+            | jq '.globalArguments.dnsRecords=[{"name":"alpha.example.com","type":"A","value":["192.0.2.10","198.51.100.10"],"zone":"example.com"},{"name":"beta.example.com","type":"A","value":["192.0.2.10"],"zone":"example.com"},{"name":"gamma.example.com","type":"A","value":["198.51.100.10"],"zone":"example.com"}] | {name,version,tags,globalArguments}' \
+            | swamp model edit e2e-caddy --json
+        expect:
+          exitCode: 0
+      - name: apply-dns-records
+        run: swamp model method run e2e-caddy applyDnsRecords
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: alpha-resolves-to-both-endpoints
+        run: dig +short @$DNS_SERVER alpha.example.com A | sort | tr '\n' ' '
+        expect:
+          stdoutContains: ["192.0.2.10 198.51.100.10"]
+      - name: beta-resolves-to-first-endpoint-only
+        run: dig +short @$DNS_SERVER beta.example.com A | sort | tr '\n' ' '
+        expect:
+          stdoutContains: ["192.0.2.10"]
+          stdoutNotContains: ["198.51.100.10"]
+      - name: gamma-resolves-to-second-endpoint-only
+        run: dig +short @$DNS_SERVER gamma.example.com A | sort | tr '\n' ' '
+        expect:
+          stdoutContains: ["198.51.100.10"]
+          stdoutNotContains: ["192.0.2.10"]
+
+  - name: edits-and-deletes-records-via-reconcile
+    confirms: >
+      Re-editing dnsRecords prunes and changes records (alpha drops its first
+      endpoint, beta moves to the second, delta is added as a CNAME to alpha),
+      and declaring dnsRemovals deletes an entire RRset — so a later reconcile
+      leaves beta and gamma with no A records.
+    cannot: >
+      must not leave the pruned alpha address, the old beta address, or the
+      removed beta/gamma records behind.
+    documents: README.md#configuration
+    variables:
+      DNS_SERVER: bind
+    steps:
+      - name: modify-dns-records
+        run: |
+          swamp model get e2e-caddy --json \
+            | jq '.globalArguments.dnsRecords=[{"name":"alpha.example.com","type":"A","value":["198.51.100.10"],"zone":"example.com"},{"name":"beta.example.com","type":"A","value":["198.51.100.10"],"zone":"example.com"},{"name":"delta.example.com","type":"CNAME","value":["alpha.example.com."],"zone":"example.com"}] | {name,version,tags,globalArguments}' \
+            | swamp model edit e2e-caddy --json
+        expect:
+          exitCode: 0
+      - name: apply-modified-records
+        run: swamp model method run e2e-caddy applyDnsRecords
+        expect:
+          exitCode: 0
+      - name: alpha-is-pruned-to-second-endpoint
+        run: dig +short @$DNS_SERVER alpha.example.com A | sort | tr '\n' ' '
+        expect:
+          stdoutContains: ["198.51.100.10"]
+          stdoutNotContains: ["192.0.2.10"]
+      - name: delta-cnames-to-alpha
+        run: dig +short @$DNS_SERVER delta.example.com CNAME
+        expect:
+          stdoutContains: ["alpha.example.com"]
+      - name: beta-moved-to-second-endpoint
+        run: dig +short @$DNS_SERVER beta.example.com A | sort | tr '\n' ' '
+        expect:
+          stdoutContains: ["198.51.100.10"]
+      - name: delete-records-via-removals
+        run: |
+          swamp model get e2e-caddy --json \
+            | jq '.globalArguments.dnsRecords=[{"name":"alpha.example.com","type":"A","value":["198.51.100.10"],"zone":"example.com"},{"name":"delta.example.com","type":"CNAME","value":["alpha.example.com."],"zone":"example.com"}] | .globalArguments.dnsRemovals=[{"name":"beta.example.com","type":"A","zone":"example.com"},{"name":"gamma.example.com","type":"A","zone":"example.com"}] | {name,version,tags,globalArguments}' \
+            | swamp model edit e2e-caddy --json
+        expect:
+          exitCode: 0
+      - name: apply-removals
+        run: swamp model method run e2e-caddy applyDnsRecords
+        expect:
+          exitCode: 0
+      - name: beta-has-no-a-records
+        run: dig +short @$DNS_SERVER beta.example.com A
+        expect:
+          stdoutNotContains: ["192.0.2", "198.51.100"]
+      - name: gamma-has-no-a-records
+        run: dig +short @$DNS_SERVER gamma.example.com A
+        expect:
+          stdoutNotContains: ["192.0.2", "198.51.100"]
+      - name: alpha-and-delta-are-kept
+        run: |
+          dig +short @$DNS_SERVER alpha.example.com A
+          dig +short @$DNS_SERVER delta.example.com CNAME
+        expect:
+          stdoutContains: ["198.51.100.10", "alpha.example.com"]

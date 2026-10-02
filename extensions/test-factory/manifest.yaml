@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/test-factory"
-version: "2026.10.01.3"
+version: "2026.10.02.1"
 description: >
   Run a swamp extension inside containers on different Linux distributions and
   swamp deployment topologies, and report exactly where it breaks. Prefer it
@@ -18,11 +18,20 @@ description: >
     the extension, and checks each layer in turn — swamp installs and
     `swamp doctor extensions` passes, every declared type registers,
     `swamp model create` works, each declared workflow validates, and any
-    fixtures execute. Every run records an audit trail, not just a pass/fail:
-    the candidate name and version, a one-line intent, and per phase the
-    assertion a PASS stands for plus the literal commands that proved it — so
-    you can judge adequacy and whether the test did what it claims. Alpine
-    (musl-only) is expected to fail, proving the harness diagnoses not hangs.
+    fixtures execute. A candidate may ship a `test-factory.yaml` declaring the
+    user-facing outcomes it promises as prose plus runnable, asserting steps;
+    the `tests` phase runs them and reports each with its full logs. That same
+    file can declare a container test system (`networks:`, `harness:`,
+    `services:`) so outcomes that need sibling services — an authoritative DNS
+    server to write records into, a database, a peer node — are testable too:
+    it creates the networks, builds and health-checks the services, joins the
+    swamp container to several networks (so one name can resolve to several
+    endpoints), and exports each address to the steps as a shell variable.
+    Every run records an audit trail, not just a pass/fail: the candidate name
+    and version, a one-line intent, and per phase the assertion a PASS stands
+    for plus the literal commands that proved it — so you can judge adequacy and
+    whether the test did what it claims. Alpine (musl-only) is expected to
+    fail, proving the harness diagnoses not hangs.
 
   INSTALL
 
@@ -32,11 +41,12 @@ description: >
 
     A local container runtime — Docker by default (set `dockerBinary` for
     podman) — able to build images and run privileged containers for the systemd
-    scenarios. The only network access is the swamp release download. No
-    swamp-club account is required by default, because `serve`/`fleet` run
-    `swamp serve` on loopback with `--auth-mode none`; a host where that team
-    feature is gated reads a token from the `test-factory-vault` vault, below.
-    The systemd-creds vault used in the example needs systemd v256+.
+    scenarios. The only network access is the swamp release download, plus any
+    images a candidate's declared services pull or build. No swamp-club account
+    is required by default, because `serve`/`fleet` run `swamp serve` on
+    loopback with `--auth-mode none`; a host where that team feature is gated
+    reads a token from the `test-factory-vault` vault, below. The systemd-creds
+    vault used in the example needs systemd v256+.
 
   RUN
 
@@ -60,6 +70,17 @@ description: >
       swamp model @svendowideit/test-factory method run test tf \
         --input manifest=extensions/test-factory/manifest.yaml \
         --input scenario=debian-standalone
+
+      # Test an outcome that needs sibling containers. The candidate's
+      # `test-factory.yaml` declares a container test system, so the factory
+      # brings up its services and networks before running the steps. This is
+      # @svendowideit/caddy's DNS suite: a BIND container Caddy writes records
+      # into over RFC2136, verified with dig and curl (200/418/404) from the
+      # two-network swamp container. The caddy model drives a systemd *user*
+      # service, so run it on a systemd distro.
+      swamp model @svendowideit/test-factory method run test tf \
+        --input manifest=extensions/models/caddy/manifest.yaml \
+        --input scenario=ubuntu-systemd-standalone
 
       # Exercise remote execution: a serve orchestrator plus two workers that
       # run the dispatched probe step.
@@ -119,7 +140,8 @@ description: >
   WHAT IT INSTALLS
 
     Nothing on the host — no services, daemons, cron triggers, or webhooks. It
-    builds local container images named `swamp-test-factory/<distro>` and runs
+    builds local container images named `swamp-test-factory/<distro>` (and
+    `swamp-test-factory/svc-<name>` for a candidate's `build:` services) and runs
     short-lived containers and networks prefixed `tf-`, all removed at the end of
     a scenario unless `keepOnFailure` is set. It writes swamp resources (`result`
     per scenario, `summary` per fan-out) and never modifies the extension it
@@ -153,6 +175,8 @@ additionalFiles:
   - topology.ts
   - introspect.ts
   - tests.ts
+  - services.ts
+  - services_test.ts
   - scenarios_test.ts
   - harness_test.ts
   - topology_test.ts

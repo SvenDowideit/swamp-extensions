@@ -569,9 +569,12 @@ function buildTestBlock(test: TestSpec, testIndex: number): string[] {
       );
     }
     for (const path of step.expect.fileExists ?? []) {
+      // Absolute paths are used verbatim (e.g. a systemd unit under /root);
+      // relative paths are resolved against the repo the harness runs in.
+      const full = path.startsWith("/") ? path : `/work/repo/${path}`;
       p(
         `if [ -e ${
-          q(`/work/repo/${path}`)
+          q(full)
         } ]; then MATCHED=$(printf '%s' "$MATCHED" | jq -c --arg m ${
           q(
             `file exists ${path}`,
@@ -615,14 +618,26 @@ function buildTestBlock(test: TestSpec, testIndex: number): string[] {
   return lines;
 }
 
-/** Build the full `tests` phase script lines for every test. */
-export function buildTestsPhaseScript(tests: TestSpec[]): string[] {
+/**
+ * Build the full `tests` phase script lines for every test.
+ *
+ * `variables` are exported first, so every test (and its steps) can reference
+ * topology values such as a service's address without hard-coding them.
+ */
+export function buildTestsPhaseScript(
+  tests: TestSpec[],
+  variables: Record<string, string> = {},
+): string[] {
   const lines: string[] = [
     "# --- tests (declarative acceptance) -------------------------------------",
     "mkdir -p /tf/steps",
     "command -v timeout >/dev/null 2>&1 && HAVE_TIMEOUT=1 || HAVE_TIMEOUT=0",
     "",
   ];
+  for (const [k, v] of Object.entries(variables)) {
+    lines.push(`export ${k}=${q(v)}`);
+  }
+  if (Object.keys(variables).length > 0) lines.push("");
   tests.forEach((t, i) => lines.push(...buildTestBlock(t, i)));
   return lines;
 }

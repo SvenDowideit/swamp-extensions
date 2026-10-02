@@ -216,11 +216,21 @@ export async function ensureImage(
   }
 }
 
-/** Create a docker network if it does not already exist. */
-export async function ensureNetwork(runFn: RunFn, name: string): Promise<void> {
-  const res = await runFn("docker", ["network", "create", name], {
-    timeoutMs: 30_000,
-  });
+/**
+ * Create a docker network if it does not already exist.
+ *
+ * A `subnet` pins the CIDR so a static `ipv4_address` can be assigned to a
+ * container (docker refuses an out-of-subnet address).
+ */
+export async function ensureNetwork(
+  runFn: RunFn,
+  name: string,
+  subnet = "",
+): Promise<void> {
+  const args = ["network", "create"];
+  if (subnet) args.push("--subnet", subnet);
+  args.push(name);
+  const res = await runFn("docker", args, { timeoutMs: 30_000 });
   // A "already exists" error is fine; any other failure is surfaced by the
   // caller when it first tries to attach a container.
   if (res.code !== 0 && !/already exists/i.test(res.stderr)) {
@@ -228,9 +238,69 @@ export async function ensureNetwork(runFn: RunFn, name: string): Promise<void> {
   }
 }
 
+/** Connect an already-running container to a network, optionally with a static IP and alias. */
+export async function networkConnect(
+  runFn: RunFn,
+  opts: { network: string; container: string; ip?: string; aliases?: string[] },
+): Promise<{ ok: boolean; output: string }> {
+  const args = ["network", "connect"];
+  if (opts.ip) args.push("--ip", opts.ip);
+  for (const a of opts.aliases ?? []) args.push("--alias", a);
+  args.push(opts.network, opts.container);
+  const res = await runFn("docker", args, { timeoutMs: 30_000 });
+  return {
+    ok: res.code === 0,
+    output: `${res.stdout}\n${res.stderr}`.trim(),
+  };
+}
+
+/** The IPv4 address a container has on a named network (empty when absent). */
+export async function containerIp(
+  runFn: RunFn,
+  container: string,
+  network: string,
+): Promise<string> {
+  const res = await runFn("docker", [
+    "inspect",
+    "-f",
+    `{{(index .NetworkSettings.Networks ${
+      JSON.stringify(network)
+    }).IPAddress}}`,
+    container,
+  ], { timeoutMs: 30_000 });
+  return res.code === 0 ? res.stdout.trim() : "";
+}
+
+/**
+ * Build a local image from a context directory.
+ *
+ * `contextDir` (and `dockerfile`, when not the default) are absolute paths on
+ * the host; the Dockerfile's own `COPY` paths are relative to the context.
+ */
+export async function buildImage(
+  runFn: RunFn,
+  opts: { image: string; contextDir: string; dockerfile?: string },
+): Promise<{ ok: boolean; output: string }> {
+  const args = ["build", "-t", opts.image];
+  if (opts.dockerfile) args.push("-f", opts.dockerfile);
+  args.push(opts.contextDir);
+  const res = await runFn("docker", args, { timeoutMs: 900_000 });
+  return { ok: res.code === 0, output: `${res.stdout}\n${res.stderr}`.trim() };
+}
+
 /** Remove a docker network, ignoring "not found" and "has active endpoints". */
 export async function removeNetwork(runFn: RunFn, name: string): Promise<void> {
   await runFn("docker", ["network", "rm", name], { timeoutMs: 30_000 });
+}
+
+/** One network attachment for a container: a name, optional static IP, and aliases. */
+export interface NetworkAttachment {
+  /** Network catalog name. */
+  network: string;
+  /** Static IPv4 address (empty = docker-assigned). */
+  ip?: string;
+  /** Extra network aliases (the container name is always an alias). */
+  aliases?: string[];
 }
 
 /** Options for launching a detached container. */
@@ -239,6 +309,13 @@ export interface RunDetachedOptions {
   image: string;
   /** Attach to a named network. */
   network?: string;
+  /**
+   * Attach to several networks with static IPs/aliases. When set, `network`
+   * and `networkContainer` are ignored: the first entry is used for `docker
+   * run` and the rest via `docker network connect` (docker only accepts one
+   * `--ip` per `run`).
+   */
+  networks?: NetworkAttachment[];
   /** Share another container's network namespace (e.g. `container:orch`). */
   networkContainer?: string;
   /** Publish a port (host:container). */
@@ -259,13 +336,29 @@ export interface RunDetachedOptions {
   labels?: Record<string, string>;
 }
 
-/** Start a detached container and return its id. */
+/**
+ * Start a detached container and return its id.
+ *
+ * With several `networks`, the container is started on the first (so a static
+ * IP can be requested) and connected to the rest afterwards; the caller gets a
+ * best-effort `output` naming any connection that failed.
+ */
 export async function runDetached(
   runFn: RunFn,
   opts: RunDetachedOptions,
 ): Promise<{ id: string; ok: boolean; output: string }> {
   const args = ["run", "-d", "--name", opts.name];
-  if (opts.network) args.push("--network", opts.network);
+  const multi = opts.networks && opts.networks.length > 0;
+  const primary = multi ? opts.networks![0] : null;
+  if (primary) {
+    args.push("--network", primary.network);
+    if (primary.ip) args.push("--ip", primary.ip);
+    // `docker run` spells the alias flag `--network-alias`; the `network
+    // connect` path (used for extra networks) spells it `--alias`.
+    for (const a of primary.aliases ?? []) args.push("--network-alias", a);
+  } else if (opts.network) {
+    args.push("--network", opts.network);
+  }
   if (opts.networkContainer) {
     args.push("--network", `container:${opts.networkContainer}`);
   }
@@ -297,11 +390,27 @@ export async function runDetached(
     args.push("/sbin/init");
   }
   const res = await runFn("docker", args, { timeoutMs: 120_000 });
-  return {
-    id: res.stdout.trim(),
-    ok: res.code === 0,
-    output: `${res.stdout}\n${res.stderr}`.trim(),
-  };
+  if (res.code !== 0) {
+    return {
+      id: "",
+      ok: false,
+      output: `${res.stdout}\n${res.stderr}`.trim(),
+    };
+  }
+  const id = res.stdout.trim();
+  let output = `${res.stdout}\n${res.stderr}`.trim();
+  let ok = true;
+  for (const extra of multi ? opts.networks!.slice(1) : []) {
+    const conn = await networkConnect(runFn, {
+      network: extra.network,
+      container: opts.name,
+      ip: extra.ip,
+      aliases: extra.aliases,
+    });
+    output = `${output}\n${conn.output}`.trim();
+    if (!conn.ok) ok = false;
+  }
+  return { id, ok, output };
 }
 
 /** Run a command inside a running container. */

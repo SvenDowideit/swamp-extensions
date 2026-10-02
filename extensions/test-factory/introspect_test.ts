@@ -64,6 +64,18 @@ Deno.test("extractTypeFromSource finds the exported type", () => {
   assertEquals(extractTypeFromSource("const x = 1;"), null);
 });
 
+Deno.test("extractTypeFromSource ignores a union-valued type field", () => {
+  // A model like @svendowideit/caddy also has `type: "A" | "AAAA" | "CNAME";`
+  // on a record schema; that must not be reported as the model type.
+  const src = `const Record = {\n  type: "A" | "AAAA" | "CNAME",\n};\n` +
+    `export const ` + `model = {\n  type: "@acme/thing",\n};`;
+  assertEquals(extractTypeFromSource(src), "@acme/thing");
+  assertEquals(
+    extractTypeFromSource(`const r = { type: "A" | "AAAA" | "CNAME" };`),
+    null,
+  );
+});
+
 Deno.test("inspectExtension discovers test-factory.yaml from additionalFiles", async () => {
   const dir = await Deno.makeTempDir({ prefix: "tf-intro-" });
   try {

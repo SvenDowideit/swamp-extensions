@@ -65,6 +65,14 @@ export interface HarnessPlan {
   releaseBaseUrl: string;
   /** When true, assert systemd is running as PID 1 (`systemctl` works). */
   expectSystemd: boolean;
+  /**
+   * Extra shell variables exported before every test step, e.g. the addresses
+   * of the candidate's declared service networks (`TF_BIND_IP`). Lets a test
+   * reference the topology instead of hard-coding an address.
+   */
+  variables?: Record<string, string>;
+  /** Install `dig`/`nslookup` in the container before the tests run. */
+  dnsTools?: boolean;
 }
 
 /** A named phase of the in-container test. */
@@ -252,6 +260,10 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     "set -u",
     "export SWAMP_TELEMETRY_DISABLED=1",
     'export PATH="/usr/local/bin:$PATH"',
+    // On a systemd host, point `systemctl --user` (used by models such as
+    // @svendowideit/caddy) at root's user-manager bus. Guarded so a non-systemd
+    // host is unaffected.
+    "[ -d /run/user/0 ] && export XDG_RUNTIME_DIR=/run/user/0",
     "mkdir -p /tf /usr/local/bin",
     `RESULT=${shellQuote(RESULT_PATH)}`,
     `DONE=${shellQuote(DONE_PATH)}`,
@@ -319,6 +331,26 @@ export function buildHarnessScript(plan: HarnessPlan): string {
       "else",
       '  record systemd "\\"not-running\\""',
       '  log "systemd is not running"',
+      "fi",
+      "",
+    );
+  }
+  // A model may drive a systemd *user* service (e.g. @svendowideit/caddy runs
+  // `systemctl --user`). Inside a container that needs root's user manager
+  // running and XDG_RUNTIME_DIR pointing at it; enable linger and wait for the
+  // bus before any phase runs, so `systemctl --user` works. Guarded on
+  // systemd+loginctl so other hosts are unaffected.
+  if (plan.expectSystemd) {
+    push(
+      "# --- systemd user manager (for `systemctl --user`) ----------------------",
+      "if command -v loginctl >/dev/null 2>&1; then",
+      "  loginctl enable-linger root >/dev/null 2>&1 || true",
+      "  i=0",
+      '  while [ "$i" -lt 30 ]; do',
+      "    [ -S /run/user/0/systemd/private ] && break",
+      "    i=$((i+1)); sleep 1",
+      "  done",
+      "  [ -d /run/user/0 ] && export XDG_RUNTIME_DIR=/run/user/0",
       "fi",
       "",
     );
@@ -427,7 +459,25 @@ export function buildHarnessScript(plan: HarnessPlan): string {
 
   // --- 4. tests -------------------------------------------------------------
   if (want("tests")) {
-    push(...buildTestsPhaseScript(plan.tests));
+    if (plan.dnsTools) {
+      // The test asserts DNS records with `dig`, which the base harness image
+      // does not carry. Install it here (best-effort, once per container) so a
+      // candidate can request DNS tooling without a whole new image variant.
+      push(
+        "# --- dns tooling (dig) --------------------------------------------------",
+        "if ! command -v dig >/dev/null 2>&1; then",
+        "  if command -v apt-get >/dev/null 2>&1; then",
+        "    apt-get update -qq >/dev/null 2>&1; DEBIAN_FRONTEND=noninteractive apt-get install -y -qq dnsutils >/dev/null 2>&1",
+        "  elif command -v dnf >/dev/null 2>&1; then",
+        "    dnf install -y -q bind-utils >/dev/null 2>&1",
+        "  elif command -v apk >/dev/null 2>&1; then",
+        "    apk add --no-cache bind-tools >/dev/null 2>&1",
+        "  fi",
+        "fi",
+        "",
+      );
+    }
+    push(...buildTestsPhaseScript(plan.tests, plan.variables ?? {}));
   }
 
   // --- 5. fixtures ----------------------------------------------------------

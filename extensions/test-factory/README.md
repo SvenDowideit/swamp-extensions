@@ -84,6 +84,80 @@ non-proving file fails loudly before any container boots.
 > `tests` phase itself are all unaffected. The `tests` key is intentionally a
 > test-factory schema, not a workflow schema.
 
+### Container test systems: `networks:`, `harness:`, `services:`
+
+Some outcomes need services swamp does not provide — an authoritative DNS server
+to write records into, a database, a peer node. The same `test-factory.yaml` can
+declare a small container topology to run **around** the harness. The factory
+creates the networks, builds/starts the services, waits for their healthchecks,
+joins the swamp container to the networks, and exports each service's address to
+the tests as a shell variable.
+
+```yaml
+networks:
+  net1: { subnet: 192.0.2.0/24 }
+  net2: { subnet: 198.51.100.0/24 }   # a second endpoint for the harness
+
+harness:
+  dig: true                            # install `dig` before the tests run
+  networks:                            # the swamp container's attachments
+    net1: { ipv4_address: 192.0.2.10 }
+    net2: { ipv4_address: 198.51.100.10 }
+
+services:
+  bind:
+    build: ./test/bind                 # context dir, relative to the manifest
+    networks:
+      net1: { ipv4_address: 192.0.2.11 }
+    healthcheck:
+      command: ["dig", "+short", "@127.0.0.1", "example.com", "SOA"]
+      intervalSeconds: 1
+      retries: 30
+```
+
+- **`networks`** — `name: { subnet }`. Pin the subnet so a static `ipv4_address`
+  is valid (docker refuses an out-of-subnet address).
+- **`harness`** — the swamp container's own `networks` (with optional static
+  IPs; two networks give it two endpoints) and `dig: true` to install `dig` into
+  the harness image before the tests.
+- **`services`** — `name: { image | build, networks, healthcheck | waitForSeconds, environment, mounts, command, privileged, dockerfile }`.
+  Each is reachable by name (a docker network alias), so a test can `dig @bind`
+  without knowing its address. `build` is a context directory relative to the
+  manifest; `mounts` host paths are relative to the manifest too.
+
+Every declared address is exported to the tests as a variable — `TF_<SERVICE>_IP`
+(its first attachment) and `TF_<SERVICE>_IP_<NETWORK>`, plus `TF_HARNESS_IP_<NETWORK>`
+for the swamp container itself — so a step references the topology instead of a
+literal:
+
+```yaml
+steps:
+  - name: alpha-resolves-to-both-endpoints
+    run: dig +short @bind alpha.example.com A | sort
+    expect: { stdoutContains: ["192.0.2.10", "198.51.100.10"] }
+  - name: served-from-first-endpoint
+    run: >
+      curl -s -o /dev/null -w '%{http_code}'
+      --resolve alpha.example.com:80:$TF_HARNESS_IP_NET1 http://alpha.example.com/
+    expect: { stdoutContains: ["200"] }
+```
+
+The parser is intentionally forgiving and entirely optional: a file with no
+`networks:`/`harness:`/`services:` behaves exactly as before, and a malformed
+topology (unknown network, missing image, duplicate address) fails loudly before
+any container boots.
+
+`@svendowideit/caddy` is the worked example — see its `test-factory.yaml` plus
+`test/bind/`. It runs a real BIND over RFC2136 and verifies, with `dig` and
+`curl`, that Caddy wrote the A records and serves 200/418/404 from the right
+endpoints. Run it with:
+
+```sh
+swamp model @svendowideit/test-factory method run test tf \
+  --input manifest=extensions/models/caddy/manifest.yaml \
+  --input scenario=ubuntu-systemd-standalone
+```
+
 Beyond a single node it can stand up a real deployment:
 
 - **`standalone`** — one container, no server.
@@ -114,7 +188,14 @@ disguise.
 Container images carry only prerequisites (curl/git/jq, plus systemd when asked)
 — swamp is downloaded **in-container** at the version under test — so images
 cache across runs and swamp versions, and the thing you install is the thing you
-tested.
+tested. When a test system requests `harness.dig: true`, `dig` is installed into
+the running container before the tests rather than baked into a new image
+variant, so the cache still holds.
+
+On a **systemd** host a model that drives a systemd *user* service (such as
+`@svendowideit/caddy`'s `systemctl --user`) needs root's user manager running:
+the harness enables linger (`loginctl enable-linger root`) and waits for
+`/run/user/0` before any phase, then exports `XDG_RUNTIME_DIR=/run/user/0`.
 
 A scenario is a known-good/known-bad expectation: `expected: fail` scenarios
 (such as Alpine) pass when the run indeed fails, so the harness is validated too.
@@ -352,6 +433,7 @@ orchestration:
 | ---- | -------------- |
 | `scenarios.ts` | The distro catalog, the scenario catalog, filter resolution, and scenario-file parsing. Pure. |
 | `tests.ts` | Parses `test-factory.yaml`, lints prose against assertions, generates the tests phase script, and merges harness outcomes with the authored prose. Pure. |
+| `services.ts` | Parses a `test-factory.yaml`'s optional `networks:`/`harness:`/`services:` container topology, derives the `TF_*` test variables, and lints the topology. Pure. |
 | `harness.ts` | Builds the in-container `sh` script from a typed plan, and parses/evaluates its JSON result. Pure. |
 | `topology.ts` | Builds the `swamp serve` / token / worker / probe scripts for the `serve` and `fleet` topologies. Pure. |
 | `introspect.ts` | Reads a manifest's declared model types and workflow names, and parses the manifest itself (tiny YAML subset). |

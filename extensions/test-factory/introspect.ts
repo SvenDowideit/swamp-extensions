@@ -119,11 +119,16 @@ function unquote(value: string): string {
 /**
  * Extract the `type:` string a model/report/vault source exports.
  *
- * Looks for the `type: "@collective/name"` field inside the exported object —
- * robust enough for every extension in this repo and dependency-free.
+ * Matches a `type: "<collective>/<name>"` value — the one field whose value has
+ * a `collective/name` shape — whether it sits on its own line or inline in the
+ * exported object. Requiring that shape stops it mistaking a union member such
+ * as `type: "A" | "AAAA" | "CNAME";` for the model type. Robust enough for
+ * every extension in this repo and dependency-free.
  */
 export function extractTypeFromSource(source: string): string | null {
-  const m = /type:\s*["'`]([^"'`]+)["'`]/.exec(source);
+  const m = /type:\s*["'`](@?[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)["'`]/.exec(
+    source,
+  );
   return m ? m[1] : null;
 }
 

@@ -25,7 +25,7 @@
  * @module
  */
 import { z } from "npm:zod@4";
-import { dirname, join, resolve } from "jsr:@std/path@1";
+import { dirname, isAbsolute, join, resolve } from "jsr:@std/path@1";
 import {
   distroByName,
   DISTROS,
@@ -36,6 +36,7 @@ import {
   splitList,
 } from "./scenarios.ts";
 import {
+  buildImage,
   dockerVersion,
   ensureImage,
   ensureNetwork,
@@ -52,6 +53,13 @@ import {
   type RunFn,
   waitHostFile,
 } from "./docker.ts";
+import {
+  isEmptySystem,
+  lintTestSystem,
+  parseTestSystem,
+  systemVariables,
+  type TestSystem,
+} from "./services.ts";
 import {
   buildHarnessScript,
   DEFAULT_RELEASE_BASE,
@@ -305,6 +313,8 @@ const ResultSchema = z.object({
   errors: z.array(z.string()),
   durationMs: z.number(),
   container: z.string(),
+  /** Auxiliary service containers started by the declared test system. */
+  serviceContainers: z.array(z.string()).default([]),
   dockerImage: z.string(),
   /** Captured container logs (tail-capped). */
   logs: z.string(),
@@ -410,6 +420,8 @@ interface Candidate {
   workflowNames: string[];
   /** Documented acceptance tests declared in the candidate's test-factory.yaml. */
   tests: TestSpec[];
+  /** Container test system (networks/services) declared in the same file. */
+  system: TestSystem;
 }
 
 /** Per-scenario options that do not come from the catalog. */
@@ -491,6 +503,7 @@ function blankResult(
     errors: [],
     durationMs: 0,
     container: containers.join(","),
+    serviceContainers: [],
     dockerImage: "",
     logs: "",
     logsTruncated: false,
@@ -519,6 +532,7 @@ async function runScenario(
   candidate: Candidate,
   opts: RunOptions,
   deps: Deps,
+  contextLogger?: ExecContext["logger"],
 ): Promise<Result> {
   const started = Date.now();
   const distro = distroByName(scenario.distro);
@@ -547,6 +561,8 @@ async function runScenario(
     tests: candidate.tests,
     releaseBaseUrl: deps.releaseBaseUrl,
     expectSystemd: scenario.systemd,
+    variables: systemVariables(candidate.system),
+    dnsTools: candidate.system.harness.dig,
   };
 
   const result = blankResult(
@@ -640,11 +656,33 @@ async function runScenario(
       await ensureVolume(deps.runFn, sharedVolume);
       await ensureNetwork(deps.runFn, network);
     }
+    // The candidate's declared networks must exist before the harness joins
+    // them, so create them first (with their subnets, so static IPs are valid).
+    for (const net of candidate.system.networks) {
+      await ensureNetwork(
+        deps.runFn,
+        `tf-net-${slugify(net.name)}-${suffix}`,
+        net.subnet,
+      );
+    }
+    // Networks the harness joins: the serve/fleet network plus any declared by
+    // the candidate's test system (with their static IPs, so a name can resolve
+    // to several harness endpoints).
+    const harnessNetworks = [
+      ...(scenario.topology === "standalone"
+        ? []
+        : [{ network, aliases: [] as string[] }]),
+      ...candidate.system.harness.networks.map((a) => ({
+        network: `tf-net-${slugify(a.network)}-${suffix}`,
+        ip: a.ipv4Address || undefined,
+        aliases: ["harness"],
+      })),
+    ];
     const created = await runDetached(deps.runFn, {
       name: target,
       image: img.image,
       systemd: scenario.systemd,
-      network: scenario.topology === "standalone" ? undefined : network,
+      networks: harnessNetworks.length > 0 ? harnessNetworks : undefined,
       mounts,
       env: containerEnv(deps.swampApiKey),
       labels: scenario.topology === "standalone"
@@ -657,6 +695,19 @@ async function runScenario(
     }
     // Give systemd a moment to bring up multi-user.target before exec-ing.
     if (scenario.systemd) await sleep(3);
+    // Bring up the candidate's auxiliary containers (BIND, tools, ...) and wait
+    // for their health before the harness runs. Failures are recorded but do
+    // not abort: the report shows the service error alongside the tests.
+    if (!isEmptySystem(candidate.system)) {
+      const prov = await provisionTestSystem(
+        deps,
+        candidate,
+        suffix,
+        contextLogger,
+      );
+      result.serviceContainers = prov.containers;
+      if (prov.error) result.errors.push(prov.error);
+    }
     await exec(deps.runFn, target, ["mkdir", "-p", "/tf-shared"]);
     await exec(deps.runFn, target, [
       "/bin/sh",
@@ -725,11 +776,19 @@ async function runScenario(
     const keep = opts.keepOnFailure && result.errors.length > 0;
     if (!keep) {
       await Promise.all(
-        containers.map((c) => removeContainer(deps.runFn, c).catch(() => {})),
+        [...containers, ...result.serviceContainers].map((c) =>
+          removeContainer(deps.runFn, c).catch(() => {})
+        ),
       );
       if (scenario.topology !== "standalone") {
         await removeNetwork(deps.runFn, network).catch(() => {});
         await removeVolume(deps.runFn, sharedVolume).catch(() => {});
+      }
+      for (const net of candidate.system.networks) {
+        await removeNetwork(
+          deps.runFn,
+          `tf-net-${slugify(net.name)}-${suffix}`,
+        ).catch(() => {});
       }
     }
     if (bundle) {
@@ -802,6 +861,137 @@ function finalize(
 /** A stable placeholder when the installed version could not be read. */
 function depsVersionLabel(result: Result): string {
   return result.swampVersion || "unknown";
+}
+
+/** Sanitize a value into a docker/network-safe slug. */
+function slugify(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
+    /^-+|-+$/g,
+    "",
+  );
+}
+
+/** Resolve a manifest-relative host path to an absolute one. */
+function resolveFrom(base: string, path: string): string {
+  return isAbsolute(path) ? path : resolve(base, path);
+}
+
+/** The docker image tag a service's `build:` context produces. */
+export function serviceImageTag(name: string): string {
+  return `swamp-test-factory/svc-${slugify(name)}:latest`;
+}
+
+/** The container name a service runs under. */
+export function serviceContainerName(name: string, suffix: string): string {
+  return `tf-svc-${slugify(name)}-${suffix}`;
+}
+
+/**
+ * Provision the container test system a candidate declares: create its
+ * networks, build/start its services, and wait for each healthcheck.
+ *
+ * Best-effort and never throws: a failure is returned as an error string (with
+ * whatever containers were started, so the caller can still tear them down and
+ * the logs remain for inspection).
+ */
+async function provisionTestSystem(
+  deps: Deps,
+  candidate: Candidate,
+  suffix: string,
+  logger?: ExecContext["logger"],
+): Promise<{ containers: string[]; error: string }> {
+  const system = candidate.system;
+  const containers: string[] = [];
+  for (const net of system.networks) {
+    await ensureNetwork(
+      deps.runFn,
+      `tf-net-${slugify(net.name)}-${suffix}`,
+      net.subnet,
+    );
+  }
+  for (const svc of system.services) {
+    const container = serviceContainerName(svc.name, suffix);
+    let image = svc.image;
+    if (svc.build) {
+      image = serviceImageTag(svc.name);
+      const built = await buildImage(deps.runFn, {
+        image,
+        contextDir: resolveFrom(candidate.dir, svc.build),
+        dockerfile: svc.dockerfile
+          ? resolveFrom(candidate.dir, join(svc.build, svc.dockerfile))
+          : undefined,
+      });
+      if (!built.ok) {
+        return {
+          containers,
+          error: `service "${svc.name}" image build failed: ${
+            tail(built.output, 1500)
+          }`,
+        };
+      }
+    }
+    const networks = svc.networks.map((a) => ({
+      network: `tf-net-${slugify(a.network)}-${suffix}`,
+      ip: a.ipv4Address || undefined,
+      aliases: [svc.name],
+    }));
+    const mounts = svc.mounts.map((m) => {
+      const [host, ...rest] = m.split(":");
+      return [resolveFrom(candidate.dir, host), ...rest].join(":");
+    });
+    const created = await runDetached(deps.runFn, {
+      name: container,
+      image,
+      networks,
+      privileged: svc.privileged,
+      mounts,
+      env: { ...containerEnv(deps.swampApiKey), ...svc.environment },
+      cmd: svc.command.length > 0 ? svc.command : undefined,
+      labels: { "tf.scenario": slugify(svc.name), "tf.role": "service" },
+    });
+    if (!created.ok) {
+      return {
+        containers,
+        error: `service "${svc.name}" failed to start: ${created.output}`,
+      };
+    }
+    containers.push(container);
+    logger?.info(`service ${svc.name}: started (${image})`);
+    if (svc.healthcheck) {
+      const ready = await waitForHealthcheck(
+        deps,
+        container,
+        svc.healthcheck,
+      );
+      if (!ready) {
+        return {
+          containers,
+          error: `service "${svc.name}" did not become healthy within ${
+            svc.healthcheck.retries * svc.healthcheck.intervalSeconds
+          }s`,
+        };
+      }
+    } else if (svc.waitForSeconds > 0) {
+      await sleep(svc.waitForSeconds * 1000);
+    }
+  }
+  return { containers, error: "" };
+}
+
+/** Poll a container healthcheck command until it exits 0, or run out of retries. */
+async function waitForHealthcheck(
+  deps: Deps,
+  container: string,
+  hc: { command: string[]; intervalSeconds: number; retries: number },
+): Promise<boolean> {
+  for (let i = 0; i < hc.retries; i++) {
+    const res = await exec(deps.runFn, container, hc.command, {
+      timeoutMs: 30_000,
+    });
+    if (res.code === 0) return true;
+    await sleep(Math.max(1, hc.intervalSeconds) * 1000);
+  }
+  return false;
 }
 
 /**
@@ -981,7 +1171,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.01.3",
+  version: "2026.10.02.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1004,6 +1194,12 @@ export const model = {
       toVersion: "2026.10.01.3",
       description:
         "Add the `tests` phase: an extension can ship a `test-factory.yaml` (listed in its manifest `additionalFiles:`) declaring the user-facing outcomes it promises as prose plus runnable steps with executable pass/fail assertions. The phase is auto-enabled when the candidate ships that file; a lint enforces that every `confirms`/`cannot` claim has a matching positive/negative assertion. Results and summaries gain `tests` with per-step logs and `testCount`/`testsPassed`; the report renders the prose and the full logs. New resources fields only — no change to existing arguments.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.1",
+      description:
+        "A candidate's `test-factory.yaml` may now declare a container test system — `networks:` (with subnets), `harness:` (the swamp container's own network attachments plus `dig: true`), and `services:` (sibling containers to build/start with healthchecks). The factory creates the networks, starts and health-checks the services, joins the swamp container to the declared networks (a static IP per network lets one name resolve to several endpoints), and exports every declared address to the test steps as `TF_<SERVICE>_IP` / `TF_HARNESS_IP_<NETWORK>`. `@svendowideit/caddy` is the worked example (BIND over RFC2136 + dig/curl). A malformed topology fails loudly before any container boots; a file with no such keys behaves exactly as before. `result` gains `serviceContainers`. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1098,6 +1294,7 @@ export const model = {
           candidate.tests.length > 0,
         );
         preflightTests(candidate.tests, phases);
+        preflightTestSystem(candidate.system);
         const fixtures = args.fixturesFile
           ? parseFixtures(
             await Deno.readTextFile(
@@ -1187,6 +1384,7 @@ export const model = {
             candidate.tests.length > 0,
           );
           preflightTests(candidate.tests, phases);
+          preflightTestSystem(candidate.system);
           const opts: RunOptions = {
             phases,
             fixtures,
@@ -1280,6 +1478,7 @@ async function executeScenarios(
     tests: candidate.tests,
     releaseBaseUrl: deps.releaseBaseUrl,
     expectSystemd: false,
+    variables: systemVariables(candidate.system),
   });
   context.logger?.info(
     `${candidate.name}@${
@@ -1300,7 +1499,13 @@ async function executeScenarios(
         scenarioIntent(scenario, candidate, opts.phases)
       }`,
     );
-    const result = await runScenario(scenario, candidate, opts, deps);
+    const result = await runScenario(
+      scenario,
+      candidate,
+      opts,
+      deps,
+      context.logger,
+    );
     const handle = await context.writeResource(
       "result",
       resultName(scenario),
@@ -1343,6 +1548,7 @@ async function executeScenarios(
     tests: candidate.tests,
     releaseBaseUrl: deps.releaseBaseUrl,
     expectSystemd: false,
+    variables: systemVariables(candidate.system),
   };
   const summaryHandle = await context.writeResource(
     "summary",
@@ -1436,9 +1642,13 @@ async function resolveCandidate(
 ): Promise<Candidate> {
   const manifestAbs = resolve(repoDir, manifest);
   const info = await inspectExtension(manifestAbs);
-  const tests: TestSpec[] = info.testsPath
-    ? parseTests(await Deno.readTextFile(info.testsPath))
-    : [];
+  const testText: string = info.testsPath
+    ? await Deno.readTextFile(info.testsPath)
+    : "";
+  const tests: TestSpec[] = testText ? parseTests(testText) : [];
+  const system: TestSystem = testText
+    ? parseTestSystem(testText)
+    : { networks: [], harness: { networks: [], dig: false }, services: [] };
   return {
     manifestAbs,
     dir: dirname(manifestAbs),
@@ -1447,6 +1657,7 @@ async function resolveCandidate(
     modelTypes: info.modelTypes,
     workflowNames: info.workflowNames,
     tests,
+    system,
   };
 }
 
@@ -1483,6 +1694,24 @@ export function preflightTests(tests: TestSpec[], phases: string[]): void {
   if (issues.length > 0) {
     throw new Error(
       `test-factory.yaml failed validation:\n  - ${issues.join("\n  - ")}`,
+    );
+  }
+}
+
+/**
+ * Lint a candidate's declared container test system and throw on any issue.
+ *
+ * Runs before any container boots, so an unreachable network, a missing image,
+ * or a duplicate static address is reported immediately. A no-op for the
+ * (common) candidate that declares no services.
+ */
+export function preflightTestSystem(system: TestSystem): void {
+  const issues = lintTestSystem(system);
+  if (issues.length > 0) {
+    throw new Error(
+      `test-factory.yaml test system failed validation:\n  - ${
+        issues.join("\n  - ")
+      }`,
     );
   }
 }

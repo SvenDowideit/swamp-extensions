@@ -7,6 +7,7 @@ import {
   baseConfig,
   buildCurlArgs,
   buildFileServerRoute,
+  buildHealthRoutes,
   buildReconciledConfig,
   buildRoute,
   buildStatusPageRoute,
@@ -15,6 +16,7 @@ import {
   caddyTargetKey,
   computeHealth,
   configuredListens,
+  DEFAULT_CADDY_PLUGINS,
   defaultStatusHostnames,
   deriveHostname,
   detectSwampServeServices,
@@ -27,12 +29,15 @@ import {
   expandHome,
   findRouteByHost,
   hasNetBindService,
+  isGeneratedRoute,
+  isHealthRoute,
   isStatusPageRoute,
   isSwampRoute,
   listProxyServices,
   liveTlsInfo,
   mergeDesired,
   mergeTlsConfig,
+  missingPlugins,
   model,
   parseAdminAddr,
   parseCaddyVersion,
@@ -54,6 +59,7 @@ import {
   renderStatusPage,
   renderTlsAutomation,
   renderUpgradeConfirmation,
+  requiredCaddyModules,
   routeFileServerRoot,
   routeHostnames,
   routeId,
@@ -63,6 +69,8 @@ import {
   thirdPartyPlugins,
   validateBaseDomain,
   validateEmail,
+  withDefaultPlugins,
+  writeDnsRecords,
 } from "./caddy.ts";
 
 // Minimal global args for exercising the pre-flight checks.
@@ -622,6 +630,40 @@ Deno.test("renderTlsAutomation omits DNS challenge when no provider", () => {
   const policyList = automation.policies as Array<Record<string, unknown>>;
   const issuer = (policyList[0].issuers as Array<Record<string, unknown>>)[0];
   assertEquals(issuer.challenges, undefined);
+});
+
+Deno.test("buildReconciledConfig writes the tls app for a desired TLS config", () => {
+  // Regression: mergeTlsConfig returns a clone, so its result must be kept or
+  // the tls app (DNS provider + subjects) is silently dropped from the config.
+  const config = buildReconciledConfig(baseConfig(), {
+    routes: [],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: {
+      email: "a@b.com",
+      dnsProvider: "gandi",
+      dnsEnvVar: "",
+      providerConfig: { bearer_token: "GANDI_TOKEN" },
+      subjects: ["x1yoga.fi.gy"],
+    },
+    statusPage: null,
+    statusPageModel: "",
+    healthRoutes: false,
+  });
+  const tls = (config.apps as Record<string, unknown>).tls as Record<
+    string,
+    unknown
+  >;
+  assert(tls, "apps.tls must be present");
+  const automation = tls.automation as Record<string, unknown>;
+  const policy = (automation.policies as Array<Record<string, unknown>>)[0];
+  assertEquals(policy.subjects, ["x1yoga.fi.gy"]);
+  const issuer = (policy.issuers as Array<Record<string, unknown>>)[0];
+  const dns = (issuer.challenges as Record<string, unknown>).dns as Record<
+    string,
+    unknown
+  >;
+  assertEquals((dns.provider as Record<string, unknown>).name, "gandi");
 });
 
 Deno.test("dnsProviderPlugin maps gandi and dreamhost", () => {
@@ -1430,6 +1472,7 @@ Deno.test("buildReconciledConfig replaces prior swamp routes, keeps foreign", ()
     tls: null,
     statusPage: null,
     statusPageModel: "",
+    healthRoutes: false,
   });
   const ids = getRoutesHelper(second).map((r) => r["@id"]).filter(Boolean);
   assertEquals(ids, [routeId("b", "new.example.com")]);
@@ -1758,4 +1801,426 @@ Deno.test("removeProxyService is a no-op when the route is already gone", async 
   // No route was present, so nothing was removed.
   // deno-lint-ignore no-explicit-any
   assertEquals((services.data.services as any[]).length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Default plugins
+// ---------------------------------------------------------------------------
+
+Deno.test("withDefaultPlugins always adds caddy-host-dns and teapot", () => {
+  const merged = withDefaultPlugins(["github.com/caddy-dns/gandi"]);
+  assert(merged.includes("github.com/SvenDowideit/caddy-host-dns"));
+  assert(merged.includes("github.com/hairyhenderson/caddy-teapot-module"));
+  assert(merged.includes("github.com/caddy-dns/gandi"));
+  assertEquals(DEFAULT_CADDY_PLUGINS.length, 2);
+});
+
+Deno.test("withDefaultPlugins lets a pinned user entry win over the default", () => {
+  const merged = withDefaultPlugins([
+    "github.com/hairyhenderson/caddy-teapot-module@v0.0.2",
+  ]);
+  const hits = merged.filter((p) =>
+    p.startsWith("github.com/hairyhenderson/caddy-teapot-module")
+  );
+  assertEquals(hits, ["github.com/hairyhenderson/caddy-teapot-module@v0.0.2"]);
+});
+
+Deno.test("withDefaultPlugins does not duplicate a user-provided default", () => {
+  const merged = withDefaultPlugins(["github.com/SvenDowideit/caddy-host-dns"]);
+  assertEquals(
+    merged.filter((p) => p === "github.com/SvenDowideit/caddy-host-dns").length,
+    1,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Health contract: / -> status page, /teapot -> 418, other -> 404
+// ---------------------------------------------------------------------------
+
+Deno.test("buildStatusPageRoute matches only the root path", () => {
+  const route = buildStatusPageRoute("<html></html>", ["localhost"]);
+  assertEquals((route.match as Array<{ path: string[] }>)[0].path, ["/"]);
+});
+
+Deno.test("buildHealthRoutes yields teapot then notfound", () => {
+  const routes = buildHealthRoutes(["localhost", "app.example.com"], "m");
+  assertEquals(routes.length, 2);
+  const [teapot, notfound] = routes;
+  assertEquals(
+    (teapot.match as Array<{ path: string[] }>)[0].path,
+    ["/teapot"],
+  );
+  assertEquals(
+    (teapot.handle as Array<{ handler: string }>)[0].handler,
+    "teapot",
+  );
+  // The fallback matches the host with no path constraint and returns 404.
+  assertEquals(
+    (notfound.handle as Array<{ status_code: number }>)[0].status_code,
+    404,
+  );
+  assertEquals(
+    (notfound.match as Array<Record<string, unknown>>)[0].path,
+    undefined,
+  );
+  assert(isHealthRoute(teapot));
+  assert(isHealthRoute(notfound));
+  assert(isGeneratedRoute(teapot));
+});
+
+Deno.test("buildHealthRoutes is empty when there are no hostnames", () => {
+  assertEquals(buildHealthRoutes([], "m"), []);
+});
+
+Deno.test("buildReconciledConfig orders status page before health routes", () => {
+  const config = buildReconciledConfig(baseConfig(), {
+    routes: [],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: null,
+    statusPage: {
+      enabled: true,
+      title: "Caddy",
+      hostnames: [],
+      extraLinks: [],
+      version: "",
+      adminUrl: "",
+      baseDomain: "",
+      email: "",
+      capabilities: [],
+      plugins: [],
+      links: [],
+    },
+    statusPageModel: "m",
+    healthRoutes: true,
+  });
+  const handlers = getRoutesHelper(config).map(
+    (r) => (r.handle as Array<{ handler: string }>)[0].handler,
+  );
+  // static_response (status page) must come before teapot and the 404 fallback.
+  const status = handlers.indexOf("static_response");
+  const teapot = handlers.indexOf("teapot");
+  const notfound = handlers.lastIndexOf("static_response");
+  assert(status >= 0 && teapot > status && notfound > teapot);
+});
+
+Deno.test("isGeneratedRoute excludes status and health routes from the diff", () => {
+  const route = buildStatusPageRoute("<html></html>", ["localhost"]);
+  route["@id"] = routeId("m", "status");
+  assert(isGeneratedRoute(route));
+  for (const r of buildHealthRoutes(["localhost"], "m")) {
+    assert(isGeneratedRoute(r));
+  }
+  assert(
+    !isGeneratedRoute(buildRoute("h", { dial: "127.0.0.1:1", https: false })),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Static DNS records (dns_records)
+// ---------------------------------------------------------------------------
+
+const exampleTls = {
+  email: "a@b.com",
+  dnsProvider: "gandi",
+  dnsEnvVar: "",
+  providerConfig: { bearer_token: "GANDI_TOKEN" },
+  subjects: [],
+};
+
+Deno.test("writeDnsRecords emits the dns_records app with a provider block", () => {
+  const config = baseConfig();
+  writeDnsRecords(
+    config,
+    exampleTls,
+    [{
+      name: "otel.fi.gy",
+      type: "A",
+      value: ["10.10.0.5"],
+      zone: "fi.gy",
+      ttl: "5m",
+    }],
+    [{ name: "old.fi.gy", type: "A", value: [], zone: "" }],
+  );
+  // deno-lint-ignore no-explicit-any
+  const dr = (config.apps as any).dns_records;
+  assertEquals(dr.providers.length, 1);
+  assertEquals(dr.providers[0].dns_provider, {
+    name: "gandi",
+    bearer_token: "{env.GANDI_TOKEN}",
+  });
+  assertEquals(dr.providers[0].records, [{
+    name: "otel.fi.gy",
+    type: "A",
+    value: ["10.10.0.5"],
+    zone: "fi.gy",
+    ttl: "5m",
+  }]);
+  assertEquals(dr.providers[0].remove, [{ name: "old.fi.gy", type: "A" }]);
+});
+
+Deno.test("writeDnsRecords emits a default TTL when given one", () => {
+  const config = baseConfig();
+  writeDnsRecords(
+    config,
+    exampleTls,
+    [{
+      name: "a.fi.gy",
+      type: "A",
+      value: ["10.0.0.1"],
+      zone: "fi.gy",
+      ttl: "",
+    }],
+    [],
+    "5m",
+  );
+  // deno-lint-ignore no-explicit-any
+  const dr = (config.apps as any).dns_records;
+  assertEquals(dr.ttl, "5m");
+  // A per-record ttl still takes precedence (the module applies record ttl first).
+  assertEquals(dr.providers[0].records[0].ttl, undefined);
+});
+
+Deno.test("buildReconciledConfig defaults dnsRecords TTL to 5m", () => {
+  const config = buildReconciledConfig(baseConfig(), {
+    routes: [],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: exampleTls,
+    statusPage: null,
+    statusPageModel: "",
+    dnsRecords: [{
+      name: "otel.fi.gy",
+      type: "A",
+      value: ["10.10.0.5"],
+      zone: "fi.gy",
+      ttl: "",
+    }],
+    dnsRemovals: [],
+    dnsTtl: "5m",
+    healthRoutes: false,
+  });
+  // deno-lint-ignore no-explicit-any
+  assertEquals((config.apps as any).dns_records.ttl, "5m");
+});
+
+Deno.test("writeDnsRecords requires a DNS provider", () => {
+  let threw = false;
+  try {
+    writeDnsRecords(baseConfig(), null, [{
+      name: "a.fi.gy",
+      type: "A",
+      value: ["10.0.0.1"],
+      zone: "",
+      ttl: "",
+    }], []);
+  } catch {
+    threw = true;
+  }
+  assert(threw);
+});
+
+Deno.test("buildReconciledConfig writes dns_records only when records exist", () => {
+  const withRecords = buildReconciledConfig(baseConfig(), {
+    routes: [],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: exampleTls,
+    statusPage: null,
+    statusPageModel: "",
+    dnsRecords: [{
+      name: "otel.fi.gy",
+      type: "A",
+      value: ["10.10.0.5"],
+      zone: "",
+      ttl: "",
+    }],
+    dnsRemovals: [],
+    healthRoutes: false,
+  });
+  // deno-lint-ignore no-explicit-any
+  assert((withRecords.apps as any).dns_records);
+
+  // A config that previously had dns_records but no longer declares any is
+  // cleaned up, so Caddy does not keep reconciling stale records.
+  const cleaned = buildReconciledConfig(withRecords, {
+    routes: [],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: exampleTls,
+    statusPage: null,
+    statusPageModel: "",
+    dnsRecords: [],
+    dnsRemovals: [],
+    healthRoutes: false,
+  });
+  // deno-lint-ignore no-explicit-any
+  assertEquals((cleaned.apps as any).dns_records, undefined);
+});
+
+Deno.test("mergeDesired unions DNS records and errors on value conflicts", () => {
+  const base = {
+    target: "h",
+    serviceName: "caddy",
+    adminApiAddr: "localhost:2019",
+    baseDomain: "",
+    autoHttps: "on",
+    listenAddrs: [":443"],
+    plugins: [],
+    environmentFile: "",
+    caddyBinPath: "~/.local/bin/caddy",
+    routes: [],
+    tls: null,
+    statusPage: null,
+    dnsRecords: [],
+    dnsRemovals: [],
+    dnsTtl: "5m",
+    healthRoutes: true,
+    updatedAt: "",
+  };
+  const rec = (value: string) => ({
+    name: "otel.fi.gy",
+    type: "A" as const,
+    value: [value],
+    zone: "",
+    ttl: "",
+  });
+  // Identical records from two models dedupe.
+  const same = mergeDesired([
+    { ...base, modelName: "a", dnsRecords: [rec("10.0.0.1")] },
+    { ...base, modelName: "b", dnsRecords: [rec("10.0.0.1")] },
+  ]);
+  assertEquals(same.errors, []);
+  assertEquals(same.merged.dnsRecords.length, 1);
+
+  // Different values for the same (name, type) is a conflict naming both models.
+  const diff = mergeDesired([
+    { ...base, modelName: "a", dnsRecords: [rec("10.0.0.1")] },
+    { ...base, modelName: "b", dnsRecords: [rec("10.0.0.2")] },
+  ]);
+  assertEquals(diff.errors.length, 1);
+  assertStringIncludes(diff.errors[0], "a");
+  assertStringIncludes(diff.errors[0], "b");
+});
+
+Deno.test("mergeDesired errors when a record is both declared and removed", () => {
+  const base = {
+    target: "h",
+    serviceName: "caddy",
+    adminApiAddr: "localhost:2019",
+    baseDomain: "",
+    autoHttps: "on",
+    listenAddrs: [":443"],
+    plugins: [],
+    environmentFile: "",
+    caddyBinPath: "~/.local/bin/caddy",
+    routes: [],
+    tls: null,
+    statusPage: null,
+    dnsRecords: [{
+      name: "otel.fi.gy",
+      type: "A" as const,
+      value: ["10.0.0.1"],
+      zone: "",
+      ttl: "",
+    }],
+    dnsRemovals: [],
+    dnsTtl: "5m",
+    healthRoutes: true,
+    updatedAt: "",
+  };
+  const { errors } = mergeDesired([
+    { ...base, modelName: "a" },
+    {
+      ...base,
+      modelName: "b",
+      dnsRecords: [],
+      dnsRemovals: [{
+        name: "otel.fi.gy",
+        type: "A" as const,
+        value: [],
+        zone: "",
+      }],
+    },
+  ]);
+  assertEquals(errors.length, 1);
+  assertStringIncludes(errors[0], "otel.fi.gy");
+});
+
+// ---------------------------------------------------------------------------
+// Stale-binary detection (installCaddy must rebuild when modules are missing)
+// ---------------------------------------------------------------------------
+
+Deno.test("missingPlugins reports wanted packages not compiled in", () => {
+  const compiled = [
+    "github.com/caddyserver/caddy/v2",
+    "github.com/caddy-dns/gandi",
+  ];
+  assertEquals(missingPlugins(["github.com/caddy-dns/gandi"], compiled), []);
+  // The two built-in defaults are absent from this binary.
+  assertEquals(
+    missingPlugins([
+      "github.com/SvenDowideit/caddy-host-dns",
+      "github.com/hairyhenderson/caddy-teapot-module",
+      "github.com/caddy-dns/gandi",
+    ], compiled),
+    [
+      "github.com/SvenDowideit/caddy-host-dns",
+      "github.com/hairyhenderson/caddy-teapot-module",
+    ],
+  );
+});
+
+Deno.test("missingPlugins matches a pinned entry on its bare package path", () => {
+  const compiled = ["github.com/caddy-dns/gandi"];
+  assertEquals(
+    missingPlugins(["github.com/caddy-dns/gandi@v0.2.4"], compiled),
+    [],
+  );
+});
+
+Deno.test("missingPlugins treats a subpackage as present", () => {
+  // caddy-host-dns registers from its dnsrec subpackage; a prefix match counts.
+  assertEquals(
+    missingPlugins(
+      ["github.com/SvenDowideit/caddy-host-dns"],
+      ["github.com/SvenDowideit/caddy-host-dns/dnsrec"],
+    ),
+    [],
+  );
+});
+
+Deno.test("requiredCaddyModules lists handler modules used by a config", () => {
+  const config: Record<string, unknown> = {
+    apps: {
+      http: {
+        servers: {
+          srv0: {
+            routes: [
+              {
+                match: [{ host: ["localhost"], path: ["/teapot"] }],
+                handle: [{ handler: "teapot" }],
+              },
+              {
+                match: [{ host: ["localhost"] }],
+                handle: [{ handler: "static_response", status_code: 404 }],
+              },
+            ],
+          },
+        },
+      },
+    },
+  };
+  assertEquals(requiredCaddyModules(config), [
+    "http.handlers.static_response",
+    "http.handlers.teapot",
+  ]);
+});
+
+Deno.test("requiredCaddyModules includes the dns_records app", () => {
+  const config = baseConfig();
+  (config.apps as Record<string, unknown>).dns_records = { providers: [] };
+  assert(
+    requiredCaddyModules(config).includes("dns_records"),
+  );
 });

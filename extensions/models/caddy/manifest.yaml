@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.10.01.13"
+version: "2026.10.02.5"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -13,7 +13,9 @@ description: >
     without a restart and managed from swamp; no Go toolchain is needed. It can
     also publish a settings/document directory over HTTP(S) with file_server, and
     issue wildcard certificates through DNS-challenge providers (including
-    multi-field ones like Gandi, Namecheap, and DreamHost).
+    multi-field ones like Gandi, Namecheap, and DreamHost). It can manage static
+    A/AAAA/CNAME records through any dns.providers module, and serves a default
+    health contract (/, /teapot) on each configured hostname.
 
     It runs unprivileged (plain HTTP on high ports) or as a Let's Encrypt TLS
     proxy on 80/443, and routes persist across restarts via autosave + --resume.
@@ -110,6 +112,36 @@ description: >
       # See the README's "Wildcard certificates with a DNS provider (step by
       # step)" section for the full walkthrough and troubleshooting.
 
+      # --- Static A/AAAA/CNAME records (same provider as TLS) ---
+      # Caddy owns the (name, type) RRset: each reconcile replaces it with
+      # exactly the declared values. The provider block reuses configureTls's
+      # provider + credential, so one token in the env file covers both DNS-01
+      # and record-writing. Records are declared as a global arg.
+      swamp model create @svendowideit/caddy dns-caddy \
+        --global-arg baseDomain=example.com \
+        --global-arg 'plugins:json=["github.com/caddy-dns/gandi"]' \
+        --global-arg environmentFile=~/.config/caddy/dns.env \
+        --global-arg 'dnsRecords:json=[{"name":"otel.example.com","type":"A","value":["192.0.2.5"],"zone":"example.com"}]'
+      swamp model method run dns-caddy configureTls \
+        --input dnsProvider=gandi \
+        --input 'providerConfig:json={"bearer_token":"GANDI_TOKEN"}'
+      swamp model method run dns-caddy installCaddy   # compiles caddy-host-dns in
+      # Apply the records as its own step — re-run after any dnsRecords edit:
+      swamp model method run dns-caddy applyDnsRecords
+      #
+      # zone is required unless the provider implements libdns.ZoneLister
+      # (Gandi does not); set it to the registered zone, e.g. fi.gy.
+      # To delete a record, declare it under dnsRemovals (dropping it from
+      # dnsRecords leaves it in DNS), then run applyDnsRecords.
+
+      # --- Health contract (default on) ---
+      # On each status/default hostname Caddy answers '/' -> 200 (status page),
+      # '/teapot' -> 418, and any other path -> 404. Verify after a reconcile:
+      curl -s -o /dev/null -w '%{http_code}\n' http://localhost/           # 200
+      curl -s -o /dev/null -w '%{http_code}\n' http://localhost/teapot     # 418
+      curl -s -o /dev/null -w '%{http_code}\n' http://localhost/nope       # 404
+      # Set healthRoutes=false to omit it.
+
   MANAGING THE MODEL
 
     Find the model(s):  swamp model list --json | jq -r '.results[] |
@@ -150,7 +182,22 @@ description: >
       letsEncryptEmail   ACME email (enables automatic HTTPS)
       autoHttps          on|off|disable_redirects|disable_certs|...
       listenAddrs        HTTP listen addresses (default [":443",":80"])
-      plugins            Extra Caddy modules to compile in
+      plugins            Extra Caddy modules to compile in (caddy-host-dns and
+                         caddy-teapot-module are always added)
+      dnsRecords         Static records to own, e.g.
+                         [{"name":"otel.example.com","type":"A","value":["192.0.2.5"],"zone":"example.com"}]
+                         (type A|AAAA|CNAME; optional ttl). zone is required
+                         unless the provider implements libdns.ZoneLister
+                         (Gandi does not). Needs tls's dnsProvider set; apply
+                         with `applyDnsRecords`.
+      dnsRemovals        Records to delete each reconcile, e.g.
+                         [{"name":"old.example.com","type":"A","zone":"example.com"}]
+                         (empty value removes the whole name+type RRset);
+                         apply with `applyDnsRecords`
+      dnsTtl             Default TTL for dnsRecords (default 5m) so changes
+                         propagate quickly; a record's own ttl overrides it
+      healthRoutes       true (default): on status/default hostnames serve
+                         '/' -> 200, '/teapot' -> 418, other -> 404
       adminApiAddr       Admin API address (or unix//path)
       vaultName          Vault used by storeConfig
       environmentFile    systemd EnvironmentFile for DNS-provider tokens
@@ -188,10 +235,13 @@ description: >
   WHAT IT INSTALLS
 
     A Caddy binary at caddyBinPath (default ~/.local/bin/caddy) — optionally
-    with CAP_NET_BIND_SERVICE set so it can bind 80/443 unprivileged — a systemd
+    with CAP_NET_BIND_SERVICE set so it can bind 80/443 unprivileged, and always
+    including github.com/SvenDowideit/caddy-host-dns and
+    github.com/hairyhenderson/caddy-teapot-module — a systemd
     *user* service (default caddy.service), a Caddyfile under ~/.config/caddy,
     and network-facing reverse-proxy and file_server routes — plus a default
-    localhost status page — via Caddy's admin API. It installs no cron triggers
+    status page and health contract (/, /teapot) — via Caddy's admin API. It
+    installs no cron triggers
     or webhooks.
 
 repository: https://github.com/svendowideit/swamp-extensions

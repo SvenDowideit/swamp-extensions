@@ -13,8 +13,9 @@ applied via the admin API (not the Caddyfile) and **persist across service
 restarts and reboots** (Caddy autosave + `--resume`). It can:
 
 - **Install Caddy** — download the current release, optionally compiling in
-  extra modules (DNS providers, the teapot handler, etc.) with no local Go
-  toolchain, and place it at `caddyBinPath`.
+  extra modules (DNS providers, etc.) with no local Go toolchain, and place it at
+  `caddyBinPath`. `github.com/SvenDowideit/caddy-host-dns` and
+  `github.com/hairyhenderson/caddy-teapot-module` are always compiled in.
 - **Run it as a service** — write and manage a systemd user service, either as
   a normal TLS reverse proxy on 80/443 or unprivileged on high ports with plain
   HTTP.
@@ -27,7 +28,14 @@ restarts and reboots** (Caddy autosave + `--resume`). It can:
 - **A default status page** — a fresh install answers `http://localhost` and
   `https://localhost` with a page summarising what's installed (version, domain,
   ACME email, privileged-port capability) and linking to the admin API and any
-  configured routes, so a new host is never a blank 404.
+  configured routes, so a new host is never a blank 404. It is the default for
+  every hostname the models name (minus those with their own route).
+- **Static DNS records** — declare A/AAAA/CNAME records that Caddy owns and
+  reconciles through any `dns.providers.*` module (via `caddy-host-dns`), reusing
+  the same credential as the TLS DNS-01 challenge.
+- **A health contract** — on status/default hostnames, `/` → 200 (status page),
+  `/teapot` → 418 (the teapot module), and any other path → 404, so the three
+  cases are trivially testable on every configured host.
 - **Terminate TLS** — configure ACME (Let's Encrypt/ZeroSSL), including DNS
   challenge providers for wildcard certificates. Supports single-field providers
   (`api_token`) and multi-field ones (Gandi `bearer_token`; Namecheap
@@ -66,7 +74,11 @@ when it is unset.
 | `listenAddrs` | array | `[":443", ":80"]` | HTTP server listen addresses for admin-API routes (e.g. `[":8888", ":8443"]` for unprivileged ports). |
 | `baseDomain` | string | *(unset)* | Base domain for derived hostnames (`addProxyService`). |
 | `letsEncryptEmail` | string | *(unset)* | ACME / Let's Encrypt email (`configureTls`). |
-| `plugins` | array | `[]` | Module packages to compile into the downloaded binary, each optionally `@version`-pinned. |
+| `plugins` | array | `[]` | Extra module packages to compile into the downloaded binary, each optionally `@version`-pinned. `github.com/SvenDowideit/caddy-host-dns` and `github.com/hairyhenderson/caddy-teapot-module` are always added automatically. |
+| `dnsRecords` | array | `[]` | Static A/AAAA/CNAME records this model wants Caddy to own, e.g. `[{"name":"otel.example.com","type":"A","value":["192.0.2.5"],"zone":"example.com"}]` (optional `ttl`). Set `zone` unless the provider implements `libdns.ZoneLister` (Gandi does not). Requires `tls`'s `dnsProvider`; apply with `applyDnsRecords`. See [Static DNS records](#static-dns-records). |
+| `dnsRemovals` | array | `[]` | Records to delete on every reconcile, e.g. `[{"name":"old.example.com","type":"A","zone":"example.com"}]` (empty `value` removes the whole name+type RRset). Dropping a `dnsRecords` entry does **not** delete it. Apply with `applyDnsRecords`. |
+| `healthRoutes` | boolean | `true` | On status/default hostnames serve `/` → 200 (status page), `/teapot` → 418, any other path → 404. See [Health contract](#health-contract). |
+| `dnsTtl` | string | `5m` | Default TTL for `dnsRecords` (e.g. `5m`/`300s`). Short by default so record changes propagate quickly; a record's own `ttl` overrides it. |
 | `vaultName` | string | *(unset)* | Vault used by `storeConfig` to write secrets. |
 | `environmentFile` | string | *(unset)* | Path to a systemd `EnvironmentFile` for secrets (e.g. `~/.config/caddy/dns.env`, chmod 600), rendered as `EnvironmentFile=-<path>`. Required for DNS-challenge credentials — see [Wildcard certificates with a DNS provider](#wildcard-certificates-with-a-dns-provider-step-by-step). |
 
@@ -78,7 +90,8 @@ common configuration choices:
 | ------- | --- |
 | Public TLS reverse proxy on 443 | `baseDomain=example.com letsEncryptEmail=admin@example.com` |
 | Unprivileged plain HTTP | `autoHttps=off listenAddrs:json=[":8888",":8443"]` |
-| Extra Caddy modules in the binary | `plugins:json=["github.com/hairyhenderson/caddy-teapot-module"]` |
+| Extra Caddy modules in the binary | `plugins:json=["github.com/caddy-dns/route53"]` |
+| Own static DNS records | `dnsRecords:json=[{"name":"otel.example.com","type":"A","value":["192.0.2.5"]}]` + `dnsProvider` via `configureTls` |
 | A protected admin API | `adminApiAddr=unix//run/user/1000/caddy.sock` |
 | Vault-backed settings | `vaultName=caddy-secrets` then `storeConfig` |
 
@@ -307,11 +320,11 @@ it exposes, with its per-run arguments:
 
 | Method | Arguments | Purpose |
 | ------ | --------- | ------- |
-| `installCaddy` | `plugins` (array), `force` (boolean), `setCapabilities` (boolean, default true), `configureStatusPage` (boolean, default true) | Download the binary (with module packages compiled in), place it at `caddyBinPath`, verify it runs (`caddy version` + `caddy list-modules`), grant `CAP_NET_BIND_SERVICE` (see [Privileged ports](#privileged-ports-80443)), and install the status page when the admin API is up. |
+| `installCaddy` | `plugins` (array), `force` (boolean), `setCapabilities` (boolean, default true), `configureStatusPage` (boolean, default true) | Download the binary (with module packages compiled in — `caddy-host-dns` and `caddy-teapot-module` are always added), place it at `caddyBinPath`, verify it runs (`caddy version` + `caddy list-modules`), grant `CAP_NET_BIND_SERVICE` (see [Privileged ports](#privileged-ports-80443)), and install the status page + health contract when the admin API is up. **Rebuilds automatically when the existing binary is missing a wanted/built-in module** (not just when the file is absent). If it rebuilt a *running* service it applies the capability **first**, then restarts and waits for the service — failing with a `journalctl` hint if it did not come back (Caddy runs `--resume`, so a stale `autosave.json` can crash-loop it). The `install` resource reports `rebuilt`, `missingPluginsBeforeBuild`, and `restarted`. |
 | `setCapabilities` | `capabilities` (array), `binPath` (string), `quiet` (boolean) | Grant `CAP_NET_BIND_SERVICE` to the binary via `setcap` (then `sudo -n setcap`), or record the exact `sudo setcap` command when sudo is unavailable. Idempotent. |
-| `configureStatusPage` | `title` (string), `extraLinks` (array of `{label,url}`), `disabled` (boolean) | Install (or, with `disabled=true`, remove) the status page answering `http://localhost` / `https://localhost`. Idempotent. |
-| `plan` | none | Read-only: for **one** Caddy, merge all its models' desired state, compute the config that would be applied, read the live config, and record desired/actual routes, `onlyDesired`/`onlyActual` drift, foreign routes, and both full configs for diffing. Changes nothing. |
-| `audit` | none | Read-only, and the one-command entry point: find **every** caddy model, group by the Caddy each manages, and per Caddy report the merged routes (and which model wants each), desired-vs-actual drift, and reachability. Prints a table via the `@svendowideit/caddy-status` report. |
+| `configureStatusPage` | `title` (string), `extraLinks` (array of `{label,url}`), `disabled` (boolean) | Install (or, with `disabled=true`, remove) the status page answering `/` (200) on the status/default hostnames, plus the health contract (`/teapot` → 418, other → 404). Idempotent. |
+| `plan` | none | Read-only: for **one** Caddy, merge all its models' desired state, compute the config that would be applied, read the live config, and record desired/actual routes, `onlyDesired`/`onlyActual` drift, foreign routes, the desired DNS records, and both full configs for diffing. Changes nothing. |
+| `audit` | none | Read-only, and the one-command entry point: find **every** caddy model, group by the Caddy each manages, and per Caddy report the merged routes (and which model wants each), desired-vs-actual drift, the TLS/DNS layer (including desired static DNS records), and reachability. Prints a table via the `@svendowideit/caddy-status` report. |
 | `createService` | `serviceName` (string) | Write the systemd user unit (`~/.config/systemd/user/caddy.service`) and a minimal Caddyfile. |
 | `startService` | `serviceName` (string) | `systemctl --user enable --now caddy` and verify the admin API responds on `localhost:2019`. |
 | `stopService` | `serviceName` (string) | Stop the Caddy systemd user service. |
@@ -329,6 +342,7 @@ it exposes, with its per-run arguments:
 | `syncConfig` | none | Snapshot the effective config into a swamp resource. |
 | `getConfig` | none | Read the stored config back from the swamp resource. |
 | `configureTls` | `email`, `dnsProvider`, `dnsEnvVar`, `providerConfig` (object), `subjects` (array) | Configure the Caddy TLS app with the ACME email and an optional DNS provider for wildcard / DNS-challenge issuance. Single-field providers use `dnsEnvVar` (rendered as `api_token`); multi-field providers use `providerConfig` (field → env var), e.g. Gandi `{bearer_token: GANDI_TOKEN}`. |
+| `applyDnsRecords` | none | Reconcile the desired static DNS records (`dnsRecords`/`dnsRemovals` globals) into Caddy and write a `dnsConfig` resource. The one command to add/update/delete records. Errors clearly if no records are set or no `dnsProvider` is configured. Idempotent. |
 | `autoProxySwampServe` | `baseDomain`, `prefix`, `port` | Detect running `swamp serve` systemd user services (prefix `swamp-serve-`), derive hostnames, and reconcile their reverse-proxy routes (adds new, removes stopped). |
 | `upgradeCaddy` | `plugins` (array), `confirm` (string) | Replace the Caddy binary (current release, with module packages) after explicit confirmation (`confirm=upgrade`), then restart the service. Existing configuration is preserved. |
 
@@ -520,6 +534,135 @@ Details:
 - Alternatives if you cannot or will not use capabilities: run Caddy as a root
   system service, or keep it unprivileged on high ports (`listenAddrs=[":8080"]`,
   `autoHttps=off`) behind a separate TLS terminator.
+
+### Static DNS records
+
+`@svendowideit/caddy` compiles `github.com/SvenDowideit/caddy-host-dns`
+(the `dns_records` Caddy app) into every binary. Declare records as a global
+argument; Caddy **owns** each `(name, type)` RRset and, on every reconcile,
+replaces it with exactly the declared values (pruning extras — nothing else in
+the zone is touched). The provider block reuses the TLS `dnsProvider` and its
+credential, so one token in the `environmentFile` covers both DNS-01 and
+record-writing.
+
+```sh
+# Create a model that owns one A record, using the Gandi provider.
+swamp model create @svendowideit/caddy dns-caddy \
+  --global-arg baseDomain=example.com \
+  --global-arg 'plugins:json=["github.com/caddy-dns/gandi"]' \
+  --global-arg environmentFile=~/.config/caddy/dns.env \
+  --global-arg 'dnsRecords:json=[{"name":"otel.example.com","type":"A","value":["192.0.2.5"],"zone":"example.com"}]'
+
+# Same provider + credential as the wildcard example; also sets the DNS provider
+# that the dnsRecords are written through.
+swamp model method run dns-caddy configureTls \
+  --input dnsProvider=gandi \
+  --input 'providerConfig:json={"bearer_token":"GANDI_TOKEN"}'
+
+# compile caddy-host-dns into the binary, then create/start the service.
+swamp model method run dns-caddy installCaddy
+swamp model method run dns-caddy createService
+swamp model method run dns-caddy startService
+
+# Write the records (this is the one command to add/update them). Re-run it
+# after editing the dnsRecords global — it reconciles desired against live.
+swamp model method run dns-caddy applyDnsRecords
+```
+
+Notes:
+
+- Record `type` is `A`, `AAAA`, or `CNAME` (`CNAME` takes exactly one hostname);
+  `value` is an array of IPs for `A`/`AAAA`.
+- **TTL defaults to 5 minutes** (`dnsTtl`), so a new or changed record becomes
+  visible to public resolvers within minutes rather than hours. Set a record's
+  own `ttl` to override it for that record.
+- **`zone` is required for most providers** (including Gandi), because the
+  provider does not implement `libdns.ZoneLister`; set it to the registered zone
+  (e.g. `fi.gy`). It is only omittable when the provider can list zones, and can
+  be given once for the whole model via the `zone` field of each record.
+- **Editing an existing model:** `swamp model create` fails on a name that
+  exists, so change records on a model you already have with `swamp model edit`
+  (see [Change an existing model](#change-an-existing-model)), then run
+  `applyDnsRecords`.
+- **Deleting** a record requires `dnsRemovals` (dropping it from `dnsRecords`
+  leaves it in DNS), e.g.
+  `--global-arg 'dnsRemovals:json=[{"name":"old.example.com","type":"A","zone":"example.com"}]'`
+  then `applyDnsRecords`.
+- **Concrete example** (this repo's `my-caddy`, pointing a host at its LAN IP):
+  ```sh
+  swamp model get my-caddy --json \
+    | jq '.globalArguments.dnsRecords=[{"name":"x1yoga.fi.gy","type":"A","value":["10.10.13.208"],"zone":"fi.gy"}] | {name,version,tags,globalArguments}' \
+    | swamp model edit my-caddy --json
+  swamp model method run my-caddy applyDnsRecords
+  dig +short @1.1.1.1 x1yoga.fi.gy A     # -> 10.10.13.208
+  ```
+- A model that declares records **and** `configureTls` for the same provider
+  keeps TLS and DNS in one place; see [One command to see what's going on](#one-command-to-see-whats-going-on) — `audit` reports the desired DNS records.
+
+#### Diagnosing a record (propagation vs. serving)
+
+Setting a record has two independent halves: the **authoritative zone** (what
+Gandi/your provider stores) and the **cached public resolvers** (what your laptop
+sees). A record can be correct at the source yet invisible to your machine for
+the zone's TTL. Check each half separately:
+
+```sh
+# 1. What did the provider actually store? Ask the ZONE's OWN nameservers.
+#    This ignores cache and is the ground truth. Get them with:
+dig +short NS fi.gy
+# then, per nameserver:
+dig +short @ns-147-a.gandi.net x1yoga.fi.gy A     # -> 10.10.13.208
+
+# 2. What do public resolvers return? Empty here usually means "not propagated
+#    yet" (or a negative answer cached for the old TTL), not "not set".
+dig +short @1.1.1.1 x1yoga.fi.gy A
+dig +short @8.8.8.8 x1yoga.fi.gy A
+
+# 3. Is the RECORD right but DNS not yet usable? Skip DNS entirely and talk
+#    straight to the host. --resolve maps the name:port to the IP for this one
+#    request, so it works even before propagation:
+curl -v --resolve x1yoga.fi.gy:80:10.10.13.208 http://x1yoga.fi.gy/
+
+# For HTTPS the same trick pins the address while Caddy still needs a valid
+# cert for the name (so this only succeeds once TLS/DNS-01 has issued):
+curl -v --resolve x1yoga.fi.gy:443:10.10.13.208 https://x1yoga.fi.gy/
+
+# 4. Confirm the model's desired state and what Caddy was told to own:
+swamp model method run @svendowideit/caddy audit caddy-status
+swamp data get caddy-status audit --json | jq '.content.cadies[].dns'
+curl -s localhost:2019/config/apps/dns_records | jq
+```
+
+If step 1 shows the value but step 2 is empty, wait out the TTL (here `10800`s =
+3h) or flush a cached NXDOMAIN. If step 3 works but step 2 stays empty, the
+record is right and it is purely propagation. If step 1 is empty, the record was
+never written — check `applyDnsRecords` output and the provider token in the
+`environmentFile`.
+
+### Health contract
+
+On the **status/default hostnames** — loopback plus every hostname the models
+name (TLS subjects + explicit status hostnames) minus any hostname with its own
+route — Caddy serves a health contract so the three common cases are always
+testable:
+
+| Path | Response |
+| ---- | -------- |
+| `/` | 200 — the status page |
+| `/teapot` | 418 — via `github.com/hairyhenderson/caddy-teapot-module` |
+| anything else | 404 — an explicit fallback (Caddy otherwise answers 200 for unrouted paths) |
+
+Verify after a reconcile:
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost/        # 200
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost/teapot  # 418
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost/nope    # 404
+```
+
+The status page route is path-constrained to `/` so the fallback can own the
+other paths. Set `healthRoutes=false` to omit the contract; a hostname that has
+its own route is unaffected either way (its app handles its own paths).
 
 ### Why the unit has no hardening
 

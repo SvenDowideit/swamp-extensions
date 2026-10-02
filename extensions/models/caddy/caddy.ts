@@ -60,6 +60,75 @@
 import { z } from "npm:zod@4";
 
 // ---------------------------------------------------------------------------
+// Always-on Caddy modules + shared input schemas
+// ---------------------------------------------------------------------------
+
+/**
+ * Caddy modules compiled into every binary this extension installs:
+ *
+ *  - `github.com/SvenDowideit/caddy-host-dns` — the `dns_records` app: static,
+ *    provider-agnostic A/AAAA/CNAME records via any `dns.providers.*` module.
+ *  - `github.com/hairyhenderson/caddy-teapot-module` — the `teapot` handler,
+ *    used by the default health route (`/teapot` -> 418).
+ *
+ * They are merged into the configured plugin list at install/upgrade. A user
+ * entry that pins a version (e.g. `...@v1.2.3`) wins over the bare default.
+ */
+export const DEFAULT_CADDY_PLUGINS: readonly string[] = [
+  "github.com/SvenDowideit/caddy-host-dns",
+  "github.com/hairyhenderson/caddy-teapot-module",
+];
+
+/** The static-DNS app module path (for plugin reporting/diagnostics). */
+export const CADDY_HOST_DNS_PLUGIN = "github.com/SvenDowideit/caddy-host-dns";
+/** The teapot handler module path (for plugin reporting/diagnostics). */
+export const CADDY_TEAPOT_PLUGIN =
+  "github.com/hairyhenderson/caddy-teapot-module";
+
+/**
+ * Merge the always-on modules into a plugin list, de-duplicated by module path.
+ * A later (explicit) entry wins, so `foo@v1` overrides a bare `foo` default.
+ */
+export function withDefaultPlugins(plugins: string[]): string[] {
+  const byPath = new Map<string, string>();
+  for (const p of [...DEFAULT_CADDY_PLUGINS, ...plugins]) {
+    byPath.set(p.split("@")[0], p);
+  }
+  return [...byPath.values()];
+}
+
+/**
+ * A single static DNS record the model wants Caddy to own. `dns_records`
+ * replaces the whole `(name, type)` RRset with exactly these values on every
+ * reconcile. Values are literal; host-address auto-detection is not yet built.
+ */
+const DnsRecordSchema = z.object({
+  name: z.string().describe("FQDN, e.g. otel.fi.gy"),
+  type: z.enum(["A", "AAAA", "CNAME"]),
+  value: z.array(z.string()).min(1).describe(
+    "For A/AAAA: one or more IPs. For CNAME: exactly one hostname.",
+  ),
+  zone: z.string().default("").describe(
+    "Zone the record belongs to (e.g. fi.gy). Empty derives it from the name via the provider's libdns.ZoneLister.",
+  ),
+  ttl: z.string().default("").describe(
+    "Optional per-record TTL (e.g. 5m); overrides the global TTL.",
+  ),
+});
+
+/**
+ * An explicit DNS removal, applied on every reconcile. Unlike dropping a
+ * `dnsRecords` entry (which leaves the record in place), this deletes it.
+ * `value` empty removes the whole `(name, type)` RRset.
+ */
+const DnsRemovalSchema = z.object({
+  name: z.string(),
+  type: z.enum(["A", "AAAA", "CNAME"]),
+  value: z.array(z.string()).default([]),
+  zone: z.string().default(""),
+});
+
+// ---------------------------------------------------------------------------
 // Global args & method args
 // ---------------------------------------------------------------------------
 
@@ -95,7 +164,19 @@ const GlobalArgsSchema = z.object({
     "Email used for Let's Encrypt / ACME certificate issuance",
   ),
   plugins: z.array(z.string()).default([]).describe(
-    "Caddy module packages to include in the downloaded binary, e.g. github.com/caddy-dns/cloudflare (optionally github.com/foo/bar@v1.2.3)",
+    "Extra Caddy module packages to include in the downloaded binary, e.g. github.com/caddy-dns/cloudflare (optionally github.com/foo/bar@v1.2.3). The always-on modules (caddy-host-dns and caddy-teapot-module) are added automatically.",
+  ),
+  dnsRecords: z.array(DnsRecordSchema).default([]).describe(
+    "Static A/AAAA/CNAME records this model wants Caddy to own (via the caddy-host-dns dns_records app). Needs a DNS provider configured in tls (dnsProvider) so Caddy can write them.",
+  ),
+  dnsRemovals: z.array(DnsRemovalSchema).default([]).describe(
+    "DNS records to delete on every reconcile (dns_records 'remove'). Dropping a dnsRecords entry does not delete it; use this.",
+  ),
+  dnsTtl: z.string().default("5m").describe(
+    "Default TTL for dnsRecords, e.g. 5m or 300s. Short by default so records added/changed here propagate quickly; a record's own ttl field overrides it.",
+  ),
+  healthRoutes: z.boolean().default(true).describe(
+    "On status/default hostnames, add a health contract: '/' -> 200 (status page), '/teapot' -> 418, and any other path -> 404. Hostnames with their own route are unaffected.",
   ),
   adminApiToken: z.string().optional().meta({ sensitive: true }).describe(
     "Optional admin API token (sent as a Bearer header when set)",
@@ -285,6 +366,39 @@ const InstallOutputSchema = z.object({
   capabilities: z.array(z.string()),
   canBindPrivilegedPorts: z.boolean(),
   needsSudoForPorts: z.string(),
+  /** Whether this run downloaded a (re)built binary. */
+  rebuilt: z.boolean().default(false),
+  /** Wanted modules that were missing before a rebuild (empty if all present). */
+  missingPluginsBeforeBuild: z.array(z.string()).default([]),
+  /** Whether a running service was restarted to pick up the rebuilt binary. */
+  restarted: z.boolean().default(false),
+});
+
+const DnsConfigOutputSchema = z.object({
+  /** The static DNS records the model wants Caddy to own. */
+  records: z.array(
+    z.object({
+      name: z.string(),
+      type: z.string(),
+      value: z.array(z.string()),
+      zone: z.string().default(""),
+      ttl: z.string().default(""),
+    }),
+  ),
+  /** Explicit removals applied on every reconcile. */
+  removals: z.array(
+    z.object({
+      name: z.string(),
+      type: z.string(),
+      value: z.array(z.string()),
+      zone: z.string().default(""),
+    }),
+  ),
+  /** DNS provider the records were written through. */
+  provider: z.string(),
+  /** Whether the applied config differed from the live config. */
+  changed: z.boolean(),
+  appliedAt: z.string(),
 });
 
 const ServiceOutputSchema = z.object({
@@ -462,6 +576,10 @@ const DesiredStateSchema = z.object({
   routes: z.array(DesiredRouteSchema).default([]),
   tls: DesiredTlsSchema.nullable().default(null),
   statusPage: DesiredStatusPageSchema.nullable().default(null),
+  dnsRecords: z.array(DnsRecordSchema).default([]),
+  dnsRemovals: z.array(DnsRemovalSchema).default([]),
+  dnsTtl: z.string().default("5m"),
+  healthRoutes: z.boolean().default(true),
   updatedAt: z.string(),
 });
 
@@ -526,6 +644,55 @@ const AuditCaddySchema = z.object({
   }),
   /** Each model's OWN desired state, before merging. */
   unmerged: z.array(UnmergedModelSchema),
+  /** Static DNS records (caddy-host-dns): desired only, no live diff. */
+  dns: z.object({
+    /** Whether any model declares DNS records/removals. */
+    enabled: z.boolean(),
+    /** Records each model wants, before merging. */
+    desired: z.array(
+      z.object({
+        model: z.string(),
+        name: z.string(),
+        type: z.string(),
+        value: z.array(z.string()),
+        zone: z.string(),
+        ttl: z.string(),
+      }),
+    ),
+    /** Explicit removals each model wants. */
+    removals: z.array(
+      z.object({
+        model: z.string(),
+        name: z.string(),
+        type: z.string(),
+        value: z.array(z.string()),
+        zone: z.string(),
+      }),
+    ),
+    /** The merged record set Caddy is told to own. */
+    mergedRecords: z.array(
+      z.object({
+        name: z.string(),
+        type: z.string(),
+        value: z.array(z.string()),
+        zone: z.string(),
+        ttl: z.string(),
+      }),
+    ),
+    /** The merged removals. */
+    mergedRemovals: z.array(
+      z.object({
+        name: z.string(),
+        type: z.string(),
+        value: z.array(z.string()),
+        zone: z.string(),
+      }),
+    ),
+    /** DNS provider the records are written through (from tls). */
+    provider: z.string(),
+    /** Whether the caddy-host-dns module is compiled into the binary. */
+    moduleCompiled: z.boolean(),
+  }),
   /** The scratch/model name `plan`/`audit` was run on (for the next commands). */
   runModel: z.string(),
   /** Ready-to-paste commands to inspect unmerged, merged, and actual. */
@@ -884,7 +1051,9 @@ export function buildStatusPageRoute(
   hostnames: string[] = statusPageHostnames(),
 ): CaddyRoute {
   return {
-    match: [{ host: hostnames }],
+    // Path is constrained to "/" so the status page answers the root only; the
+    // health contract (teapot/404) then owns every other path on these hosts.
+    match: [{ host: hostnames, path: ["/"] }],
     handle: [
       {
         handler: "static_response",
@@ -923,6 +1092,56 @@ export function isStatusPageRoute(route: CaddyRoute): boolean {
   return Array.isArray(handle) &&
     handle.length > 0 &&
     (handle[0] as Record<string, unknown>).handler === "static_response";
+}
+
+/**
+ * Whether a route is one of the generated health routes (`/teapot` -> 418,
+ * fallback -> 404). Tagged `swamp:<model>:health:<kind>`.
+ */
+export function isHealthRoute(route: CaddyRoute): boolean {
+  const id = route["@id"];
+  return typeof id === "string" && id.startsWith("swamp:") &&
+    id.includes(":health:");
+}
+
+/**
+ * Whether a route is generated (status page or health), i.e. managed infra
+ * rather than a user-declared route. Excluded from the desire-vs-actual diff.
+ */
+export function isGeneratedRoute(route: CaddyRoute): boolean {
+  return isStatusPageRoute(route) || isHealthRoute(route);
+}
+
+/**
+ * The health contract for the default/status hostnames: `/teapot` -> 418
+ * (via the compiled-in teapot handler) and every other non-root path -> 404.
+ * Caddy otherwise returns 200 for unrouted requests, so the 404 is explicit.
+ */
+export function buildHealthRoutes(
+  hostnames: string[],
+  modelName: string,
+): CaddyRoute[] {
+  if (hostnames.length === 0) return [];
+  const id = (kind: string) =>
+    `swamp:${modelName.replace(/[^a-zA-Z0-9_-]/g, "-")}:health:${kind}`;
+  return [
+    {
+      "@id": id("teapot"),
+      match: [{ host: hostnames, path: ["/teapot"] }],
+      handle: [{ handler: "teapot" }],
+      terminal: true,
+    },
+    {
+      "@id": id("notfound"),
+      match: [{ host: hostnames }],
+      handle: [{
+        handler: "static_response",
+        status_code: 404,
+        body: "404 Not Found",
+      }],
+      terminal: true,
+    },
+  ];
 }
 
 /** A discovered service link for the status page. */
@@ -1254,6 +1473,32 @@ export interface DesiredStatusPage {
   links: Array<{ label: string; url: string }>;
 }
 
+/** One model's desired static DNS record (dns_records). */
+export interface DnsRecord {
+  /** FQDN. */
+  name: string;
+  /** A, AAAA, or CNAME. */
+  type: "A" | "AAAA" | "CNAME";
+  /** Values: IPs for A/AAAA, one hostname for CNAME. */
+  value: string[];
+  /** Zone (empty = derive from name via the provider's ZoneLister). */
+  zone: string;
+  /** Per-record TTL (empty = global/provider default). */
+  ttl: string;
+}
+
+/** One model's explicit DNS removal. */
+export interface DnsRemoval {
+  /** FQDN. */
+  name: string;
+  /** A, AAAA, or CNAME. */
+  type: "A" | "AAAA" | "CNAME";
+  /** Specific values to remove; empty = whole (name,type) RRset. */
+  value: string[];
+  /** Zone (empty = derive from name). */
+  zone: string;
+}
+
 /** What one model wants from its Caddy. */
 export interface DesiredState {
   /** The model instance name. */
@@ -1282,6 +1527,14 @@ export interface DesiredState {
   tls: DesiredTls | null;
   /** Desired status page, or null. */
   statusPage: DesiredStatusPage | null;
+  /** Desired static DNS records (dns_records). */
+  dnsRecords: DnsRecord[];
+  /** Explicit DNS removals. */
+  dnsRemovals: DnsRemoval[];
+  /** Default TTL for dnsRecords (a short value propagates changes quickly). */
+  dnsTtl: string;
+  /** Whether to install the / -> 200, /teapot -> 418, other -> 404 health contract. */
+  healthRoutes: boolean;
   /** Last update timestamp. */
   updatedAt: string;
 }
@@ -1316,6 +1569,10 @@ export function mergeDesired(states: DesiredState[]): {
     models: string[];
     tlsModels: string[];
     statusPageModel: string;
+    dnsRecords: DnsRecord[];
+    dnsRemovals: DnsRemoval[];
+    dnsTtl: string;
+    healthRoutes: boolean;
   };
   errors: string[];
 } {
@@ -1402,6 +1659,50 @@ export function mergeDesired(states: DesiredState[]): {
     ? statusStates[0].statusPage
     : null;
 
+  // DNS records union on (name, type). A same-key record with different values
+  // from two models is a conflict; identical ones dedupe. A (name, type) that is
+  // both declared and removed is a conflict.
+  const dnsByKey = new Map<string, { rec: DnsRecord; model: string }>();
+  for (const s of states) {
+    for (const rec of s.dnsRecords ?? []) {
+      const key = `${rec.type}\u0000${rec.name}`;
+      const existing = dnsByKey.get(key);
+      if (existing && JSON.stringify(existing.rec) !== JSON.stringify(rec)) {
+        errors.push(
+          `DNS record conflict for '${rec.name} ${rec.type}': desired by '${existing.model}' and '${s.modelName}'`,
+        );
+        continue;
+      }
+      dnsByKey.set(key, { rec, model: s.modelName });
+    }
+  }
+  const dnsByKey2 = new Map<string, { rem: DnsRemoval; model: string }>();
+  for (const s of states) {
+    for (const rem of s.dnsRemovals ?? []) {
+      const key = `${rem.type}\u0000${rem.name}`;
+      if (dnsByKey.has(key)) {
+        errors.push(
+          `DNS conflict for '${rem.name} ${rem.type}': declared by '${
+            dnsByKey.get(key)!.model
+          }' and removed by '${s.modelName}'`,
+        );
+      }
+      dnsByKey2.set(key, { rem, model: s.modelName });
+    }
+  }
+  const dnsRecords = [...dnsByKey.values()].map((v) => v.rec)
+    .sort((a, b) =>
+      a.name.localeCompare(b.name) || a.type.localeCompare(b.type)
+    );
+  const dnsRemovals = [...dnsByKey2.values()].map((v) => v.rem)
+    .sort((a, b) =>
+      a.name.localeCompare(b.name) || a.type.localeCompare(b.type)
+    );
+  // Health routes are on by default; any model can turn them off for the host.
+  const healthRoutes = states.some((s) => s.healthRoutes);
+  // Default DNS TTL: first model that sets one wins (all default to 5m anyway).
+  const dnsTtl = states.find((s) => s.dnsTtl)?.dnsTtl ?? "5m";
+
   const routes = [...routeByHost.values()]
     .map((v) => ({ ...v.route, model: v.model }))
     .sort((a, b) => a.hostname.localeCompare(b.hostname));
@@ -1417,6 +1718,10 @@ export function mergeDesired(states: DesiredState[]): {
       models,
       tlsModels,
       statusPageModel: statusStates[0]?.modelName ?? "",
+      dnsRecords,
+      dnsRemovals,
+      dnsTtl,
+      healthRoutes,
     },
     errors,
   };
@@ -1437,6 +1742,10 @@ export function buildReconciledConfig(
     tls: DesiredTls | null;
     statusPage: DesiredStatusPage | null;
     statusPageModel: string;
+    dnsRecords?: DnsRecord[];
+    dnsRemovals?: DnsRemoval[];
+    dnsTtl?: string;
+    healthRoutes?: boolean;
   },
 ): CaddyConfig {
   const base = baseConfig(
@@ -1447,7 +1756,7 @@ export function buildReconciledConfig(
   // route written by an earlier version that predates `@id` tagging, so an
   // upgrade does not leave a duplicate localhost route behind.
   const kept = getRoutes(current).filter(
-    (r) => !isSwampRoute(r) && !isStatusPageRoute(r),
+    (r) => !isSwampRoute(r) && !isGeneratedRoute(r),
   );
   const built: CaddyRoute[] = [...kept];
   for (const r of merged.routes) {
@@ -1482,20 +1791,21 @@ export function buildReconciledConfig(
       });
     }
   }
-  if (merged.statusPage?.enabled) {
+  const routedHostnames = merged.routes.map((r) => r.hostname);
+  const wantStatus = !!merged.statusPage?.enabled;
+  const wantHealth = merged.healthRoutes ?? true;
+  // The status page / health contract apply to the DEFAULT host set: loopback
+  // plus every hostname the models name (TLS subjects + explicit status
+  // hostnames) minus those with a real route of their own.
+  const statusHostnames = defaultStatusHostnames({
+    tlsSubjects: merged.tls?.subjects ?? [],
+    explicit: merged.statusPage?.hostnames ?? [],
+    routedHostnames,
+  });
+  if (wantStatus) {
     // Re-render against the *merged* routes/listens so the page never shows a
     // stale list after another model adds/removes a route.
-    const sp = merged.statusPage;
-    const routedHostnames = merged.routes.map((r) => r.hostname);
-    // The status page is the DEFAULT for every hostname the models name (TLS
-    // subjects + explicit status hostnames) EXCEPT those with a real route, so
-    // a configured hostname is never a blank 404 — and, because it appears in a
-    // route match, Caddy requests a certificate for it.
-    const statusHostnames = defaultStatusHostnames({
-      tlsSubjects: merged.tls?.subjects ?? [],
-      explicit: sp.hostnames,
-      routedHostnames,
-    });
+    const sp = merged.statusPage!;
     const links = statusPageLinks({
       routes: merged.routes,
       statusHostnames,
@@ -1514,12 +1824,17 @@ export function buildReconciledConfig(
       modelName: merged.statusPageModel,
       plugins: sp.plugins,
     });
-    // Pushed LAST so explicit routes (added above) match first and win.
+    // Pushed before the health routes so the `/` match wins over the 404.
     const route = buildStatusPageRoute(html, statusHostnames);
     route["@id"] = routeId(merged.statusPageModel, "status");
     built.push(route);
   }
-  const next = base;
+  if (wantHealth) {
+    built.push(
+      ...buildHealthRoutes(statusHostnames, merged.statusPageModel || "caddy"),
+    );
+  }
+  let next = base;
   setRoutes(next, built);
   if (merged.tls) {
     const tlsConfig = renderTlsAutomation({
@@ -1531,7 +1846,18 @@ export function buildReconciledConfig(
         : undefined,
       subjects: merged.tls.subjects,
     });
-    return mergeTlsConfig(next, tlsConfig);
+    // mergeTlsConfig returns a clone, so keep its result or the tls app is lost.
+    next = mergeTlsConfig(next, tlsConfig);
+  }
+  // Static DNS records (caddy-host-dns). Written only when there is something
+  // to manage; otherwise a stale app is removed so it cannot keep reconciling.
+  const dnsRecords = merged.dnsRecords ?? [];
+  const dnsRemovals = merged.dnsRemovals ?? [];
+  if (dnsRecords.length > 0 || dnsRemovals.length > 0) {
+    writeDnsRecords(next, merged.tls, dnsRecords, dnsRemovals, merged.dnsTtl);
+  } else {
+    const apps = (next.apps ??= {}) as Record<string, unknown>;
+    delete apps.dns_records;
   }
   return next;
 }
@@ -1585,13 +1911,13 @@ export function diffRoutes(
   const actualHosts = new Set<string>();
   for (const r of getRoutes(actual)) {
     const hosts = routeHostnames(r);
-    if (isSwampRoute(r) && !isStatusPageRoute(r)) {
+    if (isSwampRoute(r) && !isGeneratedRoute(r)) {
       actualSwampRoutes.push({
         id: String(r["@id"]),
         hostnames: hosts,
       });
       for (const h of hosts) actualHosts.add(h);
-    } else if (!isStatusPageRoute(r)) {
+    } else if (!isGeneratedRoute(r)) {
       foreignRoutes.push(...hosts);
     }
   }
@@ -1997,6 +2323,59 @@ export function renderTlsAutomation(opts: {
   };
 }
 
+/**
+ * Write the `dns_records` app (github.com/SvenDowideit/caddy-host-dns) into a
+ * config from the merged desired DNS state. The DNS provider block reuses the
+ * TLS provider config, so the A/AAAA/CNAME writer and the ACME DNS-01 solver
+ * share one credential source (the service EnvironmentFile).
+ */
+export function writeDnsRecords(
+  config: CaddyConfig,
+  tls: DesiredTls | null,
+  records: DnsRecord[],
+  removals: DnsRemoval[],
+  ttl = "",
+): void {
+  const apps = (config.apps ??= {}) as Record<string, unknown>;
+  if (!tls || !tls.dnsProvider) {
+    throw new Error(
+      "dnsRecords require a DNS provider: set the tls dnsProvider so Caddy can write the records",
+    );
+  }
+  const credentials: Record<string, string> = Object.keys(tls.providerConfig)
+      .length > 0
+    ? tls.providerConfig
+    : { api_token: tls.dnsEnvVar || "CADDY_DNS_API_TOKEN" };
+  const provider: Record<string, string> = { name: tls.dnsProvider };
+  for (const [field, envVar] of Object.entries(credentials)) {
+    provider[field] = `{env.${envVar}}`;
+  }
+  const recDto = records.map((r) => {
+    const dto: Record<string, unknown> = {
+      name: r.name,
+      type: r.type,
+      value: r.value,
+    };
+    if (r.zone) dto.zone = r.zone;
+    if (r.ttl) dto.ttl = r.ttl;
+    return dto;
+  });
+  const remDto = removals.map((r) => {
+    const dto: Record<string, unknown> = { name: r.name, type: r.type };
+    if (r.value.length) dto.value = r.value;
+    if (r.zone) dto.zone = r.zone;
+    return dto;
+  });
+  apps.dns_records = {
+    providers: [{
+      dns_provider: provider,
+      records: recDto,
+      ...(remDto.length ? { remove: remDto } : {}),
+    }],
+    ...(ttl ? { ttl } : {}),
+  };
+}
+
 /** Merge a TLS config into a Caddy config (replaces the `tls` app). */
 export function mergeTlsConfig(
   config: CaddyConfig,
@@ -2306,6 +2685,47 @@ function dirnameOf(path: string): string {
   return idx === -1 ? "." : path.slice(0, idx);
 }
 
+/**
+ * Which of the wanted plugin packages are NOT compiled into the binary.
+ *
+ * A wanted entry may be bare (`github.com/foo/bar`) or version-pinned
+ * (`github.com/foo/bar@v1.2.3`); matching is on the bare path. Used both to
+ * decide whether `installCaddy` must (re)build the binary and to report drift
+ * in `audit`.
+ */
+export function missingPlugins(
+  wanted: string[],
+  compiled: string[],
+): string[] {
+  return wanted.filter((want) => {
+    const bare = want.split("@")[0];
+    return !compiled.some((c) => c === bare || c.startsWith(bare));
+  });
+}
+
+/**
+ * The third-party Go package paths compiled into a binary, from
+ * `caddy list-modules --packages` (one `<module> <package>` per line). Standard
+ * Caddy modules are excluded so the result can be compared with the requested
+ * plugin list.
+ */
+async function compiledPluginPaths(binPath: string): Promise<string[]> {
+  const lm = await runCmd(binPath, ["list-modules", "--packages"]);
+  if (lm.code !== 0) return [];
+  const out = new Set<string>();
+  for (const line of lm.stdout.split("\n")) {
+    const parts = line.trim().split(/\s+/);
+    const pkg = parts[1];
+    if (
+      pkg && pkg.startsWith("github.com") &&
+      pkg !== "github.com/caddyserver/caddy/v2"
+    ) {
+      out.add(pkg);
+    }
+  }
+  return [...out];
+}
+
 /** Whether a path exists as a regular file. */
 async function fileExists(path: string): Promise<boolean> {
   try {
@@ -2372,6 +2792,98 @@ async function systemctl(
   args: string[],
 ): Promise<CmdResult> {
   return await runCmd("systemctl", ["--user", ...args]);
+}
+
+/**
+ * The `handler` names used by routes in a config (empty for non-map entries).
+ */
+function configHandlerNames(config: CaddyConfig): string[] {
+  const names: string[] = [];
+  for (const r of getRoutes(config)) {
+    const handle = r.handle;
+    if (!Array.isArray(handle)) continue;
+    for (const h of handle) {
+      if (
+        h && typeof h === "object" &&
+        typeof (h as { handler?: unknown }).handler === "string"
+      ) {
+        names.push((h as { handler: string }).handler);
+      }
+    }
+  }
+  return names;
+}
+
+/**
+ * The Caddy modules a config actually uses, as `namespace.name` ids. Covers the
+ * handler modules this extension emits (teapot, file_server, reverse_proxy,
+ * static_response) and the apps it may write (dns_records). Standard Caddy
+ * modules are always present; only the third-party ones (teapot, plus the
+ * `dns_records` app) gate a rebuild.
+ */
+export function requiredCaddyModules(config: CaddyConfig): string[] {
+  const mods = new Set<string>();
+  for (const h of configHandlerNames(config)) mods.add(`http.handlers.${h}`);
+  const apps = (config.apps ?? {}) as Record<string, unknown>;
+  if (apps.dns_records) mods.add("dns_records");
+  return [...mods].sort();
+}
+
+/**
+ * Throw (before a config is applied) when it uses third-party modules the
+ * binary cannot load, naming the fix. This turns Caddy's opaque
+ * "unknown module: http.handlers.teapot" 500 into an actionable error.
+ */
+async function assertModulesCompiled(
+  config: CaddyConfig,
+  binPath: string,
+  fixMethods: string[],
+): Promise<void> {
+  const required = requiredCaddyModules(config).filter((m) =>
+    m === "http.handlers.teapot" || m === "dns_records"
+  );
+  if (required.length === 0) return;
+  if (!(await fileExists(binPath))) return; // nothing to check against yet
+  const lm = await runCmd(binPath, ["list-modules"]);
+  if (lm.code !== 0) return;
+  const present = new Set(
+    lm.stdout.split("\n").map((l) => l.trim()).filter((l) =>
+      l && !l.startsWith("#")
+    ),
+  );
+  const missing = required.filter((m) => !present.has(m));
+  if (missing.length > 0) {
+    throw new Error(
+      `Refusing to apply the config: the Caddy binary at ${binPath} does not include ` +
+        `${missing.join(", ")}. Rebuild it with one of: ` +
+        fixMethods.map((m) => `\`swamp model method run <model> ${m}\``).join(
+          " / ",
+        ) +
+        ` (built-in modules are added automatically).`,
+    );
+  }
+}
+
+/** Whether a systemd user service is currently active (best-effort). */
+async function isServiceActive(serviceName: string): Promise<boolean> {
+  try {
+    const r = await systemctl(["is-active", serviceName]);
+    return r.stdout.trim() === "active";
+  } catch {
+    return false;
+  }
+}
+
+/** Poll until a systemd user service is active, or the timeout elapses. */
+async function waitForService(
+  serviceName: string,
+  seconds: number,
+): Promise<boolean> {
+  for (let i = 0; i < seconds; i++) {
+    if (await isServiceActive(serviceName)) return true;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return isServiceActive(serviceName);
 }
 
 /** List active systemd user service unit names. */
@@ -2563,6 +3075,10 @@ function emptyDesired(
     routes: [],
     tls: null,
     statusPage: null,
+    dnsRecords: g.dnsRecords,
+    dnsRemovals: g.dnsRemovals,
+    dnsTtl: g.dnsTtl,
+    healthRoutes: g.healthRoutes,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -2592,6 +3108,11 @@ async function loadOwnDesired(
     routes: Array.isArray(stored.routes) ? stored.routes : [],
     tls: stored.tls ?? null,
     statusPage: stored.statusPage ?? null,
+    // dnsRecords/dnsRemovals follow the global args (like listenAddrs), NOT the
+    // stored copy: the stored value is only ever written from the globals, so
+    // preferring it would make a later `swamp model edit` of the global a no-op.
+    dnsRecords: base.dnsRecords,
+    dnsRemovals: base.dnsRemovals,
   };
 }
 
@@ -2835,6 +3356,28 @@ async function computeCaddyPlan(
     environmentFileKeys: string[];
     inSync: boolean;
   };
+  dns: {
+    enabled: boolean;
+    desired: Array<{
+      model: string;
+      name: string;
+      type: string;
+      value: string[];
+      zone: string;
+      ttl: string;
+    }>;
+    removals: Array<{
+      model: string;
+      name: string;
+      type: string;
+      value: string[];
+      zone: string;
+    }>;
+    mergedRecords: DnsRecord[];
+    mergedRemovals: DnsRemoval[];
+    provider: string;
+    moduleCompiled: boolean;
+  };
   actualSwampRoutes: Array<{ id: string; hostnames: string[] }>;
   foreignRoutes: string[];
   onlyDesired: string[];
@@ -2890,7 +3433,8 @@ async function computeCaddyPlan(
     seenModels.add(s.modelName);
     const wantsSomething = s.routes.length > 0 ||
       (s.tls?.subjects.length ?? 0) > 0 ||
-      (s.statusPage?.enabled ?? false);
+      (s.statusPage?.enabled ?? false) ||
+      (s.dnsRecords?.length ?? 0) > 0 || (s.dnsRemovals?.length ?? 0) > 0;
     if (!wantsSomething) continue;
     unmerged.push({
       model: s.modelName,
@@ -2929,10 +3473,13 @@ async function computeCaddyPlan(
       providerConfigFields: Object.keys(s.tls!.providerConfig),
     }));
   const live = liveTlsInfo(actual);
-  // Which of the wanted plugins are compiled into the binary.
+  // Which of the wanted plugins are compiled into the binary. The built-in
+  // modules are always wanted (installCaddy/upgradeCaddy add them), so include
+  // them here too — otherwise audit cannot report a binary that predates them.
   const binPath = expandHome(own.caddyBinPath || "~/.local/bin/caddy");
   const pluginsWanted: string[] = [];
   for (const s of group) for (const p of s.plugins ?? []) pluginsWanted.push(p);
+  for (const p of DEFAULT_CADDY_PLUGINS) pluginsWanted.push(p);
   const pluginsCompiled: string[] = [];
   if (await fileExists(binPath)) {
     const lm = await runCmd(binPath, ["list-modules", "--packages"]);
@@ -2947,10 +3494,7 @@ async function computeCaddyPlan(
   }
   // A wanted plugin is present if any compiled module's package matches it
   // (allow a bare prefix, e.g. github.com/caddy-dns/gandi).
-  const pluginsMissing = pluginsWanted.filter((want) => {
-    const bare = want.split("@")[0];
-    return !pluginsCompiled.some((c) => c === bare || c.startsWith(bare));
-  });
+  const pluginsMissing = missingPlugins(pluginsWanted, pluginsCompiled);
   // Environment file may be set on any model in the group; take the first
   // non-empty (and note conflicts implicitly via the env keys shown).
   const environmentFile = own.environmentFile ||
@@ -2994,6 +3538,35 @@ async function computeCaddyPlan(
       subjectsWithoutCert.length === 0
     : live.subjects.length === 0 && live.hasDnsChallenge === false;
 
+  // --- Static DNS records (caddy-host-dns): desired only, no live diff. ---
+  const dnsDesired: Array<{
+    model: string;
+    name: string;
+    type: string;
+    value: string[];
+    zone: string;
+    ttl: string;
+  }> = [];
+  const dnsRemovalsDesired: Array<{
+    model: string;
+    name: string;
+    type: string;
+    value: string[];
+    zone: string;
+  }> = [];
+  for (const s of group) {
+    for (const r of s.dnsRecords ?? []) {
+      dnsDesired.push({ model: s.modelName, ...r });
+    }
+    for (const r of s.dnsRemovals ?? []) {
+      dnsRemovalsDesired.push({ model: s.modelName, ...r });
+    }
+  }
+  const dnsEnabled = dnsDesired.length > 0 || dnsRemovalsDesired.length > 0;
+  const dnsModuleCompiled = pluginsCompiled.some((c) =>
+    c === CADDY_HOST_DNS_PLUGIN || c.startsWith(CADDY_HOST_DNS_PLUGIN)
+  );
+
   return {
     target: caddyTargetKey(own.target, own.serviceName),
     adminApiAddr: own.adminApiAddr || "localhost:2019",
@@ -3020,12 +3593,22 @@ async function computeCaddyPlan(
       inSync: tlsInSync,
     },
     conflicts: errors,
+    dns: {
+      enabled: dnsEnabled,
+      desired: dnsDesired,
+      removals: dnsRemovalsDesired,
+      mergedRecords: merged.dnsRecords,
+      mergedRemovals: merged.dnsRemovals,
+      provider: merged.tls?.dnsProvider ?? "",
+      moduleCompiled: dnsModuleCompiled,
+    },
     desiredRoutes,
     actualSwampRoutes: diff.actualSwampRoutes,
     foreignRoutes: diff.foreignRoutes,
     onlyDesired: diff.onlyDesired,
     onlyActual: diff.onlyActual,
-    inSync: reachable && diff.inSync && errors.length === 0,
+    inSync: reachable && diff.inSync && errors.length === 0 &&
+      pluginsMissing.length === 0,
     reachable,
     error,
     desiredConfig,
@@ -3075,6 +3658,12 @@ async function applyReconcile(
     g.autoHttps,
   );
   const next = buildReconciledConfig(current, merged);
+  // A config that uses a module the binary lacks fails to load with a cryptic
+  // Caddy 500 ("unknown module"). Catch it first and say how to fix it.
+  await assertModulesCompiled(next, expandHome(g.caddyBinPath), [
+    "installCaddy",
+    "upgradeCaddy",
+  ]);
   const changed = JSON.stringify(next) !== JSON.stringify(current);
   if (changed) {
     await writeConfig(g.adminApiAddr, next, g.adminApiToken);
@@ -3221,7 +3810,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.01.13",
+  version: "2026.10.02.5",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -3413,11 +4002,47 @@ export const model = {
         "The default status page is now the fallback for EVERY hostname the models name (TLS subjects + explicit status hostnames), not just localhost — minus any hostname that has its own route. It is pushed last so explicit routes win. This also makes Caddy request a certificate for those hostnames (Caddy only issues for names in a route match), fixing 'configured hostname gets no cert / is a blank 404'. audit/plan TLS section now reports certificates actually ISSUED (read from Caddy's data dir) and the subjects still without a cert, so config-presence is no longer mistaken for a working DNS-01 challenge, and lists the status page's extra hostnames. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.02.1",
+      description:
+        "Two always-on Caddy modules are now compiled into every binary: github.com/SvenDowideit/caddy-host-dns (static, provider-agnostic A/AAAA/CNAME records via any dns.providers.* module) and github.com/hairyhenderson/caddy-teapot-module. Adds a default health contract on the status/default hostnames — '/' -> 200 (status page, now path-constrained to '/'), '/teapot' -> 418, any other path -> 404 (Caddy otherwise answers 200 for unrouted paths) — tunable with the healthRoutes global arg. Adds dnsRecords/dnsRemovals globals that write the dns_records app, reusing the TLS provider credential so DNS-01 and record-writing share one env file; audit/plan report a desired DNS section. Re-run installCaddy/upgradeCaddy once so the binary includes the new modules. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.2",
+      description:
+        "installCaddy now detects a STALE binary: it reads the modules compiled into the existing binary and rebuilds when any wanted (or built-in) module is missing, instead of treating any existing file as up to date. This fixes the case where a new extension version adds built-in plugins (caddy-host-dns, caddy-teapot-module) but the old binary still lacks them, so the config that needs them failed to load with 'unknown module: http.handlers.teapot'. It also restarts a running service after a rebuild (a replaced binary under a running process keeps the old modules), and the install resource gains rebuilt / missingPluginsBeforeBuild / restarted fields. Reconcile now fails with an actionable message (naming installCaddy/upgradeCaddy) when a config needs a third-party module the binary lacks, instead of surfacing Caddy's opaque 500. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.3",
+      description:
+        "Fixes two restart-ordering bugs in the new stale-binary handling. installCaddy now applies CAP_NET_BIND_SERVICE BEFORE restarting: replacing the binary drops the capability, so restarting first left the restarted process unable to bind 80/443. It also waits for the service after a rebuild and fails with a journalctl hint if it did not come back (Caddy runs --resume, so a stale autosave.json can crash-loop it), instead of reporting success while the service is down; upgradeCaddy gets the same post-restart check. audit now counts the always-wanted built-in modules, so a binary missing (or predating) them reports inSync=false and lists them in pluginsMissing. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.4",
+      description:
+        "Fixes two bugs that stopped dnsRecords from ever being applied. (1) buildReconciledConfig dropped the TLS app: mergeTlsConfig returns a clone and its result was discarded, so apps.tls (DNS provider + subjects) was never written. (2) loadOwnDesired preferred the STORED dnsRecords over the global args, so editing the global on an existing model was a silent no-op; like listenAddrs, dnsRecords/dnsRemovals now come from the globals. Adds an applyDnsRecords method (and dnsConfig resource): the one command to reconcile desired static DNS records into Caddy, with clear errors when no records or no dnsProvider are set. README/manifest document that zone is required for providers without libdns.ZoneLister (Gandi). Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.5",
+      description:
+        "Static DNS records now default to a 5-minute TTL (new dnsTtl global; a record's own ttl overrides it), so a new or changed record propagates to public resolvers within minutes instead of the zone default. README adds a 'Diagnosing a record (propagation vs. serving)' section: query the zone's own nameservers for ground truth, public resolvers for propagation, and curl --resolve to talk straight to the host while DNS is still propagating. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
       description: "Caddy binary install status",
       schema: InstallOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    dnsConfig: {
+      description: "Applied static DNS records (dns_records) for this model",
+      schema: DnsConfigOutputSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -3531,27 +4156,46 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
         const binPath = expandHome(g.caddyBinPath);
-        const plugins = args.plugins ?? g.plugins;
+        const plugins = withDefaultPlugins(args.plugins ?? g.plugins);
         const arch = caddyArch();
 
         const exists = await Deno.stat(binPath).then(() => true).catch(() =>
           false
         );
+        // A file existing is not enough: the wanted modules must actually be
+        // compiled in. A new extension version adds built-in plugins (e.g.
+        // caddy-host-dns, caddy-teapot-module); without this check the binary
+        // is treated as up to date and the config that needs them fails to
+        // load ("unknown module"). Rebuild when anything wanted is missing.
+        let rebuilt = false;
+        let missing: string[] = [];
         if (exists && !args.force) {
+          const compiled = await compiledPluginPaths(binPath);
+          missing = missingPlugins(plugins, compiled);
+        }
+        const needsBuild = !exists || args.force || missing.length > 0;
+        if (needsBuild) {
+          const reason = !exists
+            ? "not installed"
+            : args.force
+            ? "force=true"
+            : `missing compiled modules: ${missing.join(", ")}`;
           context.logger?.info(
-            "Caddy binary already exists at {binPath}; use force=true to reinstall",
-            { binPath },
-          );
-        } else {
-          context.logger?.info(
-            "Downloading Caddy binary ({arch}, packages: {plugins}) to {binPath}",
+            "Downloading Caddy binary ({arch}, packages: {plugins}) to {binPath} ({reason})",
             {
               arch,
               plugins: plugins.length > 0 ? plugins.join(", ") : "(none)",
               binPath,
+              reason,
             },
           );
           await downloadCaddy(binPath, arch, plugins);
+          rebuilt = true;
+        } else {
+          context.logger?.info(
+            "Caddy binary at {binPath} already has all wanted modules; use force=true to reinstall",
+            { binPath },
+          );
         }
 
         const verified = await verifyCaddy(binPath);
@@ -3560,9 +4204,10 @@ export const model = {
           { version: verified.version, binPath, arch },
         );
 
-        // Grant CAP_NET_BIND_SERVICE so the unprivileged user service can bind
-        // 80/443. Without sudo this records the command for the operator to run
-        // by hand; it is never fatal.
+        // Grant CAP_NET_BIND_SERVICE BEFORE any restart: replacing the binary
+        // drops the capability, and a restart only picks up a binary whose
+        // capability is already set. Without sudo this records the command for
+        // the operator to run by hand; it is never fatal.
         let capabilities: string[] = [];
         let canBindPrivilegedPorts = false;
         let needsSudoForPorts = "";
@@ -3584,6 +4229,52 @@ export const model = {
           }
         }
 
+        // Replacing the binary under a running service leaves the OLD binary in
+        // the process, so the new modules would still be absent from the live
+        // config. Restart the service (if active) so it picks up the rebuild
+        // (now with its capability already set above).
+        let restarted = false;
+        if (rebuilt) {
+          const running = await isServiceActive(g.serviceName);
+          if (running) {
+            if (!canBindPrivilegedPorts && args.setCapabilities) {
+              context.logger?.info(
+                "Rebuilt binary has no CAP_NET_BIND_SERVICE (sudo unavailable); the service may fail to bind 80/443 until you run the setcap command above",
+              );
+            }
+            await systemctl(["restart", g.serviceName]);
+            context.logger?.info(
+              "Restarted {serviceName} to run the rebuilt binary",
+              { serviceName: g.serviceName },
+            );
+            // Wait for it to settle, then verify it actually came back up. Caddy
+            // runs with --resume, so a bad autosave.json can crash-loop it on
+            // restart; without this check the method would report success while
+            // the service is down.
+            await waitForService(g.serviceName, 15);
+            const active = await isServiceActive(g.serviceName);
+            const adminUp = await checkAdminApi(g.adminApiAddr);
+            restarted = active;
+            if (!active) {
+              const capHint = args.setCapabilities && !canBindPrivilegedPorts
+                ? " The rebuilt binary also lacks CAP_NET_BIND_SERVICE (run the setcap command above), which would stop it binding 80/443."
+                : "";
+              throw new Error(
+                `Caddy service ${g.serviceName} did not restart cleanly after rebuilding the binary. ` +
+                  `Check: journalctl --user -u ${g.serviceName} -n 50. ` +
+                  `A common cause is a stale ~/.config/caddy/autosave.json that resumes a config using modules the binary no longer has; ` +
+                  `swamp does not delete it — move it aside and restart if that is the case.${capHint}`,
+              );
+            }
+            if (!adminUp) {
+              context.logger?.info(
+                "Restarted {serviceName}, but the admin API at {adminApiAddr} is not reachable yet",
+                { serviceName: g.serviceName, adminApiAddr: g.adminApiAddr },
+              );
+            }
+          }
+        }
+
         const handle = await context.writeResource("install", "current", {
           binPath,
           version: verified.version,
@@ -3593,6 +4284,9 @@ export const model = {
           capabilities,
           canBindPrivilegedPorts,
           needsSudoForPorts,
+          rebuilt,
+          missingPluginsBeforeBuild: missing,
+          restarted,
         });
 
         // Install the default localhost status page when the admin API is up.
@@ -4138,6 +4832,49 @@ export const model = {
       },
     },
 
+    applyDnsRecords: {
+      description:
+        "Reconcile the desired static DNS records (dnsRecords/dnsRemovals globals) into Caddy, then report what was written",
+      arguments: SyncConfigArgsSchema,
+      execute: async (
+        _args: z.infer<typeof SyncConfigArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const own = await loadOwnDesired(context, g);
+        if (
+          (own.dnsRecords?.length ?? 0) === 0 &&
+          (own.dnsRemovals?.length ?? 0) === 0
+        ) {
+          throw new Error(
+            "No dnsRecords/dnsRemovals are set on this model — add a dnsRecords global arg (name, type, value, and zone when the provider has no ZoneLister), then re-run",
+          );
+        }
+        if (!own.tls?.dnsProvider) {
+          throw new Error(
+            "dnsRecords need a DNS provider — run configureTls (dnsProvider + providerConfig) first so records are written through it",
+          );
+        }
+        const { summary } = await saveAndReconcile(context, g, own);
+        context.logger?.info(
+          "Applied {count} DNS record(s) via {provider} (changed={changed})",
+          {
+            count: own.dnsRecords?.length ?? 0,
+            provider: own.tls.dnsProvider,
+            changed: summary.changed,
+          },
+        );
+        const handle = await context.writeResource("dnsConfig", "current", {
+          records: own.dnsRecords ?? [],
+          removals: own.dnsRemovals ?? [],
+          provider: own.tls.dnsProvider,
+          changed: summary.changed,
+          appliedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
     autoProxySwampServe: {
       description:
         "Detect running swamp serve systemd services and reconcile their proxy routes",
@@ -4228,12 +4965,14 @@ export const model = {
         const g = context.globalArgs;
         if (args.confirm !== "upgrade") {
           throw new Error(
-            renderUpgradeConfirmation({ plugins: args.plugins ?? g.plugins }),
+            renderUpgradeConfirmation({
+              plugins: withDefaultPlugins(args.plugins ?? g.plugins),
+            }),
           );
         }
 
         const binPath = expandHome(g.caddyBinPath);
-        const plugins = args.plugins ?? g.plugins;
+        const plugins = withDefaultPlugins(args.plugins ?? g.plugins);
         const arch = caddyArch();
 
         // Replacing the binary drops any file capabilities, so remember whether
@@ -4269,6 +5008,16 @@ export const model = {
             `systemctl --user restart ${g.serviceName} failed (${restart.code}): ${
               restart.stderr || restart.stdout
             }`,
+          );
+        }
+        // Verify it came back: Caddy resumes autosave.json, so a stale config
+        // using an absent module can crash-loop it on restart.
+        await waitForService(g.serviceName, 15);
+        if (!(await isServiceActive(g.serviceName))) {
+          throw new Error(
+            `Caddy service ${g.serviceName} did not restart cleanly after upgrade. ` +
+              `Check: journalctl --user -u ${g.serviceName} -n 50. ` +
+              `A stale ~/.config/caddy/autosave.json resuming a config with modules the binary lacks is a common cause.`,
           );
         }
 

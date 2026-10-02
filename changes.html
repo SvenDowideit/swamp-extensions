@@ -67,8 +67,24 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html" class="active">Changes</a><a href="releases.html">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-extensions-5051735f7767e49c0ace451646c404df6f8aac0d"><span class="tier A">A</span>a getting-started walkthrough for a first factory, and incid</a><a href="#commit-swamp-club-swamp-extensions-a91d0770f94660c73cf188b6361d24497de0574f"><span class="tier A">A</span>rename gatorwalk-factory to stagecraft for first release (sw</a><a href="#commit-swamp-club-swamp-extensions-eb80ae4ea56582a97b26106c05617d2a2cc73460"><span class="tier A">A</span>close out the initial-release review follow-ups (swamp-club </a><a href="#commit-swamp-club-swamp-extensions-cc1c8e263fa6b78fd1b089e74b512310fda6fd96"><span class="tier A">A</span>generate @swamp/tailscale models from the Tailscale OpenAPI </a><a href="#commit-swamp-club-swamp-8a5e1aec2df0c38db843aabec3b3a83634a1b8dc"><span class="tier A">A</span>run the config rejection tests in-process so the auth gate c</a><a href="#commit-swamp-club-swamp-ef563473aacca75d7e50e2cd86bbe634e7ce4748"><span class="tier A">A</span>honest offline warning when the fail-open window can&#39;t be re</a><a href="#commit-swamp-club-swamp-extensions-276f0fd953f68961d52104208689bb1033a40afe"><span class="tier A">A</span>make create-only required fields optional in global args (sw</a><a href="#commit-swamp-club-swamp-a1e4cae57c54e291880013b755add3f70987915a"><span class="tier A">A</span>rebuild the dispatched definition with fromData so a legacy-</a><a href="#commit-swamp-club-swamp-9c6598c2a958f2618389aa945c0ddffdeb943837"><span class="tier A">A</span>let a nested swamp pass the auth gate on its parent&#39;s pass (</a><a href="#commit-swamp-club-swamp-extensions-391c2cfd844b2b895208ab1adfc484ada5fb2021"><span class="tier A">A</span>journal and project a work item parked by its dispatch cap (</a><a href="#commit-swamp-club-swamp-extensions-6c4d2bf5c6b80dec92d23e38a0e72d0a633a403b"><span class="tier A">A</span>remove the static design page; the studio is the only visual</a><a href="#commit-swamp-club-swamp-extensions-1b41baa9b97cb1ee480a021fc6479541f00cb495"><span class="tier A">A</span>claim moves a reservation whose factory no longer loads (swa</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-9f9302582b39ea0e4d3b20072f7a65c575bf02bb"><span class="tier A">A</span>cap per-model lock backoff at 250ms so queued waiters stay n</a><a href="#commit-swamp-club-swamp-7970ba20f6dffccf4ed5ffc437c9feaa41de6962"><span class="tier A">A</span>stop treating non-workflow extension YAML as broken workflow</a><a href="#commit-swamp-club-swamp-extensions-5051735f7767e49c0ace451646c404df6f8aac0d"><span class="tier A">A</span>a getting-started walkthrough for a first factory, and incid</a><a href="#commit-swamp-club-swamp-extensions-a91d0770f94660c73cf188b6361d24497de0574f"><span class="tier A">A</span>rename gatorwalk-factory to stagecraft for first release (sw</a><a href="#commit-swamp-club-swamp-extensions-eb80ae4ea56582a97b26106c05617d2a2cc73460"><span class="tier A">A</span>close out the initial-release review follow-ups (swamp-club </a><a href="#commit-swamp-club-swamp-extensions-cc1c8e263fa6b78fd1b089e74b512310fda6fd96"><span class="tier A">A</span>generate @swamp/tailscale models from the Tailscale OpenAPI </a><a href="#commit-swamp-club-swamp-8a5e1aec2df0c38db843aabec3b3a83634a1b8dc"><span class="tier A">A</span>run the config rejection tests in-process so the auth gate c</a><a href="#commit-swamp-club-swamp-ef563473aacca75d7e50e2cd86bbe634e7ce4748"><span class="tier A">A</span>honest offline warning when the fail-open window can&#39;t be re</a><a href="#commit-swamp-club-swamp-extensions-276f0fd953f68961d52104208689bb1033a40afe"><span class="tier A">A</span>make create-only required fields optional in global args (sw</a><a href="#commit-swamp-club-swamp-a1e4cae57c54e291880013b755add3f70987915a"><span class="tier A">A</span>rebuild the dispatched definition with fromData so a legacy-</a><a href="#commit-swamp-club-swamp-9c6598c2a958f2618389aa945c0ddffdeb943837"><span class="tier A">A</span>let a nested swamp pass the auth gate on its parent&#39;s pass (</a><a href="#commit-swamp-club-swamp-extensions-391c2cfd844b2b895208ab1adfc484ada5fb2021"><span class="tier A">A</span>journal and project a work item parked by its dispatch cap (</a></aside><div>
 
+<article class="item" id="commit-swamp-club-swamp-9f9302582b39ea0e4d3b20072f7a65c575bf02bb">
+<h2><span class="tier A">A</span>cap per-model lock backoff at 250ms so queued waiters stay near the release (swamp-club#2870) (#2791)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-02T13:45:42Z">2026-10-02T13:45:42Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><p>fix(datastore): cap per-model lock backoff at 250ms so queued waiters stay near the release (swamp-club#2870) (#2791)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9f9302582b39ea0e4d3b20072f7a65c575bf02bb" rel="noopener">9f930258</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2791" rel="noopener">#2791</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-7970ba20f6dffccf4ed5ffc437c9feaa41de6962">
+<h2><span class="tier A">A</span>stop treating non-workflow extension YAML as broken workflows (swamp-club#2940) (#2790)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-02T13:38:08Z">2026-10-02T13:38:08Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><p>fix(workflows): stop treating non-workflow extension YAML as broken workflows (swamp-club#2940) (#2790)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7970ba20f6dffccf4ed5ffc437c9feaa41de6962" rel="noopener">7970ba20</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2790" rel="noopener">#2790</a></div>
+</article>
 <article class="item" id="commit-swamp-club-swamp-extensions-5051735f7767e49c0ace451646c404df6f8aac0d">
 <h2><span class="tier A">A</span>a getting-started walkthrough for a first factory, and incident-review, content-review and openapi-models examples (swamp-club #2931) (#432)</h2>
 <p class="lede">`feat` change · swamp-club/swamp-extensions</p>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/391c2cfd844b2b895208ab1adfc484ada5fb2021" rel="noopener">391c2cfd</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/427" rel="noopener">#427</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2703" rel="noopener">#2703</a></div>
 </article>
-<article class="item" id="commit-swamp-club-swamp-extensions-6c4d2bf5c6b80dec92d23e38a0e72d0a633a403b">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-extensions-6c4d2bf5c6b80dec92d23e38a0e72d0a633a403b">
 <h2><span class="tier A">A</span>remove the static design page; the studio is the only visualization (swamp-club #2911) (#424)</h2>
 <p class="lede">`feat` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-10-01T19:32:20Z">2026-10-01T19:32:20Z</time></span><span>gatorwalk-factory</span><span>feat</span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/1b41baa9b97cb1ee480a021fc6479541f00cb495" rel="noopener">1b41baa9</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/426" rel="noopener">#426</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2712" rel="noopener">#2712</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-extensions-3b0823186a9cf04e97dfb9ea2c766d9723b428ac">
+<article class="item" id="commit-swamp-club-swamp-extensions-3b0823186a9cf04e97dfb9ea2c766d9723b428ac">
 <h2><span class="tier A">A</span>the studio watches a replaced directory again, and the page resyncs after a reconnect (swamp-club #2841) (#425)</h2>
 <p class="lede">`fix` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-10-01T18:53:01Z">2026-10-01T18:53:01Z</time></span><span>gatorwalk-factory</span><span>fix</span></div>
@@ -453,6 +469,14 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/cf33c80ce92abaed216a5d5a6766143e63eb6840" rel="noopener">cf33c80c</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/400" rel="noopener">#400</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2680" rel="noopener">#2680</a></div>
 </article>
+<article class="item" id="commit-swamp-club-swamp-extensions-6dd83625c2344e9554e5e4ecd70dd7a9d8241e40">
+<h2><span class="tier B">B</span>regenerate models from upstream schemas (#433)</h2>
+<p class="lede">`chore` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-10-02T11:57:51Z">2026-10-02T11:57:51Z</time></span><span>chore</span></div>
+<div class="body"><p>chore: regenerate models from upstream schemas (#433)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/6dd83625c2344e9554e5e4ecd70dd7a9d8241e40" rel="noopener">6dd83625</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/433" rel="noopener">#433</a></div>
+</article>
 <article class="item" id="commit-swamp-club-swamp-extensions-65136dfb35c849e6a049dc231503e7caaf003c51">
 <h2><span class="tier B">B</span>regenerate models from upstream schemas (#404)</h2>
 <p class="lede">`chore` change · swamp-club/swamp-extensions</p>
@@ -461,14 +485,22 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/65136dfb35c849e6a049dc231503e7caaf003c51" rel="noopener">65136dfb</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/404" rel="noopener">#404</a></div>
 </article></section>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="commit-swamp-club-swamp-extensions-7dbd8d5ff29f8e1fcf15f230b7993d3823bb99ba">
+<h2><span class="tier C">C</span>a user-facing README, with the reference and contributor material moved out (swamp-club #2819) (#436)</h2>
+<p class="lede">`docs` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-10-02T13:24:46Z">2026-10-02T13:24:46Z</time></span><span>stagecraft</span><span>docs</span></div>
+<div class="body"><p>docs(stagecraft): a user-facing README, with the reference and contributor material moved out (swamp-club #2819) (#436)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/7dbd8d5ff29f8e1fcf15f230b7993d3823bb99ba" rel="noopener">7dbd8d5f</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/436" rel="noopener">#436</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2819" rel="noopener">#2819</a></div>
+</article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>49 items across 2 source(s) in this window:
-0 critical, 48 notable, 1 routine,
-0 minor.</p>
-<ul><li><strong>feat</strong> — 24</li><li><strong>fix</strong> — 24</li><li><strong>chore</strong> — 1</li></ul></section>
+<p>53 items across 2 source(s) in this window:
+0 critical, 50 notable, 2 routine,
+1 minor.</p>
+<ul><li><strong>fix</strong> — 26</li><li><strong>feat</strong> — 24</li><li><strong>chore</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-02T13:02:02.090Z">2026-10-02T13:02:02.090Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-02T14:04:59.143Z">2026-10-02T14:04:59.143Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

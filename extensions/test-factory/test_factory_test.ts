@@ -614,6 +614,24 @@ Deno.test("a missing vault or key yields no key, not an error", async () => {
   );
 });
 
+Deno.test("a vault read failure warns via logger.warn and yields no key", async () => {
+  // Guards the LogTape surface: the logger method is `warn`, not `warning`.
+  // A `logger.warning(...)` call would throw here rather than warn.
+  const warnings: string[] = [];
+  const key = await resolveApiKey({
+    globalArgs: {
+      vault: "test-factory-vault",
+      vaultEntry: "SWAMP_API_KEY",
+      swampApiKey: "",
+    },
+    vaultService: fakeVault(["test-factory-vault"], {}),
+    logger: { warn: (msg) => warnings.push(msg) },
+  });
+  assertEquals(key, "");
+  assertEquals(warnings.length, 1);
+  assertStringIncludes(warnings[0], "Could not read SWAMP_API_KEY");
+});
+
 Deno.test("containerEnv sets SWAMP_API_KEY only when provided", () => {
   const withKey = containerEnv("swamp_org_deadbeef");
   assertEquals(withKey.SWAMP_API_KEY, "swamp_org_deadbeef");

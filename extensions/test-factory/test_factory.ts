@@ -1171,7 +1171,7 @@ type ExecContext = {
   repoDir: string;
   logger?: {
     info: (msg: string, props?: Record<string, unknown>) => void;
-    warning: (msg: string, props?: Record<string, unknown>) => void;
+    warn: (msg: string, props?: Record<string, unknown>) => void;
   };
   /** Present when a vault is configured; used to read `swampApiKey`. */
   vaultService?: VaultService;
@@ -1200,7 +1200,7 @@ export async function resolveApiKey(
     };
     vaultService?: VaultService;
     logger?: {
-      warning: (msg: string, props?: Record<string, unknown>) => void;
+      warn: (msg: string, props?: Record<string, unknown>) => void;
     };
   },
 ): Promise<string> {
@@ -1215,7 +1215,7 @@ export async function resolveApiKey(
   try {
     return (await vs.get(vault, key)) ?? "";
   } catch (err) {
-    context.logger?.warning(
+    context.logger?.warn(
       `Could not read ${key} from vault ${vault}: ${
         err instanceof Error ? err.message : String(err)
       }`,
@@ -1227,7 +1227,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.02.2",
+  version: "2026.10.02.3",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1262,6 +1262,12 @@ export const model = {
       toVersion: "2026.10.02.2",
       description:
         "Report test coverage: how many of a candidate manifest's documented `swamp …` commands, and how many of the methods and workflows it ships, the candidate's `test-factory.yaml` actually exercises. `result` and `summary` gain an optional `coverage` block, the report renders it, and a new docker-free `checkCoverage` method writes a standalone `coverage` resource so another extension (the meta-factory) can read it. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.02.3",
+      description:
+        "Coverage hardening after adversarial review. Coverage is matched type-awarely, so a shared method name across two model types is no longer over-counted. `test`/`testAll` now also write the standalone `coverage` resource (matching `checkCoverage`), so the meta-factory reuses it instead of recomputing. Fixes a latent logger call: the logger method is `warn`, not `warning`, so a vault-read failure now warns instead of throwing. The `coverage` resource's `documentedCommands`/`testCommands`/`surface.*` fields are arrays of literal command strings. No schema or argument change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1630,7 +1636,7 @@ async function executeScenarios(
     const logLine =
       `${candidate.name} · scenario ${scenario.name}: ${result.status} (${phaseSummary})`;
     if (result.ok) context.logger?.info(logLine);
-    else (context.logger?.warning ?? context.logger?.info)?.(logLine);
+    else (context.logger?.warn ?? context.logger?.info)?.(logLine);
   }
 
   const passCount = summaries.filter((s) => s.ok).length;

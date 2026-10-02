@@ -67,8 +67,195 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261001-183643-0-sha-6bd579f3"><span class="tier A">A</span>suspend the parent when a nested workflow suspends on approv</a><a href="#release-swamp-club-swamp-v20261001-182044-0-sha-aa8acf26"><span class="tier A">A</span>let workflow cancel wait out cleanup before killing the run,</a><a href="#release-swamp-club-swamp-v20261001-173845-0-sha-feffeca9"><span class="tier A">A</span>stop the flaky-test job and Windows CI failing on four test </a><a href="#release-swamp-club-swamp-v20261001-165905-0-sha-69da2dfc"><span class="tier A">A</span>warn when setup keeps managedConfig against an empty config </a><a href="#release-swamp-club-swamp-v20261001-163806-0-sha-8456bba0"><span class="tier A">A</span>write-seam ratchets, catalog freshness on shared and pulled </a><a href="#release-swamp-club-swamp-v20261001-163418-0-sha-fea030d8"><span class="tier A">A</span>stop fixture strings in bundled test files from claiming cat</a><a href="#release-swamp-club-swamp-v20261001-163051-0-sha-0ac27ab9"><span class="tier A">A</span>settle a job a cancelled resume never started before cleanup</a><a href="#release-swamp-club-swamp-v20261001-145552-0-sha-94a7da31"><span class="tier A">A</span>fetch the shared lockfile under the datastore lock before ex</a><a href="#release-swamp-club-swamp-v20261001-145127-0-sha-b8512c0f"><span class="tier A">A</span>hide empty report frames unless -v, and size workflow report</a><a href="#release-swamp-club-swamp-v20261001-095719-0-sha-f20ce9f1"><span class="tier A">A</span>give serve and worker background work their own traces (swam</a><a href="#release-swamp-club-swamp-v20261001-070022-0-sha-34f7a84c"><span class="tier A">A</span>exclude null_type and guard CEL top-level identifiers agains</a><a href="#release-swamp-club-swamp-v20261001-065457-0-sha-93a88f84"><span class="tier A">A</span>restore Windows Compatibility CI (swamp-club#2879) (#2760)</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261001-230653-0-sha-fc260909"><span class="tier A">A</span>wait for a cancelled run&#39;s in-flight model methods so their </a><a href="#release-swamp-club-swamp-v20261001-224247-0-sha-5b6d5372"><span class="tier A">A</span>never hand the signin token down, and bound nested-pass proo</a><a href="#release-swamp-club-swamp-v20261001-221437-0-sha-798ded85"><span class="tier A">A</span>reject an invalid model or workflow name with a validation e</a><a href="#release-swamp-club-swamp-v20261001-215953-0-sha-74761180"><span class="tier A">A</span>never let model cancel signal a swamp serve process (swamp-c</a><a href="#release-swamp-club-swamp-v20261001-202145-0-sha-a3515474"><span class="tier A">A</span>let model cancel wait out the step&#39;s kill grace so the run r</a><a href="#release-swamp-club-swamp-v20261001-200003-0-sha-20038a2c"><span class="tier A">A</span>settle a cancelled run&#39;s unfinished jobs and steps on every </a><a href="#release-swamp-club-swamp-v20261001-191636-0-sha-71c25269"><span class="tier A">A</span>require a swamp-club account for every subcommand (swamp-clu</a><a href="#release-swamp-club-swamp-v20261001-190402-0-sha-543aad7e"><span class="tier A">A</span>settle a run left running by a force-exited owner so recover</a><a href="#release-swamp-club-swamp-v20261001-183643-0-sha-6bd579f3"><span class="tier A">A</span>suspend the parent when a nested workflow suspends on approv</a><a href="#release-swamp-club-swamp-v20261001-182044-0-sha-aa8acf26"><span class="tier A">A</span>let workflow cancel wait out cleanup before killing the run,</a><a href="#release-swamp-club-swamp-v20261001-173845-0-sha-feffeca9"><span class="tier A">A</span>stop the flaky-test job and Windows CI failing on four test </a><a href="#release-swamp-club-swamp-v20261001-165905-0-sha-69da2dfc"><span class="tier A">A</span>warn when setup keeps managedConfig against an empty config </a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261001-230653-0-sha-fc260909">
+<h2><span class="tier A">A</span>wait for a cancelled run&#39;s in-flight model methods so their method runs save cancelled (swamp-club#2918) (#2784)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T23:08:35Z">2026-10-01T23:08:35Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): wait for a cancelled run&#39;s in-flight model methods so their method runs save cancelled (swamp-club#2918) (#2784)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>When a cancel interrupted a workflow level holding several steps, the level stopped reading them, the run settled and saved itself <code>cancelled</code>, and <code>swamp workflow run</code> exited about 0.3 s after SIGTERM, while the shell steps were still inside their 3 s SIGTERM-to-SIGKILL grace. The exit-time process-group kill cut <code>DefaultStepExecutor</code> off before it saved the method-run record, so <code>swamp model method history</code> showed those runs <code>running</code> forever with no <code>completedAt</code> (swamp-club#2918). This reproduced with both <code>swamp model cancel --all</code> and <code>swamp workflow cancel</code>.</p>
+<ul>
+<li><strong>Wait for in-flight methods:</strong> every model-method execution of a run (steps, and guard/assert <code>model.method()</code> calls) goes through one helper that tracks it. At the four abort branches of <code>run()</code> and <code>resume()</code>, the run waits for them until <code>STEP_STOP_GRACE_MS</code> (4 s) after the abort, alongside the existing nested-run wait, before it completes the tracker, settles and saves. Level semantics and <code>merge.ts</code> are unchanged; a method still running after the grace is abandoned as before. Log mode prints <code>Waiting up to Ns for N model method(s) to stop</code>.</li>
+<li><strong>Settled steps stay settled:</strong> a model or assert step whose method answers after the abort settled the step keeps its <code>failed</code>/<code>cancelled</code> record (as nested steps already do); the method-run record keeps th</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.230653.0-sha.fc260909" rel="noopener">release v20261001.230653.0-sha.fc260909</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fc260909f1406cbf868cfe19f4dc528e5900b7d5" rel="noopener">fc260909</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2784" rel="noopener">#2784</a>𝗔 <a href="https://swamp-club.com/lab/2918" rel="noopener">lab#2918</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261001-224247-0-sha-5b6d5372">
+<h2><span class="tier A">A</span>never hand the signin token down, and bound nested-pass proofs by their issuer&#39;s start (swamp-club#2924) (#2783)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T22:44:30Z">2026-10-01T22:44:30Z</time></span><span>auth</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(auth): never hand the signin token down, and bound nested-pass proofs by their issuer&#39;s start (swamp-club#2924) (#2783)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Follow-up to #2781 (swamp-club#2924), which was merged to main as <code>9c6598c2</code> after it had been closed for rework. This PR is the rework on top of main. It fixes three problems that #2781 left in the nested auth-gate pass.</p>
+<h4 class="body-h">1. The signin token reached shell children (undoing part of swamp-club#2032)</h4>
+<p>#2781 handed down whichever proof the parent&#39;s pass rested on. In CI that was usually the <code>SWAMP_SIGNIN_TOKEN</code> proof, so <code>SWAMP_NESTED_GATE_PASS</code> was <code>&lt;pid&gt;.</code> followed by the token itself, visible to every shell-step child.</p>
+<p>Now the handoff is a fresh whoami proof, else the valid <code>auth_verified.json</code> proof, and <strong>never the signin-token proof</strong> (<code>validFileProof</code> in <code>src/cli/auth_gate.ts</code>).</p>
+<ul>
+<li>In CI, the first gated run of a job checks the token live and caches a fresh proof, so later runs have a file proof to hand down.</li>
+<li>A run that passed offline on its token alone hands down nothing.</li>
+</ul>
+<h4 class="body-h">2. Nested proofs had no expiry bound</h4>
+<p>#2781 skipped <code>exp</code> in nested mode, so a leaked proof worked indefinitely under any live swamp ancestor.</p>
+<p>Now a nested proof must carry an <code>exp</code> later than the issuing ancestor&#39;s start time (<code>admitsNestedRun</code> in <code>src/domain/auth/nested_gate_pass.ts</code>).</p>
+<ul>
+<li>The start time is read from the OS: <code>/proc/&lt;pid&gt;/stat</code> field 22 plus <code>btime</code> on Linux, <code>proc_bsdinfo.pbi_start_tvsec</code> on macOS. It matches <code>ps</code> to th</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/guide.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/auth-gate.md" rel="noopener">design/surfaces/auth-gate.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.224247.0-sha.5b6d5372" rel="noopener">release v20261001.224247.0-sha.5b6d5372</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5b6d5372f92860a6c2a7d6d11446a863c8fd8ea5" rel="noopener">5b6d5372</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2783" rel="noopener">#2783</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2781" rel="noopener">#2781</a>𝗔 <a href="https://swamp-club.com/lab/2924" rel="noopener">lab#2924</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261001-221437-0-sha-798ded85">
+<h2><span class="tier A">A</span>reject an invalid model or workflow name with a validation error instead of a ZodError crash (swamp-club#2923) (#2782)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T22:16:22Z">2026-10-01T22:16:22Z</time></span><span>model</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(model): reject an invalid model or workflow name with a validation error instead of a ZodError crash (swamp-club#2923) (#2782)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp model create</code> and <code>swamp workflow create</code> handed the name straight to <code>Definition.create</code> / <code>Workflow.create</code>, whose strict name schema threw a ZodError that nothing caught. An uppercase, over-long or path-traversal name crashed the CLI with an <code>[FTL]</code> dump and a stack trace, and <code>--json</code> emitted <code>{error, stack}</code> (swamp-club#2923, swamp-club#2925). Direct type execution leaked the same raw ZodError JSON as a method execution failure.</p>
+<ul>
+<li><strong>Domain:</strong> <code>definitionNameViolation</code> and <code>workflowNameViolation</code> return the first naming rule a new name breaks. They read the existing strict schemas, so the rule text stays in one place, and the factories keep enforcing it as invariant guards.</li>
+<li><strong><code>model create</code>:</strong> checks the name before type resolution, so a doomed create never auto-installs an extension. It yields <code>validation_failed</code>: <code>Invalid model name: &lt;name&gt;. &lt;rule&gt;</code>.</li>
+<li><strong>Direct type execution:</strong> checks the name only when it would create a new definition. Existing definitions whose names predate the rule (bf0320ef / #2177) stay runnable.</li>
+<li><strong><code>workflow create</code>:</strong> checks the name before the uniqueness lookup (<code>Invalid workflow name: &lt;name&gt;. &lt;rule&gt;</code>).</li>
+</ul>
+<h4 class="body-h">Out of scope, filed separately</h4>
+<ul>
+<li>swamp-club#2926: <code>src/worker/exec_dispatch.ts</code> rebuilds the definition with <code>Definition.create</code>, so a legacy-named model probably ca</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.221437.0-sha.798ded85" rel="noopener">release v20261001.221437.0-sha.798ded85</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/798ded854526eea39a2eafa23add0926c9f8ce89" rel="noopener">798ded85</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2782" rel="noopener">#2782</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2177" rel="noopener">#2177</a>𝗔 <a href="https://swamp-club.com/lab/2923" rel="noopener">lab#2923</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261001-215953-0-sha-74761180">
+<h2><span class="tier A">A</span>never let model cancel signal a swamp serve process (swamp-club#2914) (#2780)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T22:01:37Z">2026-10-01T22:01:37Z</time></span><span>model</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(model): never let model cancel signal a swamp serve process (swamp-club#2914) (#2780)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp model cancel</code> stops a method run by signalling the pid on its tracker row. Method runs that <code>swamp serve</code> executes (workflow steps and direct method runs) registered that row with the <strong>serve process&#39;s own pid</strong> and no instance id. <code>swamp model cancel &lt;model&gt;</code> or <code>--all</code> therefore SIGTERMed serve and SIGKILLed it partway through its drain, cutting off every in-flight run on the server. It reproduced end to end: serve exited 137, the workflow run was left <code>RUNNING</code>, and cancel still exited 0 reporting &quot;cancelled&quot; (swamp-club#2914).</p>
+<ul>
+<li><strong>Rows record their owner.</strong> Workflow-step method rows now carry the instance id of the serve driving the workflow run (<code>ctx.workflowRun?.instanceId</code>, which follows resume ownership hand-over). Serve&#39;s direct method runs pass the instance id through a new optional <code>ModelMethodRunInput.instanceId</code>.</li>
+<li><strong><code>ActiveRun.isServeOwned</code></strong> names the ownership rule, mirroring <code>isServeOwnedRun</code> for workflow runs.</li>
+<li><strong>Cancel never signals serve.</strong> <code>splitServeOwnedRuns</code> treats a run as serve-owned if it has an instance id, or if it is a step row sharing pid and host with a serve-owned workflow row (rows written by an older serve). A serve-owned run is cancelled normally only when its owner is a dead process on this host. A row from another host is always treated as live.</li>
+<li><strong>Output.</strong> <code>--all</code> skips serve-owned runs and lists them. Th</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.215953.0-sha.74761180" rel="noopener">release v20261001.215953.0-sha.74761180</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7476118097d901c408c7ac4d0a39925e84eace82" rel="noopener">74761180</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2780" rel="noopener">#2780</a>𝗔 <a href="https://swamp-club.com/lab/2914" rel="noopener">lab#2914</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261001-202145-0-sha-a3515474">
+<h2><span class="tier A">A</span>let model cancel wait out the step&#39;s kill grace so the run records its own cancellation (swamp-club#2910) (#2779)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T20:23:21Z">2026-10-01T20:23:21Z</time></span><span>model</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(model): let model cancel wait out the step&#39;s kill grace so the run records its own cancellation (swamp-club#2910) (#2779)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp model cancel</code> SIGKILLed the owning process 2 s after SIGTERM, before the shell step executor&#39;s own 3 s SIGTERM-to-SIGKILL grace ran out. A method slow to stop on SIGTERM therefore never saved its cancelled output: the owner died with exit 137 and only the tracker row was marked cancelled (swamp-club#2910).</p>
+<ul>
+<li><strong>Stop grace:</strong> cancel now waits up to <code>METHOD_OWNER_STOP_GRACE_MS</code> (<code>KILL_GRACE_MS</code> + 7 s save margin, 10 s) before SIGKILL, or the workflow <code>OWNER_STOP_GRACE_MS</code> when the process also owns a running workflow run, so its cleanup steps can run. Log mode says how long it will wait.</li>
+<li><strong><code>--all</code>:</strong> owners are stopped together, each pid once, with <code>Promise.allSettled</code>; runs of owners that could not be stopped stay running and the first error is thrown after the rest are completed.</li>
+<li><strong><code>--reason</code>:</strong> an owner that stops in time now completes its own tracker row without a reason, so cancel records it afterwards with the new <code>RunTrackerRepository.recordCancelReason</code> (fills the reason only on a <code>cancelled</code> row that has none).</li>
+<li><strong>Honest status:</strong> cancel reports the status each run actually ended with. A run its owner finished another way during the wait is listed under a new <code>finished</code> array in <code>--json</code> (additive) and warned about in log mode, instead of being claimed as cancelled.</li>
+<li>**Workflow steps (swamp-club#291</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.202145.0-sha.a3515474" rel="noopener">release v20261001.202145.0-sha.a3515474</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a35154745f2f71973fc1b03958c5e3512761ee6a" rel="noopener">a3515474</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2779" rel="noopener">#2779</a>𝗔 <a href="https://swamp-club.com/lab/2910" rel="noopener">lab#2910</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261001-200003-0-sha-20038a2c">
+<h2><span class="tier A">A</span>settle a cancelled run&#39;s unfinished jobs and steps on every cancel path (swamp-club#2895) (#2778)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T20:01:46Z">2026-10-01T20:01:46Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): settle a cancelled run&#39;s unfinished jobs and steps on every cancel path (swamp-club#2895) (#2778)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2895. Cancelling a suspended run with <code>swamp workflow cancel</code>, superseding it with a matching-input <code>swamp workflow run</code>, or cancelling a run whose owning process died marked the run <code>cancelled</code> but left its jobs <code>running</code>, its gates <code>waiting_approval</code> and its downstream steps and jobs <code>pending</code>. <code>swamp workflow history get</code> showed those jobs in progress forever.</p>
+<p><code>WorkflowRun.cancel()</code> only changed the run&#39;s status. The rules that settle unfinished work (from swamp-club#2597) lived in <code>ExecutionService</code> and ran only during a live walk, so every cancel of a stored run skipped them.</p>
+<p><strong>Before / after</strong> (the issue&#39;s workflow: two gated parallel jobs plus an <code>always</code> teardown; <code>*</code> = <code>settledByAbort</code>):</p>
+<p>```</p>
+<p>before:  a-side running | gate2:waiting_approval s:pending</p>
+<p>         main   running | gate:succeeded post:pending</p>
+<p>         teardown pending | t:pending</p>
+<p>after:   a-side failed  | gate2:failed* s:skipped*</p>
+<p>         main   failed  | gate:succeeded post:failed*</p>
+<p>         teardown failed | t:failed*</p>
+<p>```</p>
+<h4 class="body-h">What changes</h4>
+<ul>
+<li><strong>Domain service</strong> <code>src/domain/workflows/abort_settlement.ts</code>. The settlement rules move out of <code>ExecutionService</code>, and a new <code>cancelAndSettle</code> settles a run before marking it cancelled:</li>
+<li>Steps waiting on a suspended nested run are detached first (swamp-club#2736), so the child stays suspended on its</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/execution-semantics.md" rel="noopener">.claude/skills/swamp/references/workflow/references/execution-semantics.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.200003.0-sha.20038a2c" rel="noopener">release v20261001.200003.0-sha.20038a2c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/20038a2c222a42a4af7de5a416b1d480401b4104" rel="noopener">20038a2c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2778" rel="noopener">#2778</a>𝗔 <a href="https://swamp-club.com/lab/2895" rel="noopener">lab#2895</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261001-191636-0-sha-71c25269">
+<h2><span class="tier A">A</span>require a swamp-club account for every subcommand (swamp-club#2231) (#2777)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T19:18:21Z">2026-10-01T19:18:21Z</time></span><span>auth</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(auth): require a swamp-club account for every subcommand (swamp-club#2231) (#2777)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Every swamp subcommand now needs a swamp-club.com account, checked before any startup work. The gate is built to fail open on swamp-club errors without letting a client bypass it. Design: <code>design/surfaces/auth-gate.md</code>.</p>
+<ul>
+<li><strong>Signed proof.</strong> whoami returns an Ed25519-signed proof, cached in <code>auth_verified.json</code> (14-day expiry). A valid proof passes with no network call and keeps working through swamp-club outages. It is refreshed in the background once it&#39;s over 7 days old, at most one attempt an hour.</li>
+<li><strong>Without a valid proof,</strong> the CLI verifies live:</li>
+<li>verified → pass;</li>
+<li>whoami&#39;s own <code>401 {&quot;authenticated&quot;: false}</code> → block (revoked);</li>
+<li>429, any 403, any other non-2xx, or unreachable → block (a client can provoke all of these);</li>
+<li>a 5xx → fail open for at most 24 hours from the first one.</li>
+<li><strong>CI.</strong> <code>SWAMP_API_KEY</code> plus <code>SWAMP_SIGNIN_TOKEN</code>. The production signing key is embedded, so a signin token verifies offline. The token is checked live at most once an hour, so revocation still lands. <code>swamp auth token create</code> now prints the signin token.</li>
+<li><strong>Exempt:</strong> bare <code>swamp</code>, <code>--help</code>/<code>--version</code> (decided against the real Cliffy command tree), <code>auth login/logout/whoami</code>, <code>help</code>, <code>completions</code>, <code>version</code>, <code>update</code>.</li>
+<li><strong>Blocks:</strong> <code>AuthGateBlockedError</code> (<code>auth_gate_blocked</code>). JSON includes <code>reason</code> and <code>temporary</code>. Temporary blocks exit 75, a missing or revo</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp-getting-started/SKILL.md" rel="noopener">.claude/skills/swamp-getting-started/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/architecture.md" rel="noopener">design/architecture.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.191636.0-sha.71c25269" rel="noopener">release v20261001.191636.0-sha.71c25269</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/71c252697760cd7920810f76f0eccfe1feecb416" rel="noopener">71c25269</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2777" rel="noopener">#2777</a>𝗔 <a href="https://swamp-club.com/lab/2231" rel="noopener">lab#2231</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261001-190402-0-sha-543aad7e">
+<h2><span class="tier A">A</span>settle a run left running by a force-exited owner so recover accepts it (swamp-club#2896) (#2776)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-01T19:05:54Z">2026-10-01T19:05:54Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): settle a run left running by a force-exited owner so recover accepts it (swamp-club#2896) (#2776)</li>
+</ul>
+<p>Fixes swamp-club#2896.</p>
+<h4 class="body-h">Summary</h4>
+<p>When a <code>workflow run</code> or <code>resume</code> is stopped by a second Ctrl-C, it exits through <code>Deno.exit(130)</code> and saves nothing. Its run record stayed <code>running</code> under a dead pid. Before this change, only <code>swamp serve</code> boot ever interrupted such a run, so:</p>
+<ul>
+<li><code>workflow resume</code> refused it and said to wait for it to complete;</li>
+<li><code>workflow recover</code> reported &quot;Interrupted run not found&quot;;</li>
+<li><code>run doctor --fix</code> reaped the tracker row but left the record <code>running</code>;</li>
+<li>the step in flight was recorded <code>pending</code>, so recovery would have re-run it without asking.</li>
+</ul>
+<p><strong>What changes:</strong></p>
+<ul>
+<li><strong>Domain service.</strong> The serve-boot reaper moves to <code>src/domain/workflows/orphaned_run_reaper.ts</code>, and <code>settleDeadOwnerRun</code> is added beside it for CLI commands. It interrupts a run (<code>interrupt_reason: owner_process_dead</code>) only when the conditions below hold:</li>
+<li>the run&#39;s tracker row is owned on this host and is <code>running</code> or <code>interrupted</code>;</li>
+<li>the row&#39;s pid is dead.</li>
+</ul>
+<p>  It re-reads the record and writes it only while the record is still <code>running</code> under that pid, so a run its owner finished, or that another process took over, is never overwritten. A run with no tracker row on this host is left alone, because its record carries no hostname.</p>
+<ul>
+<li><strong><code>swamp run doctor</code>.</strong> A row on this host with a dead pid counts as stale straight away, without waiting for the 90s h</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.190402.0-sha.543aad7e" rel="noopener">release v20261001.190402.0-sha.543aad7e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/543aad7e6051adcdc2ba5fff6e08c295d12070eb" rel="noopener">543aad7e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2776" rel="noopener">#2776</a>𝗔 <a href="https://swamp-club.com/lab/2896" rel="noopener">lab#2896</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261001-183643-0-sha-6bd579f3">
 <h2><span class="tier A">A</span>suspend the parent when a nested workflow suspends on approval (swamp-club#2736) (#2768)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -148,7 +335,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.165905.0-sha.69da2dfc" rel="noopener">release v20261001.165905.0-sha.69da2dfc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/69da2dfc7efd37aa4eaef2bbcf0223265fb4fea8" rel="noopener">69da2dfc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2772" rel="noopener">#2772</a>𝗔 <a href="https://swamp-club.com/lab/2845" rel="noopener">lab#2845</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261001-163806-0-sha-8456bba0">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261001-163806-0-sha-8456bba0">
 <h2><span class="tier A">A</span>write-seam ratchets, catalog freshness on shared and pulled datastores, use-case sync characterisation (swamp-club#2856) (#2770)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-01T16:39:43Z">2026-10-01T16:39:43Z</time></span><span>datastore</span><span>fix</span></div>
@@ -328,7 +515,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.065457.0-sha.93a88f84" rel="noopener">release v20261001.065457.0-sha.93a88f84</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/93a88f846ec4665e5ba7287333398c4a37a6f2e6" rel="noopener">93a88f84</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2760" rel="noopener">#2760</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261001-065103-0-sha-70eff6a6">
+<article class="item" id="release-swamp-club-swamp-v20261001-065103-0-sha-70eff6a6">
 <h2><span class="tier A">A</span>exclude cel-js built-in names from CEL property test identifiers (swamp-club#2500) (#2759)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-01T06:52:45Z">2026-10-01T06:52:45Z</time></span><span>tests</span><span>fix</span></div>
@@ -396,194 +583,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.060930.0-sha.ccae15a5" rel="noopener">release v20261001.060930.0-sha.ccae15a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ccae15a547ef51d5186e3d21f5492683bea56882" rel="noopener">ccae15a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2758" rel="noopener">#2758</a>𝗔 <a href="https://swamp-club.com/lab/2866" rel="noopener">lab#2866</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261001-230653-0-sha-fc260909">
-<h2><span class="tier C">C</span>swamp 20261001.230653.0-sha.fc260909</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T23:08:35Z">2026-10-01T23:08:35Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): wait for a cancelled run&#39;s in-flight model methods so their method runs save cancelled (swamp-club#2918) (#2784)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>When a cancel interrupted a workflow level holding several steps, the level stopped reading them, the run settled and saved itself <code>cancelled</code>, and <code>swamp workflow run</code> exited about 0.3 s after SIGTERM, while the shell steps were still inside their 3 s SIGTERM-to-SIGKILL grace. The exit-time process-group kill cut <code>DefaultStepExecutor</code> off before it saved the method-run record, so <code>swamp model method history</code> showed those runs <code>running</code> forever with no <code>completedAt</code> (swamp-club#2918). This reproduced with both <code>swamp model cancel --all</code> and <code>swamp workflow cancel</code>.</p>
-<ul>
-<li><strong>Wait for in-flight methods:</strong> every model-method execution of a run (steps, and guard/assert <code>model.method()</code> calls) goes through one helper that tracks it. At the four abort branches of <code>run()</code> and <code>resume()</code>, the run waits for them until <code>STEP_STOP_GRACE_MS</code> (4 s) after the abort, alongside the existing nested-run wait, before it completes the tracker, settles and saves. Level semantics and <code>merge.ts</code> are unchanged; a method still running after the grace is abandoned as before. Log mode prints <code>Waiting up to Ns for N model method(s) to stop</code>.</li>
-<li><strong>Settled steps stay settled:</strong> a model or assert step whose method answers after the abort settled the step keeps its <code>failed</code>/<code>cancelled</code> record (as nested steps already do); the method-run record keeps th</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.230653.0-sha.fc260909" rel="noopener">release v20261001.230653.0-sha.fc260909</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fc260909" rel="noopener">fc260909</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2784" rel="noopener">#2784</a>𝗔 <a href="https://swamp-club.com/lab/2918" rel="noopener">lab#2918</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261001-224247-0-sha-5b6d5372">
-<h2><span class="tier C">C</span>swamp 20261001.224247.0-sha.5b6d5372</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T22:44:30Z">2026-10-01T22:44:30Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(auth): never hand the signin token down, and bound nested-pass proofs by their issuer&#39;s start (swamp-club#2924) (#2783)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Follow-up to #2781 (swamp-club#2924), which was merged to main as <code>9c6598c2</code> after it had been closed for rework. This PR is the rework on top of main. It fixes three problems that #2781 left in the nested auth-gate pass.</p>
-<h4 class="body-h">1. The signin token reached shell children (undoing part of swamp-club#2032)</h4>
-<p>#2781 handed down whichever proof the parent&#39;s pass rested on. In CI that was usually the <code>SWAMP_SIGNIN_TOKEN</code> proof, so <code>SWAMP_NESTED_GATE_PASS</code> was <code>&lt;pid&gt;.</code> followed by the token itself, visible to every shell-step child.</p>
-<p>Now the handoff is a fresh whoami proof, else the valid <code>auth_verified.json</code> proof, and <strong>never the signin-token proof</strong> (<code>validFileProof</code> in <code>src/cli/auth_gate.ts</code>).</p>
-<ul>
-<li>In CI, the first gated run of a job checks the token live and caches a fresh proof, so later runs have a file proof to hand down.</li>
-<li>A run that passed offline on its token alone hands down nothing.</li>
-</ul>
-<h4 class="body-h">2. Nested proofs had no expiry bound</h4>
-<p>#2781 skipped <code>exp</code> in nested mode, so a leaked proof worked indefinitely under any live swamp ancestor.</p>
-<p>Now a nested proof must carry an <code>exp</code> later than the issuing ancestor&#39;s start time (<code>admitsNestedRun</code> in <code>src/domain/auth/nested_gate_pass.ts</code>).</p>
-<ul>
-<li>The start time is read from the OS: <code>/proc/&lt;pid&gt;/stat</code> field 22 plus <code>btime</code> on Linux, <code>proc_bsdinfo.pbi_start_tvsec</code> on macOS. It matches <code>ps</code> to th</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.224247.0-sha.5b6d5372" rel="noopener">release v20261001.224247.0-sha.5b6d5372</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5b6d5372" rel="noopener">5b6d5372</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2783" rel="noopener">#2783</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2781" rel="noopener">#2781</a>𝗔 <a href="https://swamp-club.com/lab/2924" rel="noopener">lab#2924</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261001-221437-0-sha-798ded85">
-<h2><span class="tier C">C</span>swamp 20261001.221437.0-sha.798ded85</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T22:16:22Z">2026-10-01T22:16:22Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(model): reject an invalid model or workflow name with a validation error instead of a ZodError crash (swamp-club#2923) (#2782)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>swamp model create</code> and <code>swamp workflow create</code> handed the name straight to <code>Definition.create</code> / <code>Workflow.create</code>, whose strict name schema threw a ZodError that nothing caught. An uppercase, over-long or path-traversal name crashed the CLI with an <code>[FTL]</code> dump and a stack trace, and <code>--json</code> emitted <code>{error, stack}</code> (swamp-club#2923, swamp-club#2925). Direct type execution leaked the same raw ZodError JSON as a method execution failure.</p>
-<ul>
-<li><strong>Domain:</strong> <code>definitionNameViolation</code> and <code>workflowNameViolation</code> return the first naming rule a new name breaks. They read the existing strict schemas, so the rule text stays in one place, and the factories keep enforcing it as invariant guards.</li>
-<li><strong><code>model create</code>:</strong> checks the name before type resolution, so a doomed create never auto-installs an extension. It yields <code>validation_failed</code>: <code>Invalid model name: &lt;name&gt;. &lt;rule&gt;</code>.</li>
-<li><strong>Direct type execution:</strong> checks the name only when it would create a new definition. Existing definitions whose names predate the rule (bf0320ef / #2177) stay runnable.</li>
-<li><strong><code>workflow create</code>:</strong> checks the name before the uniqueness lookup (<code>Invalid workflow name: &lt;name&gt;. &lt;rule&gt;</code>).</li>
-</ul>
-<h4 class="body-h">Out of scope, filed separately</h4>
-<ul>
-<li>swamp-club#2926: <code>src/worker/exec_dispatch.ts</code> rebuilds the definition with <code>Definition.create</code>, so a legacy-named model probably ca</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.221437.0-sha.798ded85" rel="noopener">release v20261001.221437.0-sha.798ded85</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/798ded85" rel="noopener">798ded85</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2782" rel="noopener">#2782</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2177" rel="noopener">#2177</a>𝗔 <a href="https://swamp-club.com/lab/2923" rel="noopener">lab#2923</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261001-215953-0-sha-74761180">
-<h2><span class="tier C">C</span>swamp 20261001.215953.0-sha.74761180</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T22:01:37Z">2026-10-01T22:01:37Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(model): never let model cancel signal a swamp serve process (swamp-club#2914) (#2780)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>swamp model cancel</code> stops a method run by signalling the pid on its tracker row. Method runs that <code>swamp serve</code> executes (workflow steps and direct method runs) registered that row with the <strong>serve process&#39;s own pid</strong> and no instance id. <code>swamp model cancel &lt;model&gt;</code> or <code>--all</code> therefore SIGTERMed serve and SIGKILLed it partway through its drain, cutting off every in-flight run on the server. It reproduced end to end: serve exited 137, the workflow run was left <code>RUNNING</code>, and cancel still exited 0 reporting &quot;cancelled&quot; (swamp-club#2914).</p>
-<ul>
-<li><strong>Rows record their owner.</strong> Workflow-step method rows now carry the instance id of the serve driving the workflow run (<code>ctx.workflowRun?.instanceId</code>, which follows resume ownership hand-over). Serve&#39;s direct method runs pass the instance id through a new optional <code>ModelMethodRunInput.instanceId</code>.</li>
-<li><strong><code>ActiveRun.isServeOwned</code></strong> names the ownership rule, mirroring <code>isServeOwnedRun</code> for workflow runs.</li>
-<li><strong>Cancel never signals serve.</strong> <code>splitServeOwnedRuns</code> treats a run as serve-owned if it has an instance id, or if it is a step row sharing pid and host with a serve-owned workflow row (rows written by an older serve). A serve-owned run is cancelled normally only when its owner is a dead process on this host. A row from another host is always treated as live.</li>
-<li><strong>Output.</strong> <code>--all</code> skips serve-owned runs and lists them. Th</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.215953.0-sha.74761180" rel="noopener">release v20261001.215953.0-sha.74761180</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/74761180" rel="noopener">74761180</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2780" rel="noopener">#2780</a>𝗔 <a href="https://swamp-club.com/lab/2914" rel="noopener">lab#2914</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261001-202145-0-sha-a3515474">
-<h2><span class="tier C">C</span>swamp 20261001.202145.0-sha.a3515474</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T20:23:21Z">2026-10-01T20:23:21Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(model): let model cancel wait out the step&#39;s kill grace so the run records its own cancellation (swamp-club#2910) (#2779)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>swamp model cancel</code> SIGKILLed the owning process 2 s after SIGTERM, before the shell step executor&#39;s own 3 s SIGTERM-to-SIGKILL grace ran out. A method slow to stop on SIGTERM therefore never saved its cancelled output: the owner died with exit 137 and only the tracker row was marked cancelled (swamp-club#2910).</p>
-<ul>
-<li><strong>Stop grace:</strong> cancel now waits up to <code>METHOD_OWNER_STOP_GRACE_MS</code> (<code>KILL_GRACE_MS</code> + 7 s save margin, 10 s) before SIGKILL, or the workflow <code>OWNER_STOP_GRACE_MS</code> when the process also owns a running workflow run, so its cleanup steps can run. Log mode says how long it will wait.</li>
-<li><strong><code>--all</code>:</strong> owners are stopped together, each pid once, with <code>Promise.allSettled</code>; runs of owners that could not be stopped stay running and the first error is thrown after the rest are completed.</li>
-<li><strong><code>--reason</code>:</strong> an owner that stops in time now completes its own tracker row without a reason, so cancel records it afterwards with the new <code>RunTrackerRepository.recordCancelReason</code> (fills the reason only on a <code>cancelled</code> row that has none).</li>
-<li><strong>Honest status:</strong> cancel reports the status each run actually ended with. A run its owner finished another way during the wait is listed under a new <code>finished</code> array in <code>--json</code> (additive) and warned about in log mode, instead of being claimed as cancelled.</li>
-<li>**Workflow steps (swamp-club#291</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.202145.0-sha.a3515474" rel="noopener">release v20261001.202145.0-sha.a3515474</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a3515474" rel="noopener">a3515474</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2779" rel="noopener">#2779</a>𝗔 <a href="https://swamp-club.com/lab/2910" rel="noopener">lab#2910</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261001-200003-0-sha-20038a2c">
-<h2><span class="tier C">C</span>swamp 20261001.200003.0-sha.20038a2c</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T20:01:46Z">2026-10-01T20:01:46Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): settle a cancelled run&#39;s unfinished jobs and steps on every cancel path (swamp-club#2895) (#2778)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2895. Cancelling a suspended run with <code>swamp workflow cancel</code>, superseding it with a matching-input <code>swamp workflow run</code>, or cancelling a run whose owning process died marked the run <code>cancelled</code> but left its jobs <code>running</code>, its gates <code>waiting_approval</code> and its downstream steps and jobs <code>pending</code>. <code>swamp workflow history get</code> showed those jobs in progress forever.</p>
-<p><code>WorkflowRun.cancel()</code> only changed the run&#39;s status. The rules that settle unfinished work (from swamp-club#2597) lived in <code>ExecutionService</code> and ran only during a live walk, so every cancel of a stored run skipped them.</p>
-<p><strong>Before / after</strong> (the issue&#39;s workflow: two gated parallel jobs plus an <code>always</code> teardown; <code>*</code> = <code>settledByAbort</code>):</p>
-<p>```</p>
-<p>before:  a-side running | gate2:waiting_approval s:pending</p>
-<p>         main   running | gate:succeeded post:pending</p>
-<p>         teardown pending | t:pending</p>
-<p>after:   a-side failed  | gate2:failed* s:skipped*</p>
-<p>         main   failed  | gate:succeeded post:failed*</p>
-<p>         teardown failed | t:failed*</p>
-<p>```</p>
-<h4 class="body-h">What changes</h4>
-<ul>
-<li><strong>Domain service</strong> <code>src/domain/workflows/abort_settlement.ts</code>. The settlement rules move out of <code>ExecutionService</code>, and a new <code>cancelAndSettle</code> settles a run before marking it cancelled:</li>
-<li>Steps waiting on a suspended nested run are detached first (swamp-club#2736), so the child stays suspended on its</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.200003.0-sha.20038a2c" rel="noopener">release v20261001.200003.0-sha.20038a2c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/20038a2c" rel="noopener">20038a2c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2778" rel="noopener">#2778</a>𝗔 <a href="https://swamp-club.com/lab/2895" rel="noopener">lab#2895</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261001-191636-0-sha-71c25269">
-<h2><span class="tier C">C</span>swamp 20261001.191636.0-sha.71c25269</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T19:18:21Z">2026-10-01T19:18:21Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(auth): require a swamp-club account for every subcommand (swamp-club#2231) (#2777)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Every swamp subcommand now needs a swamp-club.com account, checked before any startup work. The gate is built to fail open on swamp-club errors without letting a client bypass it. Design: <code>design/surfaces/auth-gate.md</code>.</p>
-<ul>
-<li><strong>Signed proof.</strong> whoami returns an Ed25519-signed proof, cached in <code>auth_verified.json</code> (14-day expiry). A valid proof passes with no network call and keeps working through swamp-club outages. It is refreshed in the background once it&#39;s over 7 days old, at most one attempt an hour.</li>
-<li><strong>Without a valid proof,</strong> the CLI verifies live:</li>
-<li>verified → pass;</li>
-<li>whoami&#39;s own <code>401 {&quot;authenticated&quot;: false}</code> → block (revoked);</li>
-<li>429, any 403, any other non-2xx, or unreachable → block (a client can provoke all of these);</li>
-<li>a 5xx → fail open for at most 24 hours from the first one.</li>
-<li><strong>CI.</strong> <code>SWAMP_API_KEY</code> plus <code>SWAMP_SIGNIN_TOKEN</code>. The production signing key is embedded, so a signin token verifies offline. The token is checked live at most once an hour, so revocation still lands. <code>swamp auth token create</code> now prints the signin token.</li>
-<li><strong>Exempt:</strong> bare <code>swamp</code>, <code>--help</code>/<code>--version</code> (decided against the real Cliffy command tree), <code>auth login/logout/whoami</code>, <code>help</code>, <code>completions</code>, <code>version</code>, <code>update</code>.</li>
-<li><strong>Blocks:</strong> <code>AuthGateBlockedError</code> (<code>auth_gate_blocked</code>). JSON includes <code>reason</code> and <code>temporary</code>. Temporary blocks exit 75, a missing or revo</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.191636.0-sha.71c25269" rel="noopener">release v20261001.191636.0-sha.71c25269</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/71c25269" rel="noopener">71c25269</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2777" rel="noopener">#2777</a>𝗔 <a href="https://swamp-club.com/lab/2231" rel="noopener">lab#2231</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261001-190402-0-sha-543aad7e">
-<h2><span class="tier C">C</span>swamp 20261001.190402.0-sha.543aad7e</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-01T19:05:54Z">2026-10-01T19:05:54Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): settle a run left running by a force-exited owner so recover accepts it (swamp-club#2896) (#2776)</li>
-</ul>
-<p>Fixes swamp-club#2896.</p>
-<h4 class="body-h">Summary</h4>
-<p>When a <code>workflow run</code> or <code>resume</code> is stopped by a second Ctrl-C, it exits through <code>Deno.exit(130)</code> and saves nothing. Its run record stayed <code>running</code> under a dead pid. Before this change, only <code>swamp serve</code> boot ever interrupted such a run, so:</p>
-<ul>
-<li><code>workflow resume</code> refused it and said to wait for it to complete;</li>
-<li><code>workflow recover</code> reported &quot;Interrupted run not found&quot;;</li>
-<li><code>run doctor --fix</code> reaped the tracker row but left the record <code>running</code>;</li>
-<li>the step in flight was recorded <code>pending</code>, so recovery would have re-run it without asking.</li>
-</ul>
-<p><strong>What changes:</strong></p>
-<ul>
-<li><strong>Domain service.</strong> The serve-boot reaper moves to <code>src/domain/workflows/orphaned_run_reaper.ts</code>, and <code>settleDeadOwnerRun</code> is added beside it for CLI commands. It interrupts a run (<code>interrupt_reason: owner_process_dead</code>) only when the conditions below hold:</li>
-<li>the run&#39;s tracker row is owned on this host and is <code>running</code> or <code>interrupted</code>;</li>
-<li>the row&#39;s pid is dead.</li>
-</ul>
-<p>  It re-reads the record and writes it only while the record is still <code>running</code> under that pid, so a run its owner finished, or that another process took over, is never overwritten. A run with no tracker row on this host is left alone, because its record carries no hostname.</p>
-<ul>
-<li><strong><code>swamp run doctor</code>.</strong> A row on this host with a dead pid counts as stale straight away, without waiting for the 90s h</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.190402.0-sha.543aad7e" rel="noopener">release v20261001.190402.0-sha.543aad7e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/543aad7e" rel="noopener">543aad7e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2776" rel="noopener">#2776</a>𝗔 <a href="https://swamp-club.com/lab/2896" rel="noopener">lab#2896</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261001-174510-0-sha-265caa01">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261001-174510-0-sha-265caa01">
 <h2><span class="tier C">C</span>repository mark coverage, peer propagation, remote failures, sync-service round-trip conformance (swamp-club#2855) (#2774)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-01T17:46:53Z">2026-10-01T17:46:53Z</time></span><span>datastore</span><span>test</span></div>
@@ -621,12 +621,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>24 items across 1 source(s) in this window:
-0 critical, 14 notable, 0 routine,
-10 minor.</p>
-<ul><li><strong>fix</strong> — 12</li><li><strong>changes</strong> — 8</li><li><strong>feat</strong> — 2</li><li><strong>test</strong> — 2</li></ul></section>
+0 critical, 22 notable, 0 routine,
+2 minor.</p>
+<ul><li><strong>fix</strong> — 19</li><li><strong>feat</strong> — 3</li><li><strong>test</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-02T00:02:23.470Z">2026-10-02T00:02:23.470Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-02T01:02:25.062Z">2026-10-02T01:02:25.062Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

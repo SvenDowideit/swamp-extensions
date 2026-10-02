@@ -67,8 +67,40 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2918"><span class="tier A">A</span>A cancelled workflow exits before its steps stop, leaving th</a><a href="#issue-2927"><span class="tier A">A</span>Nested swamp structural command in a shell step times out on</a><a href="#issue-2924"><span class="tier A">A</span>Auth gate blocks nested swamp in workflow shell steps when t</a><a href="#issue-2925"><span class="tier A">A</span>swamp workflow create crashes with an [FTL] ZodError stack t</a><a href="#issue-2923"><span class="tier A">A</span>swamp model create crashes with an [FTL] ZodError stack trac</a><a href="#issue-2914"><span class="tier A">A</span>model cancel SIGTERMs a running swamp serve process when the</a><a href="#issue-2915"><span class="tier A">A</span>model cancel --all on a running workflow leaves its method-r</a><a href="#issue-2910"><span class="tier A">A</span>model cancel SIGKILLs the owner 2 s after SIGTERM, before th</a><a href="#issue-2895"><span class="tier A">A</span>workflow cancel and supersede of a suspended run leave its j</a><a href="#issue-2231"><span class="tier A">A</span>Auth gate: enforce authentication and add background proof r</a><a href="#issue-2703"><span class="tier A">A</span>gatorwalk-factory: project a work item parked by its dispatc</a><a href="#issue-2772"><span class="tier A">A</span>gatorwalk-factory: lifecycle entries carry issue-lifecycle&#39;s</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2909"><span class="tier A">A</span>Flaky: usecase_sync_characterization_data_test &#39;data gc (ser</a><a href="#issue-2916"><span class="tier A">A</span>Auth gate follow-ups: fail closed when the fail-open window </a><a href="#issue-2644"><span class="tier A">A</span>Codegen/Vercel: create-only required fields block read metho</a><a href="#issue-2926"><span class="tier A">A</span>Worker dispatch rebuilds the definition with Definition.crea</a><a href="#issue-2918"><span class="tier A">A</span>A cancelled workflow exits before its steps stop, leaving th</a><a href="#issue-2927"><span class="tier A">A</span>Nested swamp structural command in a shell step times out on</a><a href="#issue-2924"><span class="tier A">A</span>Auth gate blocks nested swamp in workflow shell steps when t</a><a href="#issue-2925"><span class="tier A">A</span>swamp workflow create crashes with an [FTL] ZodError stack t</a><a href="#issue-2923"><span class="tier A">A</span>swamp model create crashes with an [FTL] ZodError stack trac</a><a href="#issue-2914"><span class="tier A">A</span>model cancel SIGTERMs a running swamp serve process when the</a><a href="#issue-2915"><span class="tier A">A</span>model cancel --all on a running workflow leaves its method-r</a><a href="#issue-2910"><span class="tier A">A</span>model cancel SIGKILLs the owner 2 s after SIGTERM, before th</a></aside><div>
 
+<article class="item" id="issue-2909">
+<h2><span class="tier A">A</span>Flaky: usecase_sync_characterization_data_test &#39;data gc (serve)&#39; asserts markDirty order that varies under parallel load</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-02T00:58:26.811Z">2026-10-02T00:58:26.811Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2909" rel="noopener">lab#2909</a></div>
+</article>
+<article class="item" id="issue-2916">
+<h2><span class="tier A">A</span>Auth gate follow-ups: fail closed when the fail-open window can&#39;t be recorded, UX polish (swamp-club#2231)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-02T00:33:24.960Z">2026-10-02T00:33:24.960Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2916" rel="noopener">lab#2916</a></div>
+</article>
+<article class="item" id="issue-2644">
+<h2><span class="tier A">A</span>Codegen/Vercel: create-only required fields block read methods in generated Vercel models</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-02T00:29:48.144Z">2026-10-02T00:29:48.144Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2644" rel="noopener">lab#2644</a></div>
+</article>
+<article class="item" id="issue-2926">
+<h2><span class="tier A">A</span>Worker dispatch rebuilds the definition with Definition.create, so a legacy-named model cannot run on a worker</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-02T00:03:45.807Z">2026-10-02T00:03:45.807Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2926" rel="noopener">lab#2926</a></div>
+</article>
 <article class="item" id="issue-2918">
 <h2><span class="tier A">A</span>A cancelled workflow exits before its steps stop, leaving their method-run records at running</h2>
 <p class="lede">Shipped bug fix</p>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2910" rel="noopener">lab#2910</a></div>
 </article>
-<article class="item" id="issue-2895">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2895">
 <h2><span class="tier A">A</span>workflow cancel and supersede of a suspended run leave its jobs running in the cancelled record</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-01T20:31:40.447Z">2026-10-01T20:31:40.447Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2772" rel="noopener">lab#2772</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2911">
+<article class="item" id="issue-2911">
 <h2><span class="tier A">A</span>gatorwalk-factory: remove the static design page (design_page and its Mermaid renderer); the studio is the only visualization</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-01T19:32:32.231Z">2026-10-01T19:32:32.231Z</time></span></div>
@@ -565,6 +597,22 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-2930">
+<h2><span class="tier B">B</span>Method-run records left running by a dead owner are never reaped</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-02T01:00:26.426Z">2026-10-02T01:00:26.426Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2930" rel="noopener">lab#2930</a></div>
+</article>
+<article class="item" id="issue-2826">
+<h2><span class="tier B">B</span>Top-level swamp init never earns repo-init quest or tier credit</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-02T00:58:16.759Z">2026-10-02T00:58:16.759Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2826" rel="noopener">lab#2826</a></div>
+</article>
 <article class="item" id="issue-2932">
 <h2><span class="tier B">B</span>gatorwalk-factory: rename to stagecraft (@swamp/stagecraft) for first release</h2>
 <p class="lede">Issue triaged</p>
@@ -572,30 +620,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2932" rel="noopener">lab#2932</a></div>
-</article>
-<article class="item" id="issue-2926">
-<h2><span class="tier B">B</span>Worker dispatch rebuilds the definition with Definition.create, so a legacy-named model cannot run on a worker</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T23:58:58.413Z">2026-10-01T23:58:58.413Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2926" rel="noopener">lab#2926</a></div>
-</article>
-<article class="item" id="issue-2916">
-<h2><span class="tier B">B</span>Auth gate follow-ups: fail closed when the fail-open window can&#39;t be recorded, UX polish (swamp-club#2231)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T23:57:39.330Z">2026-10-01T23:57:39.330Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2916" rel="noopener">lab#2916</a></div>
-</article>
-<article class="item" id="issue-2644">
-<h2><span class="tier B">B</span>Codegen/Vercel: create-only required fields block read methods in generated Vercel models</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-01T20:04:25.684Z">2026-10-01T20:04:25.684Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2644" rel="noopener">lab#2644</a></div>
 </article>
 <article class="item" id="issue-2868">
 <h2><span class="tier B">B</span>managedConfig: model/vault create and other bulk-push commands re-upload a stale extension lockfile and erase peers&#39; entries</h2>
@@ -613,21 +637,77 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2912" rel="noopener">lab#2912</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2931">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2936">
+<h2><span class="tier C">C</span>@swamp/tailscale: follow-ups from the initial release verification review</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T00:57:02.618Z">2026-10-02T00:57:02.618Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2936" rel="noopener">lab#2936</a></div>
+</article>
+<article class="item" id="issue-2935">
+<h2><span class="tier C">C</span>Filter/sort extensions by &quot;new&quot; on swamp-club.com/extensions</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T00:55:16.289Z">2026-10-02T00:55:16.289Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2935" rel="noopener">lab#2935</a></div>
+</article>
+<article class="item" id="issue-2250">
+<h2><span class="tier C">C</span>verify-build fails on the codegen-verify guard: &#39;No such key: stdout&#39;</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T00:37:47.071Z">2026-10-02T00:37:47.071Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2250" rel="noopener">lab#2250</a></div>
+</article>
+<article class="item" id="issue-2881">
+<h2><span class="tier C">C</span>`swamp repo upgrade` adds its canonical Claude audit hook next to an existing variant, so every command is recorded twice</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T00:37:07.191Z">2026-10-02T00:37:07.191Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2881" rel="noopener">lab#2881</a></div>
+</article>
+<article class="item" id="issue-2882">
+<h2><span class="tier C">C</span>`swamp issue bug` redactor treats the file name `settings.local.json` as a hostname and rewrites it to `[HOST-1].json`</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T00:37:01.488Z">2026-10-02T00:37:01.488Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2882" rel="noopener">lab#2882</a></div>
+</article>
+<article class="item" id="issue-2928">
+<h2><span class="tier C">C</span>auth whoami says the stored API key is no longer valid when auth.json only holds an env-key identity cache</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T00:36:15.953Z">2026-10-02T00:36:15.953Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2928" rel="noopener">lab#2928</a></div>
+</article>
+<article class="item" id="issue-2934">
+<h2><span class="tier C">C</span>Docs: account-requirement manual page after the auth gate follow-ups (swamp-club#2916)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T00:35:21.905Z">2026-10-02T00:35:21.905Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2934" rel="noopener">lab#2934</a></div>
+</article>
+<article class="item" id="issue-2763">
+<h2><span class="tier C">C</span>issue-lifecycle triage fails with 422 when the primary issue is already in_progress in swamp-club</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-02T00:18:57.404Z">2026-10-02T00:18:57.404Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2763" rel="noopener">lab#2763</a></div>
+</article>
+<article class="item" id="issue-2931">
 <h2><span class="tier C">C</span>gatorwalk-factory skill: an interactive getting-started walkthrough for a first factory, modelled on swamp-getting-started</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T23:33:09.161Z">2026-10-01T23:33:09.161Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-02T00:17:37.210Z">2026-10-02T00:17:37.210Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2931" rel="noopener">lab#2931</a></div>
-</article>
-<article class="item" id="issue-2930">
-<h2><span class="tier C">C</span>Method-run records left running by a dead owner are never reaped</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T21:57:11.468Z">2026-10-01T21:57:11.468Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2930" rel="noopener">lab#2930</a></div>
 </article>
 <article class="item" id="issue-2929">
 <h2><span class="tier C">C</span>Follow-up action retries ignore the run&#39;s abort signal and can outlast a cancel</h2>
@@ -636,14 +716,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2929" rel="noopener">lab#2929</a></div>
-</article>
-<article class="item" id="issue-2928">
-<h2><span class="tier C">C</span>auth whoami says the stored API key is no longer valid when auth.json only holds an env-key identity cache</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T21:48:54.583Z">2026-10-01T21:48:54.583Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2928" rel="noopener">lab#2928</a></div>
 </article>
 <article class="item" id="issue-2921">
 <h2><span class="tier C">C</span>Docs: swamp skill says cancelling a parent run cancels its nested child runs; the child is left suspended</h2>
@@ -748,14 +820,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2773" rel="noopener">lab#2773</a></div>
-</article>
-<article class="item" id="issue-2909">
-<h2><span class="tier C">C</span>Flaky: usecase_sync_characterization_data_test &#39;data gc (serve)&#39; asserts markDirty order that varies under parallel load</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T18:08:47.228Z">2026-10-01T18:08:47.228Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2909" rel="noopener">lab#2909</a></div>
 </article>
 <article class="item" id="issue-2908">
 <h2><span class="tier C">C</span>Run from a git worktree: definitions from the worktree, state from the shared repo</h2>
@@ -893,22 +957,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2836" rel="noopener">lab#2836</a></div>
 </article>
-<article class="item" id="issue-2882">
-<h2><span class="tier C">C</span>`swamp issue bug` redactor treats the file name `settings.local.json` as a hostname and rewrites it to `[HOST-1].json`</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T09:03:44.496Z">2026-10-01T09:03:44.496Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2882" rel="noopener">lab#2882</a></div>
-</article>
-<article class="item" id="issue-2881">
-<h2><span class="tier C">C</span>`swamp repo upgrade` adds its canonical Claude audit hook next to an existing variant, so every command is recorded twice</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T09:00:29.956Z">2026-10-01T09:00:29.956Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2881" rel="noopener">lab#2881</a></div>
-</article>
 <article class="item" id="issue-2583">
 <h2><span class="tier C">C</span>verify-reviews: adversarial review path guard is a hand-kept list, so new extensions silently skip it</h2>
 <p class="lede">Open issue</p>
@@ -1006,13 +1054,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2800" rel="noopener">lab#2800</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>117 items across 1 source(s) in this window:
-0 critical, 62 notable, 6 routine,
-49 minor.</p>
-<ul><li><strong>issues</strong> — 117</li></ul></section>
+<p>123 items across 1 source(s) in this window:
+0 critical, 66 notable, 5 routine,
+52 minor.</p>
+<ul><li><strong>issues</strong> — 123</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-02T00:02:23.470Z">2026-10-02T00:02:23.470Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-02T01:02:25.062Z">2026-10-02T01:02:25.062Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

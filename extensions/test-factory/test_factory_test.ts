@@ -289,6 +289,109 @@ Deno.test("a candidate shipping test-factory.yaml runs the tests phase", async (
   }
 });
 
+Deno.test("checkCoverage reports documented and shipped-surface coverage", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "tf-cov-" });
+  try {
+    await Deno.writeTextFile(
+      `${dir}/manifest.yaml`,
+      `manifestVersion: 1
+name: "@acme/thing"
+version: "2026.01.01.1"
+description: >
+  WHAT IT DOES
+
+    A thing.
+
+  RUN
+
+      swamp model method run my-thing installCaddy
+      swamp model method run my-thing plan
+models:
+  - thing.ts
+additionalFiles:
+  - test-factory.yaml
+`,
+    );
+    await Deno.writeTextFile(
+      `${dir}/thing.ts`,
+      `export const ` + `model = {\n` +
+        `  type: "@acme/thing",\n  methods: {\n` +
+        `    installCaddy: {},\n    plan: {},\n    extra: {},\n  },\n};`,
+    );
+    await Deno.writeTextFile(
+      `${dir}/test-factory.yaml`,
+      `tests:
+  - name: install
+    confirms: it installs.
+    cannot: must not fail.
+    steps:
+      - name: run
+        run: swamp model method run e2e installCaddy
+        expect: { exitCode: 0, stdoutNotContains: [error] }
+`,
+    );
+    const { promise, ctx } = await runMethod(
+      "checkCoverage",
+      { manifest: `${dir}/manifest.yaml` },
+      { repoDir: dir },
+    );
+    const result = await promise;
+    assertEquals(result.dataHandles.length, 1);
+    const resource = ctx.getWrittenResources().find((r) =>
+      r.specName === "coverage"
+    )!;
+    assertEquals(resource.data.extension, "@acme/thing");
+    assertEquals(resource.data.testCount, 1);
+    assertEquals(resource.data.testCommands, [
+      "swamp model method run e2e installCaddy",
+    ]);
+    assertEquals(resource.data.documentedCommands, [
+      "swamp model method run my-thing installCaddy",
+      "swamp model method run my-thing plan",
+    ]);
+    assertEquals(resource.data.documentedCovered, [
+      "swamp model method run my-thing installCaddy",
+    ]);
+    assertEquals(resource.data.uncoveredCommands, [
+      "swamp model method run my-thing plan",
+    ]);
+    const surface = resource.data.surface as Record<string, unknown>;
+    assertEquals(surface.methods, [
+      "@acme/thing.extra",
+      "@acme/thing.installCaddy",
+      "@acme/thing.plan",
+    ]);
+    assertEquals(surface.methodsCovered, ["@acme/thing.installCaddy"]);
+  } finally {
+    await Deno.remove(dir, { recursive: true }).catch(() => {});
+  }
+});
+
+Deno.test("checkCoverage is docker-free", async () => {
+  // The stub runner treats docker as unavailable; checkCoverage must not care.
+  const { runner } = stubRunner({ dockerAvailable: false });
+  const dir = await Deno.makeTempDir({ prefix: "tf-cov-" });
+  try {
+    await Deno.writeTextFile(
+      `${dir}/manifest.yaml`,
+      `manifestVersion: 1\nname: "@acme/thing"\nversion: "1"\nmodels:\n  - thing.ts\n`,
+    );
+    await Deno.writeTextFile(
+      `${dir}/thing.ts`,
+      `export const ` + `model = { type: "@acme/thing", version: "1" };`,
+    );
+    const { promise } = await runMethod(
+      "checkCoverage",
+      { manifest: `${dir}/manifest.yaml`, _run: runner },
+      { repoDir: dir },
+    );
+    const result = await promise;
+    assertEquals(result.dataHandles.length, 1);
+  } finally {
+    await Deno.remove(dir, { recursive: true }).catch(() => {});
+  }
+});
+
 Deno.test("a failing harness yields a failed result", async () => {
   const { runner } = stubRunner();
   const { manifest, dir } = await writeCandidate();

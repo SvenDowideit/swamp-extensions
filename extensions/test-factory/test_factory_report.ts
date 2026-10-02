@@ -152,6 +152,110 @@ export function renderTests(attrs: Record<string, unknown>): string[] {
   return lines;
 }
 
+/** The list of strings under `key`, tolerating a missing or non-array value. */
+function strList(source: Record<string, unknown>, key: string): string[] {
+  return arr(source[key]).map((v) => str(v));
+}
+
+/** `n%` covered, or `0%` when there is nothing of that kind to cover. */
+function percent(part: number, whole: number): string {
+  return whole > 0 ? `${Math.round((part / whole) * 100)}%` : "0%";
+}
+
+/** Append a bulleted, capped list under a heading. */
+function bulletList(lines: string[], heading: string, items: string[]): void {
+  if (items.length === 0) return;
+  lines.push(`${heading} (${items.length}):`, "");
+  for (const item of items.slice(0, 40)) lines.push(`- \`${item}\``);
+  if (items.length > 40) lines.push(`- … and ${items.length - 40} more`);
+  lines.push("");
+}
+
+/**
+ * Render the coverage block.
+ *
+ * It answers three explicit questions, each naming its *source* so the numbers
+ * are not ambiguous:
+ *
+ *   1. how many documented tests the `test-factory.yaml` contains, and how many
+ *      distinct `swamp …` commands those tests run;
+ *   2. how many of the distinct `swamp …` commands the manifest `description:`
+ *      shows the user are exercised by those tests (out of how many it shows);
+ *   3. how many of the methods the extension's model types declare and the
+ *      workflows it declares are exercised.
+ *
+ * Every list is rendered in full (capped at 40 each), so the number can always
+ * be expanded into the exact commands behind it. Absent when the candidate
+ * shipped no tests.
+ */
+export function renderCoverage(attrs: Record<string, unknown>): string[] {
+  const cov = attrs.coverage as Record<string, unknown> | undefined;
+  if (!cov) return [];
+  const surface = (cov.surface ?? {}) as Record<string, unknown>;
+
+  const testCommands = strList(cov, "testCommands");
+  const documented = strList(cov, "documentedCommands");
+  const documentedCovered = strList(cov, "documentedCovered");
+  const uncoveredCommands = strList(cov, "uncoveredCommands");
+  const methods = strList(surface, "methods");
+  const methodsCovered = strList(surface, "methodsCovered");
+  const workflows = strList(surface, "workflows");
+  const workflowsCovered = strList(surface, "workflowsCovered");
+  const uncoveredMethods = methods.filter((m) => !methodsCovered.includes(m));
+  const uncoveredWorkflows = workflows.filter((w) =>
+    !workflowsCovered.includes(w)
+  );
+
+  const lines: string[] = [
+    "### Test coverage",
+    "",
+    `- **Documented tests**: ${num(cov.testCount)} in the candidate's ` +
+    "`test-factory.yaml`",
+    `- **Distinct \`swamp …\` commands the tests run**: ${testCommands.length}`,
+    `- **Commands shown in the manifest \`description:\`**: ${documented.length}` +
+    ` distinct — ${documentedCovered.length} run by a test` +
+    ` (${percent(documentedCovered.length, documented.length)})`,
+    `- **Methods declared by the model type(s)**: ${methods.length} — ` +
+    `${methodsCovered.length} run by a test ` +
+    `(${percent(methodsCovered.length, methods.length)})`,
+    `- **Workflows declared**: ${workflows.length} — ` +
+    `${workflowsCovered.length} run by a test ` +
+    `(${percent(workflowsCovered.length, workflows.length)})`,
+    "",
+  ];
+
+  bulletList(
+    lines,
+    "Commands run by the tests (from test-factory.yaml steps)",
+    testCommands,
+  );
+  bulletList(
+    lines,
+    "Commands shown in the manifest description that a test runs",
+    documentedCovered,
+  );
+  bulletList(
+    lines,
+    "Commands shown in the manifest description that NO test runs",
+    uncoveredCommands,
+  );
+  bulletList(
+    lines,
+    "Declared methods a test runs",
+    methodsCovered,
+  );
+  bulletList(
+    lines,
+    "Declared methods NO test runs",
+    uncoveredMethods,
+  );
+  if (workflows.length > 0) {
+    bulletList(lines, "Declared workflows a test runs", workflowsCovered);
+    bulletList(lines, "Declared workflows NO test runs", uncoveredWorkflows);
+  }
+  return lines;
+}
+
 /** Render one `result` resource as a Markdown card. */
 export function renderResult(attrs: Record<string, unknown>): string {
   const lines: string[] = [];
@@ -235,6 +339,7 @@ export function renderResult(attrs: Record<string, unknown>): string {
   }
 
   lines.push(...renderTests(attrs));
+  lines.push(...renderCoverage(attrs));
 
   const fixtures = arr(attrs.fixtures);
   if (fixtures.length > 0) {
@@ -296,6 +401,7 @@ export function renderSummary(attrs: Record<string, unknown>): string {
   }
   lines.push("");
   lines.push(...renderClaims(attrs));
+  lines.push(...renderCoverage(attrs));
   lines.push("| Scenario | Distro | Topology | Expected | Result |");
   lines.push("| -------- | ------ | -------- | -------- | ------ |");
   for (const r of arr(attrs.results)) {
@@ -326,10 +432,32 @@ export const report = {
       };
     }
 
-    // Gather the result cards first — they carry the per-test prose and logs.
+    // A `checkCoverage` run writes only a `coverage` resource — render it on
+    // its own, since there are no scenario results to report.
+    const coverageHandle = context.dataHandles.find(
+      (h) => h.specName === "coverage",
+    );
     const resultHandles = context.dataHandles.filter(
       (h) => h.specName === "result",
     );
+    if (coverageHandle && resultHandles.length === 0) {
+      const coverage = await readJson<Record<string, unknown>>(
+        context,
+        coverageHandle,
+      );
+      if (coverage) {
+        return {
+          markdown: [
+            `# Test coverage — ${str(coverage.extension)}`,
+            "",
+            ...renderCoverage({ coverage }),
+          ].join("\n"),
+          json: coverage,
+        };
+      }
+    }
+
+    // Gather the result cards first — they carry the per-test prose and logs.
     const results: Record<string, unknown>[] = [];
     for (const handle of resultHandles) {
       const data = await readJson<Record<string, unknown>>(context, handle);

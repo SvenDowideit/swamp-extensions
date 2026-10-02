@@ -219,6 +219,47 @@ The markdown report renders all of this (a "What this run proves" list and a
 the claims before the run starts. A `fixtures` phase with no fixtures is
 recorded as proving nothing — honestly, rather than vacuously passing.
 
+### Test coverage: what the tests actually exercise
+
+A green `tests` phase says the tests that exist pass — not that they cover the
+extension. Every run (and the standalone `checkCoverage` method) therefore
+reports a `coverage` block, and every number names its source:
+
+- `testCount` — how many tests the candidate's `test-factory.yaml` contains.
+- `testCommands` — the distinct `swamp …` commands those tests run (as written).
+- `documentedCommands` — the distinct `swamp …` commands the candidate manifest
+  `description:` shows the user (as written).
+- `documentedCovered` / `uncoveredCommands` — the documented commands that do /
+  do not appear in `testCommands`. A test may bind a different model instance
+  than the manifest's example, so commands are matched by method/workflow name
+  (the instance is ignored).
+- `surface.methods` / `surface.methodsCovered` — every method the declared model
+  types export, and the subset at least one test step runs, as `type.method`.
+- `surface.workflows` / `surface.workflowsCovered` — every declared workflow, and
+  the subset a test runs, by name.
+
+The full lists are stored, so a ratio always expands into the exact commands.
+Read them from the last run:
+
+```sh
+# Compute (or recompute) coverage without booting a container:
+swamp model @svendowideit/test-factory method run checkCoverage tf \
+  --input manifest=extensions/models/caddy/manifest.yaml
+
+# The stored coverage resource for that manifest (all the lists):
+swamp data get tf svendowideit-caddy --json \
+  | jq '.content | {testCount, testCommands, documentedCommands,
+                    documentedCovered, uncoveredCommands, surface}'
+
+# Or read the rendered report:
+swamp report get @svendowideit/test-factory-report --model tf --markdown
+```
+
+Coverage is computed from the manifest description, the declared model/workflow
+surface, and the parsed `test-factory.yaml` only — it never runs the tests, so
+`checkCoverage` is fast and needs no container runtime. It is reported for
+information, never gated on.
+
 ## Install
 
 ```sh
@@ -253,10 +294,11 @@ Global arguments are set at model creation (`swamp model create
 
 Per-run overrides on `test`: `manifest` (required), `scenario`, `distro`,
 `topology`, `systemd`, `workers`, `phases`, `fixturesFile`, `scenarioFile`,
-`expected`. `testAll` adds `root` and `gitOnly`. `cleanup` takes `prefix`;
-`listScenarios` takes `distro`. The `tests` phase is added automatically when
-the candidate ships a `test-factory.yaml`; pass `phases=smoke,load,definitions`
-to skip it deliberately.
+`expected`. `testAll` adds `root` and `gitOnly`. `checkCoverage` takes
+`manifest`; `cleanup` takes `prefix`; `listScenarios` takes `distro`. The
+`tests` phase is added automatically when the candidate ships a
+`test-factory.yaml`; pass `phases=smoke,load,definitions` to skip it
+deliberately.
 
 ## Examples
 
@@ -398,6 +440,7 @@ swamp report get @svendowideit/test-factory-report --model tf --markdown
 | `listScenarios` | `distro` (optional) | no data; logs the distro catalog and resolved scenarios |
 | `test` | `manifest` (required), `scenario`, `distro`, `topology`, `systemd`, `workers`, `phases`, `fixturesFile`, `scenarioFile`, `expected` | one `result` resource per scenario plus a `summary` rollup |
 | `testAll` | `test`'s arguments plus `root`, `gitOnly` | one `result` per scenario per discovered extension, plus a `summary` per extension |
+| `checkCoverage` | `manifest` (required) | a `coverage` resource; docker-free |
 | `cleanup` | `prefix` (default `tf-`) | removes leftover `tf-` containers, networks and volumes |
 
 Resources:
@@ -406,12 +449,15 @@ Resources:
   `extensionVersion`, the `intent`, the per-phase `claims` (assertion + literal
   commands), distro, topology, expected verdict, per-phase results,
   definition/workflow/fixture detail, the documented `tests` (each with its
-  prose and full per-step output), the `topologyResult` (serve ready, workers
-  enrolled, dispatch ok), errors, the tail-capped `logs` (`logsTruncated` marks
-  when the cap bit), and the resolved swamp version.
+  prose and full per-step output), the `coverage` block (when `tests` runs), the
+  `topologyResult` (serve ready, workers enrolled, dispatch ok), errors, the
+  tail-capped `logs` (`logsTruncated` marks when the cap bit), and the resolved
+  swamp version.
 - `summary` — the rollup from a `test`/`testAll` fan-out: extension and version,
   the shared `claims`, scenario counts, documented-test counts
-  (`testCount`/`testsPassed`), and one row per scenario.
+  (`testCount`/`testsPassed`), the `coverage` block, and one row per scenario.
+- `coverage` — the standalone report written by `checkCoverage`: the same
+  `coverage` block plus the candidate's manifest path, name and version.
 
 Reports and workflows:
 
@@ -433,6 +479,7 @@ orchestration:
 | ---- | -------------- |
 | `scenarios.ts` | The distro catalog, the scenario catalog, filter resolution, and scenario-file parsing. Pure. |
 | `tests.ts` | Parses `test-factory.yaml`, lints prose against assertions, generates the tests phase script, and merges harness outcomes with the authored prose. Pure. |
+| `coverage.ts` | Parses `swamp …` commands from a manifest description and test steps, normalizes them to method/workflow keys, and computes documented-command and shipped-surface coverage. Pure. |
 | `services.ts` | Parses a `test-factory.yaml`'s optional `networks:`/`harness:`/`services:` container topology, derives the `TF_*` test variables, and lints the topology. Pure. |
 | `harness.ts` | Builds the in-container `sh` script from a typed plan, and parses/evaluates its JSON result. Pure. |
 | `topology.ts` | Builds the `swamp serve` / token / worker / probe scripts for the `serve` and `fleet` topologies. Pure. |
@@ -457,6 +504,10 @@ Design decisions worth knowing:
 - **Alpine is a first-class expected failure.** Its `expected: fail` scenario
   passes only when swamp genuinely cannot run there, which is how the harness
   proves it diagnoses rather than hangs.
+- **Coverage is static and instance-agnostic.** It is computed from the manifest
+  description, the declared model/workflow surface, and the parsed
+  `test-factory.yaml` — no container boots — and a documented and a tested
+  command match on method/workflow name, so a test may bind its own instance.
 
 To add a distro: add a `Distro` entry in `scenarios.ts` and a `case` in
 `distroDockerfile`. To add a topology: extend `Topology` and add its scripts to

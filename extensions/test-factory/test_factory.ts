@@ -74,6 +74,7 @@ import {
 import { inspectExtension } from "./introspect.ts";
 import { lintTests, mergeTests, parseTests } from "./tests.ts";
 import type { Expectation, TestSpec, TestStep } from "./tests.ts";
+import { computeCoverage, type CoverageReport } from "./coverage.ts";
 
 // Re-exported so the public `preflightTests` signature (and the types nested in
 // `TestSpec`) can be named without a `private-type-ref` slow-type diagnostic.
@@ -188,6 +189,12 @@ const CleanupArgsSchema = z.object({
   ),
 });
 
+const CoverageArgsSchema = z.object({
+  manifest: z.string().describe(
+    "Path to the candidate extension manifest.yaml, relative to the repo root",
+  ),
+});
+
 const TestAllArgsSchema = TestArgsSchema.extend({
   manifest: z.string().default("").describe(
     "Test only this manifest instead of scanning the root",
@@ -274,6 +281,46 @@ const TopologySchema = z.object({
   detail: z.string(),
 });
 
+/** Coverage of a candidate's documented and shipped surface by its tests. */
+const CoverageSchema = z.object({
+  /** Number of documented acceptance tests in `test-factory.yaml`. */
+  testCount: z.number().default(0),
+  /** Distinct `swamp …` commands the test steps invoke, as written. */
+  testCommands: z.array(z.string()).default([]),
+  /** Distinct `swamp …` commands the manifest description shows, as written. */
+  documentedCommands: z.array(z.string()).default([]),
+  /** Documented commands a test step also runs, as written. */
+  documentedCovered: z.array(z.string()).default([]),
+  /** Documented commands no test step runs, as written. */
+  uncoveredCommands: z.array(z.string()).default([]),
+  /** Shipped-surface axis: methods/workflows exercised vs declared. */
+  surface: z.object({
+    types: z.number().default(0),
+    /** Every declared method, as `type.method`. */
+    methods: z.array(z.string()).default([]),
+    /** Declared methods at least one test step runs. */
+    methodsCovered: z.array(z.string()).default([]),
+    /** Every declared workflow name. */
+    workflows: z.array(z.string()).default([]),
+    /** Declared workflow names at least one test step runs. */
+    workflowsCovered: z.array(z.string()).default([]),
+  }).default({
+    types: 0,
+    methods: [],
+    methodsCovered: [],
+    workflows: [],
+    workflowsCovered: [],
+  }),
+});
+
+/** Resource schema for the standalone coverage report. */
+const CoverageResourceSchema = CoverageSchema.extend({
+  manifest: z.string(),
+  extension: z.string(),
+  version: z.string().default(""),
+  checkedAt: z.string(),
+});
+
 /** Resource schema for one scenario's outcome. */
 const ResultSchema = z.object({
   scenario: z.string(),
@@ -309,6 +356,8 @@ const ResultSchema = z.object({
   fixtures: z.array(FixtureResultSchema),
   /** Documented acceptance tests (from the candidate's test-factory.yaml). */
   tests: z.array(TestResultSchema),
+  /** Documented/shipped-surface coverage of those tests. */
+  coverage: CoverageSchema.optional(),
   topologyResult: TopologySchema.optional(),
   errors: z.array(z.string()),
   durationMs: z.number(),
@@ -335,6 +384,8 @@ const SummarySchema = z.object({
   /** Documented acceptance tests run across the fan-out. */
   testCount: z.number().default(0),
   testsPassed: z.number().default(0),
+  /** Documented/shipped-surface coverage for this candidate's tests. */
+  coverage: CoverageSchema.optional(),
   /** What each requested phase proves, and the commands that prove it. */
   claims: z.array(PhaseClaimSchema).default([]),
   results: z.array(z.object({
@@ -422,6 +473,8 @@ interface Candidate {
   tests: TestSpec[];
   /** Container test system (networks/services) declared in the same file. */
   system: TestSystem;
+  /** How much of the documented/shipped surface the tests exercise. */
+  coverage: CoverageReport;
 }
 
 /** Per-scenario options that do not come from the catalog. */
@@ -500,6 +553,9 @@ function blankResult(
     workflows: [],
     fixtures: [],
     tests: mergeTests(candidate.tests, []),
+    // Coverage describes what the tests exercise, so it is only meaningful (and
+    // only recorded) when the `tests` phase actually runs.
+    coverage: opts.phases.includes("tests") ? candidate.coverage : undefined,
     errors: [],
     durationMs: 0,
     container: containers.join(","),
@@ -1171,7 +1227,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.02.1",
+  version: "2026.10.02.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1202,6 +1258,12 @@ export const model = {
         "A candidate's `test-factory.yaml` may now declare a container test system — `networks:` (with subnets), `harness:` (the swamp container's own network attachments plus `dig: true`), and `services:` (sibling containers to build/start with healthchecks). The factory creates the networks, starts and health-checks the services, joins the swamp container to the declared networks (a static IP per network lets one name resolve to several endpoints), and exports every declared address to the test steps as `TF_<SERVICE>_IP` / `TF_HARNESS_IP_<NETWORK>`. `@svendowideit/caddy` is the worked example (BIND over RFC2136 + dig/curl). A malformed topology fails loudly before any container boots; a file with no such keys behaves exactly as before. `result` gains `serviceContainers`. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.02.2",
+      description:
+        "Report test coverage: how many of a candidate manifest's documented `swamp …` commands, and how many of the methods and workflows it ships, the candidate's `test-factory.yaml` actually exercises. `result` and `summary` gain an optional `coverage` block, the report renders it, and a new docker-free `checkCoverage` method writes a standalone `coverage` resource so another extension (the meta-factory) can read it. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     result: {
@@ -1213,6 +1275,13 @@ export const model = {
     summary: {
       description: "Rollup of a test fan-out across scenarios",
       schema: SummarySchema,
+      lifetime: "30d",
+      garbageCollection: 10,
+    },
+    coverage: {
+      description:
+        "How much of a candidate's documented and shipped surface its test-factory.yaml exercises",
+      schema: CoverageResourceSchema,
       lifetime: "30d",
       garbageCollection: 10,
     },
@@ -1406,6 +1475,42 @@ export const model = {
       },
     },
 
+    checkCoverage: {
+      description:
+        "Report how much of a candidate's documented commands and shipped methods/workflows its test-factory.yaml exercises, without running any container",
+      arguments: CoverageArgsSchema,
+      execute: async (
+        args: z.infer<typeof CoverageArgsSchema>,
+        context: ExecContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const candidate = await resolveCandidate(
+          args.manifest,
+          context.repoDir,
+        );
+        const name = extensionSlug(candidate.name);
+        const handle = await context.writeResource("coverage", name, {
+          manifest: candidate.manifestAbs,
+          extension: candidate.name,
+          version: candidate.version,
+          ...candidate.coverage,
+          checkedAt: new Date().toISOString(),
+        });
+        const c = candidate.coverage;
+        context.logger?.info(
+          `${candidate.name}: ${c.testCount} documented test(s) run ` +
+            `${c.testCommands.length} distinct swamp command(s); ` +
+            `${c.documentedCovered.length} of the ` +
+            `${c.documentedCommands.length} commands shown in the manifest ` +
+            `description are run by a test; ` +
+            `${c.surface.methodsCovered.length} of the ` +
+            `${c.surface.methods.length} declared methods and ` +
+            `${c.surface.workflowsCovered.length} of the ` +
+            `${c.surface.workflows.length} declared workflows are run by a test`,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
     cleanup: {
       description:
         "Remove containers and networks left behind by a crashed run",
@@ -1563,6 +1668,9 @@ async function executeScenarios(
       errorCount: summaries.filter((s) => s.status === "error").length,
       testCount,
       testsPassed,
+      // Coverage is a property of the candidate's test suite, not of any one
+      // scenario, so it is reported once on the rollup (and on each result).
+      coverage: opts.phases.includes("tests") ? candidate.coverage : undefined,
       claims: phaseClaims(summaryPlan),
       results: summaries,
       checkedAt: new Date().toISOString(),
@@ -1649,6 +1757,12 @@ async function resolveCandidate(
   const system: TestSystem = testText
     ? parseTestSystem(testText)
     : { networks: [], harness: { networks: [], dig: false }, services: [] };
+  const coverage = computeCoverage({
+    description: info.manifest.description,
+    tests,
+    typeMethods: info.typeMethods,
+    workflows: info.workflowNames,
+  });
   return {
     manifestAbs,
     dir: dirname(manifestAbs),
@@ -1658,6 +1772,7 @@ async function resolveCandidate(
     workflowNames: info.workflowNames,
     tests,
     system,
+    coverage,
   };
 }
 

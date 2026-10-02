@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/test-factory"
-version: "2026.10.02.1"
+version: "2026.10.02.2"
 description: >
   Run a swamp extension inside containers on different Linux distributions and
   swamp deployment topologies, and report exactly where it breaks. Prefer it
@@ -30,8 +30,15 @@ description: >
     Every run records an audit trail, not just a pass/fail: the candidate name
     and version, a one-line intent, and per phase the assertion a PASS stands
     for plus the literal commands that proved it — so you can judge adequacy and
-    whether the test did what it claims. Alpine (musl-only) is expected to
-    fail, proving the harness diagnoses not hangs.
+    whether the test did what it claims. It also reports how much of the
+    documented surface the tests actually cover: the number of documented tests
+    and distinct `swamp …` commands they run, how many of the commands shown in
+    the candidate's manifest `description:` those tests exercise, and how many of
+    the candidate's shipped methods and workflows they exercise. That coverage
+    appears in every scenario result and the fan-out rollup, and the docker-free
+    `checkCoverage` method reports it on its own for CI or another extension.
+    Alpine (musl-only) is expected to fail, proving the harness diagnoses not
+    hangs.
 
   INSTALL
 
@@ -106,7 +113,12 @@ description: >
         --input manifest=extensions/models/caddy/manifest.yaml \
         --input topology=fleet --input workers=2
 
-      # Read the per-scenario breakdown from the last run.
+      # Report what an extension's tests cover without booting a container:
+      # how many documented commands, methods and workflows the tests exercise.
+      swamp model @svendowideit/test-factory method run checkCoverage tf \
+        --input manifest=extensions/models/caddy/manifest.yaml
+
+      # Read the per-scenario breakdown (and its coverage) from the last run.
       swamp report get @svendowideit/test-factory-report \
         --model tf --markdown
 
@@ -134,8 +146,8 @@ description: >
 
     Per-run overrides: `manifest` (required), `scenario`, `distro`, `topology`,
     `systemd`, `workers`, `phases`, `fixturesFile`, `scenarioFile`, `expected`
-    on `test`; `root` and `gitOnly` additionally on `testAll`; `prefix` on
-    `cleanup`; `distro` on `listScenarios`.
+    on `test`; `root` and `gitOnly` additionally on `testAll`; `manifest` on
+    `checkCoverage`; `prefix` on `cleanup`; `distro` on `listScenarios`.
 
   WHAT IT INSTALLS
 
@@ -175,6 +187,7 @@ additionalFiles:
   - topology.ts
   - introspect.ts
   - tests.ts
+  - coverage.ts
   - services.ts
   - services_test.ts
   - scenarios_test.ts
@@ -183,6 +196,7 @@ additionalFiles:
   - introspect_test.ts
   - docker_test.ts
   - tests_test.ts
+  - coverage_test.ts
   - test_factory_report_test.ts
   - test_factory_test.ts
   - acceptance/test-factory.yaml

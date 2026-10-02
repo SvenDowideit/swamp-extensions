@@ -1,5 +1,6 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
+  renderCoverage,
   renderResult,
   renderSummary,
   renderTests,
@@ -185,6 +186,99 @@ Deno.test("renderTests counts passes per test", () => {
 
 Deno.test("renderTests is empty when there are no tests", () => {
   assertEquals(renderTests({ tests: [] }), []);
+});
+
+Deno.test("renderCoverage reports documented and shipped-surface coverage", () => {
+  const lines = renderCoverage({
+    coverage: {
+      testCount: 3,
+      testCommands: [
+        "swamp model method run e2e installCaddy",
+        "swamp model method run e2e plan",
+      ],
+      documentedCommands: [
+        "swamp model method run my-thing installCaddy",
+        "swamp model method run my-thing plan",
+        "swamp workflow run caddy-setup",
+      ],
+      documentedCovered: [
+        "swamp model method run my-thing installCaddy",
+        "swamp model method run my-thing plan",
+      ],
+      uncoveredCommands: ["swamp workflow run caddy-setup"],
+      surface: {
+        types: 1,
+        methods: ["@a/b.plan", "@a/b.sync"],
+        methodsCovered: ["@a/b.plan"],
+        workflows: ["caddy-setup"],
+        workflowsCovered: [],
+      },
+    },
+  }).join("\n");
+  assertStringIncludes(lines, "### Test coverage");
+  assertStringIncludes(lines, "Documented tests**: 3");
+  assertStringIncludes(
+    lines,
+    "Distinct `swamp …` commands the tests run**: 2",
+  );
+  // The source of each ratio is named explicitly.
+  assertStringIncludes(
+    lines,
+    "Commands shown in the manifest `description:`**: 3 distinct — 2 run by a test (67%)",
+  );
+  assertStringIncludes(
+    lines,
+    "Methods declared by the model type(s)**: 2 — 1 run by a test (50%)",
+  );
+  assertStringIncludes(lines, "Workflows declared**: 1 — 0 run by a test (0%)");
+  // The full command lists are rendered.
+  assertStringIncludes(lines, "- `swamp model method run e2e plan`");
+  assertStringIncludes(lines, "- `swamp workflow run caddy-setup`");
+  assertStringIncludes(lines, "- `@a/b.sync`");
+});
+
+Deno.test("renderCoverage is empty without coverage data", () => {
+  assertEquals(renderCoverage({}), []);
+});
+
+Deno.test("renderResult renders coverage when present", () => {
+  const md = renderResult({
+    scenario: "debian-standalone",
+    distro: "debian",
+    systemd: false,
+    topology: "standalone",
+    workers: 0,
+    expected: "pass",
+    status: "pass",
+    ok: true,
+    phases: [],
+    definitions: [],
+    workflows: [],
+    errors: [],
+    logs: "",
+    coverage: {
+      testCount: 1,
+      testCommands: ["swamp model method run e2e installCaddy"],
+      documentedCommands: [
+        "swamp model method run my-thing installCaddy",
+        "swamp model method run my-thing plan",
+      ],
+      documentedCovered: ["swamp model method run my-thing installCaddy"],
+      uncoveredCommands: ["swamp model method run my-thing plan"],
+      surface: {
+        types: 1,
+        methods: ["@a/b.installCaddy", "@a/b.plan"],
+        methodsCovered: ["@a/b.installCaddy"],
+        workflows: [],
+        workflowsCovered: [],
+      },
+    },
+  });
+  assertStringIncludes(md, "### Test coverage");
+  assertStringIncludes(
+    md,
+    "Commands shown in the manifest `description:`**: 2 distinct — 1 run by a test (50%)",
+  );
 });
 
 Deno.test("renderSummary shows test counts", () => {

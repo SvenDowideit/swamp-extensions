@@ -9,11 +9,14 @@
  * @module
  */
 import { basename, dirname, extname, join, resolve } from "jsr:@std/path@1";
+import type { TypeMethods } from "./coverage.ts";
 
 /** The subset of an extension manifest the factory needs. */
 export interface ExtensionManifest {
   name: string;
   version: string;
+  /** The manifest `description:` block — the published user manual. */
+  description: string;
   models: string[];
   workflows: string[];
   reports: string[];
@@ -29,6 +32,7 @@ export function parseExtensionManifest(text: string): ExtensionManifest {
   const manifest: ExtensionManifest = {
     name: "",
     version: "",
+    description: "",
     models: [],
     workflows: [],
     reports: [],
@@ -40,6 +44,7 @@ export function parseExtensionManifest(text: string): ExtensionManifest {
   const lines = text.split("\n");
   let currentList: keyof ExtensionManifest | null = null;
   let inDescription = false;
+  const description: string[] = [];
   for (const raw of lines) {
     const line = raw.replace(/\s+#.*$/, "");
     if (!line.trim()) continue;
@@ -49,8 +54,12 @@ export function parseExtensionManifest(text: string): ExtensionManifest {
       const m = /^([A-Za-z]+):\s*(.*)$/.exec(line);
       if (!m) continue;
       const [, key, value] = m;
-      if (value.startsWith(">") || value === "" && /description/.test(key)) {
-        inDescription = key === "description";
+      if (key === "description") {
+        // A `|`/`>` block scalar, or an empty value, opens a block; an inline
+        // value is the whole description.
+        inDescription = value.startsWith(">") || value.startsWith("|") ||
+          value === "";
+        if (!inDescription) description.push(unquote(value));
       }
       switch (key) {
         case "name":
@@ -92,7 +101,12 @@ export function parseExtensionManifest(text: string): ExtensionManifest {
       }
       continue;
     }
-    if (inDescription) continue;
+    if (inDescription) {
+      // Keep the raw indented block; the coverage parser only needs the
+      // command lines, and preserving indentation keeps them recognizable.
+      description.push(line.replace(/\s+$/, ""));
+      continue;
+    }
     // Indented list item under the current key.
     if (currentList) {
       const item = /^\s*-\s*(.+)$/.exec(line);
@@ -101,6 +115,7 @@ export function parseExtensionManifest(text: string): ExtensionManifest {
       }
     }
   }
+  manifest.description = description.join("\n");
   return manifest;
 }
 
@@ -133,6 +148,46 @@ export function extractTypeFromSource(source: string): string | null {
 }
 
 /**
+ * Extract the keys of the exported `methods:` object from a model source file.
+ *
+ * Reads only the keys at bracket depth 1 (direct members of the `methods`
+ * object), so a nested object inside a method is not mistaken for a method
+ * name. Good enough for a coverage count; the load phase is what actually
+ * proves the methods register.
+ */
+export function extractMethodKeys(source: string): string[] {
+  const start = source.search(/\bmethods\s*:\s*\{/);
+  if (start < 0) return [];
+  const open = source.indexOf("{", start);
+  let depth = 0;
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  for (let i = open; i < source.length; i++) {
+    const ch = source[i];
+    if (ch === "{") {
+      depth++;
+      continue;
+    }
+    if (ch === "}") {
+      depth--;
+      if (depth === 0) break;
+      continue;
+    }
+    if (depth !== 1) continue;
+    if (i === 0 || source[i - 1] === "\n") {
+      const m = /^\s*([A-Za-z_$][\w$]*)\s*:\s*[\{A-Za-z_$]/.exec(
+        source.slice(i),
+      );
+      if (m && !seen.has(m[1])) {
+        seen.add(m[1]);
+        keys.push(m[1]);
+      }
+    }
+  }
+  return keys;
+}
+
+/**
  * Read the declared model types and workflow names for an extension.
  *
  * Model types come from the declared `models:` source files; workflows are
@@ -146,6 +201,8 @@ export async function inspectExtension(
   manifest: ExtensionManifest;
   modelTypes: string[];
   workflowNames: string[];
+  /** Each declared model type and the method keys its source exports. */
+  typeMethods: TypeMethods[];
   dir: string;
   /**
    * Absolute path to the candidate's `test-factory.yaml`, discovered from the
@@ -160,12 +217,23 @@ export async function inspectExtension(
   );
 
   const modelTypes: string[] = [];
+  const typeMethods: TypeMethods[] = [];
   for (const file of manifest.models) {
     if (extname(file) !== ".ts") continue;
     try {
       const src = await Deno.readTextFile(join(dir, file));
       const type = extractTypeFromSource(src);
-      if (type && !modelTypes.includes(type)) modelTypes.push(type);
+      if (!type) continue;
+      if (!modelTypes.includes(type)) modelTypes.push(type);
+      const methods = extractMethodKeys(src);
+      const existing = typeMethods.find((t) => t.type === type);
+      if (existing) {
+        for (const m of methods) {
+          if (!existing.methods.includes(m)) existing.methods.push(m);
+        }
+      } else {
+        typeMethods.push({ type, methods, known: true });
+      }
     } catch {
       // Unreadable source — skip; the load phase will fail loudly instead.
     }
@@ -189,5 +257,12 @@ export async function inspectExtension(
   );
   const testsPath = testsEntry ? resolve(dir, testsEntry) : "";
 
-  return { manifest, modelTypes, workflowNames, dir, testsPath };
+  return {
+    manifest,
+    modelTypes,
+    workflowNames,
+    typeMethods,
+    dir,
+    testsPath,
+  };
 }

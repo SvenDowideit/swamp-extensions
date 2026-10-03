@@ -20,6 +20,7 @@ const g = {
   k8sNode: "node-1",
   ssmInstanceId: "",
   containerEndpoint: "",
+  k8sRunName: "swamp-sudo-test",
 };
 
 Deno.test("shellQuote leaves safe tokens bare and quotes the rest", () => {
@@ -46,6 +47,26 @@ Deno.test("the default order names only known strategies", () => {
 Deno.test("docker-exec is removed from the catalogue", () => {
   assertEquals(getStrategy("docker-exec"), undefined);
   assertEquals(DEFAULT_STRATEGY_ORDER.includes("docker-exec"), false);
+});
+
+Deno.test("nsenter actually re-uid's to root (nsenter alone cannot elevate)", () => {
+  const nsenter = getStrategy("nsenter")!;
+  // Entering PID 1's namespaces does not change uid; the route must combine
+  // namespace entry with setpriv --reuid=0, or it can never prove uid 0.
+  const probe = nsenter.probeArgv(g).join(" ");
+  assertEquals(
+    probe.includes("setpriv"),
+    true,
+    "probe must combine with setpriv",
+  );
+  const build = nsenter.build(["id", "-u"], g).join(" ");
+  assertEquals(
+    build.includes("setpriv"),
+    true,
+    "build must combine with setpriv",
+  );
+  assertEquals(build.includes("--reuid=0"), true);
+  assertEquals(build.includes("--regid=0"), true);
 });
 
 Deno.test("run0 and pkexec take no '--' before the program", () => {
@@ -153,6 +174,13 @@ Deno.test("k8s proof runs inside the host chroot (no /host/host path)", () => {
   assertStringIncludes(probe, "chroot");
   assertStringIncludes(probe, "/etc/machine-id");
   assertEquals(probe.includes("/host/etc/machine-id"), false);
+});
+
+Deno.test("k8s pod names are suffixed by k8sRunName (no fixed-name collision)", () => {
+  const probe = getStrategy("k8s-node")!.probeArgv(g);
+  const build = getStrategy("k8s-node")!.build(["id", "-u"], g);
+  assertEquals(probe.includes("swamp-sudo-test-probe"), true);
+  assertEquals(build.includes("swamp-sudo-test-run"), true);
 });
 
 Deno.test("parseGroupList splits identity group output", () => {

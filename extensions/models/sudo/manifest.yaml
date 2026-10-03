@@ -25,10 +25,10 @@ description: >
 
   DEPENDENCIES
 
-    None required. The extension is self-contained. If you configure an
-    out-of-band AWS SSM target (`ssmInstanceId`), it uses the independently
-    installed `@swamp/aws/ssm` model; no other dependency exists and nothing is
-    installed for you.
+    None required. The extension is self-contained. The out-of-band `ssm-run`
+    route is a placeholder: it is never selectable by the built-in argv
+    executor (it is documented as always-unavailable), and no `@swamp/aws/ssm`
+    dependency is assumed or installed.
 
   RUN
 
@@ -108,6 +108,8 @@ description: >
       timeoutSeconds       Per-execution timeout           (default 120)
       probeTimeoutSeconds  Per-route proof timeout         (default 8)
       allowAudit           Emit the hardening findings     (default false)
+      approvalVault        Vault for the run-scoped,       (default "sudo-approval")
+                           single-use approval secret
 
     Container routes are disabled when DOCKER_HOST/CONTAINER_HOST names a remote
     daemon, so a local operation never runs on another host.

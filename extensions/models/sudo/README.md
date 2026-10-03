@@ -46,6 +46,7 @@ attributes):
 | `timeoutSeconds`      | number   | `120`                                              | Per-execution timeout.                                                                                                                                                               |
 | `probeTimeoutSeconds` | number   | `8`                                                | Per-route proof timeout. Side-effecting proofs get at least 120s.                                                                                                                    |
 | `allowAudit`          | boolean  | `false`                                            | Emit read-only residual-risk findings.                                                                                                                                               |
+| `approvalVault`       | string   | `sudo-approval`                                    | Vault that holds the run-scoped, single-use approval secret for the gated command path.                                                                                              |
 
 Container routes are additionally disabled when `DOCKER_HOST` or
 `CONTAINER_HOST` names a remote daemon (`ssh://`, `tcp://`, …): acting on
@@ -92,9 +93,9 @@ swamp workflow run @svendowideit/sudo-command \
 | `probe`       | `strategy` (default `auto`), `allowAudit?`                          | `probe`   | Enumerates the ladder and stops at the first proved route; never runs the target command, but _may_ start a transient privileged container/pod to prove a container route; **always succeeds** (so findings are reachable) with `winner: null` when nothing is granted. `audited` says whether findings were collected. |
 | `run`         | `operation`, `args`, `strategy` (default `auto`), `timeoutSeconds?` | `result`  | Runs a named operation. A non-zero program exit is recorded, not thrown; only "no route" or "operation not allowed" throw.                                                                                                                                                                                              |
 | `request`     | `command` (array), `reason`, `requestId?`                           | `request` | Records the exact argv under a request id (defaults to the run id when the workflow supplies it). Requires `allowArbitrary=true`.                                                                                                                                                                                       |
-| `runApproved` | `command`, `requestId`, `approvalToken`                             | `result`  | Runs an arbitrary argv only if it exactly matches the recorded request and the token matches `SWAMP_SUDO_APPROVAL_TOKEN`, then **consumes** the request (single use). Requires `allowArbitrary=true`.                                                                                                                   |
+| `runApproved` | `command`, `requestId`, `approvalToken`                             | `result`  | Runs an arbitrary argv only if it exactly matches the recorded request and the token matches the run-scoped secret minted into the approval vault under the request id, then **consumes** the request and secret (single use). Requires `allowArbitrary=true`.                                                                          |
 
-Resources: `probe`, `result`, and `request` (lifetime `1d`).
+Resources: `probe` and `result` (lifetime `infinite`), `request` (lifetime `1d`).
 
 ### Workflows
 
@@ -159,11 +160,13 @@ the chosen route and never run a privileged command.
 
 `request` records the exact argv array under a request id; `runApproved` refuses
 unless the supplied argv is byte-for-byte equal to what was recorded and the
-approval token matches, then deletes the request so a single approval authorises
-exactly one execution. The caller cannot run an unregistered command. The token
-is read from `SWAMP_SUDO_APPROVAL_TOKEN` in the operator environment; put the
-same value in the `sudo-approval` vault as `token` for the bundled workflow to
-supply it. Prefer a run-scoped, rotated value over a long-lived one.
+approval token matches the run-scoped secret minted for that request, then
+deletes the request and the secret so a single approval authorises exactly one
+execution. The caller cannot run an unregistered command. The secret is
+minted at the `manual_approval` gate into the `sudo-approval` vault under the
+request id (the workflow run id), and is single-use by construction: at the gate,
+run `swamp vault put sudo-approval <run-id> "<random>"` and let the operator
+resume. A static, reusable token is deliberately not supported.
 
 ### Concurrency
 

@@ -230,7 +230,7 @@ export const OPERATIONS: Record<string, Operation> = {
     description:
       "Change the owner and group of a path, optionally recursively.",
     argsSchema: ChownArgs,
-    localOnly: false,
+    localOnly: true,
     build: (args) => {
       const a = ChownArgs.parse(args);
       assertAbsoluteNoSymlinkIntent("path", a.path);

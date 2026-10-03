@@ -23,6 +23,11 @@ export interface StrategyConfig {
   k8sNode: string;
   ssmInstanceId: string;
   /**
+   * Unique suffix for the k8s-node transient pod name, so concurrent runs do
+   * not collide on a fixed pod name.
+   */
+  k8sRunName: string;
+  /**
    * Container daemon endpoint from `DOCKER_HOST`/`CONTAINER_HOST`. Empty means
    * the runtime's default local socket. A remote endpoint disables the
    * container routes, which would otherwise act on another host.
@@ -204,7 +209,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     class: "local",
     tool: "sudo",
     riskNote:
-      "Full root when a NOPASSWD or cached credential exists for this user.",
+      "Full root when a NOPASSWD or cached credential exists for this user. The probe runs `sudo -n true`, so a sudoers rule scoped to a specific command (not a broad NOPASSWD grant) is reported unavailable — a conservative fail-closed false negative, never an unsafe elevation.",
     sideEffects: "none",
     precondition: () => null,
     probeArgv: () => ["sudo", "-n", "true"],
@@ -216,7 +221,8 @@ export const STRATEGIES: Record<string, Strategy> = {
     id: "doas-n",
     class: "local",
     tool: "doas",
-    riskNote: "Full root when a `permit nopass` rule covers this user.",
+    riskNote:
+      "Full root when a `permit nopass` rule covers this user. The probe runs a representative `doas -n id -u`; a `nopass` rule scoped to a specific command is reported unavailable — a conservative fail-closed false negative.",
     sideEffects: "none",
     precondition: () => null,
     probeArgv: () => ["doas", "-n", ID, "-u"],
@@ -300,7 +306,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     class: "capability",
     tool: "nsenter",
     riskNote:
-      "Host root by entering PID 1's namespaces when CAP_SYS_ADMIN is already held.",
+      "Host root by entering PID 1's namespaces (CAP_SYS_ADMIN) and re-entering uid 0 (CAP_SETUID/CAP_SETGID).",
     sideEffects: "none",
     precondition: () => null,
     probeArgv: () => [
@@ -313,6 +319,10 @@ export const STRATEGIES: Record<string, Strategy> = {
       "--net",
       "--pid",
       "--",
+      "setpriv",
+      "--reuid=0",
+      "--regid=0",
+      "--clear-groups",
       ID,
       "-u",
     ],
@@ -329,6 +339,10 @@ export const STRATEGIES: Record<string, Strategy> = {
       "--net",
       "--pid",
       "--",
+      "setpriv",
+      "--reuid=0",
+      "--regid=0",
+      "--clear-groups",
       ENV,
       ...argv,
     ],
@@ -485,9 +499,9 @@ export const STRATEGIES: Record<string, Strategy> = {
     sideEffects: "creates-pod",
     precondition: (g) => (g.k8sNode ? null : "k8sNode is not configured"),
     probeArgv: (g) =>
-      k8sRunArgv(g, ["cat", "/etc/machine-id"], "swamp-sudo-probe"),
+      k8sRunArgv(g, ["cat", "/etc/machine-id"], `${g.k8sRunName}-probe`),
     probeOk: (r) => r.code === 0 && /[0-9a-f]{8,}/i.test(r.stdout),
-    build: (argv, g) => k8sRunArgv(g, argv, "swamp-sudo-run"),
+    build: (argv, g) => k8sRunArgv(g, argv, `${g.k8sRunName}-run`),
     elevationFailed: elevationFailedByPattern([
       /forbidden|unauthorized|error from server/i,
     ]),

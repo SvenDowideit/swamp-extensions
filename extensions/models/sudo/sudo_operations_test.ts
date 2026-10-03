@@ -9,6 +9,20 @@ import {
   packageArgv,
 } from "./sudo_operations.ts";
 
+Deno.test("filesystem/account-mutating operations are localOnly (refuse remote routes)", () => {
+  for (
+    const id of [
+      "chown",
+      "ensureDirectory",
+      "addUserToGroup",
+      "createUser",
+      "mount",
+    ]
+  ) {
+    assertEquals(getOperation(id)!.localOnly, true, `${id} must be localOnly`);
+  }
+});
+
 Deno.test("every listed operation has an id-keyed entry", () => {
   for (const id of listOperationIds()) {
     assertEquals(OPERATIONS[id].id, id);

@@ -92,6 +92,9 @@ const GlobalArgsSchema = z.object({
   allowAudit: z.boolean().default(false).describe(
     "Emit read-only residual-risk findings (container group, sudoers, writable root paths, polkit/LXD).",
   ),
+  approvalVault: z.string().default("sudo-approval").describe(
+    "Vault that holds the single-use, run-scoped approval secret for the gated command path.",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -136,7 +139,7 @@ const RunApprovedArgsSchema = z.object({
     "Request id returned by `request`; binds this execution to a registered argv.",
   ),
   approvalToken: z.string().min(1).meta({ sensitive: true }).describe(
-    "Operator approval token; must match SWAMP_SUDO_APPROVAL_TOKEN.",
+    "Operator-supplied single-use secret. Must equal the run-scoped secret minted into the approval vault under this request id.",
   ),
 });
 
@@ -377,6 +380,7 @@ function configFrom(g: GlobalArgs): StrategyConfig {
     k8sNode: g.k8sNode,
     ssmInstanceId: g.ssmInstanceId,
     containerEndpoint: endpoint,
+    k8sRunName: `swamp-sudo-${crypto.randomUUID().slice(0, 8)}`,
   };
 }
 
@@ -754,6 +758,11 @@ type MethodContext = {
    * the real `runCmd`.
    */
   _exec?: ExecFn;
+  /** Vault service for the run-scoped approval secret (swamp populates this). */
+  vaultService?: {
+    get: (vaultName: string, key: string) => Promise<string>;
+    delete: (vaultName: string, key: string) => Promise<void>;
+  };
   definition: {
     id: string;
     name: string;
@@ -991,13 +1000,21 @@ export const model = {
           );
         }
 
-        const expectedToken = safeEnv("SWAMP_SUDO_APPROVAL_TOKEN");
-        if (!expectedToken) {
+        // Single-use, run-scoped approval secret. The operator mints a fresh
+        // secret into the approval vault at the manual_approval gate, keyed by
+        // the request id (the workflow run id), so the token is bound to this
+        // specific run and can be used exactly once. A missing or mismatched
+        // secret fails closed. No static, reusable token exists.
+        const minted = context.vaultService
+          ? await context.vaultService.get(g.approvalVault, args.requestId)
+            .catch(() => "")
+          : "";
+        if (!minted) {
           throw new Error(
-            "SWAMP_SUDO_APPROVAL_TOKEN is not set; refusing runApproved. Set it in the operator environment for the approval gate.",
+            `No approval secret is minted for request '${args.requestId}'. Put a single-use secret into the '${g.approvalVault}' vault under key '${args.requestId}' at the approval gate, then resume.`,
           );
         }
-        if (args.approvalToken !== expectedToken) {
+        if (args.approvalToken !== minted) {
           throw new Error(
             "Approval token does not match; refusing runApproved.",
           );
@@ -1032,9 +1049,14 @@ export const model = {
           "Approved command ran via {strategyUsed}: exit {exitCode}",
           { strategyUsed: data.strategyUsed, exitCode: data.exitCode },
         );
-        // Consume the request: a single human approval authorises exactly one
-        // execution. A replay fails closed at the read above.
-        await context.deleteResource("pending").catch(() => {});
+        // Consume both the request record and the single-use approval secret:
+        // a single human approval authorises exactly one execution. Deletion
+        // failures are NOT swallowed — a request/secret left behind would make
+        // the approved command replayable, so we fail loudly instead.
+        await context.deleteResource("pending");
+        if (context.vaultService) {
+          await context.vaultService.delete(g.approvalVault, args.requestId);
+        }
         const handle = await context.writeResource("result", "result", data);
         return { dataHandles: [handle] };
       },

@@ -5,10 +5,11 @@ description: |
 
   Use this only when no named operation fits. It is disabled unless the model
   instance is created with allowArbitrary=true. The flow is: `request` records
-  the exact argv under a caller-supplied request id; a manual approval gate
-  shows the operator exactly what will run; the operator resumes with the
-  approval token (SWAMP_SUDO_APPROVAL_TOKEN); `runApproved` runs it only if the
-  supplied argv exactly matches the recorded request and the token is correct.
+  the   exact argv under a caller-supplied request id; a manual approval gate
+  shows the operator exactly what will run; the operator mints a single-use,
+  run-scoped secret into the approval vault (keyed by the run id) at the gate;
+  `runApproved` runs it only if the supplied argv exactly matches the recorded
+  request and the token matches that secret, then consumes both (single use).
 
   The command is an argv array, never a shell string, so a value cannot smuggle
   in shell metacharacters. runApproved cannot run a command that was not first
@@ -82,7 +83,8 @@ jobs:
       - name: run
         description: >-
           Execute the command only if it exactly matches the recorded request
-          and the operator token is correct.
+          and the operator-minted, run-scoped secret is correct (then consume
+          both).
         task:
           type: model_method
           modelType: "@svendowideit/sudo"
@@ -91,7 +93,7 @@ jobs:
           inputs:
             command: ${{ inputs.command }}
             requestId: "${{ run.id }}"
-            approvalToken: "${{ vault.get('sudo-approval', 'token') }}"
+            approvalToken: "${{ vault.get('sudo-approval', run.id) }}"
         dependsOn:
           - step: gate
             condition:

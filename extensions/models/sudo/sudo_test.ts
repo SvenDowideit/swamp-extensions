@@ -24,17 +24,6 @@ function hasRunPermission(): boolean {
   }
 }
 
-/** Whether this process may mutate the environment (plain `deno test` denies `env`). */
-function hasEnvPermission(): boolean {
-  try {
-    Deno.env.set("__SWAMP_SUDO_TEST__", "1");
-    Deno.env.delete("__SWAMP_SUDO_TEST__");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Routing helpers
 // ---------------------------------------------------------------------------
@@ -108,6 +97,7 @@ function globalArgs(overrides: Record<string, unknown> = {}) {
     timeoutSeconds: 120,
     probeTimeoutSeconds: 8,
     allowAudit: false,
+    approvalVault: "sudo-approval",
     ...overrides,
   };
 }
@@ -148,15 +138,18 @@ function testContext(
   globalArgs: Record<string, unknown>,
   stored: Record<string, unknown> | null = null,
   exec?: unknown,
+  vault?: { secrets?: Record<string, string>; deleted?: string[] },
 ) {
   const written: Record<
     string,
     { name: string; data: Record<string, unknown> }
   > = {};
   const deleted: string[] = [];
+  const vaultDeleted: string[] = [];
   return {
     written,
     deleted,
+    vaultDeleted,
     context: {
       globalArgs,
       writeResource: (
@@ -174,6 +167,18 @@ function testContext(
         return Promise.resolve();
       },
       ...(exec ? { _exec: exec } : {}),
+      ...(vault
+        ? {
+          vaultService: {
+            get: (_v: string, key: string) =>
+              Promise.resolve(vault.secrets?.[key] ?? ""),
+            delete: (_v: string, key: string) => {
+              vaultDeleted.push(key);
+              return Promise.resolve();
+            },
+          },
+        }
+        : {}),
       definition: { id: "test", name: "sudo-test", version: "test", tags: {} },
     },
   };
@@ -238,6 +243,7 @@ Deno.test("container routes refuse a remote daemon", () => {
     k8sNode: "",
     ssmInstanceId: "",
     containerEndpoint: "ssh://remote.example",
+    k8sRunName: "swamp-sudo-test",
   };
   assertEquals(typeof docker.precondition(cfg) === "string", true);
   assertEquals(docker.precondition({ ...cfg, containerEndpoint: "" }), null);
@@ -423,49 +429,105 @@ Deno.test("run rejects an unknown operation id", async () => {
 });
 
 Deno.test(
-  "a successful runApproved consumes the registered request (single use)",
-  {
-    ignore: !hasEnvPermission(),
-  },
+  "a successful runApproved consumes the registered request and secret (single use)",
   async () => {
-    const prev = Deno.env.get("SWAMP_SUDO_APPROVAL_TOKEN");
-    Deno.env.set("SWAMP_SUDO_APPROVAL_TOKEN", "token-1");
-    try {
-      const stored = { requestId: "r1", command: ["id", "-u"], reason: "x" };
-      // sudo -n true proves root; the approved command then runs.
-      const exec = (
-        binary: string,
-        _args: string[],
-        _timeoutMs: number,
-      ) =>
-        Promise.resolve({
-          stdout: binary === "sudo" ? "" : "0",
-          stderr: "",
-          code: 0,
-          signal: null,
-          notFound: false,
-          timedOut: false,
-          truncated: false,
-        });
-      const { context, deleted, written } = testContext(
-        { allowArbitrary: true, strategyOrder: ["sudo-n"] },
-        stored,
-        exec,
-      );
-      await model.methods.runApproved.execute(
-        {
-          command: ["id", "-u"],
-          requestId: "r1",
-          approvalToken: "token-1",
-        } as never,
-        context as never,
-      );
-      assertEquals(deleted, ["pending"]);
-      assertEquals(written["result"].data.requestId, "r1");
-    } finally {
-      if (prev === undefined) Deno.env.delete("SWAMP_SUDO_APPROVAL_TOKEN");
-      else Deno.env.set("SWAMP_SUDO_APPROVAL_TOKEN", prev);
-    }
+    const stored = { requestId: "r1", command: ["id", "-u"], reason: "x" };
+    // sudo -n true proves root; the approved command then runs.
+    const exec = (
+      binary: string,
+      _args: string[],
+      _timeoutMs: number,
+    ) =>
+      Promise.resolve({
+        stdout: binary === "sudo" ? "" : "0",
+        stderr: "",
+        code: 0,
+        signal: null,
+        notFound: false,
+        timedOut: false,
+        truncated: false,
+      });
+    const { context, deleted, written, vaultDeleted } = testContext(
+      { allowArbitrary: true, strategyOrder: ["sudo-n"] },
+      stored,
+      exec,
+      { secrets: { r1: "token-1" } },
+    );
+    await model.methods.runApproved.execute(
+      {
+        command: ["id", "-u"],
+        requestId: "r1",
+        approvalToken: "token-1",
+      } as never,
+      context as never,
+    );
+    assertEquals(deleted, ["pending"]);
+    assertEquals(vaultDeleted, ["r1"]);
+    assertEquals(written["result"].data.requestId, "r1");
+  },
+);
+
+Deno.test(
+  "runApproved refuses when no approval secret is minted for the request",
+  async () => {
+    const stored = { requestId: "r1", command: ["id", "-u"], reason: "x" };
+    const exec = () =>
+      Promise.resolve({
+        stdout: "0",
+        stderr: "",
+        code: 0,
+        signal: null,
+        notFound: false,
+        timedOut: false,
+        truncated: false,
+      });
+    const { context } = testContext(
+      { allowArbitrary: true, strategyOrder: ["sudo-n"] },
+      stored,
+      exec,
+      { secrets: {} },
+    );
+    await assertRejects(
+      () =>
+        model.methods.runApproved.execute(
+          { command: ["id", "-u"], requestId: "r1", approvalToken: "x" },
+          context as never,
+        ),
+      Error,
+      "No approval secret is minted",
+    );
+  },
+);
+
+Deno.test(
+  "runApproved refuses a token that does not match the minted secret",
+  async () => {
+    const stored = { requestId: "r1", command: ["id", "-u"], reason: "x" };
+    const exec = () =>
+      Promise.resolve({
+        stdout: "0",
+        stderr: "",
+        code: 0,
+        signal: null,
+        notFound: false,
+        timedOut: false,
+        truncated: false,
+      });
+    const { context } = testContext(
+      { allowArbitrary: true, strategyOrder: ["sudo-n"] },
+      stored,
+      exec,
+      { secrets: { r1: "correct-token" } },
+    );
+    await assertRejects(
+      () =>
+        model.methods.runApproved.execute(
+          { command: ["id", "-u"], requestId: "r1", approvalToken: "wrong" },
+          context as never,
+        ),
+      Error,
+      "Approval token does not match",
+    );
   },
 );
 

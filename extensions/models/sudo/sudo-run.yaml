@@ -1,0 +1,107 @@
+id: 8a692931-ff1e-475a-bb1b-383f4cdca2f5
+name: '@svendowideit/sudo-run'
+description: |
+  Run one named privileged operation on the host without assuming sudo exists.
+
+  This is the everyday elevation entry point. Name an operation and pass its
+  typed arguments; the extension finds the first route the host has already
+  granted (sudo, doas, polkit/run0, systemd-run, pkexec, an ssh root key, a
+  held capability, a container runtime you are a member of, or a Kubernetes
+  node) and runs the operation through it. The route is not your concern — the
+  result records the exit code, output, and uid it ran as.
+
+  It first probes the ladder (visible in the log) and then runs the operation.
+  A non-zero program exit is recorded in the "result" data, not thrown, so a
+  caller can branch on it. When no route is granted the run fails with the full
+  ladder and the reason each route was rejected.
+
+  Run:
+    # Restart a system service. The route is chosen for you.
+    swamp workflow run @svendowideit/sudo-run \
+      --input operation=manageService \
+      --input 'args:json={"unit":"caddy","action":"restart"}'
+
+    # Install a package with this host's package manager.
+    swamp workflow run @svendowideit/sudo-run \
+      --input operation=installPackage \
+      --input 'args:json={"manager":"apt","packages":["caddy"]}'
+
+  Read the structured result:
+    swamp data get sudo-default result --json
+
+  Give concurrent callers their own instance so their data never collides:
+    --input instanceKey="${{ run.id }}"
+inputs:
+  properties:
+    operation:
+      type: string
+      description: >-
+        Operation id from the catalogue (installPackage, removePackage,
+        manageService, ensureDirectory, chown, addUserToGroup, sysctl, mount,
+        writeFile).
+    args:
+      type: object
+      default: {}
+      description: Typed arguments for the operation.
+    instanceKey:
+      type: string
+      default: default
+      description: >-
+        Suffix for the model instance name (sudo-<instanceKey>). Pass a unique
+        value (e.g. "${{ run.id }}") when callers may run concurrently.
+    strategy:
+      type: string
+      default: auto
+      description: Pin one elevation route, or auto for the configured ladder.
+    timeoutSeconds:
+      type: integer
+      default: 120
+      description: Per-execution timeout in seconds.
+    allowAudit:
+      type: boolean
+      default: false
+      description: Emit read-only residual-risk findings in the probe output.
+  required: ["operation"]
+tags:
+  swamp: "sudo"
+  kind: "elevation"
+jobs:
+  - name: elevate
+    description: Probe the elevation ladder, then run the operation.
+    steps:
+      - name: probe
+        description: >-
+          Enumerate the strategy ladder and record the first route that proves
+          host root. Runs no privileged command.
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: sudo-${{ inputs.instanceKey }}
+          methodName: probe
+          inputs:
+            strategy: ${{ inputs.strategy }}
+            allowAudit: ${{ inputs.allowAudit }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: run
+        description: Run the named operation through the resolved route.
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: sudo-${{ inputs.instanceKey }}
+          methodName: run
+          inputs:
+            operation: ${{ inputs.operation }}
+            args: ${{ inputs.args }}
+            strategy: ${{ inputs.strategy }}
+            timeoutSeconds: ${{ inputs.timeoutSeconds }}
+        dependsOn:
+          - step: probe
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

@@ -9,19 +9,15 @@ description: >
   WHAT IT DOES
 
     A cross-platform elevation primitive for swamp. You name the operation and
-    its arguments; the extension finds the first elevation route the host has
-    already granted and uses it. That may be sudo, doas, polkit/pkexec, systemd
-    run0, a container runtime you are a member of (docker/podman/containerd), a
-    root ssh key, an already-held capability, or an out-of-band cloud agent. You
-    do not need to know which — the workflow returns the exit code, output, and
-    the uid it ran as, and the route stays invisible unless you explicitly ask
-    for an audit. Nothing is brute forced or guessed: if the host has not
-    granted a route, the operation fails cleanly with a report of what was
-    tried. Arbitrary commands are a separate, approval-gated workflow, so the
-    everyday path — a named operation — is safe to call from automated and
-    scheduled workflows. Prefer it over ad-hoc `sudo` shell-out steps: it works
-    on hosts without sudo, it never hangs on a password prompt, and it records
-    exactly how the command was elevated.
+    its arguments; the extension finds the first route the host has already
+    granted — sudo, doas, polkit/run0, a container runtime you are in, an ssh
+    root key, a held capability, or a cloud agent — and uses it. You never need
+    to know which: it returns the exit code, output, and uid, and keeps the
+    route invisible unless you ask for an audit. Nothing is brute-forced; if no
+    route is granted it fails cleanly, listing what it tried. Arbitrary
+    commands are a separate, approval-gated workflow, so the everyday path (a
+    named operation) is safe to automate. Prefer it over ad-hoc `sudo` steps:
+    it works without sudo, never hangs on a prompt, and records how it elevated.
 
   INSTALL
 
@@ -136,7 +132,8 @@ additionalFiles:
   - README.md
   - LICENSE.txt
   - sudo_test.ts
-  - sudo-run_test.ts
+  - sudo_strategies_test.ts
+  - sudo_operations_test.ts
 
 platforms:
   - linux-x86_64

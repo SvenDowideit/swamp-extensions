@@ -1,0 +1,102 @@
+id: 35f5f9fc-b3b1-4d20-ab45-5f26cda39c8d
+name: '@svendowideit/sudo-command'
+description: |
+  Run an arbitrary command as root, behind a human approval gate.
+
+  Use this only when no named operation fits. It is disabled unless the model
+  instance is created with allowArbitrary=true. The flow is: `request` mints a
+  nonce over the exact argv and reason and records them; a manual approval gate
+  shows the operator exactly what will run; the operator resumes with the
+  approval token from the vault (SWAMP_SUDO_APPROVAL_TOKEN); `runApproved`
+  checks the token and that the argv+reason still hash to the nonce, then runs
+  it through whichever elevation route the host grants.
+
+  The command is an argv array, never a shell string, so a value cannot smuggle
+  in shell metacharacters.
+
+  Run:
+    # Ask for an arbitrary command (requires allowArbitrary=true on the model).
+    swamp workflow run @svendowideit/sudo-command \
+      --input 'command:json=["id","-u"]' \
+      --input reason="verify elevation works end to end"
+
+    # The run suspends at the approval gate; an operator approves, then:
+    swamp workflow resume @svendowideit/sudo-command --run <run-id> \
+      --input approvalToken=<token>
+
+  Read the result:
+    swamp data get sudo-command-default result --json
+inputs:
+  properties:
+    command:
+      type: array
+      items:
+        type: string
+      description: The argv to run as root (program plus arguments).
+    reason:
+      type: string
+      description: Why this command is needed; shown at the approval gate.
+    instanceKey:
+      type: string
+      default: command-default
+      description: >-
+        Suffix for the model instance name (sudo-<instanceKey>). Pass a unique
+        value when callers may run concurrently.
+  required: ["command", "reason"]
+tags:
+  swamp: "sudo"
+  kind: "elevation"
+  gated: "true"
+jobs:
+  - name: approve-and-run
+    description: Request approval, wait at the gate, then run if approved.
+    steps:
+      - name: request
+        description: Mint the approval nonce and record the exact argv and reason.
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: sudo-${{ inputs.instanceKey }}
+          methodName: request
+          inputs:
+            command: ${{ inputs.command }}
+            reason: ${{ inputs.reason }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: gate
+        description: Wait for a human to approve the exact command.
+        task:
+          type: manual_approval
+          prompt: >-
+            Approve running as root: ${{ inputs.command }}
+            (reason: ${{ inputs.reason }})
+        dependsOn:
+          - step: request
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: run
+        description: >-
+          Execute the command, but only if the operator token matches and the
+          argv+reason still hash to the requested nonce.
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: sudo-${{ inputs.instanceKey }}
+          methodName: runApproved
+          inputs:
+            command: ${{ inputs.command }}
+            reason: ${{ inputs.reason }}
+            nonce: "${{ data.latest('sudo-' + inputs.instanceKey, 'request').attributes.nonce }}"
+            approvalToken: "${{ vault.get('sudo-approval', 'token') }}"
+        dependsOn:
+          - step: gate
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

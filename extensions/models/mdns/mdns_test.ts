@@ -2,6 +2,7 @@ import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 
 import {
   advertisementUnitName,
+  classifyService,
   expandHome,
   listAdvertiseUnits,
   model,
@@ -14,6 +15,34 @@ import {
   unescapeAvahi,
   validateAdvertise,
 } from "./mdns.ts";
+
+Deno.test("classifyService maps known service types and TXT hints", () => {
+  assertEquals(classifyService("_esphomelib._tcp", {}), {
+    deviceClass: "esphome",
+    vendor: "Espressif",
+  });
+  assertEquals(classifyService("_shelly._tcp", {}).deviceClass, "shelly");
+  assertEquals(
+    classifyService("_ihsp._tcp", { type: "DIRIGERA" }).deviceClass,
+    "ikea-dirigera",
+  );
+  // Unknown type but ESPHome-style TXT -> esphome.
+  assertEquals(
+    classifyService("_unknown._tcp", { platform: "ESP32" }).deviceClass,
+    "esphome",
+  );
+  assertEquals(classifyService("_nothing._tcp", {}), {
+    deviceClass: "",
+    vendor: "",
+  });
+  // Caller override wins.
+  assertEquals(
+    classifyService("_mykvm._tcp", {}, {
+      "_mykvm._tcp": { deviceClass: "kvm", vendor: "GL.iNet" },
+    }).deviceClass,
+    "kvm",
+  );
+});
 
 Deno.test("advertisementUnitName is unique per instance", () => {
   assertEquals(
@@ -145,6 +174,7 @@ Deno.test("advertise writes one unit per instance and a resource", async () => {
         hostName: "",
         unitDir: tmp,
         advertiseArgs: [],
+        deviceClasses: {},
       },
       writeResource: (
         _spec: string,
@@ -200,6 +230,7 @@ Deno.test("advertise throws on invalid input", async () => {
       hostName: "",
       unitDir: "/tmp",
       advertiseArgs: [],
+      deviceClasses: {},
     },
     writeResource: () => Promise.resolve({ name: "x" }),
   };
@@ -226,6 +257,7 @@ Deno.test("remove deletes one instance's unit, leaving the others", async () => 
         hostName: "",
         unitDir: tmp,
         advertiseArgs: [],
+        deviceClasses: {},
       },
       writeResource: (
         _spec: string,
@@ -271,6 +303,7 @@ Deno.test("status lists each advertisement with its active state", async () => {
         hostName: "",
         unitDir: tmp,
         advertiseArgs: [],
+        deviceClasses: {},
       },
       writeResource: (
         _spec: string,

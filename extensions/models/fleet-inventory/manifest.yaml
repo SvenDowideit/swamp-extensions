@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/fleet-inventory"
-version: "2026.10.02.7"
+version: "2026.10.03.3"
 description: >
   A live inventory of the machines on a network — and which of them have gone
   silent.
@@ -30,6 +30,14 @@ description: >
 
   RUN
 
+      # ONE COMMAND for the whole pipeline: discover -> probe -> fingerprint ->
+      # enrich -> report. Auto-creates its models; leave cidr empty to reuse what
+      # is already discovered (pass a different cidr to ADD a range — discover
+      # accumulates). Needs @svendowideit/device-fingerprint (a declared dep).
+      swamp workflow run @svendowideit/fleet-inventory-sweep --input cidr=10.10.0.0/20
+
+      # The individual methods, if you want finer control.
+      #
       # Create a model for the fleet.
       swamp model create @svendowideit/fleet-inventory fleet \
         --global-arg sshUser=root
@@ -47,6 +55,13 @@ description: >
 
       # See the cumulative probed set (not just the last run).
       swamp data get fleet probe --json | jq '.content.hosts[] | select(.probed) | {name, machineId, addresses, tier}'
+
+      # Enrich with device-fingerprint results: classify hosts (unifi, esphome,
+      # nanokvm, shelly, ...) by feeding in the output of
+      # @svendowideit/device-fingerprint or @svendowideit/mdns. Adds deviceClass
+      # and vendor to the inventory.
+      swamp model method run fleet enrich \
+        --input 'fingerprints:json=[{"host":"10.10.10.1","deviceClass":"unifi","vendor":"Ubiquiti"}]'
 
       # Correlate: merge discovery+probe into the inventory, and mark hosts
       # absent from `reportingHosts` as silent. This ALWAYS builds the inventory,
@@ -91,9 +106,19 @@ paths:
 models:
   - fleet_inventory.ts
 
+reports:
+  - fleet_inventory_report.ts
+
+workflows:
+  - fleet-inventory-sweep.yaml
+
+dependencies:
+  - "@svendowideit/device-fingerprint"
+
 additionalFiles:
   - README.md
   - LICENSE.txt
   - fleet_inventory_test.ts
+  - fleet_inventory_report_test.ts
 
 platforms: []

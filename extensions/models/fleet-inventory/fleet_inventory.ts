@@ -88,6 +88,18 @@ const CorrelateArgsSchema = z.object({
 
 const ReportArgsSchema = z.object({});
 
+const EnrichArgsSchema = z.object({
+  fingerprints: z.array(
+    z.object({
+      host: z.string().describe("Host name or address the fingerprint is for"),
+      deviceClass: z.string().default(""),
+      vendor: z.string().default(""),
+    }),
+  ).min(1).describe(
+    "Fingerprint results to apply, e.g. from @svendowideit/device-fingerprint or @svendowideit/mdns",
+  ),
+});
+
 const GlobalArgsSchema = z.object({
   sshUser: z.string().default("").describe(
     "Default SSH user for probe (e.g. root or admin)",
@@ -106,6 +118,12 @@ type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 // Output schemas
 // ---------------------------------------------------------------------------
 
+/**
+ * The merged, fully-classified host record — what the `inventory` step owns.
+ * Every other step records a SUBSET of this (see `ObservedHostSchema` and
+ * `ProbedHostSchema` below) so a raw snapshot never carries fields it cannot
+ * fill (which is why `probe` used to show empty deviceClass/vendor/reporting).
+ */
 const InventoryHostSchema = z.object({
   /** Primary display name (a hostname when known, else an address). */
   name: z.string(),
@@ -124,6 +142,10 @@ const InventoryHostSchema = z.object({
   source: z.string(),
   tier: z.string(),
   os: z.string(),
+  /** Device class from fingerprinting (e.g. unifi, esphome, nanokvm) or "". */
+  deviceClass: z.string().default(""),
+  /** Vendor from fingerprinting (e.g. Ubiquiti, Espressif) or "". */
+  vendor: z.string().default(""),
   notes: z.string(),
   probed: z.boolean(),
   reporting: z.boolean(),
@@ -131,11 +153,46 @@ const InventoryHostSchema = z.object({
   lastSeen: z.string(),
 });
 
+/**
+ * What the `discover` step records: a host as SEEN on the network (from a scan
+ * or a feed). It does not include SSH facts (machineId/tier/os/probed) or
+ * fingerprinting classes — those come later, so they are not in this schema.
+ */
+const ObservedHostSchema = InventoryHostSchema.pick({
+  name: true,
+  address: true,
+  mac: true,
+  macs: true,
+  hostnames: true,
+  addresses: true,
+  source: true,
+  tier: true,
+  os: true,
+  lastSeen: true,
+});
+
+/**
+ * What the `probe` step records: a host plus the facts SSH returned. No MACs
+ * (SSH does not collect them) and no fingerprinting/reporting fields.
+ */
+const ProbedHostSchema = InventoryHostSchema.pick({
+  name: true,
+  address: true,
+  machineId: true,
+  hostnames: true,
+  addresses: true,
+  source: true,
+  tier: true,
+  os: true,
+  probed: true,
+  lastSeen: true,
+});
+
 const DiscoverOutputSchema = z.object({
   scanned: z.number(),
   /** Whether the CIDR was larger than maxHosts and only part was scanned. */
   truncated: z.boolean().default(false),
-  discovered: z.array(InventoryHostSchema),
+  discovered: z.array(ObservedHostSchema),
   discoveredAt: z.string(),
 });
 
@@ -148,7 +205,7 @@ const ProbeOutputSchema = z.object({
   skipped: z.number().default(0),
   /** Cumulative hosts ever probed, across runs (the accumulated set). */
   known: z.number().default(0),
-  hosts: z.array(InventoryHostSchema),
+  hosts: z.array(ProbedHostSchema),
   probedAt: z.string(),
 });
 
@@ -159,6 +216,8 @@ const InventoryOutputSchema = z.object({
   silent: z.array(z.string()),
   byTier: z.record(z.string(), z.number()),
   byOs: z.record(z.string(), z.number()),
+  /** Counts by device class (from fingerprinting), when present. */
+  byClass: z.record(z.string(), z.number()).default({}),
   correlatedAt: z.string(),
 });
 
@@ -169,6 +228,10 @@ const ReportOutputSchema = z.object({
   coveragePercent: z.number(),
   byTier: z.record(z.string(), z.number()),
   byOs: z.record(z.string(), z.number()),
+  /** Counts by device class, when the inventory has been enriched. */
+  byClass: z.record(z.string(), z.number()).default({}),
+  /** Explained commands to view the gathered data (also printed by the report). */
+  nextCommands: z.string().default(""),
   generatedAt: z.string(),
 });
 
@@ -198,6 +261,10 @@ export interface InventoryHost {
   tier: string;
   /** Operating system / family. */
   os: string;
+  /** Device class from fingerprinting (e.g. unifi, esphome, nanokvm) or "". */
+  deviceClass: string;
+  /** Vendor from fingerprinting (e.g. Ubiquiti, Espressif) or "". */
+  vendor: string;
   /** Free-form notes. */
   notes: string;
   /** Whether SSH probing succeeded. */
@@ -230,6 +297,10 @@ export interface HostInput {
   tier: string;
   /** Operating system / family. */
   os: string;
+  /** Device class from fingerprinting (e.g. unifi, esphome, nanokvm) or "". */
+  deviceClass?: string;
+  /** Vendor from fingerprinting (e.g. Ubiquiti, Espressif) or "". */
+  vendor?: string;
   /** Free-form notes. */
   notes: string;
   /** Whether SSH probing already succeeded for this host (preserved on merge). */
@@ -439,6 +510,8 @@ export function mergeHosts(
       source: sources.join("+"),
       tier: pick(hs.map((h) => h.tier)),
       os: pick(hs.map((h) => h.os)),
+      deviceClass: pick(hs.map((h) => h.deviceClass ?? "")),
+      vendor: pick(hs.map((h) => h.vendor ?? "")),
       notes: uniq(hs.map((h) => h.notes)).join("; "),
       probed: hs.some((h) => h.probed),
       reporting: false,
@@ -529,6 +602,40 @@ export function correlate(
   });
 }
 
+/**
+ * Apply fingerprint results to hosts: each host is matched by any of its names
+ * or addresses (case-insensitive) and gains the device class/vendor supplied.
+ */
+export function applyFingerprints(
+  hosts: InventoryHost[],
+  fingerprints: Array<{ host: string; deviceClass: string; vendor: string }>,
+): InventoryHost[] {
+  const byKey = new Map<string, { deviceClass: string; vendor: string }>();
+  for (const fp of fingerprints) {
+    const key = (fp.host || "").toLowerCase();
+    if (key) byKey.set(key, { deviceClass: fp.deviceClass, vendor: fp.vendor });
+  }
+  return hosts.map((h) => {
+    const keys = [
+      h.name,
+      h.address,
+      ...(h.hostnames ?? []),
+      ...(h.addresses ?? []),
+    ];
+    for (const k of keys) {
+      const hit = byKey.get((k || "").toLowerCase());
+      if (hit) {
+        return {
+          ...h,
+          deviceClass: hit.deviceClass || h.deviceClass,
+          vendor: hit.vendor || h.vendor,
+        };
+      }
+    }
+    return h;
+  });
+}
+
 /** Tally hosts by a field (tier/os). */
 export function tally(
   hosts: InventoryHost[],
@@ -587,7 +694,7 @@ export function renderProbeCommand(): string {
 /** The swamp model definition for `@svendowideit/fleet-inventory`. */
 export const model = {
   type: "@svendowideit/fleet-inventory",
-  version: "2026.10.02.7",
+  version: "2026.10.03.3",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -656,6 +763,24 @@ export const model = {
       toVersion: "2026.10.02.7",
       description:
         "Manifest RUN examples for correlate and report now say plainly that a meaningful silent/coverage result needs the reporting-host set, which is a telemetry-backend query DEFERRED to Phase 1 (no store running yet): correlate still builds the inventory, and report's tier/OS tallies work now, but coverage stays 0% and all hosts read silent without the feed. Documentation only — no behaviour or schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.1",
+      description:
+        "Adds an `enrich` method that merges device-fingerprint results into the inventory: each host gains `deviceClass` and `vendor`, matched by any of its names/addresses, from @svendowideit/device-fingerprint (HTTP/TLS, MAC/OUI) or @svendowideit/mdns. The inventory resource and inventory.json gain a `byClass` tally. Host records gain deviceClass/vendor fields (defaulted). Verified live: 21 of 47 hosts classified (openwrt, unifi, nanokvm, shelly, web-server) from a real /20 sweep.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.2",
+      description:
+        "Each step now records only the fields it actually fills: `discover` writes observed hosts (name/address/mac(s)/hostnames/addresses/source/tier/os/lastSeen) and `probe` writes probed hosts (name/address/machineId/hostnames/addresses/source/tier/os/probed/lastSeen) — so a raw snapshot no longer shows consistently-empty deviceClass/vendor/reporting/silent fields that only `inventory` fills. Adds a workflow-scope report `@svendowideit/fleet-inventory-report`, printed at the end of a sweep: a summary (hosts, tiers, OS, device classes) plus explained commands to view the data. The `report` resource gains `byClass` and `nextCommands`. Schema change to discovery/probe host shapes (breaking for a consumer reading those exact keys, but the extension is unpublished).",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.3",
+      description:
+        "The end-of-sweep summary now fits one screen (~16 lines, was ~52): breakdowns are compact one-liners and the view commands are a terse, commented block inside a fenced code block, so renderers keep them verbatim instead of reflowing the comments into a blank-line-separated mess. Also drops the now-redundant 'report search' line. Content only; no schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -762,7 +887,7 @@ export const model = {
         const handle = await context.writeResource("discovery", "discovery", {
           scanned,
           truncated,
-          discovered: hosts,
+          discovered: hosts.map(projectObserved),
           discoveredAt: timestamp,
         });
         return { dataHandles: [handle] };
@@ -846,6 +971,8 @@ export const model = {
               source: "probe",
               tier: facts ? inferTier(facts, g.defaultTier) : g.defaultTier,
               os: facts?.os ?? "",
+              deviceClass: "",
+              vendor: "",
               notes: "",
               probed: facts !== null,
               reporting: false,
@@ -894,7 +1021,7 @@ export const model = {
           attempted,
           skipped,
           known,
-          hosts: combinedProbe,
+          hosts: combinedProbe.map(projectProbed),
           probedAt: timestamp,
         });
         return { dataHandles: [handle] };
@@ -1007,6 +1134,12 @@ export const model = {
         }
         const total = hosts.length;
         const reporting = hosts.filter((h) => h.reporting).length;
+        const byClass: Record<string, number> = {};
+        for (const h of hosts) {
+          if (h.deviceClass) {
+            byClass[h.deviceClass] = (byClass[h.deviceClass] ?? 0) + 1;
+          }
+        }
         const handle = await context.writeResource("report", "report", {
           total,
           reporting,
@@ -1014,7 +1147,100 @@ export const model = {
           coveragePercent: coveragePercent(total, reporting),
           byTier: tally(hosts, "tier"),
           byOs: tally(hosts, "os"),
+          byClass,
+          nextCommands: renderNextCommands(),
           generatedAt: timestamp,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    enrich: {
+      description:
+        "Apply device-fingerprint results (device class + vendor per host) to the inventory",
+      arguments: EnrichArgsSchema,
+      execute: async (
+        args: z.infer<typeof EnrichArgsSchema>,
+        context: {
+          globalArgs: GlobalArgs;
+          logger?: {
+            info: (msg: string, props?: Record<string, unknown>) => void;
+          };
+          readResource?: (name: string) => Promise<unknown>;
+          writeResource: (
+            specName: string,
+            name: string,
+            data: Record<string, unknown>,
+          ) => Promise<{ name: string }>;
+        },
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const timestamp = new Date().toISOString();
+        const discovered = await readPrevious(context, "discovery");
+        const probed = await readPrevious(context, "probe");
+        const merged = mergeHosts(
+          [
+            ...discovered.map((h) => toInput(h, "discover")),
+            ...probed.map((h) => toInput(h, "probe")),
+          ],
+          timestamp,
+        );
+        // Preserve the reporting/silent plane from the current inventory, so
+        // enriching does not silently reset a prior correlate. Matched by name
+        // or address.
+        const prior = await readInventory(context.globalArgs.outputDir);
+        const reporting = new Set<string>();
+        if (prior?.hosts) {
+          for (const h of prior.hosts) {
+            if (!h.reporting) continue;
+            for (
+              const k of [
+                h.name,
+                h.address,
+                ...(h.hostnames ?? []),
+                ...(h.addresses ?? []),
+              ]
+            ) {
+              if (k) reporting.add(k.toLowerCase());
+            }
+          }
+        }
+        const withReporting = merged.map((h) => {
+          const isReporting = [
+            h.name,
+            h.address,
+            ...(h.hostnames ?? []),
+            ...(h.addresses ?? []),
+          ]
+            .some((k) => k && reporting.has(k.toLowerCase()));
+          return { ...h, reporting: isReporting, silent: !isReporting };
+        });
+        // Apply the fingerprint map: match a fingerprint host to an inventory
+        // host by any of its names or addresses.
+        const applied = applyFingerprints(withReporting, args.fingerprints);
+        const byClass: Record<string, number> = {};
+        for (const h of applied) {
+          if (h.deviceClass) {
+            byClass[h.deviceClass] = (byClass[h.deviceClass] ?? 0) + 1;
+          }
+        }
+        const withClass = applied.filter((h) => h.deviceClass).length;
+        context.logger?.info(
+          "Enriched {withClass}/{total} host(s) with a device class",
+          { withClass, total: applied.length },
+        );
+        const handle = await context.writeResource("inventory", "inventory", {
+          hosts: applied,
+          total: applied.length,
+          reporting: applied.filter((h) => h.reporting).length,
+          silent: applied.filter((h) => h.silent).map((h) => h.name),
+          byTier: tally(applied, "tier"),
+          byOs: tally(applied, "os"),
+          byClass,
+          correlatedAt: timestamp,
+        });
+        await writeInventory(context.globalArgs.outputDir, {
+          hosts: applied,
+          total: applied.length,
         });
         return { dataHandles: [handle] };
       },
@@ -1022,8 +1248,69 @@ export const model = {
   },
 };
 
+/**
+ * Project a merged host to the fields the `discover` step records (observed
+ * only — no SSH facts, no classes).
+ */
+function projectObserved(h: InventoryHost): Record<string, unknown> {
+  return {
+    name: h.name,
+    address: h.address,
+    mac: h.mac,
+    macs: h.macs,
+    hostnames: h.hostnames,
+    addresses: h.addresses,
+    source: h.source,
+    tier: h.tier,
+    os: h.os,
+    lastSeen: h.lastSeen,
+  };
+}
+
+/** Project a merged host to the fields the `probe` step records. */
+function projectProbed(h: InventoryHost): Record<string, unknown> {
+  return {
+    name: h.name,
+    address: h.address,
+    machineId: h.machineId,
+    hostnames: h.hostnames,
+    addresses: h.addresses,
+    source: h.source,
+    tier: h.tier,
+    os: h.os,
+    probed: h.probed,
+    lastSeen: h.lastSeen,
+  };
+}
+
+/**
+ * The explained commands to view the data a sweep gathered, so the user only
+ * dives deeper when something looks wrong. Kept terse (one line each) and
+ * returned WITHOUT a code fence so the caller can place it inside one —
+ * the report puts it in a fenced block so renderers keep it verbatim.
+ */
+export function renderNextCommands(): string {
+  return [
+    "# inventory totals + tier/OS/device-class breakdowns",
+    "swamp data get fleet inventory --json | jq -c '.content | {total,reporting,byTier,byOs,byClass}'",
+    "# every host: names, addresses, machine id, tier, OS, device class",
+    "swamp data get fleet inventory --json | jq -c '.content.hosts[] | {name,addresses,machineId,tier,os,deviceClass}'",
+    "# machines we SSH-probed (known = cumulative; attempted/skipped = this run)",
+    "swamp data get fleet probe --json | jq -c '.content | {probed,attempted,skipped,known}'",
+    "# the raw liveness scan (use when an expected host is missing)",
+    "swamp data get fleet discovery --json | jq -c '.content | {scanned,n:(.discovered|length)}'",
+    "# HTTP/TLS fingerprints for identified hosts",
+    "swamp data get fleet-fingerprint current --json | jq -c '.content.hosts[] | select(.deviceClass!=\"\") | {host,deviceClass,vendor}'",
+    "# re-print this summary",
+    "swamp report get @svendowideit/fleet-inventory-report --workflow @svendowideit/fleet-inventory-sweep --markdown",
+  ].join("\n");
+}
+
 /** Convert a stored host record back to a merge input. */
-function toInput(h: Partial<InventoryHost>, source: string): HostInput {
+function toInput(
+  h: Partial<InventoryHost>,
+  source: string,
+): HostInput {
   return {
     name: h.name ?? "",
     address: h.address ?? "",
@@ -1034,6 +1321,8 @@ function toInput(h: Partial<InventoryHost>, source: string): HostInput {
     source: h.source || source,
     tier: h.tier ?? "",
     os: h.os ?? "",
+    deviceClass: h.deviceClass ?? "",
+    vendor: h.vendor ?? "",
     notes: h.notes ?? "",
     probed: h.probed ?? false,
     lastSeen: h.lastSeen ?? "",

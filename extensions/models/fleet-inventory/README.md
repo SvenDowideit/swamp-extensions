@@ -46,6 +46,35 @@ optional.
 
 ## Examples
 
+> **Prefer the bundled workflow `@svendowideit/fleet-inventory-sweep`** — it does
+> the whole pipeline in one command (see below). The individual methods are
+> documented after it for finer control.
+
+The all-in-one sweep (discover → probe → fingerprint → enrich → report):
+
+```sh
+# Scan a /20 and classify every host. discovery accumulates, so re-running with
+# a different CIDR ADDS to the inventory rather than replacing it; run with no
+# cidr to reuse what is already discovered (e.g. to re-fingerprint only).
+swamp workflow run @svendowideit/fleet-inventory-sweep --input cidr=10.10.0.0/20
+
+# Reuse existing discovery and just re-probe + re-classify (no CIDR):
+swamp workflow run @svendowideit/fleet-inventory-sweep
+
+# Skip classification if you only want discovery + SSH facts:
+swamp workflow run @svendowideit/fleet-inventory-sweep --input fingerprint=false
+```
+
+**The sweep ends with a summary.** A workflow-scope report,
+`@svendowideit/fleet-inventory-report`, prints after the run: the host count and
+tier / OS / device-class breakdown, plus the **explained commands** to view any
+of the gathered data (so you only dive deeper when something looks wrong):
+
+```sh
+# Re-print the summary for the most recent sweep.
+swamp report get @svendowideit/fleet-inventory-report --workflow @svendowideit/fleet-inventory-sweep --markdown
+```
+
 Scan a subnet and merge feeds from discovery models:
 
 ```sh
@@ -107,6 +136,16 @@ swamp model method run fleet report
 swamp data get fleet report --json | jq '.attributes'
 ```
 
+Enrich the inventory with device classes from fingerprinting:
+
+```sh
+# Feed in the output of @svendowideit/device-fingerprint (or mdns) to add
+# deviceClass/vendor to matching hosts. Matches by any name or address.
+swamp model method run fleet enrich \
+  --input 'fingerprints:json=[{"host":"10.10.10.1","deviceClass":"unifi","vendor":"Ubiquiti"}]'
+swamp data get fleet inventory --json | jq '.content.byClass'
+```
+
 ## Details
 
 `@svendowideit/fleet-inventory` ships one model type
@@ -118,8 +157,38 @@ swamp data get fleet report --json | jq '.attributes'
 | `probe` | `hosts` (array), `sshUser` (string), `timeoutMs` (integer, default 10000), `refresh` (boolean, default false) | SSH-probe hosts for facts and infer tiers; write a `probe` resource. **Empty `hosts` probes every inventoried host that has not already probed successfully** (from `discovery`, else the last `inventory`); pass `hosts` to probe a specific list, or `refresh=true` to re-probe all. Probes 16 at a time. Results **accumulate** across runs (`known` = cumulative probed machines; `probed`/`attempted`/`skipped` are this run's counts). Records unreachable hosts with `probed: false`. |
 | `correlate` | `reportingHosts` (array) | Merge discovery + probe (probe facts win, including the `probed` flag), mark hosts absent from `reportingHosts` silent, write `inventory.json` and an `inventory` resource. With an empty `reportingHosts` it still builds the inventory but every host reads silent — supply the reporting set (a backend query, Phase 1) for real silent-host detection. |
 | `report` | none | Read the `inventory` **resource** (falling back to the on-disk `inventory.json`) and write a `report` resource (total, reporting, silent, coverage %, by tier/OS). |
+| `enrich` | `fingerprints` (array of `{host, deviceClass, vendor}`) | Merge device-fingerprint results into the inventory: each host is matched by any of its names/addresses and gains `deviceClass`/`vendor`; writes the `inventory` resource (with a `byClass` tally) and `inventory.json`. |
 
 Resources: `discovery`, `probe`, `inventory`, and `report`.
+
+### Each step records only what it fills
+
+Because the steps are a pipeline, each writes its own host shape rather than one
+fat record with fields it cannot fill:
+
+- `discover` → observed hosts: `name`, `address`, `mac`, `macs`, `hostnames`,
+  `addresses`, `source`, `tier`, `os`, `lastSeen`.
+- `probe` → probed hosts: `name`, `address`, `machineId`, `hostnames`,
+  `addresses`, `source`, `tier`, `os`, `probed`, `lastSeen`.
+- `inventory` → the merged, classified host: all of the above plus `deviceClass`,
+  `vendor`, `reporting`, `silent`, `notes`, `mac`.
+
+So a raw `probe` snapshot never shows empty `deviceClass`/`vendor`/`reporting`
+fields — those exist only once `enrich`/`correlate` have run.
+
+### The `fleet-inventory-sweep` workflow
+
+One command for the whole pipeline: `discover → probe → fingerprint → enrich →
+report`. It auto-creates its models by type (no pre-setup) and takes `cidr`,
+`ports`, `sshUser`, `probeTimeoutMs`, and `fingerprint` inputs. Leave `cidr`
+empty to reuse existing discovery; because `discover` accumulates, passing a new
+`cidr` **adds** to the inventory. The fingerprint step needs
+`@svendowideit/device-fingerprint` (declared as an extension dependency);
+`correlate` is deliberately absent until the Phase 1 reporting feed exists.
+
+```sh
+swamp workflow run @svendowideit/fleet-inventory-sweep --input cidr=10.10.0.0/20
+```
 
 ### Seeing the cumulative probed set
 

@@ -69,6 +69,12 @@ const GlobalArgsSchema = z.object({
   advertiseArgs: z.array(z.string()).default([]).describe(
     "Extra raw arguments appended to avahi-publish-service",
   ),
+  deviceClasses: z.record(
+    z.string(),
+    z.object({ deviceClass: z.string(), vendor: z.string() }),
+  ).default({}).describe(
+    'Extend/override the mDNS service-type classification map, e.g. {"_mykvm._tcp":{"deviceClass":"kvm","vendor":"GL.iNet"}}',
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -99,6 +105,8 @@ const DiscoveredSchema = z.object({
   address: z.string(),
   port: z.number(),
   txt: z.record(z.string(), z.string()),
+  deviceClass: z.string().default(""),
+  vendor: z.string().default(""),
 });
 
 const DiscoverOutputSchema = z.object({
@@ -142,6 +150,10 @@ export interface Discovered {
   port: number;
   /** TXT record key/value pairs. */
   txt: Record<string, string>;
+  /** Classified device class, e.g. `esphome`, `shelly`, `homekit` (or ""). */
+  deviceClass?: string;
+  /** Vendor, when the service type or TXT identifies one (or ""). */
+  vendor?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +262,66 @@ export function unescapeAvahi(s: string): string {
     /\\(\d{3})/g,
     (_, code) => String.fromCharCode(Number.parseInt(code, 10)),
   );
+}
+
+/**
+ * Generic mDNS service-type → device class/vendor map. Keys are the DNS-SD
+ * service type (lowercased). This is deliberately a small, generic, public
+ * table; site-specific device knowledge belongs in a downstream extension, and
+ * callers can extend or override entries via the `deviceClasses` global arg.
+ */
+export const MDNS_DEVICE_CLASSES: Record<
+  string,
+  { deviceClass: string; vendor: string }
+> = {
+  "_esphomelib._tcp": { deviceClass: "esphome", vendor: "Espressif" },
+  "_esphomebuilder._tcp": { deviceClass: "esphome", vendor: "Espressif" },
+  "_shelly._tcp": { deviceClass: "shelly", vendor: "Shelly (Allterco)" },
+  "_ihsp._tcp": { deviceClass: "ikea-dirigera", vendor: "IKEA" },
+  "_ihsh._udp": { deviceClass: "ikea-dirigera", vendor: "IKEA" },
+  "_googlecast._tcp": { deviceClass: "chromecast", vendor: "Google" },
+  "_googlezone._tcp": { deviceClass: "chromecast", vendor: "Google" },
+  "_hap._tcp": { deviceClass: "homekit", vendor: "Apple" },
+  "_matter._tcp": { deviceClass: "matter", vendor: "CSA" },
+  "_home-assistant._tcp": { deviceClass: "home-assistant", vendor: "" },
+  "_sendspin._tcp": { deviceClass: "sendspin", vendor: "" },
+  "_sendspin-server._tcp": { deviceClass: "sendspin", vendor: "" },
+  "_spotify-connect._tcp": {
+    deviceClass: "spotify-connect",
+    vendor: "Spotify",
+  },
+  "_tidalconnect._tcp": { deviceClass: "tidal-connect", vendor: "Tidal" },
+  "_yamdisplay._tcp": { deviceClass: "yam-display", vendor: "" },
+  "_treldisplay._tcp": { deviceClass: "treldisplay", vendor: "" },
+  "_daonetes._tcp": { deviceClass: "daonetes", vendor: "" },
+  "_companion-link._tcp": { deviceClass: "apple-companion", vendor: "Apple" },
+  "_workstation._tcp": { deviceClass: "workstation", vendor: "" },
+  "_ssh._tcp": { deviceClass: "ssh-host", vendor: "" },
+  "_otlp-http._tcp": { deviceClass: "otel-node", vendor: "" },
+};
+
+/**
+ * Classify a discovered mDNS service into a device class and vendor, using the
+ * service type plus TXT hints (e.g. ESPHome's `platform`/`board`, DIRIGERA's
+ * `type=DIRIGERA`). Returns empty strings when nothing matches. `overrides`
+ * (from the model's `deviceClasses` global) is merged over the built-in table.
+ */
+export function classifyService(
+  serviceType: string,
+  txt: Record<string, string>,
+  overrides: Record<string, { deviceClass: string; vendor: string }> = {},
+): { deviceClass: string; vendor: string } {
+  const table = { ...MDNS_DEVICE_CLASSES, ...overrides };
+  const key = (serviceType || "").toLowerCase();
+  const hit = table[key];
+  if (hit) return { deviceClass: hit.deviceClass, vendor: hit.vendor };
+  // TXT-based fallbacks (a device may advertise an otherwise-unknown type).
+  const t = (txt["type"] || "").toLowerCase();
+  if (t === "dirigera") return { deviceClass: "ikea-dirigera", vendor: "IKEA" };
+  if (txt["platform"] || txt["board"] || txt["friendly_name"]) {
+    return { deviceClass: "esphome", vendor: "Espressif" };
+  }
+  return { deviceClass: "", vendor: "" };
 }
 
 /** Render the systemd user unit that keeps the advertisement alive. */
@@ -364,7 +436,7 @@ export function validateAdvertise(
 /** The swamp model definition for `@svendowideit/mdns`. */
 export const model = {
   type: "@svendowideit/mdns",
-  version: "2026.10.02.2",
+  version: "2026.10.03.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "avahi-available": {
@@ -405,6 +477,12 @@ export const model = {
       toVersion: "2026.10.02.2",
       description:
         "One systemd user unit PER advertisement, so a model can hold many independent advertisements and remove one without stopping the rest. The advertise argument is renamed serviceName -> instance (it is the DNS-SD instance name, which also names the unit: <globalServiceName>-<instance>.service); the global serviceName is now the unit-name prefix. remove takes an optional instance (omit to remove all this model owns), status lists every advertisement with its active state, and advertise records instance/unitName. BREAKING for the advertise argument name and the advertise/status resource shapes (add instance/unitName, drop the single serviceName/installed).",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.1",
+      description:
+        "discover now CLASSIFIES each discovered service into a deviceClass + vendor, from a generic service-type map (esphome, shelly, ikea-dirigera, chromecast, homekit, matter, home-assistant, spotify/tidal connect, workstation, ssh-host, otel-node) with a TXT fallback (ESPHome platform/board, DIRIGERA type). Callers extend or override the map via the new `deviceClasses` global arg. Discovered entries gain deviceClass/vendor; the run log lists the classes found. Additive (new defaulted fields).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -532,13 +610,29 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const serviceType = args.serviceType || context.globalArgs.serviceType;
         const services = await runBrowse(serviceType, args.timeoutMs);
+        // Classify each service into a device class/vendor (generic table plus
+        // any overrides from the deviceClasses global arg).
+        const classified = services.map((s) => ({
+          ...s,
+          ...classifyService(
+            s.serviceType,
+            s.txt,
+            context.globalArgs.deviceClasses,
+          ),
+        }));
+        const classes = [...new Set(classified.map((s) => s.deviceClass))]
+          .filter(Boolean);
         context.logger?.info(
-          "Discovered {count} {type} service(s)",
-          { count: services.length, type: serviceType },
+          "Discovered {count} {type} service(s){classes}",
+          {
+            count: classified.length,
+            type: serviceType,
+            classes: classes.length ? ` [${classes.join(", ")}]` : "",
+          },
         );
         const handle = await context.writeResource("discovery", "current", {
           serviceType,
-          services,
+          services: classified,
           discoveredAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };

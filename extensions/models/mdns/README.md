@@ -13,7 +13,10 @@ it.
   an mDNS service record alive (e.g. `_otlp-http._tcp` on port 4318 with TXT
   metadata). The `advertise` resource reports `started` and a `detail`.
 - **Discover** — runs `avahi-browse` for a service type and parses the results
-  into a typed `discovery` resource (name, host, address, port, TXT).
+  into a typed `discovery` resource (name, host, address, port, TXT, **device
+  class + vendor**). It classifies each service from a generic service-type map
+  (esphome, shelly, ikea-dirigera, chromecast, homekit, …), extendable via the
+  `deviceClasses` global arg.
 - **Status / remove** — reports whether the advertisement unit exists and is
   active, and Avahi is available; `remove` stops + disables the unit and deletes
   it.
@@ -43,6 +46,7 @@ optional.
 | `hostName` | string | `""` | Default advertised hostname; empty uses the system's own `<hostname>.local`. Only set a name that actually resolves (see [Advertised host must resolve](#advertised-host-must-resolve-or-discovery-wont-resolve)). |
 | `unitDir` | string | `~/.config/systemd/user` | Directory for the generated systemd user units. |
 | `advertiseArgs` | array | `[]` | Extra raw arguments appended to `avahi-publish-service`. |
+| `deviceClasses` | object | `{}` | Extend/override the service-type classification map, e.g. `{"_mykvm._tcp":{"deviceClass":"kvm","vendor":"GL.iNet"}}`. |
 
 ## Examples
 
@@ -102,7 +106,7 @@ swamp model method run mdns remove
 | Method | Arguments | Purpose |
 | ------ | --------- | ------- |
 | `advertise` | `instance`, `serviceType`, `port`, `hostName`, `txt` (object) | Write **one** systemd user unit (`<globalServiceName>-<instance>.service`) that runs `avahi-publish-service`, `daemon-reload`, **start + enable** it, and record an `advertise` resource (`instance`, `unitName`, `started`, `detail`). One unit per advertisement, so instances are independent. A non-default `unitDir` is staged only (systemd cannot see it) and reported as not started. |
-| `discover` | `serviceType`, `timeoutMs` | Run `avahi-browse -ptr <type>` for up to `timeoutMs`, parse the resolved records, and record a `discovery` resource. |
+| `discover` | `serviceType`, `timeoutMs` | Run `avahi-browse -ptr <type>` for up to `timeoutMs`, parse the resolved records, **classify** each into a `deviceClass`/`vendor`, and record a `discovery` resource. |
 | `status` | none | Record a `status` resource listing **every advertisement this model owns** (from its unit files) and whether each is active, plus Avahi availability. |
 | `remove` | `instance` (optional) | Stop + disable + delete one advertisement's unit (`instance` given) or **all** of them (omitted), and refresh `status` (idempotent). |
 

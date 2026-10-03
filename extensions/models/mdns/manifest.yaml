@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/mdns"
-version: "2026.10.02.2"
+version: "2026.10.03.1"
 description: >
   Advertise and discover services on the LAN with mDNS (Avahi) — the bootstrap
   layer before DNS exists.
@@ -9,12 +9,13 @@ description: >
 
     Advertises a service over mDNS via a managed avahi-publish-service systemd
     user unit (written, daemon-reloaded, started and enabled), and browses for
-    mDNS services via avahi-browse, turning results
-    into a typed resource other models can consume. Prefer it over ad-hoc avahi
-    commands when you need a fleet's core node to be discoverable before DNS is
-    configured: a fresh or isolated host can find `_otlp-http._tcp` on the LAN,
-    then be handed its real DNS name and switch to it. Generic — it advertises
-    and discovers whatever service type you name.
+    mDNS services via avahi-browse, turning results into a typed resource other
+    models can consume — and CLASSIFYING each discovered service (esphome,
+    shelly, ikea-dirigera, chromecast, homekit, …) into a device class/vendor.
+    Prefer it over ad-hoc avahi commands when you need a fleet's core node to be
+    discoverable before DNS is configured: a fresh or isolated host can find
+    `_otlp-http._tcp` on the LAN, then be handed its real DNS name and switch to
+    it. Generic — it advertises and discovers whatever service type you name.
 
   INSTALL
 

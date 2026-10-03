@@ -1,6 +1,7 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
 
 import {
+  applyFingerprints,
   correlate,
   coveragePercent,
   expandCidr,
@@ -473,6 +474,8 @@ function mk(name: string, reporting: boolean, tier = "T1"): InventoryHost {
     source: "test",
     tier,
     os: "",
+    deviceClass: "",
+    vendor: "",
     notes: "",
     probed: true,
     reporting,
@@ -639,4 +642,15 @@ Deno.test("probe skips already-probed hosts unless refresh is set", async () => 
     b.ctx,
   );
   assertEquals(b.captured.attempted, 2, "refresh must re-probe the known host");
+});
+
+Deno.test("applyFingerprints matches by name and address", () => {
+  const hosts = [mk("core", false), mk("10.0.0.9", false)];
+  const out = applyFingerprints(hosts, [
+    { host: "core", deviceClass: "unifi", vendor: "Ubiquiti" },
+    { host: "10.0.0.9", deviceClass: "esphome", vendor: "Espressif" },
+  ]);
+  assertEquals(out[0].deviceClass, "unifi");
+  assertEquals(out[0].vendor, "Ubiquiti");
+  assertEquals(out[1].deviceClass, "esphome");
 });

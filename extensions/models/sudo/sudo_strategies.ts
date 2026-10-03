@@ -19,15 +19,16 @@ export interface StrategyConfig {
   sshHost: string;
   sshKnownHosts: string;
   containerImage: string;
-  containerName: string;
+  containerNetwork: string;
   k8sNode: string;
   ssmInstanceId: string;
 }
 
-/** How a strategy reaches root, for ordering and reporting. */
+/** How a strategy reaches root. `remote` routes target another host. */
 export type StrategyClass =
   | "local"
   | "capability"
+  | "remote"
   | "container"
   | "orchestrator"
   | "oob";
@@ -46,6 +47,14 @@ export interface ExecResult {
   code: number;
 }
 
+/** How a route checks that its daemon is not rootless. */
+export interface RootlessCheck {
+  /** argv that prints the daemon's security options or rootless flag. */
+  argv: (g: StrategyConfig) => string[];
+  /** Whether the output indicates a rootless daemon (which cannot give host root). */
+  isRootless: (output: string) => boolean;
+}
+
 /** A single elevation route. */
 export interface Strategy {
   id: string;
@@ -61,6 +70,8 @@ export interface Strategy {
    * the route is unusable, or null when it is configured.
    */
   precondition: (g: StrategyConfig) => string | null;
+  /** Optional rootless-daemon check; a rootless result makes the route unavailable. */
+  rootless?: RootlessCheck;
   /** argv that proves the route yields host root (expects uid 0). */
   probeArgv: (g: StrategyConfig) => string[];
   /** Whether the probe output proves host root. */
@@ -81,12 +92,6 @@ export function shellQuote(token: string): string {
 /** Join argv into a single shell-quoted command line. */
 export function shellJoin(argv: string[]): string {
   return argv.map(shellQuote).join(" ");
-}
-
-/** Whether a probe result looks like the tool is not installed. */
-export function looksUninstalled(r: ExecResult): boolean {
-  return r.code === 127 &&
-    /not found|no such file|cannot find|is not recognized/i.test(r.stderr);
 }
 
 /** Read an environment variable without requiring --allow-env in tests/embedders. */
@@ -125,6 +130,47 @@ const AUTH_RE = [
   /not allowed to execute/i,
   /is not in the sudoers file/i,
 ];
+
+/** The `--network` mode every container route uses. */
+function networkArg(g: StrategyConfig): string {
+  const mode = (g.containerNetwork || "none").trim() || "none";
+  return `--network=${mode}`;
+}
+
+/** Common privileged, host-root-mounted `run` argv for a container runtime. */
+function containerRunArgv(
+  tool: string,
+  g: StrategyConfig,
+  shellCommand: string,
+): string[] {
+  return [
+    tool,
+    "run",
+    "--rm",
+    "--privileged",
+    "--pid=host",
+    networkArg(g),
+    "-v",
+    "/:/host",
+    "--entrypoint",
+    "/bin/sh",
+    g.containerImage,
+    "-c",
+    shellCommand,
+  ];
+}
+
+/** `docker info` security options include "rootless" for a rootless daemon. */
+export function dockerIsRootless(output: string): boolean {
+  return /rootless/i.test(output);
+}
+
+/** `podman info` rootless flag: bare `true`, or a JSON `"rootless": true`. */
+export function podmanIsRootless(output: string): boolean {
+  const trimmed = output.trim();
+  if (/^true$/i.test(trimmed)) return true;
+  return /"?rootless"?\s*[:=]\s*true/i.test(output);
+}
 
 /** The full catalogue, keyed by id. */
 export const STRATEGIES: Record<string, Strategy> = {
@@ -292,10 +338,10 @@ export const STRATEGIES: Record<string, Strategy> = {
   },
   "ssh-root": {
     id: "ssh-root",
-    class: "local",
+    class: "remote",
     tool: "ssh",
     riskNote:
-      "Remote full root over ssh; requires a root key and a pinned host key.",
+      "Remote full root over ssh; requires a root key and a pinned host key. Targets another host, so local-only operations refuse it.",
     sideEffects: "none",
     proveCost: 6,
     precondition: (g) => (g.sshHost ? null : "sshHost is not configured"),
@@ -332,68 +378,31 @@ export const STRATEGIES: Record<string, Strategy> = {
       /no such file/i,
     ]),
   },
-  "docker-exec": {
-    id: "docker-exec",
-    class: "container",
-    tool: "docker",
-    riskNote:
-      "Root-equivalent by design for the docker group. Only host-root if the target container is privileged or has a host mount.",
-    sideEffects: "none",
-    proveCost: 7,
-    precondition: (g) =>
-      g.containerName
-        ? null
-        : "containerName is not configured (docker-exec needs a known host-root-equivalent container)",
-    probeArgv: (g) => ["docker", "exec", "-u", "0", g.containerName, ID, "-u"],
-    probeOk: uidIsZero,
-    build: (argv, g) => ["docker", "exec", "-u", "0", g.containerName, ...argv],
-    elevationFailed: elevationFailedByPattern([
-      /permission denied.*docker|docker daemon|cannot connect to the docker daemon/i,
-      /no such container/i,
-    ]),
-  },
   "docker-run": {
     id: "docker-run",
     class: "container",
     tool: "docker",
     riskNote:
-      "Root-equivalent by design for the docker group. Starts a privileged container with the host root mounted at /host.",
+      "Root-equivalent by design for the docker group. Starts a privileged container with the host root mounted at /host and proves host root by reading the host's machine-id. A rootless daemon is rejected at probe.",
     sideEffects: "creates-container",
     proveCost: 8,
     precondition: () => null,
-    probeArgv: (g) => [
-      "docker",
-      "run",
-      "--rm",
-      "--privileged",
-      "--pid=host",
-      "--net=host",
-      "-v",
-      "/:/host",
-      "--entrypoint",
-      "/bin/sh",
-      g.containerImage,
-      "-c",
-      "exec chroot /host cat /etc/machine-id",
-    ],
+    rootless: {
+      argv: () => ["docker", "info", "--format", "{{json .SecurityOptions}}"],
+      isRootless: dockerIsRootless,
+    },
+    probeArgv: (g) =>
+      containerRunArgv(
+        "docker",
+        g,
+        "exec chroot /host cat /etc/machine-id",
+      ),
     probeOk: (r) => r.code === 0 && r.stdout.trim().length > 0,
-    build: (argv, g) => [
-      "docker",
-      "run",
-      "--rm",
-      "--privileged",
-      "--pid=host",
-      "--net=host",
-      "-v",
-      "/:/host",
-      "--entrypoint",
-      "/bin/sh",
-      g.containerImage,
-      "-c",
-      'exec chroot /host "$@"',
-      "swamp-sudo",
-      ...argv,
-    ],
+    build: (argv, g) =>
+      containerRunArgv("docker", g, 'exec chroot /host "$@"').concat([
+        "swamp-sudo",
+        ...argv,
+      ]),
     elevationFailed: elevationFailedByPattern([
       /cannot connect to the docker daemon|permission denied/i,
       /docker:.*(error|invalid|unable)/i,
@@ -408,39 +417,22 @@ export const STRATEGIES: Record<string, Strategy> = {
     sideEffects: "creates-container",
     proveCost: 9,
     precondition: () => null,
-    probeArgv: (g) => [
-      "podman",
-      "run",
-      "--rm",
-      "--privileged",
-      "--pid=host",
-      "--net=host",
-      "-v",
-      "/:/host",
-      "--entrypoint",
-      "/bin/sh",
-      g.containerImage,
-      "-c",
-      "exec chroot /host cat /etc/machine-id",
-    ],
+    rootless: {
+      argv: () => ["podman", "info", "--format", "{{.Host.Security.Rootless}}"],
+      isRootless: (out) => /true/i.test(out),
+    },
+    probeArgv: (g) =>
+      containerRunArgv(
+        "podman",
+        g,
+        "exec chroot /host cat /etc/machine-id",
+      ),
     probeOk: (r) => r.code === 0 && r.stdout.trim().length > 0,
-    build: (argv, g) => [
-      "podman",
-      "run",
-      "--rm",
-      "--privileged",
-      "--pid=host",
-      "--net=host",
-      "-v",
-      "/:/host",
-      "--entrypoint",
-      "/bin/sh",
-      g.containerImage,
-      "-c",
-      'exec chroot /host "$@"',
-      "swamp-sudo",
-      ...argv,
-    ],
+    build: (argv, g) =>
+      containerRunArgv("podman", g, 'exec chroot /host "$@"').concat([
+        "swamp-sudo",
+        ...argv,
+      ]),
     elevationFailed: elevationFailedByPattern([
       /cannot connect|permission denied|rootless/i,
     ]),
@@ -450,43 +442,22 @@ export const STRATEGIES: Record<string, Strategy> = {
     class: "container",
     tool: "nerdctl",
     riskNote:
-      "Root-equivalent for the containerd socket group. Rootless containerd cannot yield host root and is rejected at probe.",
+      "Root-equivalent for the containerd socket group when the daemon runs as root. Rootless containerd cannot yield host root; this route does not yet detect rootless, so host-root is only proven by the probe.",
     sideEffects: "creates-container",
     proveCost: 9,
     precondition: () => null,
-    probeArgv: (g) => [
-      "nerdctl",
-      "run",
-      "--rm",
-      "--privileged",
-      "--pid=host",
-      "--net=host",
-      "-v",
-      "/:/host",
-      "--entrypoint",
-      "/bin/sh",
-      g.containerImage,
-      "-c",
-      "exec chroot /host cat /etc/machine-id",
-    ],
+    probeArgv: (g) =>
+      containerRunArgv(
+        "nerdctl",
+        g,
+        "exec chroot /host cat /etc/machine-id",
+      ),
     probeOk: (r) => r.code === 0 && r.stdout.trim().length > 0,
-    build: (argv, g) => [
-      "nerdctl",
-      "run",
-      "--rm",
-      "--privileged",
-      "--pid=host",
-      "--net=host",
-      "-v",
-      "/:/host",
-      "--entrypoint",
-      "/bin/sh",
-      g.containerImage,
-      "-c",
-      'exec chroot /host "$@"',
-      "swamp-sudo",
-      ...argv,
-    ],
+    build: (argv, g) =>
+      containerRunArgv("nerdctl", g, 'exec chroot /host "$@"').concat([
+        "swamp-sudo",
+        ...argv,
+      ]),
     elevationFailed: elevationFailedByPattern([
       /cannot connect|permission denied|rootless/i,
     ]),
@@ -501,7 +472,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     proveCost: 10,
     precondition: (g) => (g.k8sNode ? null : "k8sNode is not configured"),
     probeArgv: (g) =>
-      k8sRunArgv(g, ["cat", "/host/etc/machine-id"], "swamp-sudo-probe"),
+      k8sRunArgv(g, ["cat", "/etc/machine-id"], "swamp-sudo-probe"),
     probeOk: (r) => r.code === 0 && /[0-9a-f]{8,}/i.test(r.stdout),
     build: (argv, g) => k8sRunArgv(g, argv, "swamp-sudo-run"),
     elevationFailed: elevationFailedByPattern([
@@ -513,7 +484,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     class: "oob",
     tool: "aws",
     riskNote:
-      "Out-of-band: the AWS SSM agent runs as root on the instance. Sending and polling is multi-step, so this route is not implemented by the argv executor.",
+      "Out-of-band: the AWS SSM agent runs as root on the instance. Sending and polling is multi-step, so this route is not implemented by the argv executor and is never selectable.",
     sideEffects: "remote-api",
     proveCost: 11,
     precondition: (g) =>
@@ -531,7 +502,7 @@ export const STRATEGIES: Record<string, Strategy> = {
   },
 };
 
-/** The default order: locals first, then capabilities, then container, then k8s. */
+/** The default order: locals, capabilities, remote, containers, k8s. */
 export const DEFAULT_STRATEGY_ORDER: string[] = [
   "sudo-n",
   "doas-n",
@@ -541,7 +512,6 @@ export const DEFAULT_STRATEGY_ORDER: string[] = [
   "nsenter",
   "setpriv",
   "ssh-root",
-  "docker-exec",
   "docker-run",
   "podman-run",
   "nerdctl-run",

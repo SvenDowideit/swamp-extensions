@@ -3,8 +3,8 @@ name: "@svendowideit/sudo"
 version: "2026.10.03.1"
 description: >
   Run one privileged operation on the host — install a package, restart a
-  system service, write a file under /etc, add a user to a group — from any
-  workflow, without writing sudo logic and without assuming sudo is installed.
+  system service, set a sysctl — from any workflow, without writing sudo logic
+  and without assuming sudo is installed.
 
   WHAT IT DOES
 
@@ -66,34 +66,42 @@ description: >
 
   CONFIGURE
 
-    Callers name an operation and pass typed args; the common ones are:
+    Callers name an operation and pass typed args. Enabled by default (the
+    narrow, idempotent set):
 
       installPackage    manager (apt|dnf|yum|zypper|apk|pacman), packages[]
       removePackage     manager, packages[]
       manageService     unit, action (start|stop|restart|enable|disable)
-      writeFile         path, content, mode
+      sysctl            key, value
+
+    Also available, but disabled by default because they mutate the filesystem
+    or account state at arbitrary paths — add them to `allowedOperations` to
+    enable:
+
       ensureDirectory   path, mode, owner, group
       chown             path, owner, group, recursive
       addUserToGroup    user, group
-      sysctl            key, value
+      createUser        user, comment, group, groups
       mount             source, target, fstype, options
-      runScript         path  (an existing root-owned script)
 
     Every @svendowideit/sudo-run call also takes `strategy` (pin one route
     instead of auto), `instanceKey` (give concurrent callers their own model
-    instance, e.g. instanceKey="${{ run.id }}"), `timeoutSeconds` (default 120),
-    and `allowAudit` (default false). The @svendowideit/sudo-command workflow
-    takes `command` (an argv array), `reason`, and `instanceKey`.
+    instance, e.g. instanceKey="${{ run.id }}"), and `timeoutSeconds` (default
+    120). The @svendowideit/sudo-command workflow takes `command` (an argv
+    array), `reason`, and `instanceKey`.
 
     Model globals (set with `swamp model create ... --global-arg`, or as model
     attributes), all optional:
 
       strategyOrder        Routes to try, in order         (default: side-effect-ordered)
-      allowedOperations    Operations run may execute      (default: the full catalogue)
+      allowedOperations    Operations run may execute      (default: the narrow set above)
       allowArbitrary       Enable the gated command path   (default false)
       sshHost              Host for the ssh-root route     (default "" = disabled)
-      containerImage       Digest-pinned image for the      (default: a pinned image)
+      sshKnownHosts        Pinned host key for ssh-root    (default "")
+      containerImage       Digest-pinned image for the      (default: a pinned alpine digest)
                            container routes
+      containerNetwork     Network mode for scratch         (default "none")
+                           containers
       k8sNode              Node for the k8s-node route     (default "" = disabled)
       ssmInstanceId        Target for the SSM route        (default "" = disabled)
       timeoutSeconds       Per-execution timeout           (default 120)

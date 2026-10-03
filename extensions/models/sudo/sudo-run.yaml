@@ -36,9 +36,9 @@ inputs:
     operation:
       type: string
       description: >-
-        Operation id from the catalogue (installPackage, removePackage,
-        manageService, ensureDirectory, chown, addUserToGroup, sysctl, mount,
-        writeFile).
+        Operation id from the catalogue. Enabled by default: installPackage,
+        removePackage, manageService, sysctl. Opt-in (add to allowedOperations):
+        ensureDirectory, chown, addUserToGroup, createUser, mount.
     args:
       type: object
       default: {}

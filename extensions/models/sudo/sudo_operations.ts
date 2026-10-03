@@ -18,10 +18,8 @@ export interface ArgsSchema {
   parse: (value: unknown) => unknown;
 }
 
-/** How the model should execute an operation. */
-export type BuildResult =
-  | { kind: "argv"; argv: string[] }
-  | { kind: "writeFile"; path: string; content: string; mode: number };
+/** How the model should execute an operation. Always an argv — no shell. */
+export type BuildResult = { kind: "argv"; argv: string[] };
 
 /** A named, reviewed operation. */
 export interface Operation {
@@ -90,6 +88,13 @@ const DirectoryArgs = z.object({
   group: z.string().regex(/^[A-Za-z0-9_.+-]+$/).optional(),
 }).strict();
 
+const CreateUserArgs = z.object({
+  user: z.string().min(1),
+  comment: z.string().max(200).default(""),
+  group: z.string().regex(/^[A-Za-z0-9_.+-]+$/).optional(),
+  groups: z.array(z.string().regex(/^[A-Za-z0-9_.+-]+$/)).default([]),
+}).strict();
+
 const ChownArgs = z.object({
   path: z.string().min(1),
   owner: z.string().regex(/^[A-Za-z0-9_.+-]+$/),
@@ -112,12 +117,6 @@ const MountArgs = z.object({
   target: z.string().min(1),
   fstype: z.string().regex(/^[A-Za-z0-9_.-]+$/).optional(),
   options: z.string().regex(/^[A-Za-z0-9_.=,-]+$/).optional(),
-}).strict();
-
-const WriteFileArgs = z.object({
-  path: z.string().min(1),
-  content: z.string(),
-  mode: z.string().regex(/^[0-7]{3,4}$/).default("0644"),
 }).strict();
 
 /** The package-manager install/remove argv, with options before the packages. */
@@ -253,6 +252,31 @@ export const OPERATIONS: Record<string, Operation> = {
       return { kind: "argv", argv: ["usermod", "-aG", a.group, a.user] };
     },
   },
+  createUser: {
+    id: "createUser",
+    description:
+      "Create a system user (useradd) with an optional primary group and supplementary groups.",
+    argsSchema: CreateUserArgs,
+    localOnly: true,
+    build: (args) => {
+      const a = CreateUserArgs.parse(args);
+      assertSafeToken("user", a.user);
+      const argv = ["useradd", "--system"];
+      if (a.comment) {
+        if (/[\0\r\n]/.test(a.comment)) {
+          throw new Error("comment contains control characters");
+        }
+        argv.push("--comment", a.comment);
+      }
+      if (a.group) argv.push("--gid", a.group);
+      if (a.groups.length > 0) {
+        for (const gr of a.groups) assertSafeToken("group", gr);
+        argv.push("--groups", a.groups.join(","));
+      }
+      argv.push(a.user);
+      return { kind: "argv", argv };
+    },
+  },
   sysctl: {
     id: "sysctl",
     description: "Set a sysctl key at runtime (sysctl -w).",
@@ -279,24 +303,20 @@ export const OPERATIONS: Record<string, Operation> = {
       return { kind: "argv", argv };
     },
   },
-  writeFile: {
-    id: "writeFile",
-    description:
-      "Write a file at an absolute path with a given mode. Local elevation routes only (the model stages the content as a temp file).",
-    argsSchema: WriteFileArgs,
-    localOnly: true,
-    build: (args) => {
-      const a = WriteFileArgs.parse(args);
-      assertAbsoluteNoSymlinkIntent("path", a.path);
-      return {
-        kind: "writeFile",
-        path: a.path,
-        content: a.content,
-        mode: parseInt(a.mode, 8),
-      };
-    },
-  },
 };
+
+/**
+ * Operations enabled by default. `mount`, `ensureDirectory`, `chown`,
+ * `addUserToGroup`, and `createUser` are omitted: they mutate the filesystem or
+ * account state at arbitrary absolute paths, which is little safer than an
+ * arbitrary command. They must be added to `allowedOperations` explicitly.
+ */
+export const DEFAULT_ALLOWED_OPERATIONS: string[] = [
+  "installPackage",
+  "removePackage",
+  "manageService",
+  "sysctl",
+];
 
 /** List every operation id in the catalogue. */
 export function listOperationIds(): string[] {

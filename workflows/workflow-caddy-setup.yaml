@@ -1,8 +1,9 @@
 id: f8afb1cd-ac04-4e9b-8279-2bb93d17b65c
 name: caddy-setup
 description: |
-  Full Caddy setup: install the binary, create and start the systemd user
-  service, print settings guidance, and (optionally) configure TLS.
+  Full Caddy setup: install the binary, grant it CAP_NET_BIND_SERVICE (for
+  ports 80/443 from the unprivileged user service), create and start the
+  systemd user service, print settings guidance, and (optionally) configure TLS.
 
   Prerequisite — create the model first (name must be "my-caddy"):
     swamp model create @svendowideit/caddy my-caddy \
@@ -13,7 +14,14 @@ description: |
     swamp workflow run caddy-setup
     swamp workflow run caddy-setup --input dnsProvider=cloudflare
 
-  The install/create/start steps are idempotent, so re-running is safe.
+  Ports 80/443: the set-capabilities step tries `setcap` (then `sudo -n setcap`)
+  so Caddy can bind privileged ports as a user service. If it lacks sudo, the
+  step does not fail — run the printed command once by hand:
+    sudo setcap 'cap_net_bind_service=+ep' ~/.local/bin/caddy
+  Re-run that after every upgradeCaddy, since a new binary loses the capability.
+
+  The install/set-capabilities/create/start steps are idempotent, so re-running
+  is safe.
 tags: {}
 inputs:
   properties:
@@ -35,9 +43,28 @@ jobs:
           modelType: "@svendowideit/caddy"
           modelName: my-caddy
           methodName: installCaddy
+          inputs:
+            setCapabilities: false
         dependsOn: []
         weight: 0
         allowFailure: false
+      - name: set-capabilities
+        description: >-
+          Grant CAP_NET_BIND_SERVICE to the Caddy binary so the unprivileged
+          systemd user service can bind 80/443. If sudo is unavailable, records
+          the exact `sudo setcap 'cap_net_bind_service=+ep' <bin>` command to run
+          by hand (and re-run after upgrades). Does not fail the workflow.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: my-caddy
+          methodName: setCapabilities
+        dependsOn:
+          - step: install
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
       - name: create
         description: Create the systemd user service unit for Caddy.
         task:
@@ -49,6 +76,12 @@ jobs:
           - step: install
             condition:
               type: succeeded
+          - step: set-capabilities
+            condition:
+              type: or
+              conditions:
+                - type: succeeded
+                - type: failed
         weight: 0
         allowFailure: false
       - name: start
@@ -64,6 +97,23 @@ jobs:
               type: succeeded
         weight: 0
         allowFailure: false
+      - name: status-page
+        description: >-
+          Install the default status page answering on http://localhost and
+          https://localhost, summarising the install and linking to the admin
+          API and configured routes. Does not fail the workflow if the admin API
+          is not reachable.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: my-caddy
+          methodName: configureStatusPage
+        dependsOn:
+          - step: start
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
       - name: guidance
         description: Print the minimal Let's Encrypt settings guidance.
         task:

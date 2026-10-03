@@ -1,10 +1,12 @@
-import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 
 import {
   DEFAULT_STRATEGY_ORDER,
+  dockerIsRootless,
   getStrategy,
   listStrategyIds,
   parseGroupList,
+  podmanIsRootless,
   safeEnv,
   shellJoin,
   shellQuote,
@@ -14,7 +16,7 @@ const g = {
   sshHost: "root.example",
   sshKnownHosts: "/etc/swamp/known_hosts",
   containerImage: "alpine@sha256:abc",
-  containerName: "c",
+  containerNetwork: "none",
   k8sNode: "node-1",
   ssmInstanceId: "",
 };
@@ -38,6 +40,11 @@ Deno.test("the default order names only known strategies", () => {
     assertEquals(getStrategy(id) !== undefined, true, `unknown id ${id}`);
   }
   assertEquals(listStrategyIds().length >= DEFAULT_STRATEGY_ORDER.length, true);
+});
+
+Deno.test("docker-exec is removed from the catalogue", () => {
+  assertEquals(getStrategy("docker-exec"), undefined);
+  assertEquals(DEFAULT_STRATEGY_ORDER.includes("docker-exec"), false);
 });
 
 Deno.test("run0 and pkexec take no '--' before the program", () => {
@@ -65,32 +72,48 @@ Deno.test("sudo build uses an explicit -- terminator", () => {
   );
 });
 
-Deno.test("container build passes argv positionally, not interpolated", () => {
+Deno.test("container build passes argv positionally and defaults to network none", () => {
   const full = getStrategy("docker-run")!.build(
     ["sh", "-c", "echo; rm -rf /"],
     g,
   );
   assertEquals(full[full.length - 1], "echo; rm -rf /");
   assertStringIncludes(full.join("\u0000"), 'exec chroot /host "$@"');
+  assertStringIncludes(full.join(" "), "--network=none");
 });
 
-Deno.test("container probe reads a host-visible marker, not just container id", () => {
+Deno.test("container network mode is configurable", () => {
+  const hostNet = getStrategy("docker-run")!.build(["id"], {
+    ...g,
+    containerNetwork: "host",
+  });
+  assertStringIncludes(hostNet.join(" "), "--network=host");
+});
+
+Deno.test("container proof reads a host-visible marker, not container id", () => {
   const probe = getStrategy("docker-run")!.probeArgv(g);
   assertStringIncludes(probe.join(" "), "/etc/machine-id");
+  assertEquals(probe.join(" ").includes("id -u"), false);
+});
+
+Deno.test("rootless detection helpers", () => {
+  assert(dockerIsRootless('["name=seccomp","name=rootless"]'));
+  assert(!dockerIsRootless('["name=seccomp,profile=builtin"]'));
+  assert(podmanIsRootless("true"));
+  assert(podmanIsRootless('"rootless": true'));
+  assert(!podmanIsRootless("false"));
+});
+
+Deno.test("docker and podman expose a rootless check; nerdctl does not", () => {
+  assertEquals(typeof getStrategy("docker-run")!.rootless, "object");
+  assertEquals(typeof getStrategy("podman-run")!.rootless, "object");
+  assertEquals(getStrategy("nerdctl-run")!.rootless, undefined);
 });
 
 Deno.test("preconditions gate unconfigured routes", () => {
-  const empty = {
-    sshHost: "",
-    sshKnownHosts: "",
-    containerImage: "",
-    containerName: "",
-    k8sNode: "",
-    ssmInstanceId: "",
-  };
+  const empty = { ...g, sshHost: "", k8sNode: "", ssmInstanceId: "" };
   assertEquals(getStrategy("ssh-root")!.precondition(empty) !== null, true);
   assertEquals(getStrategy("k8s-node")!.precondition(empty) !== null, true);
-  assertEquals(getStrategy("docker-exec")!.precondition(empty) !== null, true);
   assertEquals(getStrategy("ssm-run")!.precondition(empty) !== null, true);
   assertEquals(getStrategy("sudo-n")!.precondition(empty), null);
   assertEquals(getStrategy("docker-run")!.precondition(empty), null);
@@ -105,6 +128,13 @@ Deno.test("elevation failure is distinguished from a program failure", () => {
   assertEquals(sudo.elevationFailed(5, "Unit not found"), false);
   const ssh = getStrategy("ssh-root")!;
   assertEquals(ssh.elevationFailed(255, "Permission denied (publickey)"), true);
+});
+
+Deno.test("k8s proof runs inside the host chroot (no /host/host path)", () => {
+  const probe = getStrategy("k8s-node")!.probeArgv(g).join(" ");
+  assertStringIncludes(probe, "chroot");
+  assertStringIncludes(probe, "/etc/machine-id");
+  assertEquals(probe.includes("/host/etc/machine-id"), false);
 });
 
 Deno.test("parseGroupList splits identity group output", () => {

@@ -1,10 +1,10 @@
-swampVersion: 20260930.003205.0
+swampVersion: 20261002.000056.0
 initializedAt: "2026-07-17T02:11:06.886Z"
 repoId: e46f92ff-737f-41b7-9d52-c141bb67a79c
 tools:
   - opencode
 gitignoreManaged: true
-upgradedAt: "2026-09-30T04:42:56.522Z"
+upgradedAt: "2026-10-02T03:54:51.071Z"
 vault:
   type: "@svendowideit/systemd-creds"
   config:
@@ -13,3 +13,4 @@ trustedCollectives:
   - swamp
   - svendowideit
   - webframp
+  - figy

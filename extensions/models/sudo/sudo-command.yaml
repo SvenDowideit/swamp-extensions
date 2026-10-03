@@ -4,15 +4,15 @@ description: |
   Run an arbitrary command as root, behind a human approval gate.
 
   Use this only when no named operation fits. It is disabled unless the model
-  instance is created with allowArbitrary=true. The flow is: `request` mints a
-  nonce over the exact argv and reason and records them; a manual approval gate
+  instance is created with allowArbitrary=true. The flow is: `request` records
+  the exact argv under a caller-supplied request id; a manual approval gate
   shows the operator exactly what will run; the operator resumes with the
-  approval token from the vault (SWAMP_SUDO_APPROVAL_TOKEN); `runApproved`
-  checks the token and that the argv+reason still hash to the nonce, then runs
-  it through whichever elevation route the host grants.
+  approval token (SWAMP_SUDO_APPROVAL_TOKEN); `runApproved` runs it only if the
+  supplied argv exactly matches the recorded request and the token is correct.
 
   The command is an argv array, never a shell string, so a value cannot smuggle
-  in shell metacharacters.
+  in shell metacharacters. runApproved cannot run a command that was not first
+  registered by request.
 
   Run:
     # Ask for an arbitrary command (requires allowArbitrary=true on the model).
@@ -21,8 +21,7 @@ description: |
       --input reason="verify elevation works end to end"
 
     # The run suspends at the approval gate; an operator approves, then:
-    swamp workflow resume @svendowideit/sudo-command --run <run-id> \
-      --input approvalToken=<token>
+    swamp workflow resume @svendowideit/sudo-command --run <run-id>
 
   Read the result:
     swamp data get sudo-command-default result --json
@@ -49,10 +48,12 @@ tags:
   gated: "true"
 jobs:
   - name: approve-and-run
-    description: Request approval, wait at the gate, then run if approved.
+    description: Register the request, wait at the gate, then run if approved.
     steps:
       - name: request
-        description: Mint the approval nonce and record the exact argv and reason.
+        description: >-
+          Record the exact argv and reason under this run's request id, so the
+          approved command cannot be swapped later.
         task:
           type: model_method
           modelType: "@svendowideit/sudo"
@@ -61,6 +62,7 @@ jobs:
           inputs:
             command: ${{ inputs.command }}
             reason: ${{ inputs.reason }}
+            requestId: "${{ run.id }}"
         dependsOn: []
         weight: 0
         allowFailure: false
@@ -79,8 +81,8 @@ jobs:
         allowFailure: false
       - name: run
         description: >-
-          Execute the command, but only if the operator token matches and the
-          argv+reason still hash to the requested nonce.
+          Execute the command only if it exactly matches the recorded request
+          and the operator token is correct.
         task:
           type: model_method
           modelType: "@svendowideit/sudo"
@@ -88,8 +90,7 @@ jobs:
           methodName: runApproved
           inputs:
             command: ${{ inputs.command }}
-            reason: ${{ inputs.reason }}
-            nonce: "${{ data.latest('sudo-' + inputs.instanceKey, 'request').attributes.nonce }}"
+            requestId: "${{ run.id }}"
             approvalToken: "${{ vault.get('sudo-approval', 'token') }}"
         dependsOn:
           - step: gate

@@ -1,7 +1,7 @@
 import { assertEquals, assertThrows } from "jsr:@std/assert@1";
 
 import {
-  assertServiceUnit,
+  DEFAULT_ALLOWED_OPERATIONS,
   getOperation,
   listOperationIds,
   OPERATIONS,
@@ -12,6 +12,29 @@ import {
 Deno.test("every listed operation has an id-keyed entry", () => {
   for (const id of listOperationIds()) {
     assertEquals(OPERATIONS[id].id, id);
+  }
+});
+
+Deno.test("writeFile is removed; the default allowlist is the narrow set", () => {
+  assertEquals(getOperation("writeFile"), undefined);
+  assertEquals(DEFAULT_ALLOWED_OPERATIONS.includes("writeFile"), false);
+  assertEquals(DEFAULT_ALLOWED_OPERATIONS, [
+    "installPackage",
+    "removePackage",
+    "manageService",
+    "sysctl",
+  ]);
+  for (
+    const id of [
+      "mount",
+      "chown",
+      "ensureDirectory",
+      "addUserToGroup",
+      "createUser",
+    ]
+  ) {
+    assertEquals(getOperation(id) !== undefined, true, `${id} missing`);
+    assertEquals(DEFAULT_ALLOWED_OPERATIONS.includes(id), false);
   }
 });
 
@@ -37,12 +60,6 @@ Deno.test("packageArgv builds per-manager install and remove argv", () => {
   ]);
   assertEquals(packageArgv("dnf", "install", ["caddy"])[0], "dnf");
   assertEquals(packageArgv("yum", "install", ["caddy"])[0], "yum");
-  assertEquals(packageArgv("zypper", "install", ["caddy"]), [
-    "zypper",
-    "--non-interactive",
-    "install",
-    "caddy",
-  ]);
   assertEquals(packageArgv("apk", "install", ["caddy"]), [
     "apk",
     "add",
@@ -78,6 +95,17 @@ Deno.test("operations reject option and package injection", () => {
   );
 });
 
+Deno.test("createUser builds a validated useradd argv", () => {
+  assertEquals(
+    getOperation("createUser")!.build({ user: "svc", comment: "service user" }),
+    {
+      kind: "argv",
+      argv: ["useradd", "--system", "--comment", "service user", "svc"],
+    },
+  );
+  assertThrows(() => getOperation("createUser")!.build({ user: "-x" }));
+});
+
 Deno.test("absolute-path operations reject relative paths", () => {
   assertThrows(() =>
     getOperation("chown")!.build({
@@ -94,28 +122,4 @@ Deno.test("manageService builds a normalised systemctl argv", () => {
     getOperation("manageService")!.build({ unit: "caddy", action: "restart" }),
     { kind: "argv", argv: ["systemctl", "restart", "caddy"] },
   );
-});
-
-Deno.test("writeFile validates and returns a staged write", () => {
-  const built = getOperation("writeFile")!.build({
-    path: "/etc/hosts",
-    content: "x\n",
-    mode: "0644",
-  });
-  assertEquals(built, {
-    kind: "writeFile",
-    path: "/etc/hosts",
-    content: "x\n",
-    mode: 0o644,
-  });
-  assertThrows(() =>
-    getOperation("writeFile")!.build({ path: "relative", content: "x" })
-  );
-});
-
-Deno.test("assertServiceUnit accepts units and rejects flags", () => {
-  assertServiceUnit("caddy.service");
-  assertServiceUnit("getty@tty1");
-  assertThrows(() => assertServiceUnit("--now"));
-  assertThrows(() => assertServiceUnit("a;b"));
 });

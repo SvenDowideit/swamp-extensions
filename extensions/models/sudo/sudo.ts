@@ -3,19 +3,20 @@
  * assuming `sudo` is installed.
  *
  * The model resolves the first elevation route the host has already granted
- * (sudo, doas, polkit/run0, systemd-run, pkexec, ssh, a held capability, a
- * container runtime you are a member of, or a Kubernetes node), then runs the
- * caller's request through it. Callers name an **operation** with typed
- * arguments by default; arbitrary commands are available only through the
- * approval-gated `request`/`runApproved` methods.
+ * (sudo, doas, polkit/run0, systemd-run, pkexec, ssh, a held capability, or a
+ * container runtime you are a member of), then runs the caller's request
+ * through it. Callers name an **operation** with typed arguments by default;
+ * arbitrary commands are available only through the approval-gated
+ * `request`/`runApproved` methods.
  *
  * Methods:
  *   - `probe`       — enumerate the strategy ladder and report the first proven
  *                     route. Never runs the target command; always succeeds, so
  *                     its findings are always reachable.
  *   - `run`         — execute a named operation through the resolved route.
- *   - `request`     — mint an approval nonce for an arbitrary argv (gated).
- *   - `runApproved` — execute an arbitrary argv after operator approval (gated).
+ *   - `request`     — register an arbitrary argv and mint a request id (gated).
+ *   - `runApproved` — execute an arbitrary argv that matches a registered
+ *                     request, after operator approval (gated).
  *
  * No mechanism in this model brute-forces a credential, prompts for a password,
  * or exploits a vulnerability. A route is usable only when the host has already
@@ -37,6 +38,7 @@ import {
 } from "./sudo_strategies.ts";
 import {
   type BuildResult,
+  DEFAULT_ALLOWED_OPERATIONS,
   getOperation,
   listOperationIds,
 } from "./sudo_operations.ts";
@@ -49,9 +51,10 @@ const GlobalArgsSchema = z.object({
   strategyOrder: z.array(z.string()).default(DEFAULT_STRATEGY_ORDER).describe(
     "Elevation routes to try, in order. Defaults to a side-effect-ordered ladder.",
   ),
-  allowedOperations: z.array(z.string()).default(listOperationIds()).describe(
-    "Operations `run` may execute. Defaults to the full shipped catalogue.",
-  ),
+  allowedOperations: z.array(z.string()).default(DEFAULT_ALLOWED_OPERATIONS)
+    .describe(
+      "Operations `run` may execute. Defaults to the narrow, idempotent set; filesystem/account-mutating operations (mount, chown, ensureDirectory, addUserToGroup, createUser) must be added explicitly.",
+    ),
   allowArbitrary: z.boolean().default(false).describe(
     "Enable the approval-gated arbitrary-command methods `request`/`runApproved`.",
   ),
@@ -61,11 +64,13 @@ const GlobalArgsSchema = z.object({
   sshKnownHosts: z.string().default("").describe(
     "Pinned known_hosts file for the ssh-root route (StrictHostKeyChecking=yes).",
   ),
-  containerImage: z.string().default("alpine:3.20").describe(
-    "Image for the scratch-container and k8s-node routes. Pin by digest for reproducibility.",
+  containerImage: z.string().default(
+    "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  ).describe(
+    "Digest-pinned image for the scratch-container and k8s-node routes. Pin by digest for reproducibility.",
   ),
-  containerName: z.string().default("").describe(
-    "Existing host-root-equivalent container for the docker-exec route; empty disables it.",
+  containerNetwork: z.string().default("none").describe(
+    "Network mode for the scratch-container routes (e.g. none, host, bridge). Defaults to none; set host only when an operation needs the network.",
   ),
   k8sNode: z.string().default("").describe(
     "Cluster node for the k8s-node route; empty disables it.",
@@ -93,9 +98,6 @@ const ProbeArgsSchema = z.object({
   allowAudit: z.boolean().optional().describe(
     "Override the global allowAudit for this call.",
   ),
-  force: z.boolean().default(false).describe(
-    "Re-probe even if a recent probe exists.",
-  ),
 });
 
 const RunArgsSchema = z.object({
@@ -107,9 +109,6 @@ const RunArgsSchema = z.object({
   timeoutSeconds: z.number().int().positive().optional().describe(
     "Override the global execution timeout.",
   ),
-  allowAudit: z.boolean().optional().describe(
-    "Override the global allowAudit for this call.",
-  ),
 });
 
 const RequestArgsSchema = z.object({
@@ -119,12 +118,18 @@ const RequestArgsSchema = z.object({
   reason: z.string().min(1).describe(
     "Why this command is needed, shown at the approval gate.",
   ),
+  requestId: z.string().optional().describe(
+    "Caller-supplied request id (e.g. the workflow run id). Generated when absent.",
+  ),
 });
 
 const RunApprovedArgsSchema = z.object({
-  command: z.array(z.string()).min(1),
-  reason: z.string().min(1),
-  nonce: z.string().min(1).describe("Nonce returned by `request`."),
+  command: z.array(z.string()).min(1).describe(
+    "The argv to run. Must equal the argv registered by the matching request.",
+  ),
+  requestId: z.string().min(1).describe(
+    "Request id returned by `request`; binds this execution to a registered argv.",
+  ),
   approvalToken: z.string().min(1).meta({ sensitive: true }).describe(
     "Operator approval token; must match SWAMP_SUDO_APPROVAL_TOKEN.",
   ),
@@ -161,6 +166,7 @@ const ProbeOutputSchema = z.object({
   winner: WinnerSchema.nullable(),
   ladder: z.array(LadderEntrySchema),
   findings: z.array(FindingSchema),
+  audited: z.boolean(),
   capability: z.string(),
   probedAt: z.string(),
 });
@@ -175,14 +181,17 @@ const ResultOutputSchema = z.object({
   elevationFailed: z.boolean(),
   stdout: z.string(),
   stderr: z.string(),
+  truncated: z.boolean(),
   ranAsUid: z.number().int().nullable(),
   durationMs: z.number().int(),
   approvedBy: z.string().nullable(),
+  requestId: z.string().nullable(),
   startedAt: z.string(),
   finishedAt: z.string(),
 });
 
 const RequestOutputSchema = z.object({
+  requestId: z.string(),
   nonce: z.string(),
   command: z.array(z.string()),
   reason: z.string(),
@@ -191,8 +200,11 @@ const RequestOutputSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Command execution
+// Command execution (bounded output)
 // ---------------------------------------------------------------------------
+
+/** Maximum bytes captured per stream, so a runaway command cannot exhaust memory. */
+const MAX_STREAM_BYTES = 64 * 1024;
 
 interface Exec {
   stdout: string;
@@ -200,14 +212,51 @@ interface Exec {
   code: number;
   notFound: boolean;
   timedOut: boolean;
+  truncated: boolean;
 }
 
 const decoder = new TextDecoder();
 
+/** Read a byte stream, stopping at `limit` bytes and cancelling the rest. */
+async function readCapped(
+  stream: ReadableStream<Uint8Array>,
+  limit: number,
+): Promise<{ text: string; truncated: boolean }> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let truncated = false;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (total + value.length > limit) {
+        chunks.push(value.subarray(0, limit - total));
+        truncated = true;
+        break;
+      }
+      chunks.push(value);
+      total += value.length;
+    }
+  } catch {
+    // stream error/timeout — return what we have
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+  const merged = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+  let off = 0;
+  for (const c of chunks) {
+    merged.set(c, off);
+    off += c.length;
+  }
+  return { text: decoder.decode(merged), truncated };
+}
+
 /**
- * Run a command with a hard timeout. A missing binary is reported as `code:127`
- * with `notFound:true` rather than thrown, so detection can distinguish
- * "not installed" from "installed but not usable".
+ * Run a command with a hard timeout and bounded output. A missing binary is
+ * reported as `code:127` with `notFound:true` rather than thrown, so detection
+ * can distinguish "not installed" from "installed but not usable".
  */
 async function runCmd(
   binary: string,
@@ -221,13 +270,19 @@ async function runCmd(
       stderr: "piped",
       signal: AbortSignal.timeout(timeoutMs),
     });
-    const out = await proc.output();
+    const child = proc.spawn();
+    const [stdout, stderr] = await Promise.all([
+      readCapped(child.stdout, MAX_STREAM_BYTES),
+      readCapped(child.stderr, MAX_STREAM_BYTES),
+    ]);
+    const status = await child.status;
     return {
-      stdout: decoder.decode(out.stdout),
-      stderr: decoder.decode(out.stderr),
-      code: out.code,
+      stdout: stdout.text,
+      stderr: stderr.text,
+      code: status.code,
       notFound: false,
       timedOut: false,
+      truncated: stdout.truncated || stderr.truncated,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -238,6 +293,7 @@ async function runCmd(
         code: 127,
         notFound: true,
         timedOut: false,
+        truncated: false,
       };
     }
     const timedOut = err instanceof DOMException && err.name === "TimeoutError";
@@ -247,6 +303,7 @@ async function runCmd(
       code: timedOut ? 124 : 127,
       notFound: false,
       timedOut,
+      truncated: false,
     };
   }
 }
@@ -270,7 +327,7 @@ function configFrom(g: GlobalArgs): StrategyConfig {
     sshHost: g.sshHost,
     sshKnownHosts: g.sshKnownHosts,
     containerImage: g.containerImage,
-    containerName: g.containerName,
+    containerNetwork: g.containerNetwork,
     k8sNode: g.k8sNode,
     ssmInstanceId: g.ssmInstanceId,
   };
@@ -282,15 +339,30 @@ export function resolveOrder(order: string[], pinned: string): string[] {
   return order;
 }
 
-/** Whether a route is safe to use for an operation that writes a local file. */
+/** Whether a route is safe to use for an operation that mutates the local host. */
 export function isLocalRoute(id: string): boolean {
   const cls = STRATEGIES[id]?.class;
   return cls === "local" || cls === "capability";
 }
 
 /**
- * Walk the ladder and prove each route, returning the first that yields host
- * root. Never executes the caller's command — only each route's no-op proof.
+ * Proof timeout: side-effecting proofs (a container/pod start) pull an image or
+ * schedule a pod, so they get a generous timeout instead of the prompt-oriented
+ * default, which would misreport a slow pull as a password prompt.
+ */
+export function proofTimeoutMs(
+  sideEffects: string,
+  probeTimeoutSeconds: number,
+): number {
+  if (sideEffects === "none") return probeTimeoutSeconds * 1000;
+  return Math.max(probeTimeoutSeconds, 120) * 1000;
+}
+
+/**
+ * Walk the ladder and prove each route, stopping at the **first** that yields
+ * host root. Never executes the caller's command — only each route's no-op
+ * proof. Side-effecting routes (a scratch container/pod) are not probed after a
+ * winner is found, so a read-only `probe` does not create containers needlessly.
  */
 async function resolveStrategy(
   g: GlobalArgs,
@@ -332,6 +404,25 @@ async function resolveStrategy(
       continue;
     }
 
+    // Rootless container daemons cannot yield host root; reject before probing.
+    if (strategy.rootless) {
+      const rlArgv = strategy.rootless.argv(cfg);
+      const rl = await runCmd(rlArgv[0], rlArgv.slice(1), 5000);
+      if (
+        !rl.notFound && strategy.rootless.isRootless(`${rl.stdout}${rl.stderr}`)
+      ) {
+        ladder.push({
+          id,
+          class: strategy.class,
+          tool: strategy.tool,
+          installed: true,
+          proved: false,
+          reason: "rootless daemon cannot yield host root",
+        });
+        continue;
+      }
+    }
+
     const probeArgv = strategy.probeArgv(cfg);
     if (probeArgv.length === 0) {
       ladder.push({
@@ -348,7 +439,7 @@ async function resolveStrategy(
     const result = await runCmd(
       probeArgv[0],
       probeArgv.slice(1),
-      g.probeTimeoutSeconds * 1000,
+      proofTimeoutMs(strategy.sideEffects, g.probeTimeoutSeconds),
     );
     const installed = !result.notFound;
     const proved = installed && strategy.probeOk(toExecResult(result));
@@ -364,11 +455,11 @@ async function resolveStrategy(
         : !installed
         ? "not installed"
         : result.timedOut
-        ? "probe timed out (prompt?) — unavailable"
+        ? "proof timed out — unavailable"
         : result.stderr.trim() || `exit ${result.code}`,
     });
 
-    if (proved && !winner) {
+    if (proved) {
       winner = {
         id,
         class: strategy.class,
@@ -376,6 +467,7 @@ async function resolveStrategy(
         riskNote: strategy.riskNote,
       };
       logger?.debug?.("Elevation route proved: {id}", { id });
+      break; // first proven route wins; do not probe side-effecting routes after
     }
   }
 
@@ -510,15 +602,18 @@ async function collectFindings(
 }
 
 // ---------------------------------------------------------------------------
-// Nonce hashing for the gated path
+// Integrity values for the gated path
 // ---------------------------------------------------------------------------
 
-/** A stable nonce over an arbitrary command and its stated reason. */
+/** A stable nonce over a request id, command, and reason (integrity reference). */
 export async function approvalNonce(
+  requestId: string,
   command: string[],
   reason: string,
 ): Promise<string> {
-  const data = new TextEncoder().encode(JSON.stringify({ command, reason }));
+  const data = new TextEncoder().encode(
+    JSON.stringify({ requestId, command, reason }),
+  );
   const digest = await crypto.subtle.digest("SHA-256", data);
   return [...new Uint8Array(digest)]
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -533,13 +628,19 @@ interface RunOutcome {
   data: z.infer<typeof ResultOutputSchema>;
 }
 
-async function execute(
+/**
+ * Execute a route's argv and record the outcome. Only the route id and target
+ * program are written to `mechanism` — never the full argv, which may carry a
+ * secret.
+ */
+async function addRoute(
   g: GlobalArgs,
   resolved: ResolvedStrategy,
   argv: string[],
   operation: string | null,
   timeoutMs: number,
   approvedBy: string | null,
+  requestId: string | null,
 ): Promise<RunOutcome> {
   const strategy = resolved.strategy;
   if (!strategy) {
@@ -558,15 +659,17 @@ async function execute(
       strategyUsed: strategy.id,
       operation,
       command: argv,
-      mechanism: `${strategy.id}(${full.join(" ")})`,
+      mechanism: `${strategy.id} → ${argv[0] ?? ""}`.trim(),
       exitCode: elevationFailed ? -1 : exec.code,
       mechanismExitCode: exec.code,
       elevationFailed,
       stdout: exec.stdout,
       stderr: exec.stderr,
+      truncated: exec.truncated,
       ranAsUid: resolved.winner ? 0 : null,
       durationMs,
       approvedBy,
+      requestId,
       startedAt,
       finishedAt,
     },
@@ -590,6 +693,10 @@ type MethodContext = {
     name: string,
     data: Record<string, unknown>,
   ) => Promise<{ name: string }>;
+  readResource: (
+    instanceName: string,
+    version?: number,
+  ) => Promise<Record<string, unknown> | null>;
   definition: {
     id: string;
     name: string;
@@ -597,6 +704,11 @@ type MethodContext = {
     tags: Record<string, string>;
   };
 };
+
+/** A short, human-readable ladder for a no-route error. */
+function ladderReport(ladder: z.infer<typeof LadderEntrySchema>[]): string {
+  return ladder.map((e) => `  - ${e.id}: ${e.reason}`).join("\n");
+}
 
 // ---------------------------------------------------------------------------
 // Model
@@ -628,7 +740,7 @@ export const model = {
       garbageCollection: 10,
     },
     request: {
-      description: "Pending approval request for an arbitrary command",
+      description: "A registered arbitrary-command request awaiting approval",
       schema: RequestOutputSchema,
       lifetime: "1d",
       garbageCollection: 10,
@@ -644,15 +756,14 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
-        const localOnly = false;
         const resolved = await resolveStrategy(
           g,
           args.strategy,
-          localOnly,
+          false,
           context.logger,
         );
-        const audit = args.allowAudit ?? g.allowAudit;
-        const findings = audit ? await collectFindings(g) : [];
+        const audited = args.allowAudit ?? g.allowAudit;
+        const findings = audited ? await collectFindings(g) : [];
 
         for (const entry of resolved.ladder) {
           context.logger?.info(
@@ -673,6 +784,7 @@ export const model = {
           winner: resolved.winner,
           ladder: resolved.ladder,
           findings,
+          audited,
           capability,
           probedAt: new Date().toISOString(),
         });
@@ -717,62 +829,39 @@ export const model = {
           context.logger,
         );
         if (!resolved.winner) {
-          const tried = resolved.ladder
-            .map((e) => `  - ${e.id}: ${e.reason}`)
-            .join("\n");
           throw new Error(
-            `No granted elevation route is available for '${args.operation}'. Tried:\n${tried}\n` +
-              `Configure a route (sudo/doas/polkit, a container runtime, sshHost, k8sNode, …) or run 'probe' to see the ladder.`,
+            `No granted elevation route is available for '${args.operation}'. Tried:\n${
+              ladderReport(resolved.ladder)
+            }\n` +
+              `Configure a route (sudo/doas/polkit, a container runtime, sshHost, k8sNode, …) or run the 'probe' method to see the ladder.`,
           );
         }
 
-        // For a writeFile operation, stage the content locally then install it
-        // through the resolved (local-only) route.
-        let argv: string[];
-        let cleanup: string | null = null;
-        if (built.kind === "writeFile") {
-          const tmp = await Deno.makeTempFile({
-            prefix: "swamp-sudo-",
-            suffix: ".content",
-          });
-          cleanup = tmp;
-          await Deno.writeTextFile(tmp, built.content);
-          const mode = `0${built.mode.toString(8)}`;
-          argv = ["install", "-m", mode, tmp, built.path];
-        } else {
-          argv = built.argv;
-        }
-
-        try {
-          const { data } = await execute(
-            g,
-            resolved,
-            argv,
-            args.operation,
-            timeoutMs,
-            null,
-          );
-          context.logger?.info(
-            "Ran '{operation}' via {strategyUsed}: exit {exitCode}",
-            {
-              operation: args.operation,
-              strategyUsed: data.strategyUsed,
-              exitCode: data.exitCode,
-            },
-          );
-          const handle = await context.writeResource("result", "result", data);
-          return { dataHandles: [handle] };
-        } finally {
-          if (cleanup) {
-            await Deno.remove(cleanup).catch(() => {});
-          }
-        }
+        const { data } = await addRoute(
+          g,
+          resolved,
+          built.argv,
+          args.operation,
+          timeoutMs,
+          null,
+          null,
+        );
+        context.logger?.info(
+          "Ran '{operation}' via {strategyUsed}: exit {exitCode}",
+          {
+            operation: args.operation,
+            strategyUsed: data.strategyUsed,
+            exitCode: data.exitCode,
+          },
+        );
+        const handle = await context.writeResource("result", "result", data);
+        return { dataHandles: [handle] };
       },
     },
 
     request: {
       description:
-        "Mint an approval nonce for an arbitrary argv. Requires allowArbitrary=true. The caller must present the nonce, an operator approval token, and the same argv to runApproved.",
+        "Register an arbitrary argv and mint a request id. Requires allowArbitrary=true. The caller must present the request id, a matching argv, and an operator approval token to runApproved.",
       arguments: RequestArgsSchema,
       execute: async (
         args: z.infer<typeof RequestArgsSchema>,
@@ -784,12 +873,20 @@ export const model = {
             "Arbitrary commands are disabled. Create the model with allowArbitrary=true to enable request/runApproved.",
           );
         }
-        const nonce = await approvalNonce(args.command, args.reason);
+        const requestId = args.requestId && args.requestId.trim()
+          ? args.requestId.trim()
+          : crypto.randomUUID();
+        const nonce = await approvalNonce(requestId, args.command, args.reason);
         context.logger?.info(
           "Approval requested for {argc} argument(s): {reason}",
           { argc: args.command.length, reason: args.reason },
         );
-        const handle = await context.writeResource("request", "request", {
+        // A single stable data name ("pending") per model instance; concurrent
+        // gated callers must use distinct instanceKey values. runApproved
+        // binds on the request id and the exact argv, so a clobbered record
+        // fails closed rather than running the wrong command.
+        const handle = await context.writeResource("request", "pending", {
+          requestId,
           nonce,
           command: args.command,
           reason: args.reason,
@@ -802,7 +899,7 @@ export const model = {
 
     runApproved: {
       description:
-        "Execute an arbitrary argv after operator approval. Requires allowArbitrary=true, an approval token matching SWAMP_SUDO_APPROVAL_TOKEN, and a nonce that matches the argv+reason.",
+        "Execute an arbitrary argv after operator approval. Requires allowArbitrary=true, a requestId registered by `request` whose stored argv equals the supplied argv, and an approval token matching SWAMP_SUDO_APPROVAL_TOKEN.",
       arguments: RunApprovedArgsSchema,
       execute: async (
         args: z.infer<typeof RunApprovedArgsSchema>,
@@ -814,21 +911,37 @@ export const model = {
             "Arbitrary commands are disabled (allowArbitrary=false).",
           );
         }
+
+        // Bind to the registered request: the request id and the exact argv
+        // must equal what `request` stored. The caller cannot invent an argv
+        // that was not registered.
+        const record = await context.readResource("pending").catch(() => null);
+        if (!record || typeof record.command === "undefined") {
+          throw new Error(
+            "No registered request found. Call 'request' first.",
+          );
+        }
+        if (record.requestId !== args.requestId) {
+          throw new Error(
+            "The supplied requestId does not match the registered request; refusing runApproved.",
+          );
+        }
+        const stored = JSON.stringify(record.command);
+        if (stored !== JSON.stringify(args.command)) {
+          throw new Error(
+            "The supplied command does not match the registered request; refusing runApproved.",
+          );
+        }
+
         const expectedToken = safeEnv("SWAMP_SUDO_APPROVAL_TOKEN");
         if (!expectedToken) {
           throw new Error(
-            "SWAMP_SUDO_APPROVAL_TOKEN is not set; refusing runApproved. Set it in the operator environment served to the approval gate.",
+            "SWAMP_SUDO_APPROVAL_TOKEN is not set; refusing runApproved. Set it in the operator environment for the approval gate.",
           );
         }
         if (args.approvalToken !== expectedToken) {
           throw new Error(
             "Approval token does not match; refusing runApproved.",
-          );
-        }
-        const expectedNonce = await approvalNonce(args.command, args.reason);
-        if (args.nonce !== expectedNonce) {
-          throw new Error(
-            "Approval nonce does not match the supplied command and reason; refusing runApproved.",
           );
         }
 
@@ -840,19 +953,20 @@ export const model = {
           context.logger,
         );
         if (!resolved.winner) {
-          const tried = resolved.ladder.map((e) => `  - ${e.id}: ${e.reason}`)
-            .join("\n");
           throw new Error(
-            `No granted elevation route is available. Tried:\n${tried}`,
+            `No granted elevation route is available. Tried:\n${
+              ladderReport(resolved.ladder)
+            }`,
           );
         }
-        const { data } = await execute(
+        const { data } = await addRoute(
           g,
           resolved,
           args.command,
           null,
           timeoutMs,
           "operator",
+          args.requestId,
         );
         context.logger?.info(
           "Approved command ran via {strategyUsed}: exit {exitCode}",

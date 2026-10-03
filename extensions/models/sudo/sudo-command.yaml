@@ -15,6 +15,11 @@ description: |
   in shell metacharacters. runApproved cannot run a command that was not first
   registered by request.
 
+  The route-target caveat from sudo-run applies here too: with sshHost or
+  k8sNode configured, an approved arbitrary command executes on that ssh host
+  or cluster node, not on the machine swamp runs on. Pin `strategy` in the
+  model's strategyOrder or leave sshHost/k8sNode unset to keep execution local.
+
   Run:
     # Ask for an arbitrary command (requires allowArbitrary=true on the model).
     swamp workflow run @svendowideit/sudo-command \
@@ -25,7 +30,7 @@ description: |
     swamp workflow resume @svendowideit/sudo-command --run <run-id>
 
   Read the result:
-    swamp data get sudo-command-default result --json
+    swamp data get sudo-command-${{ run.id }} result --json
 inputs:
   properties:
     command:
@@ -38,10 +43,11 @@ inputs:
       description: Why this command is needed; shown at the approval gate.
     instanceKey:
       type: string
-      default: command-default
+      default: "${{ run.id }}"
       description: >-
-        Suffix for the model instance name (sudo-<instanceKey>). Pass a unique
-        value when callers may run concurrently.
+        Suffix for the model instance name (sudo-<instanceKey>). Defaults to
+        the run id, so concurrent gated runs each get their own instance and
+        never clobber each other's pending request record.
   required: ["command", "reason"]
 tags:
   swamp: "sudo"

@@ -209,7 +209,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     class: "local",
     tool: "sudo",
     riskNote:
-      "Full root when a NOPASSWD or cached credential exists for this user. The probe runs `sudo -n true`, so a sudoers rule scoped to a specific command (not a broad NOPASSWD grant) is reported unavailable — a conservative fail-closed false negative, never an unsafe elevation.",
+      "Full root when a NOPASSWD or cached credential exists for this user. The probe runs `sudo -n true`, so a sudoers rule scoped to a specific command (not a broad NOPASSWD grant) is reported unavailable — a conservative fail-closed false negative, never an unsafe elevation. Note: a cached sudo timestamp also proves the probe, so route selection here is time-dependent — it succeeds for ~15 minutes after any interactive sudo, and the probe itself refreshes the cache; drop sudo-n from strategyOrder or pin another strategy for deterministic scheduling.",
     sideEffects: "none",
     precondition: () => null,
     probeArgv: () => ["sudo", "-n", "true"],

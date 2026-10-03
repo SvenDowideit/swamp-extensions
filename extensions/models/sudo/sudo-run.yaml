@@ -10,6 +10,13 @@ description: |
   node) and runs the operation through it. The route is not your concern — the
   result records the exit code, output, and uid it ran as.
 
+  The host the operation runs on is the route's target: `local`,
+  `capability`, and `container` routes act on the machine swamp runs on, but
+  a `remote` (ssh) or `orchestrator` (k8s node) route targets another host —
+  with sshHost configured, manageService restarts the unit ON that ssh host,
+  not locally. Leave sshHost/k8sNode unset or pin `strategy` to a local route
+  to keep execution local.
+
   It resolves the elevation ladder (logged as it goes) and runs the operation.
   A non-zero program exit is recorded in the "result" data, not thrown, so a
   caller can branch on it. When no route is granted the run fails with the full

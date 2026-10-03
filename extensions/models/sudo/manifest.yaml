@@ -8,7 +8,7 @@ description: >
 
   WHAT IT DOES
 
-    A cross-platform elevation primitive for swamp. You name the operation and
+    A cross-distro Linux elevation primitive for swamp. You name the operation and
     its arguments; the extension finds the first route the host has already
     granted — sudo, doas, polkit/run0, a container runtime you are in, an ssh
     root key, a held capability, or a cloud agent — and uses it. You never need
@@ -109,10 +109,27 @@ description: >
       probeTimeoutSeconds  Per-route proof timeout         (default 8)
       allowAudit           Emit the hardening findings     (default false)
       approvalVault        Vault for the run-scoped,       (default "sudo-approval")
-                           single-use approval secret
+                            single-use approval secret;
+                            create it before the first
+                            gated run: swamp vault create
+                            local_encryption sudo-approval.
+                            The approval token is passed as
+                            a method argument and is
+                            recorded in plaintext in run
+                            history; single use is
+                            guaranteed for completed runs
+                            only — after a run is killed
+                            mid-execution the approved
+                            command stays replayable until
+                            the vault secret is deleted.
 
     Container routes are disabled when DOCKER_HOST/CONTAINER_HOST names a remote
-    daemon, so a local operation never runs on another host.
+    daemon, so a local operation never runs on another host. The reverse also
+    holds and is worth knowing: non-local operations (installPackage,
+    removePackage, manageService, sysctl) execute on whatever host the winning
+    route elevates — with sshHost configured, manageService restarts the unit on
+    that ssh host, not on your machine. Leave sshHost/k8sNode unset or pin
+    strategy to a local route to keep execution local.
 
     Read the full method, strategy and operation reference in the README.
 

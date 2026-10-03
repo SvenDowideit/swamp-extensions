@@ -230,7 +230,7 @@ Deno.test("containerEndpointIsLocal distinguishes local sockets from remote endp
   assertEquals(containerEndpointIsLocal("unix:///var/run/docker.sock"), true);
   assertEquals(containerEndpointIsLocal("/run/podman/podman.sock"), true);
   assertEquals(containerEndpointIsLocal("ssh://remote.example"), false);
-  assertEquals(containerEndpointIsLocal("tcp://10.0.0.9:2375"), false);
+  assertEquals(containerEndpointIsLocal("tcp://192.0.2.9:2375"), false);
 });
 
 Deno.test("container routes refuse a remote daemon", () => {

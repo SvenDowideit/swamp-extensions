@@ -1,0 +1,99 @@
+manifestVersion: 1
+name: "@svendowideit/fleet-inventory"
+version: "2026.10.02.7"
+description: >
+  A live inventory of the machines on a network — and which of them have gone
+  silent.
+
+  WHAT IT DOES
+
+    Discovers hosts (from nmap/mDNS feeds or an optional TCP-connect CIDR scan),
+    probes their facts over SSH (hostname, machine-id — Linux /etc/machine-id or
+    macOS IOPlatformUUID — OS, docker, memory,
+    immutable), merges them into one record per MACHINE (machine-id > hostname >
+    address, so wifi+wired are one host and a roaming dock MAC never merges two
+    hosts), correlates them against the set of hosts currently reporting
+    telemetry, and reports coverage and drift. Prefer it over a static host list:
+    the point is to catch silent hosts — inventoried machines that stopped
+    reporting — and to keep tier/OS facts current. It emits typed resources and
+    an on-disk inventory.json another model can read; generic, it makes no
+    assumptions about your network beyond the CIDR/user you pass.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/fleet-inventory
+
+  DEPENDENCIES
+
+    Optional: an SSH client for `probe` (any OpenSSH client), reachable hosts.
+    `discover` alone needs no external tools unless you pass a CIDR to scan.
+
+  RUN
+
+      # Create a model for the fleet.
+      swamp model create @svendowideit/fleet-inventory fleet \
+        --global-arg sshUser=root
+
+      # Scan a subnet and merge any feeds from nmap/mDNS models.
+      swamp model method run fleet discover --input cidr=192.168.1.0/24
+
+      # Probe the inventoried hosts over SSH for facts. With no `hosts` input,
+      # this probes EVERY host discover found — the usual step after a scan.
+      swamp model method run fleet probe
+
+      # Probe only specific hosts (e.g. to re-probe a few) by passing `hosts`.
+      # Results accumulate: a run updates these hosts and leaves the rest.
+      swamp model method run fleet probe --input 'hosts:json=["core.otel.fi.gy"]'
+
+      # See the cumulative probed set (not just the last run).
+      swamp data get fleet probe --json | jq '.content.hosts[] | select(.probed) | {name, machineId, addresses, tier}'
+
+      # Correlate: merge discovery+probe into the inventory, and mark hosts
+      # absent from `reportingHosts` as silent. This ALWAYS builds the inventory,
+      # but silent-host detection needs a real reporting set. That set comes from
+      # a query against your telemetry backend, which is DEFERRED to Phase 1
+      # (no store is running yet). Until then, pass reportingHosts by hand to
+      # test; with none, every host reads silent.
+      swamp model method run fleet correlate \
+        --input 'reportingHosts:json=["core.otel.fi.gy"]'
+
+      # Report: summaries the inventory (total, reporting, silent, coverage %,
+      # by tier/OS). Also waits on the Phase 1 backend feed for a MEANINGFUL
+      # coverage/silent number — without a reporting set, coverage is 0% and
+      # everything is silent. The tier/OS tallies are useful now.
+      swamp model method run fleet report
+
+  CONFIGURE
+
+    Set as global args at model creation:
+
+      sshUser        default SSH user for probe
+      defaultTier    tier assigned when probing cannot infer one (default T1)
+      outputDir      where inventory.json is written
+
+    Override per call with --input, e.g. discover --input timeoutMs=1500, probe
+    --input sshUser=admin, probe --input refresh=true (re-probe hosts that
+    already succeeded), or correlate --input 'reportingHosts:json=[...]'.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — it only writes a JSON inventory under outputDir and
+    swamp resources. It opens TCP connections (scan) and SSH sessions (probe);
+    it installs no services, cron triggers, or webhooks.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - fleet_inventory.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - fleet_inventory_test.ts
+
+platforms: []

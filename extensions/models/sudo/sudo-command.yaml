@@ -1,5 +1,5 @@
 id: 35f5f9fc-b3b1-4d20-ab45-5f26cda39c8d
-name: '@svendowideit/sudo-command'
+name: "@svendowideit/sudo-command"
 description: |
   Run an arbitrary command as root, behind a human approval gate.
 

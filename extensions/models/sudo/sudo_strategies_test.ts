@@ -19,6 +19,7 @@ const g = {
   containerNetwork: "none",
   k8sNode: "node-1",
   ssmInstanceId: "",
+  containerEndpoint: "",
 };
 
 Deno.test("shellQuote leaves safe tokens bare and quotes the rest", () => {
@@ -117,6 +118,23 @@ Deno.test("preconditions gate unconfigured routes", () => {
   assertEquals(getStrategy("ssm-run")!.precondition(empty) !== null, true);
   assertEquals(getStrategy("sudo-n")!.precondition(empty), null);
   assertEquals(getStrategy("docker-run")!.precondition(empty), null);
+});
+
+Deno.test("container routes refuse a remote daemon and accept a local one", () => {
+  const remote = { ...g, containerEndpoint: "ssh://remote.example" };
+  const local = { ...g, containerEndpoint: "unix:///var/run/docker.sock" };
+  for (const id of ["docker-run", "podman-run", "nerdctl-run"]) {
+    assertEquals(
+      typeof getStrategy(id)!.precondition(remote) === "string",
+      true,
+      `${id} should refuse a remote daemon`,
+    );
+    assertEquals(
+      getStrategy(id)!.precondition(local),
+      null,
+      `${id} should accept a local daemon`,
+    );
+  }
 });
 
 Deno.test("elevation failure is distinguished from a program failure", () => {

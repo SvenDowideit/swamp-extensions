@@ -1,5 +1,5 @@
 id: 8a692931-ff1e-475a-bb1b-383f4cdca2f5
-name: '@svendowideit/sudo-run'
+name: "@svendowideit/sudo-run"
 description: |
   Run one named privileged operation on the host without assuming sudo exists.
 
@@ -10,10 +10,11 @@ description: |
   node) and runs the operation through it. The route is not your concern — the
   result records the exit code, output, and uid it ran as.
 
-  It first probes the ladder (visible in the log) and then runs the operation.
+  It resolves the elevation ladder (logged as it goes) and runs the operation.
   A non-zero program exit is recorded in the "result" data, not thrown, so a
   caller can branch on it. When no route is granted the run fails with the full
-  ladder and the reason each route was rejected.
+  ladder and the reason each route was rejected. To inspect the ladder without
+  running the operation, call the model's `probe` method directly.
 
   Run:
     # Restart a system service. The route is chosen for you.
@@ -37,8 +38,8 @@ inputs:
       type: string
       description: >-
         Operation id from the catalogue. Enabled by default: installPackage,
-        removePackage, manageService, sysctl. Opt-in (add to allowedOperations):
-        ensureDirectory, chown, addUserToGroup, createUser, mount.
+        removePackage, manageService. Opt-in (add to allowedOperations):
+        sysctl, ensureDirectory, chown, addUserToGroup, createUser, mount.
     args:
       type: object
       default: {}
@@ -57,33 +58,14 @@ inputs:
       type: integer
       default: 120
       description: Per-execution timeout in seconds.
-    allowAudit:
-      type: boolean
-      default: false
-      description: Emit read-only residual-risk findings in the probe output.
   required: ["operation"]
 tags:
   swamp: "sudo"
   kind: "elevation"
 jobs:
   - name: elevate
-    description: Probe the elevation ladder, then run the operation.
+    description: Resolve the elevation ladder and run the operation.
     steps:
-      - name: probe
-        description: >-
-          Enumerate the strategy ladder and record the first route that proves
-          host root. Runs no privileged command.
-        task:
-          type: model_method
-          modelType: "@svendowideit/sudo"
-          modelName: sudo-${{ inputs.instanceKey }}
-          methodName: probe
-          inputs:
-            strategy: ${{ inputs.strategy }}
-            allowAudit: ${{ inputs.allowAudit }}
-        dependsOn: []
-        weight: 0
-        allowFailure: false
       - name: run
         description: Run the named operation through the resolved route.
         task:
@@ -96,10 +78,7 @@ jobs:
             args: ${{ inputs.args }}
             strategy: ${{ inputs.strategy }}
             timeoutSeconds: ${{ inputs.timeoutSeconds }}
-        dependsOn:
-          - step: probe
-            condition:
-              type: succeeded
+        dependsOn: []
         weight: 0
         allowFailure: false
     dependsOn: []

@@ -22,7 +22,6 @@ Deno.test("writeFile is removed; the default allowlist is the narrow set", () =>
     "installPackage",
     "removePackage",
     "manageService",
-    "sysctl",
   ]);
   for (
     const id of [
@@ -31,6 +30,7 @@ Deno.test("writeFile is removed; the default allowlist is the narrow set", () =>
       "ensureDirectory",
       "addUserToGroup",
       "createUser",
+      "sysctl",
     ]
   ) {
     assertEquals(getOperation(id) !== undefined, true, `${id} missing`);

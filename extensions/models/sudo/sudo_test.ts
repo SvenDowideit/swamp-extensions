@@ -1,13 +1,39 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
 
 import {
-  approvalNonce,
   isLocalRoute,
+  isTimedOut,
   model,
   proofTimeoutMs,
   resolveOrder,
+  runCmd,
 } from "./sudo.ts";
-import { DEFAULT_STRATEGY_ORDER, getStrategy } from "./sudo_strategies.ts";
+import {
+  containerEndpointIsLocal,
+  DEFAULT_STRATEGY_ORDER,
+  getStrategy,
+} from "./sudo_strategies.ts";
+
+/** Whether this process may spawn commands (plain `deno test` denies `run`). */
+function hasRunPermission(): boolean {
+  try {
+    const status = new Deno.Command("true").outputSync();
+    return status.code === 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Whether this process may mutate the environment (plain `deno test` denies `env`). */
+function hasEnvPermission(): boolean {
+  try {
+    Deno.env.set("__SWAMP_SUDO_TEST__", "1");
+    Deno.env.delete("__SWAMP_SUDO_TEST__");
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Routing helpers
@@ -24,7 +50,20 @@ Deno.test("ssh-root is a remote route, not a local one", () => {
   assertEquals(isLocalRoute("ssh-root"), false);
   assertEquals(isLocalRoute("sudo-n"), true);
   assertEquals(isLocalRoute("nsenter"), true);
-  assertEquals(isLocalRoute("docker-run"), false);
+  // Container routes run the operation on the host via `chroot /host`, so a
+  // local-only operation may use them. Orchestrator/oob routes may not.
+  assertEquals(isLocalRoute("docker-run"), true);
+  assertEquals(isLocalRoute("podman-run"), true);
+  assertEquals(isLocalRoute("k8s-node"), false);
+  assertEquals(isLocalRoute("ssm-run"), false);
+});
+
+Deno.test("the timeout is detected from the termination signal, not a thrown error", () => {
+  assertEquals(isTimedOut("SIGTERM", 143), true);
+  assertEquals(isTimedOut("SIGTERM", 0), true);
+  assertEquals(isTimedOut(null, 143), true);
+  assertEquals(isTimedOut(null, 0), false);
+  assertEquals(isTimedOut(null, 1), false);
 });
 
 Deno.test("proofTimeoutMs gives side-effecting proofs a long timeout", () => {
@@ -45,18 +84,61 @@ Deno.test("the default ladder contains no docker-exec", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Approval nonce
+// Route resolution (injectable executor — no host access needed)
 // ---------------------------------------------------------------------------
 
-Deno.test("approvalNonce binds the request id, command, and reason", async () => {
-  const a = await approvalNonce("r1", ["id", "-u"], "smoke test");
-  const b = await approvalNonce("r1", ["id", "-u"], "smoke test");
-  const cid = await approvalNonce("r2", ["id", "-u"], "smoke test");
-  const cmd = await approvalNonce("r1", ["rm", "-rf", "/"], "smoke test");
-  assertEquals(a, b);
-  assertEquals(a === cid, false);
-  assertEquals(a === cmd, false);
-});
+function globalArgs(overrides: Record<string, unknown> = {}) {
+  return {
+    strategyOrder: [
+      "sudo-n",
+      "docker-run",
+      "podman-run",
+      "ssh-root",
+      "k8s-node",
+      "ssm-run",
+    ],
+    allowedOperations: ["manageService"],
+    allowArbitrary: false,
+    sshHost: "",
+    sshKnownHosts: "",
+    containerImage: "alpine@sha256:abc",
+    containerNetwork: "none",
+    k8sNode: "",
+    ssmInstanceId: "",
+    timeoutSeconds: 120,
+    probeTimeoutSeconds: 8,
+    allowAudit: false,
+    ...overrides,
+  };
+}
+
+/** An exec stub keyed by the binary; records every invocation. */
+function stubExec(
+  responses: Record<
+    string,
+    { stdout?: string; stderr?: string; code?: number; notFound?: boolean }
+  >,
+) {
+  const calls: string[] = [];
+  const exec = (
+    binary: string,
+    _args: string[],
+    _timeoutMs: number,
+  ) => {
+    calls.push(binary);
+    const r = responses[binary] ?? { code: 127, notFound: true };
+    return Promise.resolve({
+      stdout: r.stdout ?? "",
+      stderr: r.stderr ?? "",
+      code: r.notFound ? 127 : (r.code ?? 0),
+      signal: null,
+      notFound: r.notFound ?? false,
+      timedOut: false,
+      truncated: false,
+    });
+  };
+  return { exec, calls };
+}
 
 // ---------------------------------------------------------------------------
 // Model gating (uses fakes for the swamp method context)
@@ -65,13 +147,16 @@ Deno.test("approvalNonce binds the request id, command, and reason", async () =>
 function testContext(
   globalArgs: Record<string, unknown>,
   stored: Record<string, unknown> | null = null,
+  exec?: unknown,
 ) {
   const written: Record<
     string,
     { name: string; data: Record<string, unknown> }
   > = {};
+  const deleted: string[] = [];
   return {
     written,
+    deleted,
     context: {
       globalArgs,
       writeResource: (
@@ -84,10 +169,150 @@ function testContext(
       },
       readResource: (_name?: string, _version?: number) =>
         Promise.resolve(stored),
+      deleteResource: (name: string) => {
+        deleted.push(name);
+        return Promise.resolve();
+      },
+      ...(exec ? { _exec: exec } : {}),
       definition: { id: "test", name: "sudo-test", version: "test", tags: {} },
     },
   };
 }
+
+/** Run `probe` with an injected executor and return its written `probe` data. */
+async function runProbe(
+  overrides: Record<string, unknown>,
+  exec: unknown,
+  args: Record<string, unknown> = {},
+) {
+  const { context, written } = testContext(globalArgs(overrides), null, exec);
+  await model.methods.probe.execute(
+    // deno-lint-ignore no-explicit-any
+    { strategy: "auto", ...args } as any,
+    context as never,
+  );
+  return written["probe"].data as {
+    winner: { id: string } | null;
+    ladder: Array<{ id: string; proved: boolean; reason: string }>;
+  };
+}
+
+Deno.test("probe stops at the first proved route and does not probe later ones", async () => {
+  // sudo proves root; the container route (side-effecting) must not be touched.
+  const { exec, calls } = stubExec({
+    sudo: { stdout: "", code: 0 },
+    docker: { stdout: "machine-id", code: 0 },
+  });
+  const data = await runProbe({}, exec);
+  assertEquals(data.winner?.id, "sudo-n");
+  assertEquals(calls.includes("docker"), false);
+});
+
+Deno.test("probe rejects a rootless container daemon before the root probe", async () => {
+  const { exec } = stubExec({
+    sudo: { stdout: "", code: 1, stderr: "authentication is required" },
+    docker: { stdout: '["name=rootless"]', code: 0 },
+  });
+  const data = await runProbe({}, exec);
+  const dockerEntry = data.ladder.find((e) => e.id === "docker-run")!;
+  assertEquals(dockerEntry.proved, false);
+  assertEquals(dockerEntry.reason, "rootless daemon cannot yield host root");
+  assertEquals(data.winner, null);
+});
+
+Deno.test("containerEndpointIsLocal distinguishes local sockets from remote endpoints", () => {
+  assertEquals(containerEndpointIsLocal(""), true);
+  assertEquals(containerEndpointIsLocal("unix:///var/run/docker.sock"), true);
+  assertEquals(containerEndpointIsLocal("/run/podman/podman.sock"), true);
+  assertEquals(containerEndpointIsLocal("ssh://remote.example"), false);
+  assertEquals(containerEndpointIsLocal("tcp://10.0.0.9:2375"), false);
+});
+
+Deno.test("container routes refuse a remote daemon", () => {
+  const docker = getStrategy("docker-run")!;
+  const cfg = {
+    sshHost: "",
+    sshKnownHosts: "",
+    containerImage: "alpine@sha256:abc",
+    containerNetwork: "none",
+    k8sNode: "",
+    ssmInstanceId: "",
+    containerEndpoint: "ssh://remote.example",
+  };
+  assertEquals(typeof docker.precondition(cfg) === "string", true);
+  assertEquals(docker.precondition({ ...cfg, containerEndpoint: "" }), null);
+});
+
+Deno.test("a container route is allowed for a local-only operation (runs on the host via chroot)", async () => {
+  // mount is localOnly; docker-run proves host root, so it must NOT be filtered.
+  const exec = (
+    _binary: string,
+    _args: string[],
+    _timeoutMs: number,
+  ) =>
+    Promise.resolve({
+      stdout: "machine-id",
+      stderr: "",
+      code: 0,
+      signal: null,
+      notFound: false,
+      timedOut: false,
+      truncated: false,
+    });
+  const { context, written } = testContext(
+    globalArgs({
+      allowedOperations: ["mount"],
+      strategyOrder: ["docker-run"],
+    }),
+    null,
+    exec,
+  );
+  await model.methods.run.execute(
+    {
+      operation: "mount",
+      args: { source: "/dev/sda1", target: "/mnt/data" },
+      strategy: "auto",
+    } as never,
+    context as never,
+  );
+  assertEquals(written["result"].data.strategyUsed, "docker-run");
+  assertEquals(written["result"].data.operation, "mount");
+});
+
+Deno.test("a remote route is filtered out for a local-only operation", async () => {
+  const exec = () =>
+    Promise.resolve({
+      stdout: "0",
+      stderr: "",
+      code: 0,
+      signal: null,
+      notFound: false,
+      timedOut: false,
+      truncated: false,
+    });
+  const { context } = testContext(
+    globalArgs({
+      allowedOperations: ["mount"],
+      strategyOrder: ["ssh-root"],
+      sshHost: "root.example",
+    }),
+    null,
+    exec,
+  );
+  await assertRejects(
+    () =>
+      model.methods.run.execute(
+        {
+          operation: "mount",
+          args: { source: "/dev/sda1", target: "/mnt/data" },
+          strategy: "auto",
+        } as never,
+        context as never,
+      ),
+    Error,
+    "No granted elevation route",
+  );
+});
 
 Deno.test("request refuses when allowArbitrary is false", async () => {
   const { context } = testContext({ allowArbitrary: false });
@@ -110,10 +335,10 @@ Deno.test("request writes a stable 'pending' record keyed by the request id", as
   );
   assertEquals(written["request"].name, "pending");
   assertEquals(written["request"].data.requestId, "run-42");
-  assertEquals(
-    written["request"].data.nonce,
-    await approvalNonce("run-42", ["id", "-u"], "smoke"),
-  );
+  assertEquals(written["request"].data.command, ["id", "-u"]);
+  assertEquals(written["request"].data.reason, "smoke");
+  // The removed nonce must not reappear on the stored record.
+  assertEquals("nonce" in written["request"].data, false);
 });
 
 Deno.test("request generates a request id when none is supplied", async () => {
@@ -196,3 +421,62 @@ Deno.test("run rejects an unknown operation id", async () => {
     "Unknown operation",
   );
 });
+
+Deno.test(
+  "a successful runApproved consumes the registered request (single use)",
+  {
+    ignore: !hasEnvPermission(),
+  },
+  async () => {
+    const prev = Deno.env.get("SWAMP_SUDO_APPROVAL_TOKEN");
+    Deno.env.set("SWAMP_SUDO_APPROVAL_TOKEN", "token-1");
+    try {
+      const stored = { requestId: "r1", command: ["id", "-u"], reason: "x" };
+      // sudo -n true proves root; the approved command then runs.
+      const exec = (
+        binary: string,
+        _args: string[],
+        _timeoutMs: number,
+      ) =>
+        Promise.resolve({
+          stdout: binary === "sudo" ? "" : "0",
+          stderr: "",
+          code: 0,
+          signal: null,
+          notFound: false,
+          timedOut: false,
+          truncated: false,
+        });
+      const { context, deleted, written } = testContext(
+        { allowArbitrary: true, strategyOrder: ["sudo-n"] },
+        stored,
+        exec,
+      );
+      await model.methods.runApproved.execute(
+        {
+          command: ["id", "-u"],
+          requestId: "r1",
+          approvalToken: "token-1",
+        } as never,
+        context as never,
+      );
+      assertEquals(deleted, ["pending"]);
+      assertEquals(written["result"].data.requestId, "r1");
+    } finally {
+      if (prev === undefined) Deno.env.delete("SWAMP_SUDO_APPROVAL_TOKEN");
+      else Deno.env.set("SWAMP_SUDO_APPROVAL_TOKEN", prev);
+    }
+  },
+);
+
+Deno.test(
+  "runCmd reports a hung command as timed out rather than exiting silently",
+  {
+    ignore: !hasRunPermission(),
+  },
+  async () => {
+    const result = await runCmd("sleep", ["30"], 600);
+    assertEquals(result.timedOut, true);
+    assertEquals(result.truncated, false);
+  },
+);

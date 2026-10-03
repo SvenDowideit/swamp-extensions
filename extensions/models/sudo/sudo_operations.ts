@@ -309,13 +309,14 @@ export const OPERATIONS: Record<string, Operation> = {
  * Operations enabled by default. `mount`, `ensureDirectory`, `chown`,
  * `addUserToGroup`, and `createUser` are omitted: they mutate the filesystem or
  * account state at arbitrary absolute paths, which is little safer than an
- * arbitrary command. They must be added to `allowedOperations` explicitly.
+ * arbitrary command. `sysctl` is omitted too: it writes an arbitrary kernel knob
+ * (e.g. `kernel.core_pattern`, `kernel.modprobe`), which is a root persistence
+ * primitive. All of these must be added to `allowedOperations` explicitly.
  */
 export const DEFAULT_ALLOWED_OPERATIONS: string[] = [
   "installPackage",
   "removePackage",
   "manageService",
-  "sysctl",
 ];
 
 /** List every operation id in the catalogue. */

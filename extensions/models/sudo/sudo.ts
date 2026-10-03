@@ -11,16 +11,21 @@
  *
  * Methods:
  *   - `probe`       — enumerate the strategy ladder and report the first proven
- *                     route. Never runs the target command; always succeeds, so
- *                     its findings are always reachable.
+ *                     route. Never runs the target command, but *may* start a
+ *                     transient privileged container/pod to prove a container
+ *                     route; always succeeds, so its findings are always
+ *                     reachable.
  *   - `run`         — execute a named operation through the resolved route.
  *   - `request`     — register an arbitrary argv and mint a request id (gated).
  *   - `runApproved` — execute an arbitrary argv that matches a registered
- *                     request, after operator approval (gated).
+ *                     request, after operator approval (gated, single use).
  *
  * No mechanism in this model brute-forces a credential, prompts for a password,
  * or exploits a vulnerability. A route is usable only when the host has already
  * granted it; otherwise the operation fails with a report of what was tried.
+ * Container routes are refused when the daemon is remote (`DOCKER_HOST` /
+ * `CONTAINER_HOST` points at another host), so a local operation never runs on
+ * a different machine.
  *
  * @module
  */
@@ -53,7 +58,7 @@ const GlobalArgsSchema = z.object({
   ),
   allowedOperations: z.array(z.string()).default(DEFAULT_ALLOWED_OPERATIONS)
     .describe(
-      "Operations `run` may execute. Defaults to the narrow, idempotent set; filesystem/account-mutating operations (mount, chown, ensureDirectory, addUserToGroup, createUser) must be added explicitly.",
+      "Operations `run` may execute. Defaults to the narrow set (installPackage, removePackage, manageService); filesystem/account-mutating or kernel-knob operations (mount, chown, ensureDirectory, addUserToGroup, createUser, sysctl) must be added explicitly.",
     ),
   allowArbitrary: z.boolean().default(false).describe(
     "Enable the approval-gated arbitrary-command methods `request`/`runApproved`.",
@@ -192,7 +197,6 @@ const ResultOutputSchema = z.object({
 
 const RequestOutputSchema = z.object({
   requestId: z.string(),
-  nonce: z.string(),
   command: z.array(z.string()),
   reason: z.string(),
   requestedBy: z.string(),
@@ -206,16 +210,40 @@ const RequestOutputSchema = z.object({
 /** Maximum bytes captured per stream, so a runaway command cannot exhaust memory. */
 const MAX_STREAM_BYTES = 64 * 1024;
 
-interface Exec {
+export interface Exec {
+  /** Captured standard output (bounded). */
   stdout: string;
+  /** Captured standard error (bounded). */
   stderr: string;
+  /** Process exit code; 124 on timeout, 127 when the binary is missing. */
   code: number;
+  /** Termination signal when the process was killed, else null. */
+  signal: string | null;
+  /** True when the binary could not be spawned. */
   notFound: boolean;
+  /** True when the per-execution timeout killed the process. */
   timedOut: boolean;
+  /** True when output was truncated at the cap. */
   truncated: boolean;
 }
 
 const decoder = new TextDecoder();
+
+/** Exit code the shell uses for a process killed by SIGTERM (128 + 15). */
+export const KILLED_BY_SIGTERM_CODE = 143;
+
+/**
+ * Whether a completed process was killed by the per-execution timeout. The
+ * spawned child is killed with SIGTERM when `timeoutMs` elapses, so the reliable
+ * signal is the termination signal (or the shell's 128+15 code) — not a thrown
+ * `TimeoutError`, which `spawn()` never raises.
+ */
+export function isTimedOut(
+  signal: Deno.Signal | null,
+  code: number,
+): boolean {
+  return signal === "SIGTERM" || code === KILLED_BY_SIGTERM_CODE;
+}
 
 /** Read a byte stream, stopping at `limit` bytes and cancelling the rest. */
 async function readCapped(
@@ -258,11 +286,21 @@ async function readCapped(
  * reported as `code:127` with `notFound:true` rather than thrown, so detection
  * can distinguish "not installed" from "installed but not usable".
  */
-async function runCmd(
+export async function runCmd(
   binary: string,
   args: string[],
   timeoutMs: number,
 ): Promise<Exec> {
+  let child: Deno.ChildProcess | null = null;
+  let timedOut = false;
+  // Escalate to SIGKILL if the process ignores the AbortSignal's SIGTERM, so a
+  // hung command cannot hold the pipes open past the timeout.
+  const killer = setTimeout(() => {
+    timedOut = true;
+    try {
+      child?.kill("SIGKILL");
+    } catch { /* already exited */ }
+  }, timeoutMs + 500);
   try {
     const proc = new Deno.Command(binary, {
       args,
@@ -270,18 +308,20 @@ async function runCmd(
       stderr: "piped",
       signal: AbortSignal.timeout(timeoutMs),
     });
-    const child = proc.spawn();
+    child = proc.spawn();
     const [stdout, stderr] = await Promise.all([
       readCapped(child.stdout, MAX_STREAM_BYTES),
       readCapped(child.stderr, MAX_STREAM_BYTES),
     ]);
     const status = await child.status;
+    const killed = isTimedOut(status.signal, status.code);
     return {
       stdout: stdout.text,
       stderr: stderr.text,
       code: status.code,
+      signal: status.signal,
       notFound: false,
-      timedOut: false,
+      timedOut: killed || timedOut,
       truncated: stdout.truncated || stderr.truncated,
     };
   } catch (err) {
@@ -291,20 +331,25 @@ async function runCmd(
         stdout: "",
         stderr: msg,
         code: 127,
+        signal: null,
         notFound: true,
         timedOut: false,
         truncated: false,
       };
     }
-    const timedOut = err instanceof DOMException && err.name === "TimeoutError";
+    const timeoutErr = err instanceof DOMException &&
+      err.name === "TimeoutError";
     return {
       stdout: "",
-      stderr: timedOut ? `timed out after ${timeoutMs}ms` : msg,
-      code: timedOut ? 124 : 127,
+      stderr: (timeoutErr || timedOut) ? `timed out after ${timeoutMs}ms` : msg,
+      code: (timeoutErr || timedOut) ? 124 : 127,
+      signal: null,
       notFound: false,
-      timedOut,
+      timedOut: timeoutErr || timedOut,
       truncated: false,
     };
+  } finally {
+    clearTimeout(killer);
   }
 }
 
@@ -323,6 +368,7 @@ interface ResolvedStrategy {
 }
 
 function configFrom(g: GlobalArgs): StrategyConfig {
+  const endpoint = safeEnv("DOCKER_HOST") || safeEnv("CONTAINER_HOST");
   return {
     sshHost: g.sshHost,
     sshKnownHosts: g.sshKnownHosts,
@@ -330,6 +376,7 @@ function configFrom(g: GlobalArgs): StrategyConfig {
     containerNetwork: g.containerNetwork,
     k8sNode: g.k8sNode,
     ssmInstanceId: g.ssmInstanceId,
+    containerEndpoint: endpoint,
   };
 }
 
@@ -339,10 +386,15 @@ export function resolveOrder(order: string[], pinned: string): string[] {
   return order;
 }
 
-/** Whether a route is safe to use for an operation that mutates the local host. */
+/**
+ * Whether a route acts on the local host, so a local-only operation (one that
+ * mutates the filesystem or account state) may use it. Container routes mount
+ * the host root at `/host` and run the operation with `chroot /host`, so they
+ * are local; `remote` (ssh), `orchestrator` (k8s node) and `oob` routes are not.
+ */
 export function isLocalRoute(id: string): boolean {
   const cls = STRATEGIES[id]?.class;
-  return cls === "local" || cls === "capability";
+  return cls === "local" || cls === "capability" || cls === "container";
 }
 
 /**
@@ -362,13 +414,22 @@ export function proofTimeoutMs(
  * Walk the ladder and prove each route, stopping at the **first** that yields
  * host root. Never executes the caller's command — only each route's no-op
  * proof. Side-effecting routes (a scratch container/pod) are not probed after a
- * winner is found, so a read-only `probe` does not create containers needlessly.
+ * winner is found, so a later side-effecting proof does not run needlessly. The
+ * probe itself may still create a container.
+ *
+ * `exec` is injectable so route resolution can be tested without touching the
+ * host; callers pass the real runner.
  */
 async function resolveStrategy(
   g: GlobalArgs,
   pinned: string,
   localOnly: boolean,
   logger?: Logger,
+  exec: (
+    binary: string,
+    args: string[],
+    timeoutMs: number,
+  ) => Promise<Exec> = runCmd,
 ): Promise<ResolvedStrategy> {
   const cfg = configFrom(g);
   let order = resolveOrder(g.strategyOrder, pinned);
@@ -407,7 +468,7 @@ async function resolveStrategy(
     // Rootless container daemons cannot yield host root; reject before probing.
     if (strategy.rootless) {
       const rlArgv = strategy.rootless.argv(cfg);
-      const rl = await runCmd(rlArgv[0], rlArgv.slice(1), 5000);
+      const rl = await exec(rlArgv[0], rlArgv.slice(1), 5000);
       if (
         !rl.notFound && strategy.rootless.isRootless(`${rl.stdout}${rl.stderr}`)
       ) {
@@ -436,7 +497,7 @@ async function resolveStrategy(
       continue;
     }
 
-    const result = await runCmd(
+    const result = await exec(
       probeArgv[0],
       probeArgv.slice(1),
       proofTimeoutMs(strategy.sideEffects, g.probeTimeoutSeconds),
@@ -602,31 +663,19 @@ async function collectFindings(
 }
 
 // ---------------------------------------------------------------------------
-// Integrity values for the gated path
-// ---------------------------------------------------------------------------
-
-/** A stable nonce over a request id, command, and reason (integrity reference). */
-export async function approvalNonce(
-  requestId: string,
-  command: string[],
-  reason: string,
-): Promise<string> {
-  const data = new TextEncoder().encode(
-    JSON.stringify({ requestId, command, reason }),
-  );
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(digest)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-// ---------------------------------------------------------------------------
 // Execution
 // ---------------------------------------------------------------------------
 
 interface RunOutcome {
   data: z.infer<typeof ResultOutputSchema>;
 }
+
+/** The process runner used by route resolution and execution; injectable for tests. */
+type ExecFn = (
+  binary: string,
+  args: string[],
+  timeoutMs: number,
+) => Promise<Exec>;
 
 /**
  * Execute a route's argv and record the outcome. Only the route id and target
@@ -641,6 +690,7 @@ async function addRoute(
   timeoutMs: number,
   approvedBy: string | null,
   requestId: string | null,
+  run: ExecFn = runCmd,
 ): Promise<RunOutcome> {
   const strategy = resolved.strategy;
   if (!strategy) {
@@ -649,7 +699,7 @@ async function addRoute(
   const full = strategy.build(argv, configFrom(g));
   const startedAt = new Date().toISOString();
   const start = performance.now();
-  const exec = await runCmd(full[0], full.slice(1), timeoutMs);
+  const exec = await run(full[0], full.slice(1), timeoutMs);
   const durationMs = Math.round(performance.now() - start);
   const finishedAt = new Date().toISOString();
   const elevationFailed = strategy.elevationFailed(exec.code, exec.stderr);
@@ -697,6 +747,13 @@ type MethodContext = {
     instanceName: string,
     version?: number,
   ) => Promise<Record<string, unknown> | null>;
+  deleteResource: (instanceName: string) => Promise<void>;
+  /**
+   * Test seam: overrides the process runner. Swamp never sets this field, and
+   * it cannot be reached through method arguments, so production always uses
+   * the real `runCmd`.
+   */
+  _exec?: ExecFn;
   definition: {
     id: string;
     name: string;
@@ -749,7 +806,7 @@ export const model = {
   methods: {
     probe: {
       description:
-        "Enumerate the elevation ladder and report the first route that proves host root; optionally emit read-only residual-risk findings. Never runs the target command.",
+        "Enumerate the elevation ladder and report the first route that proves host root; optionally emit read-only residual-risk findings. Never runs the target command, but may start a transient privileged container/pod to prove a container route.",
       arguments: ProbeArgsSchema,
       execute: async (
         args: z.infer<typeof ProbeArgsSchema>,
@@ -761,6 +818,7 @@ export const model = {
           args.strategy,
           false,
           context.logger,
+          context._exec,
         );
         const audited = args.allowAudit ?? g.allowAudit;
         const findings = audited ? await collectFindings(g) : [];
@@ -827,6 +885,7 @@ export const model = {
           args.strategy,
           op.localOnly,
           context.logger,
+          context._exec,
         );
         if (!resolved.winner) {
           throw new Error(
@@ -845,6 +904,7 @@ export const model = {
           timeoutMs,
           null,
           null,
+          context._exec,
         );
         context.logger?.info(
           "Ran '{operation}' via {strategyUsed}: exit {exitCode}",
@@ -876,7 +936,6 @@ export const model = {
         const requestId = args.requestId && args.requestId.trim()
           ? args.requestId.trim()
           : crypto.randomUUID();
-        const nonce = await approvalNonce(requestId, args.command, args.reason);
         context.logger?.info(
           "Approval requested for {argc} argument(s): {reason}",
           { argc: args.command.length, reason: args.reason },
@@ -887,7 +946,6 @@ export const model = {
         // fails closed rather than running the wrong command.
         const handle = await context.writeResource("request", "pending", {
           requestId,
-          nonce,
           command: args.command,
           reason: args.reason,
           requestedBy: safeEnv("USER") || "unknown",
@@ -899,7 +957,7 @@ export const model = {
 
     runApproved: {
       description:
-        "Execute an arbitrary argv after operator approval. Requires allowArbitrary=true, a requestId registered by `request` whose stored argv equals the supplied argv, and an approval token matching SWAMP_SUDO_APPROVAL_TOKEN.",
+        "Execute an arbitrary argv after operator approval. Requires allowArbitrary=true, a requestId registered by `request` whose stored argv equals the supplied argv, and an approval token matching SWAMP_SUDO_APPROVAL_TOKEN. The registered request is consumed on success (single use).",
       arguments: RunApprovedArgsSchema,
       execute: async (
         args: z.infer<typeof RunApprovedArgsSchema>,
@@ -951,6 +1009,7 @@ export const model = {
           "auto",
           false,
           context.logger,
+          context._exec,
         );
         if (!resolved.winner) {
           throw new Error(
@@ -967,11 +1026,15 @@ export const model = {
           timeoutMs,
           "operator",
           args.requestId,
+          context._exec,
         );
         context.logger?.info(
           "Approved command ran via {strategyUsed}: exit {exitCode}",
           { strategyUsed: data.strategyUsed, exitCode: data.exitCode },
         );
+        // Consume the request: a single human approval authorises exactly one
+        // execution. A replay fails closed at the read above.
+        await context.deleteResource("pending").catch(() => {});
         const handle = await context.writeResource("result", "result", data);
         return { dataHandles: [handle] };
       },

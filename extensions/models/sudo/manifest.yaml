@@ -46,8 +46,9 @@ description: >
         --input 'args:json={"manager":"apt","packages":["caddy"]}'
 
       # Read-only: list every elevation route this host offers and how it was
-      # proved, without running any privileged command. Use it to see what a
-      # scheduled workflow will pick before you trust it.
+      # proved. Use it to see what a scheduled workflow will pick before you
+      # trust it. (It runs no target command; a container route may briefly
+      # start a container to prove itself.)
       swamp model @svendowideit/sudo method run probe sudo-default
 
       # When no named operation fits, ask for an arbitrary command. This path is
@@ -72,12 +73,12 @@ description: >
       installPackage    manager (apt|dnf|yum|zypper|apk|pacman), packages[]
       removePackage     manager, packages[]
       manageService     unit, action (start|stop|restart|enable|disable)
+
+    Also available, but disabled by default because they mutate the filesystem,
+    account state, or kernel knobs at arbitrary values — add them to
+    `allowedOperations` to enable:
+
       sysctl            key, value
-
-    Also available, but disabled by default because they mutate the filesystem
-    or account state at arbitrary paths — add them to `allowedOperations` to
-    enable:
-
       ensureDirectory   path, mode, owner, group
       chown             path, owner, group, recursive
       addUserToGroup    user, group
@@ -108,6 +109,9 @@ description: >
       probeTimeoutSeconds  Per-route proof timeout         (default 8)
       allowAudit           Emit the hardening findings     (default false)
 
+    Container routes are disabled when DOCKER_HOST/CONTAINER_HOST names a remote
+    daemon, so a local operation never runs on another host.
+
     Read the full method, strategy and operation reference in the README.
 
   WHAT IT INSTALLS
@@ -135,6 +139,8 @@ models:
 workflows:
   - sudo-run.yaml
   - sudo-command.yaml
+
+dependencies: []
 
 additionalFiles:
   - README.md

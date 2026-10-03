@@ -8,7 +8,7 @@
  *
  * The catalogue intentionally has no privileged/exploit split. `sudo` and
  * container-group access are both pre-granted privilege; the honest labels are
- * `riskNote`, `sideEffects`, and `proveCost`. A separate set of read-only
+ * `riskNote` and `sideEffects`. A separate set of read-only
  * residual-risk findings lives in `sudo.ts`.
  *
  * @module
@@ -22,6 +22,12 @@ export interface StrategyConfig {
   containerNetwork: string;
   k8sNode: string;
   ssmInstanceId: string;
+  /**
+   * Container daemon endpoint from `DOCKER_HOST`/`CONTAINER_HOST`. Empty means
+   * the runtime's default local socket. A remote endpoint disables the
+   * container routes, which would otherwise act on another host.
+   */
+  containerEndpoint: string;
 }
 
 /** How a strategy reaches root. `remote` routes target another host. */
@@ -63,8 +69,6 @@ export interface Strategy {
   tool: string;
   riskNote: string;
   sideEffects: SideEffects;
-  /** Relative proof cost; lower is tried earlier when side effects tie. */
-  proveCost: number;
   /**
    * Extra precondition beyond the tool existing. Returns a human reason when
    * the route is unusable, or null when it is configured.
@@ -137,6 +141,27 @@ function networkArg(g: StrategyConfig): string {
   return `--network=${mode}`;
 }
 
+/**
+ * A container runtime is only usable when its daemon is local. A remote
+ * endpoint (`ssh://`, `tcp://`, or any non-empty `DOCKER_HOST`/`CONTAINER_HOST`)
+ * would prove and then execute against *another* host while the caller believes
+ * the operation ran locally, so the route is refused. A unix socket path is
+ * local.
+ */
+export function containerEndpointIsLocal(endpoint: string): boolean {
+  const value = (endpoint || "").trim();
+  if (value === "") return true;
+  return value.startsWith("unix://") || value.startsWith("/");
+}
+
+/** Precondition shared by every container route. */
+function containerPrecondition(g: StrategyConfig): string | null {
+  if (!containerEndpointIsLocal(g.containerEndpoint)) {
+    return `container daemon is remote (${g.containerEndpoint}); refusing to act on another host — container routes are local-only`;
+  }
+  return null;
+}
+
 /** Common privileged, host-root-mounted `run` argv for a container runtime. */
 function containerRunArgv(
   tool: string,
@@ -181,7 +206,6 @@ export const STRATEGIES: Record<string, Strategy> = {
     riskNote:
       "Full root when a NOPASSWD or cached credential exists for this user.",
     sideEffects: "none",
-    proveCost: 1,
     precondition: () => null,
     probeArgv: () => ["sudo", "-n", "true"],
     probeOk: (r) => r.code === 0,
@@ -194,7 +218,6 @@ export const STRATEGIES: Record<string, Strategy> = {
     tool: "doas",
     riskNote: "Full root when a `permit nopass` rule covers this user.",
     sideEffects: "none",
-    proveCost: 2,
     precondition: () => null,
     probeArgv: () => ["doas", "-n", ID, "-u"],
     probeOk: uidIsZero,
@@ -210,7 +233,6 @@ export const STRATEGIES: Record<string, Strategy> = {
     tool: "run0",
     riskNote: "Full root via polkit and the systemd manager; no setuid binary.",
     sideEffects: "none",
-    proveCost: 3,
     precondition: () => null,
     probeArgv: () => ["run0", "--no-ask-password", "--pipe", ID, "-u"],
     probeOk: uidIsZero,
@@ -228,7 +250,6 @@ export const STRATEGIES: Record<string, Strategy> = {
     riskNote:
       "Full root via a polkit-authorised transient unit on the system bus.",
     sideEffects: "none",
-    proveCost: 3,
     precondition: () => null,
     probeArgv: () => [
       "systemd-run",
@@ -264,7 +285,6 @@ export const STRATEGIES: Record<string, Strategy> = {
     riskNote:
       "Full root via polkit. `--disable-internal-agent` stops pkexec's internal prompt only — an external desktop agent can still prompt, so a prompt or timeout means unavailable.",
     sideEffects: "none",
-    proveCost: 4,
     precondition: () => null,
     probeArgv: () => ["pkexec", "--disable-internal-agent", ID, "-u"],
     probeOk: uidIsZero,
@@ -282,7 +302,6 @@ export const STRATEGIES: Record<string, Strategy> = {
     riskNote:
       "Host root by entering PID 1's namespaces when CAP_SYS_ADMIN is already held.",
     sideEffects: "none",
-    proveCost: 5,
     precondition: () => null,
     probeArgv: () => [
       "nsenter",
@@ -324,7 +343,6 @@ export const STRATEGIES: Record<string, Strategy> = {
     riskNote:
       "Root by re-entering uid 0 when CAP_SETUID/CAP_SETGID are already held.",
     sideEffects: "none",
-    proveCost: 5,
     precondition: () => null,
     probeArgv:
       () => ["setpriv", "--reuid=0", "--regid=0", "--clear-groups", ID, "-u"],
@@ -343,7 +361,6 @@ export const STRATEGIES: Record<string, Strategy> = {
     riskNote:
       "Remote full root over ssh; requires a root key and a pinned host key. Targets another host, so local-only operations refuse it.",
     sideEffects: "none",
-    proveCost: 6,
     precondition: (g) => (g.sshHost ? null : "sshHost is not configured"),
     probeArgv: (g) => [
       "ssh",
@@ -385,8 +402,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     riskNote:
       "Root-equivalent by design for the docker group. Starts a privileged container with the host root mounted at /host and proves host root by reading the host's machine-id. A rootless daemon is rejected at probe.",
     sideEffects: "creates-container",
-    proveCost: 8,
-    precondition: () => null,
+    precondition: containerPrecondition,
     rootless: {
       argv: () => ["docker", "info", "--format", "{{json .SecurityOptions}}"],
       isRootless: dockerIsRootless,
@@ -415,8 +431,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     riskNote:
       "Root-equivalent for the podman group when the daemon runs as root. Rootless podman cannot yield host root and is rejected at probe.",
     sideEffects: "creates-container",
-    proveCost: 9,
-    precondition: () => null,
+    precondition: containerPrecondition,
     rootless: {
       argv: () => ["podman", "info", "--format", "{{.Host.Security.Rootless}}"],
       isRootless: (out) => /true/i.test(out),
@@ -444,8 +459,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     riskNote:
       "Root-equivalent for the containerd socket group when the daemon runs as root. Rootless containerd cannot yield host root; this route does not yet detect rootless, so host-root is only proven by the probe.",
     sideEffects: "creates-container",
-    proveCost: 9,
-    precondition: () => null,
+    precondition: containerPrecondition,
     probeArgv: (g) =>
       containerRunArgv(
         "nerdctl",
@@ -469,7 +483,6 @@ export const STRATEGIES: Record<string, Strategy> = {
     riskNote:
       "Root on a cluster node via a privileged pod. RBAC is the grant. Starts a transient pod removed with --rm.",
     sideEffects: "creates-pod",
-    proveCost: 10,
     precondition: (g) => (g.k8sNode ? null : "k8sNode is not configured"),
     probeArgv: (g) =>
       k8sRunArgv(g, ["cat", "/etc/machine-id"], "swamp-sudo-probe"),
@@ -486,7 +499,6 @@ export const STRATEGIES: Record<string, Strategy> = {
     riskNote:
       "Out-of-band: the AWS SSM agent runs as root on the instance. Sending and polling is multi-step, so this route is not implemented by the argv executor and is never selectable.",
     sideEffects: "remote-api",
-    proveCost: 11,
     precondition: (g) =>
       g.ssmInstanceId
         ? "ssm-run requires the multi-step @swamp/aws/ssm model; not implemented in the argv executor"

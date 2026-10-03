@@ -1,0 +1,90 @@
+manifestVersion: 1
+name: "@svendowideit/device-fingerprint"
+version: "2026.10.03.1"
+description: >
+  Identify the devices on a network — router, KVM, ESPHome sensor, media box —
+  without credentials, from three independent, evidence-based signals.
+
+  WHAT IT DOES
+
+    Fingerprints hosts so you can tell what each one is, even when it will not
+    answer SSH. HTTP/TLS: reads the Server header, the HTML title, and the TLS
+    certificate subject/issuer (through openssl, so self-signed appliance certs
+    are still readable) and classifies the device. MAC/OUI: resolves a MAC
+    address to its registered vendor and a coarse device class using the system
+    IEEE OUI database. Prefer it over guessing from a hostname: it identifies the
+    UniFi controller, a NanoKVM, Shelly and ESPHome devices, and anything else
+    that answers HTTP or has a MAC — and it pairs with @svendowideit/mdns, which
+    classifies the services it discovers. Generic and public: site-specific
+    device knowledge is added via the `deviceClasses` override, never hard-coded.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/device-fingerprint
+
+  DEPENDENCIES
+
+    openssl on PATH (for TLS certificate inspection). The MAC model needs an OUI
+    database — the Debian `ieee-data` package (/usr/share/ieee-data/oui.txt) or
+    nmap's /usr/share/nmap/nmap-mac-prefixes; no other tools are needed.
+
+  RUN
+
+      # HTTP/TLS fingerprint: classify hosts from Server header, HTML title and
+      # TLS certificate. Catches UniFi, NanoKVM, GL.iNet, routers, cameras.
+      swamp model create @svendowideit/device-fingerprint/fingerprint hosts \
+        --global-arg 'ports:json=[443,80]'
+      swamp model method run hosts fingerprint \
+        --input 'hosts:json=["10.10.10.1","10.10.12.230"]'
+
+      # MAC/OUI fingerprint: resolve MACs to a vendor + coarse device class,
+      # using the system IEEE OUI database.
+      swamp model create @svendowideit/device-fingerprint/maclookup macs
+      swamp model method run macs lookup \
+        --input 'macs:json=["d8:44:89:ab:7e:32","20:f8:3b:09:58:1f"]'
+
+      # See what was identified (device class + vendor per host).
+      swamp data get hosts fingerprint --json | jq '.content.hosts[] | {host, deviceClass, vendor}'
+
+  CONFIGURE
+
+    Set as global args at model creation. The fingerprint model (HTTP/TLS):
+
+      timeoutMs      per-connection timeout (default 4000)
+      ports          ports to try per host, in order (default [443, 80])
+      userAgent      User-Agent sent (default swamp-device-fingerprint/1.0)
+      deviceClasses  extend/override rules, keyed on the Server banner
+
+    The mac model (MAC/OUI):
+
+      ouiFile        path to the IEEE OUI database (default /usr/share/ieee-data/oui.txt)
+      deviceClasses  extend/override rules, keyed on the OUI vendor name
+
+    Override per call with --input, e.g. fingerprint --input 'hosts:json=[...]',
+    or lookup --input 'macs:json=[...]'.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — it opens TCP connections (HTTP/TLS) and reads the local
+    OUI database. It installs no services, cron triggers, or webhooks.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - http_fingerprint.ts
+  - mac_fingerprint.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - http_fingerprint_test.ts
+  - mac_fingerprint_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64

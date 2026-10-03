@@ -1,0 +1,76 @@
+manifestVersion: 1
+name: "@svendowideit/settings-server"
+version: "2026.10.03.1"
+description: >
+  Stage a rendered settings bundle and serve it as a versioned, cacheable web
+  root.
+
+  WHAT IT DOES
+
+    Turns a directory of rendered documents (the output of
+    @svendowideit/otel-settings, or any static document set) into a versioned
+    webroot: immutable v/<version> directories plus a current pointer, and an
+    HTTP verification step that fetches the index document to prove the live URL
+    works. Prefer it over copying files by hand or exposing a directory with a
+    one-off server: staging is idempotent, versions are content-addressed, and
+    the static serving is delegated to @svendowideit/caddy's serveSettings so DNS
+    + TLS + file serving are one tested path. Generic — it knows only the source
+    directory, webroot, and hostname you give it.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/settings-server
+
+  DEPENDENCIES
+
+    None. Serving over HTTPS pairs with @svendowideit/caddy (serveSettings);
+    rendering the documents pairs with @svendowideit/otel-settings.
+
+  RUN
+
+      # Create a model for your settings host and staging location.
+      swamp model create @svendowideit/settings-server settings \
+        --global-arg sourceDir=~/.local/share/otel-settings/current \
+        --global-arg webroot=~/.local/share/settings-server \
+        --global-arg hostname=settings.example.com
+
+      # Stage the rendered documents and flip the current pointer.
+      swamp model method run settings publish
+
+      # Verify the live URL serves the index document.
+      swamp model method run settings verify
+
+  CONFIGURE
+
+    All arguments are optional except sourceDir and hostname, set as global args:
+
+      sourceDir        Directory of rendered documents (e.g. otel-settings current)
+      webroot          Directory Caddy serves; v/<version> and current live here
+      hostname         Public hostname the documents are served on
+      indexDocument    Document fetched to verify the server is live (default otel.json)
+      publishBaseUrl   Override the verification base URL (derived from hostname if empty)
+
+    Override per call with --input, e.g. publish --input version=manual-1, or
+    verify --input expectDocument=otel.env.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — it only stages a webroot directory and writes swamp
+    resources. It installs no services, cron triggers, or webhooks.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - settings_server.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - settings_server_test.ts
+
+platforms: []

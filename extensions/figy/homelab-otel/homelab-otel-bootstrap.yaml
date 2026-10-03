@@ -1,0 +1,138 @@
+id: 1c7e6263-a926-43c2-b7bb-399a0afe348c
+name: "@figy/homelab-otel-bootstrap"
+description: |
+  @figy site-specific OTel bootstrap for the fi.gy homelab. Renders my
+  observability contract under the dedicated `otel.fi.gy` sub-zone, stages it,
+  serves it over HTTP(S) at `settings.otel.fi.gy` by Caddy (DNS-01 TLS via
+  Gandi), and verifies the live document.
+
+  The site-specific values (domains, meshes, tiers) live in the step globalArgs
+  below, so a pull of @figy/homelab-otel plus a run creates the models in place.
+
+  Usage:
+    swamp workflow run @figy/homelab-otel-bootstrap
+
+  Then read the contract and the served version:
+    swamp data get --workflow @figy/homelab-otel-bootstrap current --json
+    curl https://settings.otel.fi.gy/otel.json
+
+  Promotion: on UAT (T440s) this is the first real deployment; on prod (Xeon) it
+  is the production core node. Same workflow, different host.
+tags:
+  phase: "1"
+  collective: figy
+inputs:
+  properties:
+    deploymentEnvironment:
+      type: string
+      default: dev
+      description: deployment.environment (dev on this machine, uat on T440s, prod on Xeon).
+    settingsHostname:
+      type: string
+      default: settings.otel.fi.gy
+      description: Hostname the settings documents are served on.
+    webroot:
+      type: string
+      default: ~/.local/share/settings-server
+      description: Directory Caddy serves the staged bundle from.
+  required: []
+jobs:
+  - name: main
+    description: Render, publish, serve, and verify the fi.gy observability contract.
+    steps:
+      - name: render-settings
+        description: Resolve the fi.gy contract and write the HTTP document set.
+        task:
+          type: model_method
+          modelType: "@svendowideit/otel-settings"
+          modelName: otel
+          methodName: render
+          globalArgs:
+            domain: otel.fi.gy
+            deploymentEnvironment: ${{ inputs.deploymentEnvironment }}
+            site: home
+            owner: sven
+            defaultMesh: tailscale
+            endpoints:
+              - otlp_grpc: otlp.fi.gy:4317
+                otlp_http: otlp.fi.gy:4318
+                otlp_grpc_url: ""
+                otlp_http_url: ""
+                mesh: tailscale
+              - otlp_grpc: otlp.wg.otel.fi.gy:4317
+                otlp_http: otlp.wg.otel.fi.gy:4318
+                otlp_grpc_url: ""
+                otlp_http_url: ""
+                mesh: wireguard
+            sampling:
+              head_percent: 100
+            retention:
+              logs: 14
+              metrics: 90
+              traces: 7
+            attributes:
+              site: home
+              owner: sven
+            outputDir: ~/.local/share/otel-settings
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: publish-bundle
+        description: Stage the rendered documents into the webroot and flip current.
+        task:
+          type: model_method
+          modelType: "@svendowideit/settings-server"
+          modelName: settings
+          methodName: publish
+          globalArgs:
+            sourceDir: ~/.local/share/otel-settings/current
+            webroot: ${{ inputs.webroot }}
+            hostname: ${{ inputs.settingsHostname }}
+        dependsOn:
+          - step: render-settings
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: serve-settings
+        description: Serve the webroot at settings.otel.fi.gy via Caddy file_server.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: otel-caddy
+          methodName: serveSettings
+          globalArgs:
+            baseDomain: otel.fi.gy
+            letsEncryptEmail: svendowideit@home.org.au
+            serviceName: otel-caddy
+            plugins:
+              - github.com/caddy-dns/gandi
+          inputs:
+            hostname: ${{ inputs.settingsHostname }}
+            root: ${{ inputs.webroot }}/current
+        dependsOn:
+          - step: publish-bundle
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: verify-settings
+        description: Fetch the live index document to prove the URL works.
+        task:
+          type: model_method
+          modelType: "@svendowideit/settings-server"
+          modelName: settings
+          methodName: verify
+          globalArgs:
+            sourceDir: ~/.local/share/otel-settings/current
+            webroot: ${{ inputs.webroot }}
+            hostname: ${{ inputs.settingsHostname }}
+        dependsOn:
+          - step: serve-settings
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

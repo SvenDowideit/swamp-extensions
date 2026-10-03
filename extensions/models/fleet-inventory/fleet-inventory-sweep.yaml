@@ -1,0 +1,142 @@
+id: 714e5155-38dc-46d1-a72c-6fbb75d1b199
+name: "@svendowideit/fleet-inventory-sweep"
+description: |
+  One command to build and classify the whole fleet inventory:
+  discover → probe → fingerprint → enrich → report.
+
+  It scans a CIDR (or reuses what has already been discovered), probes hosts
+  over SSH for facts, fingerprints them over HTTP/TLS to name their device class
+  (unifi, nanokvm, glinet, openwrt, esphome, shelly, ...), merges those classes
+  into the inventory, and writes the coverage report.
+
+  The scan CIDR can be GIVEN (--input cidr=...), or left empty to REUSE the
+  hosts already discovered by a previous run — so you can add a new CIDR, or
+  re-classify existing hosts, without rescanning. `discover` accumulates, so
+  running it with a different CIDR adds to the inventory.
+
+  Correlate (silent-host detection) is intentionally NOT here: it needs a
+  reporting-host feed from the telemetry backend, deferred to Phase 1.
+
+  Inputs:
+    cidr            CIDR to scan, e.g. 10.10.0.0/20. Empty = reuse existing.
+    ports           TCP ports for the liveness scan (default [22,80,443]).
+    sshUser         SSH user for probe (default: the fleet model's global).
+    probeTimeoutMs  SSH connect timeout (default 3000).
+    fingerprint     Run the HTTP/TLS fingerprint + enrich steps (default true).
+
+  Models are auto-created by type; no pre-setup needed.
+tags:
+  phase: "0"
+  area: inventory
+inputs:
+  properties:
+    cidr:
+      type: string
+      default: ""
+      description: CIDR to scan (empty reuses already-discovered hosts)
+    ports:
+      type: array
+      items:
+        type: integer
+      default: [22, 80, 443]
+      description: TCP ports for the liveness scan
+    sshUser:
+      type: string
+      default: "sven"
+      description: SSH user for probe
+    probeTimeoutMs:
+      type: integer
+      default: 3000
+      description: SSH connect timeout in milliseconds
+    fingerprint:
+      type: boolean
+      default: true
+      description: Run the HTTP/TLS fingerprint and enrich steps
+  required: []
+jobs:
+  - name: sweep
+    description: Discover, probe, fingerprint, enrich, and report.
+    steps:
+      - name: discover
+        description: Scan the CIDR (or reuse existing); discovery accumulates.
+        task:
+          type: model_method
+          modelType: "@svendowideit/fleet-inventory"
+          modelName: fleet
+          methodName: discover
+          inputs:
+            cidr: ${{ inputs.cidr }}
+            ports: ${{ inputs.ports }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: probe
+        description: SSH every not-yet-probed inventoried host for facts.
+        task:
+          type: model_method
+          modelType: "@svendowideit/fleet-inventory"
+          modelName: fleet
+          methodName: probe
+          inputs:
+            sshUser: ${{ inputs.sshUser }}
+            timeoutMs: ${{ inputs.probeTimeoutMs }}
+        dependsOn:
+          - step: discover
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: fingerprint
+        description: Fingerprint every inventoried address over HTTP/TLS.
+        task:
+          type: model_method
+          modelType: "@svendowideit/device-fingerprint/http"
+          modelName: fleet-fingerprint
+          methodName: fingerprint
+          inputs:
+            hosts: ${{ data.latest("fleet", "discovery").attributes.discovered.map(h, h.address).filter(a, a != "") }}
+        dependsOn:
+          - step: probe
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
+      - name: enrich
+        description: Merge the fingerprint classes into the inventory.
+        task:
+          type: model_method
+          modelType: "@svendowideit/fleet-inventory"
+          modelName: fleet
+          methodName: enrich
+          inputs:
+            fingerprints: >-
+              ${{ data.latest("fleet-fingerprint", "current").attributes.hosts.filter(h, h.deviceClass != "").map(h, {"host": h.host, "deviceClass": h.deviceClass, "vendor": h.vendor}) }}
+        dependsOn:
+          - step: fingerprint
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
+      - name: report
+        description: Write the coverage report (total, tiers, OS, device classes).
+        task:
+          type: model_method
+          modelType: "@svendowideit/fleet-inventory"
+          modelName: fleet
+          methodName: report
+        dependsOn:
+          - step: enrich
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+reports:
+  require:
+    - "@svendowideit/fleet-inventory-report"
+version: 1

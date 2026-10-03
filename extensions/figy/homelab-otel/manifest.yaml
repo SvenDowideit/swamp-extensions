@@ -1,0 +1,79 @@
+manifestVersion: 1
+name: "@figy/homelab-otel"
+version: "2026.10.03.1"
+description: >
+  Site-specific OpenTelemetry bootstrap for the fi.gy homelab — my domains,
+  meshes, and tiers, wired into one workflow.
+
+  WHAT IT DOES
+
+    The concrete, private half of an OpenTelemetry fleet setup. It supplies my
+    observability contract — the dedicated `otel.fi.gy` sub-zone, the tailscale
+    and wireguard gateway endpoints, home/sven attributes, and 14/90/7-day
+    retention — to the generic @svendowideit models, and runs the whole publish
+    path: render the contract, stage it versioned, serve it over HTTP(S) at
+    `settings.otel.fi.gy` with Caddy (DNS-01 TLS via the Gandi driver), and
+    verify the live document. Prefer it over hand-editing settings on each host:
+    change the contract once and every agent fetches it. This is site-specific
+    by design — it encodes my domains, meshes, and gear, so it is useless without
+    them; the portable model types live in @svendowideit.
+
+  INSTALL
+
+      swamp extension pull @figy/homelab-otel
+
+  DEPENDENCIES
+
+    @svendowideit/otel-settings, @svendowideit/settings-server, and
+    @svendowideit/caddy — pulled separately. A `figy`-trusted swamp repo
+    (`swamp extension trust add figy`) so the pull resolves.
+
+  RUN
+
+      # Render, stage, serve, and verify the fi.gy observability contract.
+      swamp workflow run @figy/homelab-otel-bootstrap
+
+      # Read the resolved contract for scripting.
+      swamp data get otel resolved --json
+
+      # Fetch the served machine contract.
+      curl https://settings.otel.fi.gy/otel.json
+
+  CONFIGURE
+
+    The workflow takes optional --input overrides, so the same definition runs in
+    each environment:
+
+      deploymentEnvironment   dev (this machine) | uat (T440s) | prod (Xeon)
+      settingsHostname        defaults to settings.otel.fi.gy
+      webroot                 directory Caddy serves the staged bundle from
+
+    The site values themselves (domain, endpoints, meshes, retention) are fixed
+    in the workflow's step globalArgs, because they are the point of this
+    extension.
+
+  WHAT IT INSTALLS
+
+    Nothing directly — it creates/updates swamp models and data, and (via
+    @svendowideit/caddy) configures a Caddy route serving the settings webroot at
+    `settings.otel.fi.gy`. No cron triggers or webhooks.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - homelab_otel.ts
+
+workflows:
+  - homelab-otel-bootstrap.yaml
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - homelab_otel_test.ts
+
+platforms: []

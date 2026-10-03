@@ -1,0 +1,100 @@
+manifestVersion: 1
+name: "@svendowideit/otel-backend"
+version: "2026.10.03.1"
+description: >
+  Stand up a self-hosted observability backend from a small set of profiles,
+  so a collector gateway has somewhere to send logs, metrics, and traces.
+
+  WHAT IT DOES
+
+    Installs and runs a single-node observability store — OpenObserve is the
+    profile shipped and tested first — as a long-lived service, and reports its
+    health, version, and the OTLP/HTTP endpoints a collector should export to.
+    The backend is modelled as a swappable profile rather than hardcoded: the
+    contract (image, ports, data dir, env, OTLP path) is a data structure, so a
+    future LGTM / VictoriaMetrics / ClickHouse lane is a new profile, not a
+    rewrite. Prefer it over hand-running `docker run`: it is idempotent, reads
+    its admin credentials from a swamp vault (never inlined), and prints the
+    exact `curl` that proves telemetry landed so you can verify the pipeline.
+    Generic — it knows nothing about your network.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/otel-backend
+
+  DEPENDENCIES
+
+    Docker (the openobserve profile runs the published image). Credentials are
+    read from a swamp vault by name; create one with
+    @svendowideit/systemd-creds. The openobserve profile seeds its first admin
+    user at first start, so BOTH ZO_ROOT_USER_EMAIL and ZO_ROOT_USER_PASSWORD
+    must already be stored in the vault before install, or the container
+    crash-loops. Run these once, before the first install:
+
+      swamp vault create @svendowideit/systemd-creds otel-openobserve-admin
+      swamp vault put otel-openobserve-admin ZO_ROOT_USER_EMAIL
+      swamp vault put otel-openobserve-admin ZO_ROOT_USER_PASSWORD
+
+    The email is lowercased on the way in (OpenObserve rejects uppercase, so the
+    model warns and lowercases rather than let the container crash-loop), and the
+    password is validated against the store's policy first: 8-128 characters with
+    at least one lowercase, one uppercase, one digit, and one special character.
+
+  RUN
+
+      # Create the backend model, pointed at your vault and storage.
+      swamp model create @svendowideit/otel-backend otel-backend \
+        --global-arg profile=openobserve \
+        --global-arg vaultName=otel-openobserve-admin \
+        --global-arg dataDir=/var/lib/otel-backend
+
+      # Install/run the backend and wait for it to answer healthy.
+      swamp model method run otel-backend install
+
+      # Check health and the OTLP endpoint a gateway should export to.
+      swamp model method run otel-backend status
+      swamp data get otel-backend status --json | jq '.content.endpoints'
+
+  CONFIGURE
+
+    All arguments are global args set at creation:
+
+      profile            Backend profile to run (openobserve; more later)
+      image              Container image (defaults to the profile's image)
+      port               Host port for the UI and OTLP/HTTP (default 5080)
+      dataDir            Host directory persisted as the data volume
+      vaultName          Vault holding admin credentials (never inlined)
+      rootUserEmail      Admin email to seed on first start (optional)
+      organization       OpenObserve organization (default: default)
+      containerName      Container name (default derived from the model)
+      restartPolicy      Container restart policy (default unless-stopped)
+      extraEnv           Extra environment variables for the container
+
+    Methods: `install` (pull + run + wait healthy), `configure` (re-render and
+    recreate the container), `status` (health + endpoints), `upgrade` (bump the
+    image), `remove` (stop + remove the container). The default profile also
+    exposes `profile` to print the contract.
+
+  WHAT IT INSTALLS
+
+    A single Docker container running the backend image, bound to the host port
+    you choose, with a persistent host directory for its data. Nothing is
+    exposed publicly by this model — bind it to a mesh/LAN address via your
+    firewall or a reverse proxy. No cron, no webhooks.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - otel_backend.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - otel_backend_test.ts
+
+platforms: []

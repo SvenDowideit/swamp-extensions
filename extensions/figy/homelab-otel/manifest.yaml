@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@figy/homelab-otel"
-version: "2026.10.03.1"
+version: "2026.10.03.2"
 description: >
   Site-specific OpenTelemetry bootstrap for the fi.gy homelab — my domains,
   meshes, and tiers, wired into one workflow.
@@ -24,14 +24,31 @@ description: >
 
   DEPENDENCIES
 
-    @svendowideit/otel-settings, @svendowideit/settings-server, and
-    @svendowideit/caddy — pulled separately. A `figy`-trusted swamp repo
+    @svendowideit/otel-settings, @svendowideit/settings-server,
+    @svendowideit/caddy, @svendowideit/otel-backend, @svendowideit/otel-gateway,
+    and @svendowideit/openobserve — pulled separately. A `figy`-trusted swamp repo
     (`swamp extension trust add figy`) so the pull resolves.
+
+    Docker, plus the store's admin login in a vault BEFORE running the backend
+    bootstrap. The OpenObserve profile seeds its first admin user at first start,
+    so both keys must exist or the container crash-loops:
+
+      swamp vault create @svendowideit/systemd-creds otel-openobserve-admin
+      swamp vault put otel-openobserve-admin ZO_ROOT_USER_EMAIL
+      swamp vault put otel-openobserve-admin ZO_ROOT_USER_PASSWORD
 
   RUN
 
+      # Store the store's admin login first (the backend seeds it on first start).
+      swamp vault create @svendowideit/systemd-creds otel-openobserve-admin
+      swamp vault put otel-openobserve-admin ZO_ROOT_USER_EMAIL
+      swamp vault put otel-openobserve-admin ZO_ROOT_USER_PASSWORD
+
       # Render, stage, serve, and verify the fi.gy observability contract.
       swamp workflow run @figy/homelab-otel-bootstrap
+
+      # Bring up the whole core node: store + gateway + DNS + round-trip verify.
+      swamp workflow run @figy/bootstrap-otel-backend
 
       # Read the resolved contract for scripting.
       swamp data get otel resolved --json
@@ -41,15 +58,17 @@ description: >
 
   CONFIGURE
 
-    The workflow takes optional --input overrides, so the same definition runs in
-    each environment:
+    Each workflow takes optional --input overrides, so the same definitions run
+    in each environment:
 
       deploymentEnvironment   dev (this machine) | uat (T440s) | prod (Xeon)
       settingsHostname        defaults to settings.otel.fi.gy
       webroot                 directory Caddy serves the staged bundle from
+      bindAddress             address the store/gateway bind to (127.0.0.1 or a mesh address)
+      vaultName               vault holding the OpenObserve admin login
 
     The site values themselves (domain, endpoints, meshes, retention) are fixed
-    in the workflow's step globalArgs, because they are the point of this
+    in the workflows' step globalArgs, because they are the point of this
     extension.
 
   WHAT IT INSTALLS
@@ -70,6 +89,15 @@ models:
 
 workflows:
   - homelab-otel-bootstrap.yaml
+  - bootstrap-otel-backend.yaml
+
+dependencies:
+  - "@svendowideit/otel-settings"
+  - "@svendowideit/settings-server"
+  - "@svendowideit/caddy"
+  - "@svendowideit/otel-backend"
+  - "@svendowideit/otel-gateway"
+  - "@svendowideit/openobserve"
 
 additionalFiles:
   - README.md

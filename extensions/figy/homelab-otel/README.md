@@ -32,8 +32,19 @@ swamp extension pull @figy/homelab-otel
 ```
 
 Requires a `figy`-trusted repo (`swamp extension trust add figy`) and the
-`@svendowideit/otel-settings`, `@svendowideit/settings-server`, and
-`@svendowideit/caddy` extensions.
+`@svendowideit/otel-settings`, `@svendowideit/settings-server`,
+`@svendowideit/caddy`, `@svendowideit/otel-backend`, `@svendowideit/otel-gateway`,
+and `@svendowideit/openobserve` extensions.
+
+`bootstrap-otel-backend` additionally needs Docker and the store's admin login in
+a vault **before** it runs — the OpenObserve container seeds its first admin user
+at first start, so both keys must exist or the container crash-loops:
+
+```sh
+swamp vault create @svendowideit/systemd-creds otel-openobserve-admin
+swamp vault put otel-openobserve-admin ZO_ROOT_USER_EMAIL
+swamp vault put otel-openobserve-admin ZO_ROOT_USER_PASSWORD
+```
 
 ## Configuration
 
@@ -46,6 +57,10 @@ each environment. The site values themselves are fixed in the workflow's step
 | `deploymentEnvironment` | string | `dev` | `deployment.environment` — `dev` (this machine), `uat` (T440s), `prod` (Xeon). |
 | `settingsHostname` | string | `settings.otel.fi.gy` | Hostname the settings documents are served on. |
 | `webroot` | string | `~/.local/share/settings-server` | Directory Caddy serves the staged bundle from. |
+| `bindAddress` | string | `127.0.0.1` | Address the store and gateway bind to. |
+| `backendPort` | integer | `5080` | Host port for the store UI/API and OTLP/HTTP. |
+| `vaultName` | string | `otel-openobserve-admin` | Vault holding the admin login. |
+| `verifyMarker` | string | `phase1-bootstrap-verify` | Marker in the synthetic OTLP record. |
 
 ## Examples
 
@@ -81,10 +96,27 @@ curl https://settings.otel.fi.gy/otel.json
 curl https://settings.otel.fi.gy/otel.env
 ```
 
+Bring up the whole Phase 1 core node — the store, the gateway, the DNS records,
+and a synthetic round-trip to prove it — in one command. Run this when bringing
+up a new core node (dev, then UAT, then prod):
+
+```sh
+swamp workflow run @figy/bootstrap-otel-backend
+# The same definition on another host, with the environment label changed.
+swamp workflow run @figy/bootstrap-otel-backend \
+  --input deploymentEnvironment=uat --input bindAddress=0.0.0.0
+```
+
+Confirm the synthetic record landed by querying the store back with SQL:
+
+```sh
+swamp data get obs last --json | jq '.content.rows'
+```
+
 ## Details
 
-`@figy/homelab-otel` ships one model type (`@figy/homelab-otel`) and one workflow
-(`homelab-otel-bootstrap`).
+`@figy/homelab-otel` ships one model type (`@figy/homelab-otel`) and two
+workflows (`homelab-otel-bootstrap`, `bootstrap-otel-backend`).
 
 Model method:
 
@@ -96,12 +128,26 @@ Resource: `topology` (the site catalog).
 
 ### Workflow steps
 
+`homelab-otel-bootstrap` (settings only):
+
 | Step | Model type | Method | What it does |
 | ---- | ---------- | ------ | ------------ |
 | `render-settings` | `@svendowideit/otel-settings` (`otel`) | `render` | Resolve the fi.gy contract and write the HTTP document set. |
 | `publish-bundle` | `@svendowideit/settings-server` (`settings`) | `publish` | Stage the documents into the webroot and flip `current`. |
 | `serve-settings` | `@svendowideit/caddy` (`otel-caddy`) | `serveSettings` | Serve the webroot at `settings.otel.fi.gy` via `file_server`. |
 | `verify-settings` | `@svendowideit/settings-server` (`settings`) | `verify` | Fetch the live index document (allowed to fail so a DNS/TLS delay does not block the run). |
+
+`bootstrap-otel-backend` (the Phase 1 core node):
+
+| Step | Model type | Method | What it does |
+| ---- | ---------- | ------ | ------------ |
+| `topology` | `@figy/homelab-otel` (`homelab-otel`) | `describe` | Emit the fi.gy topology used by later steps. |
+| `render-settings` | `@svendowideit/otel-settings` (`otel`) | `render` | Resolve the contract the fleet will fetch. |
+| `backend` | `@svendowideit/otel-backend` (`otel-backend`) | `install` | Start OpenObserve with the vault admin login. |
+| `gateway` | `@svendowideit/otel-gateway` (`otel-gateway`) | `install` | Start the collector, exporting to the backend with vault Basic auth. |
+| `dns-records` | `@svendowideit/caddy` (`otel-caddy`) | `applyDnsRecords` | Reconcile the `otel`/`otlp`/`settings`/`obs.otel` records (allowed to fail). |
+| `verify-push` | `@svendowideit/otel-gateway` (`otel-gateway`) | `verify` | Push a synthetic OTLP record through the gateway. |
+| `verify-query` | `@svendowideit/openobserve` (`obs`) | `query` | Query the record back from OpenObserve with SQL. |
 
 ### The fi.gy layout
 
@@ -118,12 +164,13 @@ zone. `home.org.au` remains the DHCP/search suffix for now and is not automated.
 
 ### Extending and testing
 
-- The site values live in the step `globalArgs` of
-  `homelab-otel-bootstrap.yaml`. Edit them there, then re-run — the workflow
-  auto-creates/updates the `otel`, `settings`, and `otel-caddy` models.
+- The site values live in the step `globalArgs` of the workflow YAMLs. Edit them
+  there, then re-run — the workflows auto-create/update the `otel`, `settings`,
+  `otel-caddy`, `otel-backend`, `otel-gateway`, and `obs` models.
 - Add a second region or mesh by adding an `endpoints` entry and, if needed, an
   internal DNS model; the generic renderer already supports multiple endpoints.
-- Validate before running: `swamp workflow validate homelab-otel-bootstrap`.
+- Validate before running: `swamp workflow validate homelab-otel-bootstrap` and
+  `swamp workflow validate @figy/bootstrap-otel-backend`.
 
 ### Secrets
 

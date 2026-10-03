@@ -1,0 +1,89 @@
+manifestVersion: 1
+name: "@svendowideit/otel-gateway"
+version: "2026.10.03.1"
+description: >
+  The central OpenTelemetry Collector gateway: one OTLP endpoint your fleet
+  pushes to, which fans out to one or more backends.
+
+  WHAT IT DOES
+
+    Stands up an otelcol-contrib gateway that receives OTLP over gRPC and HTTP
+    and exports to one or more backend lanes. It is the seam that makes the
+    backend swappable: agents only ever point at the gateway, so changing the
+    store is a gateway re-render, not a fleet-wide re-instrumentation, and
+    running two exporters at once gives you a dual-write migration for free.
+    Prefer it over hand-editing a collector config: the config is rendered from
+    structured receivers/exporters and unit-tested, the release binary is
+    checksum-verified before it runs, backend credentials are read from a swamp
+    vault into a 0600 env file (never inlined in the config), and it installs as
+    a systemd user service with a health check. Generic — it knows nothing about
+    your network beyond the ports and exporters you give it.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/otel-gateway
+
+  DEPENDENCIES
+
+    None to install, but it runs on systemd (user services) and downloads the
+    otelcol-contrib release from GitHub. Backend credentials come from a swamp
+    vault (@svendowideit/systemd-creds); set vaultName and store the header
+    value under the header's valueEnv name.
+
+  RUN
+
+      # Create the gateway, pointing at an OpenObserve backend and its vault.
+      swamp model create @svendowideit/otel-gateway otel-gateway \
+        --global-arg vaultName=otel-openobserve-admin \
+        --global-arg bindAddress=0.0.0.0 \
+        --global-arg 'exporters=[{"name":"openobserve","endpoint":"http://127.0.0.1:5080/api/default","headers":[{"name":"Authorization","valueEnv":"OO_AUTH"},{"name":"stream-name","value":"default"}]}]'
+
+      # Install the binary, render the config, and start the service.
+      swamp model method run otel-gateway install
+
+      # Confirm it is healthy and see the OTLP endpoint agents should use.
+      swamp model method run otel-gateway status
+      swamp data get otel-gateway status --json | jq '.content.endpoints'
+
+  CONFIGURE
+
+    All arguments are global args set at creation:
+
+      version              otelcol-contrib version (empty = latest release)
+      bindAddress          Address the OTLP receivers bind to (127.0.0.1 local-only; set a mesh address for the fleet)
+      grpcPort / httpPort  OTLP receiver ports (4317 / 4318)
+      healthPort           health_check extension port (13133)
+      metricsPort          the collector's own prometheus metrics (8888)
+      exporters            Backend lanes: name, endpoint (no trailing slash), headers, basicAuth, signals, enabled
+      vaultName            Vault holding values for any header that names a valueEnv, or a basicAuth pair
+      samplingHeadPercent  Head sampling applied to traces (100 = off)
+      memoryLimitMiB       Soft memory limit (GOMEMLIMIT) for the collector
+      installDir           Where the binary, config, and env file live
+
+    Methods: `install` (download + render + start + health-gate), `configure`
+    (re-render and restart), `status` (service + health + endpoints), `remove`
+    (stop and disable, optionally delete the install dir).
+
+  WHAT IT INSTALLS
+
+    The otelcol-contrib binary under installDir, a rendered config.yaml, a 0600
+    gateway.env holding any vault-sourced header values, and a systemd user
+    service that restarts on failure. It does not open a public port by itself —
+    bind to a mesh/LAN address as needed. No cron, no webhooks.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - otel_gateway.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - otel_gateway_test.ts
+
+platforms: []

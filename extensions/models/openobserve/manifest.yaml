@@ -1,0 +1,84 @@
+manifestVersion: 1
+name: "@svendowideit/openobserve"
+version: "2026.10.03.1"
+description: >
+  Query and operate a self-hosted OpenObserve instance from swamp over its
+  REST/SQL API.
+
+  WHAT IT DOES
+
+    Answers questions of an OpenObserve store — logs, metrics, and traces in one
+    engine — with SQL. That matters because the hard fleet questions are joins:
+    "inventory says these hosts are managed, the telemetry says these are
+    reporting, which are missing?" In OpenObserve that is one query. Prefer this
+    over hand-rolled curl: it keeps the login in a swamp vault, sends a proper
+    Basic auth header (or a ready-made one), uses microseconds for the query
+    window so results are not silently empty, guards the read-only SQL API, and
+    parses responses into typed resources other models can reference. Generic —
+    it knows nothing about your network.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/openobserve
+
+  DEPENDENCIES
+
+    A running OpenObserve instance (install one with @svendowideit/otel-backend).
+    Credentials from a swamp vault; set vaultName and store the login.
+
+  RUN
+
+      # Point at your store, reading credentials from a vault.
+      swamp model create @svendowideit/openobserve obs \
+        --global-arg baseUrl=http://127.0.0.1:5080 \
+        --global-arg vaultName=otel-openobserve-admin
+
+      # Confirm the instance is up (a refused connection is a result, not an error).
+      swamp model method run obs health
+
+      # Run SQL and keep the rows for other models to reference.
+      swamp model method run obs query \
+        --input 'sql=select service_name, count(*) c from "default" group by service_name order by c desc limit 20'
+
+      # List streams and their document counts, or per-stream retention.
+      swamp model method run obs streams
+      swamp model method run obs retention
+
+  CONFIGURE
+
+    All arguments are global args set at creation:
+
+      baseUrl         OpenObserve base URL (no trailing slash)
+      organization    Organization to query (default: default)
+      vaultName       Vault holding the credentials
+      emailKey        Vault key for the login email (default ZO_ROOT_USER_EMAIL)
+      authRef     Vault key for the login password (default ZO_ROOT_USER_PASSWORD)
+      authHeaderKey   Vault key for a ready-made Authorization header (wins when set)
+      timeoutMs       Per-request timeout
+      defaultSize     Rows returned when a query gives no size
+
+    Method `query` takes `sql`, `type` (logs/metrics/traces), optional
+    `startTime`/`endTime` (microseconds since epoch) and `size`. `streams` takes
+    an optional `type`; `retention` an optional `stream`; `health` takes none.
+
+  WHAT IT INSTALLS
+
+    Nothing — it only calls the OpenObserve HTTP API and writes swamp resources.
+    No services, cron, or webhooks.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - openobserve.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - openobserve_test.ts
+
+platforms: []

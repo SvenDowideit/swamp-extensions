@@ -1,0 +1,258 @@
+id: 477b856a-8f92-4a48-82ac-40504cd5b7df
+name: "@figy/bootstrap-otel-backend"
+description: |
+  @figy site-specific OpenTelemetry backend bootstrap for the fi.gy homelab:
+  bring up the whole core node in one run — the OpenObserve store, the collector
+  gateway that fans out to it, the DNS records for the otel.fi.gy names, and a
+  synthetic OTLP push that proves the pipeline end-to-end.
+
+  This is the Phase 1 core-node build. It is the concrete half of the generic
+  @svendowideit extensions: the store and gateway profiles are portable, but the
+  fi.gy names, the Gandi provider, and the vault holding the admin login are mine.
+
+  Order (and why):
+    1. topology  — emit the fi.gy records/endpoints the later steps reference.
+    2. render    — resolve the contract the fleet will fetch.
+    3. backend    — start OpenObserve (Docker image, vault login).
+    4. gateway    — start the collector, exporting to the backend with a Basic
+                    auth header built from the same vault login.
+    5. dns        — reconcile the otel/otlp/settings/obs records via Caddy.
+    6. verify     — push a synthetic OTLP record through the gateway to prove
+                    receive → export → store before declaring success.
+    7. check      — query the record back from OpenObserve with SQL.
+
+  Prerequisites (do these first, or the backend step fails):
+    - Docker installed and running.
+    - The OpenObserve admin login in a vault. The store seeds its FIRST admin
+      user at first start, so both keys must exist before the backend installs,
+      or the container crash-loops:
+        swamp vault create @svendowideit/systemd-creds otel-openobserve-admin
+        swamp vault put otel-openobserve-admin ZO_ROOT_USER_EMAIL
+        swamp vault put otel-openobserve-admin ZO_ROOT_USER_PASSWORD
+      (or pass --input vaultName=<your-vault> matching where you stored them).
+    - @svendowideit/otel-backend, @svendowideit/otel-gateway, and
+      @svendowideit/openobserve pulled, and a figy-trusted repo.
+
+  Usage:
+    swamp workflow run @figy/bootstrap-otel-backend
+    swamp workflow run @figy/bootstrap-otel-backend --input deploymentEnvironment=uat
+
+  Verify by hand afterwards:
+    curl https://settings.otel.fi.gy/otel.json
+    swamp data get obs last --json | jq '.content.rows'
+tags:
+  phase: "1"
+  collective: figy
+inputs:
+  properties:
+    deploymentEnvironment:
+      type: string
+      default: dev
+      description: deployment.environment (dev on this machine, uat on T440s, prod on Xeon).
+    backendPort:
+      type: integer
+      default: 5080
+      description: Host port for the OpenObserve UI/API and OTLP/HTTP.
+    gatewayGrpcPort:
+      type: integer
+      default: 4317
+      description: Host port for the gateway's OTLP/gRPC receiver.
+    gatewayHttpPort:
+      type: integer
+      default: 4318
+      description: Host port for the gateway's OTLP/HTTP receiver.
+    bindAddress:
+      type: string
+      default: 127.0.0.1
+      description: Address the backend and gateway bind to. Set a mesh/LAN address to accept the fleet.
+    verifyMarker:
+      type: string
+      default: phase1-bootstrap-verify
+      description: Marker written into the synthetic OTLP record and queried back.
+    vaultName:
+      type: string
+      default: otel-openobserve-admin
+      description: Vault holding the OpenObserve admin login (email + password).
+  required: []
+jobs:
+  - name: core
+    description: Build and verify the fi.gy OTel core node.
+    steps:
+      - name: topology
+        description: Emit the fi.gy topology (zone, records, endpoints, hosts).
+        task:
+          type: model_method
+          modelType: "@figy/homelab-otel"
+          modelName: homelab-otel
+          methodName: describe
+          globalArgs:
+            deploymentEnvironment: ${{ inputs.deploymentEnvironment }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: render-settings
+        description: Resolve the fi.gy contract and write the HTTP document set.
+        task:
+          type: model_method
+          modelType: "@svendowideit/otel-settings"
+          modelName: otel
+          methodName: render
+          globalArgs:
+            domain: otel.fi.gy
+            deploymentEnvironment: ${{ inputs.deploymentEnvironment }}
+            site: home
+            owner: sven
+            defaultMesh: tailscale
+            endpoints:
+              - otlp_grpc: otlp.fi.gy:4317
+                otlp_http: otlp.fi.gy:4318
+                otlp_grpc_url: ""
+                otlp_http_url: ""
+                mesh: tailscale
+              - otlp_grpc: otlp.wg.otel.fi.gy:4317
+                otlp_http: otlp.wg.otel.fi.gy:4318
+                otlp_grpc_url: ""
+                otlp_http_url: ""
+                mesh: wireguard
+            sampling:
+              head_percent: 100
+            retention:
+              logs: 14
+              metrics: 90
+              traces: 7
+            attributes:
+              site: home
+              owner: sven
+            outputDir: ~/.local/share/otel-settings
+        dependsOn:
+          - step: topology
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: backend
+        description: Start the OpenObserve store with its admin login from the vault.
+        task:
+          type: model_method
+          modelType: "@svendowideit/otel-backend"
+          modelName: otel-backend
+          methodName: install
+          globalArgs:
+            profile: openobserve
+            port: ${{ inputs.backendPort }}
+            bindAddress: ${{ inputs.bindAddress }}
+            vaultName: ${{ inputs.vaultName }}
+        dependsOn:
+          - step: render-settings
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: gateway
+        description: Start the collector, exporting to the backend with vault Basic auth.
+        task:
+          type: model_method
+          modelType: "@svendowideit/otel-gateway"
+          modelName: otel-gateway
+          methodName: install
+          globalArgs:
+            bindAddress: ${{ inputs.bindAddress }}
+            grpcPort: ${{ inputs.gatewayGrpcPort }}
+            httpPort: ${{ inputs.gatewayHttpPort }}
+            vaultName: ${{ inputs.vaultName }}
+            exporters:
+              - name: openobserve
+                endpoint: http://127.0.0.1:${{ inputs.backendPort }}/api/default
+                basicAuth:
+                  emailEnv: ZO_ROOT_USER_EMAIL
+                  authEnv: ZO_ROOT_USER_PASSWORD
+                headers:
+                  - name: stream-name
+                    value: default
+        dependsOn:
+          - step: backend
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: dns-records
+        description: Reconcile the otel/otlp/settings/obs records via Caddy dns_records.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: otel-caddy
+          methodName: applyDnsRecords
+          globalArgs:
+            baseDomain: otel.fi.gy
+            letsEncryptEmail: svendowideit@home.org.au
+            serviceName: otel-caddy
+            environmentFile: /home/sven/.config/caddy/dns.env
+            plugins:
+              - github.com/caddy-dns/gandi
+            dnsRecords:
+              - name: otel.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+              - name: settings.otel.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+              - name: otlp.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+              - name: obs.otel.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+        dependsOn:
+          - step: gateway
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
+      - name: verify-push
+        description: Push a synthetic OTLP record through the gateway.
+        task:
+          type: model_method
+          modelType: "@svendowideit/otel-gateway"
+          modelName: otel-gateway
+          methodName: verify
+          inputs:
+            marker: ${{ inputs.verifyMarker }}
+            waitMs: 5000
+        dependsOn:
+          - step: gateway
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: verify-query
+        description: Query the synthetic record back from OpenObserve with SQL.
+        task:
+          type: model_method
+          modelType: "@svendowideit/openobserve"
+          modelName: obs
+          methodName: query
+          globalArgs:
+            baseUrl: http://127.0.0.1:${{ inputs.backendPort }}
+            organization: default
+            vaultName: ${{ inputs.vaultName }}
+          inputs:
+            sql: select body, service_name from "default" where service_name = 'swamp-otel-gateway-verify' order by _timestamp desc limit 5
+        dependsOn:
+          - step: verify-push
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

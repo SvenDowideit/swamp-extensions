@@ -249,13 +249,19 @@ export function buildTopology(
 /** The swamp model definition for `@figy/homelab-otel`. */
 export const model = {
   type: "@figy/homelab-otel",
-  version: "2026.10.03.1",
+  version: "2026.10.03.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
       toVersion: "2026.10.03.1",
       description:
         "Initial release: emit the fi.gy otel.fi.gy topology (zone, records, per-mesh endpoints, hosts) as a typed resource for other models and workflows to reference via CEL.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.03.2",
+      description:
+        "Adds the @figy/bootstrap-otel-backend workflow and declares the generic dependencies (otel-settings, settings-server, caddy, otel-backend, otel-gateway, openobserve). No model schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

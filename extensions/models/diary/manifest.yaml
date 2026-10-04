@@ -41,23 +41,22 @@ description: >
 
       # Collect a day from the synced fitness data (defaults to today in
       # Australia/Brisbane) and write one collect resource.
-      swamp model @svendowideit/diary method run collect obsidian-vault
+      swamp model method run obsidian-vault collect
 
       # Render the markdown without touching the vault first, so you can check
       # the page shape before publishing.
-      swamp model @svendowideit/diary method run render obsidian-vault
+      swamp model method run obsidian-vault render
 
       # Publish: render, merge into the existing daily note between the managed
       # markers, and write daily/<date>.md through the vault model.
-      swamp model @svendowideit/diary method run publish obsidian-vault
+      swamp model method run obsidian-vault publish
 
       # Or run the bundled workflow, which does collect + publish in one go and
       # is scheduled daily at 07:00 local under 'swamp serve'.
       swamp workflow run @svendowideit/diary-daily
 
-      # Backfill a specific past day instead of today.
-      swamp model @svendowideit/diary method run publish obsidian-vault \
-        --input date=2026-09-30
+      # Backfill a specific past day instead of today (note it will not fetch data, just use what is in swamp already).
+      swamp workflow run @svendowideit/diary-daily --input date=2026-10-03
 
   CONFIGURE
 

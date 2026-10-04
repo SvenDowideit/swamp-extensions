@@ -106,18 +106,19 @@ swamp model create @magistr/obsidian/vault obsidian-vault \
   --global-arg vaultRoot=$HOME/Obsidian/Vault
 
 # Collect today's data and inspect the raw payload (rides, wellness, picks,
-# and which sources were missing).
-swamp model @svendowideit/diary method run collect obsidian-vault
+# and which sources were missing). collect writes to the 'collect' spec.
+swamp model method run obsidian-vault collect
 swamp data get obsidian-vault daily-$(date +%F) --json
 
 # Render the markdown and read it before publishing — useful when changing the
-# page layout or checking a source model's field names.
-swamp model @svendowideit/diary method run render obsidian-vault
-swamp data get obsidian-vault daily-$(date +%F) --json | jq -r '.content.markdown'
+# page layout or checking a source model's field names. render writes the
+# markdown to the 'page' spec named page-<date>, not the collect resource.
+swamp model method run obsidian-vault render
+swamp data get obsidian-vault page-$(date +%F) --json | jq -r '.content.markdown'
 
 # Publish into daily/<date>.md. Re-running is safe: only the region between the
 # markers is rewritten, so your headings, prose and ticked boxes survive.
-swamp model @svendowideit/diary method run publish obsidian-vault
+swamp model method run obsidian-vault publish
 
 # Or run the whole collect→publish chain as one scheduled job, and inspect the
 # run afterwards. This is what runs at 07:00 under 'swamp serve'.

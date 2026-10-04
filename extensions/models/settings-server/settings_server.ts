@@ -61,6 +61,15 @@ const VerifyArgsSchema = z.object({
 
 const ServeArgsSchema = z.object({});
 
+const MirrorArgsSchema = z.object({
+  version: z.string().default("").describe(
+    "Version/hash directory to mirror into; empty uses the current pointer",
+  ),
+  force: z.boolean().default(false).describe(
+    "Re-download even when a matching checksum is already present",
+  ),
+}).describe("No arguments");
+
 // ---------------------------------------------------------------------------
 // Output schemas
 // ---------------------------------------------------------------------------
@@ -96,6 +105,22 @@ const ServeOutputSchema = z.object({
   url: z.string(),
   method: z.string(),
   servedAt: z.string(),
+});
+
+const MirrorAssetSchema = z.object({
+  assetName: z.string(),
+  url: z.string(),
+  bytes: z.number(),
+  sha256: z.string(),
+  written: z.boolean(),
+  cached: z.boolean(),
+});
+
+const MirrorOutputSchema = z.object({
+  version: z.string(),
+  installDir: z.string(),
+  assets: z.array(MirrorAssetSchema),
+  mirroredAt: z.string(),
 });
 
 // ---------------------------------------------------------------------------
@@ -189,8 +214,13 @@ export function contentHashHex(input: string): string {
 
 /** Cryptographic SHA-256 (hex) for staged-document integrity. */
 export async function sha256HexAsync(input: string): Promise<string> {
-  const data = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", data);
+  return await sha256HexBytes(new TextEncoder().encode(input));
+}
+
+/** Cryptographic SHA-256 (hex) of a byte array. */
+export async function sha256HexBytes(data: Uint8Array): Promise<string> {
+  const copy = data.slice().buffer as ArrayBuffer;
+  const digest = await crypto.subtle.digest("SHA-256", copy);
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
@@ -215,6 +245,86 @@ export function validateConfig(g: {
   return errors;
 }
 
+/** An install manifest entry the mirror consumes. */
+export interface InstallManifest {
+  /** Manifest schema id. */
+  schema: string;
+  /** Contract version. */
+  version: string;
+  /** Target OS token. */
+  os: string;
+  /** Target architecture token. */
+  arch: string;
+  /** Release asset file name. */
+  assetName: string;
+  /** Upstream (GitHub) tarball URL to fetch. */
+  upstreamTarballUrl: string;
+  /** Upstream checksum URL (a bare hex digest, as otelcol publishes it). */
+  upstreamChecksumUrl: string;
+}
+
+/**
+ * Parse an `install/<os>-<arch>.json` manifest. Tolerates the older shape
+ * (no agentName/assetName/upstream URLs) by deriving them, so a mirror can run
+ * against a contract rendered before mirroring existed.
+ */
+export function parseInstallManifest(text: string): InstallManifest {
+  const raw = JSON.parse(text) as Record<string, unknown>;
+  const os = String(raw.os ?? "");
+  const arch = String(raw.arch ?? "");
+  const assetName = String(
+    raw.assetName ??
+      `otelcol-contrib_${
+        String(raw.agentVersion ?? "").replace(/^v/, "")
+      }_${os}_${arch}.tar.gz`,
+  );
+  let upstreamTarballUrl = String(raw.upstreamTarballUrl ?? "");
+  let upstreamChecksumUrl = String(raw.upstreamChecksumUrl ?? "");
+  if (!upstreamTarballUrl) {
+    const version = String(raw.agentVersion ?? "").replace(/^v/, "");
+    const tag = version ? `v${version}` : "latest";
+    upstreamTarballUrl =
+      `https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/${tag}/${assetName}`;
+    upstreamChecksumUrl = `${upstreamTarballUrl}.sha256`;
+  }
+  return {
+    schema: String(raw.schema ?? "otel.install/v1"),
+    version: String(raw.version ?? ""),
+    os,
+    arch,
+    assetName,
+    upstreamTarballUrl,
+    upstreamChecksumUrl,
+  };
+}
+
+/** Parse a bare-sha256 file body (the first 64-hex substring), or "". */
+export function parseSha256(body: string): string {
+  const match = /[0-9a-fA-F]{64}/.exec(body);
+  return match ? match[0].toLowerCase() : "";
+}
+
+/** List the install manifests in a rendered settings tree (e.g. `current`). */
+export async function listInstallManifests(
+  root: string,
+): Promise<Array<{ path: string; text: string }>> {
+  const dir = `${root}/install`;
+  const out: Array<{ path: string; text: string }> = [];
+  try {
+    for await (const entry of Deno.readDir(dir)) {
+      if (entry.isFile && entry.name.endsWith(".json")) {
+        out.push({
+          path: entry.name,
+          text: await Deno.readTextFile(`${dir}/${entry.name}`),
+        });
+      }
+    }
+  } catch (err) {
+    if (!(err instanceof Deno.errors.NotFound)) throw err;
+  }
+  return out.sort((a, b) => a.path.localeCompare(b.path));
+}
+
 // ---------------------------------------------------------------------------
 // The model
 // ---------------------------------------------------------------------------
@@ -222,7 +332,7 @@ export function validateConfig(g: {
 /** The swamp model definition for `@svendowideit/settings-server`. */
 export const model = {
   type: "@svendowideit/settings-server",
-  version: "2026.10.03.1",
+  version: "2026.10.04.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -245,6 +355,12 @@ export const model = {
         "Initial release: stage a rendered settings bundle into a versioned webroot, expose the Caddy serveSettings wiring, and verify the live URL over HTTP.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.04.1",
+      description:
+        "Adds the mirror method: downloads the pinned agent release assets (from the install manifests' upstream URLs), checksum-verifies them, and stages them under the served webroot's install/ dir, reusing a cached asset whose digest matches. So agents fetch the collector from the core node instead of GitHub per host.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     publish: {
@@ -262,6 +378,12 @@ export const model = {
     serve: {
       description: "Serve wiring description for @svendowideit/caddy",
       schema: ServeOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    mirror: {
+      description: "Mirrored agent release assets",
+      schema: MirrorOutputSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -348,6 +470,147 @@ export const model = {
           publishedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
+      },
+    },
+
+    mirror: {
+      description:
+        "Download the pinned agent release assets into the served webroot's install/ dir",
+      arguments: MirrorArgsSchema,
+      execute: async (
+        args: z.infer<typeof MirrorArgsSchema>,
+        context: {
+          globalArgs: GlobalArgs;
+          logger?: {
+            info: (msg: string, props?: Record<string, unknown>) => void;
+          };
+          writeResource: (
+            specName: string,
+            name: string,
+            data: Record<string, unknown>,
+          ) => Promise<{ dataHandle: { name: string } } | { name: string }>;
+        },
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const webroot = expandHome(g.webroot);
+        // Mirror into the same versioned tree the documents live in, so a
+        // published contract and its binaries share one immutable version dir.
+        const targetRoot = args.version
+          ? `${webroot}/v/${args.version}`
+          : `${webroot}/current`;
+        const installDir = `${targetRoot}/install`;
+
+        const manifests = await listInstallManifests(targetRoot);
+        if (manifests.length === 0) {
+          throw new Error(
+            `no install manifests under ${targetRoot}/install — publish the ` +
+              `contract first (settings-server publish, then otel-settings render)`,
+          );
+        }
+
+        await Deno.mkdir(installDir, { recursive: true });
+        const assets: Array<{
+          assetName: string;
+          url: string;
+          bytes: number;
+          sha256: string;
+          written: boolean;
+          cached: boolean;
+        }> = [];
+
+        for (const m of manifests) {
+          const manifest = parseInstallManifest(m.text);
+          const dest = `${installDir}/${manifest.assetName}`;
+          const checksumDest = `${dest}.sha256`;
+
+          // Fetch the upstream checksum first (a bare digest for otelcol).
+          let expected = "";
+          try {
+            const resp = await fetch(manifest.upstreamChecksumUrl, {
+              signal: AbortSignal.timeout(30000),
+            });
+            if (resp.ok) expected = parseSha256(await resp.text());
+          } catch {
+            // fall through — the download verifies the digest when present
+          }
+          if (!expected) {
+            throw new Error(
+              `no upstream checksum for ${manifest.assetName} at ` +
+                `${manifest.upstreamChecksumUrl}`,
+            );
+          }
+
+          // Reuse a cached asset whose digest matches.
+          let cached = false;
+          let bytes = 0;
+          let digest = "";
+          if (!args.force) {
+            try {
+              const existing = await Deno.readFile(dest);
+              digest = await sha256HexBytes(existing);
+              if (digest === expected) {
+                cached = true;
+                bytes = existing.byteLength;
+              }
+            } catch {
+              // not present — download below
+            }
+          }
+
+          let written = false;
+          if (!cached) {
+            const resp = await fetch(manifest.upstreamTarballUrl, {
+              signal: AbortSignal.timeout(180000),
+            });
+            if (!resp.ok) {
+              throw new Error(
+                `download failed: HTTP ${resp.status} for ${manifest.upstreamTarballUrl}`,
+              );
+            }
+            const data = new Uint8Array(await resp.arrayBuffer());
+            digest = await sha256HexBytes(data);
+            if (digest !== expected) {
+              throw new Error(
+                `checksum mismatch for ${manifest.assetName}: expected ` +
+                  `${expected}, got ${digest}`,
+              );
+            }
+            await Deno.writeFile(dest, data);
+            await Deno.writeTextFile(checksumDest, `${expected}\n`);
+            bytes = data.byteLength;
+            written = true;
+          }
+
+          context.logger?.info(
+            "{action} {assetName} ({bytes} bytes)",
+            {
+              action: cached ? "reused" : "mirrored",
+              assetName: manifest.assetName,
+              bytes,
+            },
+          );
+          assets.push({
+            assetName: manifest.assetName,
+            url: `${
+              baseUrl(g.hostname, g.publishBaseUrl)
+            }/install/${manifest.assetName}`,
+            bytes,
+            sha256: digest,
+            written,
+            cached,
+          });
+        }
+
+        const version = args.version ||
+          parseInstallManifest(manifests[0].text).version ||
+          "current";
+        const handle = await context.writeResource("mirror", "current", {
+          version,
+          installDir,
+          assets,
+          mirroredAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle as { name: string }] };
       },
     },
 

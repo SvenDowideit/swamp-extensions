@@ -7,6 +7,8 @@ import {
   deriveVersion,
   expandHome,
   model,
+  parseInstallManifest,
+  parseSha256,
   sha256HexAsync,
   validateConfig,
 } from "./settings_server.ts";
@@ -190,4 +192,46 @@ Deno.test("sha256HexAsync is deterministic and 64 hex chars", async () => {
   assertEquals(a.length, 64);
   assertEquals(a, await sha256HexAsync("hello"));
   assert(a !== await sha256HexAsync("world"));
+});
+
+Deno.test("parseInstallManifest reads the current shape", () => {
+  const m = parseInstallManifest(JSON.stringify({
+    schema: "otel.install/v1",
+    version: "abc",
+    os: "linux",
+    arch: "amd64",
+    agentName: "otelcol-contrib",
+    agentVersion: "0.162.0",
+    assetName: "otelcol-contrib_0.162.0_linux_amd64.tar.gz",
+    tarballUrl: "https://settings.otel.fi.gy/install/x.tar.gz",
+    upstreamTarballUrl:
+      "https://github.com/o/r/releases/download/v0.162.0/x.tar.gz",
+    upstreamChecksumUrl:
+      "https://github.com/o/r/releases/download/v0.162.0/x.tar.gz.sha256",
+  }));
+  assertEquals(m.os, "linux");
+  assertEquals(m.arch, "amd64");
+  assertEquals(m.assetName, "otelcol-contrib_0.162.0_linux_amd64.tar.gz");
+  assert(m.upstreamTarballUrl.includes("github.com"));
+});
+
+Deno.test("parseInstallManifest derives upstream URLs for an older manifest", () => {
+  const m = parseInstallManifest(JSON.stringify({
+    schema: "otel.install/v1",
+    version: "abc",
+    os: "linux",
+    arch: "arm64",
+    agentVersion: "0.162.0",
+  }));
+  assertEquals(m.assetName, "otelcol-contrib_0.162.0_linux_arm64.tar.gz");
+  assertEquals(
+    m.upstreamTarballUrl,
+    "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.162.0/otelcol-contrib_0.162.0_linux_arm64.tar.gz",
+  );
+});
+
+Deno.test("parseSha256 extracts a bare digest or empty string", () => {
+  const d = "f".repeat(64);
+  assertEquals(parseSha256(`${d}\n`), d);
+  assertEquals(parseSha256("nope"), "");
 });

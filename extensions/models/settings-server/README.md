@@ -15,16 +15,20 @@ webroot layout:
 - immutable `v/<version>/` directories (content-addressed),
 - a `current` pointer (symlink, or copied tree where symlinks are unavailable),
 - an HTTP `verify` that fetches the index document and reports status/content
-  type/size, and
+  type/size,
 - a `serve` method that reports the exact `@svendowideit/caddy serveSettings`
-  wiring for the current webroot.
+  wiring for the current webroot, and
+- a `mirror` method that downloads the agent release assets named by the install
+  manifests into the served `install/` directory, so hosts install from the core
+  node instead of the public internet.
 
 It does **not** run its own web server — static serving is delegated to Caddy, so
 DNS, TLS, and file serving stay on one tested path.
 
 Side effects: it writes files under `webroot` (default
 `~/.local/share/settings-server`) and writes swamp resources. `verify` makes an
-outbound HTTP request. Nothing else changes on the host.
+outbound HTTP request; `mirror` downloads the agent release assets. Nothing else
+changes on the host.
 
 ## Install
 
@@ -88,6 +92,15 @@ Verify a specific document (e.g. check the env block is served):
 swamp model method run settings verify --input expectDocument=otel.env
 ```
 
+Mirror the agent release assets the install manifests point at, so hosts install
+the collector from this server rather than GitHub. Run this after `publish` on a
+core node (and re-run after bumping the agent version):
+
+```sh
+swamp model method run settings mirror
+swamp data get settings mirror --json | jq '.content.assets[] | {assetName, cached, bytes}'
+```
+
 ## Details
 
 `@svendowideit/settings-server` ships one model type
@@ -96,11 +109,12 @@ swamp model method run settings verify --input expectDocument=otel.env
 | Method | Arguments | Purpose |
 | ------ | --------- | ------- |
 | `publish` | `sourceDir` (string, optional), `version` (string, optional) | Walk `sourceDir`, write each file into `v/<version>/`, compute SHA-256 per document, and flip `current`. Version defaults to the source `version.json` hash, else a content hash. |
-| `verify` | `expectDocument` (string, optional), `timeoutMs` (integer, default 5000) | Fetch `https://<hostname>/settings/<document>` and write a `verify` resource with `ok`, `status`, `contentType`, and `bytes`. |
+| `verify` | `expectDocument` (string, optional), `timeoutMs` (integer, default 5000) | Fetch `https://<hostname>/<document>` (served at the root) and write a `verify` resource with `ok`, `status`, `contentType`, and `bytes`. |
 | `serve` | none | Write a `serve` resource describing the hostname, current webroot, URL, and the `@svendowideit/caddy serveSettings` command to apply. |
+| `mirror` | `version` (string, optional), `force` (boolean, default false) | Read the install manifests under the staged `install/` dir, download each named agent asset from its `upstreamTarballUrl`, verify the SHA-256, and write it (plus its `.sha256`) into the served `install/` dir. Reuses a cached asset whose digest matches unless `force`. |
 
-Resources: `publish` (staged bundle manifest), `verify` (HTTP result), and
-`serve` (Caddy wiring).
+Resources: `publish` (staged bundle manifest), `verify` (HTTP result),
+`serve` (Caddy wiring), and `mirror` (mirrored assets).
 
 ### Webroot layout
 

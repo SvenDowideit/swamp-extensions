@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/settings-server"
-version: "2026.10.03.1"
+version: "2026.10.04.1"
 description: >
   Stage a rendered settings bundle and serve it as a versioned, cacheable web
   root.

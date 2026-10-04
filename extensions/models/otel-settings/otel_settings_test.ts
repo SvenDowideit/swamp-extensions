@@ -69,7 +69,7 @@ Deno.test("settingsUrl derives settings.<domain> and is idempotent", () => {
 Deno.test("installBaseUrl defaults under the settings host", () => {
   assertEquals(
     installBaseUrl("otel.fi.gy"),
-    "https://settings.otel.fi.gy/settings/install",
+    "https://settings.otel.fi.gy/install",
   );
   assertEquals(
     installBaseUrl("otel.fi.gy", "https://cdn/rel"),
@@ -134,15 +134,25 @@ Deno.test("renderOtelEnv emits the OTLP exporter variables", () => {
   assertStringIncludes(env, "deployment.environment=dev");
 });
 
-Deno.test("renderAgentConfig reflects tier values", () => {
+Deno.test("renderAgentConfig emits a complete, runnable config from the contract", () => {
   const s = buildSettings(globals());
   const t1 = s.tiers.find((t) => t.id === "T1")!;
   const cfg = renderAgentConfig(t1, s);
-  assertStringIncludes(cfg, "tier: T1");
-  assertStringIncludes(cfg, "agent: otelcol-contrib");
+  // It is a real otelcol config, not a fragment: receivers, exporters, and
+  // service.pipelines must all be present for the collector to start.
+  assertStringIncludes(cfg, "receivers:");
+  assertStringIncludes(cfg, "hostmetrics:");
+  assertStringIncludes(cfg, "exporters:");
   assertStringIncludes(cfg, "endpoint: otlp.fi.gy:4317");
+  assertStringIncludes(cfg, "service:");
+  assertStringIncludes(cfg, "pipelines:");
+  // The token is an env reference, never a literal.
+  assertStringIncludes(cfg, "${env:OTEL_EXPORTER_OTLP_TOKEN}");
+  assertStringIncludes(cfg, "key: deployment.environment");
+  assertStringIncludes(cfg, "value: dev");
+  // A tier that runs no agent still renders a valid config.
   const t3 = s.tiers.find((t) => t.id === "T3")!;
-  assertStringIncludes(renderAgentConfig(t3, s), "push: false");
+  assertStringIncludes(renderAgentConfig(t3, s), "service:");
 });
 
 Deno.test("renderInstallManifest points at per-os/arch assets", () => {
@@ -150,6 +160,12 @@ Deno.test("renderInstallManifest points at per-os/arch assets", () => {
   const json = JSON.parse(renderInstallManifest("linux", "arm64", s));
   assertStringIncludes(json.tarballUrl, "linux_arm64.tar.gz");
   assertStringIncludes(json.settingsUrl, "settings.otel.fi.gy");
+  // Served at the settings root under install/, not a /settings/ prefix.
+  assertStringIncludes(json.tarballUrl, "https://settings.otel.fi.gy/install/");
+  assert(!json.tarballUrl.includes("/settings/install"));
+  // The mirror can find the upstream asset from the manifest.
+  assertStringIncludes(json.upstreamTarballUrl, "github.com/open-telemetry");
+  assertEquals(json.assetName, json.tarballUrl.split("/").pop());
   // Documents are served at the root, not under a /settings/ prefix.
   assertEquals(json.settingsUrl, `https://settings.otel.fi.gy/otel.json`);
   assertEquals(

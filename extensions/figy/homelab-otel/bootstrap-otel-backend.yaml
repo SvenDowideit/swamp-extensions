@@ -63,8 +63,8 @@ inputs:
       description: Host port for the gateway's OTLP/HTTP receiver.
     bindAddress:
       type: string
-      default: 127.0.0.1
-      description: Address the backend and gateway bind to. Set a mesh/LAN address to accept the fleet.
+      default: 0.0.0.0
+      description: Address the backend and gateway bind to. 0.0.0.0 accepts the fleet (temporary; clean up to 127.0.0.1 later).
     verifyMarker:
       type: string
       default: phase1-bootstrap-verify

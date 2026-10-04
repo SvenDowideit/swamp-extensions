@@ -14,8 +14,15 @@ the whole publish path:
    14/90/7-day retention) via `@svendowideit/otel-settings`,
 2. **publish** it as a versioned webroot via `@svendowideit/settings-server`,
 3. **serve** it over HTTP(S) at `settings.otel.fi.gy` via `@svendowideit/caddy`
-   (DNS-01 TLS with the Gandi driver), and
-4. **verify** the live document.
+   (DNS-01 TLS with the Gandi driver),
+4. **proxy** the OpenObserve UI at `obs.otel.fi.gy`, reconcile the
+   `otel`/`otlp`/`settings`/`obs.otel` records, and
+5. **verify** the live document.
+
+One `@svendowideit/caddy` model — `otel-caddy` — owns all otel Caddy config:
+the DNS records, the wildcard `*.otel.fi.gy` TLS, the settings `file_server`
+route, and the store-UI `reverse_proxy` route. (The only other Caddy model is
+`my-caddy`, the non-otel `fi.gy` general model.)
 
 This is site-specific by design: it encodes my domains, meshes, and gear, so it
 is useless without them. That is the point — a stranger can use
@@ -128,26 +135,33 @@ Resource: `topology` (the site catalog).
 
 ### Workflow steps
 
-`homelab-otel-bootstrap` (settings only):
+`homelab-otel-bootstrap` (settings + otel Caddy desired state):
 
 | Step | Model type | Method | What it does |
 | ---- | ---------- | ------ | ------------ |
 | `render-settings` | `@svendowideit/otel-settings` (`otel`) | `render` | Resolve the fi.gy contract and write the HTTP document set. |
 | `publish-bundle` | `@svendowideit/settings-server` (`settings`) | `publish` | Stage the documents into the webroot and flip `current`. |
 | `serve-settings` | `@svendowideit/caddy` (`otel-caddy`) | `serveSettings` | Serve the webroot at `settings.otel.fi.gy` via `file_server`. |
+| `configure-tls` | `@svendowideit/caddy` (`otel-caddy`) | `configureTls` | Wildcard `*.otel.fi.gy` via Gandi DNS-01. |
+| `reconcile-records` | `@svendowideit/caddy` (`otel-caddy`) | `applyDnsRecords` | Reconcile the otel/otlp/settings/obs records. |
 | `verify-settings` | `@svendowideit/settings-server` (`settings`) | `verify` | Fetch the live index document (allowed to fail so a DNS/TLS delay does not block the run). |
 
-`bootstrap-otel-backend` (the Phase 1 core node):
+`bootstrap-otel-backend` (the Phase 1 core node, including the named UI):
 
 | Step | Model type | Method | What it does |
 | ---- | ---------- | ------ | ------------ |
 | `topology` | `@figy/homelab-otel` (`homelab-otel`) | `describe` | Emit the fi.gy topology used by later steps. |
 | `render-settings` | `@svendowideit/otel-settings` (`otel`) | `render` | Resolve the contract the fleet will fetch. |
+| `publish-settings` | `@svendowideit/settings-server` (`settings`) | `publish` | Stage the documents into the Caddy-served webroot. |
 | `backend` | `@svendowideit/otel-backend` (`otel-backend`) | `install` | Start OpenObserve with the vault admin login. |
 | `gateway` | `@svendowideit/otel-gateway` (`otel-gateway`) | `install` | Start the collector, exporting to the backend with vault Basic auth. |
-| `dns-records` | `@svendowideit/caddy` (`otel-caddy`) | `applyDnsRecords` | Reconcile the `otel`/`otlp`/`settings`/`obs.otel` records (allowed to fail). |
+| `otel-caddy-tls` | `@svendowideit/caddy` (`otel-caddy`) | `configureTls` | Wildcard `*.otel.fi.gy` TLS via Gandi DNS-01. |
+| `otel-caddy-settings-route` | `@svendowideit/caddy` (`otel-caddy`) | `serveSettings` | Serve the settings webroot at `settings.otel.fi.gy`. |
+| `otel-caddy-store-ui` | `@svendowideit/caddy` (`otel-caddy`) | `ensureDnsProxy` | Proxy `obs.otel.fi.gy` → the OpenObserve UI port. |
+| `otel-caddy-records` | `@svendowideit/caddy` (`otel-caddy`) | `applyDnsRecords` | Reconcile the `otel`/`otlp`/`settings`/`obs.otel` records. |
 | `verify-push` | `@svendowideit/otel-gateway` (`otel-gateway`) | `verify` | Push a synthetic OTLP record through the gateway. |
 | `verify-query` | `@svendowideit/openobserve` (`obs`) | `query` | Query the record back from OpenObserve with SQL. |
+| `verify-ui` | (assert) | — | Assert otel-caddy recorded the obs route, TLS, and records. |
 
 ### The fi.gy layout
 

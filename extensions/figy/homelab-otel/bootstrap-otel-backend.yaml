@@ -73,6 +73,22 @@ inputs:
       type: string
       default: otel-openobserve-admin
       description: Vault holding the OpenObserve admin login (email + password).
+    coreIp:
+      type: string
+      default: "10.10.13.208"
+      description: Core node IP the otel/otlp/settings/obs A-records point at.
+    storeUiHostname:
+      type: string
+      default: obs.otel.fi.gy
+      description: Hostname the OpenObserve UI is served on.
+    settingsHostname:
+      type: string
+      default: settings.otel.fi.gy
+      description: Hostname the settings documents are served on.
+    webroot:
+      type: string
+      default: ~/.local/share/settings-server
+      description: Directory Caddy serves the staged settings bundle from.
   required: []
 jobs:
   - name: core
@@ -132,6 +148,24 @@ jobs:
         weight: 0
         allowFailure: false
 
+      - name: publish-settings
+        description: Stage the rendered documents into the Caddy-served webroot.
+        task:
+          type: model_method
+          modelType: "@svendowideit/settings-server"
+          modelName: settings
+          methodName: publish
+          globalArgs:
+            sourceDir: ~/.local/share/otel-settings/current
+            webroot: ${{ inputs.webroot }}
+            hostname: ${{ inputs.settingsHostname }}
+        dependsOn:
+          - step: render-settings
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
       - name: backend
         description: Start the OpenObserve store with its admin login from the vault.
         task:
@@ -179,7 +213,133 @@ jobs:
         weight: 0
         allowFailure: false
 
-      - name: dns-records
+      - name: otel-caddy-tls
+        description: Configure otel-caddy's TLS (wildcard *.otel.fi.gy via Gandi DNS-01).
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: otel-caddy
+          methodName: configureTls
+          globalArgs:
+            baseDomain: otel.fi.gy
+            letsEncryptEmail: SvenDowideit@home.org.au
+            serviceName: caddy
+            environmentFile: /home/sven/.config/caddy/dns.env
+            plugins:
+              - github.com/caddy-dns/gandi
+            dnsRecords:
+              - name: otel.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: settings.otel.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: otlp.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: obs.otel.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+          inputs:
+            dnsProvider: gandi
+            providerConfig:
+              bearer_token: GANDI_BEARER_TOKEN
+            subjects:
+              - "*.otel.fi.gy"
+        dependsOn:
+          - step: gateway
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: otel-caddy-settings-route
+        description: Serve the settings webroot at settings.otel.fi.gy via file_server.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: otel-caddy
+          methodName: serveSettings
+          globalArgs:
+            baseDomain: otel.fi.gy
+            letsEncryptEmail: SvenDowideit@home.org.au
+            serviceName: caddy
+            environmentFile: /home/sven/.config/caddy/dns.env
+            plugins:
+              - github.com/caddy-dns/gandi
+            dnsRecords:
+              - name: otel.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: settings.otel.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: otlp.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: obs.otel.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+          inputs:
+            hostname: ${{ inputs.settingsHostname }}
+            root: ${{ inputs.webroot }}/current
+        dependsOn:
+          - step: otel-caddy-tls
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: otel-caddy-store-ui
+        description: Proxy obs.otel.fi.gy to the OpenObserve UI.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: otel-caddy
+          methodName: ensureDnsProxy
+          globalArgs:
+            baseDomain: otel.fi.gy
+            letsEncryptEmail: SvenDowideit@home.org.au
+            serviceName: caddy
+            environmentFile: /home/sven/.config/caddy/dns.env
+            plugins:
+              - github.com/caddy-dns/gandi
+            dnsRecords:
+              - name: otel.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: settings.otel.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: otlp.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: obs.otel.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+          inputs:
+            hostname: ${{ inputs.storeUiHostname }}
+            upstream: 127.0.0.1:${{ inputs.backendPort }}
+        dependsOn:
+          - step: otel-caddy-settings-route
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: otel-caddy-records
         description: Reconcile the otel/otlp/settings/obs records via Caddy dns_records.
         task:
           type: model_method
@@ -188,34 +348,34 @@ jobs:
           methodName: applyDnsRecords
           globalArgs:
             baseDomain: otel.fi.gy
-            letsEncryptEmail: svendowideit@home.org.au
-            serviceName: otel-caddy
+            letsEncryptEmail: SvenDowideit@home.org.au
+            serviceName: caddy
             environmentFile: /home/sven/.config/caddy/dns.env
             plugins:
               - github.com/caddy-dns/gandi
             dnsRecords:
               - name: otel.fi.gy
                 type: A
-                value: ["10.10.13.208"]
+                value: ["${{ inputs.coreIp }}"]
                 zone: fi.gy
               - name: settings.otel.fi.gy
                 type: A
-                value: ["10.10.13.208"]
+                value: ["${{ inputs.coreIp }}"]
                 zone: fi.gy
               - name: otlp.fi.gy
                 type: A
-                value: ["10.10.13.208"]
+                value: ["${{ inputs.coreIp }}"]
                 zone: fi.gy
               - name: obs.otel.fi.gy
                 type: A
-                value: ["10.10.13.208"]
+                value: ["${{ inputs.coreIp }}"]
                 zone: fi.gy
         dependsOn:
-          - step: gateway
+          - step: otel-caddy-store-ui
             condition:
-              type: completed
+              type: succeeded
         weight: 0
-        allowFailure: true
+        allowFailure: false
 
       - name: verify-push
         description: Push a synthetic OTLP record through the gateway.
@@ -253,6 +413,23 @@ jobs:
               type: succeeded
         weight: 0
         allowFailure: true
+
+      - name: verify-ui
+        description: Assert otel-caddy recorded the obs proxy route, the TLS config, and the DNS records.
+        task:
+          type: assert
+          expr: >-
+            data.query("modelName == 'otel-caddy' && specName == 'ensureProxy'").size() > 0 &&
+            data.query("modelName == 'otel-caddy' && specName == 'tlsConfig'").size() > 0 &&
+            data.query("modelName == 'otel-caddy' && specName == 'dnsConfig'").size() > 0
+          message: "otel-caddy did not record all of: the store-UI proxy route, the TLS config, and the DNS records"
+          severity: high
+        dependsOn:
+          - step: otel-caddy-records
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
     dependsOn: []
     weight: 0
 version: 1

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@figy/homelab-otel"
-version: "2026.10.03.2"
+version: "2026.10.04.1"
 description: >
   Site-specific OpenTelemetry bootstrap for the fi.gy homelab — my domains,
   meshes, and tiers, wired into one workflow.
@@ -12,11 +12,14 @@ description: >
     and wireguard gateway endpoints, home/sven attributes, and 14/90/7-day
     retention — to the generic @svendowideit models, and runs the whole publish
     path: render the contract, stage it versioned, serve it over HTTP(S) at
-    `settings.otel.fi.gy` with Caddy (DNS-01 TLS via the Gandi driver), and
-    verify the live document. Prefer it over hand-editing settings on each host:
-    change the contract once and every agent fetches it. This is site-specific
-    by design — it encodes my domains, meshes, and gear, so it is useless without
-    them; the portable model types live in @svendowideit.
+    `settings.otel.fi.gy` with Caddy, proxy the OpenObserve UI at
+    `obs.otel.fi.gy`, reconcile the otel DNS records, and verify the live
+    document. One @svendowideit/caddy model (`otel-caddy`) owns all otel Caddy
+    config — records, wildcard `*.otel.fi.gy` TLS, the settings route, and the
+    store-UI route. Prefer it over hand-editing settings on each host: change the
+    contract once and every agent fetches it. This is site-specific by design —
+    it encodes my domains, meshes, and gear, so it is useless without them; the
+    portable model types live in @svendowideit.
 
   INSTALL
 
@@ -47,7 +50,7 @@ description: >
       # Render, stage, serve, and verify the fi.gy observability contract.
       swamp workflow run @figy/homelab-otel-bootstrap
 
-      # Bring up the whole core node: store + gateway + DNS + round-trip verify.
+      # Bring up the whole core node: store + gateway + DNS + TLS + named UI.
       swamp workflow run @figy/bootstrap-otel-backend
 
       # Read the resolved contract for scripting.
@@ -55,6 +58,9 @@ description: >
 
       # Fetch the served machine contract.
       curl https://settings.otel.fi.gy/otel.json
+
+      # Open the store UI (proxied by Caddy with the wildcard cert).
+      curl -I https://obs.otel.fi.gy/
 
   CONFIGURE
 

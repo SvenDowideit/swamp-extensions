@@ -103,10 +103,28 @@ jobs:
           methodName: serveSettings
           globalArgs:
             baseDomain: otel.fi.gy
-            letsEncryptEmail: svendowideit@home.org.au
-            serviceName: otel-caddy
+            letsEncryptEmail: SvenDowideit@home.org.au
+            serviceName: caddy
+            environmentFile: /home/sven/.config/caddy/dns.env
             plugins:
               - github.com/caddy-dns/gandi
+            dnsRecords:
+              - name: otel.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+              - name: settings.otel.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+              - name: otlp.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+              - name: obs.otel.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
           inputs:
             hostname: ${{ inputs.settingsHostname }}
             root: ${{ inputs.webroot }}/current
@@ -116,6 +134,89 @@ jobs:
               type: succeeded
         weight: 0
         allowFailure: false
+
+      - name: configure-tls
+        description: Configure otel-caddy's wildcard *.otel.fi.gy TLS (Gandi DNS-01).
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: otel-caddy
+          methodName: configureTls
+          globalArgs:
+            baseDomain: otel.fi.gy
+            letsEncryptEmail: SvenDowideit@home.org.au
+            serviceName: caddy
+            environmentFile: /home/sven/.config/caddy/dns.env
+            plugins:
+              - github.com/caddy-dns/gandi
+            dnsRecords:
+              - name: otel.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+              - name: settings.otel.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+              - name: otlp.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+              - name: obs.otel.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+          inputs:
+            dnsProvider: gandi
+            providerConfig:
+              bearer_token: GANDI_BEARER_TOKEN
+            subjects:
+              - "*.otel.fi.gy"
+        dependsOn:
+          - step: serve-settings
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: reconcile-records
+        description: Reconcile the otel/otlp/settings/obs DNS records.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: otel-caddy
+          methodName: applyDnsRecords
+          globalArgs:
+            baseDomain: otel.fi.gy
+            letsEncryptEmail: SvenDowideit@home.org.au
+            serviceName: caddy
+            environmentFile: /home/sven/.config/caddy/dns.env
+            plugins:
+              - github.com/caddy-dns/gandi
+            dnsRecords:
+              - name: otel.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+              - name: settings.otel.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+              - name: otlp.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+              - name: obs.otel.fi.gy
+                type: A
+                value: ["10.10.13.208"]
+                zone: fi.gy
+        dependsOn:
+          - step: configure-tls
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
       - name: verify-settings
         description: Fetch the live index document to prove the URL works.
         task:
@@ -128,7 +229,7 @@ jobs:
             webroot: ${{ inputs.webroot }}
             hostname: ${{ inputs.settingsHostname }}
         dependsOn:
-          - step: serve-settings
+          - step: reconcile-records
             condition:
               type: succeeded
         weight: 0

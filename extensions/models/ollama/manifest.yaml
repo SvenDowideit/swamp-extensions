@@ -1,10 +1,10 @@
 manifestVersion: 1
 name: "@svendowideit/ollama"
-version: "2026.10.01.1"
+version: "2026.10.04.3"
 description: >
   Install, upgrade and configure Ollama on a machine with systemd — the whole
   loop from "which version is installed" to "the daemon is running the new
-  binary with my settings".
+  binary with my settings", elevated through the @svendowideit/sudo ladder.
 
   WHAT IT DOES
 
@@ -13,13 +13,20 @@ description: >
     checksum-verified build for this OS/architecture/accelerator (Linux/NVIDIA
     via the base build, Linux/AMD ROCm, NVIDIA Jetson, macOS, Windows) only when
     an update is actually needed — never re-downloading a multi-gigabyte release
-    for a current machine. It then keeps `ollama serve` alive under systemd,
-    creating a unit when none exists (making the unprivileged `ollama` user for a
-    system unit) or writing a drop-in override when one does. When a step needs
-    root and the host has no passwordless `sudo`, it detects that up front and
-    prints the exact `sudo` commands to run by hand instead of failing. Prefer it
-    over Ollama's own `install.sh` when you want repeatable swamp workflows with
-    service settings managed as configuration rather than hand-edited units.
+    for a current machine. Privileged work (placing the binary and runtime,
+    creating the run-as user, writing the systemd unit/drop-in, daemon-reload,
+    enable/restart) is delegated to `@svendowideit/sudo`'s named operations, so
+    any route the host already grants works — sudo, doas, polkit/run0, pkexec,
+    a container runtime, ssh — not just passwordless sudo; when no route is
+    granted the run reports exactly what it tried. Service management is
+    tri-state: `manageService=auto` (default) maintains the service only when a
+    unit already exists (a server) and upgrades the binary only otherwise (a
+    client machine); `true` always creates/updates the service; `false` never
+    touches units. An alternative `installScript=true` mode downloads Ollama's
+    official install.sh and runs it as root through the same ladder. Prefer it
+    over Ollama's own `install.sh` when you want repeatable swamp workflows
+    with service settings managed as configuration rather than hand-edited
+    units.
 
   INSTALL
 
@@ -27,20 +34,32 @@ description: >
 
   DEPENDENCIES
 
-    `@svendowideit/github-release-install`, declared in `dependencies:` and
-    installed by the single pull above; the bundled workflow calls it to resolve
-    the release, match the platform asset, record its SHA-256 from the release's
-    `sha256sum.txt`, and download a verified archive only when an update is
-    needed. Extracting a Linux `.tar.zst` release needs the `zstd`
-    tool (`apt-get install zstd`), which Ollama's own installer also requires.
-    Managing a system service needs root (configure passwordless `sudo`, or use
-    `serviceScope=user`); nothing else is required.
+    `@svendowideit/github-release-install` and `@svendowideit/sudo`, declared
+    in `dependencies:` and installed by the single pull above. The bundled
+    workflow calls github-release-install to resolve the release, match the
+    platform asset, record its SHA-256 from the release's `sha256sum.txt`, and
+    download a verified archive only when an update is needed; it calls sudo's
+    named operations (ensureDirectory, installFile, createUser, daemonReload,
+    manageService, removePath) for every privileged step. Extracting a Linux
+    `.tar.zst` release needs the `zstd` tool (`apt-get install zstd`), which
+    Ollama's own installer also requires. On macOS/Windows no elevation is
+    needed and the sudo extension is simply unused there.
 
   RUN
 
+      # Allowlist the sudo operations the bundled workflow needs. One-time:
+      # the workflow passes its own allowlist per step as of 2026.10.04, but
+      # creating the instance with it set keeps direct method calls working.
+      swamp model create @svendowideit/sudo sudo-ollama \
+        --global-arg 'allowedOperations=["installPackage","removePackage","manageService","ensureDirectory","createUser","installFile","daemonReload","removePath","copyDirectory"]'
+
       # Install or upgrade Ollama and keep `ollama serve` running under
-      # systemd, with the unit created if it is missing. Idempotent.
+      # systemd when a unit exists or manageService=true. Idempotent.
       swamp workflow run @svendowideit/ollama-install
+
+      # Upgrade the binary only (a client machine — no service is created or
+      # touched, even if one exists).
+      swamp workflow run @svendowideit/ollama-install --input manageService=false
 
       # Pin a version, put the models on a big disk, and expose the API on the
       # LAN — your service settings, applied as a drop-in override.
@@ -49,17 +68,25 @@ description: >
         --input host=0.0.0.0:11434 \
         --input environment='OLLAMA_MODELS=/mnt/models'
 
-      # Ask what is installed and how the service is doing.
+      # Ask for the three-way report: the local binary's version (OLLAMA_HOST
+      # scrubbed), the server's version when one is configured and differs,
+      # and the latest release an install would bring.
       swamp model @svendowideit/ollama method run sync ollama
       swamp model @svendowideit/ollama method run status ollama
 
-      # No passwordless sudo? Learn exactly what this run can and cannot do,
-      # and get the copy-paste commands for anything it cannot escalate.
-      swamp model @svendowideit/ollama method run privilege ollama
+      # See which elevation route the sudo ladder proves on this host before
+      # trusting a scheduled run.
+      swamp model @svendowideit/sudo method run probe sudo-ollama
 
       # Change just the service settings later, without reinstalling.
       swamp workflow run @svendowideit/ollama-install \
         --input host=0.0.0.0:11434 --input manageService=true
+
+      # Alternative: run Ollama's official install.sh as root through the
+      # elevation ladder instead of the checksummed release flow. runScript
+      # must reach the sudo model: append it to the per-run allowlist.
+      swamp workflow run @svendowideit/ollama-install --input installScript=true \
+        --input 'sudoAllowedOperations=["runScript"]'
 
       # Remove the binary and the systemd service again.
       swamp workflow run @svendowideit/ollama-install \
@@ -80,7 +107,9 @@ description: >
       downloadDir     Where the verified archive is staged  (default ~/.cache/ollama)
       installDir      Where the binary lands                (default /usr/local/bin for
                                                             system, ~/.local/bin for user)
-      manageService   Create/configure/restart the service  (default true)
+      manageService   auto | "true" | "false"               (default auto: maintain an
+                                                            existing unit, else binary
+                                                            only — client machines)
       serviceName     systemd service name                  (default ollama)
       serviceScope    auto | system | user                  (default auto)
       serviceUser     Run-as user for a system unit         (default ollama)
@@ -90,18 +119,27 @@ description: >
       extraArgs       Extra `ollama serve` arguments        (default "")
       restart         systemd Restart= policy               (default always)
       restartSec      systemd RestartSec= delay             (default 3)
+      installScript   Install via official install.sh       (default false)
+      installScriptUrl  Where install.sh is downloaded from (default
+                      https://ollama.com/install.sh)
+      sudoInstanceKey Sudo model instance to elevate with   (default default)
+      sudoAllowedOperations  Sudo ops allowed for this run  (default: the
+                      standard install set; add runScript for installScript)
       force           Reinstall / rewrite even if current   (default false)
-      uninstall       Remove binary and lib instead          (default false)
-      purgeService    Also remove the unit on uninstall      (default false)
+      uninstall       Remove binary and lib instead         (default false)
+      purgeService    Also remove the unit on uninstall     (default false)
 
-    If a system-scope install needs root and the run cannot escalate (no
-    passwordless `sudo`), the `privilege` method — and the `platform` resource
-    written by `plan` — report the situation, and `install`/`createService`/
-    `configureService` return `manualCommands`: ready-to-paste `sudo` commands
-    (directory creation, extraction, `useradd`, the unit `tee` heredoc,
-    `systemctl daemon-reload && enable --now`). Pass `--input sudoNonInteractive=
-    false` if a real terminal can answer the prompt, or `--input
-    serviceScope=user` to avoid root entirely.
+    Privileged steps run through `@svendowideit/sudo`'s `sudo-run` workflow,
+    which passes this run's `sudoAllowedOperations` to the sudo model, so a
+    bare auto-created instance works without a prior `swamp model create`.
+    The default allowlist covers the standard flow (ensureDirectory,
+    createUser, installFile, daemonReload, removePath, manageService, and the
+    package operations); `installScript=true` needs runScript added (see RUN).
+    When no elevation route is granted, the failing step reports the full
+    ladder and the reason each route was rejected; the ollama model's own
+    `privilege` method still reports the host's sudo situation, and the
+    `manualCommands` fallback remains in the direct-method path. Pass
+    `--input serviceScope=user` to avoid root entirely.
 
     The releases API allows only 60 anonymous requests per hour per IP, so
     authenticate for scheduled runs: run `gh auth login` once (its token is then
@@ -114,18 +152,20 @@ description: >
     The `ollama` binary (and, on Linux, its matching `lib/ollama` runtime
     directory) into the chosen install directory — `/usr/local/bin` for system
     scope, `~/.local/bin` for user scope. The verified archive is staged (and
-    checksum-checked) under `downloadDir`. On Linux it also manages a systemd
-    unit: `createService` writes `<name>.service` (`/etc/systemd/system` for
-    system scope, `~/.config/systemd/user` for user scope) only when none
-    exists, creating the unprivileged `ollama` user for a system unit;
-    `configureService` writes a `<name>.service.d/10-swamp.conf` drop-in with
-    your settings (and creates the unit when missing), so an existing upstream
-    unit is customised, never overwritten; `restartService` enables and restarts
-    it so it starts at boot. Remove the unit with `removeService`. When a
-    privileged step cannot escalate, the methods write their `manualCommands`
-    instead of acting, so nothing is half-done. macOS and Windows releases
-    install the binary only — no service management. Inspect the service at any
-    time with:
+    checksum-checked) under `downloadDir`, then extracted to an unprivileged
+    staging dir from which the sudo ladder places everything. On Linux it can
+    also manage a systemd unit: `prepareService` renders `<name>.service`
+    (`/etc/systemd/system` for system scope, `~/.config/systemd/user` for user
+    scope) only when none exists, and a `<name>.service.d/10-swamp.conf`
+    drop-in with your settings, so an existing upstream unit is customised,
+    never overwritten; the workflow places them with sudo's `installFile`,
+    reloads systemd, and enables/restarts the service. With
+    `manageService=false` (or auto on a machine without a unit) only the
+    binary/runtime is placed — no unit is touched. Remove the unit with
+    `removeService`. When no elevation route is granted, the failing step
+    reports the ladder instead of half-applying. macOS and Windows releases
+    install the binary only — no service management. Inspect the service at
+    any time with:
 
         systemctl status ollama.service
 
@@ -145,6 +185,7 @@ workflows:
 
 dependencies:
   - "@svendowideit/github-release-install"
+  - "@svendowideit/sudo"
 
 additionalFiles:
   - README.md

@@ -21,7 +21,13 @@ import {
   withMockedCommand,
 } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 
-import { model, resetPrivilegeCache } from "./ollama.ts";
+import {
+  fetchServerVersion,
+  model,
+  parseClientVersions,
+  resetPrivilegeCache,
+  resolveOllamaHost,
+} from "./ollama.ts";
 import { OLLAMA_ASSET_PATTERN } from "./ollama_shared.ts";
 
 // ---------------------------------------------------------------------------
@@ -196,6 +202,28 @@ async function buildOllamaTarZst(): Promise<{ path: string; dir: string }> {
 // plan
 // ---------------------------------------------------------------------------
 
+Deno.test("resolveOllamaHost reads the env override or returns null", () => {
+  assertEquals(
+    resolveOllamaHost({ get: () => "http://x:11434" }),
+    "http://x:11434",
+  );
+  assertEquals(resolveOllamaHost({ get: () => "  " }), null);
+  assertEquals(resolveOllamaHost({ get: () => undefined }), null);
+});
+
+Deno.test("fetchServerVersion rewrites bind addresses to loopback", async () => {
+  // No server on these ports; the point is the URL construction, so assert
+  // the failure mentions the probed host, not a crash.
+  const result = await fetchServerVersion("0.0.0.0:59999");
+  assertEquals(result.version, null);
+});
+
+Deno.test("parseClientVersions reads the ollama version line", () => {
+  assertEquals(parseClientVersions("ollama version is 0.35.1"), "0.35.1");
+  assertEquals(parseClientVersions("ollama version 0.33.3"), "0.33.3");
+  assertEquals(parseClientVersions("no version here"), null);
+});
+
 Deno.test("plan resolves Linux/amd64 base to the Ollama asset", async () => {
   const { ctx } = await runMethod("plan", {
     globalArgs: { serviceScope: "system" },
@@ -249,6 +277,177 @@ Deno.test("plan detects an existing system unit when scope is auto", async () =>
     });
     const d = ctx.getWrittenResources()[0].data as Record<string, unknown>;
     assertEquals(d.serviceScope, "system");
+  } finally {
+    await Deno.remove(unitDir, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// stage
+// ---------------------------------------------------------------------------
+
+Deno.test("stage extracts a verified tar.zst archive to a staging dir", async () => {
+  const fixture = await buildOllamaTarZst();
+  let stagedDir: string | null = null;
+  try {
+    const { ctx } = await runMethod("stage", {
+      raw: true,
+      args: {
+        version: "0.35.0",
+        archivePath: fixture.path,
+        archiveName: "ollama-linux-amd64.tar.zst",
+        checksum: "",
+      },
+    });
+    const d = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+    assertEquals(d.staged, true);
+    assertEquals(d.version, "0.35.0");
+    assertEquals(d.binaryPath !== null, true);
+    assertEquals((d.binaryPath as string).includes("/bin/ollama"), true);
+    assertEquals((d.libDir as string).endsWith("lib/ollama"), true);
+    assertEquals((d.fileCount as number) >= 2, true);
+    // The staging dir must actually exist with the binary in it.
+    const stat = await Deno.stat(`${d.stagingDir}/bin/ollama`);
+    assertEquals(stat.isFile, true);
+    stagedDir = d.stagingDir as string;
+  } finally {
+    await Deno.remove(fixture.dir, { recursive: true });
+    if (stagedDir) {
+      await Deno.remove(stagedDir, { recursive: true });
+    }
+  }
+});
+
+Deno.test("stage refuses an archive with a bad checksum", async () => {
+  const fixture = await buildOllamaTarZst();
+  try {
+    await assertRejects(() =>
+      runMethod("stage", {
+        raw: true,
+        args: {
+          version: "0.35.0",
+          archivePath: fixture.path,
+          archiveName: "ollama-linux-amd64.tar.zst",
+          checksum:
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        },
+      })
+    );
+  } finally {
+    await Deno.remove(fixture.dir, { recursive: true });
+  }
+});
+
+Deno.test("stage requires an archivePath", async () => {
+  await assertRejects(() => runMethod("stage", { args: {} }));
+});
+
+Deno.test("prepareService stages a unit when none exists", async () => {
+  const fixture = await buildOllamaTarZst();
+  try {
+    // Stage first (real commands, so extraction happens), then prepare.
+    const staged = await runMethod("stage", {
+      raw: true,
+      args: {
+        version: "0.35.0",
+        archivePath: fixture.path,
+        archiveName: "ollama-linux-amd64.tar.zst",
+        checksum: "",
+      },
+    });
+    const stagingDir = (staged.ctx.getWrittenResources()[0].data as Record<
+      string,
+      unknown
+    >).stagingDir as string;
+
+    const prepared = await runMethod("prepareService", {
+      globalArgs: { serviceScope: "system", unitDir: "/tmp/ollama-test-units" },
+      storedResources: {
+        stage: {
+          staged: true,
+          skipped: false,
+          stagingDir,
+        },
+      },
+      handler: (command: string, args: string[]) => {
+        if (command === "systemctl" && args.includes("cat")) {
+          return { stdout: "", stderr: "no such file\n", code: 1 };
+        }
+        return { stdout: "", code: 0 };
+      },
+    });
+    const d = prepared.ctx.getWrittenResources()[0].data as Record<
+      string,
+      unknown
+    >;
+    assertEquals(d.unitCreated, true);
+    assertEquals(d.usedDropIn, false);
+    const unitStaged = d.unitStagedPath as string;
+    const content = await Deno.readTextFile(unitStaged);
+    assertEquals(content.includes("ExecStart="), true);
+    assertEquals(content.includes("User=ollama"), true);
+    const dropIn = await Deno.readTextFile(d.dropInStagedPath as string);
+    assertEquals(dropIn.includes("[Service]"), true);
+  } finally {
+    await Deno.remove(fixture.dir, { recursive: true });
+  }
+});
+
+Deno.test("plan with manageService=false reports binary only", async () => {
+  const unitDir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(
+      `${unitDir}/ollama.service`,
+      "[Unit]\nDescription=x\n",
+    );
+    const { ctx } = await runMethod("plan", {
+      globalArgs: { serviceScope: "system", unitDir, manageService: "false" },
+    });
+    const d = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+    assertEquals(d.manageService, false);
+  } finally {
+    await Deno.remove(unitDir, { recursive: true });
+  }
+});
+
+Deno.test("plan with manageService auto detects an existing unit", async () => {
+  const unitDir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(
+      `${unitDir}/ollama.service`,
+      "[Unit]\nDescription=x\n",
+    );
+    const { ctx } = await runMethod("plan", {
+      globalArgs: { serviceScope: "system", unitDir, manageService: "auto" },
+    });
+    const d = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+    assertEquals(d.manageService, true);
+  } finally {
+    await Deno.remove(unitDir, { recursive: true });
+  }
+});
+
+Deno.test("plan with manageService auto and no unit reports binary only", async () => {
+  const unitDir = await Deno.makeTempDir();
+  try {
+    const { ctx } = await runMethod("plan", {
+      globalArgs: { serviceScope: "system", unitDir, manageService: "auto" },
+      handler: (command: string, args: string[]) => {
+        if (command === "uname" && args[0] === "-s") {
+          return { stdout: "Linux\n", code: 0 };
+        }
+        if (command === "uname" && args[0] === "-m") {
+          return { stdout: "x86_64\n", code: 0 };
+        }
+        if (command === "id") return { stdout: "0\n", code: 0 };
+        if (command === "systemctl" && args.includes("cat")) {
+          return { stdout: "", stderr: "no such file\n", code: 1 };
+        }
+        return { stdout: "", code: 0 };
+      },
+    });
+    const d = ctx.getWrittenResources()[0].data as Record<string, unknown>;
+    assertEquals(d.manageService, false);
   } finally {
     await Deno.remove(unitDir, { recursive: true });
   }

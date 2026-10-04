@@ -942,6 +942,38 @@ export async function runCapture(
 }
 
 /**
+ * Run a command with an explicit child environment (a copy with, e.g.,
+ * OLLAMA_HOST scrubbed so `ollama --version` reports the local binary instead
+ * of a remote server). A missing binary is code 127.
+ */
+export async function runCaptureEnv(
+  bin: string,
+  args: string[],
+  env: Record<string, string>,
+): Promise<{ stdout: string; stderr: string; code: number }> {
+  try {
+    const proc = new Deno.Command(bin, {
+      args,
+      env,
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const out = await proc.output();
+    return {
+      stdout: new TextDecoder().decode(out.stdout),
+      stderr: new TextDecoder().decode(out.stderr),
+      code: out.code,
+    };
+  } catch (err) {
+    return {
+      stdout: "",
+      stderr: err instanceof Error ? err.message : String(err),
+      code: 127,
+    };
+  }
+}
+
+/**
  * Reject a value that would inject extra unit directives. The unit file is
  * line-oriented: a newline inside an environment line, description or exec
  * argument would start a new directive, so a caller could add `User=root` or

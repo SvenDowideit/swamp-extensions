@@ -79,6 +79,7 @@ import {
   renderServiceUnit,
   resolveOsArch,
   runCapture,
+  runCaptureEnv,
   type ServiceUnitOptions,
   versionsEqual,
 } from "./ollama_shared.ts";
@@ -94,6 +95,19 @@ const ServiceScopeSchema = z.enum(["auto", "system", "user"]).describe(
 );
 
 const ScopeOverrideSchema = z.enum(["auto", "system", "user"]).optional();
+
+/**
+ * Tri-state service management: `auto` (default) maintains the service only
+ * when a unit already exists (a server) and otherwise upgrades the binary only
+ * (a client); `true` always creates/updates the service; `false` never touches
+ * units.
+ */
+const ManageServiceSchema = z.enum(["auto", "true", "false"]).default("auto")
+  .describe(
+    "auto (default): maintain the systemd service when a unit already exists, " +
+      "else upgrade the binary only (a client machine). true: always " +
+      "create/update the service. false: never touch units.",
+  );
 
 const GlobalArgsSchema = z.object({
   os: z.string().default("").describe(
@@ -135,6 +149,7 @@ const GlobalArgsSchema = z.object({
   environment: z.array(z.string()).default([]).describe(
     "Extra Environment= lines as KEY=VALUE (e.g. OLLAMA_MODELS=/mnt/models).",
   ),
+  manageService: ManageServiceSchema,
   extraEnvironment: z.string().default("").describe(
     "Convenience alternative to `environment`: a newline- or comma-separated " +
       "block of KEY=VALUE lines, so a user can paste several settings.",
@@ -151,6 +166,10 @@ const GlobalArgsSchema = z.object({
   sudoNonInteractive: z.boolean().default(true).describe(
     "Pass -n to sudo so it fails instead of prompting (a swamp run has no " +
       "tty). Set false to let an interactive terminal prompt for a password.",
+  ),
+  sudoInstanceKey: z.string().default("default").describe(
+    "Instance key of the privileged @svendowideit/sudo model the workflow " +
+      "elevates through (model name sudo-<instanceKey>).",
   ),
 }).strict();
 
@@ -172,6 +191,18 @@ const PlanArgsSchema = z.object({
 const SyncArgsSchema = z.object({
   path: z.string().optional().describe(
     "Override the binary path for this call.",
+  ),
+  repo: z.string().default("ollama/ollama").describe(
+    "GitHub repository publishing the Ollama releases. Used to resolve the " +
+      "latest release version for the update check.",
+  ),
+  githubToken: z.string().default("").meta({ sensitive: true }).describe(
+    "GitHub token to raise the releases API rate limit. Empty falls back to " +
+      "GITHUB_TOKEN / GH_TOKEN, then the authenticated `gh` CLI.",
+  ),
+  checkLatest: z.boolean().default(true).describe(
+    "Also fetch the latest release version from GitHub and report whether an " +
+      "update is available. Set false for an offline / air-gapped sync.",
   ),
 });
 
@@ -204,6 +235,47 @@ const InstallArgsSchema = z.object({
 });
 
 type InstallArgs = z.infer<typeof InstallArgsSchema>;
+
+const StageArgsSchema = z.object({
+  version: z.string().default("").describe(
+    "Release version being staged (e.g. 0.35.0). Empty reads it from archiveName.",
+  ),
+  archivePath: z.string().default("").describe(
+    "Path to the checksum-verified archive produced by " +
+      "@svendowideit/github-release-install's download step. Required.",
+  ),
+  archiveName: z.string().default("").describe(
+    "Archive file name, e.g. ollama-linux-amd64.tar.zst. Used to derive the " +
+      "release version and the staged layout.",
+  ),
+  checksum: z.string().default("").describe(
+    "Expected digest of the archive, recorded by the release workflow.",
+  ),
+  verifyArchive: z.boolean().default(true).describe(
+    "Re-verify the archive's digest before extracting (streamed via sha256sum).",
+  ),
+}).passthrough();
+
+type StageArgs = z.infer<typeof StageArgsSchema>;
+
+const StageResultSchema = z.object({
+  staged: z.boolean(),
+  skipped: z.boolean(),
+  version: z.string().nullable(),
+  archiveName: z.string().nullable(),
+  archivePath: z.string().nullable(),
+  checksumVerified: z.boolean().nullable(),
+  stagingDir: z.string().nullable(),
+  binaryPath: z.string().nullable(),
+  libDir: z.string().nullable(),
+  os: z.string().nullable(),
+  arch: z.string().nullable(),
+  accel: z.string().nullable(),
+  bytes: z.number().nullable(),
+  fileCount: z.number(),
+  stagedAt: z.string(),
+  message: z.string(),
+});
 
 const UninstallArgsSchema = z.object({
   path: z.string().default("").describe(
@@ -285,6 +357,62 @@ const PrintArgsSchema = ServiceNameArgsSchema;
 
 type PrintArgs = z.infer<typeof PrintArgsSchema>;
 
+const FetchScriptArgsSchema = z.object({
+  url: z.string().default("https://ollama.com/install.sh").describe(
+    "Download URL for the official installer script.",
+  ),
+  downloadDir: z.string().default("").describe(
+    "Override the download directory for this call. Empty uses the global.",
+  ),
+}).passthrough();
+
+type FetchScriptArgs = z.infer<typeof FetchScriptArgsSchema>;
+
+const FetchScriptResultSchema = z.object({
+  fetched: z.boolean(),
+  scriptPath: z.string().nullable(),
+  url: z.string(),
+  bytes: z.number().nullable(),
+  sha256: z.string().nullable(),
+  fetchedAt: z.string(),
+  message: z.string(),
+});
+
+const PrepareServiceArgsSchema = z.object({
+  serviceName: z.string().default("").describe("Override the service name."),
+  serviceScope: ScopeOverrideSchema,
+  binaryPath: z.string().default("").describe(
+    "Override the ollama binary path used in ExecStart. Empty resolves it.",
+  ),
+  host: z.string().optional().describe("Override OLLAMA_HOST for this call."),
+  environment: z.array(z.string()).optional().describe(
+    "Replace the environment list for this call.",
+  ),
+  extraArgs: z.string().optional().describe("Override extra serve arguments."),
+  restart: z.string().optional(),
+  restartSec: z.string().optional(),
+  createIfMissing: z.boolean().default(true).describe(
+    "Also render a full unit (not just a drop-in) when none exists.",
+  ),
+}).passthrough();
+
+type PrepareServiceArgs = z.infer<typeof PrepareServiceArgsSchema>;
+
+const PrepareServiceResultSchema = z.object({
+  serviceName: z.string(),
+  scope: z.string(),
+  unitPath: z.string(),
+  dropInPath: z.string().nullable(),
+  unitStagedPath: z.string().nullable(),
+  dropInStagedPath: z.string().nullable(),
+  unitCreated: z.boolean(),
+  usedDropIn: z.boolean(),
+  environment: z.array(z.string()),
+  execStart: z.string(),
+  preparedAt: z.string(),
+  message: z.string(),
+});
+
 // ---------------------------------------------------------------------------
 // Resource schemas
 // ---------------------------------------------------------------------------
@@ -301,6 +429,7 @@ const PlanResultSchema = z.object({
   libDir: z.string(),
   serviceName: z.string(),
   serviceScope: z.string(),
+  manageService: z.boolean(),
   supported: z.boolean(),
   serviceStatusCommand: z.string().nullable(),
   requiresRoot: z.boolean(),
@@ -340,6 +469,11 @@ const InstalledResultSchema = z.object({
   os: z.string().nullable(),
   arch: z.string().nullable(),
   rawVersionOutput: z.string().nullable(),
+  latestVersion: z.string().nullable(),
+  updateAvailable: z.boolean().nullable(),
+  serverHost: z.string().nullable(),
+  serverVersion: z.string().nullable(),
+  serverError: z.string().nullable(),
   checkedAt: z.string(),
 });
 
@@ -429,6 +563,10 @@ const PrintResultSchema = z.object({
   path: z.string().nullable(),
   present: z.boolean(),
   version: z.string().nullable(),
+  latestVersion: z.string().nullable(),
+  updateAvailable: z.boolean().nullable(),
+  serverHost: z.string().nullable(),
+  serverVersion: z.string().nullable(),
   serviceName: z.string(),
   scope: z.string().nullable(),
   serviceStatusCommand: z.string().nullable(),
@@ -538,16 +676,91 @@ async function existingFile(path: string): Promise<string | null> {
   }
 }
 
-/** Run `ollama --version` and return the combined output and exit code. */
-async function runVersion(
+/** Where the `ollama` client points: host:port/URL, or null when default. */
+export function resolveOllamaHost(
+  env: { get(key: string): string | undefined } = Deno.env,
+): string | null {
+  try {
+    const host = (env.get("OLLAMA_HOST") ?? "").trim();
+    return host || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Query a running Ollama server's `/api/version`. Accepts a bare
+ * `host:port`, a `http(s):// URL`, or `0.0.0.0`-style bind addresses
+ * (rewritten to `127.0.0.1`). Returns the version string, or `null` when the
+ * endpoint is unreachable/not a server.
+ */
+export async function fetchServerVersion(
+  host: string,
+): Promise<{ version: string | null; error?: string }> {
+  if (!host) return { version: null };
+  let base = host.trim().replace(/\/+$/, "");
+  if (!/^https?:\/\//.test(base)) base = `http://${base}`;
+  // A bind address is not a client destination: probe the loopback instead.
+  if (/^http:\/\/0\.0\.0\.0/.test(base)) {
+    base = base.replace("0.0.0.0", "127.0.0.1");
+  }
+  if (/^http:\/\/\+/.test(base)) base = base.replace("+", "127.0.0.1");
+  try {
+    const response = await fetch(`${base}/api/version`, {
+      headers: { "User-Agent": "swamp-ollama-extension" },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!response.ok) {
+      return {
+        version: null,
+        error:
+          `server probe returned ${response.status} ${response.statusText}`,
+      };
+    }
+    const payload = await response.json() as { version?: string };
+    const version = (payload.version ?? "").trim();
+    return version
+      ? { version }
+      : { version: null, error: "no version in response" };
+  } catch (error) {
+    return {
+      version: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Probe the local binary's version WITHOUT a server: `ollama --version` also
+ * reports a remote server's version from `OLLAMA_HOST` when set. With the
+ * default runner the env var is scrubbed from the child process; a custom
+ * (test) runner is passed through unchanged because mocks have no concept of
+ * environment.
+ */
+async function runLocalVersion(
   path: string,
   runner: Runner = runCapture,
 ): Promise<{ output: string; code: number }> {
+  if (runner === runCapture) {
+    // Deno.Command *merges* the given env over the parent's, so deleting the
+    // key would leak the parent's OLLAMA_HOST into the child; overriding it
+    // with an empty value (which ollama treats as "unset") actually scrubs.
+    const env = Deno.env.toObject();
+    env.OLLAMA_HOST = "";
+    const result = await runCaptureEnv(path, ["--version"], env);
+    return {
+      output: (result.stdout + result.stderr).trim(),
+      code: result.code,
+    };
+  }
   const result = await runner(path, ["--version"]);
-  return {
-    output: `${result.stdout}${result.stderr}`.trim(),
-    code: result.code,
-  };
+  return { output: result.stdout, code: result.code };
+}
+
+/** The parsed client version from combined version output (first match). */
+export function parseClientVersions(output: string): string | null {
+  const m = output.match(/ollama version(?:\s+is)?\s+v?(\d[\w.+-]*)/i);
+  return m ? normalizeVersion(m[1]) : null;
 }
 
 /**
@@ -640,6 +853,30 @@ function defaultInstallDir(
 function libDirFor(installDir: string): string {
   const trimmed = installDir.replace(/\/+$/, "");
   return `${dirnameOf(trimmed)}/lib/ollama`;
+}
+
+/**
+ * Resolve the tri-state `manageService` setting: an explicit `true`/`false`
+ * wins; `auto` maintains the service only when a unit already exists (system
+ * or user scope), so a client machine without a unit is upgraded binary-only.
+ */
+async function resolveManageService(
+  mode: "auto" | "true" | "false",
+  serviceName: string,
+  g: GlobalArgs,
+  runner: Runner,
+): Promise<boolean> {
+  if (mode === "true") return true;
+  if (mode === "false") return false;
+  // auto: an existing unit anywhere means "maintain it".
+  const unitOpts = { unitDir: g.unitDir };
+  if (unitFileExists("system", serviceName, unitOpts)) return true;
+  if (unitFileExists("user", serviceName, unitOpts)) return true;
+  const sys = await runner("systemctl", ["cat", serviceName]);
+  if (sys.code === 0) return true;
+  const user = await runner("systemctl", ["--user", "cat", serviceName]);
+  if (user.code === 0) return true;
+  return false;
 }
 
 /**
@@ -1329,17 +1566,67 @@ async function countDir(src: string): Promise<number> {
 // Shared method internals
 // ---------------------------------------------------------------------------
 
+/**
+ * Resolve the latest Ollama release version from the GitHub releases API.
+ * Anonymous requests work (60/hour/IP); a token raises the limit. Returns
+ * `null` when the check cannot run (offline, rate-limited) so `sync` still
+ * records the installed state.
+ */
+async function fetchLatestVersion(
+  repo: string,
+  githubToken: string,
+): Promise<{ version: string | null; error?: string }> {
+  const headers: Record<string, string> = {
+    "Accept": "application/vnd.github+json",
+    "User-Agent": "swamp-ollama-extension",
+  };
+  const token = githubToken.trim() ||
+    Deno.env.get("GITHUB_TOKEN")?.trim() ||
+    Deno.env.get("GH_TOKEN")?.trim() ||
+    "";
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${repo}/releases/latest`,
+      { headers },
+    );
+    if (!response.ok) {
+      return {
+        version: null,
+        error: `GitHub API returned ${response.status} ${response.statusText}`,
+      };
+    }
+    const payload = await response.json() as { tag_name?: string };
+    const tag = (payload.tag_name ?? "").trim();
+    return tag ? { version: normalizeVersion(tag) } : {
+      version: null,
+      error: "the release payload carried no tag_name",
+    };
+  } catch (error) {
+    return {
+      version: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 /** Locate the binary, read its version, and write the `installed` resource. */
 async function performSync(
   context: MethodContext,
   explicitPath: string,
+  opts: { repo?: string; githubToken?: string; checkLatest?: boolean } = {},
 ): Promise<{ name: string }> {
   const path = await findBinary(explicitPath);
   let present = false;
   let version: string | null = null;
   let rawVersionOutput: string | null = null;
+  let serverVersion: string | null = null;
+  let serverHost: string | null = null;
+  let serverError: string | null = null;
   if (path) {
-    const result = await runVersion(path);
+    // `ollama --version` reports the OLLAMA_HOST *server's* version when the
+    // env var is exported — scrub it so this is the local binary's version.
+    const result = await runLocalVersion(path, runCapture);
     rawVersionOutput = result.output;
     const parsed = parseVersionOutput(result.output);
     if (parsed) {
@@ -1353,10 +1640,72 @@ async function performSync(
       );
     }
   }
+
+  // The server the CLI would talk to (if OLLAMA_HOST is exported elsewhere),
+  // probed separately so a client/server split is visible.
+  serverHost = resolveOllamaHost();
+  if (serverHost) {
+    const probed = await fetchServerVersion(serverHost);
+    serverVersion = probed.version;
+    serverError = probed.error ?? null;
+  }
+
+  // Update check: compare the installed version with the latest release.
+  // A failed check degrades to null (the sync still records what is
+  // installed); the workflow's dedicated resolve step owns the download-time
+  // check, so this is informational.
+  let latestVersion: string | null = null;
+  let updateAvailable: boolean | null = null;
+  if (opts.checkLatest !== false) {
+    const latest = await fetchLatestVersion(
+      opts.repo ?? "ollama/ollama",
+      opts.githubToken ?? "",
+    );
+    latestVersion = latest.version;
+    if (latestVersion && present && version) {
+      updateAvailable = compareVersions(latestVersion, version) > 0;
+    } else if (latestVersion && !present) {
+      updateAvailable = true;
+    }
+    if (latest.error) {
+      context.logger.warn?.(
+        "Update check skipped: {reason}",
+        { reason: latest.error },
+      );
+    }
+  }
+
   context.logger.info(
-    present ? "Ollama {version} installed at {path}" : "Ollama not installed",
+    present ? "Client binary: {version} at {path}" : "Ollama not installed",
     { version: version ?? "unknown", path: path ?? "(not found)" },
   );
+  if (serverHost) {
+    if (serverVersion) {
+      context.logger.info(
+        serverVersion !== version
+          ? "Server at {host} is {server} (client binary is local {version})"
+          : "Server at {host} matches the local binary: {server}",
+        {
+          host: serverHost,
+          server: serverVersion,
+          version: version ?? "unknown",
+        },
+      );
+    } else {
+      context.logger.warn?.(
+        "Server probe at {host} failed: {reason}",
+        { host: serverHost, reason: serverError ?? "unreachable" },
+      );
+    }
+  }
+  if (latestVersion) {
+    context.logger.info(
+      updateAvailable
+        ? "Update available: installed {version} → latest release {latest}"
+        : "Latest release {latest}; this machine is up to date.",
+      { version: version ?? "(none)", latest: latestVersion },
+    );
+  }
   return await context.writeResource("installed", "installed", {
     path: path ?? "",
     present,
@@ -1364,6 +1713,11 @@ async function performSync(
     os: null,
     arch: null,
     rawVersionOutput,
+    latestVersion,
+    updateAvailable,
+    serverHost,
+    serverVersion,
+    serverError,
     checkedAt: new Date().toISOString(),
   });
 }
@@ -1441,9 +1795,21 @@ async function ensureUserGroup(
 /** Installs and manages Ollama and its systemd service on this machine. */
 export const model = {
   type: "@svendowideit/ollama",
-  version: "2026.10.01.1",
+  version: "2026.10.04.3",
   globalArguments: GlobalArgsSchema,
-  upgrades: [],
+  upgrades: [
+    {
+      toVersion: "2026.10.04.3",
+      description:
+        "manageService becomes tri-state (auto/true/false, default auto: " +
+        "existing unit → maintain it, else binary-only). New `stage` method " +
+        "extracts the verified archive to an unprivileged staging dir; the " +
+        "bundled workflow places it via @svendowideit/sudo. New " +
+        "--input installScript=true branch runs the official install.sh " +
+        "through the sudo elevation ladder.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     platform: {
       description:
@@ -1475,6 +1841,27 @@ export const model = {
     install: {
       description: "The result of the last install (or skipped install)",
       schema: InstallResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    stage: {
+      description:
+        "The verified, extracted release tree awaiting privileged placement",
+      schema: StageResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    servicePrepare: {
+      description:
+        "The staged systemd unit/drop-in files awaiting privileged placement",
+      schema: PrepareServiceResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    installerScript: {
+      description:
+        "The downloaded official install.sh awaiting runScript execution",
+      schema: FetchScriptResultSchema,
       lifetime: "infinite",
       garbageCollection: 20,
     },
@@ -1571,6 +1958,15 @@ export const model = {
         const statusCommand = isDarwinOs(os) || isWindowsOs(os)
           ? null
           : serviceStatusCommandFor(g.serviceName, scope);
+        // Tri-state manageService: auto resolves to "maintain the service"
+        // only when a unit already exists; a client machine (no unit) gets a
+        // binary-only upgrade.
+        const manageService = await resolveManageService(
+          g.manageService,
+          g.serviceName,
+          g,
+          runner,
+        );
         // Privilege: system scope + a root-owned install dir means the install
         // steps need root. Probe now so we can tell the user up front whether
         // swamp can do it or whether they will need the printed commands.
@@ -1616,6 +2012,7 @@ export const model = {
         const message = supported
           ? `Plan: ${os}/${arch} accel=${accel} → ${assetName} (${format}); ` +
             `install to ${installDir}; service ${g.serviceName} (${scope})` +
+            (manageService ? `; manage service` : `; binary only`) +
             (needsRoot && !escalate
               ? `; WARNING: needs root, cannot escalate — see manualCommands`
               : "")
@@ -1635,6 +2032,7 @@ export const model = {
           libDir: libDirFor(installDir),
           serviceName: g.serviceName,
           serviceScope: scope,
+          manageService,
           supported,
           serviceStatusCommand: statusCommand,
           requiresRoot: needsRoot,
@@ -1693,8 +2091,9 @@ export const model = {
 
     sync: {
       description:
-        "Locate the ollama binary, run `ollama --version`, and record the " +
-        "installed version and path.",
+        "Locate the ollama binary, run `ollama --version`, resolve the latest " +
+        "release version from GitHub (rate-limit friendly; fails soft), and " +
+        "record installed + latest + whether an update is available.",
       arguments: SyncArgsSchema,
       execute: async (
         args: z.infer<typeof SyncArgsSchema>,
@@ -1702,7 +2101,11 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const explicit = (args.path ?? "").trim() ||
           context.globalArgs.installDir;
-        const handle = await performSync(context, explicit);
+        const handle = await performSync(context, explicit, {
+          repo: args.repo,
+          githubToken: args.githubToken,
+          checkLatest: args.checkLatest,
+        });
         return { dataHandles: [handle] };
       },
     },
@@ -1742,6 +2145,314 @@ export const model = {
           message,
           assessedAt: new Date().toISOString(),
         });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    stage: {
+      description:
+        "Verify the checksummed archive and extract it into an unprivileged " +
+        "staging directory, so the workflow's privileged @svendowideit/sudo " +
+        "steps can place the binary, runtime and unit files. Pure staging: " +
+        "nothing is written outside stagingDir.",
+      arguments: StageArgsSchema,
+      execute: async (
+        args: StageArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const runner: Runner = runCapture;
+        const archivePath = args.archivePath.trim()
+          ? expandHome(args.archivePath.trim())
+          : "";
+        if (!archivePath) {
+          throw new Error(
+            "stage requires a checksum-verified archive: pass archivePath " +
+              "(the file @svendowideit/github-release-install's download step " +
+              "wrote). Run the bundled ollama-install workflow, which " +
+              "resolves, downloads and verifies the archive first.",
+          );
+        }
+        const archiveLabel = args.archiveName.trim() ||
+          archivePath.replace(/\\/g, "/").split("/").pop() || archivePath;
+        const parsed = parseArchiveName(archiveLabel);
+        const archiveOs = parsed?.os ?? "Linux";
+        const version = normalizeVersion(args.version);
+        const format = detectArchiveFormat(archiveLabel);
+        if (!format) {
+          throw new Error(
+            `Unrecognised Ollama archive format for '${archiveLabel}'.`,
+          );
+        }
+
+        // Verify the archive (the release workflow already verified it; this
+        // is defence in depth, streamed so a multi-GB archive is not read
+        // whole).
+        let checksumVerified: boolean | null = null;
+        if (args.verifyArchive && args.checksum.trim()) {
+          const digest = await digestFile(
+            archivePath,
+            args.checksum.trim(),
+            runner,
+          );
+          checksumVerified = digest.verified;
+          if (!digest.verified) {
+            throw new Error(
+              `Checksum mismatch for ${archiveLabel}: expected ` +
+                `${args.checksum.trim()} but got ${digest.hex} — refusing to stage.`,
+            );
+          }
+        }
+
+        const stagingDir = await Deno.makeTempDir({
+          prefix: "ollama-stage-",
+        });
+        let fileCount = 0;
+        let archiveBytes = 0;
+        let binaryPath: string | null = null;
+        let libDir: string | null = null;
+        try {
+          archiveBytes = (await Deno.stat(archivePath)).size;
+          context.logger.info(
+            "Extracting {archive} ({format}) to staging…",
+            { archive: archiveLabel, format },
+          );
+          const extracted = await extractToDir(
+            archivePath,
+            format,
+            stagingDir,
+            runner,
+          );
+          fileCount = extracted.fileCount;
+          const exe = isWindowsOs(archiveOs) ? "ollama.exe" : "ollama";
+          const binSrc = (await existingFile(`${stagingDir}/bin/${exe}`)) ??
+            `${stagingDir}/${exe}`;
+          const binStat = await Deno.stat(binSrc).catch(() => null);
+          if (!binStat?.isFile) {
+            throw new Error(
+              `Extracted archive has no ${exe} binary (looked in ${stagingDir}/bin and ${stagingDir}).`,
+            );
+          }
+          binaryPath = binSrc;
+          const libSrcStat = await Deno.stat(`${stagingDir}/lib/ollama`).catch(
+            () => null,
+          );
+          if (libSrcStat?.isDirectory) libDir = `${stagingDir}/lib/ollama`;
+        } catch (error) {
+          try {
+            await Deno.remove(stagingDir, { recursive: true });
+          } catch {
+            // best effort
+          }
+          throw error;
+        }
+
+        context.logger.info(
+          "Staged Ollama {version} at {dir} ({files} files)…",
+          {
+            version: version || archiveLabel,
+            dir: stagingDir,
+            files: fileCount,
+          },
+        );
+        const message =
+          `Staged Ollama ${version || archiveLabel} in ${stagingDir} ` +
+          `(${fileCount} files); binary at ${binaryPath}`;
+        const handle = await context.writeResource("stage", "stage", {
+          staged: true,
+          skipped: false,
+          version: version || null,
+          archiveName: args.archiveName || null,
+          archivePath,
+          checksumVerified,
+          stagingDir,
+          binaryPath,
+          libDir,
+          os: parsed?.os ?? null,
+          arch: parsed?.arch || null,
+          accel: parsed?.accel ?? null,
+          bytes: archiveBytes || null,
+          fileCount,
+          stagedAt: new Date().toISOString(),
+          message,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    fetchScript: {
+      description:
+        "Download Ollama's official install.sh into the download directory " +
+        "and record its SHA-256, so the workflow's privileged steps can " +
+        "execute it through the sudo ladder (runScript). No privilege and no " +
+        "execution happen here — verify the URL before running.",
+      arguments: FetchScriptArgsSchema,
+      execute: async (
+        args: FetchScriptArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const url = args.url.trim();
+        if (!/^https:\/\//.test(url)) {
+          throw new Error(
+            `installScriptUrl must be an https:// URL, got '${url}'`,
+          );
+        }
+        const downloadDir = expandHome(
+          (args.downloadDir.trim() || g.downloadDir).trim(),
+        );
+        await Deno.mkdir(downloadDir, { recursive: true });
+        const scriptPath = `${downloadDir}/install.sh`;
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(
+            `Downloading the official installer failed: ${response.status} ${response.statusText} (${url})`,
+          );
+        }
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        const sha256 = await digestHex(bytes, "SHA-256");
+        await Deno.writeFile(scriptPath, bytes);
+
+        const message =
+          `Downloaded the official install.sh (${bytes.length} bytes, ` +
+          `sha256 ${sha256}) to ${scriptPath}. Verify the digest against the ` +
+          `one published for the release before running it as root.`;
+        context.logger.info(message);
+        const handle = await context.writeResource(
+          "installerScript",
+          "script",
+          {
+            fetched: true,
+            scriptPath,
+            url,
+            bytes: bytes.length,
+            sha256,
+            fetchedAt: new Date().toISOString(),
+            message,
+          },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    prepareService: {
+      description:
+        "Render the systemd unit (when none exists) and/or the drop-in " +
+        "override with the configured service settings, and write them into " +
+        "the staging directory for the workflow to place with " +
+        "@svendowideit/sudo's installFile. No privileged work happens here.",
+      arguments: PrepareServiceArgsSchema,
+      execute: async (
+        args: PrepareServiceArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const runner: Runner = runCapture;
+        assertSystemdPlatform();
+        const serviceName = (args.serviceName.trim() || g.serviceName).trim();
+        assertNoNewlines("serviceName", serviceName);
+        const scope = await resolveScope(
+          args.serviceScope ?? g.serviceScope,
+          serviceName,
+          g,
+          runner,
+        );
+        const unitDir = unitDirFor(scope, { unitDir: g.unitDir });
+        const unitPath = `${unitDir}/${serviceName}.service`;
+        const dropInDir = `${unitDir}/${serviceName}.service.d`;
+        const dropInPath = `${dropInDir}/10-swamp.conf`;
+        const unitExists = unitFileExists(scope, serviceName, {
+          unitDir: g.unitDir,
+        });
+
+        const host = (args.host ?? g.host).trim();
+        const environment = args.environment ?? g.environment;
+        const extraEnvironment = g.extraEnvironment;
+        const extraArgs = (args.extraArgs ?? g.extraArgs).trim();
+        const user = g.serviceUser;
+        const group = g.serviceGroup;
+        const restartPolicy = args.restart ?? g.restart;
+        const restartSec = args.restartSec ?? g.restartSec;
+        const env = serviceEnvironment(host, environment, extraEnvironment);
+        const execArgs = execArgsFor(extraArgs);
+
+        // The staged release tree from `stage`; the unit lives next to it so
+        // one placement branch covers both.
+        const staged = await context.readResource("stage") as {
+          stagingDir?: string;
+        } | null;
+        const stagingDir = staged?.stagingDir ?? "";
+        if (!stagingDir) {
+          throw new Error(
+            "prepareService requires a staged release tree: run the stage " +
+              "method (via the ollama-install workflow) first.",
+          );
+        }
+
+        const binaryPath = args.binaryPath.trim()
+          ? expandHome(args.binaryPath.trim())
+          : (await findBinary(g.installDir) ??
+            (scope === "system"
+              ? "/usr/local/bin/ollama"
+              : defaultInstallDir(scope)));
+
+        const usedDropIn = unitExists;
+        const unitStagedPath = usedDropIn && !args.createIfMissing
+          ? null
+          : `${stagingDir}/unit/${serviceName}.service`;
+        const dropInStagedPath =
+          `${stagingDir}/unit/${serviceName}.service.d/10-swamp.conf`;
+
+        if (unitStagedPath) {
+          const unitContent = fullUnitContent(
+            serviceName,
+            scope,
+            binaryPath,
+            execArgs,
+            user,
+            group,
+            env,
+            restartPolicy,
+            restartSec,
+          );
+          await Deno.mkdir(dirnameOf(unitStagedPath), { recursive: true });
+          await Deno.writeTextFile(unitStagedPath, unitContent);
+        }
+        const dropIn = dropInContent(
+          binaryPath,
+          extraArgs ? execArgs : "",
+          env,
+        );
+        await Deno.mkdir(dirnameOf(dropInStagedPath), { recursive: true });
+        await Deno.writeTextFile(dropInStagedPath, dropIn);
+
+        context.logger.info(
+          "Staged systemd files for {name} ({scope}) in {dir}",
+          { name: serviceName, scope, dir: `${stagingDir}/unit` },
+        );
+        const message =
+          `Staged ${
+            unitStagedPath ? "unit + " : ""
+          }drop-in for ${serviceName} ` +
+          `(${scope}) in ${stagingDir}/unit`;
+        const handle = await context.writeResource(
+          "servicePrepare",
+          "prepared",
+          {
+            serviceName,
+            scope,
+            unitPath,
+            dropInPath,
+            unitStagedPath,
+            dropInStagedPath,
+            unitCreated: !unitExists,
+            usedDropIn,
+            environment: env,
+            execStart: `${binaryPath} ${execArgs}`.trim(),
+            preparedAt: new Date().toISOString(),
+            message,
+          },
+        );
         return { dataHandles: [handle] };
       },
     },
@@ -1804,7 +2515,7 @@ export const model = {
         let previousVersion: string | null = null;
         if (existing) {
           previousVersion = parseVersionOutput(
-            (await runVersion(existing, runner)).output,
+            (await runLocalVersion(existing, runner)).output,
           );
         }
         if (
@@ -2044,7 +2755,7 @@ export const model = {
             context.logger.info(message);
           } else {
             version = parseVersionOutput(
-              (await runVersion(target, runner)).output,
+              (await runLocalVersion(target, runner)).output,
             );
             libDir = libDirFor(dirnameOf(target));
             const needsRoot = !dirIsWritable(dirnameOf(target));
@@ -2746,6 +3457,10 @@ export const model = {
           path?: string;
           present?: boolean;
           version?: string | null;
+          latestVersion?: string | null;
+          updateAvailable?: boolean | null;
+          serverHost?: string | null;
+          serverVersion?: string | null;
         } | null;
 
         const lines: string[] = [];
@@ -2760,10 +3475,34 @@ export const model = {
             }.`,
           );
         } else {
-          lines.push(`Installed:    ${stored.version ?? "unknown"}`);
+          lines.push(`Client binary: ${stored.version ?? "unknown"}`);
           if (stored.path) {
             lines.push(`Binary:       ${stored.path}`);
             lines.push(`Check it:     ${stored.path} --version`);
+          }
+          if (stored.serverHost) {
+            if (stored.serverVersion) {
+              lines.push(
+                `Server:       ${stored.serverVersion} at ${stored.serverHost}${
+                  stored.serverVersion !== stored.version
+                    ? ` (local binary: ${stored.version ?? "unknown"})`
+                    : " (matches)"
+                }`,
+              );
+            } else {
+              lines.push(
+                `Server:       unreachable at ${stored.serverHost}`,
+              );
+            }
+          }
+          if (stored.latestVersion) {
+            lines.push(
+              `Latest:       ${stored.latestVersion}${
+                (stored.updateAvailable ?? false)
+                  ? " (update available)"
+                  : " (up to date)"
+              }`,
+            );
           }
         }
         const statusCommand = Deno.build.os === "linux"
@@ -2805,6 +3544,10 @@ export const model = {
           path: stored?.path ?? null,
           present: stored?.present ?? false,
           version: stored?.version ?? null,
+          latestVersion: stored?.latestVersion ?? null,
+          updateAvailable: stored?.updateAvailable ?? null,
+          serverHost: stored?.serverHost ?? null,
+          serverVersion: stored?.serverVersion ?? null,
           serviceName,
           scope,
           serviceStatusCommand: statusCommand,

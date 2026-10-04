@@ -1,34 +1,41 @@
 id: 2b656abc-0076-47fd-9a86-ef89d16e853a
 name: '@svendowideit/ollama-install'
 description: |
-  Install or upgrade Ollama on this machine and keep its systemd service
-  running with your configuration — the whole loop in one idempotent run.
+  Install or upgrade Ollama on this machine — the whole loop in one idempotent
+  run, elevated through the @svendowideit/sudo ladder.
 
-  Steps (install): plan → privilege → sync → resolve → assess → download →
-  install → create-service → configure-service → restart-service → verify
+  Stages (install): plan → privilege → sync → resolve → assess → download →
+  stage → place-binary → create-user → stage-service → place-service →
+  daemon-reload → enable → restart → verify. (uninstall): plan → privilege →
+  sync → remove-service → uninstall → verify.
 
   plan resolves this machine's OS/architecture and accelerator (NVIDIA CUDA,
   AMD ROCm, Jetson, or the base build), the exact release asset name to fetch,
-  and whether the service is a system or user unit. privilege detects whether
-  this run can escalate to root: if a system install is needed but `sudo` would
-  prompt for a password (a swamp run has no tty), the run logs the exact
-  copy-paste commands to complete the install, and the install/service steps
-  hand back their own commands instead of failing. sync reads the installed
-  `ollama --version`. resolve calls @svendowideit/github-release-install to read
-  the newest Ollama release and the asset's expected SHA-256 from its
-  sha256sum.txt, and assess compares the two. download fetches the
-  checksum-verified archive only when an update is actually needed (or force is
-  set), so a current machine does not re-download a multi-gigabyte release.
-  install extracts that archive and installs the `ollama` binary and its
-  `lib/ollama` runtime. The service steps create a systemd unit when none exists
-  (making the unprivileged `ollama` user for a system unit), apply your service
-  settings as a drop-in override so an existing unit is customised not
-  clobbered, and restart it so the running daemon matches the new binary and
-  configuration. verify prints the installed version, the binary path and the
-  exact `systemctl status` command.
+  and the service scope. manageService is tri-state: `auto` (default)
+  maintains the systemd service only when a unit already exists (a server) and
+  upgrades the binary only otherwise (a client machine); `true` always
+  creates/updates the service; `false` never touches units. privilege reports
+  what the @svendowideit/sudo model can elevate with; its ladder (sudo, doas,
+  polkit/run0, pkexec, containers, ssh, …) replaces ad-hoc sudo probing. sync
+  reads the installed `ollama --version`. resolve calls
+  @svendowideit/github-release-install to read the newest Ollama release and
+  the asset's expected SHA-256 from its sha256sum.txt, and assess compares the
+  two. download fetches the checksum-verified archive only when an update is
+  actually needed (or force is set), so a current machine does not
+  re-download a multi-gigabyte release. stage verifies and extracts the
+  archive into an unprivileged staging dir. The privileged placement steps
+  run @svendowideit/sudo's named operations through the elevation ladder:
+  ensureDirectory (install/lib dirs), installFile (binary + lib tree + the
+  staged unit/drop-in), createUser (the unprivileged run-as user),
+  daemonReload, and manageService (enable + start/restart). Every
+  @svendowideit/sudo-run step needs its operation allowlisted on the sudo
+  model with `--global-arg allowedOperations=…` (see the manifest RUN
+  section); a run without them fails that step with the ladder report. verify
+  prints the installed version, the binary path and the exact
+  `systemctl status` command.
 
   Run it on any Linux host to make Ollama present, current, configured and
-  always-on:
+  (server machines) always-on as a service:
 
       swamp workflow run @svendowideit/ollama-install
 
@@ -39,30 +46,30 @@ description: |
         --input host=0.0.0.0:11434 \
         --input environment='OLLAMA_MODELS=/mnt/models'
 
-  Use user scope (no root) and skip service management entirely:
+  Upgrade the binary only (a client machine — never touch units):
 
       swamp workflow run @svendowideit/ollama-install \
-        --input serviceScope=user --input manageService=false
+        --input manageService=false
 
-  No passwordless sudo? Ask what this run can do, and read the exact commands
-  to run by hand when it cannot do a privileged step:
+  Force the service to exist (a fresh server):
 
-      swamp model @svendowideit/ollama method run privilege ollama
+      swamp workflow run @svendowideit/ollama-install --input manageService=true
 
-  Remove the binary (and optionally the service) again:
+  Alternative installer: run the official install.sh as root through the
+  elevation ladder instead of the checksummed release flow (downloaded to
+  staging and executed via sudo's runScript op):
 
-      swamp workflow run @svendowideit/ollama-install --input uninstall=true \
-        --input purgeService=true
+      swamp workflow run @svendowideit/ollama-install --input installScript=true
 
-  The workflow auto-registers the `ollama` and `github-release` model instances
-  on first run; nothing needs creating by hand. The daily trigger upgrades the
-  binary and restarts the service as new releases appear; remove `trigger:` if
-  you would rather upgrade by hand.
+  The workflow auto-registers the `ollama`, `github-release` and
+  `sudo-ollama` model instances on first run; nothing needs creating by hand.
+  The daily trigger upgrades the binary (and the service where one exists) as
+  new releases appear; remove `trigger:` if you would rather upgrade by hand.
 tags: {}
 trigger:
   schedule: "0 4 * * *"
   inputs:
-    manageService: true
+    manageService: auto
 inputs:
   properties:
     repo:
@@ -123,10 +130,17 @@ inputs:
         Reinstall even when the target version is already installed, and rewrite
         the unit/drop-in even when it already matches.
     manageService:
-      type: boolean
-      default: true
+      type: string
+      enum:
+        - auto
+        - "true"
+        - "false"
+      default: auto
       description: >-
-        Create/configure/restart a systemd service running `ollama serve`.
+        auto (default) maintains the systemd service only when a unit already
+        exists (a server) and upgrades the binary only otherwise (a client
+        machine). "true" always creates/updates the service. "false" never
+        touches units.
     uninstall:
       type: boolean
       default: false
@@ -195,20 +209,61 @@ inputs:
       type: string
       default: "3"
       description: systemd RestartSec= delay.
+    installScript:
+      type: boolean
+      default: false
+      description: >-
+        Install/upgrade via Ollama's official install.sh (downloaded from the
+        release tag and run as root through the sudo elevation ladder) instead
+        of the checksum-verified release archive. Needs the runScript sudo
+        operation allowlisted.
+    installScriptUrl:
+      type: string
+      default: https://ollama.com/install.sh
+      description: >-
+        Download URL for the official installer script used when installScript
+        is true.
+    sudoInstanceKey:
+      type: string
+      default: default
+      description: >-
+        Instance key of the @svendowideit/sudo model the workflow elevates
+        through (model name sudo-<instanceKey>).
+    sudoAllowedOperations:
+      type: array
+      items:
+        type: string
+      default:
+        - installPackage
+        - removePackage
+        - manageService
+        - ensureDirectory
+        - createUser
+        - installFile
+        - daemonReload
+        - removePath
+        - copyDirectory
+      description: >-
+        Operation allowlist passed to the sudo model for every privileged step
+        of this run (merged into the model's own allowlist). The default
+        covers the standard install flow; add runScript when running with
+        installScript=true.
   required: []
 jobs:
   - name: main
     description: >-
-      Plan the platform, read the installed version, resolve the latest release,
-      download and install only when an update is needed, then
-      create/configure/restart the systemd service.
+      Plan the platform, read the installed version, resolve the latest
+      release, download and stage only when an update is needed, place the
+      staged tree through the elevation ladder, then create/configure/restart
+      the systemd service when manageService says so.
     steps:
       - name: plan
         description: >-
           Resolve this machine's OS/arch/accelerator, the exact release asset
-          name to fetch, the install/lib paths, and the systemd service scope.
-          Runs first so every later step uses one consistent plan. It is the
-          only writer of the `plan` resource.
+          name to fetch, the install/lib paths, the systemd service scope, and
+          the tri-state manageService decision. Runs first so every later step
+          uses one consistent plan. It is the only writer of the `plan`
+          resource.
         task:
           type: model_method
           modelType: "@svendowideit/ollama"
@@ -224,10 +279,9 @@ jobs:
         allowFailure: false
       - name: privilege
         description: >-
-          Detect whether this run can escalate to root (root, passwordless sudo,
-          sudo-with-prompt, or none). When it cannot and a system install is
-          required, it logs the exact copy-paste commands to run by hand. Always
-          runs so the run log states the situation up front.
+          Report the @svendowideit/sudo ladder for this host (route proven,
+          mode). Informational: the placement steps run the ladder themselves,
+          and a no-route run fails there with the full report.
         task:
           type: model_method
           modelType: "@svendowideit/ollama"
@@ -241,15 +295,22 @@ jobs:
         allowFailure: false
       - name: sync
         description: >-
-          Read the installed `ollama --version` so `assess` can decide whether an
-          update is needed. Skipped on an uninstall run. It is the only writer of
-          the `installed` resource before install.
-        guard: ${{ inputs.uninstall == true }}
+          Read the installed `ollama --version` so `assess` can decide whether
+          an update is needed. Skipped on an uninstall or installScript run
+          (script mode has no release download to assess; it runs install.sh
+          and install.sh decides). The dedicated `resolve` step owns the
+          release check on workflow runs, so sync runs offline here
+          (checkLatest=false). It is the only writer of the `installed`
+          resource before install.
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.installScript == true }}
         task:
           type: model_method
           modelType: "@svendowideit/ollama"
           modelName: ollama
           methodName: sync
+          inputs:
+            checkLatest: false
         dependsOn:
           - step: privilege
             condition:
@@ -258,11 +319,12 @@ jobs:
         allowFailure: false
       - name: resolve
         description: >-
-          Read the latest Ollama release (or the pinned version), match the exact
-          asset plan selected, and record its expected SHA-256 from the release's
-          sha256sum.txt. Skipped on an uninstall run. It is the only writer of
-          the `release` resource.
-        guard: ${{ inputs.uninstall == true }}
+          Read the latest Ollama release (or the pinned version), match the
+          exact asset plan selected, and record its expected SHA-256 from the
+          release's sha256sum.txt. Skipped on an uninstall or installScript
+          run. It is the only writer of the `release` resource.
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.installScript == true }}
         task:
           type: model_method
           modelType: "@svendowideit/github-release-install"
@@ -287,10 +349,11 @@ jobs:
       - name: assess
         description: >-
           Compare the installed version with the resolved latest release and
-          record whether an update is available. Skipped on an uninstall run. It
-          is the only writer of the `assessment` resource, which gates the
-          download and install steps.
-        guard: ${{ inputs.uninstall == true }}
+          record whether an update is available. Skipped on an uninstall or
+          installScript run. It is the only writer of the `assessment`
+          resource, which gates the download and stage steps.
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.installScript == true }}
         task:
           type: model_method
           modelType: "@svendowideit/ollama"
@@ -306,12 +369,12 @@ jobs:
         allowFailure: false
       - name: download
         description: >-
-          Download the resolved archive and verify its SHA-256. Only runs when an
-          update is actually available (or force is set), so a machine that is
-          already current does not re-download a multi-gigabyte release. It is
-          the only writer of the `archive` resource.
+          Download the resolved archive and verify its SHA-256. Only runs when
+          an update is actually available (or force is set), so a machine that
+          is already current does not re-download a multi-gigabyte release. It
+          is the only writer of the `archive` resource.
         guard: >-
-          ${{ inputs.uninstall == true || inputs.force == false
+          ${{ inputs.uninstall == true || inputs.installScript == true || inputs.force == false
           && steps.assess.outputs.?updateAvailable.orValue(true) == false }}
         task:
           type: model_method
@@ -337,136 +400,349 @@ jobs:
               type: succeeded
         weight: 0
         allowFailure: false
-      - name: install
+      - name: stage
         description: >-
-          Extract the `ollama` binary and its `lib/ollama` runtime from the
-          checksum-verified archive and install them. Runs only when `download`
-          produced an archive (an update was needed, or force is set). Skipped
-          when uninstall=true. It is the only writer of the `install` resource.
+          Verify the archive's SHA-256 again (defence in depth) and extract it
+          into an unprivileged staging directory — bin/, lib/ollama/ and (from
+          prepareService, later) the rendered unit files. Runs only when an
+          update was needed (or force is set). It is the only writer of the
+          `stage` resource.
         guard: >-
-          ${{ inputs.uninstall == true
+          ${{ inputs.uninstall == true || inputs.installScript == true
           || (inputs.force == false
           && steps.assess.outputs.?updateAvailable.orValue(true) == false) }}
         task:
           type: model_method
           modelType: "@svendowideit/ollama"
           modelName: ollama
-          methodName: install
+          methodName: stage
           inputs:
             version: ${{ steps.resolve.outputs.?version.orValue(inputs.version) }}
             archivePath: ${{ steps.download.outputs.?path.orValue("") }}
             archiveName: ${{ steps.download.outputs.?archiveName.orValue("") }}
             checksum: ${{ steps.download.outputs.?checksum.orValue("") }}
-            installDir: ${{ inputs.installDir }}
-            serviceScope: ${{ inputs.serviceScope }}
-            force: ${{ inputs.force }}
         dependsOn:
           - step: download
             condition:
               type: succeeded
         weight: 0
         allowFailure: false
-      - name: uninstall
+      - name: place-binary
         description: >-
-          Remove the ollama binary and its runtime. Idempotent: a missing binary
-          is a no-op. With purgeService=true the systemd service is removed too;
-          otherwise the service is stopped but the unit is left in place. Only
-          runs when uninstall=true.
-        guard: ${{ inputs.uninstall == false }}
+          Place the staged binary into the install directory as root, through
+          the elevation ladder. install -D -m creates the parent directories,
+          so no separate mkdir step is needed. Only runs when an update was
+          staged.
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.installScript == true
+          || (inputs.force == false
+          && steps.assess.outputs.?updateAvailable.orValue(true) == false) }}
         task:
-          type: model_method
-          modelType: "@svendowideit/ollama"
-          modelName: ollama
-          methodName: uninstall
+          type: workflow
+          workflowIdOrName: "@svendowideit/sudo-run"
           inputs:
-            serviceName: ${{ inputs.serviceName }}
-            serviceScope: ${{ inputs.serviceScope }}
-            purge: ${{ inputs.purgeService }}
+            instanceKey: ${{ inputs.sudoInstanceKey }}
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+            operation: installFile
+            args:json: >-
+              {"src": "${{ steps.stage.outputs.?binaryPath.orValue("") }}",
+              "dest": "${{ steps.plan.outputs.?installDir.orValue("") }}/ollama",
+              "mode": "0755"}
         dependsOn:
-          - step: plan
+          - step: stage
             condition:
-              type: always
+              type: succeeded
         weight: 0
         allowFailure: false
-      - name: create-service
+      - name: place-lib
         description: >-
-          Write a systemd unit for `ollama serve` when none exists, creating the
-          unprivileged `ollama` run-as user for a system unit. An existing unit
-          (e.g. from Ollama's own installer) is left untouched unless force is
-          set. Only runs when manageService is true and uninstall is false.
+          Place the staged lib/ollama runtime next to the binary as root:
+          create the target directory, then copy the staged tree over it.
+          Skipped when the archive carried no runtime directory (then the
+          binary alone suffices). Runs only when an update was staged.
         guard: >-
-          ${{ inputs.uninstall == true || inputs.manageService == false
+          ${{ inputs.uninstall == true
+          || inputs.installScript == true
+          || (inputs.force == false
+          && steps.assess.outputs.?updateAvailable.orValue(true) == false)
+          || steps.stage.outputs.?libDir.orValue("") == "" }}
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/sudo-run"
+          inputs:
+            instanceKey: ${{ inputs.sudoInstanceKey }}
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+            operation: copyDirectory
+            args:json: >-
+              {"src": "${{ steps.stage.outputs.?libDir.orValue("") }}",
+              "dest": "${{ steps.plan.outputs.?libDir.orValue("") }}"}
+        dependsOn:
+          - step: place-binary
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: create-user
+        description: >-
+          Create the unprivileged run-as user for the system service when it
+          does not exist yet. Idempotent. Runs only on a manageService run
+          whose scope is system.
+        guard: >-
+          ${{ inputs.uninstall == true
+          || steps.plan.outputs.?manageService.orValue(false) == false
+          || inputs.installScript == true
+          || steps.plan.outputs.?serviceStatusCommand.orValue("") == "" }}
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/sudo-run"
+          inputs:
+            instanceKey: ${{ inputs.sudoInstanceKey }}
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+            operation: createUser
+            args:json: >-
+              {"user": "${{ inputs.serviceUser }}",
+              "comment": "Ollama service user"}
+        dependsOn:
+          - step: place-binary
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: stage-service
+        description: >-
+          Render the systemd unit (when none exists) and drop-in with the
+          configured service settings into the staging tree. Only runs when
+          manageService resolved true (an existing unit, or forced).
+        guard: >-
+          ${{ inputs.uninstall == true
+          || steps.plan.outputs.?manageService.orValue(false) == false
+          || inputs.installScript == true
           || steps.plan.outputs.?serviceStatusCommand.orValue("") == "" }}
         task:
           type: model_method
           modelType: "@svendowideit/ollama"
           modelName: ollama
-          methodName: createService
+          methodName: prepareService
           inputs:
             serviceName: ${{ inputs.serviceName }}
-            unitDir: ${{ inputs.unitDir }}
             serviceScope: ${{ inputs.serviceScope }}
-            serviceUser: ${{ inputs.serviceUser }}
-            serviceGroup: ${{ inputs.serviceGroup }}
-            force: ${{ inputs.force }}
-        dependsOn:
-          - step: install
-            condition:
-              type: always
-        weight: 0
-        allowFailure: false
-      - name: configure-service
-        description: >-
-          Apply the service settings (OLLAMA_HOST, Environment= lines, extra
-          serve arguments) as a systemd drop-in override, so an existing unit is
-          customised rather than clobbered. Idempotent. Only runs when
-          manageService is true and uninstall is false.
-        guard: >-
-          ${{ inputs.uninstall == true || inputs.manageService == false
-          || steps.plan.outputs.?serviceStatusCommand.orValue("") == "" }}
-        task:
-          type: model_method
-          modelType: "@svendowideit/ollama"
-          modelName: ollama
-          methodName: configureService
-          inputs:
-            serviceName: ${{ inputs.serviceName }}
-            unitDir: ${{ inputs.unitDir }}
-            serviceScope: ${{ inputs.serviceScope }}
-            serviceUser: ${{ inputs.serviceUser }}
-            serviceGroup: ${{ inputs.serviceGroup }}
             host: ${{ inputs.host }}
             environment: ${{ inputs.environment }}
             extraArgs: ${{ inputs.extraArgs }}
             restart: ${{ inputs.restart }}
             restartSec: ${{ inputs.restartSec }}
         dependsOn:
-          - step: create-service
+          - step: place-lib
+            condition:
+              type: always
+          - step: create-user
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: place-service
+        description: >-
+          Place the staged unit (when one was rendered) as root into the unit
+          dir, and the drop-in next to it. install -D -m creates the .d
+          directory. The drop-in step is allowed to fail when only the
+          drop-in's parent dir is root-owned and the place ran already; in
+          practice both runs go through one ladder resolution.
+        guard: >-
+          ${{ inputs.uninstall == true
+          || steps.plan.outputs.?manageService.orValue(false) == false
+          || inputs.installScript == true
+          || steps.plan.outputs.?serviceStatusCommand.orValue("") == ""
+          || steps["stage-service"].outputs.?unitStagedPath.orValue("") == "" }}
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/sudo-run"
+          inputs:
+            instanceKey: ${{ inputs.sudoInstanceKey }}
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+            operation: installFile
+            args:json: >-
+              {"src": "${{ steps["stage-service"].outputs.?unitStagedPath.orValue("") }}",
+              "dest": "${{ steps["stage-service"].outputs.?unitPath.orValue("") }}",
+              "mode": "0644"}
+        dependsOn:
+          - step: stage-service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: place-dropin
+        description: >-
+          Place the staged drop-in override as root into the unit's .d
+          directory. Skipped when no unit is managed.
+        guard: >-
+          ${{ inputs.uninstall == true
+          || steps.plan.outputs.?manageService.orValue(false) == false
+          || inputs.installScript == true
+          || steps.plan.outputs.?serviceStatusCommand.orValue("") == "" }}
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/sudo-run"
+          inputs:
+            instanceKey: ${{ inputs.sudoInstanceKey }}
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+            operation: installFile
+            args:json: >-
+              {"src": "${{ steps["stage-service"].outputs.?dropInStagedPath.orValue("") }}",
+              "dest": "${{ steps["stage-service"].outputs.?dropInPath.orValue("") }}",
+              "mode": "0644"}
+        dependsOn:
+          - step: place-service
             condition:
               type: succeeded
         weight: 0
         allowFailure: true
-      - name: restart-service
+      - name: daemon-reload
         description: >-
-          Enable and restart the service so the running daemon is the newly
-          installed binary with the new configuration. `restart` starts a
-          stopped unit too, so this is safe on every pass. Skipped on uninstall,
-          when the service is unmanaged, or on a non-systemd platform.
+          Tell systemd to re-read its unit files after placing the unit/drop-in
+          as root. Skipped when no unit is managed.
         guard: >-
-          ${{ inputs.uninstall == true || inputs.manageService == false
+          ${{ inputs.uninstall == true
+          || steps.plan.outputs.?manageService.orValue(false) == false
+          || inputs.installScript == true
           || steps.plan.outputs.?serviceStatusCommand.orValue("") == "" }}
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/sudo-run"
+          inputs:
+            instanceKey: ${{ inputs.sudoInstanceKey }}
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+            operation: daemonReload
+            args:json: "{}"
+        dependsOn:
+          - step: place-dropin
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: fetch-script
+        description: >-
+          Download Ollama's official install.sh into the download directory
+          and record its SHA-256. Only runs on an installScript=true run;
+          the standard flow instead resolves and verifies a checksummed
+          release archive.
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.installScript == false }}
         task:
           type: model_method
           modelType: "@svendowideit/ollama"
           modelName: ollama
-          methodName: restartService
+          methodName: fetchScript
           inputs:
-            serviceName: ${{ inputs.serviceName }}
-            unitDir: ${{ inputs.unitDir }}
-            serviceScope: ${{ inputs.serviceScope }}
-            enable: true
+            url: ${{ inputs.installScriptUrl }}
+            downloadDir: ${{ inputs.downloadDir }}
         dependsOn:
-          - step: configure-service
+          - step: privilege
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: run-script
+        description: >-
+          Execute the downloaded install.sh as root through the elevation
+          ladder (sudo's runScript operation — appended to the allowlist for
+          this call). install.sh performs its own internal downloads as root
+          inside the winning route's container, so the container route needs
+          network access: this step sets containerNetwork=host deliberately
+          (upstream-parity mode; the checksummed release flow avoids this
+          entirely — prefer it). CAUTION: install.sh pipes its download
+          through tar without checksum verification; verify the script's
+          recorded SHA-256 before trusting a scheduled run of this mode.
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.installScript == false }}
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/sudo-run"
+          inputs:
+            instanceKey: ${{ inputs.sudoInstanceKey }}
+            allowedOperations:json: >-
+              ${{ inputs.sudoAllowedOperations + ["runScript"] }}
+            containerNetwork: host
+            operation: runScript
+            args:json: >-
+              {"script": "${{ steps["fetch-script"].outputs.?scriptPath.orValue("") }}",
+              "args": []}
+        dependsOn:
+          - step: fetch-script
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: enable-restart
+        description: >-
+          Enable the service (starts at boot) and restart it so the running
+          daemon is the newly placed binary with the new configuration. For
+          install.sh runs this is the only service step: install.sh may have
+          set the unit up already, and this brings it live through the same
+          ladder. Runs on manageService runs, and always on installScript runs
+          that left a unit in place.
+        guard: >-
+          ${{ inputs.uninstall == true
+          || (steps.plan.outputs.?manageService.orValue(false) == false
+          && inputs.installScript == false)
+          || steps.plan.outputs.?serviceStatusCommand.orValue("") == "" }}
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/sudo-run"
+          inputs:
+            instanceKey: ${{ inputs.sudoInstanceKey }}
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+            operation: manageService
+            args:json: >-
+              {"unit": "${{ inputs.serviceName }}",
+              "action": "${{ steps.plan.outputs.?serviceScope.orValue("system") == "user" ? "restart" : "restart" }}"}
+        dependsOn:
+          - step: daemon-reload
+            condition:
+              type: always
+          - step: run-script
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: uninstall-step
+        description: >-
+          Remove the ollama binary and its runtime as root through the ladder.
+          Idempotent: a missing binary is a no-op. With purgeService=true the
+          systemd service is removed too. Only runs when uninstall=true.
+        guard: ${{ inputs.uninstall == false }}
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/sudo-run"
+          inputs:
+            instanceKey: ${{ inputs.sudoInstanceKey }}
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+            operation: removePath
+            args:json: >-
+              {"path": "${{ data.latest("ollama", "installed").?attributes.?path.orValue("/usr/local/bin/ollama") }}"}
+        dependsOn:
+          - step: plan
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: purge-service
+        description: >-
+          On an uninstall run with purgeService=true: stop and remove the
+          systemd unit and drop-in via the manageService/removePath ladder
+          operations, then daemon-reload. Only runs when uninstall=true and
+          purgeService=true.
+        guard: ${{ inputs.uninstall == false || inputs.purgeService == false }}
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/sudo-run"
+          inputs:
+            instanceKey: ${{ inputs.sudoInstanceKey }}
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+            operation: manageService
+            args:json: >-
+              {"unit": "${{ inputs.serviceName }}", "action": "stop"}
+        dependsOn:
+          - step: uninstall-step
             condition:
               type: succeeded
         weight: 0
@@ -488,17 +764,15 @@ jobs:
           - step: sync
             condition:
               type: always
-          - step: install
+          - step: place-binary
             condition:
               type: always
-          - step: uninstall
+          - step: uninstall-step
             condition:
               type: always
-          - step: restart-service
+          - step: enable-restart
             condition:
               type: always
         weight: 0
         allowFailure: false
-    dependsOn: []
-    weight: 0
 version: 1

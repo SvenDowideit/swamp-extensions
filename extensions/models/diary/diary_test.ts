@@ -12,18 +12,21 @@ import {
   calendarDate,
   type CollectedDay,
   type CollectedRide,
+  type CollectedWeather,
   END_MARKER,
   extension,
   filterActivities,
   formatCount,
   formatDistance,
   formatDuration,
+  formatForecastLine,
   indexSchedule,
   mergeManagedSection,
   renderManagedSection,
   renderPage,
   resolveDate,
   selectSuggestions,
+  selectWeather,
   summariseRides,
   zwiftEventUrl,
 } from "./diary.ts";
@@ -59,6 +62,7 @@ const day = (overrides: Partial<CollectedDay> = {}): CollectedDay => ({
     bodyBatteryHighest: 97,
     bodyBatteryLowest: 39,
   },
+  weather: null,
   suggested: [],
   truncated: false,
   missing: [],
@@ -204,6 +208,113 @@ Deno.test("selectSuggestions filters by date, caps at topN and links events", ()
 
   const capped = selectSuggestions(recommendations, "2026-10-04", 1, schedule);
   assertEquals(capped.length, 1);
+});
+
+Deno.test("selectWeather picks the matching day from a forecast resource", () => {
+  const raw = {
+    place: { name: "Stafford Heights", state: "QLD" },
+    days: [
+      {
+        date: "2026-10-05",
+        weekday: "Monday",
+        tempMax: 24,
+        tempMin: 14,
+        rainChance: 20,
+        shortText: "Shower or two.",
+      },
+      {
+        date: "2026-10-04",
+        weekday: "Sunday",
+        tempMax: 27,
+        tempMin: null,
+        rainChance: 5,
+        shortText: "Mostly clear.",
+      },
+    ],
+  };
+  const w = selectWeather(raw, "2026-10-04");
+  assertEquals(w?.placeName, "Stafford Heights");
+  assertEquals(w?.weekday, "Sunday");
+  assertEquals(w?.tempMax, 27);
+  assertEquals(w?.tempMin, null);
+  assertEquals(w?.rainChance, 5);
+  assertEquals(w?.shortText, "Mostly clear.");
+
+  // No matching day and no today fallback -> null.
+  assertEquals(selectWeather(raw, "2026-10-09"), null);
+  assertEquals(selectWeather(null, "2026-10-04"), null);
+});
+
+Deno.test("selectWeather falls back to the resource's today field", () => {
+  const raw = {
+    place: { name: "Stafford Heights", state: "QLD" },
+    today: {
+      date: "2026-10-04",
+      weekday: "Sunday",
+      tempMax: 27,
+      tempMin: null,
+      rainChance: 5,
+      shortText: "Mostly clear.",
+    },
+  };
+  const w = selectWeather(raw, "2026-10-04");
+  assertEquals(w?.tempMax, 27);
+  assertEquals(w?.shortText, "Mostly clear.");
+});
+
+Deno.test("formatForecastLine leads with the place and both temperatures", () => {
+  const weather: CollectedWeather = {
+    placeName: "Stafford Heights",
+    placeState: "QLD",
+    date: "2026-10-04",
+    weekday: "Sunday",
+    tempMax: 27,
+    tempMin: 16,
+    rainChance: 5,
+    shortText: "Mostly clear.",
+  };
+  assertEquals(
+    formatForecastLine(weather),
+    "Stafford Heights: min 16°C max 27°C; Mostly clear.; 5% chance",
+  );
+  assertEquals(formatForecastLine(null), null);
+  // Only one temperature still renders, and no rain when unknown.
+  assertEquals(
+    formatForecastLine({ ...weather, tempMin: null, rainChance: null }),
+    "Stafford Heights: max 27°C; Mostly clear.",
+  );
+  // A day with neither temperature nor précis cannot render a line.
+  assertEquals(
+    formatForecastLine({ ...weather, tempMax: null, tempMin: null, shortText: null }),
+    null,
+  );
+});
+
+Deno.test("renderManagedSection puts the forecast at the top of the block", () => {
+  const md = renderManagedSection(day({
+    weather: {
+      placeName: "Stafford Heights",
+      placeState: "QLD",
+      date: "2026-10-04",
+      weekday: "Sunday",
+      tempMax: 27,
+      tempMin: 16,
+      rainChance: 5,
+      shortText: "Mostly clear.",
+    },
+  }));
+  assertStringIncludes(
+    md,
+    "Stafford Heights: min 16°C max 27°C; Mostly clear.; 5% chance",
+  );
+  // The line sits directly under the begin marker, above "## Health".
+  assertEquals(md.indexOf(BEGIN_MARKER) < md.indexOf("Stafford Heights:"), true);
+  assertEquals(md.indexOf("Stafford Heights:") < md.indexOf("## Health"), true);
+});
+
+Deno.test("renderManagedSection omits the forecast line when absent", () => {
+  const md = renderManagedSection(day({ weather: null }));
+  assertEquals(md.includes("Stafford Heights:"), false);
 });
 
 Deno.test("renderManagedSection wraps content in markers with all sections", () => {
@@ -435,6 +546,17 @@ Deno.test("collect reads the synced models and writes a filtered day", async () 
           subgroups: [{ id: "1", name: "Race A (C)" }],
         }],
       }],
+      "bom/forecast": [{
+        place: { name: "Stafford Heights", state: "QLD" },
+        days: [{
+          date: "2026-10-04",
+          weekday: "Sunday",
+          tempMax: 27,
+          tempMin: null,
+          rainChance: 5,
+          shortText: "Mostly clear.",
+        }],
+      }],
     },
   });
 
@@ -454,6 +576,54 @@ Deno.test("collect reads the synced models and writes a filtered day", async () 
   assertEquals(suggested[0].url, "https://www.zwift.com/events/view/111");
   assertEquals(written[0].data.truncated, false);
   assertEquals(written[0].data.missing, []);
+  const weather = written[0].data.weather as Record<string, unknown>;
+  assertEquals(weather.tempMax, 27);
+  assertEquals(weather.shortText, "Mostly clear.");
+});
+
+Deno.test("collect omits weather and records it missing when BOM has none", async () => {
+  const { context, written } = fakeContext({
+    modelData: {
+      "garmin-activities/list": [{ activities: [] }],
+      "zwift-recommender/recommendations": [{ recommendations: [] }],
+      "zwift-events/schedule": [{ events: [] }],
+    },
+  });
+  await collect.execute(
+    { timezone: "UTC", date: "2026-10-04", topN: 5 },
+    context,
+  );
+  assertEquals(written[0].data.weather, null);
+  const missing = written[0].data.missing as string[];
+  assertEquals(missing.includes("bom/forecast"), true);
+});
+
+Deno.test("collect ignores BOM data for a different day", async () => {
+  const { context, written } = fakeContext({
+    modelData: {
+      "garmin-activities/list": [{ activities: [] }],
+      "zwift-recommender/recommendations": [{ recommendations: [] }],
+      "zwift-events/schedule": [{ events: [] }],
+      "bom/forecast": [{
+        place: { name: "Stafford Heights", state: "QLD" },
+        days: [{
+          date: "2026-10-03",
+          weekday: "Saturday",
+          tempMax: 22,
+          tempMin: null,
+          rainChance: 10,
+          shortText: "Cloudy.",
+        }],
+      }],
+    },
+  });
+  await collect.execute(
+    { timezone: "UTC", date: "2026-10-04", topN: 5 },
+    context,
+  );
+  assertEquals(written[0].data.weather, null);
+  // The resource existed, so it is not reported missing.
+  assertEquals((written[0].data.missing as string[]).includes("bom/forecast"), false);
 });
 
 Deno.test("collect records missing sources instead of failing", async () => {
@@ -465,7 +635,9 @@ Deno.test("collect records missing sources instead of failing", async () => {
   const missing = written[0].data.missing as string[];
   assertEquals(missing.includes("garmin-activities/list"), true);
   assertEquals(missing.includes("zwift-recommender/recommendations"), true);
+  assertEquals(missing.includes("bom/forecast"), true);
   assertEquals(written[0].data.rides, []);
+  assertEquals(written[0].data.weather, null);
 });
 
 Deno.test("collect flags truncated when more picks exist than topN", async () => {

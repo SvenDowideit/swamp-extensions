@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/diary"
-version: "2026.10.04.1"
+version: "2026.10.04.2"
 description: >
   Turn a day of synced Garmin and Zwift data into one Obsidian daily note,
   merging into any note you have already edited.
@@ -9,16 +9,16 @@ description: >
 
     Your fitness data already lands in swamp — Garmin activities and wellness,
     plus ranked Zwift event picks — but reading it means knowing three models
-    and their data names. This extension joins them into a single per-day diary
-    note: the activities you did with durations and totals, your sleep duration
-    and score, step count, and the top suggested Zwift rides with reasons and
-    links. It is an extension of `@magistr/obsidian/vault`, so it composes that
-    model's `read`/`create` rather than writing files itself, and it never
-    touches the network: `collect` reads data other models already synced, so it
-    cannot rate-limit or duplicate a Garmin/Zwift fetch. The write is
+    and their data names. This extension joins them into one per-day diary note:
+    activities with durations and totals, sleep duration and score, step count,
+    the top suggested Zwift rides with reasons and links, and, when a
+    `@svendowideit/bom-weather` instance holds that day's forecast, a weather
+    line at the top. It extends `@magistr/obsidian/vault`, composing that
+    model's `read`/`create` rather than writing files itself, and never touches
+    the network: `collect` reads data other models already synced. The write is
     marker-based, so re-running a day rewrites only the machine-managed region
-    and leaves your own headings, prose and ticked checkboxes untouched — which
-    is what makes a phone-editable vault safe to regenerate.
+    and leaves your own prose and ticked checkboxes untouched — which is what
+    makes a phone-editable vault safe to regenerate.
 
   INSTALL
 
@@ -28,9 +28,11 @@ description: >
 
     `@magistr/obsidian-vault`, pulled automatically by the single install
     above; it supplies the `@magistr/obsidian/vault` model this extension
-    extends. The Garmin (`@svendowideit/garmin`) and Zwift
-    (`@svendowideit/zwift`) syncs that produce the source data are not hard
-    dependencies — the diary reports what is missing when they have not run.
+    extends. The Garmin (`@svendowideit/garmin`), Zwift
+    (`@svendowideit/zwift`) and BOM (`@svendowideit/bom-weather`) syncs that
+    produce the source data are not hard dependencies — the diary reports what
+    is missing when they have not run, and simply omits the forecast line when
+    no BOM data exists for the day.
 
   RUN
 
@@ -39,8 +41,26 @@ description: >
       swamp model create @magistr/obsidian/vault obsidian-vault \
         --global-arg vaultRoot=$HOME/Obsidian/Vault
 
+      # Optional: a BOM instance named `bom` (the name the bundled bom-weather
+      # workflow syncs) for your location. Its stored forecast is added to the
+      # page header. The bundled workflow's 4x-daily trigger carries its own
+      # location inputs, so point both the trigger and your first run at yours.
+      swamp model create @svendowideit/bom-weather bom \
+        --global-arg name=Stafford --global-arg state=QLD
+      swamp workflow trigger set @svendowideit/bom-weather \
+        --schedule "30 6,12,18,0 * * *" \
+        --input name=Stafford --input state=QLD
+      swamp workflow run @svendowideit/bom-weather \
+        --input name=Stafford --input state=QLD
+
+      # See whether the BOM data exists yet (the `forecast` resource, and the
+      # instance and its resolved location).
+      swamp data get bom forecast --json
+      swamp model get bom --json
+
       # Collect a day from the synced fitness data (defaults to today in
-      # Australia/Brisbane) and write one collect resource.
+      # Australia/Brisbane) and write one collect resource. With `bom` data
+      # present, the forecast line is added automatically.
       swamp model method run obsidian-vault collect
 
       # Render the markdown without touching the vault first, so you can check
@@ -64,10 +84,13 @@ description: >
     optional `date` (default: today in that timezone). `collect` maps data
     sources by instance name: `activitiesModel` (garmin-activities),
     `healthModel` (garmin-health), `recommenderModel` (zwift-recommender),
-    `eventsModel` (zwift-events) and `topN` (5). `publish` takes `vaultModel`
-    (obsidian-vault), `folder` (daily), `noteName` and `allowDotObsidian`. The
-    workflow takes the same names as `--input` (plus `date`, `folder`, `topN`).
-    See the README for the full argument table.
+    `eventsModel` (zwift-events), `bomModel` (bom, optional) and `topN` (5).
+    Set `bomModel` to the name of your `@svendowideit/bom-weather` instance;
+    when it holds a forecast for the day, the header line appears, otherwise it
+    is silently omitted and listed in `collect`'s `missing` field. `publish`
+    takes `vaultModel` (obsidian-vault), `folder` (daily), `noteName` and
+    `allowDotObsidian`. The workflow takes the same names as `--input` (plus
+    `date`, `folder`, `topN`). See the README for the full argument table.
 
   WHAT IT INSTALLS
 

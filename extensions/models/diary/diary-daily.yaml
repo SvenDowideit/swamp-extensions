@@ -50,6 +50,12 @@ inputs:
       type: string
       default: zwift-events
       description: Instance holding the Zwift schedule, used for event links.
+    bomModel:
+      type: string
+      default: bom
+      description: >
+        Optional @svendowideit/bom-weather instance whose stored forecast is
+        added as a header line. Absent data simply omits the line.
     timezone:
       type: string
       default: Australia/Brisbane
@@ -105,6 +111,7 @@ jobs:
             healthModel: ${{ inputs.healthModel }}
             recommenderModel: ${{ inputs.recommenderModel }}
             eventsModel: ${{ inputs.eventsModel }}
+            bomModel: ${{ inputs.bomModel }}
             topN: ${{ inputs.topN }}
         dependsOn:
           - step: assert-sources

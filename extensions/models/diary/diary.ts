@@ -60,6 +60,10 @@ const CollectArgsSchema = z.object({
   eventsModel: z.string().default("zwift-events").describe(
     "Model instance holding the Zwift event schedule (used for links)",
   ),
+  bomModel: z.string().default("bom").describe(
+    "Optional @svendowideit/bom-weather instance whose stored forecast is " +
+      "read for the page header. Absent data simply omits the forecast line.",
+  ),
   topN: z.number().int().positive().default(5).describe(
     "Maximum number of suggested rides to include",
   ),
@@ -144,6 +148,29 @@ export interface CollectedWellness {
   bodyBatteryLowest: number | null;
 }
 
+/**
+ * The day's BOM weather forecast, when a @svendowideit/bom-weather instance
+ * holds one. Only the fields the diary header needs are kept.
+ */
+export interface CollectedWeather {
+  /** Suburb/town the forecast is for, as BOM resolves it. */
+  placeName: string;
+  /** State/territory code, when known. */
+  placeState: string | null;
+  /** Local calendar date the forecast is for, `YYYY-MM-DD`. */
+  date: string;
+  /** Weekday name (e.g. `Sunday`). */
+  weekday: string;
+  /** Forecast maximum temperature in °C, or null. */
+  tempMax: number | null;
+  /** Forecast minimum temperature in °C, or null. */
+  tempMin: number | null;
+  /** Chance of rain as a percentage, or null. */
+  rainChance: number | null;
+  /** Short précis text (e.g. `Mostly clear.`). */
+  shortText: string | null;
+}
+
 /** A suggested ride, with a link where one could be built. */
 export interface CollectedSuggestion {
   /** Rank from the recommender, 1-based. */
@@ -195,6 +222,8 @@ export interface CollectedDay {
   };
   /** Daily wellness, or null when no health data was found. */
   wellness: CollectedWellness | null;
+  /** The day's BOM forecast, or null when no BOM data was found. */
+  weather: CollectedWeather | null;
   /** Ranked Zwift picks for the day. */
   suggested: CollectedSuggestion[];
   /** True when more picks existed for the day than `topN` kept. */
@@ -386,10 +415,69 @@ export function selectSuggestions(
   });
 }
 
+/**
+ * Reduce a raw @svendowideit/bom-weather forecast resource to the day's
+ * weather, keeping only the fields the diary header renders. Returns null when
+ * the resource carries no day matching `date` (e.g. a stale forecast or a
+ * different location's data).
+ */
+export function selectWeather(
+  raw: Record<string, unknown> | null,
+  date: string,
+): CollectedWeather | null {
+  if (!raw) return null;
+  const days = Array.isArray(raw.days)
+    ? raw.days as Array<Record<string, unknown>>
+    : [];
+  const day = days.find((d) => String(d.date ?? "") === date) ??
+    (raw.today as Record<string, unknown> | undefined) ?? null;
+  if (!day || String(day.date ?? "") !== date) return null;
+  const place = (raw.place as Record<string, unknown> | undefined) ?? {};
+  const num = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? v : null;
+  const str = (v: unknown): string | null =>
+    typeof v === "string" && v.length > 0 ? v : null;
+  return {
+    placeName: String(place.name ?? ""),
+    placeState: str(place.state),
+    date: String(day.date ?? date),
+    weekday: String(day.weekday ?? ""),
+    tempMax: num(day.tempMax),
+    tempMin: num(day.tempMin),
+    rainChance: num(day.rainChance),
+    shortText: str(day.shortText),
+  };
+}
+
+/**
+ * One header line describing the day's forecast, or null when the day has no
+ * temperature or précis to show. Leads with the resolved place, e.g.
+ * `Stafford Heights: min 16°C max 27°C; Mostly clear.; 5% chance`.
+ */
+export function formatForecastLine(
+  weather: CollectedWeather | null,
+): string | null {
+  if (!weather) return null;
+  const temps = [
+    weather.tempMin !== null ? `min ${weather.tempMin}°C` : null,
+    weather.tempMax !== null ? `max ${weather.tempMax}°C` : null,
+  ].filter(Boolean).join(" ") || null;
+  const summary = weather.shortText ?? null;
+  const parts = [temps, summary].filter(Boolean);
+  if (parts.length === 0) return null;
+  const rain = weather.rainChance !== null
+    ? `; ${weather.rainChance}% chance`
+    : "";
+  return `${weather.placeName}: ${parts.join("; ")}${rain}`;
+}
+
 /** Render the markdown body (between the managed markers) for a day. */
 export function renderManagedSection(day: CollectedDay): string {
   const lines: string[] = [];
   lines.push(BEGIN_MARKER, "");
+
+  const forecast = formatForecastLine(day.weather);
+  if (forecast) lines.push(forecast, "");
 
   lines.push("## Health");
   const w = day.wellness;
@@ -531,6 +619,7 @@ const resources = {
       rides: z.array(z.record(z.string(), z.unknown())),
       totals: z.record(z.string(), z.number()),
       wellness: z.record(z.string(), z.unknown()).nullable(),
+      weather: z.record(z.string(), z.unknown()).nullable().optional(),
       suggested: z.array(z.record(z.string(), z.unknown())),
       truncated: z.boolean(),
       missing: z.array(z.string()),
@@ -606,6 +695,9 @@ async function executeCollect(
     }
     : null;
 
+  const bomRecords = await read(args.bomModel, "forecast");
+  const weather = selectWeather(bomRecords[0] ?? null, date);
+
   const recRecords = await read(args.recommenderModel, "recommendations");
   const recommendations = recRecords[0]?.recommendations as
     | Array<Record<string, unknown>>
@@ -631,14 +723,21 @@ async function executeCollect(
     rides,
     totals: summariseRides(rides),
     wellness,
+    weather,
     suggested,
     truncated: picksForDate > suggested.length,
     missing,
   };
 
   context.logger.info(
-    "Collected {date}: {rides} ride(s), {suggested} suggestion(s)",
-    { date, rides: rides.length, suggested: suggested.length },
+    "Collected {date}: {rides} ride(s), {suggested} suggestion(s), " +
+      "forecast {forecast}",
+    {
+      date,
+      rides: rides.length,
+      suggested: suggested.length,
+      forecast: weather ? "yes" : "no",
+    },
   );
 
   const handle = await context.writeResource(

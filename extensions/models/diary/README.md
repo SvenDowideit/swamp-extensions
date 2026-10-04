@@ -1,8 +1,8 @@
 # @svendowideit/diary
 
-Turn a day of synced Garmin and Zwift data into one Obsidian daily note, and
-merge it into a note you may already have edited — without re-fetching anything
-or clobbering your own words and ticked boxes.
+Turn a day of synced Garmin, Zwift and (optionally) BOM weather data into one
+Obsidian daily note, and merge it into a note you may already have edited —
+without re-fetching anything or clobbering your own words and ticked boxes.
 
 This is an **extension of `@magistr/obsidian/vault`**: pulling it adds three
 methods and three resources to that model type, plus a daily workflow. It
@@ -16,13 +16,21 @@ still applies.
 `collect` reads a day's data from the fitness models swamp already holds:
 Garmin activities (from `garmin-activities`), the Garmin daily wellness roll-up
 (from `garmin-health`) — sleep duration and score, steps, resting HR, stress and
-body battery — and the ranked Zwift picks (from `zwift-recommender`, linked back
-to `zwift-events`). It writes one `collect` resource. `render` turns that into
-the markdown page and writes a `page` resource so you can inspect it. `publish`
-renders the page, merges it into any existing note between two HTML comment
-markers, and writes it via the vault model. The page has a `## Health` section
-(sleep, steps) and a `## Activities` section listing the day's Garmin
-activities.
+body battery — the ranked Zwift picks (from `zwift-recommender`, linked back to
+`zwift-events`), and, optionally, the day's weather forecast (from a
+`@svendowideit/bom-weather` instance). It writes one `collect` resource.
+`render` turns that into the markdown page and writes a `page` resource so you
+can inspect it. `publish` renders the page, merges it into any existing note
+between two HTML comment markers, and writes it via the vault model. The page
+has a `## Health` section (sleep, steps) and a `## Activities` section listing
+the day's Garmin activities.
+
+When a BOM forecast exists for the day, a one-line header is placed at the top
+of the managed block, e.g.
+`Stafford Heights: min 16°C max 27°C; Mostly clear.; 5% chance`. BOM is
+optional: if the `bom` instance is absent, has not synced, or holds no day
+matching the date, the line is simply omitted and `bom/forecast` is listed in
+`collect.attributes.missing`.
 
 The bundled `@svendowideit/diary-daily` workflow chains these — assert sources,
 `collect`, `publish` — and is scheduled daily at 07:00 local under `swamp serve`,
@@ -68,6 +76,7 @@ the `@magistr/obsidian/vault` model it extends:
 | `collect` | `healthModel` | string | `garmin-health` | Instance holding Garmin daily wellness |
 | `collect` | `recommenderModel` | string | `zwift-recommender` | Instance holding ranked picks |
 | `collect` | `eventsModel` | string | `zwift-events` | Instance holding the schedule (for links) |
+| `collect` | `bomModel` | string | `bom` | Optional `@svendowideit/bom-weather` instance for the forecast line |
 | `collect` | `topN` | integer | `5` | Maximum suggested rides on the page |
 | `render` | `timezone` / `date` | | | As `collect` |
 | `render` | `collectName` | string? | `daily-<date>` | Collect resource to render |
@@ -82,8 +91,8 @@ the `@magistr/obsidian/vault` model it extends:
 
 The bundled `@svendowideit/diary-daily` workflow exposes the same names as
 `--input` (`vaultModel`, `activitiesModel`, `healthModel`, `recommenderModel`,
-`eventsModel`, `timezone`, `date`, `folder`, `topN`), and is scheduled daily at
-07:00 local.
+`eventsModel`, `bomModel`, `timezone`, `date`, `folder`, `topN`), and is
+scheduled daily at 07:00 local.
 
 | Input | Type | Default | Meaning |
 | --- | --- | --- | --- |
@@ -92,10 +101,83 @@ The bundled `@svendowideit/diary-daily` workflow exposes the same names as
 | `healthModel` | string | `garmin-health` | Garmin daily wellness to read |
 | `recommenderModel` | string | `zwift-recommender` | Ranked Zwift picks to read |
 | `eventsModel` | string | `zwift-events` | Zwift schedule, used for links |
+| `bomModel` | string | `bom` | Optional BOM instance for the forecast line |
 | `timezone` | string | `Australia/Brisbane` | IANA zone that defines "today" |
 | `date` | string | `""` (today) | Explicit day `YYYY-MM-DD` |
 | `folder` | string | `daily` | Vault folder for the note |
 | `topN` | integer | `5` | Maximum suggested rides |
+
+### Adding a weather forecast (optional)
+
+The header forecast line comes from a `@svendowideit/bom-weather` instance whose
+data `collect` reads — the diary never calls BOM itself. Create the instance for
+your location and sync it once so data exists immediately:
+
+```sh
+# Create a BOM instance for your suburb. Name it `bom` to match the default
+# `bomModel` and the instance the bundled BOM workflow syncs (see below).
+swamp model create @svendowideit/bom-weather bom \
+  --global-arg name=Stafford --global-arg state=QLD
+
+# Sync once to seed today's forecast without waiting for the next scheduled
+# poll. Pass the location too — the workflow's trigger/inputs default to
+# Penrith/NSW and would otherwise override the instance.
+swamp workflow run @svendowideit/bom-weather \
+  --input name=Stafford --input state=QLD
+
+# Confirm the data landed (the resolved place and today's day entries), and that
+# the instance exists.
+swamp data get bom forecast --json
+swamp model get bom --json
+```
+
+`bomModel` defaults to `bom`, so with the instance above the diary picks the
+forecast up with no further configuration.
+
+If you prefer a distinct instance name such as `obsidian-daily-bom-forecast`,
+create it and point the diary at it:
+
+```sh
+swamp model create @svendowideit/bom-weather obsidian-daily-bom-forecast \
+  --global-arg name=Stafford --global-arg state=QLD
+
+# One-off sync of that named instance (the bundled BOM workflow syncs `bom`).
+swamp model @svendowideit/bom-weather method run sync \
+  obsidian-daily-bom-forecast
+
+# Tell the diary (and the workflow) which instance to read.
+swamp model method run obsidian-vault collect \
+  --input bomModel=obsidian-daily-bom-forecast
+swamp workflow run @svendowideit/diary-daily \
+  --input bomModel=obsidian-daily-bom-forecast
+```
+
+**Keeping it fresh.** The bundled `@svendowideit/bom-weather` workflow already
+polls four times daily (00:30/06:30/12:30/18:30 host-local) under `swamp serve`,
+so a `bom`-named instance stays current for the 07:00 diary run on its own —
+provided the trigger carries **your** location, not the built-in Penrith/NSW
+defaults. Set the override once (it replaces the whole entry, so restate the
+schedule and inputs):
+
+```sh
+# Keep the built-in 4x-daily cadence but poll your location.
+swamp workflow trigger set @svendowideit/bom-weather \
+  --schedule "30 6,12,18,0 * * *" \
+  --input name=Stafford --input state=QLD
+
+# Or poll only at 03:00 host-local.
+swamp workflow trigger set @svendowideit/bom-weather \
+  --schedule "0 3 * * *" \
+  --input name=Stafford --input state=QLD
+
+# Inspect built-in vs override vs effective, then restart 'swamp serve' (trigger
+# overrides are read at startup).
+swamp workflow trigger get @svendowideit/bom-weather
+```
+
+A differently-named instance is *not* covered by the bundled workflow — its
+steps hardcode `modelName: bom` — so keep the default name, or run the sync on
+your own schedule.
 
 ## Examples
 
@@ -146,11 +228,12 @@ swamp model create @magistr/obsidian/vault obsidian-vault \
 ### Methods
 
 - **`collect`** — reads `garmin-activities`/`list`, `garmin-health`/`daily`,
-  `zwift-recommender`/`recommendations` and `zwift-events`/`schedule` via
-  `context.readModelData`, filters to `date`, attaches Zwift event URLs from the
-  schedule, and writes a `collect` resource named `daily-<date>`. Arguments:
-  `timezone`, `date`, `activitiesModel`, `healthModel`, `recommenderModel`,
-  `eventsModel`, `topN`.
+  `zwift-recommender`/`recommendations`, `zwift-events`/`schedule` and
+  (optionally) `<bomModel>`/`forecast` via `context.readModelData`, filters to
+  `date`, attaches Zwift event URLs from the schedule, picks the day's weather
+  with `selectWeather`, and writes a `collect` resource named `daily-<date>`.
+  Arguments: `timezone`, `date`, `activitiesModel`, `healthModel`,
+  `recommenderModel`, `eventsModel`, `bomModel`, `topN`.
 - **`render`** — reads the collect resource and writes a `page` resource named
   `daily-<date>` with the markdown. Arguments: `timezone`, `date`,
   `collectName`.
@@ -164,7 +247,7 @@ swamp model create @magistr/obsidian/vault obsidian-vault \
 
 | Spec | Name | Shape |
 | --- | --- | --- |
-| `collect` | `daily-<date>` | `date`, `generatedAt`, `timezone`, `rides[]`, `totals`, `wellness`, `suggested[]`, `truncated`, `missing[]` |
+| `collect` | `daily-<date>` | `date`, `generatedAt`, `timezone`, `rides[]`, `totals`, `wellness`, `weather`, `suggested[]`, `truncated`, `missing[]` |
 | `page` | `page-<date>` | `date`, `markdown`, `timestamp` |
 | `publish` | `publish-<date>` | `date`, `file`, `action`, `merged`, `timestamp` |
 
@@ -188,6 +271,9 @@ runs. Override any input with `--input` for a manual or backfill run.
 
 ```markdown
 <!-- swamp:diary:begin -->
+
+Stafford Heights: min 16°C max 27°C; Mostly clear.; 5% chance
+
 ## Health
 - **Sleep:** 8h 16m (score 82)
 - **Steps:** 5,112 of 5,960
@@ -210,6 +296,10 @@ the page.
 - The Garmin and Zwift syncs must have run at least once so the source models
   hold data. Missing sources are reported in `collect.missing` rather than
   failing the run.
+- The weather header is optional. When a `@svendowideit/bom-weather` instance
+  (`bomModel`, default `bom`) has synced and holds a day matching the date, the
+  line is added; otherwise it is omitted and `bom/forecast` is reported in
+  `collect.missing`.
 - The vault model must be able to reach the vault: set `vaultRoot` for the
   headless `fs` backend, or leave `vault` set for the CLI backend with the
   Obsidian desktop app running.
@@ -217,8 +307,9 @@ the page.
 ### Structure and testing
 
 `diary.ts` is one file with the pure helpers (`calendarDate`,
-`filterActivities`, `summariseRides`, `selectSuggestions`, `renderManagedSection`,
-`mergeManagedSection`, …) exported for unit testing, plus the three `execute`
+`filterActivities`, `summariseRides`, `selectSuggestions`, `selectWeather`,
+`formatForecastLine`, `renderManagedSection`, `mergeManagedSection`, …) exported
+for unit testing, plus the three `execute`
 functions. `diary_test.ts` tests the helpers without any swamp runtime; the
 `execute` functions are covered by seeding a context via
 `@swamp-club/swamp-testing`.

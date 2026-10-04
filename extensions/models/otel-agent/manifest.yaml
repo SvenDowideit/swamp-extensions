@@ -1,0 +1,88 @@
+manifestVersion: 1
+name: "@svendowideit/otel-agent"
+version: "2026.10.04.2"
+description: >
+  Install an OTLP-native OpenTelemetry Collector agent across a fleet of hosts
+  over SSH, configuring each one from the published settings contract.
+
+  WHAT IT DOES
+
+    Onboards a set of remote hosts to OpenTelemetry in one fan-out call. For
+    each host it probes the OS/arch/tier, fetches that host's install manifest
+    and per-tier agent config from @svendowideit/otel-settings, downloads the
+    checksum-verified collector, writes the config and a 0600 env file, and runs
+    it as a systemd user service. Prefer it over hand-installing collectors: the
+    config comes from the published contract, so changing settings reconfigures
+    the fleet with no per-host editing, and one call covers many hosts (bounded
+    parallelism, one result per host) instead of N serial runs. Generic — it
+    knows nothing about your network beyond the settings URL and SSH access.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/otel-agent
+
+  DEPENDENCIES
+
+    SSH access to the target hosts, and a running settings server
+    (@svendowideit/otel-settings + @svendowideit/settings-server) whose served
+    contract includes the mirrored agent binary. Store the gateway OTLP token in
+    a swamp vault and set vaultName — it is written to a 0600 env file on the
+    host, never inlined in the config.
+
+  RUN
+
+      # Install the agent on a host; the tier and asset come from the contract.
+      swamp model create @svendowideit/otel-agent agents \
+        --global-arg settingsUrl=https://settings.otel.fi.gy \
+        --global-arg sshUser=sven \
+        --global-arg vaultName=otel-otlp-token
+
+      swamp model method run agents install \
+        --input 'hosts=[{"name":"host1","address":"10.0.0.11"}]'
+
+      # Report what is installed and running on each host.
+      swamp model method run agents status \
+        --input 'hosts=[{"name":"host1","address":"10.0.0.11"}]'
+
+      # Re-fetch the contract and reconfigure existing agents.
+      swamp model method run agents configure \
+        --input 'hosts=[{"name":"host1","address":"10.0.0.11"}]'
+
+  CONFIGURE
+
+    Global args set at creation:
+
+      settingsUrl       Base URL of the published settings contract
+      sshUser           Default SSH user (hosts may override per entry)
+      installDir        Host directory for the binary, config, and env file
+      serviceName       systemd unit name on each host
+      defaultTier       Tier used when a host's tier cannot be inferred
+      vaultName/authRef   Vault + key holding the gateway bearer token
+      concurrency       Maximum hosts in parallel (default 8)
+      sshTimeoutMs / installTimeoutMs   Per-host timeouts
+
+    Each `hosts` entry is {name, address, user?, tier?, port?}. install and
+    configure also accept `force`. remove accepts `removeInstallDir`.
+
+  WHAT IT INSTALLS
+
+    On each host: the otelcol-contrib binary, a rendered config.yaml, a 0600
+    agent.env (the gateway token), and a systemd user service that restarts on
+    failure. Nothing is installed on the control node. No cron, no webhooks.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - otel_agent.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - otel_agent_test.ts
+
+platforms: []

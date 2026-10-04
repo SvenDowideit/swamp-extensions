@@ -17,6 +17,10 @@ Deno.test("filesystem/account-mutating operations are localOnly (refuse remote r
       "addUserToGroup",
       "createUser",
       "mount",
+      "installFile",
+      "removePath",
+      "copyDirectory",
+      "runScript",
     ]
   ) {
     assertEquals(getOperation(id)!.localOnly, true, `${id} must be localOnly`);
@@ -45,6 +49,11 @@ Deno.test("writeFile is removed; the default allowlist is the narrow set", () =>
       "addUserToGroup",
       "createUser",
       "sysctl",
+      "installFile",
+      "daemonReload",
+      "removePath",
+      "copyDirectory",
+      "runScript",
     ]
   ) {
     assertEquals(getOperation(id) !== undefined, true, `${id} missing`);
@@ -129,6 +138,114 @@ Deno.test("absolute-path operations reject relative paths", () => {
     })
   );
   assertThrows(() => getOperation("ensureDirectory")!.build({ path: "-rf" }));
+  assertThrows(() =>
+    getOperation("installFile")!.build({ src: "rel.bin", dest: "/usr/bin/x" })
+  );
+  assertThrows(() =>
+    getOperation("installFile")!.build({ src: "/tmp/x", dest: "-m" })
+  );
+  assertThrows(() => getOperation("removePath")!.build({ path: "tmp/x" }));
+  assertThrows(() => getOperation("runScript")!.build({ script: "-c" }));
+});
+
+Deno.test("installFile builds an install -D -m argv", () => {
+  assertEquals(
+    getOperation("installFile")!.build({
+      src: "/tmp/stage/ollama",
+      dest: "/usr/local/bin/ollama",
+      mode: "0755",
+    }),
+    {
+      kind: "argv",
+      argv: [
+        "install",
+        "-D",
+        "-m",
+        "0755",
+        "/tmp/stage/ollama",
+        "/usr/local/bin/ollama",
+      ],
+    },
+  );
+  assertEquals(
+    getOperation("installFile")!.build({
+      src: "/tmp/stage/unit",
+      dest: "/etc/systemd/system/ollama.service",
+    }),
+    {
+      kind: "argv",
+      argv: [
+        "install",
+        "-D",
+        "-m",
+        "0644",
+        "/tmp/stage/unit",
+        "/etc/systemd/system/ollama.service",
+      ],
+    },
+  );
+  assertThrows(() =>
+    getOperation("installFile")!.build({ src: "/tmp/x", mode: "0999" })
+  );
+});
+
+Deno.test("daemonReload builds systemctl daemon-reload", () => {
+  assertEquals(getOperation("daemonReload")!.build({}), {
+    kind: "argv",
+    argv: ["systemctl", "daemon-reload"],
+  });
+  assertThrows(() =>
+    getOperation("daemonReload")!.build({ extra: "injected" })
+  );
+});
+
+Deno.test("removePath builds a guarded rm -rf argv", () => {
+  assertEquals(
+    getOperation("removePath")!.build({ path: "/usr/local/lib/ollama" }),
+    { kind: "argv", argv: ["rm", "-rf", "--", "/usr/local/lib/ollama"] },
+  );
+  assertThrows(() => getOperation("removePath")!.build({ path: "/" }));
+  assertThrows(() => getOperation("removePath")!.build({ path: ".." }));
+});
+
+Deno.test("runScript builds a sh-interpreted argv for an absolute script", () => {
+  assertEquals(
+    getOperation("runScript")!.build({
+      script: "/tmp/stage/install.sh",
+      args: [],
+    }),
+    { kind: "argv", argv: ["sh", "/tmp/stage/install.sh"] },
+  );
+  assertEquals(
+    getOperation("runScript")!.build({
+      script: "/tmp/stage/install.sh",
+      args: ["--verbose"],
+    }),
+    { kind: "argv", argv: ["sh", "/tmp/stage/install.sh", "--verbose"] },
+  );
+  assertThrows(() => getOperation("runScript")!.build({ script: "~/x.sh" }));
+  assertThrows(() =>
+    getOperation("runScript")!.build({ script: "/tmp/x.sh", args: ["a\nb"] })
+  );
+});
+
+Deno.test("copyDirectory builds a guarded cp -a argv", () => {
+  assertEquals(
+    getOperation("copyDirectory")!.build({
+      src: "/tmp/stage/lib/ollama",
+      dest: "/usr/local/lib/ollama",
+    }),
+    {
+      kind: "argv",
+      argv: ["cp", "-a", "/tmp/stage/lib/ollama/.", "/usr/local/lib/ollama/"],
+    },
+  );
+  assertThrows(() =>
+    getOperation("copyDirectory")!.build({ src: "rel/dir", dest: "/usr/lib/x" })
+  );
+  assertThrows(() =>
+    getOperation("copyDirectory")!.build({ src: "/", dest: "/backup" })
+  );
 });
 
 Deno.test("manageService builds a normalised systemctl argv", () => {

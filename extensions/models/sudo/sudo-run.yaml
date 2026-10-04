@@ -61,6 +61,23 @@ inputs:
       type: string
       default: auto
       description: Pin one elevation route, or auto for the configured ladder.
+    containerNetwork:
+      type: string
+      default: ""
+      description: >-
+        Override the container route's network mode for this run (e.g. host
+        when the operation needs network access from inside a scratch
+        container; empty keeps the model's global).
+    allowedOperations:
+      type: array
+      items:
+        type: string
+      default: []
+      description: >-
+        Caller-supplied operation allowlist for this run, merged into the
+        model's own allowedOperations. Pass the operations the run needs (e.g.
+        installFile, daemonReload) so a bare model instance can execute them;
+        the model's global allowedOperations always apply too.
     timeoutSeconds:
       type: integer
       default: 120
@@ -80,6 +97,9 @@ jobs:
           modelType: "@svendowideit/sudo"
           modelName: sudo-${{ inputs.instanceKey }}
           methodName: run
+          globalArgs:
+            allowedOperations: ${{ [inputs.operation] + inputs.allowedOperations }}
+            containerNetwork: ${{ inputs.containerNetwork }}
           inputs:
             operation: ${{ inputs.operation }}
             args: ${{ inputs.args }}

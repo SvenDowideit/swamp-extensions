@@ -35,7 +35,7 @@ attributes):
 | Argument              | Type     | Default                                            | Meaning                                                                                                                                                                              |
 | --------------------- | -------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `strategyOrder`       | string[] | side-effect-ordered ladder                         | Routes to try, in order.                                                                                                                                                             |
-| `allowedOperations`   | string[] | `installPackage`, `removePackage`, `manageService` | Operations `run` may execute. The filesystem/account-mutating and kernel-knob operations (`sysctl`, `ensureDirectory`, `chown`, `addUserToGroup`, `createUser`, `mount`) are opt-in. |
+| `allowedOperations`   | string[] | `installPackage`, `removePackage`, `manageService` | Operations `run` may execute. An empty value falls back to this narrow default set. The filesystem/account-mutating and kernel-knob operations (`sysctl`, `ensureDirectory`, `chown`, `addUserToGroup`, `createUser`, `installFile`, `daemonReload`, `removePath`, `copyDirectory`, `runScript`, `mount`) are opt-in. |
 | `allowArbitrary`      | boolean  | `false`                                            | Enable `request`/`runApproved`.                                                                                                                                                      |
 | `sshHost`             | string   | `""`                                               | Host for the `ssh-root` route; empty disables it.                                                                                                                                    |
 | `sshKnownHosts`       | string   | `""`                                               | Pinned known_hosts for `ssh-root`.                                                                                                                                                   |
@@ -102,7 +102,10 @@ Resources: `probe` and `result` (lifetime `infinite`), `request` (lifetime
 
 - `@svendowideit/sudo-run` — the everyday ungated path: `run` a named operation
   (the method resolves and logs the ladder itself). Inputs: `operation`
-  (required), `args`, `instanceKey`, `strategy`, `timeoutSeconds`.
+  (required), `args`, `instanceKey`, `strategy`, `timeoutSeconds`,
+  `allowedOperations` (extra operations permitted for this call, passed to the
+  model as a global arg — so a bare instance can execute an opt-in operation
+  without a prior `swamp model create`).
 - `@svendowideit/sudo-command` — the gated arbitrary path: `request` →
   `manual_approval` → `runApproved`. Inputs: `command` (required), `reason`
   (required), `instanceKey` (defaults to `${{ run.id }}`, so each run gets its
@@ -126,6 +129,11 @@ the others must be added to `allowedOperations`.
 | `addUserToGroup`  | `user`, `group`                                         | opt-in  | `usermod -aG group user`                                                                                        |
 | `createUser`      | `user`, `comment?`, `group?`, `groups[]`                | opt-in  | `useradd --system [--comment c] [--gid g] [--groups g…] user`                                                   |
 | `mount`           | `source`, `target`, `fstype?`, `options?`               | opt-in  | `mount [-t fstype] [-o options] source target`                                                                  |
+| `installFile`     | `src`, `dest`, `mode?` (default 0644)                   | opt-in  | `install -D -m <mode> <src> <dest>` — copies a file with a mode, creating parent directories                    |
+| `daemonReload`    | (none)                                                  | opt-in  | `systemctl daemon-reload`                                                                                       |
+| `removePath`      | `path`                                                  | opt-in  | `rm -rf -- <path>` — refuses the filesystem root                                                                |
+| `copyDirectory`   | `src`, `dest`                                           | opt-in  | `cp -a <src>/. <dest>/` — refuses the filesystem root                                                           |
+| `runScript`       | `script` (absolute), `args[]?`                          | opt-in  | `sh <script> [args…]` — runs a script as root through an interpreter; opt in deliberately                       |
 
 ### Strategies
 
@@ -259,13 +267,19 @@ so route resolution and the gate can be tested without touching the host.
   `k8sNode` set, the operation acts on that cluster node. To keep operations
   strictly local, omit `sshHost` and `k8sNode`, or pin `strategy` to a local
   route (e.g. `sudo-n`). Filesystem/account operations (`ensureDirectory`,
-  `chown`, `addUserToGroup`, `createUser`, `mount`) are `localOnly` and already
+  `chown`, `addUserToGroup`, `createUser`, `mount`, `installFile`, `removePath`,
+  `copyDirectory`, `runScript`) are `localOnly` and already
   refuse remote/orchestrator routes.
 - `ensureDirectory`, `chown`, `addUserToGroup`, `createUser`, and `mount` are
   **local-route only** — they are refused when the only available route is a
   remote/orchestrator/oob one. `ssh-root` is classed `remote` and `k8s-node`
   `orchestrator`, so both are excluded; container routes run on the host through
   `chroot /host` and _are_ allowed.
+- `installFile`, `daemonReload`, `removePath`, `copyDirectory`, and
+  `runScript` are also **local-route only**. `removePath` and `copyDirectory`
+  refuse the filesystem root; `runScript` executes an arbitrary script as
+  root, so it must be added to `allowedOperations` explicitly and only pointed
+  at scripts you control.
 - `ssh-root` needs a pinned `sshKnownHosts` (or a pre-populated known_hosts) or
   host-key verification fails closed.
 - The k8s/container/ssh routes are disabled until configured (`k8sNode`,

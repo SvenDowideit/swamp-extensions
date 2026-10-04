@@ -119,6 +119,33 @@ const MountArgs = z.object({
   options: z.string().regex(/^[A-Za-z0-9_.=,-]+$/).optional(),
 }).strict();
 
+const InstallFileArgs = z.object({
+  src: z.string().min(1),
+  dest: z.string().min(1),
+  mode: z.string().regex(/^[0-7]{3,4}$/).default("0644"),
+}).strict();
+
+const RemovePathArgs = z.object({
+  path: z.string().min(1),
+}).strict();
+
+const CopyDirectoryArgs = z.object({
+  src: z.string().min(1),
+  dest: z.string().min(1),
+}).strict();
+
+const RunScriptArgs = z.object({
+  script: z.string().min(1),
+  args: z.array(z.string().min(1)).default([]),
+}).strict();
+
+/** Reject control characters anywhere in a script-argument string. */
+function assertScriptArg(field: string, value: string): void {
+  if (/[\0\r\n]/.test(value)) {
+    throw new Error(`${field} contains control characters: ${value}`);
+  }
+}
+
 /** The package-manager install/remove argv, with options before the packages. */
 export function packageArgv(
   manager: (typeof PACKAGE_MANAGERS)[number],
@@ -303,15 +330,90 @@ export const OPERATIONS: Record<string, Operation> = {
       return { kind: "argv", argv };
     },
   },
+  installFile: {
+    id: "installFile",
+    description:
+      "Copy a file to a destination with a mode, creating parent directories (install -D -m).",
+    argsSchema: InstallFileArgs,
+    localOnly: true,
+    build: (args) => {
+      const a = InstallFileArgs.parse(args);
+      assertAbsoluteNoSymlinkIntent("src", a.src);
+      assertAbsoluteNoSymlinkIntent("dest", a.dest);
+      return {
+        kind: "argv",
+        argv: ["install", "-D", "-m", a.mode, a.src, a.dest],
+      };
+    },
+  },
+  daemonReload: {
+    id: "daemonReload",
+    description: "Reload systemd's unit files (systemctl daemon-reload).",
+    argsSchema: z.object({}).strict(),
+    localOnly: true,
+    build: (args) => {
+      z.object({}).strict().parse(args);
+      return { kind: "argv", argv: ["systemctl", "daemon-reload"] };
+    },
+  },
+  removePath: {
+    id: "removePath",
+    description: "Recursively force-remove a path (rm -rf).",
+    argsSchema: RemovePathArgs,
+    localOnly: true,
+    build: (args) => {
+      const a = RemovePathArgs.parse(args);
+      assertAbsoluteNoSymlinkIntent("path", a.path);
+      if (a.path === "/" || a.path === "//") {
+        throw new Error("refusing to remove the filesystem root");
+      }
+      return { kind: "argv", argv: ["rm", "-rf", "--", a.path] };
+    },
+  },
+  copyDirectory: {
+    id: "copyDirectory",
+    description:
+      "Recursively copy a directory tree onto another (cp -a, dest must be absolute).",
+    argsSchema: CopyDirectoryArgs,
+    localOnly: true,
+    build: (args) => {
+      const a = CopyDirectoryArgs.parse(args);
+      assertAbsoluteNoSymlinkIntent("src", a.src);
+      assertAbsoluteNoSymlinkIntent("dest", a.dest);
+      if (a.src === "/" || a.src === "//") {
+        throw new Error("refusing to copy the filesystem root");
+      }
+      return {
+        kind: "argv",
+        argv: ["cp", "-a", `${a.src}/.`, `${a.dest}/`],
+      };
+    },
+  },
+  runScript: {
+    id: "runScript",
+    description:
+      "Run a shell script through an interpreter, with optional arguments.",
+    argsSchema: RunScriptArgs,
+    localOnly: true,
+    build: (args) => {
+      const a = RunScriptArgs.parse(args);
+      assertAbsoluteNoSymlinkIntent("script", a.script);
+      a.args.forEach((arg, i) => assertScriptArg(`args[${i}]`, arg));
+      return { kind: "argv", argv: ["sh", a.script, ...a.args] };
+    },
+  },
 };
 
 /**
  * Operations enabled by default. `mount`, `ensureDirectory`, `chown`,
- * `addUserToGroup`, and `createUser` are omitted: they mutate the filesystem or
- * account state at arbitrary absolute paths, which is little safer than an
- * arbitrary command. `sysctl` is omitted too: it writes an arbitrary kernel knob
- * (e.g. `kernel.core_pattern`, `kernel.modprobe`), which is a root persistence
- * primitive. All of these must be added to `allowedOperations` explicitly.
+ * `addUserToGroup`, `createUser`, `installFile`, `removePath`,
+ * `copyDirectory`, and `runScript`
+ * are omitted: they mutate the filesystem or account state at arbitrary
+ * absolute paths (and `runScript` executes an arbitrary script as root),
+ * which is little safer than an arbitrary command. `sysctl` is omitted too: it
+ * writes an arbitrary kernel knob (e.g. `kernel.core_pattern`,
+ * `kernel.modprobe`), which is a root persistence primitive. All of these must
+ * be added to `allowedOperations` explicitly.
  */
 export const DEFAULT_ALLOWED_OPERATIONS: string[] = [
   "installPackage",

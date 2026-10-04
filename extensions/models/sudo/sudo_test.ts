@@ -415,6 +415,40 @@ Deno.test("run rejects an operation outside allowedOperations", async () => {
   );
 });
 
+Deno.test("an empty allowlist falls back to the narrow default set", async () => {
+  // An empty strategy ladder makes route resolution fail with the ladder
+  // report — the point is WHICH error appears: a default-set operation
+  // passes the allowlist gate and reaches "no route", an opt-in one is
+  // refused up front with "not allowed".
+  const { context } = testContext({ allowedOperations: [], strategyOrder: [] });
+  await assertRejects(
+    () =>
+      model.methods.run.execute(
+        {
+          operation: "manageService",
+          args: { unit: "x", action: "stop" },
+          strategy: "auto",
+        },
+        context as never,
+      ),
+    Error,
+    "No granted elevation route",
+  );
+  await assertRejects(
+    () =>
+      model.methods.run.execute(
+        {
+          operation: "installFile",
+          args: { src: "/a", dest: "/b" },
+          strategy: "auto",
+        },
+        context as never,
+      ),
+    Error,
+    "not allowed",
+  );
+});
+
 Deno.test("run rejects an unknown operation id", async () => {
   const { context } = testContext({ allowedOperations: ["nonsense"] });
   await assertRejects(

@@ -56,10 +56,13 @@ const GlobalArgsSchema = z.object({
   strategyOrder: z.array(z.string()).default(DEFAULT_STRATEGY_ORDER).describe(
     "Elevation routes to try, in order. Defaults to a side-effect-ordered ladder.",
   ),
-  allowedOperations: z.array(z.string()).default(DEFAULT_ALLOWED_OPERATIONS)
-    .describe(
-      "Operations `run` may execute. Defaults to the narrow set (installPackage, removePackage, manageService); filesystem/account-mutating or kernel-knob operations (mount, chown, ensureDirectory, addUserToGroup, createUser, sysctl) must be added explicitly.",
-    ),
+  allowedOperations: z.array(z.string()).default([]).describe(
+    "Operations `run` may execute. An empty array falls back to the narrow " +
+      "default set (installPackage, removePackage, manageService); " +
+      "filesystem/account-mutating or kernel-knob operations (mount, chown, " +
+      "ensureDirectory, addUserToGroup, createUser, installFile, removePath, " +
+      "copyDirectory, runScript, sysctl) must be added explicitly.",
+  ),
   allowArbitrary: z.boolean().default(false).describe(
     "Enable the approval-gated arbitrary-command methods `request`/`runApproved`.",
   ),
@@ -788,9 +791,20 @@ function ladderReport(ladder: z.infer<typeof LadderEntrySchema>[]): string {
  */
 export const model = {
   type: "@svendowideit/sudo",
-  version: "2026.10.03.1",
+  version: "2026.10.04.2",
   globalArguments: GlobalArgsSchema,
-  upgrades: [],
+  upgrades: [
+    {
+      toVersion: "2026.10.04.2",
+      description:
+        "Four new opt-in operations (argv builders only, no resource shape " +
+        "change): installFile (install -D -m), daemonReload (systemctl " +
+        "daemon-reload), removePath (rm -rf, refuses /), runScript (sh " +
+        "<script>), copyDirectory (cp -a). All localOnly; all must be added " +
+        "to allowedOperations.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     probe: {
       description:
@@ -869,10 +883,16 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
 
-        if (!g.allowedOperations.includes(args.operation)) {
+        // An empty allowlist (the schema default) means "the narrow default
+        // set", so a bare model instance behaves as documented; a caller
+        // passing [] explicitly gets exactly that fallback too.
+        const allowed = g.allowedOperations.length > 0
+          ? g.allowedOperations
+          : DEFAULT_ALLOWED_OPERATIONS;
+        if (!allowed.includes(args.operation)) {
           throw new Error(
             `Operation '${args.operation}' is not allowed. allowedOperations: ${
-              g.allowedOperations.join(", ")
+              allowed.join(", ")
             }`,
           );
         }

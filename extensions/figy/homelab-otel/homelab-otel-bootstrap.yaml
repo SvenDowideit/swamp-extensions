@@ -94,6 +94,26 @@ jobs:
               type: succeeded
         weight: 0
         allowFailure: false
+
+      - name: mirror-agent
+        description: Mirror the pinned otelcol-contrib release onto the settings server.
+        task:
+          type: model_method
+          modelType: "@svendowideit/settings-server"
+          modelName: settings
+          methodName: mirror
+          globalArgs:
+            sourceDir: ~/.local/share/otel-settings/current
+            webroot: ${{ inputs.webroot }}
+            hostname: ${{ inputs.settingsHostname }}
+        dependsOn:
+          - step: publish-bundle
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+
       - name: serve-settings
         description: Serve the webroot at settings.otel.fi.gy via Caddy file_server.
         task:

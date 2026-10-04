@@ -166,6 +166,24 @@ jobs:
         weight: 0
         allowFailure: false
 
+      - name: mirror-agent
+        description: Mirror the pinned otelcol-contrib release onto the settings server.
+        task:
+          type: model_method
+          modelType: "@svendowideit/settings-server"
+          modelName: settings
+          methodName: mirror
+          globalArgs:
+            sourceDir: ~/.local/share/otel-settings/current
+            webroot: ${{ inputs.webroot }}
+            hostname: ${{ inputs.settingsHostname }}
+        dependsOn:
+          - step: publish-settings
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
       - name: backend
         description: Start the OpenObserve store with its admin login from the vault.
         task:
@@ -199,7 +217,7 @@ jobs:
             vaultName: ${{ inputs.vaultName }}
             exporters:
               - name: openobserve
-                endpoint: http://127.0.0.1:${{ inputs.backendPort }}/api/default
+                endpoint: http://${{ inputs.bindAddress }}:${{ inputs.backendPort }}/api/default
                 basicAuth:
                   emailEnv: ZO_ROOT_USER_EMAIL
                   authEnv: ZO_ROOT_USER_PASSWORD
@@ -402,7 +420,7 @@ jobs:
           modelName: obs
           methodName: query
           globalArgs:
-            baseUrl: http://127.0.0.1:${{ inputs.backendPort }}
+            baseUrl: http://${{ inputs.bindAddress }}:${{ inputs.backendPort }}
             organization: default
             vaultName: ${{ inputs.vaultName }}
           inputs:

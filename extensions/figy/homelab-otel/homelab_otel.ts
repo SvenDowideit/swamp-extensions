@@ -249,7 +249,7 @@ export function buildTopology(
 /** The swamp model definition for `@figy/homelab-otel`. */
 export const model = {
   type: "@figy/homelab-otel",
-  version: "2026.10.04.1",
+  version: "2026.10.04.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -270,6 +270,12 @@ export const model = {
         "Phase 1a: one otel-caddy model now owns all otel Caddy config (DNS records, wildcard *.otel.fi.gy TLS, settings route, and the obs.otel.fi.gy store-UI proxy); both workflows converge on it and the ad-hoc settings-caddy model is retired. Documentation and workflow changes only — no model schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.04.2",
+      description:
+        "Phase 2: adds the @figy/host-onboard workflow (install the OTLP agent on managed Debian/Ubuntu hosts via @svendowideit/otel-agent, then confirm they report) and both bootstrap workflows now publish-settings + mirror-agent. Declares @svendowideit/otel-agent as a dependency. No model schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     topology: {
@@ -288,6 +294,9 @@ export const model = {
         _args: Record<string, never>,
         context: {
           globalArgs: GlobalArgs;
+          logger?: {
+            info: (msg: string, props?: Record<string, unknown>) => void;
+          };
           writeResource: (
             specName: string,
             name: string,
@@ -295,13 +304,25 @@ export const model = {
           ) => Promise<{ name: string }>;
         },
       ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const topology = buildTopology(
-          context.globalArgs.deploymentEnvironment,
+        const { deploymentEnvironment } = context.globalArgs;
+        context.logger?.info(
+          "Emitting {zone} topology for {environment}",
+          { zone: OTEL_ZONE, environment: deploymentEnvironment },
         );
+        const topology = buildTopology(deploymentEnvironment);
         const handle = await context.writeResource(
           "topology",
           "current",
           topology as unknown as Record<string, unknown>,
+        );
+        context.logger?.info(
+          "Emitted {zone} topology: {records} records, {endpoints} endpoints, {hosts} hosts",
+          {
+            zone: topology.zone,
+            records: topology.records.length,
+            endpoints: topology.endpoints.length,
+            hosts: topology.hosts.length,
+          },
         );
         return { dataHandles: [handle] };
       },

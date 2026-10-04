@@ -39,9 +39,10 @@ swamp extension pull @figy/homelab-otel
 ```
 
 Requires a `figy`-trusted repo (`swamp extension trust add figy`) and the
-`@svendowideit/otel-settings`, `@svendowideit/settings-server`,
-`@svendowideit/caddy`, `@svendowideit/otel-backend`, `@svendowideit/otel-gateway`,
-and `@svendowideit/openobserve` extensions.
+`@svendowideit/otel-settings`, `@svendowideit/otel-agent`,
+`@svendowideit/settings-server`, `@svendowideit/caddy`,
+`@svendowideit/otel-backend`, `@svendowideit/otel-gateway`,
+`@svendowideit/openobserve`, and `@svendowideit/fleet-inventory` extensions.
 
 `bootstrap-otel-backend` additionally needs Docker and the store's admin login in
 a vault **before** it runs — the OpenObserve container seeds its first admin user
@@ -122,8 +123,8 @@ swamp data get obs last --json | jq '.content.rows'
 
 ## Details
 
-`@figy/homelab-otel` ships one model type (`@figy/homelab-otel`) and two
-workflows (`homelab-otel-bootstrap`, `bootstrap-otel-backend`).
+`@figy/homelab-otel` ships one model type (`@figy/homelab-otel`) and three
+workflows (`homelab-otel-bootstrap`, `bootstrap-otel-backend`, `host-onboard`).
 
 Model method:
 
@@ -162,6 +163,14 @@ Resource: `topology` (the site catalog).
 | `verify-push` | `@svendowideit/otel-gateway` (`otel-gateway`) | `verify` | Push a synthetic OTLP record through the gateway. |
 | `verify-query` | `@svendowideit/openobserve` (`obs`) | `query` | Query the record back from OpenObserve with SQL. |
 | `verify-ui` | (assert) | — | Assert otel-caddy recorded the obs route, TLS, and records. |
+
+`host-onboard` (Phase 2 — bring managed hosts under telemetry):
+
+| Step | Model type | Method | What it does |
+| ---- | ---------- | ------ | ------------ |
+| `inventory` | `@svendowideit/fleet-inventory` (`fleet`) | `report` | Read the fleet inventory to pick managed Debian/Ubuntu hosts (allowed to fail). |
+| `install-agent` | `@svendowideit/otel-agent` (`agents`) | `install` | Fan out the OTLP agent install to the selected hosts. |
+| `reporting-hosts` | `@svendowideit/openobserve` (`obs`) | `query` | Query the store for the host names now reporting (allowed to fail). |
 
 ### The fi.gy layout
 

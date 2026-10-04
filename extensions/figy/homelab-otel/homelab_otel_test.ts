@@ -1,4 +1,5 @@
-import { assert, assertEquals } from "jsr:@std/assert@1";
+import { assert, assertEquals, assertThrows } from "jsr:@std/assert@1";
+import { createModelTestContext } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 
 import {
   buildTopology,
@@ -52,21 +53,61 @@ Deno.test("hosts include the UAT and prod core nodes", () => {
   assert(roles.includes("prod"));
 });
 
-Deno.test("describe writes the topology resource", async () => {
-  let captured: Record<string, unknown> = {};
-  const ctx = {
-    globalArgs: { deploymentEnvironment: "dev" as const },
-    writeResource: (
-      _spec: string,
-      _name: string,
-      data: Record<string, unknown>,
-    ) => {
-      captured = data;
-      return Promise.resolve({ name: "topology" });
+Deno.test("describe writes a schema-conformant topology resource", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: { deploymentEnvironment: "dev" },
+    methodName: "describe",
+  });
+  await model.methods.describe.execute(
+    {},
+    ctx.context as unknown as Parameters<
+      typeof model.methods.describe.execute
+    >[1],
+  );
+
+  const written = ctx.getWrittenResources();
+  assertEquals(written.length, 1);
+  assertEquals(written[0].specName, "topology");
+  assertEquals(written[0].name, "current");
+
+  const parsed = model.resources.topology.schema.parse(written[0].data);
+  assertEquals(parsed.zone, "otel.fi.gy");
+  assertEquals(parsed.settingsHostname, "settings.otel.fi.gy");
+  assertEquals(parsed.storeHostname, "obs.otel.fi.gy");
+  assertEquals(parsed.deploymentEnvironment, "dev");
+  assert(parsed.records.length > 0);
+  assert(Array.isArray(parsed.endpoints));
+});
+
+Deno.test("describe logs entry and completion", async () => {
+  const ctx = createModelTestContext({
+    globalArgs: { deploymentEnvironment: "prod" },
+    methodName: "describe",
+  });
+  await model.methods.describe.execute(
+    {},
+    ctx.context as unknown as Parameters<
+      typeof model.methods.describe.execute
+    >[1],
+  );
+  const infos = ctx.getLogsByLevel("info");
+  assert(infos.length >= 2, "expected entry and completion info logs");
+});
+
+Deno.test("topology schema rejects malformed data (failure path)", () => {
+  assertThrows(
+    () => {
+      model.resources.topology.schema.parse({
+        zone: "otel.fi.gy",
+        // settingsHostname intentionally missing
+        records: "not-an-array",
+      });
     },
-  };
-  await model.methods.describe.execute({}, ctx);
-  assertEquals(captured.zone, "otel.fi.gy");
-  assertEquals(captured.settingsHostname, "settings.otel.fi.gy");
-  assert(Array.isArray(captured.records));
+    Error,
+  );
+});
+
+Deno.test("the declared version matches the latest upgrade entry", () => {
+  assertEquals(model.version, "2026.10.04.2");
+  assertEquals(model.upgrades.at(-1)?.toVersion, model.version);
 });

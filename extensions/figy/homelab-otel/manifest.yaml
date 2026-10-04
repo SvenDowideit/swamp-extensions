@@ -1,9 +1,9 @@
 manifestVersion: 1
 name: "@figy/homelab-otel"
-version: "2026.10.04.1"
+version: "2026.10.04.2"
 description: >
   Site-specific OpenTelemetry bootstrap for the fi.gy homelab — my domains,
-  meshes, and tiers, wired into one workflow.
+  meshes, and tiers, wired into three workflows.
 
   WHAT IT DOES
 
@@ -27,10 +27,12 @@ description: >
 
   DEPENDENCIES
 
-    @svendowideit/otel-settings, @svendowideit/settings-server,
-    @svendowideit/caddy, @svendowideit/otel-backend, @svendowideit/otel-gateway,
-    and @svendowideit/openobserve — pulled separately. A `figy`-trusted swamp repo
-    (`swamp extension trust add figy`) so the pull resolves.
+    @svendowideit/otel-settings, @svendowideit/otel-agent,
+    @svendowideit/settings-server, @svendowideit/caddy,
+    @svendowideit/otel-backend, @svendowideit/otel-gateway,
+    @svendowideit/openobserve, and @svendowideit/fleet-inventory — pulled
+    separately. A `figy`-trusted swamp repo (`swamp extension trust add figy`)
+    so the pull resolves.
 
     Docker, plus the store's admin login in a vault BEFORE running the backend
     bootstrap. The OpenObserve profile seeds its first admin user at first start,
@@ -50,10 +52,13 @@ description: >
       # Render, stage, serve, and verify the fi.gy observability contract.
       swamp workflow run @figy/homelab-otel-bootstrap
 
-      # Bring up the whole core node: store + gateway + DNS + TLS + named UI.
-      swamp workflow run @figy/bootstrap-otel-backend
+    # Bring up the whole core node: store + gateway + DNS + TLS + named UI.
+    swamp workflow run @figy/bootstrap-otel-backend
 
-      # Read the resolved contract for scripting.
+    # Onboard a managed Debian/Ubuntu host onto the core node (Phase 2).
+    swamp workflow run @figy/host-onboard
+
+    # Read the resolved contract for scripting.
       swamp data get otel resolved --json
 
       # Fetch the served machine contract.
@@ -77,6 +82,9 @@ description: >
     in the workflows' step globalArgs, because they are the point of this
     extension.
 
+    The @figy/homelab-otel model's only global arg is deploymentEnvironment
+    (`dev` | `uat` | `prod`); `homelab-otel describe` emits the topology for it.
+
   WHAT IT INSTALLS
 
     Nothing directly — it creates/updates swamp models and data, and (via
@@ -96,9 +104,11 @@ models:
 workflows:
   - homelab-otel-bootstrap.yaml
   - bootstrap-otel-backend.yaml
+  - host-onboard.yaml
 
 dependencies:
   - "@svendowideit/otel-settings"
+  - "@svendowideit/otel-agent"
   - "@svendowideit/settings-server"
   - "@svendowideit/caddy"
   - "@svendowideit/otel-backend"

@@ -1,0 +1,136 @@
+id: b4205663-edfe-488d-9d0d-dd4230943be1
+name: '@svendowideit/diary-daily'
+description: |
+  Build today's Obsidian diary page from already-synced data.
+
+  Runs after the morning Garmin syncs and the Zwift recommend pass, and joins
+  what they produced into one note:
+
+    1. assert   today's source data is fresh enough to bother (Garmin activity
+                list cached, Zwift picks generated today). Nothing is fetched —
+                this workflow only reads what the fitness workflows already wrote.
+    2. collect  read a day's activities, wellness and Zwift picks into one
+                `collect` resource (never touches the network).
+    3. publish  render the page and merge it into daily/<date>.md between the
+                managed markers, preserving any prose or ticked boxes already
+                there.
+
+  `collect` records absent sources in its `missing` field instead of failing, so
+  a day with no Zwift picks or no wellness still publishes cleanly. The workflow
+  fails only when there is nothing at all to build from.
+
+  Manual run:
+    swamp workflow run @svendowideit/diary-daily
+    swamp workflow run @svendowideit/diary-daily --input date=2026-09-30
+    swamp workflow run @svendowideit/diary-daily --input folder=diary --input topN=8
+tags:
+  domain: fitness
+trigger:
+  schedule: "0 7 * * *"
+  inputs: {}
+inputs:
+  properties:
+    vaultModel:
+      type: string
+      default: obsidian-vault
+      description: The @magistr/obsidian/vault instance to write the note into.
+    activitiesModel:
+      type: string
+      default: garmin-activities
+      description: Instance holding the Garmin activity list to read.
+    healthModel:
+      type: string
+      default: garmin-health
+      description: Instance holding Garmin daily wellness to read.
+    recommenderModel:
+      type: string
+      default: zwift-recommender
+      description: Instance holding ranked Zwift picks to read.
+    eventsModel:
+      type: string
+      default: zwift-events
+      description: Instance holding the Zwift schedule, used for event links.
+    timezone:
+      type: string
+      default: Australia/Brisbane
+      description: IANA timezone that defines which day "today" is.
+    date:
+      type: string
+      default: ""
+      description: Explicit day to build, YYYY-MM-DD (empty = today in timezone).
+    folder:
+      type: string
+      default: daily
+      description: Vault folder for the diary note.
+    topN:
+      type: integer
+      default: 5
+      description: Maximum suggested rides to include.
+  required: []
+jobs:
+  - name: diary
+    description: Collect the day's fitness data and publish the matching note.
+    steps:
+      - name: assert-sources
+        description: >
+          Fail fast with a clear message when neither the Garmin activity list
+          nor the Zwift recommendations exist yet, so there is nothing to build
+          from. Missing wellness or schedule alone is fine.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.activitiesModel, "activity-list") != null
+            || data.latest(inputs.recommenderModel, "current") != null
+          message: >-
+            No synced fitness data found. Run the Garmin
+            (@svendowideit/garmin-activities-sync) and/or Zwift
+            (@svendowideit/zwift-sync) syncs first, then re-run.
+          severity: high
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: collect
+        description: >
+          Read the day's activities, wellness and picks into one collect
+          resource. Reads stored data only; never calls Garmin or Zwift.
+        task:
+          type: model_method
+          modelType: "@magistr/obsidian/vault"
+          modelName: ${{ inputs.vaultModel }}
+          methodName: collect
+          inputs:
+            timezone: ${{ inputs.timezone }}
+            date: ${{ inputs.date }}
+            activitiesModel: ${{ inputs.activitiesModel }}
+            healthModel: ${{ inputs.healthModel }}
+            recommenderModel: ${{ inputs.recommenderModel }}
+            eventsModel: ${{ inputs.eventsModel }}
+            topN: ${{ inputs.topN }}
+        dependsOn:
+          - step: assert-sources
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: publish
+        description: >
+          Render the page and merge it into daily/<date>.md through the vault
+          model, preserving everything outside the managed markers.
+        task:
+          type: model_method
+          modelType: "@magistr/obsidian/vault"
+          modelName: ${{ inputs.vaultModel }}
+          methodName: publish
+          inputs:
+            timezone: ${{ inputs.timezone }}
+            date: ${{ inputs.date }}
+            folder: ${{ inputs.folder }}
+        dependsOn:
+          - step: collect
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

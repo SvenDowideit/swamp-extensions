@@ -12,10 +12,13 @@ import {
   ACTIVITY_LIST_PATH,
   activityDetailPath,
   activityDetailPaths,
+  activityIds,
   activityListPath,
   activityType,
   asActivityList,
   isoDate,
+  localDate,
+  newActivityIds,
   normalizeActivity,
   pickNumber,
   pickString,
@@ -169,4 +172,29 @@ Deno.test("asActivityList handles array and wrapped shapes", () => {
 
 Deno.test("isoDate formats UTC YYYY-MM-DD", () => {
   assertEquals(isoDate(new Date("2026-01-02T23:00:00Z")), "2026-01-02");
+});
+
+Deno.test("localDate resolves the calendar day in a timezone", () => {
+  const now = new Date("2026-01-02T23:00:00Z");
+  // 23:00 UTC on the 2nd is 09:00 on the 3rd in Brisbane (+10).
+  assertEquals(localDate("Australia/Brisbane", now), "2026-01-03");
+  assertEquals(localDate("UTC", now), "2026-01-02");
+  assertEquals(localDate("America/Los_Angeles", now), "2026-01-02");
+});
+
+Deno.test("activityIds reads ids tolerantly from a stored list", () => {
+  assertEquals(
+    activityIds({ activities: [{ id: "1" }, { id: "2" }, { name: "no id" }] }),
+    ["1", "2"],
+  );
+  assertEquals(activityIds(null), []);
+  assertEquals(activityIds({}), []);
+  assertEquals(activityIds({ activities: "nope" }), []);
+});
+
+Deno.test("newActivityIds returns current ids not in the prior set", () => {
+  const prior = new Set(["1", "2"]);
+  assertEquals(newActivityIds(["3", "2", "1"], prior), ["3"]);
+  assertEquals(newActivityIds(["1", "2"], prior), []);
+  assertEquals(newActivityIds(["4", "3"], prior), ["4", "3"]);
 });

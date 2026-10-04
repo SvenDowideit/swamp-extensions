@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/garmin"
-version: "2026.10.01.1"
+version: "2026.10.04.1"
 description: |
   Sync a Garmin Connect account into swamp: one authenticated transport, plus
   domain models that read its cached responses — devices with a capability map
@@ -97,6 +97,10 @@ description: |
       detailKinds          Per-activity detail to fetch (default detail, splits, weather)
       metrics              Wellness and performance metrics to fetch (see README)
       respectCapabilities  Drop device-gated metrics (default true)
+      timezone             IANA zone for activity bucketing and the wellness
+                           default window; empty = host local. Set it so a
+                           morning run fetches the day you are living in.
+      days                 Local wellness days through today (default 3; cap 14)
       unit                 Body display unit: kg or lb (default kg; grams always kept)
 
     See every setting and its current value:

@@ -498,13 +498,20 @@ function parseCached(body: string | null): unknown | null {
 /** The `@svendowideit/garmin-devices` model definition. */
 export const model = {
   type: "@svendowideit/garmin-devices",
-  version: "2026.10.01.1",
+  version: "2026.10.04.1",
   upgrades: [
     {
       toVersion: "2026.10.01.1",
       description:
         "Version bump to stay in step with the @svendowideit/garmin extension; " +
         "no schema or behaviour change in this model.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.04.1",
+      description:
+        "Sync now logs how many devices are new since the last run, not just " +
+        "the total. No schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -657,10 +664,24 @@ export const model = {
           .filter(([, v]) => v)
           .map(([k]) => k)
           .sort();
+        // Compare against the previous inventory so a run reports what changed
+        // ("1 new device") rather than a total that never moves.
+        const priorDevices = await ctx.readResource("device-list");
+        const priorIds = new Set(
+          Array.isArray((priorDevices as { devices?: unknown })?.devices)
+            ? (priorDevices as { devices: Array<{ id?: unknown }> }).devices
+              .map((d) => String(d?.id ?? ""))
+              .filter((id) => id.length > 0)
+            : [],
+        );
+        const newDevices = devices
+          .map((d) => d.id)
+          .filter((id) => !priorIds.has(id));
         ctx.logger.info(
-          "Synced {n} device(s); {m} capabilities enabled{unknown}",
+          "Synced {n} device(s) ({new} new); {m} capabilities enabled{unknown}",
           {
             n: devices.length,
+            new: newDevices.length,
             m: enabled.length,
             unknown: map.unknownProducts.length
               ? ` (${map.unknownProducts.length} unrecognised device(s))`

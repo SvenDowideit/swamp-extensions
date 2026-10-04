@@ -52,11 +52,33 @@ inputs:
     startDate:
       type: string
       default: ""
-      description: Window start, YYYY-MM-DD; empty = yesterday.
+      description: >
+        Window start, YYYY-MM-DD; empty = the last `days` local days through
+        today (resolved in `timezone`, not UTC).
     endDate:
       type: string
       default: ""
-      description: Window end, YYYY-MM-DD; empty = start date.
+      description: Window end, YYYY-MM-DD; empty = start date, or today.
+    timezone:
+      type: string
+      default: ""
+      description: >
+        IANA timezone (e.g. Australia/Brisbane) used to resolve the default
+        window so a morning run fetches the local calendar day. Empty = host
+        local zone.
+    days:
+      type: integer
+      default: 3
+      description: >
+        Local days to fetch through today when no explicit range is given.
+        A small overlap self-heals a missed run; capped at 14.
+    forceRefresh:
+      type: boolean
+      default: false
+      description: >
+        Re-fetch from Garmin even when a cached response exists. Wellness
+        endpoints are keyed by date, so the cache is safe within a day; set
+        this only when you need to re-pull a day that may have changed.
   required: []
 jobs:
   - name: health
@@ -98,6 +120,8 @@ jobs:
           inputs:
             startDate: ${{ inputs.startDate }}
             endDate: ${{ inputs.endDate }}
+            timezone: ${{ inputs.timezone }}
+            days: ${{ inputs.days }}
             displayName: ${{ data.latest(inputs.sessionName, "profile").attributes.displayName }}
             capabilities: ${{ data.latest(inputs.devicesName, "device-capabilities").?attributes.?capabilities.orValue({}) }}
         dependsOn:
@@ -115,6 +139,7 @@ jobs:
           methodName: fetch-many
           inputs:
             paths: ${{ data.latest(inputs.healthName, "health-paths").attributes.paths }}
+            forceRefresh: ${{ inputs.forceRefresh }}
         dependsOn:
           - step: health-paths
             condition:

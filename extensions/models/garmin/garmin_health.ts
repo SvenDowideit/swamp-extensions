@@ -168,6 +168,35 @@ export function dateRange(start: string, end: string): string[] {
 }
 
 /**
+ * The local calendar day (`YYYY-MM-DD`) for an instant in an IANA timezone.
+ *
+ * Wellness is stored per calendar day, and Garmin attributes a night's sleep
+ * and a day's steps to the *local* date the user experienced them. Computing a
+ * default day with `toISOString()` (UTC) is therefore wrong for any timezone
+ * ahead of or behind UTC — a 05:30 run in Brisbane (+10) is still the previous
+ * UTC day, so a UTC default silently fetches yesterday's yesterday. This helper
+ * resolves the date the user is actually living in.
+ */
+export function localDate(
+  timezone: string,
+  now: Date = new Date(),
+): string {
+  const zone = timezone.trim();
+  return new Intl.DateTimeFormat("en-CA", {
+    ...(zone ? { timeZone: zone } : {}),
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+/** `date` shifted by `delta` whole days, staying on the `YYYY-MM-DD` grid. */
+export function shiftDate(date: string, delta: number): string {
+  const t = Date.parse(`${date}T00:00:00Z`) + delta * 86_400_000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+/**
  * Select the metrics to fetch, applying the capability map when requested.
  *
  * A metric with no `capability` is always kept. A metric whose capability is
@@ -221,6 +250,16 @@ const GlobalArgsSchema = z.object({
       "@svendowideit/garmin-devices' capability map. Set false to request " +
       "everything and let each endpoint return empty when unsupported.",
   ),
+  timezone: z.string().default("").describe(
+    "IANA timezone (e.g. Australia/Brisbane) used to resolve the default " +
+      "date window. Empty uses UTC — set it so a morning run fetches the " +
+      "calendar day you are actually living in, not the previous UTC day.",
+  ),
+  days: z.number().int().positive().max(14).default(3).describe(
+    "Number of local days to fetch (through today) when no explicit date or " +
+      "range is given. A small overlap re-fetches recent data so a missed run " +
+      "self-heals; capped so a default run stays fast.",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -241,6 +280,14 @@ const PathsArgsSchema = z.object({
   ),
   metrics: z.array(z.string()).optional().describe(
     "Override the global metrics for this call",
+  ),
+  timezone: z.string().optional().describe(
+    "Override the global timezone for resolving the default date window. " +
+      "Omit or leave empty to use the model's global timezone.",
+  ),
+  days: z.number().int().positive().max(14).optional().describe(
+    "Override the global `days` (local days through today) for the default " +
+      "window. Omit to use the model's global value.",
   ),
   capabilities: z.record(z.string(), z.boolean()).optional().describe(
     "The device capability map, wired in by the workflow from " +
@@ -622,7 +669,7 @@ const SetupSchema = z.object({ report: z.string() });
 /** The `@svendowideit/garmin-health` model definition. */
 export const model = {
   type: "@svendowideit/garmin-health",
-  version: "2026.10.01.1",
+  version: "2026.10.04.1",
   upgrades: [
     {
       toVersion: "2026.10.01.1",
@@ -630,6 +677,20 @@ export const model = {
         "Version bump to stay in step with the @svendowideit/garmin extension; " +
         "no schema or behaviour change in this model.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.04.1",
+      description:
+        "Timezone-aware default window: added `timezone` and `days` globals. " +
+        "The default date window is now the last `days` local days through " +
+        "today (was a single UTC 'yesterday'), so a morning run fetches the " +
+        "calendar day the user is living in. The sync now logs new-vs-updated " +
+        "day counts instead of a bare total.",
+      upgradeAttributes: (old: Record<string, unknown>) => ({
+        timezone: "",
+        days: 3,
+        ...old,
+      }),
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -709,7 +770,11 @@ export const model = {
         ctx: MethodContext,
       ) => {
         const g = ctx.globalArgs;
-        const dates = resolveDates(args);
+        const dates = resolveDates(
+          args,
+          args.timezone?.trim() || g.timezone,
+          args.days ?? g.days,
+        );
         if (dates.length === 0) {
           throw new Error("No dates resolved — check date/startDate/endDate");
         }
@@ -767,7 +832,7 @@ export const model = {
         const pathsResource = await ctx.readResource("health-paths");
         const dates = Array.isArray(pathsResource?.dates)
           ? pathsResource!.dates as string[]
-          : resolveDates(args);
+          : resolveDates(args, g.timezone, g.days);
         const metrics = Array.isArray(pathsResource?.metrics)
           ? pathsResource!.metrics as string[]
           : (args.metrics ?? g.metrics);
@@ -786,6 +851,8 @@ export const model = {
           await readDisplayName(g.cacheDir);
         const handles: ResDataHandle[] = [];
         const summaries: DailyHealthSummary[] = [];
+        let newDays = 0;
+        let updatedDays = 0;
 
         for (const date of dates) {
           const summary = emptySummary(date);
@@ -799,6 +866,11 @@ export const model = {
             mergeMetric(summary, metric, parsed);
           }
           summaries.push(summary);
+          // Distinguish a day we had not stored before from one we re-parsed,
+          // so a run reports "3 new days" rather than an unchanging total.
+          const prior = await ctx.readResource(`daily-${date}`);
+          if (prior === null) newDays += 1;
+          else updatedDays += 1;
           handles.push(
             await ctx.writeResource("daily", `daily-${date}`, {
               ...summary,
@@ -820,28 +892,46 @@ export const model = {
           await ctx.writeResource("range", "health-range", range),
         );
 
-        ctx.logger.info("Synced {days} day(s) of wellness across {m} metrics", {
-          days: dates.length,
-          m: metrics.length,
-        });
+        ctx.logger.info(
+          "Synced {days} day(s) of wellness across {m} metrics: {new} new, {updated} updated",
+          {
+            days: dates.length,
+            m: metrics.length,
+            new: newDays,
+            updated: updatedDays,
+          },
+        );
         return { dataHandles: handles };
       },
     },
   },
 };
 
-/** Resolve the date window from method args (single date or range). */
-export function resolveDates(args: {
-  date?: string;
-  startDate?: string;
-  endDate?: string;
-}): string[] {
+/**
+ * Resolve the date window from method args (single date or range).
+ *
+ * Precedence: an explicit `startDate` range, then a single `date`, then a
+ * default window of the last `days` local days through today. The default is
+ * computed in `timezone` (not UTC) so a morning run in a timezone ahead of UTC
+ * still lands on the day the user is living in. A three-day default re-fetches
+ * a little already-seen data, so a missed or rate-limited run self-heals.
+ */
+export function resolveDates(
+  args: {
+    date?: string;
+    startDate?: string;
+    endDate?: string;
+  },
+  timezone = "",
+  days = 3,
+  now: Date = new Date(),
+): string[] {
   if (args.startDate?.trim()) {
     const end = args.endDate?.trim() || args.startDate.trim();
     return dateRange(args.startDate.trim(), end);
   }
   if (args.date?.trim()) return [args.date.trim()];
-  // Default: yesterday — the most recent *complete* day of wellness data.
-  const yesterday = new Date(Date.now() - 86_400_000);
-  return [yesterday.toISOString().slice(0, 10)];
+  const today = localDate(timezone, now);
+  const span = Math.max(1, Math.floor(days));
+  return dateRange(shiftDate(today, -(span - 1)), today);
 }

@@ -7,11 +7,13 @@
 import { assert, assertEquals, assertThrows } from "jsr:@std/assert@1";
 import {
   dateRange,
+  localDate,
   mergeMetric,
   metricPath,
   METRICS,
   resolveDates,
   selectMetrics,
+  shiftDate,
 } from "./garmin_health.ts";
 
 // --- path building ----------------------------------------------------------
@@ -62,7 +64,7 @@ Deno.test("dateRange is inclusive and ordered", () => {
   assertEquals(dateRange("2026-01-03", "2026-01-01"), []);
 });
 
-Deno.test("resolveDates prefers range, then date, then yesterday", () => {
+Deno.test("resolveDates prefers range, then date, then a local default window", () => {
   assertEquals(
     resolveDates({ startDate: "2026-01-01", endDate: "2026-01-02" }),
     [
@@ -71,7 +73,30 @@ Deno.test("resolveDates prefers range, then date, then yesterday", () => {
     ],
   );
   assertEquals(resolveDates({ date: "2026-01-05" }), ["2026-01-05"]);
-  assertEquals(resolveDates({}).length, 1);
+  // Default: the last `days` local days through today. 20:00 UTC on the 4th
+  // is already the 5th in Brisbane (+10).
+  assertEquals(
+    resolveDates({}, "Australia/Brisbane", 3, new Date("2026-10-04T20:00:00Z")),
+    ["2026-10-03", "2026-10-04", "2026-10-05"],
+  );
+  // A 1-day window is just today-local.
+  assertEquals(
+    resolveDates({}, "Australia/Brisbane", 1, new Date("2026-10-04T20:00:00Z")),
+    ["2026-10-05"],
+  );
+});
+
+Deno.test("localDate resolves the calendar day in a timezone", () => {
+  const now = new Date("2026-10-04T20:00:00Z");
+  assertEquals(localDate("Australia/Brisbane", now), "2026-10-05");
+  assertEquals(localDate("UTC", now), "2026-10-04");
+  assertEquals(localDate("America/Los_Angeles", now), "2026-10-04");
+});
+
+Deno.test("shiftDate moves within the YYYY-MM-DD grid", () => {
+  assertEquals(shiftDate("2026-10-04", -2), "2026-10-02");
+  assertEquals(shiftDate("2026-10-04", 1), "2026-10-05");
+  assertEquals(shiftDate("2026-01-01", -1), "2025-12-31");
 });
 
 // --- capability gating ------------------------------------------------------

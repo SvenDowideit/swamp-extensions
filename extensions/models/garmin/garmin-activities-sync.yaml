@@ -51,6 +51,18 @@ inputs:
       type: string
       default: ""
       description: Explicit window start, YYYY-MM-DD (overrides days).
+    endDate:
+      type: string
+      default: ""
+      description: >
+        Explicit window end, YYYY-MM-DD. Empty resolves to today in `timezone`
+        (not UTC), so a morning run includes the current local day.
+    timezone:
+      type: string
+      default: ""
+      description: >
+        IANA timezone (e.g. Australia/Brisbane) used to resolve the default
+        window end and bucket activity start times. Empty = UTC.
     activityType:
       type: string
       default: ""
@@ -59,6 +71,15 @@ inputs:
       type: boolean
       default: true
       description: Also fetch per-activity detail for ids from the previous run.
+    forceRefresh:
+      type: boolean
+      default: true
+      description: >
+        Re-fetch the activity list even when a cached response exists. The list
+        URL is identical for the whole day, so without this a second run in the
+        same day re-serves the morning's list and misses rides recorded since.
+        Default true — re-pulling one list request per run is cheap, and the
+        point of running is to see new activities. Set false to trust the cache.
   required: []
 jobs:
   - name: activities
@@ -84,6 +105,8 @@ jobs:
           inputs:
             days: ${{ inputs.days }}
             startDate: ${{ inputs.startDate }}
+            endDate: ${{ inputs.endDate }}
+            timezone: ${{ inputs.timezone }}
             activityType: ${{ inputs.activityType }}
         dependsOn:
           - step: session
@@ -117,6 +140,7 @@ jobs:
           methodName: fetch-many
           inputs:
             paths: ${{ data.latest(inputs.activitiesName, "activity-paths").attributes.paths }}
+            forceRefresh: ${{ inputs.forceRefresh }}
         dependsOn:
           - step: detail-paths
             condition:

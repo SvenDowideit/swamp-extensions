@@ -1,0 +1,178 @@
+id: 089a21d1-7421-4559-9052-7d1f3a7dc243
+name: '@svendowideit/fitness-refresh'
+description: |
+  Refresh every Garmin and Zwift data source in one run, so a downstream
+  consumer (the diary) reads a complete, current local day.
+
+  Garmin and Zwift each expose their data through several workflows on their own
+  schedules, and a consumer that runs between them sees a half-populated day.
+  This workflow is the single ordered entry point that runs them all for the
+  local calendar day:
+
+    1. garmin-devices-sync   derive the device capability map — without it the
+                             health sync silently drops sleep, stress and body
+                             battery (and so the sleep score).
+    2. garmin-health-sync     wellness for the last few local days through today
+                             (last night's sleep, today's running steps).
+    3. garmin-activities-sync today's activities, so the current day is included.
+    4. zwift-sync             ride history and the upcoming event calendar.
+    5. zwift-recommend        rank the calendar against the rider profile.
+
+  Every step re-runs the auth session it needs, so this is safe to invoke
+  repeatedly. It does not touch the diary — run the diary afterward, as often as
+  you like; it only reads what this workflow stored.
+
+  Manual run:
+    swamp workflow run @svendowideit/fitness-refresh
+    swamp workflow run @svendowideit/fitness-refresh --input timezone=Australia/Brisbane
+    swamp workflow run @svendowideit/fitness-refresh --input healthDays=5
+tags:
+  domain: fitness
+trigger:
+  schedule: "0 */3 * * *"
+  inputs: {}
+inputs:
+  properties:
+    timezone:
+      type: string
+      default: Australia/Brisbane
+      description: >
+        IANA timezone that defines "today" for the syncs and buckets ride and
+        event times. Defaults to the author's zone — set your own.
+    sessionName:
+      type: string
+      default: garmin-connect
+      description: The @svendowideit/garmin-connect transport instance.
+    devicesName:
+      type: string
+      default: garmin-devices
+      description: The @svendowideit/garmin-devices instance (capability map).
+    healthName:
+      type: string
+      default: garmin-health
+      description: The @svendowideit/garmin-health instance.
+    healthDays:
+      type: integer
+      default: 3
+      description: >
+        Local days of wellness to fetch through today when no explicit range is
+        given (a small overlap self-heals a missed run; capped at 14).
+    forceRefresh:
+      type: boolean
+      default: true
+      description: >
+        Re-fetch from Garmin even when a cached response exists. A "refresh" is
+        only useful if it actually re-reads Garmin: the activity-list URL is the
+        same all day, so a cache-first run re-serves the morning's list and
+        misses a ride finished since. Default true.
+    activitiesName:
+      type: string
+      default: garmin-activities
+      description: The @svendowideit/garmin-activities instance.
+    riderName:
+      type: string
+      default: zwift-rider
+      description: The @svendowideit/zwift-rider instance.
+    eventsName:
+      type: string
+      default: zwift-events
+      description: The @svendowideit/zwift-events instance.
+    recommenderName:
+      type: string
+      default: zwift-recommender
+      description: The @svendowideit/zwift-recommender instance.
+  required: []
+jobs:
+  - name: refresh
+    description: Run every collector in dependency order for the local day.
+    steps:
+      - name: garmin-devices
+        description: >
+          Derive the device capability map first — the health sync gates
+          sleep, stress and body battery on it, so running it late would drop
+          those metrics (including the sleep score).
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/garmin-devices-sync"
+          inputs:
+            sessionName: ${{ inputs.sessionName }}
+            devicesName: ${{ inputs.devicesName }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: garmin-health
+        description: >
+          Fetch wellness for the last few local days through today. The
+          timezone makes "today" the local day, so a morning run picks up last
+          night's sleep and today's steps.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/garmin-health-sync"
+          inputs:
+            sessionName: ${{ inputs.sessionName }}
+            healthName: ${{ inputs.healthName }}
+            devicesName: ${{ inputs.devicesName }}
+            timezone: ${{ inputs.timezone }}
+            days: ${{ inputs.healthDays }}
+            forceRefresh: ${{ inputs.forceRefresh }}
+        dependsOn:
+          - step: garmin-devices
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: garmin-activities
+        description: >
+          Sync the activity history with the window ending on today-local, so
+          the current day's activities are included.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/garmin-activities-sync"
+          inputs:
+            sessionName: ${{ inputs.sessionName }}
+            activitiesName: ${{ inputs.activitiesName }}
+            timezone: ${{ inputs.timezone }}
+            forceRefresh: ${{ inputs.forceRefresh }}
+        dependsOn:
+          - step: garmin-devices
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: zwift-sync
+        description: >
+          Refresh Zwift ride history and the upcoming event calendar, bucketed
+          in the local timezone.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/zwift-sync"
+          inputs:
+            riderName: ${{ inputs.riderName }}
+            eventsName: ${{ inputs.eventsName }}
+            timezone: ${{ inputs.timezone }}
+        dependsOn:
+          - step: garmin-activities
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: zwift-recommend
+        description: >
+          Rank the freshly synced calendar against the rider profile, so the
+          diary's suggested-rides section is current.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/zwift-recommend"
+          inputs:
+            riderName: ${{ inputs.riderName }}
+            eventsName: ${{ inputs.eventsName }}
+            recommenderName: ${{ inputs.recommenderName }}
+        dependsOn:
+          - step: zwift-sync
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

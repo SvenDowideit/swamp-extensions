@@ -1,0 +1,101 @@
+manifestVersion: 1
+name: "@svendowideit/diary"
+version: "2026.10.04.1"
+description: >
+  Turn a day of synced Garmin and Zwift data into one Obsidian daily note,
+  merging into any note you have already edited.
+
+  WHAT IT DOES
+
+    Your fitness data already lands in swamp — Garmin activities and wellness,
+    plus ranked Zwift event picks — but reading it means knowing three models
+    and their data names. This extension joins them into a single per-day diary
+    note: the activities you did with durations and totals, your sleep duration
+    and score, step count, and the top suggested Zwift rides with reasons and
+    links. It is an extension of `@magistr/obsidian/vault`, so it composes that
+    model's `read`/`create` rather than writing files itself, and it never
+    touches the network: `collect` reads data other models already synced, so it
+    cannot rate-limit or duplicate a Garmin/Zwift fetch. The write is
+    marker-based, so re-running a day rewrites only the machine-managed region
+    and leaves your own headings, prose and ticked checkboxes untouched — which
+    is what makes a phone-editable vault safe to regenerate.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/diary
+
+  DEPENDENCIES
+
+    `@magistr/obsidian-vault`, pulled automatically by the single install
+    above; it supplies the `@magistr/obsidian/vault` model this extension
+    extends. The Garmin (`@svendowideit/garmin`) and Zwift
+    (`@svendowideit/zwift`) syncs that produce the source data are not hard
+    dependencies — the diary reports what is missing when they have not run.
+
+  RUN
+
+      # One-time: a vault model pointed at the mounted Obsidian directory (the
+      # headless filesystem backend needs no Obsidian app running).
+      swamp model create @magistr/obsidian/vault obsidian-vault \
+        --global-arg vaultRoot=$HOME/Obsidian/Vault
+
+      # Collect a day from the synced fitness data (defaults to today in
+      # Australia/Brisbane) and write one collect resource.
+      swamp model @svendowideit/diary method run collect obsidian-vault
+
+      # Render the markdown without touching the vault first, so you can check
+      # the page shape before publishing.
+      swamp model @svendowideit/diary method run render obsidian-vault
+
+      # Publish: render, merge into the existing daily note between the managed
+      # markers, and write daily/<date>.md through the vault model.
+      swamp model @svendowideit/diary method run publish obsidian-vault
+
+      # Or run the bundled workflow, which does collect + publish in one go and
+      # is scheduled daily at 07:00 local under 'swamp serve'.
+      swamp workflow run @svendowideit/diary-daily
+
+      # Backfill a specific past day instead of today.
+      swamp model @svendowideit/diary method run publish obsidian-vault \
+        --input date=2026-09-30
+
+  CONFIGURE
+
+    Every method takes `timezone` (default `Australia/Brisbane`) and an
+    optional `date` (default: today in that timezone). `collect` maps data
+    sources by instance name: `activitiesModel` (garmin-activities),
+    `healthModel` (garmin-health), `recommenderModel` (zwift-recommender),
+    `eventsModel` (zwift-events) and `topN` (5). `publish` takes `vaultModel`
+    (obsidian-vault), `folder` (daily), `noteName` and `allowDotObsidian`. The
+    workflow takes the same names as `--input` (plus `date`, `folder`, `topN`).
+    See the README for the full argument table.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services or daemons. It writes swamp resources
+    and, through the vault model, the diary note inside your Obsidian vault.
+    The bundled `@svendowideit/diary-daily` workflow registers one cron trigger
+    while `swamp serve` runs: `0 7 * * *` local time. Downloads and backfills
+    run on demand.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - diary.ts
+
+workflows:
+  - diary-daily.yaml
+
+dependencies:
+  - "@magistr/obsidian-vault"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

@@ -90,7 +90,7 @@ with `--input key=value` where a method exposes it.
 | -------- | ---- | ------- | ----------- |
 | `cacheDir` | string | `"~/.swamp/garmin-cache"` | Shared cache the transport writes to; must match `garmin-connect`. |
 | `detailKinds` | string[] | `["detail","splits","weather"]` | Per-activity sub-resources to fetch (`detail`, `splits`, `splitSummaries`, `weather`, `hrTimeInZones`, `powerTimeInZones`, `exerciseSets`, `details`). |
-| `timezone` | string | `""` | IANA zone for bucketing start times; empty uses Garmin's local fields. |
+| `timezone` | string | `""` | IANA zone used to bucket start times and to resolve the list window's default "today"; empty uses the host's local zone. |
 
 ### `@svendowideit/garmin-health`
 
@@ -99,6 +99,8 @@ with `--input key=value` where a method exposes it.
 | `cacheDir` | string | `"~/.swamp/garmin-cache"` | Shared cache the transport writes to; must match `garmin-connect`. |
 | `metrics` | string[] | summary, sleep, stress, heartRate, restingHeartRate, bodyBattery, stepsChart | Wellness metrics to fetch. Also: `respiration`, `spo2`, `hrv`, `intensityMinutes`, `floors`. |
 | `respectCapabilities` | boolean | `true` | Drop device-gated metrics the account's devices do not support. |
+| `timezone` | string | `""` | IANA zone used to resolve the default date window; empty uses the host's local zone. Set this so a morning run fetches the calendar day you are living in, not the previous UTC day. |
+| `days` | integer | `3` | Local days to fetch through today when no explicit date/range is given. A small overlap self-heals a missed run; capped at 14. |
 
 ### `@svendowideit/garmin-body`
 
@@ -156,14 +158,20 @@ swamp workflow run @svendowideit/garmin-devices-sync
 swamp data get garmin-devices device-capabilities --json \
   | jq '.content.capabilities | to_entries | map(select(.value)) | map(.key)'
 
-# Sync the activity history for a window. Run it before downloading, and daily
-# so the history stays current. Widen the window or filter by sport as needed.
+# Sync the activity history for a window. Run it before downloading, and often
+# (e.g. every few hours) so a just-finished ride shows up. Widen the window or
+# filter by sport as needed. The window's end is "today" in the model's timezone
+# (set `--global-arg timezone=Australia/Brisbane` at create time), not UTC.
+# forceRefresh defaults true: the list URL is the same all day, so without it a
+# second run re-serves the morning's list and misses activities recorded since.
 swamp workflow run @svendowideit/garmin-activities-sync
 swamp workflow run @svendowideit/garmin-activities-sync --input days=90 --input activityType=cycling
 
-# Sync daily wellness (default: yesterday — the last complete day). Device-gated
-# metrics are fetched only when the capability map says the account can record
-# them; widen the window to backfill.
+# Sync daily wellness. The default window is the last 3 local days through
+# today (set `timezone` so "today" is your local day), so a morning run picks up
+# last night's sleep and today's running step count. Device-gated metrics are
+# fetched only when the capability map says the account can record them — run
+# garmin-devices-sync first; otherwise sleep/stress/bodyBattery are dropped.
 swamp workflow run @svendowideit/garmin-health-sync
 swamp workflow run @svendowideit/garmin-health-sync --input startDate=2026-01-01 --input endDate=2026-01-31
 

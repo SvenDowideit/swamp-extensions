@@ -15,9 +15,10 @@ description: |
     4. sync          @svendowideit/garmin-devices reads the cached bodies and
                      writes `device-list` and `device-capabilities`.
 
-  The capability map is the gate every later Garmin workflow keys off:
+  The capability map is the gate every later Garmin workflow keys off, e.g. a
+  guard that runs an HRV step only when the account supports it:
 
-    when: ${{ data.latest("garmin-devices", "device-capabilities").attributes.capabilities.hrv == true }}
+    data.latest("garmin-devices", "device-capabilities").attributes.capabilities.hrv == true
 
   Runs daily at 05:10, after the session refresh at 05:00.
 

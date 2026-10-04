@@ -1,0 +1,85 @@
+manifestVersion: 1
+name: "@svendowideit/fitness-refresh"
+version: "2026.10.04.1"
+description: |
+  Refresh every Garmin and Zwift data source in one ordered run, so a
+  downstream consumer always reads a complete, current local day.
+
+  WHAT IT DOES
+
+    Garmin and Zwift each publish their data through several workflows on their
+    own schedules, and a consumer that runs in between sees a half-populated
+    day. This extension is the single ordered entry point that runs them all for
+    your local calendar day, in the one order that matters: it derives the
+    Garmin device capability map *first*, because a health sync run without it
+    silently drops the device-gated metrics — sleep, stress, body battery and
+    the sleep score — then syncs wellness for the last few local days through
+    today, the day's activities, your Zwift ride history, and the ranked event
+    calendar. Every step is idempotent, so it is safe to run repeatedly. It is
+    read-only with respect to your diary: it only writes data, and anything you
+    run afterwards reads it.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/fitness-refresh
+
+  DEPENDENCIES
+
+    `@svendowideit/garmin` and `@svendowideit/zwift`, pulled automatically by the
+    single install above. This extension ships only a workflow that invokes
+    their sync workflows; it declares no models of its own. Garmin credentials
+    live in the `garmin-secrets` vault and Zwift credentials in `zwift-secrets`,
+    exactly as those extensions document.
+
+  RUN
+
+      # Sync everything for the local day, in order. Idempotent — run it as
+      # often as you like; each step re-establishes its own auth session.
+      swamp workflow run @svendowideit/fitness-refresh
+
+      # A different timezone than the author's, so "today" and the ride/event
+      # bucketing match where you are.
+      swamp workflow run @svendowideit/fitness-refresh \
+        --input timezone=Europe/London
+
+      # Widen the wellness window when you have been away (capped at 14 days).
+      swamp workflow run @svendowideit/fitness-refresh --input healthDays=7
+
+  CONFIGURE
+
+    `timezone` (default `Australia/Brisbane`) defines "today" for the syncs and
+    buckets ride and event times; set your own. `healthDays` (default 3) is the
+    local wellness window through today (capped at 14). `forceRefresh` (default
+    true) makes the Garmin syncs re-read Garmin rather than serve the day's first
+    cached list — without it a repeat run misses a ride finished since the
+    morning. The remaining inputs are instance names — `sessionName`,
+    `devicesName`, `healthName`, `activitiesName`, `riderName`, `eventsName`,
+    `recommenderName` — for when you renamed a model. Schedule a custom time with
+    the trigger: it fires every 3 hours while `swamp serve` runs.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host. It writes swamp data through the Garmin and Zwift
+    models it calls. One cron trigger is registered while `swamp serve` runs:
+    `0 */3 * * *` (every 3 hours, host-local). Remove or disable the trigger if
+    you prefer to invoke it by hand.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+workflows:
+  - fitness-refresh.yaml
+
+dependencies:
+  - "@svendowideit/garmin"
+  - "@svendowideit/zwift"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

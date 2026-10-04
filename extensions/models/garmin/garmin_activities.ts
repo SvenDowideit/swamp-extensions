@@ -116,8 +116,9 @@ const GlobalArgsSchema = z.object({
       "Which per-activity sub-resources `detail-paths` requests by default",
     ),
   timezone: z.string().default("").describe(
-    "IANA timezone used to bucket activity start times (e.g. " +
-      "Australia/Brisbane). Empty uses UTC-derived local fields from Garmin.",
+    "IANA timezone (e.g. Australia/Brisbane) used to bucket activity start " +
+      "times and to resolve the list window's default 'today'. Empty uses " +
+      "UTC-derived local fields from Garmin and a UTC today.",
   ),
 }).strict();
 
@@ -136,6 +137,10 @@ const ListArgsSchema = z.object({
   ),
   endDate: z.string().optional().describe(
     "Explicit end date, YYYY-MM-DD (defaults to today)",
+  ),
+  timezone: z.string().optional().describe(
+    "Override the global timezone for this call when resolving the default " +
+      "window end. Omit to use the model's global timezone.",
   ),
   activityType: z.string().optional().describe(
     "Filter by Garmin activity type key (e.g. cycling, running, swimming)",
@@ -405,6 +410,8 @@ const ActivityListResultSchema = z.object({
   windowEnd: z.string(),
   activityTypes: z.array(z.string()),
   cached: z.boolean(),
+  /** Activity ids in this list that were not in the previous run's list. */
+  added: z.array(z.string()).default([]),
   activities: z.array(ActivitySchema),
 });
 
@@ -433,13 +440,24 @@ const SetupSchema = z.object({ report: z.string() });
 /** The `@svendowideit/garmin-activities` model definition. */
 export const model = {
   type: "@svendowideit/garmin-activities",
-  version: "2026.10.01.1",
+  version: "2026.10.04.1",
   upgrades: [
     {
       toVersion: "2026.10.01.1",
       description:
         "Version bump to stay in step with the @svendowideit/garmin extension; " +
         "no schema or behaviour change in this model.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.04.1",
+      description:
+        "Resolve the activity-list window's default 'today' in the configured " +
+        "timezone (was UTC), so a morning run includes the current local day. " +
+        "Added a per-call `timezone` argument. The `activity-list` resource now " +
+        "records `added` — the ids not present in the previous run's list — and " +
+        "the sync logs new-vs-total, so a run that picks up a just-finished ride " +
+        "is visibly different from one that re-served a stale cache.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -512,10 +530,12 @@ export const model = {
         args: z.infer<typeof ListArgsSchema>,
         ctx: MethodContext,
       ) => {
+        const g = ctx.globalArgs;
+        const tz = args.timezone?.trim() || g.timezone;
         const today = new Date();
-        const endDate = args.endDate?.trim() || isoDate(today);
+        const endDate = args.endDate?.trim() || localDate(tz, today);
         const startDate = args.startDate?.trim() ||
-          isoDate(new Date(today.getTime() - args.days * 86_400_000));
+          localDate(tz, new Date(today.getTime() - args.days * 86_400_000));
         const path = activityListPath({
           startDate,
           endDate,
@@ -615,12 +635,23 @@ export const model = {
           .map((a) => normalizeActivity(a))
           .filter((a): a is NormalizedActivity => a !== null);
 
+        // Which ids were not in the previous run's list? Reading the prior
+        // `activity-list` before overwriting it turns an opaque total into a
+        // "found N new" signal, so a run that sees a just-finished ride is
+        // visibly different to one that re-served a stale cache.
+        const priorList = await ctx.readResource("activity-list");
+        const priorIds = new Set(activityIds(priorList));
+
         const wanted = args.ids && args.ids.length > 0
           ? new Set(args.ids)
           : null;
         const selected = wanted
           ? activities.filter((a) => wanted.has(a.id))
           : activities;
+        const added = newActivityIds(
+          selected.map((a) => a.id),
+          priorIds,
+        );
 
         const handles: ResDataHandle[] = [];
         for (const a of selected) {
@@ -636,6 +667,7 @@ export const model = {
           windowEnd,
           activityTypes: [...new Set(selected.map((a) => a.typeKey))].sort(),
           cached: body !== null,
+          added,
           activities: selected,
         };
         handles.push(
@@ -663,10 +695,11 @@ export const model = {
         }
 
         ctx.logger.info(
-          "Synced {n} activities ({types} types){details}",
+          "Synced {n} activities ({types} types), {new} new since the last run{details}",
           {
             n: selected.length,
             types: listResource.activityTypes.length,
+            new: added.length,
             details: details ? `, ${details} detail responses` : "",
           },
         );
@@ -679,4 +712,48 @@ export const model = {
 /** Format a Date as `YYYY-MM-DD` (UTC). */
 export function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * The activity ids in a previously stored `activity-list` resource, as a
+ * string set. Tolerant of a missing resource, an absent `activities` array,
+ * and activities without an id, so it never throws on older or partial data.
+ */
+export function activityIds(
+  list: Record<string, unknown> | null,
+): string[] {
+  if (!Array.isArray(list?.activities)) return [];
+  return (list!.activities as Array<{ id?: unknown }>)
+    .map((a) => String(a?.id ?? ""))
+    .filter((id) => id.length > 0);
+}
+
+/**
+ * The ids present in `current` but not already in `prior` — "new since the
+ * last run". Order follows `current`, so the newest-first Garmin list yields
+ * a newest-first delta.
+ */
+export function newActivityIds(
+  current: string[],
+  prior: Set<string>,
+): string[] {
+  return current.filter((id) => !prior.has(id));
+}
+
+/**
+ * The local calendar day (`YYYY-MM-DD`) for an instant in an IANA timezone.
+ *
+ * The activity list window must end on the day the user is living in, not the
+ * UTC day: a 05:20 run in Brisbane (+10) is still the previous UTC day, so a UTC
+ * "today" would omit activities recorded later that local day. An empty
+ * timezone uses the host's local zone (matching the Zwift models).
+ */
+export function localDate(timezone: string, now: Date = new Date()): string {
+  const zone = timezone.trim();
+  return new Intl.DateTimeFormat("en-CA", {
+    ...(zone ? { timeZone: zone } : {}),
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
 }

@@ -1,0 +1,125 @@
+id: e7dcd3a5-d0de-4cc6-b0c3-afb4214cfad8
+name: "@figy/host-onboard"
+description: |
+  @figy host onboarding: bring one or more managed Debian/Ubuntu hosts under
+  telemetry — install the OTLP agent from the published settings contract,
+  reconcile their DNS records, and confirm they report.
+
+  This is the incremental fleet rollout: onboard a host, confirm it appears in
+  the store, then move to the next. The agent fan-out supports many hosts at
+  once, but the operating target is deliberately small until it is trusted.
+
+  It reads the host list from the fleet inventory (managed, non-silent-ready
+  hosts) unless you pass an explicit `hosts` list.
+
+  Usage:
+    # Onboard every probed Debian/Ubuntu host in the inventory.
+    swamp workflow run @figy/host-onboard
+
+    # Onboard a specific host.
+    swamp workflow run @figy/host-onboard \
+      --input 'hosts=[{"name":"host1","address":"10.0.0.11"}]'
+
+  Prerequisites: the core node is up (@figy/bootstrap-otel-backend), its gateway
+  is reachable from the hosts, and the gateway token is stored in the vault.
+tags:
+  phase: "2"
+  collective: figy
+inputs:
+  properties:
+    settingsUrl:
+      type: string
+      default: https://settings.otel.fi.gy
+      description: Base URL of the published settings contract.
+    sshUser:
+      type: string
+      default: sven
+      description: SSH user for the target hosts.
+    tokenVault:
+      type: string
+      default: ""
+      description: >-
+        Vault holding the gateway OTLP bearer token. Empty installs the agent
+        without a token (the gateway does not yet enforce auth — a Phase 2
+        follow-up); set this once the gateway requires bearer auth.
+    hosts:
+      type: array
+      items:
+        type: object
+      default: []
+      description: >-
+        Explicit hosts to onboard, each {name, address, user?, tier?}. Empty
+        derives them from the fleet inventory (probed Debian/Ubuntu hosts).
+    coreIp:
+      type: string
+      default: "10.10.13.208"
+      description: Core node IP the per-host A-records point at.
+  required: []
+jobs:
+  - name: onboard
+    description: Install the agent, reconcile records, and confirm reporting.
+    steps:
+      - name: inventory
+        description: Read the fleet inventory to pick managed Debian/Ubuntu hosts.
+        task:
+          type: model_method
+          modelType: "@svendowideit/fleet-inventory"
+          modelName: fleet
+          methodName: report
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+
+      - name: install-agent
+        description: Install the OTLP agent on the selected hosts (fan-out).
+        task:
+          type: model_method
+          modelType: "@svendowideit/otel-agent"
+          modelName: agents
+          methodName: install
+          globalArgs:
+            settingsUrl: ${{ inputs.settingsUrl }}
+            sshUser: ${{ inputs.sshUser }}
+            vaultName: ${{ inputs.tokenVault }}
+          inputs:
+            hosts: >-
+              ${{ inputs.hosts.size() > 0
+                  ? inputs.hosts
+                  : data.latest("fleet", "inventory").attributes.hosts
+                      .filter(h, h.probed && h.os != "" && h.os != "darwin")
+                      .map(h, {"name": h.name, "address": h.addresses.size() > 0 ? h.addresses[0] : h.address, "tier": h.tier}) }}
+        dependsOn:
+          - step: inventory
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+
+  - name: verify
+    description: Confirm the just-onboarded hosts appear in the store.
+    steps:
+      - name: reporting-hosts
+        description: Query OpenObserve for the host names currently reporting.
+        task:
+          type: model_method
+          modelType: "@svendowideit/openobserve"
+          modelName: obs
+          methodName: query
+          globalArgs:
+            baseUrl: http://${{ inputs.coreIp }}:5080
+            organization: default
+            vaultName: otel-openobserve-admin
+          inputs:
+            type: metrics
+            sql: select distinct host_name from "system_cpu_load_average_1m"
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+    dependsOn:
+      - job: onboard
+        condition:
+          type: completed
+    weight: 0
+version: 1

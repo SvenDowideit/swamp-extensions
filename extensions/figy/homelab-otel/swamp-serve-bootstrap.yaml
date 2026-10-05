@@ -1,0 +1,315 @@
+id: dd3b4faa-b45d-4414-9e92-2643525d1621
+name: "@figy/swamp-serve-bootstrap"
+description: |
+  @figy site-specific setup: run this swamp repository as an always-on
+  `swamp serve` on the fi.gy homelab, reachable at swamp.x1yoga.fi.gy and
+  dashboard.x1yoga.fi.gy with the dashboard, hot-reload and auto-resume on.
+
+  This is the concrete half of @svendowideit/swamp-serve. The generic model is
+  portable; the names and models here are mine. During development the base
+  domain comes from the `my-caddy` model (which already owns x1yoga.fi.gy →
+  10.10.13.208), so the two hostnames derive automatically. When this migrates
+  to a real server, change that Caddy model's baseDomain (or pass a different
+  caddyModelName) and re-run — nothing here is hardcoded but the model names.
+
+  Order (and why):
+    1. resolve         — derive the two hostnames from my-caddy before writing.
+    2. install         — put the swamp binary in place if it is missing.
+    3. configure       — write .swamp/serve.yaml (dashboard/hot-reload/auto-resume).
+    4. service         — create + start the systemd user unit.
+    5. dns / proxy     — add the A records and Caddy routes (TLS via my-caddy).
+    6. telemetry       — apply the OTLP env from the `otel` contract.
+    7. status          — confirm systemd active and both hostnames answer.
+
+  The dns/proxy/telemetry steps are allowed to fail so a machine without the
+  Caddy model or a rendered contract still ends with a running serve.
+
+  Prerequisites:
+    - @svendowideit/swamp-serve, @svendowideit/caddy, @svendowideit/otel-settings,
+      @svendowideit/systemd-service pulled, and a figy-trusted repo.
+    - The `my-caddy` model exists with baseDomain x1yoga.fi.gy and its A record.
+    - The `otel` settings model is rendered (otherwise telemetry is skipped).
+
+  Usage:
+    swamp workflow run @figy/swamp-serve-bootstrap
+    swamp workflow run @figy/swamp-serve-bootstrap --input port=9090
+tags:
+  collective: figy
+inputs:
+  properties:
+    caddyModelName:
+      type: string
+      default: my-caddy
+      description: >-
+        The fi.gy Caddy model whose baseDomain and A record supply the hostnames
+        and IP. my-caddy owns x1yoga.fi.gy → 10.10.13.208 today.
+    otelSettingsModel:
+      type: string
+      default: otel
+      description: The @svendowideit/otel-settings model holding the fi.gy contract.
+    repoDir:
+      type: string
+      default: "."
+      description: The swamp repository this server runs.
+    serviceName:
+      type: string
+      default: swamp-serve
+      description: systemd user service name.
+    port:
+      type: integer
+      default: 9090
+      description: Port swamp serve listens on.
+    telemetryVault:
+      type: string
+      default: ""
+      description: >-
+        Vault holding the gateway OTLP bearer token. Empty while the gateway is
+        still unauthenticated (Phase 1).
+    deploymentEnvironment:
+      type: string
+      default: dev
+      description: deployment.environment value (dev on this machine).
+    coreIp:
+      type: string
+      default: "10.10.13.208"
+      description: >-
+        Core node IP the two swamp-serve A records point at (the same address
+        my-caddy already uses for x1yoga.fi.gy).
+  required: []
+jobs:
+  - name: serve
+    description: Resolve, install, configure, serve, expose, observe.
+    steps:
+      - name: resolve
+        description: >-
+          Derive swamp.x1yoga.fi.gy and dashboard.x1yoga.fi.gy from my-caddy
+          before anything is written, so the hostnames can be inspected first.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: resolve
+          globalArgs:
+            caddyModelName: ${{ inputs.caddyModelName }}
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+
+      - name: install
+        description: >-
+          Install the swamp binary only if it is absent; a present binary is
+          left for the model's updateBinary method to upgrade.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: installBinary
+        dependsOn:
+          - step: resolve
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+
+      - name: configure
+        description: >-
+          Write .swamp/serve.yaml with the dashboard, hot-reload and auto-resume
+          enabled, and validate it with `swamp serve check-config`.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: configure
+          globalArgs:
+            repoDir: ${{ inputs.repoDir }}
+            serviceName: ${{ inputs.serviceName }}
+            port: ${{ inputs.port }}
+            caddyModelName: ${{ inputs.caddyModelName }}
+        dependsOn:
+          - step: install
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: service
+        description: >-
+          Create and start the systemd user unit; this is the point the server
+          runs and the dashboard becomes reachable on the bound port.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: ensureService
+          globalArgs:
+            repoDir: ${{ inputs.repoDir }}
+            serviceName: ${{ inputs.serviceName }}
+            port: ${{ inputs.port }}
+            caddyModelName: ${{ inputs.caddyModelName }}
+        dependsOn:
+          - step: configure
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: configure-caddy
+        description: >-
+          Declare the two A records and TLS subjects on the Caddy model itself. A
+          Caddy model reconciles only its own dnsRecords and TLS subjects, so the
+          site must add them here; the hostnames come from the resolve step.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: my-caddy
+          methodName: configureTls
+          globalArgs:
+            baseDomain: fi.gy
+            serviceName: caddy
+            environmentFile: /home/sven/.config/caddy/dns.env
+            plugins:
+              - github.com/caddy-dns/gandi
+            dnsRecords:
+              - name: x1yoga.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: "${{ data.latest('swamp-serve', 'topology').?attributes.?swampHostname.orValue('swamp.x1yoga.fi.gy') }}"
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: "${{ data.latest('swamp-serve', 'topology').?attributes.?dashboardHostname.orValue('dashboard.x1yoga.fi.gy') }}"
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+          inputs:
+            dnsProvider: gandi
+            providerConfig:
+              bearer_token: GANDI_BEARER_TOKEN
+            subjects:
+              - x1yoga.fi.gy
+              - "${{ data.latest('swamp-serve', 'topology').?attributes.?swampHostname.orValue('swamp.x1yoga.fi.gy') }}"
+              - "${{ data.latest('swamp-serve', 'topology').?attributes.?dashboardHostname.orValue('dashboard.x1yoga.fi.gy') }}"
+        dependsOn:
+          - step: resolve
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+
+      - name: dns
+        description: >-
+          Apply the Caddy model's declared records (including the two just added)
+          so both hostnames resolve. Allowed to fail so the service still comes
+          up if the Caddy model is absent.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: my-caddy
+          methodName: applyDnsRecords
+          globalArgs:
+            baseDomain: fi.gy
+            serviceName: caddy
+            environmentFile: /home/sven/.config/caddy/dns.env
+            plugins:
+              - github.com/caddy-dns/gandi
+            dnsRecords:
+              - name: x1yoga.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: "${{ data.latest('swamp-serve', 'topology').?attributes.?swampHostname.orValue('swamp.x1yoga.fi.gy') }}"
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: "${{ data.latest('swamp-serve', 'topology').?attributes.?dashboardHostname.orValue('dashboard.x1yoga.fi.gy') }}"
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+        dependsOn:
+          - step: configure-caddy
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
+      - name: verify-dns
+        description: >-
+          Verify the Caddy model now owns both A records (reports anything
+          missing rather than fabricating a record it cannot persist).
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: ensureDns
+          globalArgs:
+            caddyModelName: ${{ inputs.caddyModelName }}
+        dependsOn:
+          - step: service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+
+      - name: proxy
+        description: >-
+          Reverse-proxy both hostnames to the server through my-caddy, which also
+          issues their TLS certificates. Fails softly with the DNS step.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: ensureProxy
+          globalArgs:
+            caddyModelName: ${{ inputs.caddyModelName }}
+            port: ${{ inputs.port }}
+        dependsOn:
+          - step: service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+
+      - name: telemetry
+        description: >-
+          Apply the OTLP environment from the `otel` contract so the server's
+          logs, metrics and traces reach the fi.gy gateway. Skipped cleanly when
+          the contract has not been rendered yet.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: ensureTelemetry
+          globalArgs:
+            otelSettingsModel: ${{ inputs.otelSettingsModel }}
+            telemetryVault: ${{ inputs.telemetryVault }}
+            caddyModelName: ${{ inputs.caddyModelName }}
+          inputs:
+            endpoint: ""
+        dependsOn:
+          - step: service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+
+      - name: status
+        description: >-
+          Report the final state: systemd active, HTTP status of both hostnames,
+          the swamp version, and the telemetry summary.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: status
+          globalArgs:
+            caddyModelName: ${{ inputs.caddyModelName }}
+        dependsOn:
+          - step: service
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

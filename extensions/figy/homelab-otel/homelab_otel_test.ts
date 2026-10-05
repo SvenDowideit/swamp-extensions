@@ -108,6 +108,6 @@ Deno.test("topology schema rejects malformed data (failure path)", () => {
 });
 
 Deno.test("the declared version matches the latest upgrade entry", () => {
-  assertEquals(model.version, "2026.10.04.2");
+  assertEquals(model.version, "2026.10.05.1");
   assertEquals(model.upgrades.at(-1)?.toVersion, model.version);
 });

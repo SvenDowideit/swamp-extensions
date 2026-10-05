@@ -124,7 +124,7 @@ jobs:
               - otlp_grpc: otlp.fi.gy:4317
                 otlp_http: otlp.fi.gy:4318
                 otlp_grpc_url: ""
-                otlp_http_url: ""
+                otlp_http_url: "https://otlp.fi.gy"
                 mesh: tailscale
               - otlp_grpc: otlp.wg.otel.fi.gy:4317
                 otlp_http: otlp.wg.otel.fi.gy:4318
@@ -268,6 +268,7 @@ jobs:
               bearer_token: GANDI_BEARER_TOKEN
             subjects:
               - "*.otel.fi.gy"
+              - otlp.fi.gy
         dependsOn:
           - step: gateway
             condition:
@@ -357,6 +358,51 @@ jobs:
         weight: 0
         allowFailure: false
 
+      - name: otel-caddy-otlp-route
+        description: >-
+          Terminate TLS for otlp.fi.gy on Caddy's 443 and reverse-proxy it to
+          the gateway's plaintext OTLP/HTTP receiver. The gateway's receiver is
+          plaintext (4318) and cannot share the TLS port, so the public OTLP/HTTP
+          URL is https://otlp.fi.gy (no port) while local agents keep :4318.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: otel-caddy
+          methodName: ensureDnsProxy
+          globalArgs:
+            baseDomain: otel.fi.gy
+            letsEncryptEmail: SvenDowideit@home.org.au
+            serviceName: caddy
+            environmentFile: /home/sven/.config/caddy/dns.env
+            plugins:
+              - github.com/caddy-dns/gandi
+            dnsRecords:
+              - name: otel.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: settings.otel.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: otlp.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+              - name: obs.otel.fi.gy
+                type: A
+                value: ["${{ inputs.coreIp }}"]
+                zone: fi.gy
+          inputs:
+            hostname: otlp.fi.gy
+            upstream: 127.0.0.1:${{ inputs.gatewayHttpPort }}
+        dependsOn:
+          - step: otel-caddy-store-ui
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
       - name: otel-caddy-records
         description: Reconcile the otel/otlp/settings/obs records via Caddy dns_records.
         task:
@@ -389,7 +435,7 @@ jobs:
                 value: ["${{ inputs.coreIp }}"]
                 zone: fi.gy
         dependsOn:
-          - step: otel-caddy-store-ui
+          - step: otel-caddy-otlp-route
             condition:
               type: succeeded
         weight: 0
@@ -433,14 +479,21 @@ jobs:
         allowFailure: true
 
       - name: verify-ui
-        description: Assert otel-caddy recorded the obs proxy route, the TLS config, and the DNS records.
+        description: >-
+          Assert otel-caddy's desired state carries every route and record this
+          workflow asks it to reconcile. caddy persists its state under the
+          'desired' instance (one resource the reconcile reads), not under a
+          per-method spec name, so the assertion reads that resource.
         task:
           type: assert
           expr: >-
-            data.query("modelName == 'otel-caddy' && specName == 'ensureProxy'").size() > 0 &&
-            data.query("modelName == 'otel-caddy' && specName == 'tlsConfig'").size() > 0 &&
-            data.query("modelName == 'otel-caddy' && specName == 'dnsConfig'").size() > 0
-          message: "otel-caddy did not record all of: the store-UI proxy route, the TLS config, and the DNS records"
+            data.latest("otel-caddy", "desired").attributes.routes.exists(r, r.hostname == "obs.otel.fi.gy") &&
+            data.latest("otel-caddy", "desired").attributes.routes.exists(r, r.hostname == "otlp.fi.gy") &&
+            data.latest("otel-caddy", "desired").attributes.tls.subjects.exists(s, s == "otlp.fi.gy") &&
+            data.latest("otel-caddy", "desired").attributes.dnsRecords.exists(d, d.name == "otlp.fi.gy")
+          message: >-
+            otel-caddy's desired state is missing one of: the obs proxy route,
+            the otlp proxy route, the otlp TLS subject, or the otlp DNS record.
           severity: high
         dependsOn:
           - step: otel-caddy-records

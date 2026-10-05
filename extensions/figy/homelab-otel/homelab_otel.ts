@@ -249,7 +249,7 @@ export function buildTopology(
 /** The swamp model definition for `@figy/homelab-otel`. */
 export const model = {
   type: "@figy/homelab-otel",
-  version: "2026.10.04.2",
+  version: "2026.10.05.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -274,6 +274,18 @@ export const model = {
       toVersion: "2026.10.04.2",
       description:
         "Phase 2: adds the @figy/host-onboard workflow (install the OTLP agent on managed Debian/Ubuntu hosts via @svendowideit/otel-agent, then confirm they report) and both bootstrap workflows now publish-settings + mirror-agent. Declares @svendowideit/otel-agent as a dependency. No model schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.04.3",
+      description:
+        "Adds the @figy/swamp-serve-bootstrap workflow: run this repo as an always-on @svendowideit/swamp-serve service at swamp.x1yoga.fi.gy and dashboard.x1yoga.fi.gy (dashboard/hot-reload/auto-resume on), with DNS/TLS/proxy via my-caddy and OTLP telemetry from the otel contract. Declares @svendowideit/swamp-serve and @svendowideit/systemd-service as dependencies. No model schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.1",
+      description:
+        "Terminates TLS for the OTLP/HTTP endpoint: both bootstrap workflows now set otlp_http_url=https://otlp.fi.gy and @figy/bootstrap-otel-backend adds an otel-caddy-otlp-route (Caddy 443 → the gateway's plaintext 4318). Without it https://otlp.fi.gy:4318 hit the raw plaintext receiver and every export failed the TLS handshake. Also fixes the bootstrap-otel-backend verify-ui assert, which queried per-method spec names (ensureProxy/tlsConfig/dnsConfig) that caddy never writes — it now checks caddy's 'desired' resource. No model schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -57,7 +57,7 @@ jobs:
               - otlp_grpc: otlp.fi.gy:4317
                 otlp_http: otlp.fi.gy:4318
                 otlp_grpc_url: ""
-                otlp_http_url: ""
+                otlp_http_url: "https://otlp.fi.gy"
                 mesh: tailscale
               - otlp_grpc: otlp.wg.otel.fi.gy:4317
                 otlp_http: otlp.wg.otel.fi.gy:4318
@@ -192,6 +192,7 @@ jobs:
               bearer_token: GANDI_BEARER_TOKEN
             subjects:
               - "*.otel.fi.gy"
+              - otlp.fi.gy
         dependsOn:
           - step: serve-settings
             condition:

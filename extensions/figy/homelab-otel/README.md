@@ -121,10 +121,29 @@ Confirm the synthetic record landed by querying the store back with SQL:
 swamp data get obs last --json | jq '.content.rows'
 ```
 
+Run this repository as an always-on server — the dashboard and automation
+reachable at `swamp.x1yoga.fi.gy` and `dashboard.x1yoga.fi.gy`, with the
+dashboard, hot-reload and auto-resume enabled and the server's own telemetry
+sent to the `otel.fi.gy` gateway. Run it after the core node is up:
+
+```sh
+swamp workflow run @figy/swamp-serve-bootstrap
+# Point it at a second Caddy model (or a different repo) without editing it.
+swamp workflow run @figy/swamp-serve-bootstrap --input caddyModelName=my-caddy --input port=3080
+```
+
+Confirm the server is up and being scraped:
+
+```sh
+swamp data get swamp-serve status --json
+curl -I https://dashboard.x1yoga.fi.gy/dashboard
+```
+
 ## Details
 
-`@figy/homelab-otel` ships one model type (`@figy/homelab-otel`) and three
-workflows (`homelab-otel-bootstrap`, `bootstrap-otel-backend`, `host-onboard`).
+`@figy/homelab-otel` ships one model type (`@figy/homelab-otel`) and four
+workflows (`homelab-otel-bootstrap`, `bootstrap-otel-backend`, `host-onboard`,
+`swamp-serve-bootstrap`).
 
 Model method:
 
@@ -159,6 +178,7 @@ Resource: `topology` (the site catalog).
 | `otel-caddy-tls` | `@svendowideit/caddy` (`otel-caddy`) | `configureTls` | Wildcard `*.otel.fi.gy` TLS via Gandi DNS-01. |
 | `otel-caddy-settings-route` | `@svendowideit/caddy` (`otel-caddy`) | `serveSettings` | Serve the settings webroot at `settings.otel.fi.gy`. |
 | `otel-caddy-store-ui` | `@svendowideit/caddy` (`otel-caddy`) | `ensureDnsProxy` | Proxy `obs.otel.fi.gy` → the OpenObserve UI port. |
+| `otel-caddy-otlp-route` | `@svendowideit/caddy` (`otel-caddy`) | `ensureDnsProxy` | Terminate TLS for `otlp.fi.gy` on 443 and proxy to the gateway's plaintext OTLP/HTTP receiver. |
 | `otel-caddy-records` | `@svendowideit/caddy` (`otel-caddy`) | `applyDnsRecords` | Reconcile the `otel`/`otlp`/`settings`/`obs.otel` records. |
 | `verify-push` | `@svendowideit/otel-gateway` (`otel-gateway`) | `verify` | Push a synthetic OTLP record through the gateway. |
 | `verify-query` | `@svendowideit/openobserve` (`obs`) | `query` | Query the record back from OpenObserve with SQL. |
@@ -172,12 +192,27 @@ Resource: `topology` (the site catalog).
 | `install-agent` | `@svendowideit/otel-agent` (`agents`) | `install` | Fan out the OTLP agent install to the selected hosts. |
 | `reporting-hosts` | `@svendowideit/openobserve` (`obs`) | `query` | Query the store for the host names now reporting (allowed to fail). |
 
+`swamp-serve-bootstrap` (run this repo as an always-on server; the fi.gy half
+of `@svendowideit/swamp-serve`):
+
+| Step | Model type | Method | What it does |
+| ---- | ---------- | ------ | ------------ |
+| `resolve` | `@svendowideit/swamp-serve` (`swamp-serve`) | `resolve` | Derive `swamp.x1yoga.fi.gy`/`dashboard.x1yoga.fi.gy` from `my-caddy`. |
+| `install` | `@svendowideit/swamp-serve` (`swamp-serve`) | `installBinary` | Install the swamp binary only when absent. |
+| `configure` | `@svendowideit/swamp-serve` (`swamp-serve`) | `configure` | Write `.swamp/serve.yaml` (dashboard/hot-reload/auto-resume on). |
+| `service` | `@svendowideit/swamp-serve` (`swamp-serve`) | `ensureService` | Create and start the systemd user unit. |
+| `dns` | `@svendowideit/swamp-serve` (`swamp-serve`) | `ensureDns` | Add the two A records via `my-caddy` (allowed to fail). |
+| `proxy` | `@svendowideit/swamp-serve` (`swamp-serve`) | `ensureProxy` | Reverse-proxy both hostnames via `my-caddy` (allowed to fail). |
+| `telemetry` | `@svendowideit/swamp-serve` (`swamp-serve`) | `ensureTelemetry` | Apply the OTLP env from the `otel` contract (allowed to fail). |
+| `status` | `@svendowideit/swamp-serve` (`swamp-serve`) | `status` | Report systemd state, both hostnames' HTTP status and the telemetry summary. |
+
 ### The fi.gy layout
 
 | Name | Purpose |
 | ---- | ------- |
 | `otel.fi.gy` | Zone apex → core node. |
-| `otlp.fi.gy` / `otlp.wg.otel.fi.gy` | Gateway OTLP endpoints (tailscale / wireguard). |
+| `otlp.fi.gy` | Public OTLP/HTTP endpoint: Caddy terminates TLS on 443 and proxies `/v1/{logs,metrics,traces}` to the gateway's plaintext receiver on `127.0.0.1:4318`. Contract `otlp_http_url` is `https://otlp.fi.gy`. |
+| `otlp.wg.otel.fi.gy` / `otlp.fi.gy:4317` | Direct gateway OTLP endpoints for local agents (tailscale gRPC/HTTP, plaintext). |
 | `obs.otel.fi.gy` | OpenObserve UI/API (`obs.fi.gy` stays free for video streaming). |
 | `settings.otel.fi.gy` | This settings server. |
 | `<host>.otel.fi.gy` | Per-managed-host records. |

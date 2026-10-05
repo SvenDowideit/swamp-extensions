@@ -1,9 +1,9 @@
 manifestVersion: 1
 name: "@figy/homelab-otel"
-version: "2026.10.04.2"
+version: "2026.10.05.1"
 description: >
   Site-specific OpenTelemetry bootstrap for the fi.gy homelab — my domains,
-  meshes, and tiers, wired into three workflows.
+  meshes, and tiers, wired into four workflows.
 
   WHAT IT DOES
 
@@ -12,12 +12,13 @@ description: >
     and wireguard gateway endpoints, home/sven attributes, and 14/90/7-day
     retention — to the generic @svendowideit models, and runs the whole publish
     path: render the contract, stage it versioned, serve it over HTTP(S) at
-    `settings.otel.fi.gy` with Caddy, proxy the OpenObserve UI at
-    `obs.otel.fi.gy`, reconcile the otel DNS records, and verify the live
-    document. One @svendowideit/caddy model (`otel-caddy`) owns all otel Caddy
-    config — records, wildcard `*.otel.fi.gy` TLS, the settings route, and the
-    store-UI route. Prefer it over hand-editing settings on each host: change the
-    contract once and every agent fetches it. This is site-specific by design —
+    `settings.otel.fi.gy`, proxy the OpenObserve UI at `obs.otel.fi.gy`,
+    terminate TLS for the OTLP endpoint at `otlp.fi.gy`, reconcile the DNS
+    records, and verify the live document. One @svendowideit/caddy model
+    (`otel-caddy`) owns all otel Caddy config — records, wildcard TLS, and the
+    settings, store-UI and OTLP routes. Prefer it over hand-editing settings on
+    each host: change the contract once and every agent fetches it. This is
+    site-specific by design —
     it encodes my domains, meshes, and gear, so it is useless without them; the
     portable model types live in @svendowideit.
 
@@ -58,6 +59,11 @@ description: >
     # Onboard a managed Debian/Ubuntu host onto the core node (Phase 2).
     swamp workflow run @figy/host-onboard
 
+    # Run this repo as an always-on swamp serve at swamp.x1yoga.fi.gy and
+    # dashboard.x1yoga.fi.gy (dashboard + hot-reload + auto-resume on), with its
+    # own telemetry pointed at the otel.fi.gy gateway.
+    swamp workflow run @figy/swamp-serve-bootstrap
+
     # Read the resolved contract for scripting.
       swamp data get otel resolved --json
 
@@ -66,6 +72,10 @@ description: >
 
       # Open the store UI (proxied by Caddy with the wildcard cert).
       curl -I https://obs.otel.fi.gy/
+
+      # Confirm the public OTLP/HTTP endpoint terminates TLS (the gateway's own
+      # receiver is plaintext; Caddy terminates TLS on 443 for these agents).
+      curl -sI https://otlp.fi.gy/v1/logs
 
   CONFIGURE
 
@@ -77,6 +87,8 @@ description: >
       webroot                 directory Caddy serves the staged bundle from
       bindAddress             address the store/gateway bind to (127.0.0.1 or a mesh address)
       vaultName               vault holding the OpenObserve admin login
+      caddyModelName          Caddy model for the serve hostnames (default my-caddy)
+      otelSettingsModel       otel-settings model for the serve telemetry (default otel)
 
     The site values themselves (domain, endpoints, meshes, retention) are fixed
     in the workflows' step globalArgs, because they are the point of this
@@ -87,9 +99,12 @@ description: >
 
   WHAT IT INSTALLS
 
-    Nothing directly — it creates/updates swamp models and data, and (via
-    @svendowideit/caddy) configures a Caddy route serving the settings webroot at
-    `settings.otel.fi.gy`. No cron triggers or webhooks.
+    It creates/updates swamp models and data; via @svendowideit/caddy it adds the
+    settings route at `settings.otel.fi.gy`, and `@figy/swamp-serve-bootstrap`
+    (via @svendowideit/swamp-serve and @svendowideit/systemd-service) installs a
+    systemd user service running `swamp serve`, with Caddy routes and DNS for
+    `swamp.x1yoga.fi.gy` and `dashboard.x1yoga.fi.gy`. No cron triggers or
+    webhooks.
 
 repository: https://github.com/svendowideit/swamp-extensions
 
@@ -105,6 +120,7 @@ workflows:
   - homelab-otel-bootstrap.yaml
   - bootstrap-otel-backend.yaml
   - host-onboard.yaml
+  - swamp-serve-bootstrap.yaml
 
 dependencies:
   - "@svendowideit/otel-settings"
@@ -114,6 +130,8 @@ dependencies:
   - "@svendowideit/otel-backend"
   - "@svendowideit/otel-gateway"
   - "@svendowideit/openobserve"
+  - "@svendowideit/swamp-serve"
+  - "@svendowideit/systemd-service"
 
 additionalFiles:
   - README.md

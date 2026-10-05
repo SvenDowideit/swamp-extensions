@@ -859,6 +859,10 @@ export function buildDocuments(
   osArchPairs: Array<{ os: string; arch: string }> = [
     { os: "linux", arch: "amd64" },
     { os: "linux", arch: "arm64" },
+    // armv7 (32-bit ARM, e.g. Raspberry Pi 2/3/4 in 32-bit mode) — the
+    // otelcol-contrib release publishes this target, and otel-agent maps
+    // `uname -m` armv7l/armv7/armhf to it.
+    { os: "linux", arch: "armv7" },
   ],
 ): Array<{ path: string; contentType: string; content: string }> {
   const docs: Array<{ path: string; contentType: string; content: string }> = [
@@ -984,7 +988,7 @@ export function validateSettings(g: SettingsInput): {
 /** The swamp model definition for `@svendowideit/otel-settings`. */
 export const model = {
   type: "@svendowideit/otel-settings",
-  version: "2026.10.04.1",
+  version: "2026.10.04.2",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-settings": {
@@ -1017,6 +1021,12 @@ export const model = {
       toVersion: "2026.10.04.1",
       description:
         "Mirror-ready install manifests: served tarball/checksum URLs now live under the settings root (/install/…) rather than a dead /settings/install prefix, and the manifest carries the upstream asset name + URLs the settings-server mirror fetches. agent-config/<tier>.yaml is now a complete, runnable otelcol-contrib config derived from the contract (not a fragment), with the gateway token as an ${env:…} reference. Adds agentName/agentVersion globals (default otelcol-contrib 0.162.0). Schema additive — existing models re-render to pick up the fixes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.04.2",
+      description:
+        "Adds the linux/armv7 install manifest to the default document set, so 32-bit ARM hosts (Raspberry Pi 2/3/4 running a 32-bit OS) can fetch install/linux-armv7.json — previously only amd64/arm64 were rendered and an armv7 agent got a 404. otel-agent already maps `uname -m` armv7l/armv7/armhf to the armv7 target. Schema additive — re-run render (then settings-server mirror) to emit and stage the new manifest.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

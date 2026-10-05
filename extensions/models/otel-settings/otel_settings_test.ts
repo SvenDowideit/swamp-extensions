@@ -185,6 +185,7 @@ Deno.test("buildDocuments produces the full stable URL set", () => {
   assert(paths.includes("agent-config/T1.yaml"));
   assert(paths.includes("install/linux-amd64.json"));
   assert(paths.includes("install/linux-arm64.json"));
+  assert(paths.includes("install/linux-armv7.json"));
   for (const d of docs) {
     assertEquals(typeof d.contentType, "string");
     assert(d.content.length > 0, `${d.path} should not be empty`);

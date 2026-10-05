@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.10.02.6"
+version: "2026.10.05.2"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -108,6 +108,13 @@ description: >
       #    a valid cert means the DNS-01 challenge succeeded.
       swamp model method run my-caddy ensureDnsProxy \
         --input hostname=app.example.com --input upstream=127.0.0.1:8080
+      #
+      # Serve an app that lives under a sub-path (e.g. /dashboard) at the
+      # hostname root: only "/" is rewritten, so /dashboard/assets/... still
+      # reaches the app.
+      swamp model method run my-caddy ensureDnsProxy \
+        --input hostname=dashboard.example.com \
+        --input upstream=127.0.0.1:9090 --input rootPath=/dashboard
       #
       # See the README's "Wildcard certificates with a DNS provider (step by
       # step)" section for the full walkthrough and troubleshooting.

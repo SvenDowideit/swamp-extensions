@@ -280,6 +280,12 @@ swamp model method run caddy-tls configureTls \
 swamp model method run caddy-apps ensureDnsProxy \
   --input hostname=shop.example.com --input upstream=127.0.0.1:8080
 
+# Serve an app that lives under a sub-path at the hostname root. The rewrite
+# applies only to "/", so /dashboard/assets/... still reaches the app.
+swamp model method run caddy-apps ensureDnsProxy \
+  --input hostname=dashboard.example.com \
+  --input upstream=127.0.0.1:9090 --input rootPath=/dashboard
+
 # The running config contains BOTH: the TLS policy and shop.example.com.
 # Adding another route from either model never removes the other's.
 ```
@@ -333,7 +339,7 @@ it exposes, with its per-run arguments:
 | `settingsGuidance` | none | Print the minimal Let's Encrypt settings (base domain, ACME email, admin API token). |
 | `addProxyService` | `serviceName`, `upstream`, `baseDomain` | Derive a hostname (`<service-name>.<base-domain>`) and add a reverse-proxy route via the admin API (`POST /config/`) — live, no restart. |
 | `removeProxyService` | `serviceName`, `baseDomain` | Stop the backend systemd service and remove the Caddy route for the derived domain. |
-| `ensureDnsProxy` | `hostname`, `upstream` | Idempotently ensure a full hostname proxies to a backend `host:port` (add if missing, update if the upstream changed, no-op if correct). Safe to run repeatedly — the desired-state entry point. |
+| `ensureDnsProxy` | `hostname`, `upstream`, `rootPath` | Idempotently ensure a full hostname proxies to a backend `host:port` (add if missing, update if the upstream changed, no-op if correct). `rootPath` (e.g. `/dashboard`) serves an app that lives under a sub-path at the hostname root: only the exact path `/` is rewritten to it, so the app's absolute asset/API paths pass through. Safe to run repeatedly — the desired-state entry point. |
 | `serveSettings` | `hostname`, `root`, `browse` (boolean) | Idempotently serve a static directory (e.g. a rendered settings bundle) at a full hostname via Caddy `file_server` (add if missing, update if the root or browse flag changed, no-op if correct). |
 | `startBackendService` | `serviceName` | Start a backend systemd user service by name. |
 | `stopBackendService` | `serviceName` | Stop a backend systemd user service by name. |
@@ -341,7 +347,7 @@ it exposes, with its per-run arguments:
 | `storeConfig` | `baseDomain`, `letsEncryptEmail`, `adminApiToken`, `vaultName` | Validate and write the base domain, ACME email, and admin API token to the swamp Vault (`swamp vault put`). |
 | `syncConfig` | none | Snapshot the effective config into a swamp resource. |
 | `getConfig` | none | Read the stored config back from the swamp resource. |
-| `configureTls` | `email`, `dnsProvider`, `dnsEnvVar`, `providerConfig` (object), `subjects` (array) | Configure the Caddy TLS app with the ACME email and an optional DNS provider for wildcard / DNS-challenge issuance. Single-field providers use `dnsEnvVar` (rendered as `api_token`); multi-field providers use `providerConfig` (field → env var), e.g. Gandi `{bearer_token: GANDI_TOKEN}`. |
+| `configureTls` | `email`, `dnsProvider`, `dnsEnvVar`, `providerConfig` (object), `subjects` (array), `issuer` | Configure the Caddy TLS app with the ACME email and an optional DNS provider for wildcard / DNS-challenge issuance. Single-field providers use `dnsEnvVar` (rendered as `api_token`); multi-field providers use `providerConfig` (field → env var), e.g. Gandi `{bearer_token: GANDI_TOKEN}`. `issuer=internal` uses Caddy's **local CA** (self-signed) instead of ACME — for non-public names such as `*.example.com`, or tests, where Let's Encrypt cannot issue; `email`/`dnsProvider` are then ignored. |
 | `applyDnsRecords` | none | Reconcile the desired static DNS records (`dnsRecords`/`dnsRemovals` globals) into Caddy and write a `dnsConfig` resource. The one command to add/update/delete records. Errors clearly if no records are set or no `dnsProvider` is configured. Idempotent. |
 | `autoProxySwampServe` | `baseDomain`, `prefix`, `port` | Detect running `swamp serve` systemd user services (prefix `swamp-serve-`), derive hostnames, and reconcile their reverse-proxy routes (adds new, removes stopped). |
 | `upgradeCaddy` | `plugins` (array), `confirm` (string) | Replace the Caddy binary (current release, with module packages) after explicit confirmation (`confirm=upgrade`), then restart the service. Existing configuration is preserved. |

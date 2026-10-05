@@ -292,6 +292,9 @@ const ConfigureTlsArgsSchema = z.object({
   subjects: z.array(z.string()).optional().describe(
     "Subjects for the TLS policy (e.g. *.example.com, example.com)",
   ),
+  issuer: z.string().optional().describe(
+    'Issuer module: "acme" (default, Let\'s Encrypt) or "internal" (Caddy\'s local CA, for non-public names where ACME cannot issue).',
+  ),
 });
 
 const ServeSettingsArgsSchema = z.object({
@@ -333,6 +336,11 @@ const EnsureDnsProxyArgsSchema = z.object({
   ),
   upstream: z.string().min(1).describe(
     "Backend host:port to proxy to (e.g. 127.0.0.1:8080 or https://192.0.2.10:8443)",
+  ),
+  rootPath: z.string().default("").describe(
+    "Serve an app that lives under this sub-path (e.g. '/dashboard') at the " +
+      "hostname root: only the exact path '/' is rewritten to it; every other " +
+      "path passes through unchanged. Empty proxies the root as-is.",
   ),
 });
 
@@ -525,6 +533,12 @@ const DesiredRouteSchema = z.object({
   upstream: z.string().default(""),
   root: z.string().default(""),
   browse: z.boolean().default(false),
+  rootPath: z.string().default("").describe(
+    "Serve an app that lives under this sub-path (e.g. '/dashboard') at the " +
+      "hostname root: the exact path '/' is rewritten to it before proxying, " +
+      "while every other path (assets, API) passes through unchanged. Empty " +
+      "proxies the host root as-is.",
+  ),
 });
 
 const DesiredTlsSchema = z.object({
@@ -533,6 +547,9 @@ const DesiredTlsSchema = z.object({
   dnsEnvVar: z.string().default(""),
   providerConfig: z.record(z.string(), z.string()).default({}),
   subjects: z.array(z.string()).default([]),
+  // Issuer module: "acme" (default) or "internal" (Caddy's local CA, for
+  // non-public names / tests where ACME cannot issue).
+  issuer: z.string().default(""),
 });
 
 const DesiredStatusPageSchema = z.object({
@@ -1431,6 +1448,12 @@ export interface DesiredRoute {
   root: string;
   /** Enable directory browsing for a file_server route. */
   browse: boolean;
+  /**
+   * Serve a sub-path app (e.g. `/dashboard`) at the hostname root: the exact
+   * path `/` is rewritten to this before the handler runs; all other paths pass
+   * through. Empty proxies the host root as-is.
+   */
+  rootPath?: string;
 }
 
 /** One model's desired TLS automation. */
@@ -1445,6 +1468,8 @@ export interface DesiredTls {
   providerConfig: Record<string, string>;
   /** TLS subjects. */
   subjects: string[];
+  /** Issuer module: "acme" (default) or "internal" (Caddy's local CA). */
+  issuer?: string;
 }
 
 /** One model's desired status page. */
@@ -1633,11 +1658,13 @@ export function mergeDesired(states: DesiredState[]): {
     const subjects = new Set<string>();
     const providerConfig: Record<string, string> = {};
     let dnsEnvVar = "";
+    let issuer = "";
     for (const s of tlsStates) {
       tlsModels.push(s.modelName);
       for (const sub of s.tls!.subjects) subjects.add(sub);
       Object.assign(providerConfig, s.tls!.providerConfig);
       dnsEnvVar = dnsEnvVar || s.tls!.dnsEnvVar;
+      issuer = issuer || (s.tls!.issuer ?? "");
     }
     tls = {
       email: [...emails][0] ?? "",
@@ -1645,6 +1672,7 @@ export function mergeDesired(states: DesiredState[]): {
       dnsEnvVar,
       providerConfig,
       subjects: [...subjects].sort(),
+      issuer,
     };
   }
 
@@ -1778,15 +1806,10 @@ export function buildReconciledConfig(
       });
     } else {
       const upstream = parseUpstream(r.upstream);
-      const handle: Record<string, unknown> = {
-        handler: "reverse_proxy",
-        upstreams: [{ dial: upstream.dial }],
-      };
-      if (upstream.https) handle.transport = { protocol: "http", tls: {} };
       built.push({
         "@id": id,
         match: [{ host: [r.hostname] }],
-        handle: [handle],
+        handle: buildProxyHandle(upstream, r.rootPath ?? ""),
         terminal: true,
       });
     }
@@ -1845,6 +1868,7 @@ export function buildReconciledConfig(
         ? merged.tls.providerConfig
         : undefined,
       subjects: merged.tls.subjects,
+      issuer: merged.tls.issuer,
     });
     // mergeTlsConfig returns a clone, so keep its result or the tls app is lost.
     next = mergeTlsConfig(next, tlsConfig);
@@ -1936,21 +1960,44 @@ export function diffRoutes(
   };
 }
 
+/**
+ * Build the Caddy `handle` array for a reverse-proxy route. When `rootPath` is
+ * set (e.g. `/dashboard`), a subroute rewrites only the exact path `/` to it so
+ * a sub-path app is served at the hostname root while its absolute asset/API
+ * paths pass through unchanged (rewriting unconditionally would turn asset
+ * requests into the app's HTML).
+ */
+export function buildProxyHandle(
+  upstream: { dial: string; https: boolean },
+  rootPath = "",
+): Record<string, unknown>[] {
+  const proxyHandler: Record<string, unknown> = {
+    handler: "reverse_proxy",
+    upstreams: [{ dial: upstream.dial }],
+  };
+  if (upstream.https) proxyHandler.transport = { protocol: "http", tls: {} };
+  if (!rootPath) return [proxyHandler];
+  return [{
+    handler: "subroute",
+    routes: [
+      {
+        match: [{ path: ["/"] }],
+        handle: [{ handler: "rewrite", uri: rootPath }],
+      },
+      { handle: [proxyHandler] },
+    ],
+  }];
+}
+
 /** Build a Caddy reverse-proxy route for a hostname + upstream. */
 export function buildRoute(
   hostname: string,
   upstream: { dial: string; https: boolean },
+  rootPath = "",
 ): CaddyRoute {
-  const handle: Record<string, unknown> = {
-    handler: "reverse_proxy",
-    upstreams: [{ dial: upstream.dial }],
-  };
-  if (upstream.https) {
-    handle.transport = { protocol: "http", tls: {} };
-  }
   return {
     match: [{ host: [hostname] }],
-    handle: [handle],
+    handle: buildProxyHandle(upstream, rootPath),
     terminal: true,
   };
 }
@@ -2291,10 +2338,15 @@ export function renderTlsAutomation(opts: {
   dnsEnvVar?: string;
   providerConfig?: Record<string, string>;
   subjects?: string[];
+  issuer?: string;
 }): CaddyConfig {
-  const issuer: Record<string, unknown> = { module: "acme" };
-  if (opts.email) issuer.email = opts.email;
-  if (opts.dnsProvider) {
+  // `internal` selects Caddy's local CA (self-signed, useful for non-public
+  // names and tests where Let's Encrypt cannot issue). The ACME issuer is the
+  // default; its email/challenge fields are ignored for the internal issuer.
+  const issuerModule = opts.issuer === "internal" ? "internal" : "acme";
+  const issuer: Record<string, unknown> = { module: issuerModule };
+  if (issuerModule === "acme" && opts.email) issuer.email = opts.email;
+  if (issuerModule === "acme" && opts.dnsProvider) {
     // Each provider has its own credential field names: Cloudflare/Route53/
     // DigitalOcean/DuckDNS/Porkbun take a single `api_token`, but Gandi uses
     // `bearer_token`, Namecheap needs `api_key`+`user`, DreamHost `api_key`,
@@ -3810,7 +3862,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.02.6",
+  version: "2026.10.05.2",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -4036,6 +4088,18 @@ export const model = {
       toVersion: "2026.10.02.6",
       description:
         "Ships a black-box acceptance test (`test-factory.yaml` + `test/bind/`) that runs @svendowideit/test-factory's new container test system: an authoritative BIND container accepting RFC2136 dynamic updates over TSIG, the swamp container on two networks, and tests that install/run Caddy as a systemd user service, prove `dig` resolves the A records Caddy wrote, and prove `curl` answers 200/418/404 from the right endpoints. No model schema or argument changes — the test assets are additive `additionalFiles`.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.1",
+      description:
+        "ensureDnsProxy gains a `rootPath` argument (and DesiredRoute a matching optional field) so a hostname root can serve an app that lives under a sub-path: a subroute rewrites only the exact path '/' to rootPath (e.g. '/dashboard') while every other path — the app's absolute asset and API paths — passes through unchanged. `buildRoute`/new `buildProxyHandle` take rootPath; schema is additive, existing models and routes are unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.2",
+      description:
+        "configureTls accepts `issuer=internal` to use Caddy's local CA (self-signed TLS) instead of ACME, for non-public names such as *.example.com or test hostnames where Let's Encrypt cannot issue. `renderTlsAutomation` takes an `issuer` field; DesiredTls carries it so it merges across models. With the internal issuer an ACME email is not required and any provider/challenge fields are ignored. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -4798,13 +4862,16 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
-        const email = args.email ?? g.letsEncryptEmail;
-        if (!email) {
+        const issuer = args.issuer === "internal" ? "internal" : "";
+        const email = args.email ?? g.letsEncryptEmail ?? "";
+        // The internal (local CA) issuer needs no ACME account, so an email is
+        // only required for the default ACME issuer.
+        if (!email && issuer !== "internal") {
           throw new Error(
-            "email is required — set letsEncryptEmail or pass it to configureTls",
+            "email is required — set letsEncryptEmail or pass it to configureTls (or pass issuer=internal to use Caddy's local CA)",
           );
         }
-        validateEmail(email);
+        if (email) validateEmail(email);
 
         const own = await loadOwnDesired(context, g);
         own.tls = {
@@ -4813,6 +4880,7 @@ export const model = {
           dnsEnvVar: args.dnsEnvVar ?? "",
           providerConfig: args.providerConfig ?? {},
           subjects: args.subjects ?? [],
+          issuer,
         };
         await saveAndReconcile(context, g, own);
 
@@ -5171,14 +5239,16 @@ export const model = {
           upstream: upstream.dial,
           root: "",
           browse: false,
+          rootPath: args.rootPath,
         });
         const { summary } = await saveAndReconcile(context, g, own);
 
         context.logger?.info(
-          "ensureDnsProxy {hostname} -> {upstream} ({action})",
+          "ensureDnsProxy {hostname} -> {upstream}{rootPath} ({action})",
           {
             hostname: args.hostname,
             upstream: upstream.dial,
+            rootPath: args.rootPath ? ` (root -> ${args.rootPath})` : "",
             action: summary.changed ? "updated" : "unchanged",
           },
         );

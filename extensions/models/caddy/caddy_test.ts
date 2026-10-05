@@ -8,6 +8,7 @@ import {
   buildCurlArgs,
   buildFileServerRoute,
   buildHealthRoutes,
+  buildProxyHandle,
   buildReconciledConfig,
   buildRoute,
   buildStatusPageRoute,
@@ -438,6 +439,44 @@ Deno.test("buildRoute adds TLS transport for https upstreams", () => {
   assertEquals(handle[0].transport, { protocol: "http", tls: {} });
 });
 
+Deno.test("buildRoute without rootPath is a bare reverse_proxy", () => {
+  const route = buildRoute("foo.example.com", {
+    dial: "127.0.0.1:9090",
+    https: false,
+  });
+  const handle = route.handle as Array<Record<string, unknown>>;
+  assertEquals(handle.length, 1);
+  assertEquals(handle[0].handler, "reverse_proxy");
+});
+
+Deno.test("buildRoute with rootPath rewrites only '/' via a subroute", () => {
+  const route = buildRoute(
+    "dashboard.example.com",
+    { dial: "127.0.0.1:9090", https: false },
+    "/dashboard",
+  );
+  const handle = route.handle as Array<Record<string, unknown>>;
+  // Outer is a subroute so the rewrite can be scoped to the exact path.
+  assertEquals(handle.length, 1);
+  assertEquals(handle[0].handler, "subroute");
+  const sub = handle[0].routes as Array<Record<string, unknown>>;
+  // First: rewrite "/" -> "/dashboard", matched on path exactly "/".
+  assertStringIncludes(JSON.stringify(sub[0].match), '"/"');
+  const rewrite = (sub[0].handle as Array<Record<string, unknown>>)[0];
+  assertEquals(rewrite.handler, "rewrite");
+  assertEquals(rewrite.uri, "/dashboard");
+  // Second: the un-modified proxy (assets/API paths pass through untouched).
+  const proxy = (sub[1].handle as Array<Record<string, unknown>>)[0];
+  assertEquals(proxy.handler, "reverse_proxy");
+  assertEquals(proxy.upstreams, [{ dial: "127.0.0.1:9090" }]);
+});
+
+Deno.test("buildProxyHandle returns a plain proxy when rootPath is empty", () => {
+  const handle = buildProxyHandle({ dial: "127.0.0.1:9090", https: false });
+  assertEquals(handle.length, 1);
+  assertEquals(handle[0].handler, "reverse_proxy");
+});
+
 Deno.test("addRouteToConfig adds a route and detects conflicts", () => {
   const config = baseConfig();
   const route = buildRoute("foo.example.com", {
@@ -618,6 +657,27 @@ Deno.test("renderTlsAutomation includes email and DNS challenge", () => {
   const provider = dns.provider as Record<string, unknown>;
   assertEquals(provider.name, "cloudflare");
   assertEquals(provider.api_token, "{env.CF_TOKEN}");
+});
+
+Deno.test("renderTlsAutomation supports Caddy's internal (local CA) issuer", () => {
+  const tls = renderTlsAutomation({
+    issuer: "internal",
+    dnsProvider: "cloudflare",
+    dnsEnvVar: "CF_TOKEN",
+    subjects: ["alpha.example.com"],
+  });
+  const policies = (tls.apps as Record<string, unknown>).tls as Record<
+    string,
+    unknown
+  >;
+  const automation = policies.automation as Record<string, unknown>;
+  const policyList = automation.policies as Array<Record<string, unknown>>;
+  const issuer = (policyList[0].issuers as Array<Record<string, unknown>>)[0];
+  assertEquals(issuer.module, "internal");
+  // The internal issuer ignores ACME-only fields.
+  assertEquals(issuer.email, undefined);
+  assertEquals(issuer.challenges, undefined);
+  assertEquals(policyList[0].subjects, ["alpha.example.com"]);
 });
 
 Deno.test("renderTlsAutomation omits DNS challenge when no provider", () => {

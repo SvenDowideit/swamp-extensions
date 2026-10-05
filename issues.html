@@ -67,8 +67,32 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3015"><span class="tier A">A</span>extension push: --accept-warnings separate from --yes, and -</a><a href="#issue-2977"><span class="tier A">A</span>workflow approve/resume hint lines wrap + quote names, break</a><a href="#issue-3025"><span class="tier A">A</span>Datastore rework Phase 2: use cases open and commit the unit</a><a href="#issue-2613"><span class="tier A">A</span>extension push: workflows listed with a shared directory pre</a><a href="#issue-3005"><span class="tier A">A</span>dashboard: approved autoResume run shows Resume and needs-in</a><a href="#issue-3008"><span class="tier A">A</span>repo upgrade does not remove superseded skills from the repo</a><a href="#issue-3011"><span class="tier A">A</span>readModelData silently drops data written before a model ins</a><a href="#issue-2972"><span class="tier A">A</span>data query: does not follow data rename forwarding that data</a><a href="#issue-3003"><span class="tier A">A</span>vault migrate: report missing required --config fields clear</a><a href="#issue-2994"><span class="tier A">A</span>Unit tests share fixed /tmp catalog paths, so concurrent run</a><a href="#issue-3006"><span class="tier A">A</span>vault read-secret: to a pipe or file, drops the last line of</a><a href="#issue-3002"><span class="tier A">A</span>CLI tells signed-in callers to sign in when the registry rat</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2898"><span class="tier A">A</span>A job alone in its level starts after the abort, and its uns</a><a href="#issue-2919"><span class="tier A">A</span>workflow approve racing workflow cancel loses the cancel: th</a><a href="#issue-3032"><span class="tier A">A</span>Datastore rework Phase 2: commit pushes through a root unit </a><a href="#issue-3015"><span class="tier A">A</span>extension push: --accept-warnings separate from --yes, and -</a><a href="#issue-2977"><span class="tier A">A</span>workflow approve/resume hint lines wrap + quote names, break</a><a href="#issue-3025"><span class="tier A">A</span>Datastore rework Phase 2: use cases open and commit the unit</a><a href="#issue-2613"><span class="tier A">A</span>extension push: workflows listed with a shared directory pre</a><a href="#issue-3005"><span class="tier A">A</span>dashboard: approved autoResume run shows Resume and needs-in</a><a href="#issue-3008"><span class="tier A">A</span>repo upgrade does not remove superseded skills from the repo</a><a href="#issue-3011"><span class="tier A">A</span>readModelData silently drops data written before a model ins</a><a href="#issue-2972"><span class="tier A">A</span>data query: does not follow data rename forwarding that data</a><a href="#issue-3003"><span class="tier A">A</span>vault migrate: report missing required --config fields clear</a></aside><div>
 
+<article class="item" id="issue-2898">
+<h2><span class="tier A">A</span>A job alone in its level starts after the abort, and its unstarted step is recorded as a real failure instead of settledByAbort</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-05T17:47:23.255Z">2026-10-05T17:47:23.255Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2898" rel="noopener">lab#2898</a></div>
+</article>
+<article class="item" id="issue-2919">
+<h2><span class="tier A">A</span>workflow approve racing workflow cancel loses the cancel: the run returns to suspended after cancel reported cancelled</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-05T17:25:23.603Z">2026-10-05T17:25:23.603Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2919" rel="noopener">lab#2919</a></div>
+</article>
+<article class="item" id="issue-3032">
+<h2><span class="tier A">A</span>Datastore rework Phase 2: commit pushes through a root unit of work per command or request (no behaviour change)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-05T17:16:56.023Z">2026-10-05T17:16:56.023Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3032" rel="noopener">lab#3032</a></div>
+</article>
 <article class="item" id="issue-3015">
 <h2><span class="tier A">A</span>extension push: --accept-warnings separate from --yes, and --json exits non-zero instead of skipping the warnings prompt</h2>
 <p class="lede">Shipped feature</p>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3003" rel="noopener">lab#3003</a></div>
 </article>
-<article class="item" id="issue-2994">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2994">
 <h2><span class="tier A">A</span>Unit tests share fixed /tmp catalog paths, so concurrent runs corrupt them and fail every later run</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-05T14:29:56.491Z">2026-10-05T14:29:56.491Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3002" rel="noopener">lab#3002</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2996">
+<article class="item" id="issue-2996">
 <h2><span class="tier A">A</span>Datastore rework Phase 1 close-out: lock repository marks at zero, remove dead helpers, document the end state (no behaviour change)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-03T01:02:20.565Z">2026-10-03T01:02:20.565Z</time></span></div>
@@ -1149,37 +1173,61 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3019">
-<h2><span class="tier B">B</span>extension push: credentials-sensitive-field has no word boundaries and flags secretName, TokenReference, credential_id (fourth fix to the rule)</h2>
+<article class="item" id="issue-3033">
+<h2><span class="tier B">B</span>Datastore rework Phase 2: CLI commands stop marking and pushing directly (no behaviour change)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T17:11:09.340Z">2026-10-05T17:11:09.340Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T17:59:57.287Z">2026-10-05T17:59:57.287Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3019" rel="noopener">lab#3019</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3033" rel="noopener">lab#3033</a></div>
 </article>
-<article class="item" id="issue-3032">
-<h2><span class="tier B">B</span>Datastore rework Phase 2: commit pushes through a root unit of work per command or request (no behaviour change)</h2>
+<article class="item" id="issue-3029">
+<h2><span class="tier B">B</span>CEL data.version, data.listVersions and data.findBySpec drop data written before a model instance rename</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T17:10:48.909Z">2026-10-05T17:10:48.909Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T17:58:37.287Z">2026-10-05T17:58:37.287Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3032" rel="noopener">lab#3032</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3029" rel="noopener">lab#3029</a></div>
 </article>
-<article class="item" id="issue-2919">
-<h2><span class="tier B">B</span>workflow approve racing workflow cancel loses the cancel: the run returns to suspended after cancel reported cancelled</h2>
+<article class="item" id="issue-3034">
+<h2><span class="tier B">B</span>Datastore rework Phase 2: serve handlers commit through the unit of work (no behaviour change)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T17:09:28.749Z">2026-10-05T17:09:28.749Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T17:58:32.471Z">2026-10-05T17:58:32.471Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2919" rel="noopener">lab#2919</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3034" rel="noopener">lab#3034</a></div>
+</article>
+<article class="item" id="issue-2905">
+<h2><span class="tier B">B</span>workflow reject leaves sibling gates waiting_approval and dependents pending in a failed, retryable run</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-05T17:58:09.178Z">2026-10-05T17:58:09.178Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2905" rel="noopener">lab#2905</a></div>
 </article>
 <article class="item" id="issue-2920">
 <h2><span class="tier B">B</span>workflow cancel cannot cancel a suspended run whose workflow file was deleted, and cancel --all silently skips it</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-05T16:41:24.508Z">2026-10-05T16:41:24.508Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-05T17:45:12.077Z">2026-10-05T17:45:12.077Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2920" rel="noopener">lab#2920</a></div>
+</article>
+<article class="item" id="issue-3007">
+<h2><span class="tier B">B</span>macOS autoupdate LaunchAgent fails with EX_CONFIG after self-update; doctor install still reports HEALTHY</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-05T17:27:35.752Z">2026-10-05T17:27:35.752Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3007" rel="noopener">lab#3007</a></div>
+</article>
+<article class="item" id="issue-3019">
+<h2><span class="tier B">B</span>extension push: credentials-sensitive-field has no word boundaries and flags secretName, TokenReference, credential_id (fourth fix to the rule)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-05T17:13:41.792Z">2026-10-05T17:13:41.792Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3019" rel="noopener">lab#3019</a></div>
 </article>
 <article class="item" id="issue-3024">
 <h2><span class="tier B">B</span>data query by a renamed item&#39;s old name now returns the renamed row, failing the datastore rename UAT</h2>
@@ -1205,21 +1253,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3033">
-<h2><span class="tier C">C</span>Datastore rework Phase 2: CLI commands stop marking and pushing directly (no behaviour change)</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3035">
+<h2><span class="tier C">C</span>Datastore rework Phase 2: remaining serve direct pushes commit through root units (no behaviour change)</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-05T15:48:19.075Z">2026-10-05T15:48:19.075Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T17:31:47.036Z">2026-10-05T17:31:47.036Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3033" rel="noopener">lab#3033</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3035" rel="noopener">lab#3035</a></div>
 </article>
-<article class="item" id="issue-3034">
-<h2><span class="tier C">C</span>Datastore rework Phase 2: serve handlers commit through the unit of work (no behaviour change)</h2>
+<article class="item" id="issue-3014">
+<h2><span class="tier C">C</span>Docs: vault create and vault migrate name missing required --config fields and prompt for them</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-05T15:48:08.482Z">2026-10-05T15:48:08.482Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T17:19:59.526Z">2026-10-05T17:19:59.526Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3034" rel="noopener">lab#3034</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3014" rel="noopener">lab#3014</a></div>
+</article>
+<article class="item" id="issue-3026">
+<h2><span class="tier C">C</span>Docs: extension push --accept-warnings is separate from --yes (manual pages)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T17:19:53.103Z">2026-10-05T17:19:53.103Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3026" rel="noopener">lab#3026</a></div>
 </article>
 <article class="item" id="issue-3031">
 <h2><span class="tier C">C</span>extension push: --extensions-dir is ignored for bundled workflows</h2>
@@ -1237,14 +1293,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3030" rel="noopener">lab#3030</a></div>
 </article>
-<article class="item" id="issue-3029">
-<h2><span class="tier C">C</span>CEL data.version, data.listVersions and data.findBySpec drop data written before a model instance rename</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-05T15:23:24.834Z">2026-10-05T15:23:24.834Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3029" rel="noopener">lab#3029</a></div>
-</article>
 <article class="item" id="issue-3028">
 <h2><span class="tier C">C</span>Docs: manual approval pages show old quoted approve/approvals hints</h2>
 <p class="lede">Open issue</p>
@@ -1252,14 +1300,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3028" rel="noopener">lab#3028</a></div>
-</article>
-<article class="item" id="issue-3026">
-<h2><span class="tier C">C</span>Docs: extension push --accept-warnings is separate from --yes (manual pages)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-05T15:10:59.118Z">2026-10-05T15:10:59.118Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3026" rel="noopener">lab#3026</a></div>
 </article>
 <article class="item" id="issue-3023">
 <h2><span class="tier C">C</span>extension push: adversarial-review report defaults to the repo (.swamp/reviews) and verdicts carry forward on an unchanged normalized hash</h2>
@@ -1317,14 +1357,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3016" rel="noopener">lab#3016</a></div>
 </article>
-<article class="item" id="issue-3014">
-<h2><span class="tier C">C</span>Docs: vault create and vault migrate name missing required --config fields and prompt for them</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-05T13:59:21.040Z">2026-10-05T13:59:21.040Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3014" rel="noopener">lab#3014</a></div>
-</article>
 <article class="item" id="issue-3013">
 <h2><span class="tier C">C</span>auto-resolve: the Installing line prints the extension&#39;s entire multi-line description</h2>
 <p class="lede">Open issue</p>
@@ -1340,14 +1372,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3010" rel="noopener">lab#3010</a></div>
-</article>
-<article class="item" id="issue-3007">
-<h2><span class="tier C">C</span>macOS autoupdate LaunchAgent fails with EX_CONFIG after self-update; doctor install still reports HEALTHY</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-04T12:34:03.717Z">2026-10-04T12:34:03.717Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3007" rel="noopener">lab#3007</a></div>
 </article>
 <article class="item" id="issue-2518">
 <h2><span class="tier C">C</span>serve: a suspended run with an expired gate from a previous serve instance cannot be cancelled by any path</h2>
@@ -1749,14 +1773,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2906" rel="noopener">lab#2906</a></div>
 </article>
-<article class="item" id="issue-2905">
-<h2><span class="tier C">C</span>workflow reject leaves sibling gates waiting_approval and dependents pending in a failed, retryable run</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T17:17:09.015Z">2026-10-01T17:17:09.015Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2905" rel="noopener">lab#2905</a></div>
-</article>
 <article class="item" id="issue-2901">
 <h2><span class="tier C">C</span>serve: a failed pull in acquireModelLocks leaves the per-model lock held until serve exits</h2>
 <p class="lede">Open issue</p>
@@ -1764,14 +1780,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2901" rel="noopener">lab#2901</a></div>
-</article>
-<article class="item" id="issue-2898">
-<h2><span class="tier C">C</span>A job alone in its level starts after the abort, and its unstarted step is recorded as a real failure instead of settledByAbort</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T16:30:27.257Z">2026-10-01T16:30:27.257Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2898" rel="noopener">lab#2898</a></div>
 </article>
 <article class="item" id="issue-2893">
 <h2><span class="tier C">C</span>serve: relative tls cert-file/key-file and --config resolve against the working directory, not the repository</h2>
@@ -1878,13 +1886,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2800" rel="noopener">lab#2800</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>226 items across 1 source(s) in this window:
-0 critical, 135 notable, 7 routine,
-84 minor.</p>
-<ul><li><strong>issues</strong> — 226</li></ul></section>
+<p>227 items across 1 source(s) in this window:
+0 critical, 138 notable, 10 routine,
+79 minor.</p>
+<ul><li><strong>issues</strong> — 227</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T17:11:57.158Z">2026-10-05T17:11:57.158Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T18:02:12.112Z">2026-10-05T18:02:12.112Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

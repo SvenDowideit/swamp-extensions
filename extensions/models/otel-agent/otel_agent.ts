@@ -59,6 +59,14 @@ const GlobalArgsSchema = z.object({
   serviceName: z.string().default("otel-agent").describe(
     "systemd unit name for the agent on the remote host",
   ),
+  gatewayServiceName: z.string().default("otel-gateway").describe(
+    "systemd unit name whose presence marks a host as already running a " +
+      "gateway; such a host gets no agent",
+  ),
+  removeAgentOnGateway: z.boolean().default(true).describe(
+    "When a host already runs a gateway, stop and remove any agent already " +
+      "installed there (a gateway host must not also be an agent host)",
+  ),
   defaultTier: z.string().default("T1").describe(
     "Tier to use when a host's tier cannot be inferred",
   ),
@@ -113,6 +121,8 @@ const HostResultSchema = z.object({
   arch: z.string(),
   installed: z.boolean(),
   active: z.boolean(),
+  /** True when the host was intentionally passed over (e.g. a gateway host). */
+  skipped: z.boolean().default(false),
   version: z.string(),
   detail: z.string(),
 });
@@ -120,6 +130,8 @@ const HostResultSchema = z.object({
 const FanOutOutputSchema = z.object({
   requested: z.number(),
   succeeded: z.number(),
+  /** Hosts intentionally passed over (e.g. a gateway host). */
+  skipped: z.number().default(0),
   failed: z.number(),
   hosts: z.array(HostResultSchema),
   ranAt: z.string(),
@@ -155,6 +167,13 @@ export interface HostFacts {
   systemd: boolean;
   /** Existing agent version, or "" when absent. */
   version: string;
+  /**
+   * Whether an otel gateway service unit is present on the host. A host that
+   * already runs a gateway is the collector for its own telemetry and must not
+   * also run an agent (both would bind the standard OTLP ports 4317/4318 and
+   * the metrics port 8888, and the loser crash-loops).
+   */
+  gatewayPresent: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -242,6 +261,10 @@ export function parseHostFacts(output: string): HostFacts {
     memTotalMiB: mem ? Number.parseInt(mem, 10) : undefined,
     systemd: map.get("systemd") === "1",
     version: map.get("agent_version") ?? "",
+    // Presence of the gateway *unit file*, not just an active service: a
+    // stopped/failed gateway still makes the host the gateway host.
+    gatewayPresent: map.get("gateway_unit") === "1" ||
+      map.get("gateway_active") === "1",
   };
 }
 
@@ -259,7 +282,11 @@ export function parseInstallManifest(text: string): InstallManifest {
 }
 
 /** The remote probe script: emits the facts `parseHostFacts` reads. */
-export function renderProbeScript(binaryPath: string): string {
+export function renderProbeScript(
+  binaryPath: string,
+  gatewayServiceName = "otel-gateway",
+): string {
+  const gw = shellQuote(gatewayServiceName);
   return [
     'echo "arch=$(uname -m)"',
     'echo "systemd=$([ -d /run/systemd/system ] && echo 1 || echo 0)"',
@@ -269,6 +296,10 @@ export function renderProbeScript(binaryPath: string): string {
     `if [ -x ${shellQuote(binaryPath)} ]; then echo "agent_version=$(${
       shellQuote(binaryPath)
     } --version 2>/dev/null | sed -n \'s/.* \\([0-9][0-9.]*\\)$/\\1/p\')"; fi`,
+    // A gateway host must not also run an agent. Detect the gateway by its unit
+    // file (present even when the service is stopped/failed) or an active unit.
+    `[ -f "$HOME/.config/systemd/user/${gatewayServiceName}.service" ] && echo "gateway_unit=1" || echo "gateway_unit=0"`,
+    `systemctl --user is-active ${gw}.service >/dev/null 2>&1 && echo "gateway_active=1" || echo "gateway_active=0"`,
     "exit 0",
   ].join("\n");
 }
@@ -357,6 +388,29 @@ export function renderInstallScript(args: {
   );
   lines.push(`echo "agent_installed=1"`);
   lines.push(`echo "agent_active=1"`);
+  lines.push("exit 0");
+  return lines.join("\n");
+}
+
+/**
+ * The remote script that stops and removes the agent on a host. Shared by the
+ * `remove` method and the gateway-host guard, so both tear down identically.
+ */
+export function renderAgentRemoveScript(
+  serviceName: string,
+  installDir: string,
+  removeInstallDir: boolean,
+): string {
+  const lines = [
+    `systemctl --user stop ${serviceName}.service 2>/dev/null || true`,
+    `systemctl --user disable ${serviceName}.service 2>/dev/null || true`,
+    `rm -f "$HOME/.config/systemd/user/${serviceName}.service"`,
+    "systemctl --user daemon-reload 2>/dev/null || true",
+  ];
+  if (removeInstallDir) {
+    lines.push(`rm -rf ${shellQuote(installDir)}`);
+  }
+  lines.push('echo "agent_removed=1"');
   lines.push("exit 0");
   return lines.join("\n");
 }
@@ -580,13 +634,14 @@ async function installHost(
     arch: "",
     installed: false,
     active: false,
+    skipped: false,
     version: "",
     detail: "",
   };
 
   const probe = await sshExec(
     dest,
-    renderProbeScript(binaryPath),
+    renderProbeScript(binaryPath, g.gatewayServiceName),
     g.sshTimeoutMs,
     host.port,
   );
@@ -607,6 +662,49 @@ async function installHost(
       arch: facts.arch,
       tier,
       detail: "no systemd user manager on the host",
+    };
+  }
+
+  // A host that already runs a gateway is that host's collector: installing an
+  // agent beside it would collide on the standard OTLP ports (4317/4318) and
+  // the metrics port (8888). Refuse, and (by default) clean up any agent left
+  // over from before the gateway existed.
+  if (facts.gatewayPresent) {
+    if (g.removeAgentOnGateway) {
+      const cleanup = await sshExec(
+        dest,
+        renderAgentRemoveScript(g.serviceName, installDir, false),
+        g.sshTimeoutMs,
+        host.port,
+      );
+      const cleaned = cleanup.stdout.includes("agent_removed=1") &&
+        cleanup.code === 0;
+      return {
+        ...base,
+        reachable: true,
+        os: facts.osId,
+        arch: facts.arch,
+        tier,
+        installed: false,
+        active: false,
+        skipped: true,
+        version: facts.version,
+        detail: cleaned
+          ? "gateway host — skipped; removed a pre-existing agent"
+          : "gateway host — skipped (no agent present)",
+      };
+    }
+    return {
+      ...base,
+      reachable: true,
+      os: facts.osId,
+      arch: facts.arch,
+      tier,
+      installed: false,
+      active: false,
+      skipped: true,
+      version: facts.version,
+      detail: "gateway host — skipped (a gateway host runs no agent)",
     };
   }
 
@@ -654,7 +752,7 @@ async function installHost(
 /** The swamp model definition for `@svendowideit/otel-agent`. */
 export const model = {
   type: "@svendowideit/otel-agent",
-  version: "2026.10.04.2",
+  version: "2026.10.05.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "sane-config": {
@@ -705,6 +803,12 @@ export const model = {
         }
         return next;
       },
+    },
+    {
+      toVersion: "2026.10.05.1",
+      description:
+        "A host that already runs an otel gateway must not also run an agent — both bind the standard OTLP ports (4317/4318) and the metrics port (8888), so the loser crash-loops. The probe now reports whether a gateway unit is present, install refuses such a host, and (removeAgentOnGateway, default true) it tears down any agent found there. New gatewayServiceName/removeAgentOnGateway globals.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   resources: {
@@ -787,7 +891,7 @@ export const model = {
           async (host) => {
             const dest = hostDest(host, g.sshUser);
             const script = [
-              renderProbeScript(binaryPath),
+              renderProbeScript(binaryPath, g.gatewayServiceName),
               `systemctl --user is-active ${g.serviceName}.service 2>/dev/null || true`,
             ].join("\n");
             const res = await sshExec(dest, script, g.sshTimeoutMs, host.port);
@@ -801,6 +905,7 @@ export const model = {
                 arch: "",
                 installed: false,
                 active: false,
+                skipped: false,
                 version: "",
                 detail: res.stderr.trim() || `exit ${res.code}`,
               };
@@ -816,8 +921,11 @@ export const model = {
               arch: facts.arch,
               installed: facts.version !== "",
               active,
+              skipped: false,
               version: facts.version,
-              detail: active ? "running" : "not active",
+              detail: facts.gatewayPresent
+                ? "gateway host — no agent expected"
+                : (active ? "running" : "not active"),
             };
           },
         );
@@ -840,20 +948,13 @@ export const model = {
           g.concurrency,
           async (host) => {
             const dest = hostDest(host, g.sshUser);
-            const lines = [
-              `systemctl --user stop ${g.serviceName}.service 2>/dev/null || true`,
-              `systemctl --user disable ${g.serviceName}.service 2>/dev/null || true`,
-              `rm -f "$HOME/.config/systemd/user/${g.serviceName}.service"`,
-              "systemctl --user daemon-reload 2>/dev/null || true",
-            ];
-            if (args.removeInstallDir) {
-              lines.push(`rm -rf ${shellQuote(installDir)}`);
-            }
-            lines.push('echo "agent_removed=1"');
-            lines.push("exit 0");
             const res = await sshExec(
               dest,
-              lines.join("\n"),
+              renderAgentRemoveScript(
+                g.serviceName,
+                installDir,
+                args.removeInstallDir,
+              ),
               g.sshTimeoutMs,
               host.port,
             );
@@ -867,6 +968,7 @@ export const model = {
               arch: "",
               installed: false,
               active: false,
+              skipped: false,
               version: "",
               detail: removed
                 ? "removed"
@@ -887,13 +989,15 @@ async function writeFanOut(
   results: z.infer<typeof HostResultSchema>[],
   op: string,
 ): Promise<{ dataHandles: [{ name: string }] }> {
-  const succeeded =
-    results.filter((r) =>
-      op === "status"
-        ? r.reachable
-        : (r.installed && (op === "remove" || r.active))
-    ).length;
-  const failed = hosts.length - succeeded;
+  const succeeded = results.filter((r) =>
+    // A skipped host (a gateway host on install/configure) is an intended
+    // outcome, not a failure; a status check just requires reachability.
+    r.skipped || (op === "status"
+      ? r.reachable
+      : (r.installed && (op === "remove" || r.active)))
+  ).length;
+  const skipped = results.filter((r) => r.skipped).length;
+  const failed = hosts.length - succeeded - skipped;
   // One resource per host, so a caller can read a single host's outcome.
   for (const r of results) {
     await context.writeResource("host", `${op}-${r.host}`, {
@@ -908,6 +1012,7 @@ async function writeFanOut(
   const handle = await context.writeResource("fanOut", `${op}-summary`, {
     requested: hosts.length,
     succeeded,
+    skipped,
     failed,
     hosts: results,
     ranAt: new Date().toISOString(),

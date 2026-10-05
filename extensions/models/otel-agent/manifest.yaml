@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/otel-agent"
-version: "2026.10.04.2"
+version: "2026.10.05.1"
 description: >
   Install an OTLP-native OpenTelemetry Collector agent across a fleet of hosts
   over SSH, configuring each one from the published settings contract.
@@ -57,6 +57,8 @@ description: >
       installDir        Host directory for the binary, config, and env file
       serviceName       systemd unit name on each host
       defaultTier       Tier used when a host's tier cannot be inferred
+      gatewayServiceName  unit whose presence marks a host as a gateway host
+      removeAgentOnGateway  strip any agent found on a gateway host (default true)
       vaultName/authRef   Vault + key holding the gateway bearer token
       concurrency       Maximum hosts in parallel (default 8)
       sshTimeoutMs / installTimeoutMs   Per-host timeouts

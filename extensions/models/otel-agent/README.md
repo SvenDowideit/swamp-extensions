@@ -46,6 +46,8 @@ Global arguments set at creation:
 | `sshUser` | string | `""` | Default SSH user (a host entry may override). |
 | `installDir` | string | `~/.local/share/otel-agent` | Host directory for the binary, config, and env file. |
 | `serviceName` | string | `otel-agent` | systemd unit name on each host. |
+| `gatewayServiceName` | string | `otel-gateway` | Unit whose presence marks a host as a gateway host (gets no agent). |
+| `removeAgentOnGateway` | boolean | `true` | Stop/remove any agent found on a gateway host. |
 | `defaultTier` | string | `T1` | Tier used when a host's tier cannot be inferred. |
 | `vaultName` | string | `""` | Vault holding the gateway bearer token (empty = unauthenticated). |
 | `authRef` | string | `OTEL_EXPORTER_OTLP_TOKEN` | Vault key for the token. |
@@ -56,6 +58,16 @@ Global arguments set at creation:
 Methods: `install`, `configure`, `status`, `remove`. Each takes a `hosts` array
 of `{name, address, user?, tier?, port?}`. `install`/`configure` take `force`;
 `remove` takes `removeInstallDir`.
+
+**A gateway host is not an agent host.** A host that already runs an
+`otel-gateway` is the collector for its own telemetry and must not also run an
+agent — the gateway and the agent both bind the standard OTLP ports
+(`4317`/`4318`) and the collector metrics port (`8888`), so whichever starts
+second fails to bind (`address already in use`) and crash-loops. The probe
+reports whether a gateway unit is present on a host; `install` refuses such a
+host, and when `removeAgentOnGateway` is true it stops and removes any agent
+already installed there. `gatewayServiceName` names the unit to look for when a
+site runs its gateway under a non-default name.
 
 ## Examples
 

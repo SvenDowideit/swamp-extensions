@@ -13,6 +13,7 @@ import {
   parseInstallManifest,
   releaseArch,
   releaseOs,
+  renderAgentRemoveScript,
   renderAgentUnit,
   renderInstallScript,
   renderProbeScript,
@@ -51,6 +52,7 @@ Deno.test("inferTier picks T2 for small memory, else the default", () => {
       memTotalMiB: 2048,
       systemd: true,
       version: "",
+      gatewayPresent: false,
     }, "T1"),
     "T2",
   );
@@ -62,6 +64,7 @@ Deno.test("inferTier picks T2 for small memory, else the default", () => {
       memTotalMiB: 16384,
       systemd: true,
       version: "",
+      gatewayPresent: false,
     }, "T1"),
     "T1",
   );
@@ -72,6 +75,7 @@ Deno.test("inferTier picks T2 for small memory, else the default", () => {
       osId: "debian",
       systemd: true,
       version: "",
+      gatewayPresent: false,
     }, "T1"),
     "T1",
   );
@@ -92,6 +96,8 @@ Deno.test("parseHostFacts reads the probe output", () => {
     "os=debian",
     "mem_total_mib=4096",
     "agent_version=0.162.0",
+    "gateway_unit=0",
+    "gateway_active=0",
   ].join("\n");
   const f = parseHostFacts(out);
   assertEquals(f.arch, "amd64");
@@ -100,6 +106,26 @@ Deno.test("parseHostFacts reads the probe output", () => {
   assertEquals(f.memTotalMiB, 4096);
   assertEquals(f.systemd, true);
   assertEquals(f.version, "0.162.0");
+  assertEquals(f.gatewayPresent, false);
+});
+
+Deno.test("parseHostFacts detects a gateway host by unit or active state", () => {
+  assertEquals(
+    parseHostFacts("systemd=1\ngateway_unit=1\ngateway_active=0")
+      .gatewayPresent,
+    true,
+    "a stopped gateway's unit file still marks the host",
+  );
+  assertEquals(
+    parseHostFacts("systemd=1\ngateway_unit=0\ngateway_active=1")
+      .gatewayPresent,
+    true,
+  );
+  assertEquals(
+    parseHostFacts("systemd=1\ngateway_unit=0\ngateway_active=0")
+      .gatewayPresent,
+    false,
+  );
 });
 
 Deno.test("parseHostFacts defaults os and tolerates missing fields", () => {
@@ -148,10 +174,31 @@ Deno.test("renderProbeScript emits the keys parseHostFacts reads", () => {
       "os=",
       "mem_total_mib=",
       "agent_version=",
+      "gateway_unit=",
+      "gateway_active=",
     ]
   ) {
     assertStringIncludes(script, key);
   }
+  // The gateway unit name is a parameter, so a non-default gateway is detected.
+  assertStringIncludes(
+    renderProbeScript("/x/otelcol", "my-gateway"),
+    "my-gateway.service",
+  );
+});
+
+Deno.test("renderAgentRemoveScript stops, disables and optionally deletes", () => {
+  const kept = renderAgentRemoveScript("otel-agent", "/home/u/agent", false);
+  assertStringIncludes(kept, "systemctl --user stop otel-agent.service");
+  assertStringIncludes(kept, "systemctl --user disable otel-agent.service");
+  assertStringIncludes(kept, "rm -f");
+  assertStringIncludes(kept, "agent_removed=1");
+  assert(
+    !kept.includes("rm -rf"),
+    "install dir is kept unless asked for",
+  );
+  const purged = renderAgentRemoveScript("otel-agent", "/home/u/agent", true);
+  assertStringIncludes(purged, "rm -rf '/home/u/agent'");
 });
 
 Deno.test("renderAgentUnit writes an EnvironmentFile-aware unit", () => {
@@ -243,6 +290,8 @@ Deno.test("model global args default sensibly", () => {
   assertEquals(parsed.serviceName, "otel-agent");
   assertEquals(parsed.defaultTier, "T1");
   assertEquals(parsed.concurrency, 8);
+  assertEquals(parsed.gatewayServiceName, "otel-gateway");
+  assertEquals(parsed.removeAgentOnGateway, true);
 });
 
 Deno.test("the sane-config check rejects a bad service name and non-http settingsUrl", () => {

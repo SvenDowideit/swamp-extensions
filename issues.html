@@ -67,8 +67,24 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3034"><span class="tier A">A</span>Datastore rework Phase 2: serve handlers commit through the </a><a href="#issue-3029"><span class="tier A">A</span>CEL data.version, data.listVersions and data.findBySpec drop</a><a href="#issue-3033"><span class="tier A">A</span>Datastore rework Phase 2: CLI commands stop marking and push</a><a href="#issue-2898"><span class="tier A">A</span>A job alone in its level starts after the abort, and its uns</a><a href="#issue-2919"><span class="tier A">A</span>workflow approve racing workflow cancel loses the cancel: th</a><a href="#issue-3032"><span class="tier A">A</span>Datastore rework Phase 2: commit pushes through a root unit </a><a href="#issue-3015"><span class="tier A">A</span>extension push: --accept-warnings separate from --yes, and -</a><a href="#issue-2977"><span class="tier A">A</span>workflow approve/resume hint lines wrap + quote names, break</a><a href="#issue-3025"><span class="tier A">A</span>Datastore rework Phase 2: use cases open and commit the unit</a><a href="#issue-2613"><span class="tier A">A</span>extension push: workflows listed with a shared directory pre</a><a href="#issue-3005"><span class="tier A">A</span>dashboard: approved autoResume run shows Resume and needs-in</a><a href="#issue-3008"><span class="tier A">A</span>repo upgrade does not remove superseded skills from the repo</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2988"><span class="tier A">A</span>Serve audit: emitter breaks the durable hash chain and drops</a><a href="#issue-2920"><span class="tier A">A</span>workflow cancel cannot cancel a suspended run whose workflow</a><a href="#issue-3034"><span class="tier A">A</span>Datastore rework Phase 2: serve handlers commit through the </a><a href="#issue-3029"><span class="tier A">A</span>CEL data.version, data.listVersions and data.findBySpec drop</a><a href="#issue-3033"><span class="tier A">A</span>Datastore rework Phase 2: CLI commands stop marking and push</a><a href="#issue-2898"><span class="tier A">A</span>A job alone in its level starts after the abort, and its uns</a><a href="#issue-2919"><span class="tier A">A</span>workflow approve racing workflow cancel loses the cancel: th</a><a href="#issue-3032"><span class="tier A">A</span>Datastore rework Phase 2: commit pushes through a root unit </a><a href="#issue-3015"><span class="tier A">A</span>extension push: --accept-warnings separate from --yes, and -</a><a href="#issue-2977"><span class="tier A">A</span>workflow approve/resume hint lines wrap + quote names, break</a><a href="#issue-3025"><span class="tier A">A</span>Datastore rework Phase 2: use cases open and commit the unit</a><a href="#issue-2613"><span class="tier A">A</span>extension push: workflows listed with a shared directory pre</a></aside><div>
 
+<article class="item" id="issue-2988">
+<h2><span class="tier A">A</span>Serve audit: emitter breaks the durable hash chain and drops WAL events when a non-durable sink fails or lags</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-05T19:23:15.158Z">2026-10-05T19:23:15.158Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2988" rel="noopener">lab#2988</a></div>
+</article>
+<article class="item" id="issue-2920">
+<h2><span class="tier A">A</span>workflow cancel cannot cancel a suspended run whose workflow file was deleted, and cancel --all silently skips it</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-05T19:03:56.316Z">2026-10-05T19:03:56.316Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2920" rel="noopener">lab#2920</a></div>
+</article>
 <article class="item" id="issue-3034">
 <h2><span class="tier A">A</span>Datastore rework Phase 2: serve handlers commit through the unit of work (no behaviour change)</h2>
 <p class="lede">Shipped feature</p>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2613" rel="noopener">lab#2613</a></div>
 </article>
-<article class="item" id="issue-3005">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3005">
 <h2><span class="tier A">A</span>dashboard: approved autoResume run shows Resume and needs-inputs hint while serve already resumed it (status running)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-05T15:28:29.607Z">2026-10-05T15:28:29.607Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3008" rel="noopener">lab#3008</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3011">
+<article class="item" id="issue-3011">
 <h2><span class="tier A">A</span>readModelData silently drops data written before a model instance rename</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-05T15:22:07.609Z">2026-10-05T15:22:07.609Z</time></span></div>
@@ -1197,69 +1213,69 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-2988">
-<h2><span class="tier B">B</span>Serve audit: emitter breaks the durable hash chain and drops WAL events when a non-durable sink fails or lags</h2>
+<article class="item" id="issue-2518">
+<h2><span class="tier B">B</span>serve: a suspended run with an expired gate from a previous serve instance cannot be cancelled by any path</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T19:00:50.013Z">2026-10-05T19:00:50.013Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T20:08:26.357Z">2026-10-05T20:08:26.357Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2988" rel="noopener">lab#2988</a></div>
-</article>
-<article class="item" id="issue-2905">
-<h2><span class="tier B">B</span>workflow reject leaves sibling gates waiting_approval and dependents pending in a failed, retryable run</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T19:00:35.860Z">2026-10-05T19:00:35.860Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2905" rel="noopener">lab#2905</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2518" rel="noopener">lab#2518</a></div>
 </article>
 <article class="item" id="issue-3030">
 <h2><span class="tier B">B</span>digitalocean codegen: app-platform and database spec secret fields are not marked sensitive</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T19:00:25.645Z">2026-10-05T19:00:25.645Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T20:01:40.180Z">2026-10-05T20:01:40.180Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3030" rel="noopener">lab#3030</a></div>
 </article>
-<article class="item" id="issue-2482">
-<h2><span class="tier B">B</span>server tokens: concurrent mints of the same name can pair one mint&#39;s record with the other&#39;s secret, so a credential authenticates as the wrong principal</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T18:59:28.343Z">2026-10-05T18:59:28.343Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2482" rel="noopener">lab#2482</a></div>
-</article>
-<article class="item" id="issue-3035">
-<h2><span class="tier B">B</span>Datastore rework Phase 2: remaining serve direct pushes commit through root units (no behaviour change)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-05T18:56:58.146Z">2026-10-05T18:56:58.146Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3035" rel="noopener">lab#3035</a></div>
-</article>
-<article class="item" id="issue-2920">
-<h2><span class="tier B">B</span>workflow cancel cannot cancel a suspended run whose workflow file was deleted, and cancel --all silently skips it</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T18:56:18.198Z">2026-10-05T18:56:18.198Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2920" rel="noopener">lab#2920</a></div>
-</article>
 <article class="item" id="issue-3007">
 <h2><span class="tier B">B</span>macOS autoupdate LaunchAgent fails with EX_CONFIG after self-update; doctor install still reports HEALTHY</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T18:19:58.644Z">2026-10-05T18:19:58.644Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T19:59:11.719Z">2026-10-05T19:59:11.719Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3007" rel="noopener">lab#3007</a></div>
 </article>
+<article class="item" id="issue-3035">
+<h2><span class="tier B">B</span>Datastore rework Phase 2: remaining serve direct pushes commit through root units (no behaviour change)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-05T19:55:42.110Z">2026-10-05T19:55:42.110Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3035" rel="noopener">lab#3035</a></div>
+</article>
+<article class="item" id="issue-2482">
+<h2><span class="tier B">B</span>server tokens: concurrent mints of the same name can pair one mint&#39;s record with the other&#39;s secret, so a credential authenticates as the wrong principal</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-05T19:55:21.966Z">2026-10-05T19:55:21.966Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2482" rel="noopener">lab#2482</a></div>
+</article>
 <article class="item" id="issue-3019">
 <h2><span class="tier B">B</span>extension push: credentials-sensitive-field has no word boundaries and flags secretName, TokenReference, credential_id (fourth fix to the rule)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T17:13:41.792Z">2026-10-05T17:13:41.792Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T19:46:29.075Z">2026-10-05T19:46:29.075Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3019" rel="noopener">lab#3019</a></div>
+</article>
+<article class="item" id="issue-3042">
+<h2><span class="tier B">B</span>swamp-extensions publish.yml: pass --accept-warnings alongside --yes now that --yes no longer waives warnings</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-05T19:34:40.769Z">2026-10-05T19:34:40.769Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3042" rel="noopener">lab#3042</a></div>
+</article>
+<article class="item" id="issue-2905">
+<h2><span class="tier B">B</span>workflow reject leaves sibling gates waiting_approval and dependents pending in a failed, retryable run</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-05T19:32:56.180Z">2026-10-05T19:32:56.180Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2905" rel="noopener">lab#2905</a></div>
 </article>
 <article class="item" id="issue-3024">
 <h2><span class="tier B">B</span>data query by a renamed item&#39;s old name now returns the renamed row, failing the datastore rename UAT</h2>
@@ -1285,7 +1301,119 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3039">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3045">
+<h2><span class="tier C">C</span>Show expired approval gates as expired, with a Cancel action in the dashboard</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:55:03.430Z">2026-10-05T19:55:03.430Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3045" rel="noopener">lab#3045</a></div>
+</article>
+<article class="item" id="issue-3043">
+<h2><span class="tier C">C</span>Flaky test: ModelResolver data accessors for a renamed model return the earlier id&#39;s record from findBySpec</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:30:57.890Z">2026-10-05T19:30:57.890Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3043" rel="noopener">lab#3043</a></div>
+</article>
+<article class="item" id="issue-2978">
+<h2><span class="tier C">C</span>stagecraft: read records with data query --single once it ships</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:10:08.838Z">2026-10-05T19:10:08.838Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2978" rel="noopener">lab#2978</a></div>
+</article>
+<article class="item" id="issue-2821">
+<h2><span class="tier C">C</span>software-factory: decide its future at gatorwalk-factory go-live: PR #318, support window, deprecation</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:09:40.656Z">2026-10-05T19:09:40.656Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2821" rel="noopener">lab#2821</a></div>
+</article>
+<article class="item" id="issue-2991">
+<h2><span class="tier C">C</span>stagecraft studio work-item page: follow-ups from the #2956 reviews</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:08:25.006Z">2026-10-05T19:08:25.006Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2991" rel="noopener">lab#2991</a></div>
+</article>
+<article class="item" id="issue-2913">
+<h2><span class="tier C">C</span>gatorwalk-factory studio: a replaced directory that gets the same inode number is still not watched again</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:08:23.816Z">2026-10-05T19:08:23.816Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2913" rel="noopener">lab#2913</a></div>
+</article>
+<article class="item" id="issue-2847">
+<h2><span class="tier C">C</span>gatorwalk-factory: a tracker-side check that a factory definition fits its bound tracker</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:08:08.856Z">2026-10-05T19:08:08.856Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2847" rel="noopener">lab#2847</a></div>
+</article>
+<article class="item" id="issue-2809">
+<h2><span class="tier C">C</span>gatorwalk-factory studio: example payloads from JSON Schema for Simulate walks</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:08:07.529Z">2026-10-05T19:08:07.529Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2809" rel="noopener">lab#2809</a></div>
+</article>
+<article class="item" id="issue-2800">
+<h2><span class="tier C">C</span>gatorwalk-factory: a breakdown stage files child issues and their dependencies</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:08:06.195Z">2026-10-05T19:08:06.195Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2800" rel="noopener">lab#2800</a></div>
+</article>
+<article class="item" id="issue-2775">
+<h2><span class="tier C">C</span>gatorwalk-factory: restart at triage keeping what was recorded (gap 7)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:08:04.910Z">2026-10-05T19:08:04.910Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2775" rel="noopener">lab#2775</a></div>
+</article>
+<article class="item" id="issue-2774">
+<h2><span class="tier C">C</span>gatorwalk-factory: prepare to ship (fast_forward) for work already done</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:08:03.563Z">2026-10-05T19:08:03.563Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2774" rel="noopener">lab#2774</a></div>
+</article>
+<article class="item" id="issue-2665">
+<h2><span class="tier C">C</span>gatorwalk-factory: parallel stages</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:08:02.003Z">2026-10-05T19:08:02.003Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2665" rel="noopener">lab#2665</a></div>
+</article>
+<article class="item" id="issue-3041">
+<h2><span class="tier C">C</span>digitalocean codegen leaves an orphaned security_secret.ts model file after its endpoint left the spec</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:04:53.646Z">2026-10-05T19:04:53.646Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3041" rel="noopener">lab#3041</a></div>
+</article>
+<article class="item" id="issue-3040">
+<h2><span class="tier C">C</span>extension promote accepts a yanked version and reports it promoted</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T19:04:22.235Z">2026-10-05T19:04:22.235Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3040" rel="noopener">lab#3040</a></div>
+</article>
+<article class="item" id="issue-3039">
 <h2><span class="tier C">C</span>Serve audit: a durable sink write that times out is retried while the first call is still pending, so the store can hold duplicate sequences</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-05T18:58:48.794Z">2026-10-05T18:58:48.794Z</time></span></div>
@@ -1421,14 +1549,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3010" rel="noopener">lab#3010</a></div>
 </article>
-<article class="item" id="issue-2518">
-<h2><span class="tier C">C</span>serve: a suspended run with an expired gate from a previous serve instance cannot be cancelled by any path</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-04T10:14:45.623Z">2026-10-04T10:14:45.623Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2518" rel="noopener">lab#2518</a></div>
-</article>
 <article class="item" id="issue-3004">
 <h2><span class="tier C">C</span>Publish agent-facing projections of the manual: /llms.txt, .md pages, and llms-full.txt</h2>
 <p class="lede">Open issue</p>
@@ -1469,14 +1589,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2865" rel="noopener">lab#2865</a></div>
 </article>
-<article class="item" id="issue-2991">
-<h2><span class="tier C">C</span>stagecraft studio work-item page: follow-ups from the #2956 reviews</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-02T21:24:18.535Z">2026-10-02T21:24:18.535Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2991" rel="noopener">lab#2991</a></div>
-</article>
 <article class="item" id="issue-2102">
 <h2><span class="tier C">C</span>Serve Audit Log - Phase 6: Full documentation</h2>
 <p class="lede">Open issue</p>
@@ -1484,14 +1596,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2102" rel="noopener">lab#2102</a></div>
-</article>
-<article class="item" id="issue-2821">
-<h2><span class="tier C">C</span>software-factory: decide its future at gatorwalk-factory go-live: PR #318, support window, deprecation</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-02T19:47:07.870Z">2026-10-02T19:47:07.870Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2821" rel="noopener">lab#2821</a></div>
 </article>
 <article class="item" id="issue-2990">
 <h2><span class="tier C">C</span>Serve audit: sink filter config in serve.yaml is never validated</h2>
@@ -1548,14 +1652,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2981" rel="noopener">lab#2981</a></div>
-</article>
-<article class="item" id="issue-2978">
-<h2><span class="tier C">C</span>stagecraft: read records with data query --single once it ships</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-02T18:33:33.345Z">2026-10-02T18:33:33.345Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2978" rel="noopener">lab#2978</a></div>
 </article>
 <article class="item" id="issue-2975">
 <h2><span class="tier C">C</span>findBySpec/findByTag lose a workflow step&#39;s output after a version is deleted, pruned or rolled back</h2>
@@ -1725,14 +1821,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2917" rel="noopener">lab#2917</a></div>
 </article>
-<article class="item" id="issue-2913">
-<h2><span class="tier C">C</span>gatorwalk-factory studio: a replaced directory that gets the same inode number is still not watched again</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T18:44:30.905Z">2026-10-01T18:44:30.905Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2913" rel="noopener">lab#2913</a></div>
-</article>
 <article class="item" id="issue-2832">
 <h2><span class="tier C">C</span>gatorwalk-factory: built-in tracker create must not overwrite a ticket on an id collision</h2>
 <p class="lede">Open issue</p>
@@ -1756,14 +1844,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2811" rel="noopener">lab#2811</a></div>
-</article>
-<article class="item" id="issue-2774">
-<h2><span class="tier C">C</span>gatorwalk-factory: prepare to ship (fast_forward) for work already done</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T18:16:15.287Z">2026-10-01T18:16:15.287Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2774" rel="noopener">lab#2774</a></div>
 </article>
 <article class="item" id="issue-2773">
 <h2><span class="tier C">C</span>gatorwalk-factory: a workflow stage cannot say where its workflow lives (gap 3)</h2>
@@ -1900,31 +1980,15 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
-</article>
-<article class="item" id="issue-2847">
-<h2><span class="tier C">C</span>gatorwalk-factory: a tracker-side check that a factory definition fits its bound tracker</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T02:49:49.481Z">2026-10-01T02:49:49.481Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2847" rel="noopener">lab#2847</a></div>
-</article>
-<article class="item" id="issue-2800">
-<h2><span class="tier C">C</span>gatorwalk-factory: a breakdown stage files child issues and their dependencies</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T02:49:49.461Z">2026-10-01T02:49:49.461Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2800" rel="noopener">lab#2800</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>231 items across 1 source(s) in this window:
-0 critical, 141 notable, 11 routine,
-79 minor.</p>
-<ul><li><strong>issues</strong> — 231</li></ul></section>
+<p>239 items across 1 source(s) in this window:
+0 critical, 143 notable, 11 routine,
+85 minor.</p>
+<ul><li><strong>issues</strong> — 239</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T19:02:27.640Z">2026-10-05T19:02:27.640Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T20:10:48.117Z">2026-10-05T20:10:48.117Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -1809,7 +1809,71 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.194016.0-sha.c0c751a1" rel="noopener">release v20261002.194016.0-sha.c0c751a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0c751a17fa31d512cb5ee65da19e47284547cd0" rel="noopener">c0c751a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2808" rel="noopener">#2808</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/2979" rel="noopener">lab#2979</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261005-184818-0-sha-bbccb637">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261005-194524-0-sha-afe35519">
+<h2><span class="tier C">C</span>swamp 20261005.194524.0-sha.afe35519</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-05T19:47:24Z">2026-10-05T19:47:24Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): credentials-sensitive-field matches identifiers, not line substrings (swamp-club#3019) (#2843)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The push-time <code>credentials-sensitive-field</code> review rule matched its secret-name pattern as a bare substring anywhere on the line, and took the word <code>sensitive</code> anywhere on the line as the suppression marker. On the swamp-extensions corpus it flagged <code>secretName</code>, <code>TokenReference</code>, <code>credential_id</code>, <code>s3AccessKeyId</code> and <code>nextToken</code>, and a <code>describe()</code> mentioning &quot;token&quot; was enough to flag a field named <code>name</code>. This is the fourth fix to the rule (swamp-club#601, #1044, #2952); the earlier three narrowed one false-positive class each without touching the matching itself (swamp-club#3019).</p>
+<p>The rule now:</p>
+<ul>
+<li>extracts every identifier in key position (and <code>const</code>/<code>let</code>/<code>var</code> and class-field declarations), normalizes it to snake_case (<code>s3AccessKeyId</code> → <code>s3_access_key_id</code>, <code>APIKeyId</code> → <code>api_key_id</code>) and tests the secret stems against that identifier alone, so describe text and other tokens on the line no longer count;</li>
+<li>skips identifiers whose trailing segment names a reference to a secret (<code>name</code>, <code>id</code>, <code>reference</code>, <code>ref</code>, <code>arn</code>, <code>uri</code>, <code>url</code>, <code>endpoint</code>, <code>link</code>, <code>version</code>, <code>type</code>, <code>kind</code>, <code>count</code>, <code>ttl</code>, <code>timeout</code>, <code>expire_time</code>, <code>source</code>) and the pagination and idempotency tokens <code>nextToken</code>, <code>pageToken</code>, <code>nextPageToken</code>, <code>ClientToken</code>, <code>syncToken</code>. Every entry carries its corpus example in the doc comment;</li>
+<li>keeps joined lowercase names s</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.194524.0-sha.afe35519" rel="noopener">release v20261005.194524.0-sha.afe35519</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/afe35519" rel="noopener">afe35519</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2843" rel="noopener">#2843</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1044" rel="noopener">#1044</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2952" rel="noopener">#2952</a>𝗔 <a href="https://swamp-club.com/lab/3019" rel="noopener">lab#3019</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261005-191742-0-sha-ca1959c6">
+<h2><span class="tier C">C</span>swamp 20261005.191742.0-sha.ca1959c6</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-05T19:19:27Z">2026-10-05T19:19:27Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve-audit): keep the durable audit chain intact when a non-durable sink fails, lags or hangs (swamp-club#2988) (#2842)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2988.</p>
+<p><code>AuditEmitter</code> let a webhook or syslog sink damage the durable audit path in four ways. All four are fixed here. They were a prerequisite for extension audit sinks (swamp-club#2112), where a throwing or hanging sink makes them easy to hit.</p>
+<ul>
+<li><strong>Broken chain.</strong> When the store accepted a batch and another sink rejected it, the next drain chained the rejected sink&#39;s events again on top of the advanced chain. The store&#39;s next event then linked to a copy it never held, and <code>swamp audit verify</code> reported a broken chain. Events are now chained exactly once and kept by buffer sequence, so a retried sink receives the sequence and digest the store recorded. HMAC and the alert rules also see each event once.</li>
+<li><strong>Starved WAL.</strong> Once any sink lagged by more than the buffer&#39;s capacity, the WAL was handed an empty slice on every drain, or skipped a range. Each sink&#39;s batch is now selected by real sequence. A sink that has fallen off the buffer is moved up on its own, and the events it missed are counted and logged against that sink only.</li>
+<li><strong>Blocked durable writes.</strong> Sinks were awaited one after another, so a hung sink held WAL writes for up to the 30s timeout. A drain now writes and awaits durable sinks only. Each non-durable sink delivers through its own loop with at most one write in flight.</li>
+<li><strong>Hot loop.</strong> A</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.191742.0-sha.ca1959c6" rel="noopener">release v20261005.191742.0-sha.ca1959c6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ca1959c6" rel="noopener">ca1959c6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2842" rel="noopener">#2842</a>𝗔 <a href="https://swamp-club.com/lab/2988" rel="noopener">lab#2988</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261005-190003-0-sha-cd2183ee">
+<h2><span class="tier C">C</span>swamp 20261005.190003.0-sha.cd2183ee</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-05T19:01:51Z">2026-10-05T19:01:51Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): cancel a run whose workflow file was deleted (swamp-club#2920) (#2840)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2920.</p>
+<p><code>swamp workflow cancel</code> resolved the workflow definition before it looked at any run. Once a workflow&#39;s YAML file was deleted, a run it left suspended could not be cancelled locally: <code>cancel &lt;wf&gt;</code> and <code>cancel &lt;wf&gt; --run &lt;id&gt;</code> failed with <code>Workflow not found</code>, and <code>cancel --all</code> skipped the run without reporting it. Only <code>swamp serve</code> could cancel it.</p>
+<p>Cancel now finds the run in the run store:</p>
+<ul>
+<li><code>--run &lt;id&gt;</code> finds the run by its id alone and needs no workflow argument, as <code>--server</code> already allowed. A workflow given with it must be the run&#39;s own: its workflow id, the name the run recorded, or its definition&#39;s current name.</li>
+<li>A workflow alone picks its latest active run. A name or id that resolves no definition falls back to the active runs of deleted workflows that carry it. A name a newer workflow reuses means the newer one; the deleted workflow&#39;s runs stay reachable by run id.</li>
+<li><code>--all</code> also cancels the active runs of deleted workflows, reported under the name they recorded and listed after the runs of workflows that still have a definition.</li>
+</ul>
+<p>A run without a definition is settled against its own evaluated snapshot, or from its records alone, through the existing <code>cancelAndSettle</code> path and under the per-run claim.</p>
+<h4 class="body-h">How</h4>
+<ul>
+<li><code>resolveLocalCancelTarget</code> and <code>findAllActiveRuns</code> in <code>src/cli/commands/workflow_cancel.ts</code> replace the defi</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.190003.0-sha.cd2183ee" rel="noopener">release v20261005.190003.0-sha.cd2183ee</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cd2183ee" rel="noopener">cd2183ee</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2840" rel="noopener">#2840</a>𝗔 <a href="https://swamp-club.com/lab/2920" rel="noopener">lab#2920</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261005-184818-0-sha-bbccb637">
 <h2><span class="tier C">C</span>swamp 20261005.184818.0-sha.bbccb637</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-05T18:50:10Z">2026-10-05T18:50:10Z</time></span></div>
@@ -1935,13 +1999,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>79 items across 1 source(s) in this window:
+<p>82 items across 1 source(s) in this window:
 0 critical, 68 notable, 5 routine,
-6 minor.</p>
-<ul><li><strong>fix</strong> — 51</li><li><strong>feat</strong> — 17</li><li><strong>refactor</strong> — 5</li><li><strong>changes</strong> — 3</li><li><strong>test</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
+9 minor.</p>
+<ul><li><strong>fix</strong> — 51</li><li><strong>feat</strong> — 17</li><li><strong>changes</strong> — 6</li><li><strong>refactor</strong> — 5</li><li><strong>test</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T19:02:27.640Z">2026-10-05T19:02:27.640Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T20:10:48.117Z">2026-10-05T20:10:48.117Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -1,0 +1,145 @@
+# Acceptance tests for @svendowideit/release-train — the black-box outcomes its
+# README promises: one analyze run turns a repository of extensions into a
+# dependency graph, a hygiene/test matrix, and an ordered publish plan.
+#
+# No container services are needed: the model reads manifests, git, and the
+# meta-factory's resources. The registry is skipped with offline=true. The
+# harness copies the candidate plus its declared dependency (@svendowideit/meta-
+# factory) and that dependency's own dependency (test-factory) into the test
+# repo, so the graph has real edges and a real publish order to assert on.
+#
+# Run it:
+#   swamp model @svendowideit/test-factory method run test tf \
+#     --input manifest=extensions/release-train/manifest.yaml \
+#     --input scenario=debian-standalone
+#
+# Network access: the swamp release download only (the analyze run is offline).
+
+# Sibling working copies the test copies in and registers, so release-train can
+# see a dependency edge and a multi-extension graph.
+extensions:
+  meta-factory: extensions/meta-factory
+  test-factory: extensions/test-factory
+
+tests:
+  - name: analyzes-the-repo-into-a-graph-with-a-publish-order
+    confirms: >
+      Running `analyze` discovers every extension in the repository, records
+      each one's on-disk version, and writes a graph, a publish order, a plan, a
+      summary, and a Mermaid diagram — the dependency-first ordering the README
+      promises.
+    cannot: >
+      must not produce an empty graph, must not omit the discovered extensions,
+      and must not exit non-zero.
+    documents: README.md#examples
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/release-train rt \
+            --global-arg runChecks=false \
+            --global-arg offline=true
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: run-analyze
+        run: swamp model method run rt analyze
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic", "No manifest.yaml found"]
+        timeoutSeconds: 180
+      - name: summary-counts-the-discovery
+        run: |
+          swamp data get rt rollup --json \
+            | jq 'if .content.count >= 3 then "count-ok" else "count-bad" end'
+        expect:
+          exitCode: 0
+          stdoutContains: ["count-ok"]
+          stdoutNotContains: ["count-bad"]
+      - name: graph-has-edges-and-an-order
+        run: |
+          swamp data get rt repo --json \
+            | jq 'if (.content.edges | length) > 0 and (.content.publishOrder | length) >= 3 then "graph-ok" else "graph-empty" end'
+        expect:
+          exitCode: 0
+          stdoutContains: ["graph-ok"]
+          stdoutNotContains: ["graph-empty"]
+      - name: diagram-file-is-written
+        run: |
+          test -s release-train.mmd && grep -q '^graph LR' release-train.mmd && echo mmd-ok
+        expect:
+          exitCode: 0
+          stdoutContains: ["mmd-ok"]
+          stdoutNotContains: ["No such file"]
+      - name: one-file-dashboard-is-written
+        run: |
+          test -s release-train.md \
+            && grep -q '^```mermaid' release-train.md \
+            && grep -q '| Extension | Version |' release-train.md \
+            && echo md-ok
+        expect:
+          exitCode: 0
+          stdoutContains: ["md-ok"]
+          stdoutNotContains: ["No such file"]
+
+  - name: orders-a-dependency-before-what-depends-on-it
+    confirms: >
+      Release-train depends on @svendowideit/meta-factory, so the topological
+      publish order places meta-factory before release-train — the "publish
+      dependencies first" rule the README documents.
+    cannot: >
+      must not list release-train before its dependency meta-factory in the
+      publish order.
+    documents: README.md#details
+    steps:
+      - name: dependency-precedes-dependent
+        run: |
+          swamp data get rt repo --json \
+            | jq -r '(.content.publishOrder | index("@svendowideit/meta-factory")) as $dep | (.content.publishOrder | index("@svendowideit/release-train")) as $cand | if ($dep != null) and ($cand != null) and ($dep < $cand) then "order-ok" else "order-bad" end'
+        expect:
+          exitCode: 0
+          stdoutContains: ["order-ok"]
+          stdoutNotContains: ["order-bad"]
+      - name: edge-is-recorded
+        run: |
+          swamp data get rt repo --json \
+            | jq 'if ([.content.edges[] | select(.from == "@svendowideit/release-train" and .to == "@svendowideit/meta-factory")] | length) == 1 then "edge-ok" else "edge-bad" end'
+        expect:
+          exitCode: 0
+          stdoutContains: ["edge-ok"]
+          stdoutNotContains: ["edge-bad"]
+
+  - name: the-report-renders-the-diagram-matrix-and-plan
+    confirms: >
+      The workflow-scope report renders a Mermaid dependency diagram, a
+      per-extension hygiene and test matrix, and the ordered publish plan — the
+      three sections the manifest documents.
+    cannot: >
+      must not render without the Mermaid block, and must not omit the matrix or
+      the plan headings.
+    documents: README.md#details
+    steps:
+      - name: run-the-workflow
+        run: >
+          swamp workflow run @svendowideit/release-train
+          --input runChecks=false --input offline=true
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 240
+      - name: report-has-all-three-sections
+        run: |
+          swamp report get @svendowideit/release-train-report \
+            --workflow @svendowideit/release-train --markdown > /tmp/rt-report.md
+          grep -c '## Dependency graph' /tmp/rt-report.md
+          grep -c '## Hygiene and test matrix' /tmp/rt-report.md
+          grep -c '## Publish plan' /tmp/rt-report.md
+        expect:
+          exitCode: 0
+          stdoutContains: ["1"]
+          stdoutNotContains: ["0"]
+      - name: report-embeds-a-mermaid-diagram
+        run: grep -c '^```mermaid' /tmp/rt-report.md
+        expect:
+          exitCode: 0
+          stdoutContains: ["1"]
+          stdoutNotContains: ["0"]

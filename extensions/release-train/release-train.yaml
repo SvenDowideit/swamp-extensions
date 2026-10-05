@@ -1,0 +1,88 @@
+id: 341814a7-b5ff-4ced-a6a4-815964d68f89
+name: '@svendowideit/release-train'
+description: |
+  Draw the dependency graph of every extension in this repo plus the extensions
+  they use, annotate each with its on-disk and published (stable / rc / beta)
+  versions, flag which extensions have changes that need publishing, show
+  release-hygiene compliance and test depth (unit vs test-factory acceptance),
+  and print an ordered publish plan.
+
+  The run is read-only: it publishes nothing, bumps nothing, and edits no
+  extension. It reuses `@svendowideit/meta-factory`'s score/coverage data for the
+  docs and test axes (a missing or stale score is shown as stale, never
+  recomputed automatically).
+
+  Analyze the whole repo and print the diagram, matrix and plan:
+    swamp workflow run @svendowideit/release-train
+
+  Skip the slower hygiene checks (versions, graph and reused data only):
+    swamp workflow run @svendowideit/release-train --input runChecks=false
+
+  Run offline (no registry lookups or push dry-runs):
+    swamp workflow run @svendowideit/release-train --input offline=true
+tags: {}
+inputs:
+  properties:
+    root:
+      type: string
+      default: extensions
+      description: Directory scanned for git-tracked manifest.yaml files (fallback walk).
+    offline:
+      type: boolean
+      default: false
+      description: Skip registry lookups and network checks; published versions come from the lockfile.
+    runChecks:
+      type: boolean
+      default: true
+      description: Run the quality/fmt/deno/workflow-validate/push-dry-run hygiene checks.
+    concurrency:
+      type: integer
+      default: 4
+      description: How many extensions to check in parallel.
+    threshold:
+      type: integer
+      default: 75
+      description: Documentation score below which an extension is advised to stay on beta.
+    includeExternal:
+      type: boolean
+      default: true
+      description: Show and query dependencies that are not in this repo as external nodes.
+    metaModel:
+      type: string
+      default: meta-factory
+      description: Meta-factory model whose score/summary resources are read for docs and coverage.
+    markdownFile:
+      type: string
+      default: release-train.md
+      description: Path (relative to the repo root) for the one-file GitHub/gist-renderable dashboard. Empty disables the write.
+  required: []
+jobs:
+  - name: analyze
+    description: Analyze every extension and render the release dashboard.
+    steps:
+      - name: analyze
+        description: Discover, graph, gather status, write the diagram and plan.
+        task:
+          type: model_method
+          modelType: "@svendowideit/release-train"
+          modelName: release-train
+          methodName: analyze
+          inputs: {}
+          globalArgs:
+            root: ${{ inputs.root }}
+            offline: ${{ inputs.offline }}
+            runChecks: ${{ inputs.runChecks }}
+            concurrency: ${{ inputs.concurrency }}
+            threshold: ${{ inputs.threshold }}
+            includeExternal: ${{ inputs.includeExternal }}
+            metaModel: ${{ inputs.metaModel }}
+            markdownFile: ${{ inputs.markdownFile }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+reports:
+  require:
+    - "@svendowideit/release-train-report"
+version: 1

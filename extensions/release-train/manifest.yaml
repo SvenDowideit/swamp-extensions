@@ -1,0 +1,123 @@
+manifestVersion: 1
+name: "@svendowideit/release-train"
+version: "2026.10.05.1"
+description: >
+  The release dashboard for a swamp extension repository. It draws the
+  dependency graph of every extension you own plus the extensions they use,
+  shows what needs publishing (and in what order, and to which channel), and
+  reports release-hygiene compliance and test depth — so "what do I ship next?"
+  is one command.
+
+  WHAT IT DOES
+
+    Turns a repo of extensions into a single release picture. It discovers every
+    git-tracked `manifest.yaml`, builds the dependency graph from each
+    `dependencies:` list (external dependencies included), and topologically
+    orders them so a dependency is always published before what depends on it.
+    Each extension is annotated with its on-disk version, the latest version
+    published to each of stable / rc / beta, the version actually pulled, and a
+    publish state — up-to-date, needs-publish, or blocked on a dependency. It
+    also reports release-hygiene compliance and test depth, separating colocated
+    unit tests (with measured line coverage) from the black-box
+    `test-factory.yaml` acceptance tests. Prefer it over reading `git status`,
+    `swamp extension version`, and the scoreboard by hand: one read-only run
+    produces a Mermaid diagram, a hygiene/test matrix, and an ordered publish
+    plan, with a target channel advised from the published trend and check
+    health.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/release-train
+
+  DEPENDENCIES
+
+    `@svendowideit/meta-factory` — pulled automatically. release-train reads its
+    `score`/`summary` resources for the documentation score and the test axes
+    (unit-test coverage and `test-factory.yaml` acceptance coverage); it never
+    re-runs those checks itself. A missing or stale score is shown as stale, not
+    recomputed. Otherwise it uses only the swamp CLI and the bundled deno binary
+    that swamp already ships.
+
+  RUN
+
+      # The whole dashboard: dependency diagram, hygiene/test matrix, and the
+      # ordered publish plan. It writes release-train.md — one GitHub/gist-
+      # renderable document with every table and the Mermaid diagram.
+      swamp workflow run @svendowideit/release-train
+      cat release-train.md
+
+      # Skip the slower hygiene checks — versions, graph and reused data only.
+      swamp workflow run @svendowideit/release-train --input runChecks=false
+
+      # Run offline (no registry lookups or push dry-runs); published versions
+      # come from the lockfile and review state is reported unknown.
+      swamp workflow run @svendowideit/release-train --input offline=true
+
+      # Run just the analysis and read the diagram it wrote to disk.
+      swamp model @svendowideit/release-train method run analyze release-train
+      cat release-train.mmd
+
+      # Read the rendered report from the last run.
+      swamp report get @svendowideit/release-train-report \
+        --workflow @svendowideit/release-train --markdown
+
+  CONFIGURE
+
+    All settings are optional global arguments (set at model creation or per
+    run with `--input`):
+
+      root             Directory scanned for manifests        (default extensions)
+      gitOnly          Only git-tracked manifests            (default true)
+      includeExternal  Show dependencies outside this repo   (default true)
+      runChecks        Run quality/fmt/deno/push checks      (default true)
+      concurrency      Extensions checked in parallel        (default 4)
+      checkTimeoutMs   Per-check timeout                     (default 120000)
+      offline          Skip registry and network checks      (default false)
+      threshold        Docs score below which -> stay beta   (default 75)
+      metaModel        Meta-factory model to read            (default meta-factory)
+      outputFile       Where the Mermaid diagram is written  (default release-train.mmd)
+      markdownFile     Where the one-file dashboard is written (default release-train.md;
+                       empty disables the write)
+
+    The channel advice is advisory only: release-train reports each channel's
+    published version and suggests a target, but never publishes, bumps, or
+    promotes.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, cron triggers, or webhooks. It
+    runs only when invoked and never modifies the extensions it analyses. It
+    writes a Mermaid diagram to `outputFile`, the full one-file dashboard to
+    `markdownFile`, and its own swamp resources (`node`/`graph`/`plan`/`summary`).
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - release_train.ts
+
+reports:
+  - release_train_report.ts
+
+workflows:
+  - release-train.yaml
+
+dependencies:
+  - "@svendowideit/meta-factory"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - graph.ts
+  - introspect.ts
+  - graph_test.ts
+  - introspect_test.ts
+  - release_train_test.ts
+  - release_train_report_test.ts
+  - acceptance/test-factory.yaml
+
+platforms: []

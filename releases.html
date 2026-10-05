@@ -67,8 +67,138 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261005-174318-0-sha-2f797a06"><span class="tier A">A</span>do not start a job alone in its level after the abort (swamp</a><a href="#release-swamp-club-swamp-v20261005-172045-0-sha-8490523a"><span class="tier A">A</span>stop approve, reject, cancel, supersede and resume saving ov</a><a href="#release-swamp-club-swamp-v20261005-171332-0-sha-28d72b0a"><span class="tier A">A</span>root and child units of work, and abandon on the port (swamp</a><a href="#release-swamp-club-swamp-v20261005-154947-0-sha-c61040d1"><span class="tier A">A</span>split --accept-warnings from --yes on extension push (swamp-</a><a href="#release-swamp-club-swamp-v20261005-154526-0-sha-d622ffd4"><span class="tier A">A</span>print approval and nested-run command hints as single pastea</a><a href="#release-swamp-club-swamp-v20261005-154010-0-sha-7f5a693a"><span class="tier A">A</span>use cases open and commit the unit of work (swamp-club#3025)</a><a href="#release-swamp-club-swamp-v20261005-153405-0-sha-6f7841d5"><span class="tier A">A</span>package every workflow listed under a shared directory, and </a><a href="#release-swamp-club-swamp-v20261005-152951-0-sha-7e2da0e7"><span class="tier A">A</span>show a run serve is resuming as resuming, whoever approved i</a><a href="#release-swamp-club-swamp-v20261005-152537-0-sha-c474ef3d"><span class="tier A">A</span>remove superseded skills from repo-local skills dirs on upgr</a><a href="#release-swamp-club-swamp-v20261005-152146-0-sha-f4a79f8d"><span class="tier A">A</span>readModelData returns data written before a model rename (sw</a><a href="#release-swamp-club-swamp-v20261005-144604-0-sha-bf3c1a45"><span class="tier A">A</span>name missing required --config fields and ask for them befor</a><a href="#release-swamp-club-swamp-v20261005-141614-0-sha-4f843533"><span class="tier A">A</span>rebuild a catalog whose table is stale, and stop tests shari</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261005-194524-0-sha-afe35519"><span class="tier A">A</span>credentials-sensitive-field matches identifiers, not line su</a><a href="#release-swamp-club-swamp-v20261005-191742-0-sha-ca1959c6"><span class="tier A">A</span>keep the durable audit chain intact when a non-durable sink </a><a href="#release-swamp-club-swamp-v20261005-190003-0-sha-cd2183ee"><span class="tier A">A</span>cancel a run whose workflow file was deleted (swamp-club#292</a><a href="#release-swamp-club-swamp-v20261005-184818-0-sha-bbccb637"><span class="tier A">A</span>serve handlers commit through root units of work (swamp-club</a><a href="#release-swamp-club-swamp-v20261005-183103-0-sha-d22f8674"><span class="tier A">A</span>data accessors return data written before a model rename (sw</a><a href="#release-swamp-club-swamp-v20261005-182035-0-sha-96186b70"><span class="tier A">A</span>CLI write commands push through a root unit of work (swamp-c</a><a href="#release-swamp-club-swamp-v20261005-174318-0-sha-2f797a06"><span class="tier A">A</span>do not start a job alone in its level after the abort (swamp</a><a href="#release-swamp-club-swamp-v20261005-172045-0-sha-8490523a"><span class="tier A">A</span>stop approve, reject, cancel, supersede and resume saving ov</a><a href="#release-swamp-club-swamp-v20261005-171332-0-sha-28d72b0a"><span class="tier A">A</span>root and child units of work, and abandon on the port (swamp</a><a href="#release-swamp-club-swamp-v20261005-154947-0-sha-c61040d1"><span class="tier A">A</span>split --accept-warnings from --yes on extension push (swamp-</a><a href="#release-swamp-club-swamp-v20261005-154526-0-sha-d622ffd4"><span class="tier A">A</span>print approval and nested-run command hints as single pastea</a><a href="#release-swamp-club-swamp-v20261005-154010-0-sha-7f5a693a"><span class="tier A">A</span>use cases open and commit the unit of work (swamp-club#3025)</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261005-194524-0-sha-afe35519">
+<h2><span class="tier A">A</span>credentials-sensitive-field matches identifiers, not line substrings (swamp-club#3019) (#2843)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-05T19:47:24Z">2026-10-05T19:47:24Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): credentials-sensitive-field matches identifiers, not line substrings (swamp-club#3019) (#2843)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The push-time <code>credentials-sensitive-field</code> review rule matched its secret-name pattern as a bare substring anywhere on the line, and took the word <code>sensitive</code> anywhere on the line as the suppression marker. On the swamp-extensions corpus it flagged <code>secretName</code>, <code>TokenReference</code>, <code>credential_id</code>, <code>s3AccessKeyId</code> and <code>nextToken</code>, and a <code>describe()</code> mentioning &quot;token&quot; was enough to flag a field named <code>name</code>. This is the fourth fix to the rule (swamp-club#601, #1044, #2952); the earlier three narrowed one false-positive class each without touching the matching itself (swamp-club#3019).</p>
+<p>The rule now:</p>
+<ul>
+<li>extracts every identifier in key position (and <code>const</code>/<code>let</code>/<code>var</code> and class-field declarations), normalizes it to snake_case (<code>s3AccessKeyId</code> → <code>s3_access_key_id</code>, <code>APIKeyId</code> → <code>api_key_id</code>) and tests the secret stems against that identifier alone, so describe text and other tokens on the line no longer count;</li>
+<li>skips identifiers whose trailing segment names a reference to a secret (<code>name</code>, <code>id</code>, <code>reference</code>, <code>ref</code>, <code>arn</code>, <code>uri</code>, <code>url</code>, <code>endpoint</code>, <code>link</code>, <code>version</code>, <code>type</code>, <code>kind</code>, <code>count</code>, <code>ttl</code>, <code>timeout</code>, <code>expire_time</code>, <code>source</code>) and the pagination and idempotency tokens <code>nextToken</code>, <code>pageToken</code>, <code>nextPageToken</code>, <code>ClientToken</code>, <code>syncToken</code>. Every entry carries its corpus example in the doc comment;</li>
+<li>keeps joined lowercase names s</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.194524.0-sha.afe35519" rel="noopener">release v20261005.194524.0-sha.afe35519</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/afe35519c943b41ee7c27cf9472b071edb308f31" rel="noopener">afe35519</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2843" rel="noopener">#2843</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1044" rel="noopener">#1044</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2952" rel="noopener">#2952</a>𝗔 <a href="https://swamp-club.com/lab/3019" rel="noopener">lab#3019</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261005-191742-0-sha-ca1959c6">
+<h2><span class="tier A">A</span>keep the durable audit chain intact when a non-durable sink fails, lags or hangs (swamp-club#2988) (#2842)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-05T19:19:27Z">2026-10-05T19:19:27Z</time></span><span>serve-audit</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve-audit): keep the durable audit chain intact when a non-durable sink fails, lags or hangs (swamp-club#2988) (#2842)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2988.</p>
+<p><code>AuditEmitter</code> let a webhook or syslog sink damage the durable audit path in four ways. All four are fixed here. They were a prerequisite for extension audit sinks (swamp-club#2112), where a throwing or hanging sink makes them easy to hit.</p>
+<ul>
+<li><strong>Broken chain.</strong> When the store accepted a batch and another sink rejected it, the next drain chained the rejected sink&#39;s events again on top of the advanced chain. The store&#39;s next event then linked to a copy it never held, and <code>swamp audit verify</code> reported a broken chain. Events are now chained exactly once and kept by buffer sequence, so a retried sink receives the sequence and digest the store recorded. HMAC and the alert rules also see each event once.</li>
+<li><strong>Starved WAL.</strong> Once any sink lagged by more than the buffer&#39;s capacity, the WAL was handed an empty slice on every drain, or skipped a range. Each sink&#39;s batch is now selected by real sequence. A sink that has fallen off the buffer is moved up on its own, and the events it missed are counted and logged against that sink only.</li>
+<li><strong>Blocked durable writes.</strong> Sinks were awaited one after another, so a hung sink held WAL writes for up to the 30s timeout. A drain now writes and awaits durable sinks only. Each non-durable sink delivers through its own loop with at most one write in flight.</li>
+<li><strong>Hot loop.</strong> A</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.191742.0-sha.ca1959c6" rel="noopener">release v20261005.191742.0-sha.ca1959c6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ca1959c6315b25fbf42606b273eb98948708d422" rel="noopener">ca1959c6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2842" rel="noopener">#2842</a>𝗔 <a href="https://swamp-club.com/lab/2988" rel="noopener">lab#2988</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261005-190003-0-sha-cd2183ee">
+<h2><span class="tier A">A</span>cancel a run whose workflow file was deleted (swamp-club#2920) (#2840)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-05T19:01:51Z">2026-10-05T19:01:51Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): cancel a run whose workflow file was deleted (swamp-club#2920) (#2840)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2920.</p>
+<p><code>swamp workflow cancel</code> resolved the workflow definition before it looked at any run. Once a workflow&#39;s YAML file was deleted, a run it left suspended could not be cancelled locally: <code>cancel &lt;wf&gt;</code> and <code>cancel &lt;wf&gt; --run &lt;id&gt;</code> failed with <code>Workflow not found</code>, and <code>cancel --all</code> skipped the run without reporting it. Only <code>swamp serve</code> could cancel it.</p>
+<p>Cancel now finds the run in the run store:</p>
+<ul>
+<li><code>--run &lt;id&gt;</code> finds the run by its id alone and needs no workflow argument, as <code>--server</code> already allowed. A workflow given with it must be the run&#39;s own: its workflow id, the name the run recorded, or its definition&#39;s current name.</li>
+<li>A workflow alone picks its latest active run. A name or id that resolves no definition falls back to the active runs of deleted workflows that carry it. A name a newer workflow reuses means the newer one; the deleted workflow&#39;s runs stay reachable by run id.</li>
+<li><code>--all</code> also cancels the active runs of deleted workflows, reported under the name they recorded and listed after the runs of workflows that still have a definition.</li>
+</ul>
+<p>A run without a definition is settled against its own evaluated snapshot, or from its records alone, through the existing <code>cancelAndSettle</code> path and under the per-run claim.</p>
+<h4 class="body-h">How</h4>
+<ul>
+<li><code>resolveLocalCancelTarget</code> and <code>findAllActiveRuns</code> in <code>src/cli/commands/workflow_cancel.ts</code> replace the defi</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.190003.0-sha.cd2183ee" rel="noopener">release v20261005.190003.0-sha.cd2183ee</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cd2183eea6956e7309a1c68bbc12a8fdfb9966d9" rel="noopener">cd2183ee</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2840" rel="noopener">#2840</a>𝗔 <a href="https://swamp-club.com/lab/2920" rel="noopener">lab#2920</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261005-184818-0-sha-bbccb637">
+<h2><span class="tier A">A</span>serve handlers commit through root units of work (swamp-club#3034) (#2839)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-05T18:50:10Z">2026-10-05T18:50:10Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): serve handlers commit through root units of work (swamp-club#3034) (#2839)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Datastore rework Phase 2 (swamp-club#3034): serve commits through the unit of work, with <strong>no behaviour change</strong>. Marks, push count, push timing relative to the sync gate, replies and failure handling are unchanged.</p>
+<ul>
+<li><strong>Request handlers.</strong> The 13 handlers that pushed with <code>pushChangedToRemote(ctx)</code> in a <code>finally</code> run their work in <code>runInRootUnitOfWork</code>, whose flush is that push. They are data delete/rename/gc/prune, run gc, access token mint/revoke/rotate, worker token create/revoke, worker prune, and workflow approve/reject. <code>cancelLocatedRunAndPush</code> does the same.</li>
+<li>The root opens where the <code>try</code> began, inside the gate, so a refused request still pushes nothing.</li>
+<li>Approve still replies after the push. Approve and reject still release their reservation before it.</li>
+<li>Reject keeps the rejected run outside the root, so the parent still auto-resumes if the reply fails after the save.</li>
+<li><strong>Workflow runs.</strong> <code>executeWorkflowWithLocks</code> runs each run from the <code>workflow.run</code> handler, webhooks and the scheduler in a root. Its flush is the post-run push under the shared gate, on every outcome, including suspended and cancelled runs.</li>
+<li>Per-step model-lock pushes are unchanged.</li>
+<li><code>DispatchService</code> and <code>WorkerGateway</code> neither call it nor push, so they get no root. The issue text said they used it.</li>
+<li><strong>Hand marks.</strong> The device auth mint, grant publishing and</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.184818.0-sha.bbccb637" rel="noopener">release v20261005.184818.0-sha.bbccb637</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bbccb63765345eb80897332f6f5d5d95313a850b" rel="noopener">bbccb637</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2839" rel="noopener">#2839</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3033" rel="noopener">#3033</a>𝗔 <a href="https://swamp-club.com/lab/3034" rel="noopener">lab#3034</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261005-183103-0-sha-d22f8674">
+<h2><span class="tier A">A</span>data accessors return data written before a model rename (swamp-club#3029) (#2838)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-05T18:32:39Z">2026-10-05T18:32:39Z</time></span><span>expressions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(expressions): data accessors return data written before a model rename (swamp-club#3029) (#2838)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3029, the CEL sibling of swamp-club#3011. <code>data.version</code>, <code>data.listVersions</code> and <code>data.findBySpec</code> matched data only by the <code>modelName</code> tag, which records the name at write time. After a model instance was renamed, they skipped everything written under the old name without any warning. <code>data.latest</code> had the same gap in the light context (expressions that read only <code>data.*</code>), whose coordinates map is empty.</p>
+<ul>
+<li><strong>Read by identity as well as name.</strong> For a name with no namespace prefix, each accessor keeps the name-tag read and also reads the definition&#39;s data by type and id, merged with <code>mergeModelData</code> as in #3011. <code>ns:</code> and <code>*:</code> reads are unchanged.</li>
+<li><strong>Full context:</strong> the identity comes from the coordinates map it already builds, with no extra lookup.</li>
+<li><strong>Light context:</strong> the primary definition is looked up by name (auto-definitions and control-plane types excluded, matching the full context&#39;s map). Lookups are cached on the <code>ModelResolver</code>, misses included, so every light context of a command or run shares them. A failed lookup warns and falls back to the tag read.</li>
+<li><strong><code>listVersions</code> stays synchronous.</strong> <code>CelEvaluator.evaluateAsync</code> first resolves the literal model names an expression passes to the data accessors, through the optional <code>DataNamespace.resolveModelNames</code>.</li>
+<li><strong>Docs:</strong> <code>design/enablers/expressions.md</code> (rename not</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.183103.0-sha.d22f8674" rel="noopener">release v20261005.183103.0-sha.d22f8674</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d22f86743ff40da5e197ec1c6278780f8a30e370" rel="noopener">d22f8674</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2838" rel="noopener">#2838</a>𝗔 <a href="https://swamp-club.com/lab/3029" rel="noopener">lab#3029</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261005-182035-0-sha-96186b70">
+<h2><span class="tier A">A</span>CLI write commands push through a root unit of work (swamp-club#3033) (#2837)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-05T18:22:41Z">2026-10-05T18:22:41Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): CLI write commands push through a root unit of work (swamp-club#3033) (#2837)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Datastore rework Phase 2 (swamp-club#3033): CLI write commands stop marking and pushing by hand. Each one runs its write section in a root unit of work (swamp-club#3032), whose flush is the push the command made before, at the same point. <strong>No behaviour change:</strong> the same marks, the same push count and order, lock release after the push, and the same failure behaviour.</p>
+<ul>
+<li><code>ModelLockResult</code> gains <code>push()</code> and <code>release()</code>. <code>flush()</code> stays push-then-release for callers that open no root: per-step workflow locks, and serve (swamp-club#3034).</li>
+<li><code>runCommandInRootUnit</code> (<code>src/cli/command_root_unit.ts</code>) opens the root, releases the locks after it ends, and sends push and release errors to the handler each command used before. <code>pushWhen: &quot;completed&quot;</code> keeps the success-only pushes (the managed-config commands, <code>worker prune</code>, <code>datastore config migrate</code>).</li>
+<li>25 command entry points migrated. Hand marks are now <code>root.stage({ kind: &quot;bulk&quot;, reason })</code>.</li>
+<li>The managed-config commands publish through <code>runManagedConfigMutation</code>, which is built from <code>stageManagedConfigChanges</code> and <code>publishManagedConfigChanges</code>.</li>
+</ul>
+<h4 class="body-h">Exceptions and deviations</h4>
+<ul>
+<li><strong>Mid-command pushes stay direct:</strong> <code>access token mint</code>, <code>worker token create</code> and <code>worker token revoke</code> push mid-command (mint and create then read the token back). A root cannot push mid-command, because a nested root with its o</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.182035.0-sha.96186b70" rel="noopener">release v20261005.182035.0-sha.96186b70</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/96186b70bf00220af5bf67767b3f1d3b0d89be6f" rel="noopener">96186b70</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2837" rel="noopener">#2837</a>𝗔 <a href="https://swamp-club.com/lab/3033" rel="noopener">lab#3033</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261005-174318-0-sha-2f797a06">
 <h2><span class="tier A">A</span>do not start a job alone in its level after the abort (swamp-club#2898) (#2836)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -207,7 +337,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.154010.0-sha.7f5a693a" rel="noopener">release v20261005.154010.0-sha.7f5a693a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7f5a693a47c8386f5190a80014fa4c09d83ab5a0" rel="noopener">7f5a693a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2831" rel="noopener">#2831</a>𝗔 <a href="https://swamp-club.com/lab/3025" rel="noopener">lab#3025</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261005-153405-0-sha-6f7841d5">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261005-153405-0-sha-6f7841d5">
 <h2><span class="tier A">A</span>package every workflow listed under a shared directory, and fail on archive-name clashes (swamp-club#2613) (#2830)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-05T15:36:00Z">2026-10-05T15:36:00Z</time></span><span>extensions</span><span>fix</span></div>
@@ -341,7 +471,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.141614.0-sha.4f843533" rel="noopener">release v20261005.141614.0-sha.4f843533</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4f843533d61bfe0bd722f8eb78a96533748621d6" rel="noopener">4f843533</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2824" rel="noopener">#2824</a>𝗔 <a href="https://swamp-club.com/lab/2994" rel="noopener">lab#2994</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261005-140118-0-sha-e7a55150">
+<article class="item" id="release-swamp-club-swamp-v20261005-140118-0-sha-e7a55150">
 <h2><span class="tier A">A</span>write the whole secret to piped read-secret output (swamp-club#3006) (#2823)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-05T14:03:03Z">2026-10-05T14:03:03Z</time></span><span>vault</span><span>fix</span></div>
@@ -1809,137 +1939,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.194016.0-sha.c0c751a1" rel="noopener">release v20261002.194016.0-sha.c0c751a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0c751a17fa31d512cb5ee65da19e47284547cd0" rel="noopener">c0c751a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2808" rel="noopener">#2808</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/2979" rel="noopener">lab#2979</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261005-194524-0-sha-afe35519">
-<h2><span class="tier C">C</span>swamp 20261005.194524.0-sha.afe35519</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-05T19:47:24Z">2026-10-05T19:47:24Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): credentials-sensitive-field matches identifiers, not line substrings (swamp-club#3019) (#2843)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>The push-time <code>credentials-sensitive-field</code> review rule matched its secret-name pattern as a bare substring anywhere on the line, and took the word <code>sensitive</code> anywhere on the line as the suppression marker. On the swamp-extensions corpus it flagged <code>secretName</code>, <code>TokenReference</code>, <code>credential_id</code>, <code>s3AccessKeyId</code> and <code>nextToken</code>, and a <code>describe()</code> mentioning &quot;token&quot; was enough to flag a field named <code>name</code>. This is the fourth fix to the rule (swamp-club#601, #1044, #2952); the earlier three narrowed one false-positive class each without touching the matching itself (swamp-club#3019).</p>
-<p>The rule now:</p>
-<ul>
-<li>extracts every identifier in key position (and <code>const</code>/<code>let</code>/<code>var</code> and class-field declarations), normalizes it to snake_case (<code>s3AccessKeyId</code> → <code>s3_access_key_id</code>, <code>APIKeyId</code> → <code>api_key_id</code>) and tests the secret stems against that identifier alone, so describe text and other tokens on the line no longer count;</li>
-<li>skips identifiers whose trailing segment names a reference to a secret (<code>name</code>, <code>id</code>, <code>reference</code>, <code>ref</code>, <code>arn</code>, <code>uri</code>, <code>url</code>, <code>endpoint</code>, <code>link</code>, <code>version</code>, <code>type</code>, <code>kind</code>, <code>count</code>, <code>ttl</code>, <code>timeout</code>, <code>expire_time</code>, <code>source</code>) and the pagination and idempotency tokens <code>nextToken</code>, <code>pageToken</code>, <code>nextPageToken</code>, <code>ClientToken</code>, <code>syncToken</code>. Every entry carries its corpus example in the doc comment;</li>
-<li>keeps joined lowercase names s</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.194524.0-sha.afe35519" rel="noopener">release v20261005.194524.0-sha.afe35519</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/afe35519" rel="noopener">afe35519</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2843" rel="noopener">#2843</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1044" rel="noopener">#1044</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2952" rel="noopener">#2952</a>𝗔 <a href="https://swamp-club.com/lab/3019" rel="noopener">lab#3019</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261005-191742-0-sha-ca1959c6">
-<h2><span class="tier C">C</span>swamp 20261005.191742.0-sha.ca1959c6</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-05T19:19:27Z">2026-10-05T19:19:27Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve-audit): keep the durable audit chain intact when a non-durable sink fails, lags or hangs (swamp-club#2988) (#2842)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2988.</p>
-<p><code>AuditEmitter</code> let a webhook or syslog sink damage the durable audit path in four ways. All four are fixed here. They were a prerequisite for extension audit sinks (swamp-club#2112), where a throwing or hanging sink makes them easy to hit.</p>
-<ul>
-<li><strong>Broken chain.</strong> When the store accepted a batch and another sink rejected it, the next drain chained the rejected sink&#39;s events again on top of the advanced chain. The store&#39;s next event then linked to a copy it never held, and <code>swamp audit verify</code> reported a broken chain. Events are now chained exactly once and kept by buffer sequence, so a retried sink receives the sequence and digest the store recorded. HMAC and the alert rules also see each event once.</li>
-<li><strong>Starved WAL.</strong> Once any sink lagged by more than the buffer&#39;s capacity, the WAL was handed an empty slice on every drain, or skipped a range. Each sink&#39;s batch is now selected by real sequence. A sink that has fallen off the buffer is moved up on its own, and the events it missed are counted and logged against that sink only.</li>
-<li><strong>Blocked durable writes.</strong> Sinks were awaited one after another, so a hung sink held WAL writes for up to the 30s timeout. A drain now writes and awaits durable sinks only. Each non-durable sink delivers through its own loop with at most one write in flight.</li>
-<li><strong>Hot loop.</strong> A</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.191742.0-sha.ca1959c6" rel="noopener">release v20261005.191742.0-sha.ca1959c6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ca1959c6" rel="noopener">ca1959c6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2842" rel="noopener">#2842</a>𝗔 <a href="https://swamp-club.com/lab/2988" rel="noopener">lab#2988</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261005-190003-0-sha-cd2183ee">
-<h2><span class="tier C">C</span>swamp 20261005.190003.0-sha.cd2183ee</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-05T19:01:51Z">2026-10-05T19:01:51Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): cancel a run whose workflow file was deleted (swamp-club#2920) (#2840)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2920.</p>
-<p><code>swamp workflow cancel</code> resolved the workflow definition before it looked at any run. Once a workflow&#39;s YAML file was deleted, a run it left suspended could not be cancelled locally: <code>cancel &lt;wf&gt;</code> and <code>cancel &lt;wf&gt; --run &lt;id&gt;</code> failed with <code>Workflow not found</code>, and <code>cancel --all</code> skipped the run without reporting it. Only <code>swamp serve</code> could cancel it.</p>
-<p>Cancel now finds the run in the run store:</p>
-<ul>
-<li><code>--run &lt;id&gt;</code> finds the run by its id alone and needs no workflow argument, as <code>--server</code> already allowed. A workflow given with it must be the run&#39;s own: its workflow id, the name the run recorded, or its definition&#39;s current name.</li>
-<li>A workflow alone picks its latest active run. A name or id that resolves no definition falls back to the active runs of deleted workflows that carry it. A name a newer workflow reuses means the newer one; the deleted workflow&#39;s runs stay reachable by run id.</li>
-<li><code>--all</code> also cancels the active runs of deleted workflows, reported under the name they recorded and listed after the runs of workflows that still have a definition.</li>
-</ul>
-<p>A run without a definition is settled against its own evaluated snapshot, or from its records alone, through the existing <code>cancelAndSettle</code> path and under the per-run claim.</p>
-<h4 class="body-h">How</h4>
-<ul>
-<li><code>resolveLocalCancelTarget</code> and <code>findAllActiveRuns</code> in <code>src/cli/commands/workflow_cancel.ts</code> replace the defi</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.190003.0-sha.cd2183ee" rel="noopener">release v20261005.190003.0-sha.cd2183ee</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cd2183ee" rel="noopener">cd2183ee</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2840" rel="noopener">#2840</a>𝗔 <a href="https://swamp-club.com/lab/2920" rel="noopener">lab#2920</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261005-184818-0-sha-bbccb637">
-<h2><span class="tier C">C</span>swamp 20261005.184818.0-sha.bbccb637</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-05T18:50:10Z">2026-10-05T18:50:10Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(datastore): serve handlers commit through root units of work (swamp-club#3034) (#2839)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Datastore rework Phase 2 (swamp-club#3034): serve commits through the unit of work, with <strong>no behaviour change</strong>. Marks, push count, push timing relative to the sync gate, replies and failure handling are unchanged.</p>
-<ul>
-<li><strong>Request handlers.</strong> The 13 handlers that pushed with <code>pushChangedToRemote(ctx)</code> in a <code>finally</code> run their work in <code>runInRootUnitOfWork</code>, whose flush is that push. They are data delete/rename/gc/prune, run gc, access token mint/revoke/rotate, worker token create/revoke, worker prune, and workflow approve/reject. <code>cancelLocatedRunAndPush</code> does the same.</li>
-<li>The root opens where the <code>try</code> began, inside the gate, so a refused request still pushes nothing.</li>
-<li>Approve still replies after the push. Approve and reject still release their reservation before it.</li>
-<li>Reject keeps the rejected run outside the root, so the parent still auto-resumes if the reply fails after the save.</li>
-<li><strong>Workflow runs.</strong> <code>executeWorkflowWithLocks</code> runs each run from the <code>workflow.run</code> handler, webhooks and the scheduler in a root. Its flush is the post-run push under the shared gate, on every outcome, including suspended and cancelled runs.</li>
-<li>Per-step model-lock pushes are unchanged.</li>
-<li><code>DispatchService</code> and <code>WorkerGateway</code> neither call it nor push, so they get no root. The issue text said they used it.</li>
-<li><strong>Hand marks.</strong> The device auth mint, grant publishing and</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.184818.0-sha.bbccb637" rel="noopener">release v20261005.184818.0-sha.bbccb637</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bbccb637" rel="noopener">bbccb637</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2839" rel="noopener">#2839</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3033" rel="noopener">#3033</a>𝗔 <a href="https://swamp-club.com/lab/3034" rel="noopener">lab#3034</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261005-183103-0-sha-d22f8674">
-<h2><span class="tier C">C</span>swamp 20261005.183103.0-sha.d22f8674</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-05T18:32:39Z">2026-10-05T18:32:39Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(expressions): data accessors return data written before a model rename (swamp-club#3029) (#2838)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3029, the CEL sibling of swamp-club#3011. <code>data.version</code>, <code>data.listVersions</code> and <code>data.findBySpec</code> matched data only by the <code>modelName</code> tag, which records the name at write time. After a model instance was renamed, they skipped everything written under the old name without any warning. <code>data.latest</code> had the same gap in the light context (expressions that read only <code>data.*</code>), whose coordinates map is empty.</p>
-<ul>
-<li><strong>Read by identity as well as name.</strong> For a name with no namespace prefix, each accessor keeps the name-tag read and also reads the definition&#39;s data by type and id, merged with <code>mergeModelData</code> as in #3011. <code>ns:</code> and <code>*:</code> reads are unchanged.</li>
-<li><strong>Full context:</strong> the identity comes from the coordinates map it already builds, with no extra lookup.</li>
-<li><strong>Light context:</strong> the primary definition is looked up by name (auto-definitions and control-plane types excluded, matching the full context&#39;s map). Lookups are cached on the <code>ModelResolver</code>, misses included, so every light context of a command or run shares them. A failed lookup warns and falls back to the tag read.</li>
-<li><strong><code>listVersions</code> stays synchronous.</strong> <code>CelEvaluator.evaluateAsync</code> first resolves the literal model names an expression passes to the data accessors, through the optional <code>DataNamespace.resolveModelNames</code>.</li>
-<li><strong>Docs:</strong> <code>design/enablers/expressions.md</code> (rename not</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.183103.0-sha.d22f8674" rel="noopener">release v20261005.183103.0-sha.d22f8674</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d22f8674" rel="noopener">d22f8674</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2838" rel="noopener">#2838</a>𝗔 <a href="https://swamp-club.com/lab/3029" rel="noopener">lab#3029</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261005-182035-0-sha-96186b70">
-<h2><span class="tier C">C</span>swamp 20261005.182035.0-sha.96186b70</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-05T18:22:41Z">2026-10-05T18:22:41Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(datastore): CLI write commands push through a root unit of work (swamp-club#3033) (#2837)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Datastore rework Phase 2 (swamp-club#3033): CLI write commands stop marking and pushing by hand. Each one runs its write section in a root unit of work (swamp-club#3032), whose flush is the push the command made before, at the same point. <strong>No behaviour change:</strong> the same marks, the same push count and order, lock release after the push, and the same failure behaviour.</p>
-<ul>
-<li><code>ModelLockResult</code> gains <code>push()</code> and <code>release()</code>. <code>flush()</code> stays push-then-release for callers that open no root: per-step workflow locks, and serve (swamp-club#3034).</li>
-<li><code>runCommandInRootUnit</code> (<code>src/cli/command_root_unit.ts</code>) opens the root, releases the locks after it ends, and sends push and release errors to the handler each command used before. <code>pushWhen: &quot;completed&quot;</code> keeps the success-only pushes (the managed-config commands, <code>worker prune</code>, <code>datastore config migrate</code>).</li>
-<li>25 command entry points migrated. Hand marks are now <code>root.stage({ kind: &quot;bulk&quot;, reason })</code>.</li>
-<li>The managed-config commands publish through <code>runManagedConfigMutation</code>, which is built from <code>stageManagedConfigChanges</code> and <code>publishManagedConfigChanges</code>.</li>
-</ul>
-<h4 class="body-h">Exceptions and deviations</h4>
-<ul>
-<li><strong>Mid-command pushes stay direct:</strong> <code>access token mint</code>, <code>worker token create</code> and <code>worker token revoke</code> push mid-command (mint and create then read the token back). A root cannot push mid-command, because a nested root with its o</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.182035.0-sha.96186b70" rel="noopener">release v20261005.182035.0-sha.96186b70</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/96186b70" rel="noopener">96186b70</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2837" rel="noopener">#2837</a>𝗔 <a href="https://swamp-club.com/lab/3033" rel="noopener">lab#3033</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261002-155715-0-sha-be148809">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261002-155715-0-sha-be148809">
 <h2><span class="tier C">C</span>say a cancelled suspended parent leaves its nested child suspended (swamp-club#2921) (#2793)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-02T15:58:57Z">2026-10-02T15:58:57Z</time></span><span>skill</span><span>docs</span></div>
@@ -2000,12 +2000,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>82 items across 1 source(s) in this window:
-0 critical, 68 notable, 5 routine,
-9 minor.</p>
-<ul><li><strong>fix</strong> — 51</li><li><strong>feat</strong> — 17</li><li><strong>changes</strong> — 6</li><li><strong>refactor</strong> — 5</li><li><strong>test</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
+0 critical, 74 notable, 5 routine,
+3 minor.</p>
+<ul><li><strong>fix</strong> — 55</li><li><strong>feat</strong> — 19</li><li><strong>refactor</strong> — 5</li><li><strong>test</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T20:10:48.117Z">2026-10-05T20:10:48.117Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T21:02:29.930Z">2026-10-05T21:02:29.930Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

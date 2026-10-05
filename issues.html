@@ -67,8 +67,16 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2988"><span class="tier A">A</span>Serve audit: emitter breaks the durable hash chain and drops</a><a href="#issue-2920"><span class="tier A">A</span>workflow cancel cannot cancel a suspended run whose workflow</a><a href="#issue-3034"><span class="tier A">A</span>Datastore rework Phase 2: serve handlers commit through the </a><a href="#issue-3029"><span class="tier A">A</span>CEL data.version, data.listVersions and data.findBySpec drop</a><a href="#issue-3033"><span class="tier A">A</span>Datastore rework Phase 2: CLI commands stop marking and push</a><a href="#issue-2898"><span class="tier A">A</span>A job alone in its level starts after the abort, and its uns</a><a href="#issue-2919"><span class="tier A">A</span>workflow approve racing workflow cancel loses the cancel: th</a><a href="#issue-3032"><span class="tier A">A</span>Datastore rework Phase 2: commit pushes through a root unit </a><a href="#issue-3015"><span class="tier A">A</span>extension push: --accept-warnings separate from --yes, and -</a><a href="#issue-2977"><span class="tier A">A</span>workflow approve/resume hint lines wrap + quote names, break</a><a href="#issue-3025"><span class="tier A">A</span>Datastore rework Phase 2: use cases open and commit the unit</a><a href="#issue-2613"><span class="tier A">A</span>extension push: workflows listed with a shared directory pre</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3019"><span class="tier A">A</span>extension push: credentials-sensitive-field has no word boun</a><a href="#issue-2988"><span class="tier A">A</span>Serve audit: emitter breaks the durable hash chain and drops</a><a href="#issue-2920"><span class="tier A">A</span>workflow cancel cannot cancel a suspended run whose workflow</a><a href="#issue-3034"><span class="tier A">A</span>Datastore rework Phase 2: serve handlers commit through the </a><a href="#issue-3029"><span class="tier A">A</span>CEL data.version, data.listVersions and data.findBySpec drop</a><a href="#issue-3033"><span class="tier A">A</span>Datastore rework Phase 2: CLI commands stop marking and push</a><a href="#issue-2898"><span class="tier A">A</span>A job alone in its level starts after the abort, and its uns</a><a href="#issue-2919"><span class="tier A">A</span>workflow approve racing workflow cancel loses the cancel: th</a><a href="#issue-3032"><span class="tier A">A</span>Datastore rework Phase 2: commit pushes through a root unit </a><a href="#issue-3015"><span class="tier A">A</span>extension push: --accept-warnings separate from --yes, and -</a><a href="#issue-2977"><span class="tier A">A</span>workflow approve/resume hint lines wrap + quote names, break</a><a href="#issue-3025"><span class="tier A">A</span>Datastore rework Phase 2: use cases open and commit the unit</a></aside><div>
 
+<article class="item" id="issue-3019">
+<h2><span class="tier A">A</span>extension push: credentials-sensitive-field has no word boundaries and flags secretName, TokenReference, credential_id (fourth fix to the rule)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-05T20:26:23.244Z">2026-10-05T20:26:23.244Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3019" rel="noopener">lab#3019</a></div>
+</article>
 <article class="item" id="issue-2988">
 <h2><span class="tier A">A</span>Serve audit: emitter breaks the durable hash chain and drops WAL events when a non-durable sink fails or lags</h2>
 <p class="lede">Shipped bug fix</p>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3025" rel="noopener">lab#3025</a></div>
 </article>
-<article class="item" id="issue-2613">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2613">
 <h2><span class="tier A">A</span>extension push: workflows listed with a shared directory prefix collapse into one workflows.yaml; all but the last are silently dropped</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-05T15:39:13.098Z">2026-10-05T15:39:13.098Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2613" rel="noopener">lab#2613</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3005">
+<article class="item" id="issue-3005">
 <h2><span class="tier A">A</span>dashboard: approved autoResume run shows Resume and needs-inputs hint while serve already resumed it (status running)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-05T15:28:29.607Z">2026-10-05T15:28:29.607Z</time></span></div>
@@ -1216,10 +1224,26 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-2518">
 <h2><span class="tier B">B</span>serve: a suspended run with an expired gate from a previous serve instance cannot be cancelled by any path</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T20:08:26.357Z">2026-10-05T20:08:26.357Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T20:57:28.691Z">2026-10-05T20:57:28.691Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2518" rel="noopener">lab#2518</a></div>
+</article>
+<article class="item" id="issue-2482">
+<h2><span class="tier B">B</span>server tokens: concurrent mints of the same name can pair one mint&#39;s record with the other&#39;s secret, so a credential authenticates as the wrong principal</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-05T20:39:36.589Z">2026-10-05T20:39:36.589Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2482" rel="noopener">lab#2482</a></div>
+</article>
+<article class="item" id="issue-3007">
+<h2><span class="tier B">B</span>macOS autoupdate LaunchAgent fails with EX_CONFIG after self-update; doctor install still reports HEALTHY</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-05T20:30:13.369Z">2026-10-05T20:30:13.369Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3007" rel="noopener">lab#3007</a></div>
 </article>
 <article class="item" id="issue-3030">
 <h2><span class="tier B">B</span>digitalocean codegen: app-platform and database spec secret fields are not marked sensitive</h2>
@@ -1229,14 +1253,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3030" rel="noopener">lab#3030</a></div>
 </article>
-<article class="item" id="issue-3007">
-<h2><span class="tier B">B</span>macOS autoupdate LaunchAgent fails with EX_CONFIG after self-update; doctor install still reports HEALTHY</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T19:59:11.719Z">2026-10-05T19:59:11.719Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3007" rel="noopener">lab#3007</a></div>
-</article>
 <article class="item" id="issue-3035">
 <h2><span class="tier B">B</span>Datastore rework Phase 2: remaining serve direct pushes commit through root units (no behaviour change)</h2>
 <p class="lede">Issue in_progress</p>
@@ -1244,22 +1260,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3035" rel="noopener">lab#3035</a></div>
-</article>
-<article class="item" id="issue-2482">
-<h2><span class="tier B">B</span>server tokens: concurrent mints of the same name can pair one mint&#39;s record with the other&#39;s secret, so a credential authenticates as the wrong principal</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T19:55:21.966Z">2026-10-05T19:55:21.966Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2482" rel="noopener">lab#2482</a></div>
-</article>
-<article class="item" id="issue-3019">
-<h2><span class="tier B">B</span>extension push: credentials-sensitive-field has no word boundaries and flags secretName, TokenReference, credential_id (fourth fix to the rule)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T19:46:29.075Z">2026-10-05T19:46:29.075Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3019" rel="noopener">lab#3019</a></div>
 </article>
 <article class="item" id="issue-3042">
 <h2><span class="tier B">B</span>swamp-extensions publish.yml: pass --accept-warnings alongside --yes now that --yes no longer waives warnings</h2>
@@ -1301,7 +1301,15 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3045">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3046">
+<h2><span class="tier C">C</span>serve: run scheduled workflows concurrently (per-workflow serialization), and report queue delay</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T20:10:08.054Z">2026-10-05T20:10:08.054Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3046" rel="noopener">lab#3046</a></div>
+</article>
+<article class="item" id="issue-3045">
 <h2><span class="tier C">C</span>Show expired approval gates as expired, with a Cancel action in the dashboard</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-05T19:55:03.430Z">2026-10-05T19:55:03.430Z</time></span></div>
@@ -1982,13 +1990,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>239 items across 1 source(s) in this window:
-0 critical, 143 notable, 11 routine,
-85 minor.</p>
-<ul><li><strong>issues</strong> — 239</li></ul></section>
+<p>240 items across 1 source(s) in this window:
+0 critical, 144 notable, 10 routine,
+86 minor.</p>
+<ul><li><strong>issues</strong> — 240</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T20:10:48.117Z">2026-10-05T20:10:48.117Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T21:02:29.930Z">2026-10-05T21:02:29.930Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

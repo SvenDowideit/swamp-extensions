@@ -67,8 +67,72 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3003"><span class="tier A">A</span>vault migrate: report missing required --config fields clear</a><a href="#issue-2994"><span class="tier A">A</span>Unit tests share fixed /tmp catalog paths, so concurrent run</a><a href="#issue-3006"><span class="tier A">A</span>vault read-secret: to a pipe or file, drops the last line of</a><a href="#issue-3002"><span class="tier A">A</span>CLI tells signed-in callers to sign in when the registry rat</a><a href="#issue-2996"><span class="tier A">A</span>Datastore rework Phase 1 close-out: lock repository marks at</a><a href="#issue-2997"><span class="tier A">A</span>Installer and README present required Swamp Club login as op</a><a href="#issue-2968"><span class="tier A">A</span>data query: renamed data items are not found by their old na</a><a href="#issue-2960"><span class="tier A">A</span>data query: model lookup by id and orphan recovery parity wi</a><a href="#issue-2995"><span class="tier A">A</span>Datastore rework Phase 1 move C2: the vault config repositor</a><a href="#issue-2846"><span class="tier A">A</span>Model add-ons that extend a built-in model type never attach</a><a href="#issue-2843"><span class="tier A">A</span>deployments: sync fails after adopt/get because stored state</a><a href="#issue-2899"><span class="tier A">A</span>workflow approve on a run that is not suspended prints a fat</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3015"><span class="tier A">A</span>extension push: --accept-warnings separate from --yes, and -</a><a href="#issue-2977"><span class="tier A">A</span>workflow approve/resume hint lines wrap + quote names, break</a><a href="#issue-3025"><span class="tier A">A</span>Datastore rework Phase 2: use cases open and commit the unit</a><a href="#issue-2613"><span class="tier A">A</span>extension push: workflows listed with a shared directory pre</a><a href="#issue-3005"><span class="tier A">A</span>dashboard: approved autoResume run shows Resume and needs-in</a><a href="#issue-3008"><span class="tier A">A</span>repo upgrade does not remove superseded skills from the repo</a><a href="#issue-3011"><span class="tier A">A</span>readModelData silently drops data written before a model ins</a><a href="#issue-2972"><span class="tier A">A</span>data query: does not follow data rename forwarding that data</a><a href="#issue-3003"><span class="tier A">A</span>vault migrate: report missing required --config fields clear</a><a href="#issue-2994"><span class="tier A">A</span>Unit tests share fixed /tmp catalog paths, so concurrent run</a><a href="#issue-3006"><span class="tier A">A</span>vault read-secret: to a pipe or file, drops the last line of</a><a href="#issue-3002"><span class="tier A">A</span>CLI tells signed-in callers to sign in when the registry rat</a></aside><div>
 
+<article class="item" id="issue-3015">
+<h2><span class="tier A">A</span>extension push: --accept-warnings separate from --yes, and --json exits non-zero instead of skipping the warnings prompt</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-05T15:54:57.602Z">2026-10-05T15:54:57.602Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3015" rel="noopener">lab#3015</a></div>
+</article>
+<article class="item" id="issue-2977">
+<h2><span class="tier A">A</span>workflow approve/resume hint lines wrap + quote names, breaking copy-paste</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-05T15:48:20.026Z">2026-10-05T15:48:20.026Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2977" rel="noopener">lab#2977</a></div>
+</article>
+<article class="item" id="issue-3025">
+<h2><span class="tier A">A</span>Datastore rework Phase 2: use cases open and commit the unit of work (no behaviour change)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-05T15:40:59.399Z">2026-10-05T15:40:59.399Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3025" rel="noopener">lab#3025</a></div>
+</article>
+<article class="item" id="issue-2613">
+<h2><span class="tier A">A</span>extension push: workflows listed with a shared directory prefix collapse into one workflows.yaml; all but the last are silently dropped</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-05T15:39:13.098Z">2026-10-05T15:39:13.098Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2613" rel="noopener">lab#2613</a></div>
+</article>
+<article class="item" id="issue-3005">
+<h2><span class="tier A">A</span>dashboard: approved autoResume run shows Resume and needs-inputs hint while serve already resumed it (status running)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-05T15:28:29.607Z">2026-10-05T15:28:29.607Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3005" rel="noopener">lab#3005</a></div>
+</article>
+<article class="item" id="issue-3008">
+<h2><span class="tier A">A</span>repo upgrade does not remove superseded skills from the repo-local skills dir, so its own warning never clears</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-05T15:26:59.872Z">2026-10-05T15:26:59.872Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3008" rel="noopener">lab#3008</a></div>
+</article>
+<article class="item" id="issue-3011">
+<h2><span class="tier A">A</span>readModelData silently drops data written before a model instance rename</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-05T15:22:07.609Z">2026-10-05T15:22:07.609Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3011" rel="noopener">lab#3011</a></div>
+</article>
+<article class="item" id="issue-2972">
+<h2><span class="tier A">A</span>data query: does not follow data rename forwarding that data get follows</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-05T15:04:51.665Z">2026-10-05T15:04:51.665Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2972" rel="noopener">lab#2972</a></div>
+</article>
 <article class="item" id="issue-3003">
 <h2><span class="tier A">A</span>vault migrate: report missing required --config fields clearly, before installing the target type</h2>
 <p class="lede">Shipped feature</p>
@@ -101,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3002" rel="noopener">lab#3002</a></div>
 </article>
-<article class="item" id="issue-2996">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2996">
 <h2><span class="tier A">A</span>Datastore rework Phase 1 close-out: lock repository marks at zero, remove dead helpers, document the end state (no behaviour change)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-03T01:02:20.565Z">2026-10-03T01:02:20.565Z</time></span></div>
@@ -165,7 +229,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2899" rel="noopener">lab#2899</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2957">
+<article class="item" id="issue-2957">
 <h2><span class="tier A">A</span>data query: no way to target a workflow&#39;s latest run</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-02T21:55:37.386Z">2026-10-02T21:55:37.386Z</time></span></div>
@@ -1085,61 +1149,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3015">
-<h2><span class="tier B">B</span>extension push: --accept-warnings separate from --yes, and --json exits non-zero instead of skipping the warnings prompt</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T15:01:33.920Z">2026-10-05T15:01:33.920Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3015" rel="noopener">lab#3015</a></div>
-</article>
-<article class="item" id="issue-2613">
-<h2><span class="tier B">B</span>extension push: workflows listed with a shared directory prefix collapse into one workflows.yaml; all but the last are silently dropped</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T15:01:06.464Z">2026-10-05T15:01:06.464Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2613" rel="noopener">lab#2613</a></div>
-</article>
-<article class="item" id="issue-2977">
-<h2><span class="tier B">B</span>workflow approve/resume hint lines wrap + quote names, breaking copy-paste</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T15:00:36.023Z">2026-10-05T15:00:36.023Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2977" rel="noopener">lab#2977</a></div>
-</article>
-<article class="item" id="issue-3025">
-<h2><span class="tier B">B</span>Datastore rework Phase 2: use cases open and commit the unit of work (no behaviour change)</h2>
+<article class="item" id="issue-2920">
+<h2><span class="tier B">B</span>workflow cancel cannot cancel a suspended run whose workflow file was deleted, and cancel --all silently skips it</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-05T14:59:09.608Z">2026-10-05T14:59:09.608Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T16:00:17.904Z">2026-10-05T16:00:17.904Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3025" rel="noopener">lab#3025</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2920" rel="noopener">lab#2920</a></div>
 </article>
-<article class="item" id="issue-3008">
-<h2><span class="tier B">B</span>repo upgrade does not remove superseded skills from the repo-local skills dir, so its own warning never clears</h2>
+<article class="item" id="issue-3032">
+<h2><span class="tier B">B</span>Datastore rework Phase 2: commit pushes through a root unit of work per command or request (no behaviour change)</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-05T14:58:30.252Z">2026-10-05T14:58:30.252Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T15:59:46.745Z">2026-10-05T15:59:46.745Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3008" rel="noopener">lab#3008</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3032" rel="noopener">lab#3032</a></div>
 </article>
-<article class="item" id="issue-3011">
-<h2><span class="tier B">B</span>readModelData silently drops data written before a model instance rename</h2>
+<article class="item" id="issue-2919">
+<h2><span class="tier B">B</span>workflow approve racing workflow cancel loses the cancel: the run returns to suspended after cancel reported cancelled</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-05T14:58:20.559Z">2026-10-05T14:58:20.559Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T15:58:21.104Z">2026-10-05T15:58:21.104Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3011" rel="noopener">lab#3011</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2919" rel="noopener">lab#2919</a></div>
 </article>
-<article class="item" id="issue-3005">
-<h2><span class="tier B">B</span>dashboard: approved autoResume run shows Resume and needs-inputs hint while serve already resumed it (status running)</h2>
+<article class="item" id="issue-3019">
+<h2><span class="tier B">B</span>extension push: credentials-sensitive-field has no word boundaries and flags secretName, TokenReference, credential_id (fourth fix to the rule)</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-05T14:46:53.389Z">2026-10-05T14:46:53.389Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T15:39:38.747Z">2026-10-05T15:39:38.747Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3005" rel="noopener">lab#3005</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3019" rel="noopener">lab#3019</a></div>
 </article>
 <article class="item" id="issue-3024">
 <h2><span class="tier B">B</span>data query by a renamed item&#39;s old name now returns the renamed row, failing the datastore rename UAT</h2>
@@ -1165,7 +1205,63 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3023">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3033">
+<h2><span class="tier C">C</span>Datastore rework Phase 2: CLI commands stop marking and pushing directly (no behaviour change)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T15:48:19.075Z">2026-10-05T15:48:19.075Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3033" rel="noopener">lab#3033</a></div>
+</article>
+<article class="item" id="issue-3034">
+<h2><span class="tier C">C</span>Datastore rework Phase 2: serve handlers commit through the unit of work (no behaviour change)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T15:48:08.482Z">2026-10-05T15:48:08.482Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3034" rel="noopener">lab#3034</a></div>
+</article>
+<article class="item" id="issue-3031">
+<h2><span class="tier C">C</span>extension push: --extensions-dir is ignored for bundled workflows</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T15:38:44.279Z">2026-10-05T15:38:44.279Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3031" rel="noopener">lab#3031</a></div>
+</article>
+<article class="item" id="issue-3030">
+<h2><span class="tier C">C</span>digitalocean codegen: app-platform and database spec secret fields are not marked sensitive</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T15:33:18.770Z">2026-10-05T15:33:18.770Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3030" rel="noopener">lab#3030</a></div>
+</article>
+<article class="item" id="issue-3029">
+<h2><span class="tier C">C</span>CEL data.version, data.listVersions and data.findBySpec drop data written before a model instance rename</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T15:23:24.834Z">2026-10-05T15:23:24.834Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3029" rel="noopener">lab#3029</a></div>
+</article>
+<article class="item" id="issue-3028">
+<h2><span class="tier C">C</span>Docs: manual approval pages show old quoted approve/approvals hints</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T15:17:16.177Z">2026-10-05T15:17:16.177Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3028" rel="noopener">lab#3028</a></div>
+</article>
+<article class="item" id="issue-3026">
+<h2><span class="tier C">C</span>Docs: extension push --accept-warnings is separate from --yes (manual pages)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T15:10:59.118Z">2026-10-05T15:10:59.118Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3026" rel="noopener">lab#3026</a></div>
+</article>
+<article class="item" id="issue-3023">
 <h2><span class="tier C">C</span>extension push: adversarial-review report defaults to the repo (.swamp/reviews) and verdicts carry forward on an unchanged normalized hash</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-05T14:34:59.177Z">2026-10-05T14:34:59.177Z</time></span></div>
@@ -1204,14 +1300,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3018" rel="noopener">lab#3018</a></div>
-</article>
-<article class="item" id="issue-3019">
-<h2><span class="tier C">C</span>extension push: credentials-sensitive-field has no word boundaries and flags secretName, TokenReference, credential_id (fourth fix to the rule)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-05T14:28:47.691Z">2026-10-05T14:28:47.691Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3019" rel="noopener">lab#3019</a></div>
 </article>
 <article class="item" id="issue-3017">
 <h2><span class="tier C">C</span>extension push output: double-quoted adjacent interpolations, repo-relative paths, and --json emits three JSON documents</h2>
@@ -1429,14 +1517,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2973" rel="noopener">lab#2973</a></div>
 </article>
-<article class="item" id="issue-2972">
-<h2><span class="tier C">C</span>data query: does not follow data rename forwarding that data get follows</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-02T17:41:06.002Z">2026-10-02T17:41:06.002Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2972" rel="noopener">lab#2972</a></div>
-</article>
 <article class="item" id="issue-2864">
 <h2><span class="tier C">C</span>CI: run swamp-uat&#39;s datastore suite against the PR binary for PRs touching datastore code</h2>
 <p class="lede">Open issue</p>
@@ -1580,22 +1660,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2922" rel="noopener">lab#2922</a></div>
-</article>
-<article class="item" id="issue-2920">
-<h2><span class="tier C">C</span>workflow cancel cannot cancel a suspended run whose workflow file was deleted, and cancel --all silently skips it</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T19:55:30.508Z">2026-10-01T19:55:30.508Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2920" rel="noopener">lab#2920</a></div>
-</article>
-<article class="item" id="issue-2919">
-<h2><span class="tier C">C</span>workflow approve racing workflow cancel loses the cancel: the run returns to suspended after cancel reported cancelled</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T19:55:27.937Z">2026-10-01T19:55:27.937Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2919" rel="noopener">lab#2919</a></div>
 </article>
 <article class="item" id="issue-2917">
 <h2><span class="tier C">C</span>Run tracker keeps some interrupted workflow rows forever: retention waits for markSettled, which several paths never call</h2>
@@ -1814,13 +1878,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2800" rel="noopener">lab#2800</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>218 items across 1 source(s) in this window:
-0 critical, 127 notable, 10 routine,
-81 minor.</p>
-<ul><li><strong>issues</strong> — 218</li></ul></section>
+<p>226 items across 1 source(s) in this window:
+0 critical, 135 notable, 7 routine,
+84 minor.</p>
+<ul><li><strong>issues</strong> — 226</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T15:02:26.811Z">2026-10-05T15:02:26.811Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T16:02:08.783Z">2026-10-05T16:02:08.783Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

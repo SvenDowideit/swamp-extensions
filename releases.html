@@ -67,8 +67,73 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261003-192630-0-sha-bed0772a"><span class="tier A">A</span>scope-aware 429 messages and bounded retry on swamp-club rea</a><a href="#release-swamp-club-swamp-v20261003-133728-0-sha-bed0772a"><span class="tier A">A</span>scope-aware 429 messages and bounded retry on swamp-club rea</a><a href="#release-swamp-club-swamp-v20261003-005026-0-sha-230720ec"><span class="tier A">A</span>say a swamp-club account is required before repo init (swamp</a><a href="#release-swamp-club-swamp-v20261003-001011-0-sha-85653e52"><span class="tier A">A</span>resolve models and follow renames in data query like data ge</a><a href="#release-swamp-club-swamp-v20261002-234111-0-sha-b4084916"><span class="tier A">A</span>attach model add-ons that extend built-in types (swamp-club#</a><a href="#release-swamp-club-swamp-v20261002-215523-0-sha-20807368"><span class="tier A">A</span>show approve and reject refusals as one-line errors with the</a><a href="#release-swamp-club-swamp-v20261002-215138-0-sha-e9bf8f35"><span class="tier A">A</span>select a workflow&#39;s latest run in data query with latestRun(</a><a href="#release-swamp-club-swamp-v20261002-213616-0-sha-a6cfbcaa"><span class="tier A">A</span>query garbageCollection and hint spec names in data query (s</a><a href="#release-swamp-club-swamp-v20261002-211143-0-sha-c0597135"><span class="tier A">A</span>return binary content from data query and reject binary cont</a><a href="#release-swamp-club-swamp-v20261002-201620-0-sha-16ff3cbf"><span class="tier A">A</span>expose the forEach iteration index as self._index (swamp-clu</a><a href="#release-swamp-club-swamp-v20261002-200419-0-sha-cd9a51ab"><span class="tier A">A</span>make a nested swamp skip only the locks held for the run tha</a><a href="#release-swamp-club-swamp-v20261002-193129-0-sha-0d97e68d"><span class="tier A">A</span>download lazily-synced bodies in data query so it matches da</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261005-144604-0-sha-bf3c1a45"><span class="tier A">A</span>name missing required --config fields and ask for them befor</a><a href="#release-swamp-club-swamp-v20261005-141614-0-sha-4f843533"><span class="tier A">A</span>rebuild a catalog whose table is stale, and stop tests shari</a><a href="#release-swamp-club-swamp-v20261005-140118-0-sha-e7a55150"><span class="tier A">A</span>write the whole secret to piped read-secret output (swamp-cl</a><a href="#release-swamp-club-swamp-v20261003-192630-0-sha-bed0772a"><span class="tier A">A</span>scope-aware 429 messages and bounded retry on swamp-club rea</a><a href="#release-swamp-club-swamp-v20261003-133728-0-sha-bed0772a"><span class="tier A">A</span>scope-aware 429 messages and bounded retry on swamp-club rea</a><a href="#release-swamp-club-swamp-v20261003-005026-0-sha-230720ec"><span class="tier A">A</span>say a swamp-club account is required before repo init (swamp</a><a href="#release-swamp-club-swamp-v20261003-001011-0-sha-85653e52"><span class="tier A">A</span>resolve models and follow renames in data query like data ge</a><a href="#release-swamp-club-swamp-v20261002-234111-0-sha-b4084916"><span class="tier A">A</span>attach model add-ons that extend built-in types (swamp-club#</a><a href="#release-swamp-club-swamp-v20261002-215523-0-sha-20807368"><span class="tier A">A</span>show approve and reject refusals as one-line errors with the</a><a href="#release-swamp-club-swamp-v20261002-215138-0-sha-e9bf8f35"><span class="tier A">A</span>select a workflow&#39;s latest run in data query with latestRun(</a><a href="#release-swamp-club-swamp-v20261002-213616-0-sha-a6cfbcaa"><span class="tier A">A</span>query garbageCollection and hint spec names in data query (s</a><a href="#release-swamp-club-swamp-v20261002-211143-0-sha-c0597135"><span class="tier A">A</span>return binary content from data query and reject binary cont</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261005-144604-0-sha-bf3c1a45">
+<h2><span class="tier A">A</span>name missing required --config fields and ask for them before installing the target type (swamp-club#3003) (#2825)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-05T14:47:48Z">2026-10-05T14:47:48Z</time></span><span>vault</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(vault): name missing required --config fields and ask for them before installing the target type (swamp-club#3003) (#2825)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3003.</p>
+<p><code>swamp vault migrate &lt;vault&gt; --to-type &lt;type&gt;</code> and <code>swamp vault create &lt;type&gt; &lt;name&gt;</code> failed with a raw Zod issue dump when the target type&#39;s config was incomplete, and only after auto-resolving and installing the type&#39;s extension. Nothing in that path mentioned <code>--config</code> or the field&#39;s name.</p>
+<ul>
+<li><strong>Clear messages.</strong> A new domain module, <code>vault_config_fields.ts</code>, turns a schema failure into a short message: each missing required field by name with its description, each wrong-typed field with the expected type, each unknown key with the accepted fields, and a copy-ready, shell-quoted re-run command that keeps whatever config the user already passed. Author-written names and descriptions are stripped of control and escape characters first. Vault edit and the provider factory reuse the formatter; the <code>Invalid config for vault type</code> prefix is kept.</li>
+<li><strong>Prompting before install.</strong> In a terminal (log output, no <code>--yes</code>, no <code>--server</code>) both commands ask for each missing required string field instead of failing. Before the extension is installed, the field list comes from the registry&#39;s published metadata via a new read-only <code>describeTypeInRegistry</code> query on the auto resolver, backed by an optional <code>getLatestVersionDetail</code> on the lookup port, memoized per command. That list only drives the prompt; the</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.144604.0-sha.bf3c1a45" rel="noopener">release v20261005.144604.0-sha.bf3c1a45</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bf3c1a45221056bc2ab3ad55ff00cacfce4369d8" rel="noopener">bf3c1a45</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2825" rel="noopener">#2825</a>𝗔 <a href="https://swamp-club.com/lab/3003" rel="noopener">lab#3003</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261005-141614-0-sha-4f843533">
+<h2><span class="tier A">A</span>rebuild a catalog whose table is stale, and stop tests sharing fixed catalog paths (swamp-club#2994) (#2824)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-05T14:17:48Z">2026-10-05T14:17:48Z</time></span><span>data</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(data): rebuild a catalog whose table is stale, and stop tests sharing fixed catalog paths (swamp-club#2994) (#2824)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2994. Two defects; the first exposed the second.</p>
+<p><strong>Tests shared catalog files across the whole host</strong></p>
+<ul>
+<li>Ten tests opened a real SQLite catalog at a fixed path (<code>/tmp/test-repo/_catalog.db</code>, <code>/tmp/nonexistent-repo/_catalog.db</code>, <code>/tmp/_catalog.db</code>). Every test run on the machine used the same files, including parallel <code>verify-build</code> runs from worktrees on different commits.</li>
+<li>The nine tests in <code>unified_data_repository_test.ts</code> now run through a <code>withTempRepo</code> helper that makes a temp dir, opens the catalog in it, and closes the store and removes the dir afterwards. The one in <code>execution_service_test.ts</code> uses that file&#39;s existing <code>withTempDir</code>.</li>
+<li>A new fitness test, <code>integration/test_temp_paths_rules_test.ts</code>, fails when a test builds a <code>CatalogStore</code>, <code>ExtensionCatalogStore</code> or <code>DatabaseSync</code> from an absolute literal path. It scans across line breaks and checks its own pattern against sample inputs.</li>
+</ul>
+<p><strong>The catalog trusted its version stamp and never looked at the table</strong></p>
+<ul>
+<li><code>migrateIfNeeded</code> compared only <code>catalog_meta.schema_version</code>, outside any transaction. Two processes on different schema versions racing on one file could leave the current version recorded over an older table. Every later open then skipped the migration and failed in <code>createSchema</code> with <code>no such column: is_step_latest</code>, until someone de</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.141614.0-sha.4f843533" rel="noopener">release v20261005.141614.0-sha.4f843533</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4f843533d61bfe0bd722f8eb78a96533748621d6" rel="noopener">4f843533</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2824" rel="noopener">#2824</a>𝗔 <a href="https://swamp-club.com/lab/2994" rel="noopener">lab#2994</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261005-140118-0-sha-e7a55150">
+<h2><span class="tier A">A</span>write the whole secret to piped read-secret output (swamp-club#3006) (#2823)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-05T14:03:03Z">2026-10-05T14:03:03Z</time></span><span>vault</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(vault): write the whole secret to piped read-secret output (swamp-club#3006) (#2823)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li><code>swamp vault read-secret</code> with stdout on a pipe or file dropped the last line of a multi-line value when that line was 1024+ chars with no trailing newline, with exit 0 and nothing on stderr. A script building a kubeconfig from the piped output got a truncated file and no error.</li>
+<li>The non-terminal branch of the renderer called <code>Deno.stdout.writeSync</code> once and ignored the returned byte count. Deno&#39;s line-buffered stdout writer emits complete lines and returns a short count when the trailing partial line does not fit its 1024-byte buffer.</li>
+<li>The renderer now loops over <code>writeSync</code> on the remaining bytes until the whole value is written, and raises a <code>UserError</code> on a zero-byte write so a stdout that accepts nothing more exits non-zero instead of leaving a truncated file behind. Terminal and <code>--json</code> output are unchanged.</li>
+<li>Regression from #2211 (v20260822.000628.0), which switched the piped path from <code>console.log</code> to a single <code>writeSync</code>.</li>
+</ul>
+<p>Fixes swamp-club#3006. Reported by @randybias, added as co-author.</p>
+<h4 class="body-h">Test plan</h4>
+<ul>
+<li>[x] Renderer unit tests: a short write at the last newline with a 1024-char last line is completed in a second call, byte-exact; a mock that cuts every call into one to three bytes still yields the full value in order; a zero-byte write throws <code>UserError</code>. The existing single-call test still passes.</li>
+<li>[x] Reproduction against the compiled</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.140118.0-sha.e7a55150" rel="noopener">release v20261005.140118.0-sha.e7a55150</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e7a5515000bdff6702f98ee6b7aef79d085944de" rel="noopener">e7a55150</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2823" rel="noopener">#2823</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2211" rel="noopener">#2211</a>𝗔 <a href="https://swamp-club.com/lab/3006" rel="noopener">lab#3006</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261003-192630-0-sha-bed0772a">
 <h2><span class="tier A">A</span>scope-aware 429 messages and bounded retry on swamp-club reads (swamp-club#3002) (#2822)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -308,7 +373,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.211143.0-sha.c0597135" rel="noopener">release v20261002.211143.0-sha.c0597135</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c059713518f948ba2abbcd485f5040b1e8278e67" rel="noopener">c0597135</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2814" rel="noopener">#2814</a>𝗔 <a href="https://swamp-club.com/lab/2959" rel="noopener">lab#2959</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261002-201620-0-sha-16ff3cbf">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261002-201620-0-sha-16ff3cbf">
 <h2><span class="tier A">A</span>expose the forEach iteration index as self._index (swamp-club#2348) (#2810)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-02T20:17:55Z">2026-10-02T20:17:55Z</time></span><span>workflows</span><span>feat</span></div>
@@ -382,7 +447,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.193129.0-sha.0d97e68d" rel="noopener">release v20261002.193129.0-sha.0d97e68d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0d97e68d7a9b8a7e70980958623826621699b7ea" rel="noopener">0d97e68d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2807" rel="noopener">#2807</a>𝗔 <a href="https://swamp-club.com/lab/2962" rel="noopener">lab#2962</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261002-191718-0-sha-e75349e4">
+<article class="item" id="release-swamp-club-swamp-v20261002-191718-0-sha-e75349e4">
 <h2><span class="tier A">A</span>add --single to data query for one-object --json output (swamp-club#2961) (#2801)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-02T19:18:57Z">2026-10-02T19:18:57Z</time></span><span>data</span><span>feat</span></div>
@@ -1513,72 +1578,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.194016.0-sha.c0c751a1" rel="noopener">release v20261002.194016.0-sha.c0c751a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0c751a17fa31d512cb5ee65da19e47284547cd0" rel="noopener">c0c751a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2808" rel="noopener">#2808</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/2979" rel="noopener">lab#2979</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261005-144604-0-sha-bf3c1a45">
-<h2><span class="tier C">C</span>swamp 20261005.144604.0-sha.bf3c1a45</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-05T14:47:48Z">2026-10-05T14:47:48Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(vault): name missing required --config fields and ask for them before installing the target type (swamp-club#3003) (#2825)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3003.</p>
-<p><code>swamp vault migrate &lt;vault&gt; --to-type &lt;type&gt;</code> and <code>swamp vault create &lt;type&gt; &lt;name&gt;</code> failed with a raw Zod issue dump when the target type&#39;s config was incomplete, and only after auto-resolving and installing the type&#39;s extension. Nothing in that path mentioned <code>--config</code> or the field&#39;s name.</p>
-<ul>
-<li><strong>Clear messages.</strong> A new domain module, <code>vault_config_fields.ts</code>, turns a schema failure into a short message: each missing required field by name with its description, each wrong-typed field with the expected type, each unknown key with the accepted fields, and a copy-ready, shell-quoted re-run command that keeps whatever config the user already passed. Author-written names and descriptions are stripped of control and escape characters first. Vault edit and the provider factory reuse the formatter; the <code>Invalid config for vault type</code> prefix is kept.</li>
-<li><strong>Prompting before install.</strong> In a terminal (log output, no <code>--yes</code>, no <code>--server</code>) both commands ask for each missing required string field instead of failing. Before the extension is installed, the field list comes from the registry&#39;s published metadata via a new read-only <code>describeTypeInRegistry</code> query on the auto resolver, backed by an optional <code>getLatestVersionDetail</code> on the lookup port, memoized per command. That list only drives the prompt; the</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.144604.0-sha.bf3c1a45" rel="noopener">release v20261005.144604.0-sha.bf3c1a45</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bf3c1a45" rel="noopener">bf3c1a45</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2825" rel="noopener">#2825</a>𝗔 <a href="https://swamp-club.com/lab/3003" rel="noopener">lab#3003</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261005-141614-0-sha-4f843533">
-<h2><span class="tier C">C</span>swamp 20261005.141614.0-sha.4f843533</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-05T14:17:48Z">2026-10-05T14:17:48Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(data): rebuild a catalog whose table is stale, and stop tests sharing fixed catalog paths (swamp-club#2994) (#2824)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2994. Two defects; the first exposed the second.</p>
-<p><strong>Tests shared catalog files across the whole host</strong></p>
-<ul>
-<li>Ten tests opened a real SQLite catalog at a fixed path (<code>/tmp/test-repo/_catalog.db</code>, <code>/tmp/nonexistent-repo/_catalog.db</code>, <code>/tmp/_catalog.db</code>). Every test run on the machine used the same files, including parallel <code>verify-build</code> runs from worktrees on different commits.</li>
-<li>The nine tests in <code>unified_data_repository_test.ts</code> now run through a <code>withTempRepo</code> helper that makes a temp dir, opens the catalog in it, and closes the store and removes the dir afterwards. The one in <code>execution_service_test.ts</code> uses that file&#39;s existing <code>withTempDir</code>.</li>
-<li>A new fitness test, <code>integration/test_temp_paths_rules_test.ts</code>, fails when a test builds a <code>CatalogStore</code>, <code>ExtensionCatalogStore</code> or <code>DatabaseSync</code> from an absolute literal path. It scans across line breaks and checks its own pattern against sample inputs.</li>
-</ul>
-<p><strong>The catalog trusted its version stamp and never looked at the table</strong></p>
-<ul>
-<li><code>migrateIfNeeded</code> compared only <code>catalog_meta.schema_version</code>, outside any transaction. Two processes on different schema versions racing on one file could leave the current version recorded over an older table. Every later open then skipped the migration and failed in <code>createSchema</code> with <code>no such column: is_step_latest</code>, until someone de</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.141614.0-sha.4f843533" rel="noopener">release v20261005.141614.0-sha.4f843533</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4f843533" rel="noopener">4f843533</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2824" rel="noopener">#2824</a>𝗔 <a href="https://swamp-club.com/lab/2994" rel="noopener">lab#2994</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261005-140118-0-sha-e7a55150">
-<h2><span class="tier C">C</span>swamp 20261005.140118.0-sha.e7a55150</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-05T14:03:03Z">2026-10-05T14:03:03Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(vault): write the whole secret to piped read-secret output (swamp-club#3006) (#2823)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<ul>
-<li><code>swamp vault read-secret</code> with stdout on a pipe or file dropped the last line of a multi-line value when that line was 1024+ chars with no trailing newline, with exit 0 and nothing on stderr. A script building a kubeconfig from the piped output got a truncated file and no error.</li>
-<li>The non-terminal branch of the renderer called <code>Deno.stdout.writeSync</code> once and ignored the returned byte count. Deno&#39;s line-buffered stdout writer emits complete lines and returns a short count when the trailing partial line does not fit its 1024-byte buffer.</li>
-<li>The renderer now loops over <code>writeSync</code> on the remaining bytes until the whole value is written, and raises a <code>UserError</code> on a zero-byte write so a stdout that accepts nothing more exits non-zero instead of leaving a truncated file behind. Terminal and <code>--json</code> output are unchanged.</li>
-<li>Regression from #2211 (v20260822.000628.0), which switched the piped path from <code>console.log</code> to a single <code>writeSync</code>.</li>
-</ul>
-<p>Fixes swamp-club#3006. Reported by @randybias, added as co-author.</p>
-<h4 class="body-h">Test plan</h4>
-<ul>
-<li>[x] Renderer unit tests: a short write at the last newline with a 1024-char last line is completed in a second call, byte-exact; a mock that cuts every call into one to three bytes still yields the full value in order; a zero-byte write throws <code>UserError</code>. The existing single-call test still passes.</li>
-<li>[x] Reproduction against the compiled</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.140118.0-sha.e7a55150" rel="noopener">release v20261005.140118.0-sha.e7a55150</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e7a55150" rel="noopener">e7a55150</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2823" rel="noopener">#2823</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2211" rel="noopener">#2211</a>𝗔 <a href="https://swamp-club.com/lab/3006" rel="noopener">lab#3006</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261002-155715-0-sha-be148809">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261002-155715-0-sha-be148809">
 <h2><span class="tier C">C</span>say a cancelled suspended parent leaves its nested child suspended (swamp-club#2921) (#2793)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-02T15:58:57Z">2026-10-02T15:58:57Z</time></span><span>skill</span><span>docs</span></div>
@@ -1639,12 +1639,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>66 items across 1 source(s) in this window:
-0 critical, 55 notable, 5 routine,
-6 minor.</p>
-<ul><li><strong>fix</strong> — 42</li><li><strong>feat</strong> — 13</li><li><strong>refactor</strong> — 5</li><li><strong>changes</strong> — 3</li><li><strong>test</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
+0 critical, 58 notable, 5 routine,
+3 minor.</p>
+<ul><li><strong>fix</strong> — 44</li><li><strong>feat</strong> — 14</li><li><strong>refactor</strong> — 5</li><li><strong>test</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T15:02:26.811Z">2026-10-05T15:02:26.811Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T16:02:08.783Z">2026-10-05T16:02:08.783Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -73,6 +73,14 @@ export interface HarnessPlan {
   variables?: Record<string, string>;
   /** Install `dig`/`nslookup` in the container before the tests run. */
   dnsTools?: boolean;
+  /**
+   * Sibling local extensions the candidate calls at runtime, copied into the
+   * harness repo and registered as extension sources before the candidate, so
+   * model types from other working copies (`@svendowideit/caddy`,
+   * `@svendowideit/otel-gateway`, …) exist. `mount` is the in-container path
+   * the source is bind-mounted at.
+   */
+  extensionSources?: Array<{ name: string; mount: string }>;
 }
 
 /** A named phase of the in-container test. */
@@ -351,12 +359,21 @@ export function buildHarnessScript(plan: HarnessPlan): string {
       "    i=$((i+1)); sleep 1",
       "  done",
       "  [ -d /run/user/0 ] && export XDG_RUNTIME_DIR=/run/user/0",
+      "  # A systemd *user* service does not inherit the container environment.",
+      "  # Models that run swamp under such a service (e.g. @svendowideit/swamp-serve",
+      "  # running `swamp serve`) need the account key the factory exported into the",
+      "  # container, or swamp refuses to run with 'requires a swamp-club.com",
+      "  # account'. Import the relevant vars into the user manager so units see them.",
+      "  for V in SWAMP_API_KEY SWAMP_SIGNIN_TOKEN; do",
+      '    [ -n "$(printenv "$V" 2>/dev/null)" ] && systemctl --user import-environment "$V" >/dev/null 2>&1 || true',
+      "  done",
       "fi",
       "",
     );
   }
 
   // --- 2. init repo + register the extension --------------------------------
+  const sources = plan.extensionSources ?? [];
   push(
     "# --- 2. init repo + register the extension ------------------------------",
     `REPO=${shellQuote(plan.repoDir)}`,
@@ -365,14 +382,33 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     'mkdir -p "$REPO/extensions"',
     'cd "$REPO" || exit 1',
     "swamp init --tool none >/tmp/init.log 2>&1",
+  );
+  // Register sibling local extensions the candidate calls, so their model types
+  // resolve. They are copied in (not symlinked) exactly like the candidate.
+  sources.forEach((s, i) => {
+    const mount = `EXT_${i + 1}_MOUNT`;
+    push(
+      `${mount}=${shellQuote(s.mount)}`,
+      `rm -rf "$REPO/extensions/${s.name}"`,
+      `cp -r "$${mount}" "$REPO/extensions/${s.name}"`,
+    );
+  });
+  push(
     'rm -rf "$REPO/extensions/$EXT_NAME"',
     'cp -r "$EXT_MOUNT" "$REPO/extensions/$EXT_NAME"',
     "",
   );
   if (want("smoke")) {
     push(
-      'swamp extension source add "$REPO/extensions/$EXT_NAME" >/tmp/source-add.log 2>&1',
-      "SOURCE_ADD_OK=$?",
+      "SOURCE_ADD_OK=0",
+    );
+    for (const s of sources) {
+      push(
+        `swamp extension source add "$REPO/extensions/${s.name}" >/tmp/source-${s.name}.log 2>&1 || SOURCE_ADD_OK=$?`,
+      );
+    }
+    push(
+      'swamp extension source add "$REPO/extensions/$EXT_NAME" >/tmp/source-add.log 2>&1 || SOURCE_ADD_OK=$?',
       'if [ "$SOURCE_ADD_OK" -eq 0 ]; then record sourceAddOk true; else record sourceAddOk false; fi',
       "swamp doctor extensions --json >/tmp/doctor.json 2>/tmp/doctor.err",
       "DOCTOR_STATUS=$(jq -r '.overallStatus // \"unknown\"' /tmp/doctor.json 2>/dev/null || echo 'unparseable')",

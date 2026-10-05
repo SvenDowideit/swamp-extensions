@@ -129,6 +129,65 @@ services:
   );
 });
 
+Deno.test("parseTestSystem reads an extensions mapping", () => {
+  const sys = parseTestSystem(`
+extensions:
+  caddy: extensions/models/caddy
+  otel-gateway: extensions/models/otel-gateway
+`);
+  assertEquals(sys.extensions, [
+    { name: "caddy", path: "extensions/models/caddy" },
+    { name: "otel-gateway", path: "extensions/models/otel-gateway" },
+  ]);
+});
+
+Deno.test("parseTestSystem reads a flat extensions list and derives names", () => {
+  const sys = parseTestSystem(`
+extensions:
+  - extensions/models/openobserve
+  - extensions/models/otel-settings
+`);
+  assertEquals(sys.extensions, [
+    { name: "openobserve", path: "extensions/models/openobserve" },
+    { name: "otel-settings", path: "extensions/models/otel-settings" },
+  ]);
+});
+
+Deno.test("parseTestSystem accepts `dependencies` as an alias", () => {
+  const sys = parseTestSystem(`
+dependencies:
+  caddy: extensions/models/caddy
+`);
+  assertEquals(sys.extensions, [
+    { name: "caddy", path: "extensions/models/caddy" },
+  ]);
+});
+
+Deno.test("lintTestSystem flags an extension with no path", () => {
+  const sys = parseTestSystem(`
+extensions:
+  a: ""
+`);
+  assertEquals(
+    lintTestSystem(sys).some((i) => i.includes("missing path")),
+    true,
+  );
+});
+
+Deno.test("lintTestSystem flags a duplicate extension source name", () => {
+  // The flat list derives the name from the last path segment, so two dirs
+  // both called `caddy` collide.
+  const sys = parseTestSystem(`
+extensions:
+  - extensions/models/caddy
+  - vendor/caddy
+`);
+  assertEquals(
+    lintTestSystem(sys).some((i) => i.includes("duplicate extension source")),
+    true,
+  );
+});
+
 Deno.test("lintTestSystem flags a duplicate static address", () => {
   const sys = parseTestSystem(`
 networks:

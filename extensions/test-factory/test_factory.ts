@@ -54,6 +54,7 @@ import {
   waitHostFile,
 } from "./docker.ts";
 import {
+  emptyTestSystem,
   isEmptySystem,
   lintTestSystem,
   parseTestSystem,
@@ -473,6 +474,8 @@ interface Candidate {
   tests: TestSpec[];
   /** Container test system (networks/services) declared in the same file. */
   system: TestSystem;
+  /** Sibling extensions to register, with repo-relative paths resolved. */
+  extensionDirs: Array<{ name: string; abs: string }>;
   /** How much of the documented/shipped surface the tests exercise. */
   coverage: CoverageReport;
 }
@@ -619,6 +622,10 @@ async function runScenario(
     expectSystemd: scenario.systemd,
     variables: systemVariables(candidate.system),
     dnsTools: candidate.system.harness.dig,
+    extensionSources: candidate.extensionDirs.map((e, i) => ({
+      name: e.name,
+      mount: `/opt/ext-${i + 1}`,
+    })),
   };
 
   const result = blankResult(
@@ -696,6 +703,9 @@ async function runScenario(
     // otherwise `sleep infinity`) and every role runs via `docker exec`. This
     // keeps systemd genuinely running, and means roles work identically with or
     // without it.
+    const siblingMounts = candidate.extensionDirs.map((e, i) =>
+      `${e.abs}:/opt/ext-${i + 1}:ro`
+    );
     const mounts = [
       `${bundle.dir}:/tf-scripts:ro`,
       `${outDir}:/tf`,
@@ -703,6 +713,7 @@ async function runScenario(
         ? []
         : [`${sharedVolume}:/tf-shared`]),
       extMount,
+      ...siblingMounts,
     ];
     const target = scenario.topology === "standalone"
       ? containers[0]
@@ -759,6 +770,7 @@ async function runScenario(
         deps,
         candidate,
         suffix,
+        target,
         contextLogger,
       );
       result.serviceContainers = prov.containers;
@@ -954,6 +966,7 @@ async function provisionTestSystem(
   deps: Deps,
   candidate: Candidate,
   suffix: string,
+  harnessContainer: string,
   logger?: ExecContext["logger"],
 ): Promise<{ containers: string[]; error: string }> {
   const system = candidate.system;
@@ -1014,11 +1027,12 @@ async function provisionTestSystem(
     containers.push(container);
     logger?.info(`service ${svc.name}: started (${image})`);
     if (svc.healthcheck) {
-      const ready = await waitForHealthcheck(
-        deps,
-        container,
-        svc.healthcheck,
-      );
+      // A healthcheck can run in the service (default) or the harness (when the
+      // service image has no shell, e.g. OpenObserve — probe it by alias).
+      const probe = svc.healthcheck.in === "harness"
+        ? harnessContainer
+        : container;
+      const ready = await waitForHealthcheck(deps, probe, svc.healthcheck);
       if (!ready) {
         return {
           containers,
@@ -1227,7 +1241,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.02.3",
+  version: "2026.10.05.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1268,6 +1282,12 @@ export const model = {
       toVersion: "2026.10.02.3",
       description:
         "Coverage hardening after adversarial review. Coverage is matched type-awarely, so a shared method name across two model types is no longer over-counted. `test`/`testAll` now also write the standalone `coverage` resource (matching `checkCoverage`), so the meta-factory reuses it instead of recomputing. Fixes a latent logger call: the logger method is `warn`, not `warning`, so a vault-read failure now warns instead of throwing. The `coverage` resource's `documentedCommands`/`testCommands`/`surface.*` fields are arrays of literal command strings. No schema or argument change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.1",
+      description:
+        "A candidate's `test-factory.yaml` may now list sibling local extensions it calls at runtime (`extensions:`), which the harness copies in and registers alongside the candidate, so model types that compose others (e.g. @svendowideit/swamp-serve calling caddy/systemd-service/otel-settings) resolve and can be tested end to end. A service `healthcheck` may run `in: harness` instead of the service, for a distroless image with no shell (e.g. OpenObserve). On a systemd host the harness now imports SWAMP_API_KEY/SWAMP_SIGNIN_TOKEN into root's user manager, because a systemd *user* service does not inherit the container environment and `swamp serve` otherwise fails with 'requires a swamp-club.com account'. `result` gains `serviceContainers`. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1773,7 +1793,20 @@ async function resolveCandidate(
   const tests: TestSpec[] = testText ? parseTests(testText) : [];
   const system: TestSystem = testText
     ? parseTestSystem(testText)
-    : { networks: [], harness: { networks: [], dig: false }, services: [] };
+    : emptyTestSystem();
+  // Sibling extensions are mounted read-only; a typo'd path would otherwise
+  // fail deep inside a container. Verify each exists before anything boots.
+  for (const e of system.extensions) {
+    const abs = resolve(repoDir, e.path);
+    const ok = await Deno.stat(abs).then((s) => s.isDirectory).catch(() =>
+      false
+    );
+    if (!ok) {
+      throw new Error(
+        `test-factory.yaml: extension source "${e.name}" path "${e.path}" is not a directory under the repo root`,
+      );
+    }
+  }
   const coverage = computeCoverage({
     description: info.manifest.description,
     tests,
@@ -1789,6 +1822,10 @@ async function resolveCandidate(
     workflowNames: info.workflowNames,
     tests,
     system,
+    extensionDirs: system.extensions.map((e) => ({
+      name: e.name,
+      abs: resolve(repoDir, e.path),
+    })),
     coverage,
   };
 }

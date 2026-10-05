@@ -123,7 +123,28 @@ services:
 - **`services`** — `name: { image | build, networks, healthcheck | waitForSeconds, environment, mounts, command, privileged, dockerfile }`.
   Each is reachable by name (a docker network alias), so a test can `dig @bind`
   without knowing its address. `build` is a context directory relative to the
-  manifest; `mounts` host paths are relative to the manifest too.
+  manifest; `mounts` host paths are relative to the manifest too. A
+  `healthcheck` runs in the service by default; set `in: harness` to run it in
+  the swamp container instead — needed for a distroless image with no shell
+  (e.g. OpenObserve), which you then probe by its network alias.
+- **`extensions`** — sibling local extensions the candidate calls at runtime
+  (its `context.runModel` dependencies). The harness copies each in and
+  registers it as an extension source, so their model types resolve. This is
+  what lets a candidate like `@svendowideit/swamp-serve` — which invokes
+  `@svendowideit/caddy`, `@svendowideit/systemd-service` and
+  `@svendowideit/otel-settings` by type — be tested end to end:
+
+  ```yaml
+  extensions:
+    caddy: extensions/models/caddy
+    systemd-service: extensions/models/systemd-service
+    otel-settings: extensions/models/otel-settings
+    otel-gateway: extensions/models/otel-gateway
+  ```
+
+  Each path is relative to the repository root and must exist (checked before
+  any container boots). A flat list (`extensions: [extensions/models/caddy]`) is
+  also accepted; the source name defaults to the last path segment.
 
 Every declared address is exported to the tests as a variable — `TF_<SERVICE>_IP`
 (its first attachment) and `TF_<SERVICE>_IP_<NETWORK>`, plus `TF_HARNESS_IP_<NETWORK>`
@@ -147,14 +168,30 @@ The parser is intentionally forgiving and entirely optional: a file with no
 topology (unknown network, missing image, duplicate address) fails loudly before
 any container boots.
 
-`@svendowideit/caddy` is the worked example — see its `test-factory.yaml` plus
-`test/bind/`. It runs a real BIND over RFC2136 and verifies, with `dig` and
-`curl`, that Caddy wrote the A records and serves 200/418/404 from the right
-endpoints. Run it with:
+Two worked examples ship in this repo:
+
+- `@svendowideit/caddy` (see its `test-factory.yaml` plus `test/bind/`) runs a
+  real BIND over RFC2136 and verifies, with `dig` and `curl`, that Caddy wrote
+  the A records and serves 200/418/404 from the right endpoints.
+- `@svendowideit/swamp-serve` (see its `test-factory.yaml`) is the full stack:
+  it registers four sibling extensions, runs BIND and OpenObserve as services,
+  brings up Caddy (internal-CA TLS), an OTLP collector gateway, the
+  otel-settings contract and `swamp serve` itself, then proves — over HTTPS and
+  with a query to OpenObserve — that the reverse proxies work and that a CLI
+  command sent *through* the running server has its log recorded in the store.
+
+Run either with:
 
 ```sh
+# The DNS suite.
 swamp model @svendowideit/test-factory method run test tf \
   --input manifest=extensions/models/caddy/manifest.yaml \
+  --input scenario=ubuntu-systemd-standalone
+
+# The full serve + telemetry stack (needs more network: caddyserver.com, the
+# otelcol release, and the OpenObserve image).
+swamp model @svendowideit/test-factory method run test tf \
+  --input manifest=extensions/models/swamp-serve/manifest.yaml \
   --input scenario=ubuntu-systemd-standalone
 ```
 

@@ -38,8 +38,14 @@ export interface AttachSpec {
 
 /** How to wait for a service to be ready before the tests run. */
 export interface HealthcheckSpec {
-  /** Command run inside the container; ready when it exits 0. */
+  /** Command run to probe readiness; ready when it exits 0. */
   command: string[];
+  /**
+   * Which container to run the probe in: the service itself, or the harness
+   * (which has curl/dig). Use `harness` for a distroless image with no shell
+   * (e.g. OpenObserve), probing the service by its network alias.
+   */
+  in: "service" | "harness";
   /** Seconds between attempts. */
   intervalSeconds: number;
   /** Maximum attempts before giving up. */
@@ -80,6 +86,18 @@ export interface HarnessSpec {
   dig: boolean;
 }
 
+/**
+ * A sibling extension the candidate depends on (another model type it calls),
+ * registered as an extra extension source in the harness. `path` is relative to
+ * the repo root.
+ */
+export interface ExtensionSource {
+  /** Source name — the directory name under `extensions/` in the harness repo. */
+  name: string;
+  /** Repository-relative path to the extension directory. */
+  path: string;
+}
+
 /** The whole container test system described by a `test-factory.yaml`. */
 export interface TestSystem {
   /** Networks to create. */
@@ -88,12 +106,19 @@ export interface TestSystem {
   harness: HarnessSpec;
   /** Auxiliary services to start. */
   services: ServiceSpec[];
+  /** Sibling local extensions the candidate needs registered alongside it. */
+  extensions: ExtensionSource[];
 }
 
-/** True when the test system declares anything to provision. */
+/** True when the test system declares containers/network to provision. */
 export function isEmptySystem(system: TestSystem): boolean {
   return system.networks.length === 0 && system.services.length === 0 &&
     system.harness.networks.length === 0 && !system.harness.dig;
+}
+
+/** True when the test system declares sibling extensions to register. */
+export function hasExtensions(system: TestSystem): boolean {
+  return system.extensions.length > 0;
 }
 
 function str(v: unknown, fallback = ""): string {
@@ -158,8 +183,10 @@ function parseHealthcheck(v: unknown): HealthcheckSpec | undefined {
   const o = v as Record<string, unknown>;
   const command = strArray(o.command ?? o.test);
   if (command.length === 0) return undefined;
+  const where = str(o.in, "service").toLowerCase();
   return {
     command,
+    in: where === "harness" ? "harness" : "service",
     intervalSeconds: num(o.intervalSeconds ?? o.interval_seconds, 2),
     retries: num(o.retries, 30),
   };
@@ -191,15 +218,40 @@ function parseHarness(v: unknown): HarnessSpec {
   return { networks: parseAttachments(o.networks), dig: o.dig === true };
 }
 
+/**
+ * Parse the sibling-extension list. Accepts either `name: path` mappings or a
+ * flat list of repo-relative paths (the source name defaults to the last path
+ * segment).
+ */
+function parseExtensions(v: unknown): ExtensionSource[] {
+  const out: ExtensionSource[] = [];
+  if (!v) return out;
+  if (Array.isArray(v)) {
+    for (const entry of v) {
+      const path = String(entry).trim();
+      if (!path) continue;
+      out.push({
+        name: path.replace(/\/+$/, "").split("/").pop() ?? path,
+        path,
+      });
+    }
+    return out;
+  }
+  if (typeof v === "object") {
+    for (const [name, val] of Object.entries(v as Record<string, unknown>)) {
+      // Mapping form: a bare name (`name:`) is a config error, not a silent
+      // fallback — lintTestSystem reports the empty path.
+      out.push({ name, path: str(val).trim() });
+    }
+  }
+  return out;
+}
+
 /** Parse a `test-factory.yaml` document into a {@link TestSystem}. */
 export function parseTestSystem(text: string): TestSystem {
   const doc = parseYaml(text) as unknown;
   if (doc === null || doc === undefined) {
-    return {
-      networks: [],
-      harness: { networks: [], dig: false },
-      services: [],
-    };
+    return emptyTestSystem();
   }
   if (typeof doc !== "object" || Array.isArray(doc)) {
     throw new Error(
@@ -221,6 +273,17 @@ export function parseTestSystem(text: string): TestSystem {
     networks: parseNetworks(d.networks),
     harness: parseHarness(d.harness),
     services,
+    extensions: parseExtensions(d.extensions ?? d.dependencies),
+  };
+}
+
+/** The empty test system (a candidate that declares no topology). */
+export function emptyTestSystem(): TestSystem {
+  return {
+    networks: [],
+    harness: { networks: [], dig: false },
+    services: [],
+    extensions: [],
   };
 }
 
@@ -312,6 +375,16 @@ export function lintTestSystem(system: TestSystem): string[] {
   system.harness.networks.forEach((a) => claim("harness", a));
   for (const s of system.services) {
     s.networks.forEach((a) => claim(s.name, a));
+  }
+  const seenExt = new Set<string>();
+  for (const e of system.extensions) {
+    if (!e.path) {
+      issues.push(`extension "${e.name}": missing path`);
+    }
+    if (seenExt.has(e.name)) {
+      issues.push(`duplicate extension source name "${e.name}"`);
+    }
+    seenExt.add(e.name);
   }
   return issues;
 }

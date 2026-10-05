@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/test-factory"
-version: "2026.10.02.3"
+version: "2026.10.05.1"
 description: >
   Run a swamp extension inside containers on different Linux distributions and
   swamp deployment topologies, and report exactly where it breaks. Prefer it
@@ -26,7 +26,11 @@ description: >
     server to write records into, a database, a peer node — are testable too:
     it creates the networks, builds and health-checks the services, joins the
     swamp container to several networks (so one name can resolve to several
-    endpoints), and exports each address to the steps as a shell variable.
+    endpoints), and exports each address to the steps as a shell variable. The
+    same file can list sibling extensions the candidate calls at runtime, which
+    the harness registers alongside it — so a model that composes others
+    (@svendowideit/swamp-serve calling caddy/systemd-service/otel-settings) is
+    testable end to end.
     Every run records an audit trail, not just a pass/fail: the candidate name
     and version, a one-line intent, and per phase the assertion a PASS stands
     for plus the literal commands that proved it — so you can judge adequacy and

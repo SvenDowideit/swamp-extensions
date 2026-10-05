@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+
+# Authoritative BIND server for the caddy DNS acceptance test: a pre-created
+# example.com zone that accepts RFC2136 dynamic updates authenticated by a TSIG
+# key (the key Caddy's dns.providers.rfc2136 writes with).
+#
+# Build context is this directory (extensions/models/caddy/test/bind). The
+# source files carry a .txt suffix so swamp's `additionalFiles` allowlist
+# accepts them; COPY renames each to the name BIND expects.
+FROM internetsystemsconsortium/bind9:9.18
+
+COPY named.conf.txt /etc/bind/named.conf
+COPY db.example.com.txt /var/cache/bind/db.example.com
+COPY tsig.key.txt /etc/bind/tsig.key
+
+# named drops to the "bind" user; make the zone directory and files writable so
+# dynamic updates can create the journal.
+RUN chown -R bind:bind /var/cache/bind && \
+    chmod 755 /var/cache/bind && \
+    chmod 644 /var/cache/bind/db.example.com && \
+    chown root:bind /etc/bind/tsig.key && chmod 640 /etc/bind/tsig.key

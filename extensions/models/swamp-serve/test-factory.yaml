@@ -1,0 +1,312 @@
+# Acceptance tests for @svendowideit/swamp-serve — the full "always-on swamp
+# serve with DNS, TLS and telemetry" stack, assembled from containers.
+#
+# This is the multi-service counterpart of @svendowideit/caddy's DNS suite. A
+# private network carries:
+#
+#   - bind        : authoritative DNS for example.com (RFC2136/TSIG), so Caddy
+#                   owns the A records the hostnames resolve through
+#   - openobserve : the OTel backend (logs); its distroless image has no shell,
+#                   so its healthcheck runs in the harness, by alias
+#   - harness     : the swamp container (systemd user services), on two
+#                   networks; Caddy, the OTLP collector gateway, otel-settings
+#                   and swamp serve itself all run here
+#
+# The candidate `@svendowideit/swamp-serve` calls sibling model types
+# (`@svendowideit/systemd-service`, `@svendowideit/caddy`,
+# `@svendowideit/otel-settings`) via context.runModel, so the harness registers
+# the local working copies listed under `extensions:`.
+#
+# Four tests build one running system and prove it end to end:
+#   1. Caddy + otel-settings + the OTel gateway + swamp serve install and start;
+#      the two hostnames resolve (dig against BIND) and reverse-proxy over HTTPS
+#      (Caddy's internal CA) to swamp serve.
+#   2. swamp serve answers its API root over HTTPS, and the dashboard is
+#      reverse-proxied at the dashboard hostname root (Caddy rootPath=/dashboard).
+#   3. A swamp CLI command sent *through* the running server
+#      (`--server ws://127.0.0.1:9090`) executes remotely and returns its output.
+#   4. That command's log record verifiably reaches OpenObserve — swamp's OTLP
+#      logs exporter, wired by swamp-serve's telemetry, is queried back by the
+#      server's service name and the command's output.
+#
+# Run it on a systemd host:
+#   swamp model @svendowideit/test-factory method run test tf \
+#     --input manifest=extensions/models/swamp-serve/manifest.yaml \
+#     --input scenario=ubuntu-systemd-standalone
+#
+# Network access: the swamp release download, https://caddyserver.com (Caddy),
+# the otelcol-contrib release, and the OpenObserve image pull.
+
+networks:
+  net1:
+    subnet: 192.0.2.0/24
+  net2:
+    subnet: 198.51.100.0/24
+
+harness:
+  dig: true
+  networks:
+    net1:
+      ipv4_address: 192.0.2.10
+    net2:
+      ipv4_address: 198.51.100.10
+
+# Sibling extensions the candidate calls at runtime: the harness copies these
+# local working copies in and registers them, so their model types resolve.
+extensions:
+  caddy: extensions/models/caddy
+  systemd-service: extensions/models/systemd-service
+  otel-settings: extensions/models/otel-settings
+  otel-gateway: extensions/models/otel-gateway
+
+services:
+  bind:
+    build: ./test/bind
+    dockerfile: Dockerfile.txt
+    networks:
+      net1:
+        ipv4_address: 192.0.2.11
+  openobserve:
+    image: public.ecr.aws/zinclabs/openobserve:latest
+    environment:
+      ZO_ROOT_USER_EMAIL: admin@example.com
+      ZO_ROOT_USER_PASSWORD: "Testpass123!"
+    networks:
+      net1:
+        ipv4_address: 192.0.2.12
+    healthcheck:
+      # Distroless image: probe it from the harness (curl) by its network alias.
+      in: harness
+      command: ["curl", "-fsS", "http://openobserve:5080/healthz"]
+      intervalSeconds: 2
+      retries: 45
+
+tests:
+  - name: installs-caddy-otel-and-serve-and-resolves-dns
+    confirms: >
+      The composing stacks install and start: Caddy (with its A records written
+      into the authoritative BIND server), the OpenObserve-backed OTLP gateway,
+      the otel-settings contract, and swamp serve under a systemd user unit. The
+      two hostnames resolve via dig, and the serve API root reverse-proxies over
+      HTTPS (Caddy's internal CA) to swamp serve.
+    cannot: >
+      must not leave swamp serve inactive, must not leave the hostnames
+      unresolved in BIND, and must not answer the proxied HTTPS request with a
+      connection error.
+    documents: README.md#examples
+    variables:
+      ZONE: example.com
+      SWAMP_HOST: swamp.host.example.com
+      DASH_HOST: dashboard.host.example.com
+      DNS: bind
+    steps:
+      - name: systemd-user-manager-is-running
+        run: systemctl --user is-system-running
+        expect:
+          stdoutContains: ["running"]
+      - name: install-caddy
+        run: |
+          swamp model create @svendowideit/caddy test-caddy \
+            --global-arg baseDomain=$ZONE \
+            --global-arg 'listenAddrs:json=[":443",":80"]' \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env
+          mkdir -p /root/.config/caddy
+          printf 'TSIG_KEY_NAME=e2e-key\nTSIG_KEY=cWnu6Ju9zOki4f7Q+da2KKGo0KOXbCf6Pej6hW3geC4=\nTSIG_KEY_ALG=hmac-sha256\nTSIG_SERVER=bind:53\n' > /root/.config/caddy/dns.env
+          swamp model method run test-caddy installCaddy --input setCapabilities=false --input configureStatusPage=false
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 300
+      - name: start-caddy-service
+        run: |
+          swamp model method run test-caddy createService
+          swamp model method run test-caddy startService
+        expect:
+          exitCode: 0
+          outputNotContains: ["is not active", "panic"]
+      - name: configure-internal-tls-and-records
+        # The internal issuer gives the hostnames certs from Caddy's local CA
+        # (ACME cannot issue example.com); the A records point at the two harness
+        # endpoints. A Caddy model reconciles only its OWN records/subjects, so
+        # they are declared here.
+        run: |
+          swamp model method run test-caddy configureTls \
+            --input issuer=internal \
+            --input dnsProvider=rfc2136 \
+            --input 'providerConfig:json={"key_name":"TSIG_KEY_NAME","key":"TSIG_KEY","key_alg":"TSIG_KEY_ALG","server":"TSIG_SERVER"}' \
+            --input 'subjects:json=["host.example.com","swamp.host.example.com","dashboard.host.example.com"]'
+          swamp model get test-caddy --json \
+            | jq '.globalArguments.dnsRecords=[{"name":"host.example.com","type":"A","value":["192.0.2.10","198.51.100.10"],"zone":"example.com"},{"name":"swamp.host.example.com","type":"A","value":["192.0.2.10","198.51.100.10"],"zone":"example.com"},{"name":"dashboard.host.example.com","type":"A","value":["192.0.2.10","198.51.100.10"],"zone":"example.com"}] | {name,version,tags,globalArguments}' \
+            | swamp model edit test-caddy --json
+          swamp model method run test-caddy applyDnsRecords
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: store-openobserve-credentials
+        run: |
+          swamp vault create local_encryption oo --json
+          printf 'admin@example.com' | swamp vault put oo OO_EMAIL --json
+          printf 'Testpass123!' | swamp vault put oo OO_PASSWORD --json
+        expect:
+          exitCode: 0
+      - name: render-otel-settings-contract
+        # otlp_http_url is the gateway receiver the collector listens on; it is
+        # what swamp-serve reads to build its OTEL_EXPORTER_OTLP_* environment.
+        run: |
+          swamp model create @svendowideit/otel-settings test-otel \
+            --global-arg domain=host.example.com \
+            --global-arg deploymentEnvironment=test \
+            --global-arg defaultMesh=local \
+            --global-arg 'endpoints:json=[{"otlp_grpc":"127.0.0.1:4317","otlp_http":"127.0.0.1:4318","otlp_http_url":"http://127.0.0.1:4318","mesh":"local"}]'
+          swamp model method run test-otel render
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: install-otel-gateway
+        # The gateway receives OTLP from swamp serve and exports it to
+        # OpenObserve with basic auth built from the same store credentials.
+        run: |
+          swamp model create @svendowideit/otel-gateway test-gateway \
+            --global-arg bindAddress=0.0.0.0 \
+            --global-arg vaultName=oo \
+            --global-arg 'exporters:json=[{"name":"openobserve","endpoint":"http://openobserve:5080/api/default","basicAuth":{"emailEnv":"OO_EMAIL","authEnv":"OO_PASSWORD"},"insecure":true}]'
+          swamp model method run test-gateway install
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 300
+      - name: create-swamp-serve
+        # swampBinPath points at the harness's swamp (the factory installs it at
+        # /usr/local/bin/swamp, not ~/.local/bin). Explicit hostnames make the
+        # derivation deterministic. ensureService renders the OTLP environment
+        # from test-otel and starts the unit; ensureDns/ensureProxy add the two
+        # A records and Caddy routes.
+        run: |
+          swamp model create @svendowideit/swamp-serve test-serve \
+            --global-arg repoDir=. \
+            --global-arg swampBinPath=/usr/local/bin/swamp \
+            --global-arg caddyModelName=test-caddy \
+            --global-arg otelSettingsModel=test-otel \
+            --global-arg swampHostname=$SWAMP_HOST \
+            --global-arg dashboardHostname=$DASH_HOST \
+            --global-arg port=9090 \
+            --global-arg authMode=none
+          swamp model method run test-serve resolve
+          swamp model method run test-serve configure
+          swamp model method run test-serve ensureService
+          swamp model method run test-serve ensureDns
+          swamp model method run test-serve ensureProxy
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 300
+      - name: hostnames-resolve-via-dig
+        run: |
+          dig +short @$DNS swamp.host.example.com A | sort | tr '\n' ' '
+          dig +short @$DNS dashboard.host.example.com A | sort | tr '\n' ' '
+        expect:
+          stdoutContains: ["192.0.2.10 198.51.100.10"]
+          stdoutNotContains: ["panic"]
+      - name: serve-api-proxied-over-https
+        run: >
+          curl -sk --resolve $SWAMP_HOST:443:$TF_HARNESS_IP_NET1
+          -o /dev/null -w '%{http_code}' https://$SWAMP_HOST/
+        expect:
+          stdoutContains: ["200"]
+          stdoutNotContains: ["000"]
+
+  - name: swamp-serve-api-and-dashboard-are-reachable
+    confirms: >
+      swamp serve is running under its systemd user unit and answers its API
+      root over HTTPS through Caddy, and the dashboard — which swamp serves
+      under /dashboard — is reverse-proxied at the dashboard hostname root
+      (`rootPath=/dashboard`), returning the dashboard HTML.
+    cannot: >
+      must not return a non-200 for the serve API root or the dashboard
+      hostname, and must not serve the dashboard as a 404.
+    documents: README.md#examples
+    variables:
+      SWAMP_HOST: swamp.host.example.com
+      DASH_HOST: dashboard.host.example.com
+    steps:
+      - name: serve-api-root-is-200
+        run: >
+          curl -sk --resolve $SWAMP_HOST:443:$TF_HARNESS_IP_NET1
+          -o /dev/null -w '%{http_code}' https://$SWAMP_HOST/
+        expect:
+          stdoutContains: ["200"]
+          stdoutNotContains: ["000", "404"]
+      - name: dashboard-hostname-root-serves-the-dashboard
+        run: >
+          curl -sk --resolve $DASH_HOST:443:$TF_HARNESS_IP_NET1
+          https://$DASH_HOST/
+        expect:
+          stdoutContains: ["Swamp Dashboard"]
+          stdoutNotContains: ["Not found", "404"]
+
+  - name: cli-command-runs-through-the-running-serve
+    confirms: >
+      A swamp CLI invocation that targets the running server
+      (`--server ws://127.0.0.1:9090`) is executed remotely by that server
+      rather than locally: the command's output is returned to the client, so
+      the round trip through serve is proven.
+    cannot: >
+      must not exit non-zero, and must not report the model as missing (which
+      would mean the command ran against an empty or other repository).
+    documents: README.md#details
+    variables:
+      MARKER: through-serve-cli-marker
+    steps:
+      - name: create-cli-probe-model
+        run: swamp model create command/shell cli-probe --json
+        expect:
+          exitCode: 0
+      - name: run-through-serve
+        run: >
+          swamp model method run cli-probe execute
+          --server ws://127.0.0.1:9090
+          --input run='echo through-serve-cli-marker'
+        expect:
+          exitCode: 0
+          stdoutContains: ["through-serve-cli-marker"]
+          outputNotContains: ["Model not found"]
+
+  - name: serve-logs-are-verifiably-sent-to-openobserve
+    confirms: >
+      swamp serve's OpenTelemetry logs exporter — wired by the swamp-serve model
+      from the otel-settings contract to the collector gateway, and by the
+      gateway to OpenObserve — delivers the log record for the CLI command run
+      through serve. Querying OpenObserve by the server's service name
+      (`swamp-serve`) and the command's logger returns that record, with the
+      command's output as the log body.
+    cannot: >
+      must not return zero rows for the server's own log stream, and must not
+      omit the CLI command's log line from the store.
+    documents: README.md#details
+    steps:
+      - name: server-log-record-arrived
+        # The server batches log exports (OTEL_BLRP_USE), so give the gateway a
+        # moment to flush and fan out to OpenObserve, then query a real
+        # microsecond window (a zero start is rejected by the search API).
+        run: |
+          sleep 12
+          END=$(date +%s%6N)
+          START=$(( END - 3600000000 ))
+          curl -fsS -u 'admin@example.com:Testpass123!' \
+            -H 'Content-Type: application/json' \
+            "http://openobserve:5080/api/default/_search?type=logs" \
+            -d "{\"query\":{\"sql\":\"select service_name, logger_name, body from \\\"default\\\" where service_name = 'swamp-serve' and logger_name like '%cli-probe%' order by _timestamp desc limit 5\",\"start_time\":$START,\"end_time\":$END},\"size\":5}"
+        expect:
+          exitCode: 0
+          stdoutContains: ["through-serve-cli-marker"]
+          stdoutNotContains: ["\"hits\":[]", "\"code\":400"]
+        timeoutSeconds: 60
+      - name: openobserve-holds-a-log-stream-for-the-server
+        run: >
+          curl -fsS -u 'admin@example.com:Testpass123!'
+          'http://openobserve:5080/api/default/streams?type=logs'
+        expect:
+          exitCode: 0
+          stdoutContains: ["\"name\":\"default\""]
+          stdoutNotContains: ["\"list\":[]"]

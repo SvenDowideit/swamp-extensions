@@ -1,0 +1,211 @@
+id: 17cdca53-7d64-41cf-b91c-105621fbdd60
+name: "@svendowideit/swamp-serve-setup"
+description: |
+  Stand up a swamp repository as an always-on `swamp serve` service, in order.
+
+  Resolves the base domain and host IP from an existing @svendowideit/caddy
+  model, installs or confirms the swamp binary, writes `.swamp/serve.yaml`,
+  creates and starts the systemd user unit (dashboard, hot-reload and
+  auto-resume enabled), reconciles the DNS A records and reverse-proxies the two
+  hostnames through Caddy, applies the OTLP telemetry from the
+  @svendowideit/otel-settings contract, and reports the final status.
+
+  The caddy and DNS steps are allowed to fail so a host without Caddy still
+  gets a running service; `status` records what is (not) live.
+
+  Run:
+    swamp workflow run @svendowideit/swamp-serve-setup
+    swamp workflow run @svendowideit/swamp-serve-setup \
+      --input caddyModelName=my-caddy --input otelSettingsModel=otel
+inputs:
+  properties:
+    caddyModelName:
+      type: string
+      default: ""
+      description: >-
+        The @svendowideit/caddy model whose baseDomain and A record supply the
+        hostnames and IP. Required for the DNS/proxy steps.
+    otelSettingsModel:
+      type: string
+      default: ""
+      description: >-
+        The @svendowideit/otel-settings model whose contract describes the
+        gateway. Empty leaves telemetry unconfigured.
+    repoDir:
+      type: string
+      default: "."
+      description: Repository the server runs.
+    serviceName:
+      type: string
+      default: "swamp-serve"
+      description: systemd user service name.
+    port:
+      type: integer
+      default: 9090
+      description: Port swamp serve listens on.
+    authMode:
+      type: string
+      enum:
+        - none
+        - token
+        - oauth
+      default: none
+      description: Authentication mode (none is loopback-only).
+  required: []
+jobs:
+  - name: setup
+    description: Resolve, install, configure, serve, expose, observe.
+    steps:
+      - name: resolve
+        description: >-
+          Derive swamp.<base> and dashboard.<base> from the Caddy model before
+          anything is written, so the hostnames are inspectable first.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: resolve
+          globalArgs:
+            caddyModelName: ${{ inputs.caddyModelName }}
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+
+      - name: install
+        description: >-
+          Install the swamp binary when it is absent; a present binary is left
+          untouched (use the model's updateBinary method to upgrade it).
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: installBinary
+        dependsOn:
+          - step: resolve
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+
+      - name: configure
+        description: >-
+          Write .swamp/serve.yaml with the dashboard, hot-reload and auto-resume
+          options, then validate it.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: configure
+          globalArgs:
+            repoDir: ${{ inputs.repoDir }}
+            serviceName: ${{ inputs.serviceName }}
+            port: ${{ inputs.port }}
+            caddyModelName: ${{ inputs.caddyModelName }}
+            authMode: ${{ inputs.authMode }}
+        dependsOn:
+          - step: install
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: service
+        description: >-
+          Create and start the systemd user unit. This is the point the server
+          actually runs; the dashboard is at /dashboard on the bound port.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: ensureService
+          globalArgs:
+            repoDir: ${{ inputs.repoDir }}
+            serviceName: ${{ inputs.serviceName }}
+            port: ${{ inputs.port }}
+            caddyModelName: ${{ inputs.caddyModelName }}
+        dependsOn:
+          - step: configure
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: dns
+        description: >-
+          Reconcile the A records for both hostnames via the Caddy model. Allowed
+          to fail so a host without a Caddy model still leaves a running service.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: ensureDns
+          globalArgs:
+            caddyModelName: ${{ inputs.caddyModelName }}
+        dependsOn:
+          - step: service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+
+      - name: proxy
+        description: >-
+          Reverse-proxy both hostnames to the server through Caddy, which also
+          issues their TLS certificates. Allowed to fail with the DNS step.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: ensureProxy
+          globalArgs:
+            caddyModelName: ${{ inputs.caddyModelName }}
+            port: ${{ inputs.port }}
+        dependsOn:
+          - step: service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+
+      - name: telemetry
+        description: >-
+          Read the settings contract and apply the OTLP environment so the
+          server's logs, metrics and traces reach the gateway. Skipped cleanly
+          when no otelSettingsModel is configured.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: ensureTelemetry
+          globalArgs:
+            otelSettingsModel: ${{ inputs.otelSettingsModel }}
+            caddyModelName: ${{ inputs.caddyModelName }}
+          inputs:
+            endpoint: ""
+        dependsOn:
+          - step: service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+
+      - name: status
+        description: >-
+          Report the final state: systemd active, HTTP status of both hostnames,
+          the swamp version and the telemetry summary.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: swamp-serve
+          methodName: status
+          globalArgs:
+            caddyModelName: ${{ inputs.caddyModelName }}
+        dependsOn:
+          - step: service
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

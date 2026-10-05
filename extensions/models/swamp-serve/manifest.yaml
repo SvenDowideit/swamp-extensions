@@ -1,0 +1,129 @@
+manifestVersion: 1
+name: "@svendowideit/swamp-serve"
+version: "2026.10.05.1"
+description: >
+  Run a swamp repository as a long-lived, always-on `swamp serve` service —
+  binary, systemd user unit, HTTPS reverse proxy, and OTLP telemetry in one
+  declarative model.
+
+  WHAT IT DOES
+
+    Turns "keep this repo running and reachable" into four repeatable
+    commands. It installs or updates the swamp binary, writes a
+    `.swamp/serve.yaml`, and runs `swamp serve` under a systemd *user* unit
+    (via @svendowideit/systemd-service) with the **dashboard, hot-reload and
+    auto-resume** enabled by default. Prefer it over a hand-written unit and a
+    `curl | sh`: the binary update is `swamp update`'s verified replacement and
+    the unit is a tested building block. Running the server needs nothing but
+    swamp; *exposing* it at `swamp.<host>` / `dashboard.<host>` with TLS adds
+    @svendowideit/caddy, which issues the certificates and owns the DNS. It is
+    portable: it knows no domain of its own.
+
+  INSTALL
+
+    One command installs it; the dependencies below are pulled from the same
+    registry when their models are first used.
+
+      swamp extension pull @svendowideit/swamp-serve
+
+  DEPENDENCIES
+
+    @svendowideit/systemd-service always (the unit). @svendowideit/caddy only for
+    `resolve`/`ensureDns`/`ensureProxy` — the public-hostname layer — and it must
+    already be installed and configured, because this model reads a Caddy model
+    rather than creating one. @svendowideit/otel-settings only for
+    `ensureTelemetry` (not Caddy). The binary itself comes from swamp's own
+    installer or `swamp update`; no other package, service, or cron job is
+    required.
+
+  RUN
+
+      # A. Run the server locally (no Caddy needed). Create the model, then
+      #    configure and start it; dashboard/hot-reload/auto-resume are on.
+      swamp model create @svendowideit/swamp-serve swamp-serve
+      swamp model method run swamp-serve configure
+      swamp model method run swamp-serve ensureService
+
+      # B. Expose it at swamp.<host> / dashboard.<host> (needs a Caddy model).
+      #    Set caddyModelName to an EXISTING @svendowideit/caddy model; the two
+      #    hostnames are derived from that model's own A record for this host.
+      swamp model edit swamp-serve --global-arg caddyModelName=my-caddy
+      swamp model method run swamp-serve resolve
+      swamp data get swamp-serve topology --json
+      swamp model method run swamp-serve ensureProxy
+
+      # Print every option with its current value and how to change it, so a
+      # setting can be changed without reading any source.
+      swamp model method run swamp-serve guidance
+
+      # Or do the whole sequence in one ordered pass. It creates the instance if
+      # missing and marks the Caddy steps allowFailure, so a host without Caddy
+      # still ends with a running service.
+      swamp workflow run @svendowideit/swamp-serve-setup \
+        --input caddyModelName=my-caddy
+
+  CONFIGURE
+
+    Global arguments are set at model creation (`swamp model create
+    @svendowideit/swamp-serve swamp-serve --global-arg key=value`) or edited
+    later (`swamp model edit swamp-serve`). `caddyModelName` is required — the
+    serve hostnames are derived from the Caddy model's own A record for this
+    machine: with a base domain of `fi.gy` and a record for `x1yoga.fi.gy`, they
+    are `swamp.x1yoga.fi.gy` and `dashboard.x1yoga.fi.gy`. `swamp.<host>` proxies
+    the serve **API root**; `dashboard.<host>` serves swamp's `/dashboard` at the
+    host root (only `/` is rewritten, so its assets pass through). Common
+    settings:
+
+        caddyModelName     the @svendowideit/caddy model to read    (required)
+        otelSettingsModel  the @svendowideit/otel-settings model    (empty = no telemetry)
+        serviceName        systemd unit name                         (default swamp-serve)
+        port               port swamp serve listens on              (default 9090)
+        dashboard          enable /dashboard                        (default true)
+        hotReload          SIGHUP hot-reload of bundles             (default true)
+        autoResume         resume runs once approvals are decided   (default true)
+        authMode           none | token | oauth                     (default none)
+        autoTrustedHosts   trust the derived hostnames for WebSockets (default true)
+
+    `authMode=none` binds loopback only; going off-loopback requires TLS and
+    token/oauth, which swamp serve enforces at startup. Per-run overrides:
+    `version`/`force` on `installBinary`, `endpoint` on `ensureTelemetry`.
+
+  WHAT IT INSTALLS
+
+    The swamp binary (only when absent; updates replace it in place), a
+    systemd *user* service running `swamp serve`, a `.swamp/serve.yaml`, and
+    Caddy reverse-proxy routes for the two hostnames. The A records and TLS
+    subjects live on the Caddy model itself (a Caddy model reconciles only its
+    own); the site workflow adds them. `remove` stops and deletes the unit and
+    its routes but leaves the swamp binary and data in place. It writes swamp
+    resources; it installs no cron triggers or webhooks of its own.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - swamp_serve.ts
+
+workflows:
+  - swamp-serve-setup.yaml
+
+dependencies:
+  - "@svendowideit/systemd-service"
+  - "@svendowideit/caddy"
+  - "@svendowideit/otel-settings"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - swamp_serve_test.ts
+  - test-factory.yaml
+  - test/bind/Dockerfile.txt
+  - test/bind/named.conf.txt
+  - test/bind/db.example.com.txt
+  - test/bind/tsig.key.txt
+
+platforms: []

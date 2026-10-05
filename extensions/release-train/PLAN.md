@@ -329,8 +329,11 @@ graph LR
 ```
 
 - Edges: dependent → dependency; external deps in a dashed subgraph.
-- Colour classes: `upToDate`, `needsPublish`, `blocked`, `external` (status is
-  also in the label so the graph is readable when rendered without CSS).
+- Colour classes: `upToDate`, `needsPublish`, `blocked`, `unknown`, `external`,
+  using the swamp-club palette (dark tinted fill + neon stroke + explicit bright
+  label text) so nodes stay legible in both light and dark Mermaid renderers.
+  Status is also in the label so the graph is readable without CSS. The Status
+  table doubles as the colour key.
 - Below the graph the report prints two tables: a **hygiene matrix** (one row per
   extension, ✓/✗ per rule with the issue text) and the ordered **publish plan**
   (order, extension, target channel + reason, exact command, blockers).
@@ -442,12 +445,26 @@ publishing". Reading the code (not the registry) found two real defects:
    authoritative "not found" was misread as an unreachable registry.
 
 Fixes: parse both streams; a parsed "not found" is authoritative (unpublished),
-anything else is `registryKnown=false`; a missing lockfile channel means stable;
-the lockfile version is unioned into the published set as a lower bound; and
-when the registry is unreachable the publish state becomes `unknown` (with a
-hygiene issue and a low-confidence channel advice), never `needs-publish` on
-false information. The report shows an `unknown` legend row and a top-of-report
-warning.
+anything else is not; a missing lockfile channel means stable; the lockfile
+version is unioned into the published set as a lower bound.
+
+A second report exposed that a deliberate `offline=true` run still showed 25
+"needs publishing" where an online run showed 7. The offline path had set
+`registryKnown=true`, so the lockfile's *silence* was read as "unpublished".
+The model was reworked around `publishedSource` (`registry` / `cache` /
+`lockfile` / `none`):
+
+- `needs-publish` (and `blocked`) require an **authoritative** source
+  (`registry` or `cache`); a lockfile-only "ahead" is `unknown`, never a claim
+  that publishing is required.
+- An offline run reuses the versions from a **previous run's `node` data**
+  (`cache`), surfaced with its observation date in a `Source` column and a
+  run-level "may be out of date" notice.
+- Data provenance is not an extension hygiene failure; it is shown through the
+  source, the `unknown` state, and the run-level notices instead.
+
+Result: offline and online agree on the counts, and ignorance is never rendered
+as a publish requirement.
 
 ## 11. Resolved decisions
 

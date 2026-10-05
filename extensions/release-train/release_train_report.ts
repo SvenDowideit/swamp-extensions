@@ -63,6 +63,10 @@ export interface NodeView {
   installed: { version: string; channel: string };
   /** Publish state. */
   publishState: string;
+  /** Where the published versions came from. */
+  publishedSource: string;
+  /** When a cached published answer was observed, or `""`. */
+  publishedAsOf: string;
   /** Dependencies that must publish first. */
   blockers: string[];
   /** Advisory target channel. */
@@ -201,6 +205,10 @@ export interface SummaryView {
   unknownCount: number;
   /** Count of external dependencies. */
   externalCount: number;
+  /** Count whose published versions came from a previous run's cache. */
+  cachedCount: number;
+  /** Count whose published versions came only from the lockfile. */
+  lockfileOnlyCount: number;
   /** Count with at least one hygiene issue. */
   hygieneFailureCount: number;
   /** Every hygiene issue. */
@@ -252,17 +260,83 @@ function nodeId(name: string): string {
   return "n_" + name.replace(/[^A-Za-z0-9]/g, "_");
 }
 
+/**
+ * The swamp-club colour scheme for one publish state.
+ *
+ * Colours mirror `@svendowideit/swamp-pulse`'s tier palette (a dark theme with
+ * neon accents): a dark tinted fill, a bright stroke, and an explicit bright
+ * `color` for the label text so a node is legible on a light *or* dark Mermaid
+ * renderer (GitHub honours `prefers-color-scheme`, so an implicit text colour
+ * would otherwise become light-on-light).
+ */
+export interface StateColour {
+  /** Mermaid class name. */
+  class: string;
+  /** Human colour name for the legend. */
+  name: string;
+  /** Emoji swatch, for the markdown legend (GitHub renders emoji). */
+  swatch: string;
+  /** Node fill. */
+  fill: string;
+  /** Node border. */
+  stroke: string;
+  /** Explicit label text colour. */
+  color: string;
+}
+
+/** swamp-club colours per publish state (single source of truth). */
+export const STATE_COLOURS: Record<string, StateColour> = {
+  "up-to-date": {
+    class: "upToDate",
+    name: "green",
+    swatch: "🟩",
+    fill: "#12301a",
+    stroke: "#39ff14",
+    color: "#7dff9b",
+  },
+  "needs-publish": {
+    class: "needsPublish",
+    name: "amber",
+    swatch: "🟨",
+    fill: "#3a2c0d",
+    stroke: "#ffb000",
+    color: "#ffd98a",
+  },
+  blocked: {
+    class: "blocked",
+    name: "red",
+    swatch: "🟥",
+    fill: "#3a0d0d",
+    stroke: "#ff6b6b",
+    color: "#ff9b9b",
+  },
+  unknown: {
+    class: "unknown",
+    name: "magenta",
+    swatch: "🟪",
+    fill: "#2a1030",
+    stroke: "#ff4dd2",
+    color: "#ff9be8",
+  },
+  external: {
+    class: "external",
+    name: "grey",
+    swatch: "⬜",
+    fill: "#182028",
+    stroke: "#7fa88a",
+    color: "#b8d0be",
+  },
+};
+
+/** The Mermaid `classDef` lines for every publish state, in palette order. */
+export const MERMAID_CLASS_DEFS: string[] = Object.values(STATE_COLOURS).map(
+  (c) =>
+    `  classDef ${c.class} fill:${c.fill},stroke:${c.stroke},color:${c.color};`,
+);
+
 /** Mermaid class for a publish state. */
 function classOf(publishState: string): string {
-  return publishState === "up-to-date"
-    ? "upToDate"
-    : publishState === "needs-publish"
-    ? "needsPublish"
-    : publishState === "blocked"
-    ? "blocked"
-    : publishState === "unknown"
-    ? "unknown"
-    : "external";
+  return STATE_COLOURS[publishState]?.class ?? STATE_COLOURS.external.class;
 }
 
 /** The status icon shown in a node label. */
@@ -332,11 +406,7 @@ export function renderMermaid(graph: GraphView, nodes: NodeView[]): string {
   for (const edge of graph.edges) {
     lines.push(`  ${nodeId(edge.from)} --> ${nodeId(edge.to)}`);
   }
-  lines.push("  classDef upToDate fill:#d4edda,stroke:#155724;");
-  lines.push("  classDef needsPublish fill:#fff3cd,stroke:#856404;");
-  lines.push("  classDef blocked fill:#f8d7da,stroke:#721c24;");
-  lines.push("  classDef unknown fill:#e7d4f0,stroke:#5e2a73;");
-  lines.push("  classDef external fill:#e2e3e5,stroke:#383d41;");
+  lines.push(...MERMAID_CLASS_DEFS);
   return lines.join("\n") + "\n";
 }
 
@@ -346,10 +416,10 @@ export function renderMatrix(nodes: NodeView[]): string {
   lines.push("## Hygiene and test matrix");
   lines.push("");
   lines.push(
-    "| Extension | Version | Pub stable/rc/beta | State | Manifest=model | Upgrades | fmt | wf | Docs | Review | Unit | Unit cov | Acc tests | Issues |",
+    "| Extension | Version | Pub stable/rc/beta | Source | State | Manifest=model | Upgrades | fmt | wf | Docs | Review | Unit | Unit cov | Acc tests | Issues |",
   );
   lines.push(
-    "| --------- | ------- | ---------- | ----- | -------------- | -------- | --- | -- | ---- | ------ | ---- | -------- | --------- | ------ |",
+    "| --------- | ------- | ---------- | ------ | ----- | -------------- | -------- | --- | -- | ---- | ------ | ---- | -------- | --------- | ------ |",
   );
   const sorted = [...nodes].sort((a, b) => a.name.localeCompare(b.name));
   for (const nd of sorted) {
@@ -367,8 +437,8 @@ export function renderMatrix(nodes: NodeView[]): string {
       : `${nd.hygiene.issues.length}`;
     lines.push(
       `| ${cell(nd.name)} | ${cell(nd.onDiskVersion)} | ${pub} | ${
-        cell(nd.publishState)
-      } | ` +
+        cell(sourceLabel(nd))
+      } | ${cell(nd.publishState)} | ` +
         `${mark(nd.hygiene.manifestModelMatch)} | ${
           mark(nd.hygiene.upgradesEntry)
         } | ` +
@@ -383,6 +453,25 @@ export function renderMatrix(nodes: NodeView[]): string {
     );
   }
   return lines.join("\n") + "\n";
+}
+
+/**
+ * A short label for where an extension's published versions came from, so a
+ * cached/offline answer is visibly distinguished from a live registry one.
+ */
+export function sourceLabel(nd: NodeView): string {
+  switch (nd.publishedSource) {
+    case "registry":
+      return "registry";
+    case "cache":
+      return nd.publishedAsOf
+        ? `cache ${nd.publishedAsOf.slice(0, 10)}`
+        : "cache";
+    case "lockfile":
+      return "lockfile";
+    default:
+      return "none";
+  }
 }
 
 /** Render the ordered publish plan as markdown. */
@@ -421,25 +510,42 @@ export function renderLegend(summary: SummaryView): string {
   const lines: string[] = [];
   lines.push("## Status");
   lines.push("");
-  lines.push("| State | Count | Meaning |");
-  lines.push("| ----- | ----- | ------- |");
   lines.push(
-    `| ✓ up-to-date | ${summary.upToDateCount} | On-disk version already published on a channel. |`,
+    "_The table below is also the diagram's colour key: each state maps to the " +
+      "swamp-club palette (`fill`, `stroke`, label text) used for that node in " +
+      "the Mermaid diagram._",
+  );
+  lines.push("");
+  lines.push("| Swatch | State | Colour | Count | Meaning |");
+  lines.push("| ------ | ----- | ------ | ----- | ------- |");
+  const c = (k: string) => STATE_COLOURS[k];
+  lines.push(
+    `| ${c("up-to-date").swatch} | ✓ up-to-date | ${
+      c("up-to-date").name
+    } | ${summary.upToDateCount} | On-disk version already published on a channel. |`,
   );
   lines.push(
-    `| ⚠ needs-publish | ${summary.needsPublishCount} | On-disk version is ahead of every published channel — publish it. |`,
+    `| ${c("needs-publish").swatch} | ⚠ needs-publish | ${
+      c("needs-publish").name
+    } | ${summary.needsPublishCount} | On-disk version is ahead of every published channel — publish it. |`,
   );
   lines.push(
-    `| ⛔ blocked | ${summary.blockedCount} | A dependency must publish before this one. |`,
+    `| ${c("blocked").swatch} | ⛔ blocked | ${
+      c("blocked").name
+    } | ${summary.blockedCount} | A dependency must publish before this one. |`,
   );
   lines.push(
-    `| ? unknown | ${summary.unknownCount} | The registry was unreachable, so the published state could not be determined. |`,
+    `| ${c("unknown").swatch} | ? unknown | ${
+      c("unknown").name
+    } | ${summary.unknownCount} | The registry was unreachable, so the published state could not be determined. |`,
   );
   lines.push(
-    `| · external | ${summary.externalCount} | A dependency outside this repo (published elsewhere). |`,
+    `| ${c("external").swatch} | · external | ${
+      c("external").name
+    } | ${summary.externalCount} | A dependency outside this repo (published elsewhere). |`,
   );
   lines.push(
-    `| — with hygiene issues | ${summary.hygieneFailureCount} | Has at least one failing release-hygiene check (see below). |`,
+    `| — | — with hygiene issues | — | ${summary.hygieneFailureCount} | Has at least one failing release-hygiene check (see below). |`,
   );
   return lines.join("\n") + "\n";
 }
@@ -566,10 +672,31 @@ export function renderReport(
   if (summary.unknownCount > 0) {
     lines.push("");
     lines.push(
-      `> ⚠ **${summary.unknownCount}** extension(s) could not have their ` +
-        "published state determined — the swamp-club registry was unreachable " +
-        "during this run. Their published versions are a lockfile lower bound, " +
-        "not authoritative. Re-run when the registry is reachable.",
+      `> ⚠ **${summary.unknownCount}** extension(s) are **unknown**: they are ` +
+        "ahead of the only published versions this run could confirm (a lockfile " +
+        "lower bound or a previous run's data), so release-train cannot say " +
+        "whether they need publishing. This is missing information, not a " +
+        "publish requirement. Re-run online to confirm.",
+    );
+  }
+  if (summary.cachedCount > 0 || summary.lockfileOnlyCount > 0) {
+    lines.push("");
+    const parts: string[] = [];
+    if (summary.cachedCount > 0) {
+      parts.push(
+        `**${summary.cachedCount}** from a **previous run** (see the ` +
+          "`Source` column — may be out of date)",
+      );
+    }
+    if (summary.lockfileOnlyCount > 0) {
+      parts.push(
+        `**${summary.lockfileOnlyCount}** from the **lockfile only** ` +
+          "(a lower bound; the registry was not consulted)",
+      );
+    }
+    lines.push(
+      `> ℹ Published versions this run: ${parts.join("; ")}. ` +
+        "Re-run online for authoritative versions.",
     );
   }
   lines.push("");
@@ -650,6 +777,8 @@ export function renderDashboard(
     needsPublishCount: 0,
     blockedCount: 0,
     unknownCount: 0,
+    cachedCount: 0,
+    lockfileOnlyCount: 0,
     externalCount: 0,
     hygieneFailureCount: 0,
     hygieneFailures: [],
@@ -680,6 +809,8 @@ export function toNodeView(raw: Record<string, unknown>): NodeView {
       channel: s(installed.channel),
     },
     publishState: s(raw.publishState),
+    publishedSource: s(raw.publishedSource) || "registry",
+    publishedAsOf: s(raw.publishedAsOf),
     blockers: Array.isArray(raw.blockers) ? raw.blockers.map(s) : [],
     channelAdvice: {
       channel: s((raw.channelAdvice as Record<string, unknown>)?.channel),
@@ -778,6 +909,8 @@ export const report = {
       needsPublishCount: 0,
       blockedCount: 0,
       unknownCount: 0,
+      cachedCount: 0,
+      lockfileOnlyCount: 0,
       externalCount: 0,
       hygieneFailureCount: 0,
       hygieneFailures: [],

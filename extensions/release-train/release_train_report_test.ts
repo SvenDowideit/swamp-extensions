@@ -1,4 +1,4 @@
-import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
   formatCoverage,
   type GraphView,
@@ -12,6 +12,7 @@ import {
   renderPlan,
   renderReport,
   renderUntested,
+  STATE_COLOURS,
   type SummaryView,
   toNodeView,
 } from "./release_train_report.ts";
@@ -24,6 +25,8 @@ function node(partial: Partial<NodeView>): NodeView {
     published: { stable: "", rc: "", beta: "2026.10.01.1" },
     installed: { version: "", channel: "" },
     publishState: "needs-publish",
+    publishedSource: "registry",
+    publishedAsOf: "",
     blockers: [],
     channelAdvice: { channel: "beta", reason: "trend", confidence: "medium" },
     hygiene: {
@@ -96,6 +99,33 @@ Deno.test("renderMermaid embeds name, versions, tests and classes", () => {
   assertStringIncludes(mmd, "n__a_app --> n__a_lib");
 });
 
+Deno.test("renderMermaid uses the swamp-club palette with explicit text colour", () => {
+  const mmd = renderMermaid(GRAPH, [node({})]);
+  // Every class sets fill + stroke + color so text stays legible in both themes.
+  for (const colour of Object.values(STATE_COLOURS)) {
+    assertStringIncludes(
+      mmd,
+      `classDef ${colour.class} fill:${colour.fill},stroke:${colour.stroke},color:${colour.color};`,
+    );
+  }
+  assertStringIncludes(mmd, "#39ff14"); // swamp-club green
+  assertStringIncludes(mmd, "#ffb000"); // swamp-club amber
+});
+
+Deno.test("STATE_COLOURS covers every publish state", () => {
+  for (
+    const state of [
+      "up-to-date",
+      "needs-publish",
+      "blocked",
+      "unknown",
+      "external",
+    ]
+  ) {
+    assert(STATE_COLOURS[state], `missing colour for ${state}`);
+  }
+});
+
 Deno.test("renderMatrix has a row per node with check marks", () => {
   const md = renderMatrix([
     node({ name: "@a/lib" }),
@@ -166,6 +196,8 @@ Deno.test("renderReport assembles graph, matrix, plan and issues", () => {
     needsPublishCount: 1,
     blockedCount: 0,
     unknownCount: 0,
+    cachedCount: 0,
+    lockfileOnlyCount: 0,
     externalCount: 1,
     hygieneFailureCount: 1,
     hygieneFailures: [{
@@ -214,6 +246,8 @@ Deno.test("renderLegend explains each publish state", () => {
     needsPublishCount: 1,
     blockedCount: 1,
     unknownCount: 0,
+    cachedCount: 0,
+    lockfileOnlyCount: 0,
     externalCount: 1,
     hygieneFailureCount: 2,
     hygieneFailures: [],
@@ -221,10 +255,12 @@ Deno.test("renderLegend explains each publish state", () => {
     staleTestData: [],
     cycle: [],
   });
-  assertStringIncludes(md, "| ✓ up-to-date | 1 |");
-  assertStringIncludes(md, "| ⚠ needs-publish | 1 |");
-  assertStringIncludes(md, "| ⛔ blocked | 1 |");
-  assertStringIncludes(md, "| · external | 1 |");
+  // Legend now carries a swatch + colour name per state.
+  assertStringIncludes(md, "🟩 | ✓ up-to-date | green | 1 |");
+  assertStringIncludes(md, "🟨 | ⚠ needs-publish | amber | 1 |");
+  assertStringIncludes(md, "🟥 | ⛔ blocked | red | 1 |");
+  assertStringIncludes(md, "⬜ | · external | grey | 1 |");
+  assertStringIncludes(md, "colour key");
 });
 
 Deno.test("renderExternal lists externals and their local dependents", () => {
@@ -252,6 +288,8 @@ Deno.test("renderUntested includes manifest paths and unit coverage", () => {
     needsPublishCount: 0,
     blockedCount: 0,
     unknownCount: 0,
+    cachedCount: 0,
+    lockfileOnlyCount: 0,
     externalCount: 0,
     hygieneFailureCount: 0,
     hygieneFailures: [],
@@ -287,6 +325,8 @@ Deno.test("renderDashboard renders from raw resources", () => {
       needsPublishCount: 1,
       blockedCount: 0,
       unknownCount: 0,
+      cachedCount: 0,
+      lockfileOnlyCount: 0,
       externalCount: 1,
       hygieneFailureCount: 0,
       hygieneFailures: [],

@@ -58,14 +58,29 @@ export interface ExtensionRecord {
   /** Human-readable hygiene failures (empty = clean). */
   hygieneFailures: string[];
   /**
-   * Whether the published-channel versions are actually known.
+   * Where {@link published} came from, which decides how far it can be trusted.
    *
-   * `false` when the registry could not be reached (timeout, spawn failure,
-   * rate limit, unparseable output) and only the lockfile — a lower bound — was
-   * available. A `false` here must never be rendered as "never published"; the
-   * publish state becomes `unknown` instead.
+   * - `registry` — authoritative, this run queried swamp-club.
+   * - `cache` — a previous run's registry answer, possibly out of date.
+   * - `lockfile` — only the installed version, which is a *lower bound*: it
+   *   proves a version was published, but its absence does **not** prove an
+   *   extension is unpublished.
+   * - `none` — no published information at all.
+   *
+   * Ignorance (`lockfile`/`none`) must never be rendered as "needs publishing".
    */
-  registryKnown?: boolean;
+  publishedSource?: PublishedSource;
+  /** ISO timestamp the cached registry answer was observed (for `cache`). */
+  publishedAsOf?: string;
+}
+
+/** Where an extension's published-channel versions were learned from. */
+export type PublishedSource = "registry" | "cache" | "lockfile" | "none";
+
+/** True when the published versions are authoritative enough to classify on. */
+export function publishedResolved(record: ExtensionRecord): boolean {
+  return record.publishedSource === "registry" ||
+    record.publishedSource === "cache";
 }
 
 /** Publish state derived for one local extension. */
@@ -202,16 +217,52 @@ export function highestKnownVersion(
 /**
  * True when the on-disk version is ahead of everything we can prove published.
  *
- * The version is the release signal: a dirty tree whose version already exists
- * on a channel is unreleased work-in-progress, not a publishable change.
+ * Being ahead of the *lockfile* only proves the local version is newer than
+ * what this machine pulled — not that no newer version was published elsewhere.
+ * So this is "possibly needs publishing"; {@link needsPublish} narrows it to a
+ * confirmed need using only authoritative (`registry`/`cache`) data.
  */
-export function needsPublish(record: ExtensionRecord): boolean {
+export function isAheadOfKnown(record: ExtensionRecord): boolean {
   if (!record.onDiskVersion) return false;
   return compareCalVer(
     record.onDiskVersion,
     highestKnownVersion(record).version,
   ) >
     0;
+}
+
+/**
+ * True when the on-disk version is confirmed ahead of what is published.
+ *
+ * Only authoritative published data (`registry`, or a previous online run's
+ * `cache`) can confirm this. When all we have is the lockfile lower bound,
+ * "ahead" means "unknown", not "needs publishing" — a lack of knowledge must
+ * never be presented as a requirement to publish.
+ */
+export function needsPublish(record: ExtensionRecord): boolean {
+  return isAheadOfKnown(record) && publishedResolved(record);
+}
+
+/**
+ * True when the extension is ahead of everything known but the published state
+ * was not authoritative this run, so we cannot say whether it needs publishing.
+ */
+export function needsPublishUnknown(record: ExtensionRecord): boolean {
+  return isAheadOfKnown(record) && !publishedResolved(record);
+}
+
+/** A short human note explaining where the published state came from. */
+function sourceNote(record: ExtensionRecord): string {
+  switch (record.publishedSource) {
+    case "cache":
+      return record.publishedAsOf
+        ? `Published state from a previous run (${record.publishedAsOf}); may be out of date — re-run online to confirm`
+        : "Published state from a previous run; may be out of date — re-run online to confirm";
+    case "lockfile":
+      return "Published state unknown — only the lockfile is available (offline); re-run online to confirm";
+    default:
+      return "Published state unknown — no registry or lockfile data; re-run online to confirm";
+  }
 }
 
 /**
@@ -235,13 +286,12 @@ export function adviseChannel(
   }
   const docsFail = record.docsScore !== null && record.docsScore < threshold;
   const unhealthy = record.hygieneFailures.length > 0 || docsFail;
-  // If the registry was unreachable, `published` is only a lockfile lower
-  // bound; do not claim the extension was never published.
-  if (record.registryKnown === false && neverPublished(record.published)) {
+  // If the published state was not authoritative this run, `published` is only
+  // a lower bound; do not claim the extension was never published.
+  if (!publishedResolved(record)) {
     return {
       channel: "beta",
-      reason:
-        "Published state unknown — registry unreachable; verify before publishing",
+      reason: sourceNote(record),
       confidence: "low",
     };
   }
@@ -376,26 +426,25 @@ export function buildGraph(records: ExtensionRecord[]): Graph {
     dependencies,
   );
 
-  // Publishable = on-disk version ahead of everything we can prove published.
-  // `unknown` = the registry was unreachable and the on-disk version is ahead of
-  // the lockfile lower bound, so we cannot tell whether it needs publishing.
+  // `needs-publish` requires authoritative published data. `unknown` covers an
+  // on-disk version ahead of a non-authoritative lower bound (offline/lockfile);
+  // it is ignorance, never a claim that publishing is required.
   const publishable = new Set(
     records.filter((r) => needsPublish(r)).map((r) => r.name),
   );
   const unknown = new Set(
-    records
-      .filter((r) => r.registryKnown === false && needsPublish(r))
-      .map((r) => r.name),
+    records.filter((r) => needsPublishUnknown(r)).map((r) => r.name),
   );
   const publishState = new Map<string, PublishState>();
   for (const name of order) {
     const localDeps = (dependencies.get(name) ?? []).filter((d) =>
       localNames.has(d)
     );
+    // `blocked` is only claimed on a *confirmed* pending dependency; an unknown
+    // dependency does not justify claiming the dependent is blocked.
     const blocked = localDeps.some((d) => {
       const s = publishState.get(d);
-      return s === "needs-publish" || s === "blocked" || s === "unknown" ||
-        publishable.has(d);
+      return s === "needs-publish" || s === "blocked";
     });
     if (blocked) publishState.set(name, "blocked");
     else if (unknown.has(name)) publishState.set(name, "unknown");

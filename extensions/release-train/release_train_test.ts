@@ -6,7 +6,6 @@ import {
   mapLimit,
   metaFromAttributes,
   parseRegistryInfo,
-  renderMermaid,
   resolveDenoPath,
   type RunFn,
 } from "./release_train.ts";
@@ -119,38 +118,6 @@ Deno.test("mapLimit preserves order and caps concurrency", async () => {
   });
   assertEquals(out, [2, 4, 6, 8, 10]);
   assert(peak <= 2, `peak concurrency ${peak} exceeded 2`);
-});
-
-Deno.test("renderMermaid emits nodes, edges and class defs", () => {
-  const mmd = renderMermaid({
-    nodes: [
-      {
-        name: "@a/lib",
-        onDiskVersion: "2026.10.05.1",
-        publishState: "needs-publish",
-        channelAdvice: { channel: "beta" },
-      },
-      {
-        name: "@a/app",
-        onDiskVersion: "2026.10.05.1",
-        publishState: "blocked",
-        channelAdvice: { channel: "beta" },
-      },
-    ],
-    edges: [{ from: "@a/app", to: "@a/lib" }],
-    externalNodes: [{
-      name: "@ext/thing",
-      publishedStable: "1.0",
-      publishedBeta: "",
-    }],
-  });
-  assertStringIncludes(mmd, "graph LR");
-  assertStringIncludes(mmd, ":::needsPublish");
-  assertStringIncludes(mmd, ":::blocked");
-  assertStringIncludes(mmd, ":::external");
-  assertStringIncludes(mmd, "n__a_app --> n__a_lib");
-  assertStringIncludes(mmd, "classDef needsPublish");
-  assertStringIncludes(mmd, "@ext/thing");
 });
 
 Deno.test("resolveDenoPath reads doctor output then falls back", async () => {

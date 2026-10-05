@@ -20,7 +20,7 @@ import {
   compareCalVer,
   type ExtensionRecord,
   highestKnownVersion,
-  type PublishState,
+  type PublishedSource,
 } from "./graph.ts";
 import {
   type ManifestInfo,
@@ -35,11 +35,16 @@ import {
   reviewStateFromWarnings,
   type ReviewWarning,
 } from "./introspect.ts";
-import { renderDashboard } from "./release_train_report.ts";
+import {
+  type GraphView,
+  renderDashboard,
+  renderMermaid,
+  toNodeView,
+} from "./release_train_report.ts";
 
 // Re-exported so the exported `parseRegistryInfo`/`RegistryVersions` signatures
-// reference a public type (the slow-type check rejects a private reference).
-export type { ChannelVersions } from "./graph.ts";
+// reference public types (the slow-type check rejects a private reference).
+export type { ChannelVersions, PublishedSource } from "./graph.ts";
 
 // ---------------------------------------------------------------------------
 // Global arguments
@@ -146,7 +151,8 @@ const NodeSchema = z.object({
     "external",
     "unknown",
   ]),
-  registryKnown: z.boolean(),
+  publishedSource: z.enum(["registry", "cache", "lockfile", "none"]),
+  publishedAsOf: z.string(),
   blockers: z.array(z.string()),
   channelAdvice: z.object({
     channel: z.string(),
@@ -207,6 +213,10 @@ const SummarySchema = z.object({
   blockedCount: z.number(),
   unknownCount: z.number(),
   externalCount: z.number(),
+  /** Extensions whose published versions came from a previous run's cache. */
+  cachedCount: z.number(),
+  /** Extensions whose published versions came only from the lockfile. */
+  lockfileOnlyCount: z.number(),
   hygieneFailureCount: z.number(),
   hygieneFailures: z.array(z.object({ name: z.string(), issue: z.string() })),
   untestedAcceptance: z.array(z.string()),
@@ -419,8 +429,55 @@ interface ExecContext {
     name: string,
     data: Record<string, unknown>,
   ) => Promise<{ name: string }>;
+  readResource?: (
+    instanceName: string,
+    version?: number,
+  ) => Promise<Record<string, unknown> | null>;
   readModelData?: ReadModelData;
   runModel?: RunModel;
+}
+
+/**
+ * The published versions this extension had in a previous run, if any.
+ *
+ * `analyze` writes one `node` resource per extension under a deterministic
+ * instance name. Reading it back lets an offline run (or one where the registry
+ * is unreachable) show the last real answer instead of silence — the caller
+ * keeps the `analyzedAt` timestamp so the report can mark it as possibly stale.
+ * Only an authoritative prior answer is reused; a prior lockfile-only answer is
+ * ignorance and must not be presented as knowledge.
+ */
+async function priorPublished(
+  ctx: ExecContext,
+  name: string,
+): Promise<{ published: ChannelVersions; asOf: string } | null> {
+  if (!ctx.readResource) return null;
+  let prior: Record<string, unknown> | null;
+  try {
+    prior = await ctx.readResource(sanitize(name));
+  } catch {
+    return null;
+  }
+  if (!prior || !prior.published || typeof prior.published !== "object") {
+    return null;
+  }
+  // Reuse only if the prior run had authoritative published data
+  // (`registry`/`cache`); a prior lockfile-only answer is ignorance.
+  const priorSource = str(prior.publishedSource);
+  if (priorSource !== "registry" && priorSource !== "cache") return null;
+  const p = prior.published as Record<string, unknown>;
+  const published: ChannelVersions = {
+    stable: str(p.stable),
+    rc: str(p.rc),
+    beta: str(p.beta),
+  };
+  // Keep an authoritatively empty answer too: the registry may have said "not
+  // found" (a real, reusable fact), and the source check above already
+  // guarantees it came from the registry or a prior cache.
+  return {
+    published,
+    asOf: str(prior.analyzedAt) || str(prior.publishedAsOf),
+  };
 }
 
 /** Docs score and acceptance coverage reused from meta-factory. */
@@ -576,13 +633,10 @@ export interface RegistryVersions {
   published: ChannelVersions;
   /** Installed version/channel from the lockfile. */
   installed: { version: string; channel: string };
-  /**
-   * Whether `published` came from the registry (or a deliberate offline run)
-   * rather than an unexpected failed lookup. When `false`, the registry is
-   * unreachable and `published` is only the lockfile lower bound — the caller
-   * must not present it as "never published".
-   */
-  registryKnown: boolean;
+  /** Where `published` came from, which bounds how far it can be trusted. */
+  source: PublishedSource;
+  /** ISO timestamp a cached registry answer was observed (source `cache`). */
+  asOf?: string;
 }
 
 /** Coerce an unknown value to a string. */
@@ -632,12 +686,24 @@ function lockChannel(channel: string): "stable" | "rc" | "beta" {
   return channel === "rc" || channel === "beta" ? channel : "stable";
 }
 
+/**
+ * A cached registry answer from a previous run, keyed by extension name.
+ *
+ * Supplied by {@link loadPublishedCache}. Used only when this run cannot reach
+ * the registry, and always labelled with its observation time.
+ */
+export type PublishedCache = Record<
+  string,
+  { published: ChannelVersions; asOf: string }
+>;
+
 /** Query the registry (or lockfile when offline) for published versions. */
 async function registryVersions(
   name: string,
   ctx: ExecContext,
   runFn: RunFn,
   upstream: Record<string, { version: string; channel: string }>,
+  cache: PublishedCache,
 ): Promise<RegistryVersions> {
   const installed = upstream[name] ?? { version: "", channel: "" };
   const lockChan = lockChannel(installed.channel);
@@ -646,8 +712,26 @@ async function registryVersions(
     rc: lockChan === "rc" ? installed.version : "",
     beta: lockChan === "beta" ? installed.version : "",
   });
+
   if (ctx.globalArgs.offline) {
-    return { published: fromLock(), installed, registryKnown: true };
+    // Offline never queries the registry. Fall back to a previous online run's
+    // answer (clearly time-stamped, so stale data reads as stale) before the
+    // lockfile lower bound.
+    const cached = cache[name];
+    if (cached) {
+      return {
+        published: mergeChannels(cached.published, fromLock()),
+        installed,
+        source: "cache",
+        asOf: cached.asOf,
+      };
+    }
+    const lock = fromLock();
+    return {
+      published: lock,
+      installed,
+      source: installed.version ? "lockfile" : "none",
+    };
   }
 
   const info = await runFn("swamp", ["extension", "info", name, "--json"], {
@@ -660,11 +744,25 @@ async function registryVersions(
   // must inspect both streams. A parsed "not found" is the registry's own
   // (authoritative) answer that the extension is unpublished; anything else —
   // no output, a timeout, a spawn error, an auth/5xx error, bad JSON — means
-  // the registry is unreachable and the lockfile is only a lower bound.
+  // the registry is unreachable, so fall back to a cached answer, then the
+  // lockfile lower bound.
   const parsed = parseRegistryInfo(info.stdout);
   const answer = parsed.known ? parsed : parseRegistryInfo(info.stderr);
   if (!answer.known) {
-    return { published: lock, installed, registryKnown: false };
+    const cached = cache[name];
+    if (cached) {
+      return {
+        published: mergeChannels(cached.published, lock),
+        installed,
+        source: "cache",
+        asOf: cached.asOf,
+      };
+    }
+    return {
+      published: lock,
+      installed,
+      source: installed.version ? "lockfile" : "none",
+    };
   }
 
   // The registry is authoritative for what it reports; the lockfile fills any
@@ -672,7 +770,7 @@ async function registryVersions(
   return {
     published: mergeChannels(answer.published, lock),
     installed,
-    registryKnown: true,
+    source: "registry",
   };
 }
 
@@ -763,11 +861,15 @@ async function gatherOne(
     }
   }
 
-  const { published, installed, registryKnown } = await registryVersions(
+  const prior = await priorPublished(ctx, manifest.name);
+  const cache: PublishedCache = {};
+  if (prior) cache[manifest.name] = prior;
+  const { published, installed, source, asOf } = await registryVersions(
     manifest.name,
     ctx,
     runFn,
     upstream,
+    cache,
   );
 
   const dirty = await runFn("git", ["status", "--porcelain", "--", d.dir], {
@@ -866,12 +968,10 @@ async function gatherOne(
     }
   }
 
-  if (!registryKnown && !g.offline) {
-    issues.push(
-      "registry lookup failed — published versions are a lockfile lower bound, not authoritative",
-    );
-  }
-
+  // Provenance (a cached or lockfile-only published answer) is not a hygiene
+  // failure of the extension: it is surfaced through `publishedSource`, the
+  // `unknown` publish state, and the report's top-level warning instead. Only a
+  // genuine check failure belongs in `issues`.
   const record: ExtensionRecord = {
     name: manifest.name,
     manifestPath: d.rel,
@@ -886,7 +986,8 @@ async function gatherOne(
     reviewState,
     docsScore: meta.docsScore,
     hygieneFailures: issues,
-    registryKnown,
+    publishedSource: source,
+    publishedAsOf: asOf,
   };
 
   const hygiene: Hygiene = {
@@ -938,6 +1039,7 @@ function failedRecord(d: Discovered, err: unknown): Gathered {
     reviewState: "unknown",
     docsScore: null,
     hygieneFailures: [`analysis failed: ${message}`],
+    publishedSource: "none",
   };
   return {
     record,
@@ -1022,87 +1124,6 @@ async function writeText(
   const target = resolve(repoDir, file);
   await Deno.mkdir(dirname(target), { recursive: true });
   await Deno.writeTextFile(target, content);
-}
-
-// ---------------------------------------------------------------------------
-// Rendering
-// ---------------------------------------------------------------------------
-
-/** Mermaid class for a publish state. */
-function classOf(s: PublishState): string {
-  return s === "up-to-date"
-    ? "upToDate"
-    : s === "needs-publish"
-    ? "needsPublish"
-    : s === "blocked"
-    ? "blocked"
-    : "external";
-}
-
-/** A stable Mermaid node id for an extension name. */
-function nodeId(name: string): string {
-  return "n_" + name.replace(/[^A-Za-z0-9]/g, "_");
-}
-
-/** The label lines shown inside a Mermaid node. */
-function mermaidLabel(name: string, version: string, state: string): string {
-  const icon = state === "blocked"
-    ? "⛔"
-    : state === "needs-publish"
-    ? "⚠"
-    : state === "up-to-date"
-    ? "✓"
-    : "·";
-  return `${name}<br/>${version || "?"} ${icon}`;
-}
-
-/** Render the dependency graph as a Mermaid diagram. */
-export function renderMermaid(
-  graph: {
-    nodes: Array<{
-      name: string;
-      onDiskVersion: string;
-      publishState: string;
-      channelAdvice: { channel: string };
-    }>;
-    edges: Array<{ from: string; to: string }>;
-    externalNodes: Array<{
-      name: string;
-      publishedStable: string;
-      publishedBeta: string;
-    }>;
-  },
-): string {
-  const lines: string[] = ["graph LR"];
-  for (const node of graph.nodes) {
-    const advice = node.channelAdvice.channel
-      ? `→${node.channelAdvice.channel}`
-      : "—";
-    const label = mermaidLabel(
-      node.name,
-      node.onDiskVersion,
-      node.publishState,
-    );
-    lines.push(
-      `  ${nodeId(node.name)}["${label} ${advice}"]:::${
-        classOf(node.publishState as PublishState)
-      }`,
-    );
-  }
-  for (const ext of graph.externalNodes) {
-    const pub = ext.publishedStable || ext.publishedBeta || "unpublished";
-    lines.push(
-      `  ${nodeId(ext.name)}["${ext.name}<br/>external ${pub}"]:::external`,
-    );
-  }
-  for (const edge of graph.edges) {
-    lines.push(`  ${nodeId(edge.from)} --> ${nodeId(edge.to)}`);
-  }
-  lines.push("  classDef upToDate fill:#d4edda,stroke:#155724;");
-  lines.push("  classDef needsPublish fill:#fff3cd,stroke:#856404;");
-  lines.push("  classDef blocked fill:#f8d7da,stroke:#721c24;");
-  lines.push("  classDef external fill:#e2e3e5,stroke:#383d41;");
-  return lines.join("\n") + "\n";
 }
 
 // ---------------------------------------------------------------------------
@@ -1198,9 +1219,11 @@ export const model = {
                 context,
                 runFn,
                 upstream,
+                {},
               ).catch(() => ({
                 published: { stable: "", rc: "", beta: "" },
                 installed: { version: "", channel: "" },
+                source: "none" as const,
               }));
               return {
                 name: ext.name,
@@ -1256,7 +1279,8 @@ export const model = {
             installed: r.installed,
             needsPublish: node?.publishState === "needs-publish",
             publishState: node?.publishState ?? "up-to-date",
-            registryKnown: r.registryKnown !== false,
+            publishedSource: r.publishedSource ?? "none",
+            publishedAsOf: r.publishedAsOf ?? "",
             blockers: blockersFor(r),
             channelAdvice: node?.channelAdvice ??
               { channel: "", reason: "", confidence: "low" },
@@ -1311,6 +1335,12 @@ export const model = {
           unknownCount:
             graph.nodes.filter((n) => n.publishState === "unknown").length,
           externalCount: graph.externalNodes.length,
+          cachedCount:
+            records.filter((r) => r.publishedSource === "cache").length,
+          lockfileOnlyCount:
+            records.filter((r) =>
+              r.publishedSource === "lockfile" || r.publishedSource === "none"
+            ).length,
           hygieneFailureCount:
             records.filter((r) => r.hygieneFailures.length > 0).length,
           hygieneFailures: records.flatMap((r) =>
@@ -1330,7 +1360,11 @@ export const model = {
           await context.writeResource("summary", "rollup", summaryRaw),
         );
 
-        const mmd = renderMermaid(graph);
+        const nodeViews = nodeRaws.map(toNodeView);
+        const mmd = renderMermaid(
+          graphRaw as unknown as GraphView,
+          nodeViews,
+        );
         await writeMermaid(context.repoDir, g.outputFile, mmd);
 
         if (g.markdownFile) {

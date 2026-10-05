@@ -7,6 +7,7 @@ import {
   compareCalVer,
   highestPublished,
   needsPublish,
+  needsPublishUnknown,
   topologicalOrder,
 } from "./graph.ts";
 
@@ -26,6 +27,8 @@ function record(
     reviewState: "ok",
     docsScore: null,
     hygieneFailures: [],
+    // Tests model an online run unless they override this.
+    publishedSource: "registry",
     ...partial,
   };
 }
@@ -228,7 +231,7 @@ Deno.test("needsPublish treats an installed version as published", () => {
     onDiskVersion: "2026.10.05.1",
     published: { stable: "", rc: "", beta: "" },
     installed: { version: "2026.10.05.1", channel: "" },
-    registryKnown: false,
+    publishedSource: "none",
   });
   assertEquals(needsPublish(r), false);
 });
@@ -239,14 +242,14 @@ Deno.test("buildGraph marks unknown when registry is unreachable", () => {
     onDiskVersion: "2026.10.05.1",
     published: { stable: "", rc: "", beta: "" },
     installed: { version: "", channel: "" },
-    registryKnown: false,
+    publishedSource: "none",
   });
   const graph = buildGraph([r]);
   assertEquals(graph.nodes[0].publishState, "unknown");
   assertEquals(graph.nodes[0].channelAdvice.confidence, "low");
   assertStringIncludes(
     graph.nodes[0].channelAdvice.reason,
-    "registry unreachable",
+    "re-run online to confirm",
   );
 });
 
@@ -255,9 +258,81 @@ Deno.test("adviseChannel: unknown does not claim 'never published'", () => {
     name: "@a/unknown",
     onDiskVersion: "2026.10.05.1",
     published: { stable: "", rc: "", beta: "" },
-    registryKnown: false,
+    publishedSource: "none",
   });
   const advice = adviseChannel(r);
   assertEquals(advice.confidence, "low");
   assertStringIncludes(advice.reason, "unknown");
+});
+
+Deno.test("offline/lockfile ahead is unknown, never needs-publish", () => {
+  // No registry answer, no cached answer, lockfile has no entry: we simply do
+  // not know. Ignorance must not be presented as "requires publishing".
+  const r = record({
+    name: "@a/offline",
+    onDiskVersion: "2026.10.05.1",
+    published: { stable: "", rc: "", beta: "" },
+    installed: { version: "", channel: "" },
+    publishedSource: "none",
+  });
+  assertEquals(needsPublish(r), false);
+  assertEquals(needsPublishUnknown(r), true);
+  assertEquals(buildGraph([r]).nodes[0].publishState, "unknown");
+});
+
+Deno.test("offline with a lockfile entry at the same version is up-to-date", () => {
+  const r = record({
+    name: "@a/pulled",
+    onDiskVersion: "2026.10.05.1",
+    published: { stable: "2026.10.05.1", rc: "", beta: "" },
+    installed: { version: "2026.10.05.1", channel: "" },
+    publishedSource: "lockfile",
+  });
+  assertEquals(needsPublish(r), false);
+  assertEquals(needsPublishUnknown(r), false);
+  assertEquals(buildGraph([r]).nodes[0].publishState, "up-to-date");
+});
+
+Deno.test("cached published data is authoritative enough to confirm a publish", () => {
+  const r = record({
+    name: "@a/cached",
+    onDiskVersion: "2026.10.05.1",
+    published: { stable: "", rc: "", beta: "2026.10.01.1" },
+    publishedSource: "cache",
+  });
+  assertEquals(needsPublish(r), true);
+  assertEquals(buildGraph([r]).nodes[0].publishState, "needs-publish");
+});
+
+Deno.test("a confirmed-pending dependency blocks; an unknown one does not", () => {
+  const libConfirmed = record({
+    name: "@a/lib",
+    onDiskVersion: "2026.10.05.1",
+    published: { stable: "", rc: "", beta: "2026.10.01.1" },
+    publishedSource: "registry",
+  });
+  const libUnknown = record({
+    name: "@a/lib2",
+    onDiskVersion: "2026.10.05.1",
+    published: { stable: "", rc: "", beta: "" },
+    publishedSource: "none",
+  });
+  const app = (dep: string) =>
+    record({
+      name: "@a/app",
+      onDiskVersion: "2026.10.05.1",
+      published: { stable: "", rc: "", beta: "" },
+      publishedSource: "registry",
+      dependencies: [dep],
+    });
+  const confirmed = buildGraph([libConfirmed, app("@a/lib")]);
+  assertEquals(
+    confirmed.nodes.find((n) => n.name === "@a/app")?.publishState,
+    "blocked",
+  );
+  const unknown = buildGraph([libUnknown, app("@a/lib2")]);
+  assertEquals(
+    unknown.nodes.find((n) => n.name === "@a/app")?.publishState,
+    "needs-publish",
+  );
 });

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/otel-gateway"
-version: "2026.10.03.1"
+version: "2026.10.05.1"
 description: >
   The central OpenTelemetry Collector gateway: one OTLP endpoint your fleet
   pushes to, which fans out to one or more backends.
@@ -59,10 +59,18 @@ description: >
       samplingHeadPercent  Head sampling applied to traces (100 = off)
       memoryLimitMiB       Soft memory limit (GOMEMLIMIT) for the collector
       installDir           Where the binary, config, and env file live
+      agentServiceName     co-located agent unit to remove on install (otel-agent)
+      removeAgent          stop+remove a co-located agent (default true)
 
     Methods: `install` (download + render + start + health-gate), `configure`
     (re-render and restart), `status` (service + health + endpoints), `remove`
     (stop and disable, optionally delete the install dir).
+
+    A gateway host runs no agent. The gateway and a co-located agent both bind
+    the standard OTLP ports (4317/4318) and the metrics port (8888), so whichever
+    starts second fails to bind and crash-loops. `install`/`configure` therefore
+    detect an agent already on the host (its unit, or an active unit) and stop
+    and remove it, so promoting an agent host into the gateway is self-correcting.
 
   WHAT IT INSTALLS
 

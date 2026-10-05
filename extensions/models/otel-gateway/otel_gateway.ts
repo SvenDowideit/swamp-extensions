@@ -124,6 +124,14 @@ const GlobalArgsSchema = z.object({
   healthTimeoutMs: z.number().int().positive().default(30000).describe(
     "How long to wait for the gateway to answer healthy after start",
   ),
+  agentServiceName: z.string().default("otel-agent").describe(
+    "systemd user unit of a co-located collector agent; a gateway host runs no " +
+      "agent, so install stops and removes one it finds here",
+  ),
+  removeAgent: z.boolean().default(true).describe(
+    "Stop and remove a co-located agent on install/configure (a gateway host " +
+      "is the collector for its own telemetry and must not also run an agent)",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -165,6 +173,8 @@ const InstallOutputSchema = z.object({
   endpoints: ReceiverEndpointsSchema,
   exporters: z.array(z.string()),
   healthy: z.boolean(),
+  /** A co-located agent was found and removed on this install. */
+  agentRemoved: z.boolean().default(false),
   installedAt: z.string(),
 });
 
@@ -764,7 +774,7 @@ export function shellQuote(value: string): string {
 /** The swamp model definition for `@svendowideit/otel-gateway`. */
 export const model = {
   type: "@svendowideit/otel-gateway",
-  version: "2026.10.03.1",
+  version: "2026.10.05.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "sane-config": {
@@ -807,6 +817,12 @@ export const model = {
       toVersion: "2026.10.03.1",
       description:
         "Initial release: the central OTel Collector gateway. Renders an otelcol-contrib config from structured OTLP receivers and one-or-more backend exporters (dual-write ready), installs the verified release binary, writes a 0600 env file with vault-sourced header credentials (kept out of the config via ${env:…}), runs a systemd user service, and verifies health. install/configure/status/remove methods.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.05.1",
+      description:
+        "A gateway host runs no agent: the gateway and a co-located agent both bind the standard OTLP ports (4317/4318) and the metrics port (8888), so the loser crash-loops. install/configure now detect a co-located agent (unit file or active unit) and stop+remove it (agentServiceName, removeAgent, both default on), recording agentRemoved. This makes promoting an agent host into the gateway/backend self-correcting.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -914,6 +930,20 @@ export const model = {
           }
         }
 
+        // A gateway host must not also run an agent — both bind 4317/4318 and
+        // 8888, so the gateway would fail to bind. A node promoted from agent
+        // to gateway gets the agent stopped and removed here.
+        let agentRemoved = false;
+        if (g.removeAgent && await agentPresent(g.agentServiceName)) {
+          const removed = await removeService(g.agentServiceName);
+          if (!removed.ok) throw new Error(removed.error);
+          agentRemoved = true;
+          context.logger?.info(
+            "Removed co-located agent {agent} — a gateway host runs no agent",
+            { agent: g.agentServiceName },
+          );
+        }
+
         // Idempotently install/refresh the systemd user service.
         const unit = await ensureService(context, g, paths, version);
         if (!unit.ok) throw new Error(unit.error);
@@ -941,6 +971,7 @@ export const model = {
           endpoints: endpointsFor(g),
           exporters: enabled.map((e) => e.name),
           healthy: healthy.healthy,
+          agentRemoved,
           installedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
@@ -1143,6 +1174,30 @@ async function binaryVersion(binaryPath: string): Promise<string> {
   if (res.code !== 0) return "";
   const match = /(\d+\.\d+\.\d+)/.exec(res.stdout);
   return match ? match[1] : "unknown";
+}
+
+/**
+ * True when the host already runs the collector agent. A gateway host must not
+ * also run an agent: the agent binds the standard OTLP ports (4317/4318) and
+ * the metrics port (8888) on localhost, so the gateway would fail to bind and
+ * crash-loop. Detected by the unit file (present even when stopped/failed) or
+ * an active unit, so a promotion is recognised regardless of run state.
+ */
+export async function agentPresent(agentServiceName: string): Promise<boolean> {
+  try {
+    await Deno.stat(
+      `${expandHome("~/.config/systemd/user")}/${agentServiceName}.service`,
+    );
+    return true;
+  } catch {
+    // No unit file; fall through to the active check.
+  }
+  const res = await runCmd("systemctl", [
+    "--user",
+    "is-active",
+    `${agentServiceName}.service`,
+  ]);
+  return res.code === 0 && res.stdout.trim() === "active";
 }
 
 async function serviceState(

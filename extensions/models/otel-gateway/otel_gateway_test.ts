@@ -335,6 +335,8 @@ Deno.test("model global args default to the standard OTLP ports", () => {
   assertEquals(parsed.metricsPort, 8888);
   assertEquals(parsed.serviceName, "otel-gateway");
   assertEquals(parsed.bindAddress, "127.0.0.1");
+  assertEquals(parsed.agentServiceName, "otel-agent");
+  assertEquals(parsed.removeAgent, true);
 });
 
 Deno.test("model global args are strict", () => {

@@ -55,6 +55,8 @@ Global arguments set at creation:
 | `environmentFile` | string | `""` | Env file path (default `<installDir>/gateway.env`, mode `0600`). |
 | `samplingHeadPercent` | number | `100` | Head sampling for traces (100 = off). |
 | `memoryLimitMiB` | integer | `512` | Soft memory limit (`GOMEMLIMIT`). |
+| `agentServiceName` | string | `otel-agent` | Co-located agent unit; a gateway host runs no agent. |
+| `removeAgent` | boolean | `true` | Stop+remove a co-located agent on install/configure. |
 | `githubToken` | string | `""` | GitHub token to raise the release API rate limit. |
 | `healthTimeoutMs` | integer | `30000` | How long to wait for health after start. |
 
@@ -134,6 +136,14 @@ swamp data get otel-gateway verify --json | jq '.content | {marker, pushed, push
 - **Service:** a systemd user unit with `EnvironmentFile=-…`, `Restart=on-failure`,
   and `WantedBy=default.target`; `install`/`configure` enable lingering and
   restart it, then poll `health_check`.
+- **No co-located agent:** a gateway host must not also run an `otel-agent` —
+  both bind the standard OTLP ports (`4317`/`4318`) and the metrics port
+  (`8888`), so the second to start crash-loops with `address already in use`.
+  `install`/`configure` detect an agent on the host (its unit file, or an active
+  unit) and stop and remove it (`agentServiceName`, `removeAgent`), recording
+  `agentRemoved` on the `install` resource. This makes promoting a host to be
+  the gateway/backend self-correcting. The reverse rule lives in
+  `@svendowideit/otel-agent`, whose `install` refuses a host that runs a gateway.
 - **Platforms:** Linux (systemd user services, `uname`/`tar`).
 - **Publishing:** generic — no site-specific values — so it lives in
   `@svendowideit`. The concrete exporters for a given setup (the site's backend

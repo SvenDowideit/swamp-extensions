@@ -67,8 +67,16 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3002"><span class="tier A">A</span>CLI tells signed-in callers to sign in when the registry rat</a><a href="#issue-2996"><span class="tier A">A</span>Datastore rework Phase 1 close-out: lock repository marks at</a><a href="#issue-2997"><span class="tier A">A</span>Installer and README present required Swamp Club login as op</a><a href="#issue-2968"><span class="tier A">A</span>data query: renamed data items are not found by their old na</a><a href="#issue-2960"><span class="tier A">A</span>data query: model lookup by id and orphan recovery parity wi</a><a href="#issue-2995"><span class="tier A">A</span>Datastore rework Phase 1 move C2: the vault config repositor</a><a href="#issue-2846"><span class="tier A">A</span>Model add-ons that extend a built-in model type never attach</a><a href="#issue-2843"><span class="tier A">A</span>deployments: sync fails after adopt/get because stored state</a><a href="#issue-2899"><span class="tier A">A</span>workflow approve on a run that is not suspended prints a fat</a><a href="#issue-2957"><span class="tier A">A</span>data query: no way to target a workflow&#39;s latest run</a><a href="#issue-2992"><span class="tier A">A</span>Datastore rework Phase 1 move C1: the workflow run repositor</a><a href="#issue-2959"><span class="tier A">A</span>data query: binary content lacks contentEncoding/base64 pari</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3006"><span class="tier A">A</span>vault read-secret: to a pipe or file, drops the last line of</a><a href="#issue-3002"><span class="tier A">A</span>CLI tells signed-in callers to sign in when the registry rat</a><a href="#issue-2996"><span class="tier A">A</span>Datastore rework Phase 1 close-out: lock repository marks at</a><a href="#issue-2997"><span class="tier A">A</span>Installer and README present required Swamp Club login as op</a><a href="#issue-2968"><span class="tier A">A</span>data query: renamed data items are not found by their old na</a><a href="#issue-2960"><span class="tier A">A</span>data query: model lookup by id and orphan recovery parity wi</a><a href="#issue-2995"><span class="tier A">A</span>Datastore rework Phase 1 move C2: the vault config repositor</a><a href="#issue-2846"><span class="tier A">A</span>Model add-ons that extend a built-in model type never attach</a><a href="#issue-2843"><span class="tier A">A</span>deployments: sync fails after adopt/get because stored state</a><a href="#issue-2899"><span class="tier A">A</span>workflow approve on a run that is not suspended prints a fat</a><a href="#issue-2957"><span class="tier A">A</span>data query: no way to target a workflow&#39;s latest run</a><a href="#issue-2992"><span class="tier A">A</span>Datastore rework Phase 1 move C1: the workflow run repositor</a></aside><div>
 
+<article class="item" id="issue-3006">
+<h2><span class="tier A">A</span>vault read-secret: to a pipe or file, drops the last line of a multi-line value when that line is 1024+ chars with no trailing newline (exit 0)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-05T14:05:38.004Z">2026-10-05T14:05:38.004Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3006" rel="noopener">lab#3006</a></div>
+</article>
 <article class="item" id="issue-3002">
 <h2><span class="tier A">A</span>CLI tells signed-in callers to sign in when the registry rate-limits them</h2>
 <p class="lede">Shipped bug fix</p>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2992" rel="noopener">lab#2992</a></div>
 </article>
-<article class="item" id="issue-2959">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2959">
 <h2><span class="tier A">A</span>data query: binary content lacks contentEncoding/base64 parity with data get</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-02T21:39:59.151Z">2026-10-02T21:39:59.151Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2959" rel="noopener">lab#2959</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2958">
+<article class="item" id="issue-2958">
 <h2><span class="tier A">A</span>data query: no fallback from spec name to data instance name</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-02T21:38:48.917Z">2026-10-02T21:38:48.917Z</time></span></div>
@@ -1063,8 +1071,8 @@ footer .ver{color:var(--acc)}
 </article>
 <article class="item" id="issue-3003">
 <h2><span class="tier B">B</span>vault migrate: report missing required --config fields clearly, before installing the target type</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-05T12:48:06.251Z">2026-10-05T12:48:06.251Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-05T14:01:12.883Z">2026-10-05T14:01:12.883Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3003" rel="noopener">lab#3003</a></div>
@@ -1093,13 +1101,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3006">
-<h2><span class="tier C">C</span>vault read-secret: to a pipe or file, drops the last line of a multi-line value when that line is 1024+ chars with no trailing newline (exit 0)</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3014">
+<h2><span class="tier C">C</span>Docs: vault create and vault migrate name missing required --config fields and prompt for them</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-05T12:44:23.527Z">2026-10-05T12:44:23.527Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-05T13:59:21.040Z">2026-10-05T13:59:21.040Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3006" rel="noopener">lab#3006</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3014" rel="noopener">lab#3014</a></div>
+</article>
+<article class="item" id="issue-3013">
+<h2><span class="tier C">C</span>auto-resolve: the Installing line prints the extension&#39;s entire multi-line description</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-05T13:46:14.146Z">2026-10-05T13:46:14.146Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3013" rel="noopener">lab#3013</a></div>
 </article>
 <article class="item" id="issue-3011">
 <h2><span class="tier C">C</span>readModelData silently drops data written before a model instance rename</h2>
@@ -1702,13 +1718,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2800" rel="noopener">lab#2800</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>204 items across 1 source(s) in this window:
-0 critical, 124 notable, 4 routine,
-76 minor.</p>
-<ul><li><strong>issues</strong> — 204</li></ul></section>
+<p>206 items across 1 source(s) in this window:
+0 critical, 125 notable, 4 routine,
+77 minor.</p>
+<ul><li><strong>issues</strong> — 206</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T13:03:00.166Z">2026-10-05T13:03:00.166Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-05T14:10:57.328Z">2026-10-05T14:10:57.328Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

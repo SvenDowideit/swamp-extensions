@@ -67,8 +67,16 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3056"><span class="tier A">A</span>Datastore rework Phase 2: find, wrap and warn on hooked writ</a><a href="#issue-2978"><span class="tier A">A</span>stagecraft: read records with data query --single once it sh</a><a href="#issue-3054"><span class="tier A">A</span>Serve audit: WAL replay at startup deletes segments before t</a><a href="#issue-3055"><span class="tier A">A</span>Datastore rework Phase 2: one flush path, so every push is a</a><a href="#issue-3050"><span class="tier A">A</span>Flaky test: usePreviewFetch in-flight fetch for A is discard</a><a href="#issue-3052"><span class="tier A">A</span>Serve audit: delivered WAL segments are only deleted at shut</a><a href="#issue-2990"><span class="tier A">A</span>Serve audit: sink filter config in serve.yaml is never valid</a><a href="#issue-3037"><span class="tier A">A</span>Serve audit: two sinks with the same name share one emitter </a><a href="#issue-3039"><span class="tier A">A</span>Serve audit: a durable sink write that times out is retried </a><a href="#issue-3053"><span class="tier A">A</span>Datastore rework Phase 2: root units can checkpoint, and the</a><a href="#issue-3047"><span class="tier A">A</span>extension push: restore --yes waiving warnings (revert the 2</a><a href="#issue-3043"><span class="tier A">A</span>Flaky test: ModelResolver data accessors for a renamed model</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3023"><span class="tier A">A</span>Design: verify the extension push adversarial review through</a><a href="#issue-3056"><span class="tier A">A</span>Datastore rework Phase 2: find, wrap and warn on hooked writ</a><a href="#issue-2978"><span class="tier A">A</span>stagecraft: read records with data query --single once it sh</a><a href="#issue-3054"><span class="tier A">A</span>Serve audit: WAL replay at startup deletes segments before t</a><a href="#issue-3055"><span class="tier A">A</span>Datastore rework Phase 2: one flush path, so every push is a</a><a href="#issue-3050"><span class="tier A">A</span>Flaky test: usePreviewFetch in-flight fetch for A is discard</a><a href="#issue-3052"><span class="tier A">A</span>Serve audit: delivered WAL segments are only deleted at shut</a><a href="#issue-2990"><span class="tier A">A</span>Serve audit: sink filter config in serve.yaml is never valid</a><a href="#issue-3037"><span class="tier A">A</span>Serve audit: two sinks with the same name share one emitter </a><a href="#issue-3039"><span class="tier A">A</span>Serve audit: a durable sink write that times out is retried </a><a href="#issue-3053"><span class="tier A">A</span>Datastore rework Phase 2: root units can checkpoint, and the</a><a href="#issue-3047"><span class="tier A">A</span>extension push: restore --yes waiving warnings (revert the 2</a></aside><div>
 
+<article class="item" id="issue-3023">
+<h2><span class="tier A">A</span>Design: verify the extension push adversarial review through the attestation (whole-extension rubric review as a local verification step, carried in the attestation, read by publish and the push gate)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-06T12:46:46.315Z">2026-10-06T12:46:46.315Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3023" rel="noopener">lab#3023</a></div>
+</article>
 <article class="item" id="issue-3056">
 <h2><span class="tier A">A</span>Datastore rework Phase 2: find, wrap and warn on hooked writes outside a unit of work (route 2), without removing it (no behaviour change)</h2>
 <p class="lede">Shipped feature</p>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3047" rel="noopener">lab#3047</a></div>
 </article>
-<article class="item" id="issue-3043">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3043">
 <h2><span class="tier A">A</span>Flaky test: ModelResolver data accessors for a renamed model return the earlier id&#39;s record from findBySpec</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-05T22:51:36.508Z">2026-10-05T22:51:36.508Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3043" rel="noopener">lab#3043</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2468">
+<article class="item" id="issue-2468">
 <h2><span class="tier A">A</span>serve: workflow trigger get/set ignore --config and read/write &lt;repo&gt;/.swamp/serve.yaml, so they disagree with the scheduler</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-05T22:41:13.929Z">2026-10-05T22:41:13.929Z</time></span></div>
@@ -1413,14 +1421,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3051" rel="noopener">lab#3051</a></div>
 </article>
-<article class="item" id="issue-3023">
-<h2><span class="tier B">B</span>Design: verify the extension push adversarial review through the attestation (whole-extension rubric review as a local verification step, carried in the attestation, read by publish and the push gate)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-05T23:43:07.383Z">2026-10-05T23:43:07.383Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3023" rel="noopener">lab#3023</a></div>
-</article>
 <article class="item" id="issue-3030">
 <h2><span class="tier B">B</span>digitalocean codegen: app-platform and database spec secret fields are not marked sensitive</h2>
 <p class="lede">Issue in_progress</p>
@@ -1453,7 +1453,31 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3014">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3060">
+<h2><span class="tier C">C</span>Decide a stricter naming rule for workflow step and job names</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-06T12:55:12.836Z">2026-10-06T12:55:12.836Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3060" rel="noopener">lab#3060</a></div>
+</article>
+<article class="item" id="issue-3062">
+<h2><span class="tier C">C</span>Workflow load errors print the raw Zod issue dump instead of a readable message</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-06T12:14:11.941Z">2026-10-06T12:14:11.941Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3062" rel="noopener">lab#3062</a></div>
+</article>
+<article class="item" id="issue-3059">
+<h2><span class="tier C">C</span>run doctor through serve interrupts a live run of another serve instance when no heartbeats are recorded</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-06T12:06:30.221Z">2026-10-06T12:06:30.221Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3059" rel="noopener">lab#3059</a></div>
+</article>
+<article class="item" id="issue-3014">
 <h2><span class="tier C">C</span>Docs: vault create and vault migrate name missing required --config fields and prompt for them</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-06T08:23:10.976Z">2026-10-06T08:23:10.976Z</time></span></div>
@@ -2086,13 +2110,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>252 items across 1 source(s) in this window:
-0 critical, 165 notable, 8 routine,
-79 minor.</p>
-<ul><li><strong>issues</strong> — 252</li></ul></section>
+<p>255 items across 1 source(s) in this window:
+0 critical, 166 notable, 7 routine,
+82 minor.</p>
+<ul><li><strong>issues</strong> — 255</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-06T12:02:15.344Z">2026-10-06T12:02:15.344Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-06T13:04:02.591Z">2026-10-06T13:04:02.591Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

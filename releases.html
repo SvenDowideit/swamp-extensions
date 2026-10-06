@@ -221,7 +221,7 @@ footer .ver{color:var(--acc)}
 <li><code>trigger set/remove</code> refuse when the file can&#39;t be written, for example a read-only ConfigMap. The scheduler is left unchanged. The client error names no server path and suggests <code>swamp serve reload</code> or, without <code>--hot-reload</code>, a restart.</li>
 <li>Rewrites keep the file&#39;s permission bit</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.223330.0-sha.fcfe2326" rel="noopener">release v20261005.223330.0-sha.fcfe2326</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fcfe23265df7283e0dd8890d58539637cc3bc9fd" rel="noopener">fcfe2326</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2850" rel="noopener">#2850</a>𝗔 <a href="https://swamp-club.com/lab/2472" rel="noopener">lab#2472</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261005-222556-0-sha-aa877fcb">
@@ -388,7 +388,7 @@ footer .ver{color:var(--acc)}
 <li><code>completeAndSettle</code> in <code>src/domain/workflows/abort_settlement.ts</code> sits beside <code>cancelAndSettle</code>: it applies the same settlement, then completes the run. Reject fails the gate and leaves its job open, so the settlement ends that job from its failed gate.</li>
 <li>Reject settles against the run&#39;s own evaluated workflow snapshot, as cancel does. <code>WorkflowRejectDeps</code> gains a required <code>findEvaluatedWorkflow</code>, wired in the CLI command, the serve `workflow.rej</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/execution-semantics.md" rel="noopener">.claude/skills/swamp/references/workflow/references/execution-semantics.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.214547.0-sha.1d4b1c64" rel="noopener">release v20261005.214547.0-sha.1d4b1c64</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1d4b1c64e9cd05f53bdd4b2c69c7d9a9512739f8" rel="noopener">1d4b1c64</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2841" rel="noopener">#2841</a>𝗔 <a href="https://swamp-club.com/lab/2905" rel="noopener">lab#2905</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261005-194524-0-sha-afe35519">
@@ -452,7 +452,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li><code>resolveLocalCancelTarget</code> and <code>findAllActiveRuns</code> in <code>src/cli/commands/workflow_cancel.ts</code> replace the defi</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/guide.md" rel="noopener">.claude/skills/swamp/references/workflow/guide.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.190003.0-sha.cd2183ee" rel="noopener">release v20261005.190003.0-sha.cd2183ee</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cd2183eea6956e7309a1c68bbc12a8fdfb9966d9" rel="noopener">cd2183ee</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2840" rel="noopener">#2840</a>𝗔 <a href="https://swamp-club.com/lab/2920" rel="noopener">lab#2920</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261005-184818-0-sha-bbccb637">
@@ -1774,7 +1774,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Exempt:</strong> bare <code>swamp</code>, <code>--help</code>/<code>--version</code> (decided against the real Cliffy command tree), <code>auth login/logout/whoami</code>, <code>help</code>, <code>completions</code>, <code>version</code>, <code>update</code>.</li>
 <li><strong>Blocks:</strong> <code>AuthGateBlockedError</code> (<code>auth_gate_blocked</code>). JSON includes <code>reason</code> and <code>temporary</code>. Temporary blocks exit 75, a missing or revo</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp-getting-started/SKILL.md" rel="noopener">.claude/skills/swamp-getting-started/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/architecture.md" rel="noopener">design/architecture.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp-getting-started/SKILL.md" rel="noopener">.claude/skills/swamp-getting-started/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.191636.0-sha.71c25269" rel="noopener">release v20261001.191636.0-sha.71c25269</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/71c252697760cd7920810f76f0eccfe1feecb416" rel="noopener">71c25269</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2777" rel="noopener">#2777</a>𝗔 <a href="https://swamp-club.com/lab/2231" rel="noopener">lab#2231</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261001-190402-0-sha-543aad7e">
@@ -1824,7 +1824,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Ending a waiting parent:</strong> reject, cancel and supersede detach the waiting nested steps. They report any child left unfinished, with the command that cancels it. Cascading the cancel to the child is swamp-club#2867.</li>
 <li>**Serve</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/nested-workflows.md" rel="noopener">.claude/skills/swamp/references/workflow/references/nested-workflows.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.183643.0-sha.6bd579f3" rel="noopener">release v20261001.183643.0-sha.6bd579f3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6bd579f319b60da663cfe108707e7d8ff7607834" rel="noopener">6bd579f3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2768" rel="noopener">#2768</a>𝗔 <a href="https://swamp-club.com/lab/2736" rel="noopener">lab#2736</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261001-182044-0-sha-aa8acf26">
@@ -2371,7 +2371,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 67</li><li><strong>feat</strong> — 21</li><li><strong>refactor</strong> — 7</li><li><strong>test</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-06T17:12:47.949Z">2026-10-06T17:12:47.949Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-06T18:03:54.552Z">2026-10-06T18:03:54.552Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

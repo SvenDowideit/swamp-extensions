@@ -67,8 +67,53 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261006-000601-0-sha-57f11b3f"><span class="tier A">A</span>no duplicate durable writes, per-sink delivery state, WAL cl</a><a href="#release-swamp-club-swamp-v20261005-231834-0-sha-6a4d7d6e"><span class="tier A">A</span>restore --yes waiving warnings on extension push and remove </a><a href="#release-swamp-club-swamp-v20261005-224645-0-sha-d58cdf00"><span class="tier A">A</span>findBySpec keeps the current definition&#39;s record on a create</a><a href="#release-swamp-club-swamp-v20261005-223330-0-sha-fcfe2326"><span class="tier A">A</span>reload and workflow.trigger requests use the --config file (</a><a href="#release-swamp-club-swamp-v20261005-222556-0-sha-aa877fcb"><span class="tier A">A</span>cancel a running run whose serve process is gone, and keep t</a><a href="#release-swamp-club-swamp-v20261005-221308-0-sha-38c63d15"><span class="tier A">A</span>a limited data query fills its page past stale catalog rows </a><a href="#release-swamp-club-swamp-v20261005-220644-0-sha-ebe87ef2"><span class="tier A">A</span>stop a server token record being paired with another mint&#39;s </a><a href="#release-swamp-club-swamp-v20261005-220214-0-sha-27241a75"><span class="tier A">A</span>correct the data get workflow help example (swamp-club#2987)</a><a href="#release-swamp-club-swamp-v20261005-215321-0-sha-696b3e2f"><span class="tier A">A</span>serve success-only, method run and resume pushes commit thro</a><a href="#release-swamp-club-swamp-v20261005-214944-0-sha-f4bcfb31"><span class="tier A">A</span>re-register the macOS autoupdate job after updates and flag </a><a href="#release-swamp-club-swamp-v20261005-214547-0-sha-1d4b1c64"><span class="tier A">A</span>settle a rejected run&#39;s unfinished work before marking it fa</a><a href="#release-swamp-club-swamp-v20261005-194524-0-sha-afe35519"><span class="tier A">A</span>credentials-sensitive-field matches identifiers, not line su</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261006-005514-0-sha-18eb14fc"><span class="tier A">A</span>stop reading OAuth bootstrap secrets from the user vault on </a><a href="#release-swamp-club-swamp-v20261006-004547-0-sha-3072db18"><span class="tier A">A</span>WAL replay deletes segments only once the store confirms the</a><a href="#release-swamp-club-swamp-v20261006-000601-0-sha-57f11b3f"><span class="tier A">A</span>no duplicate durable writes, per-sink delivery state, WAL cl</a><a href="#release-swamp-club-swamp-v20261005-231834-0-sha-6a4d7d6e"><span class="tier A">A</span>restore --yes waiving warnings on extension push and remove </a><a href="#release-swamp-club-swamp-v20261005-224645-0-sha-d58cdf00"><span class="tier A">A</span>findBySpec keeps the current definition&#39;s record on a create</a><a href="#release-swamp-club-swamp-v20261005-223330-0-sha-fcfe2326"><span class="tier A">A</span>reload and workflow.trigger requests use the --config file (</a><a href="#release-swamp-club-swamp-v20261005-222556-0-sha-aa877fcb"><span class="tier A">A</span>cancel a running run whose serve process is gone, and keep t</a><a href="#release-swamp-club-swamp-v20261005-221308-0-sha-38c63d15"><span class="tier A">A</span>a limited data query fills its page past stale catalog rows </a><a href="#release-swamp-club-swamp-v20261005-220644-0-sha-ebe87ef2"><span class="tier A">A</span>stop a server token record being paired with another mint&#39;s </a><a href="#release-swamp-club-swamp-v20261005-220214-0-sha-27241a75"><span class="tier A">A</span>correct the data get workflow help example (swamp-club#2987)</a><a href="#release-swamp-club-swamp-v20261005-215321-0-sha-696b3e2f"><span class="tier A">A</span>serve success-only, method run and resume pushes commit thro</a><a href="#release-swamp-club-swamp-v20261005-214944-0-sha-f4bcfb31"><span class="tier A">A</span>re-register the macOS autoupdate job after updates and flag </a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261006-005514-0-sha-18eb14fc">
+<h2><span class="tier A">A</span>stop reading OAuth bootstrap secrets from the user vault on every start (swamp-club#2471) (#2857)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-06T00:56:51Z">2026-10-06T00:56:51Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): stop reading OAuth bootstrap secrets from the user vault on every start (swamp-club#2471) (#2857)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>On every start, serve&#39;s boot-time OAuth secret migration read each of <code>oauth-client-id</code>, <code>oauth-client-secret</code>, <code>oauth-bootstrap-access-token</code> and <code>oauth-resolved-admins</code> from the default user vault whenever the key was missing from <code>_token-secrets</code>. After an API-key registration, <code>oauth-bootstrap-access-token</code> is never stored, so a remote default vault such as <code>@swamp/1password</code> recorded a failed read and an error span on every boot (swamp-club#2471).</p>
+<ul>
+<li><strong><code>ad234495</code></strong>: moves the migration out of <code>serve.ts</code> into <code>src/serve/oauth_secret_migration.ts</code> unchanged, behind a narrow <code>Pick&lt;VaultService, …&gt;</code> port so it can be unit tested.</li>
+<li><strong><code>233e59e8</code></strong>: the fix.</li>
+<li>The migration lists the user vault once and reads only the keys that are listed.</li>
+<li>It records <code>oauth-secrets-migrated</code> in <code>_token-secrets</code> once the listing succeeded and every key moved.</li>
+<li>Later starts skip the migration entirely.</li>
+<li>If listing fails, a key fails to move, or the marker can&#39;t be written, the failure is logged and the next start retries. None of these fail startup.</li>
+<li>Adds a paragraph to <code>design/primitives/serve.md</code>.</li>
+</ul>
+<p>Once the marker exists, an <code>oauth-*</code> item added to the user vault later is neither moved nor deleted. That also addresses the issue&#39;s side note about keys vanishing from a shared vault.</p>
+<p><strong>Out of scope:</strong> the credential-resolution fallback tha</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261006.005514.0-sha.18eb14fc" rel="noopener">release v20261006.005514.0-sha.18eb14fc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/18eb14fcd0cc64c1834b8208b691cf0ad8b0c5ef" rel="noopener">18eb14fc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2857" rel="noopener">#2857</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261006-004547-0-sha-3072db18">
+<h2><span class="tier A">A</span>WAL replay deletes segments only once the store confirms them (swamp-club#3054) (#2856)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-06T00:47:32Z">2026-10-06T00:47:32Z</time></span><span>serve-audit</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve-audit): WAL replay deletes segments only once the store confirms them (swamp-club#3054) (#2856)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>At serve startup, <code>WalSink.replay</code> wrote each WAL segment left from the previous session to <code>StoreSink</code> and deleted it straight away. <code>StoreSink.write</code> only buffers below the batch size, so the segment was gone before any store put. A failed put or an exit before the next flush lost those events from both the WAL and the store.</p>
+<p>Replay now follows the same rule as live delivery (since swamp-club#3039/#3052):</p>
+<ul>
+<li>Leftover segments go on the delivery queue, ahead of anything written after, followed by a checkpoint. They are deleted only after <code>StoreSink.flush</code> confirms them and <code>chain-state.json</code> records their chain position.</li>
+<li>Empty segments from a partial write are still deleted straight away. A segment that cannot be read stays in the WAL, and the rest are still queued (previously replay stopped at it).</li>
+<li>Replay iterates a copy of <code>AuditWal.listSegments()</code>, which returns the live array that <code>append</code> pushes onto, so a write landing mid-replay is queued once.</li>
+<li>Startup no longer waits on the store. The startup log reads <code>Queued {count} WAL event(s) from previous session for audit store delivery</code>.</li>
+<li><code>design/enablers/serve-audit.md</code> describes startup replay and states that delivery is at least once: a crash between the store put and the checkpoint sends a segment again, and <code>swamp audit verify</code> reports a break at the duplicate sequences, as i</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-audit.md" rel="noopener">design/enablers/serve-audit.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261006.004547.0-sha.3072db18" rel="noopener">release v20261006.004547.0-sha.3072db18</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3072db1867b3ebdb9089be092230b4b868403adb" rel="noopener">3072db18</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2856" rel="noopener">#2856</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3052" rel="noopener">#3052</a>𝗔 <a href="https://swamp-club.com/lab/3054" rel="noopener">lab#3054</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261006-000601-0-sha-57f11b3f">
 <h2><span class="tier A">A</span>no duplicate durable writes, per-sink delivery state, WAL cleanup while running (swamp-club#3039, #3037, #2990, #3052, #3050) (#2854)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -294,7 +339,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.214944.0-sha.f4bcfb31" rel="noopener">release v20261005.214944.0-sha.f4bcfb31</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f4bcfb314fd07570f90d4f9f823a15e70ff6c1e5" rel="noopener">f4bcfb31</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2845" rel="noopener">#2845</a>𝗔 <a href="https://swamp-club.com/lab/3007" rel="noopener">lab#3007</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261005-214547-0-sha-1d4b1c64">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261005-214547-0-sha-1d4b1c64">
 <h2><span class="tier A">A</span>settle a rejected run&#39;s unfinished work before marking it failed (swamp-club#2905) (#2841)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-05T21:47:45Z">2026-10-05T21:47:45Z</time></span><span>workflows</span><span>fix</span></div>
@@ -340,7 +385,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.194524.0-sha.afe35519" rel="noopener">release v20261005.194524.0-sha.afe35519</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/afe35519c943b41ee7c27cf9472b071edb308f31" rel="noopener">afe35519</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2843" rel="noopener">#2843</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1044" rel="noopener">#1044</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2952" rel="noopener">#2952</a>𝗔 <a href="https://swamp-club.com/lab/3019" rel="noopener">lab#3019</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261005-191742-0-sha-ca1959c6">
+<article class="item" id="release-swamp-club-swamp-v20261005-191742-0-sha-ca1959c6">
 <h2><span class="tier A">A</span>keep the durable audit chain intact when a non-durable sink fails, lags or hangs (swamp-club#2988) (#2842)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-05T19:19:27Z">2026-10-05T19:19:27Z</time></span><span>serve-audit</span><span>fix</span></div>
@@ -2064,6 +2109,25 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.060930.0-sha.ccae15a5" rel="noopener">release v20261001.060930.0-sha.ccae15a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ccae15a547ef51d5186e3d21f5492683bea56882" rel="noopener">ccae15a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2758" rel="noopener">#2758</a>𝗔 <a href="https://swamp-club.com/lab/2866" rel="noopener">lab#2866</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261006-003435-0-sha-94baeb4c">
+<h2><span class="tier B">B</span>one flush path — every push is a root&#39;s flush or checkpoint (swamp-club#3055) (#2855)</h2>
+<p class="lede">`refactor` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-06T00:36:18Z">2026-10-06T00:36:18Z</time></span><span>datastore</span><span>refactor</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>refactor(datastore): one flush path — every push is a root&#39;s flush or checkpoint (swamp-club#3055) (#2855)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Datastore rework Phase 2 (swamp-club#2865): every production push is now a root unit&#39;s flush or checkpoint, or a pinned deliberate exception. One rule keeps it that way. <strong>No behaviour change</strong>: the rows recorded before the conversion (<code>1fe3b87d</code>) pass afterwards with no expectation edits.</p>
+<ul>
+<li><strong>One &quot;push only on success&quot; option.</strong> <code>runInRootUnitOfWork</code> hands its flush the outcome (<code>{ completed }</code>) and takes <code>pushWhen: &quot;always&quot; | &quot;completed&quot;</code>. <code>runCommandInRootUnit</code>, <code>stageWritesThenPush</code> and serve <code>model.method.run</code> use it instead of their own <code>completed</code> / <code>staged</code> / <code>ran</code> flags.</li>
+<li><strong>Serve <code>model.method.run</code> (inline and detached).</strong> The model lock&#39;s push is the root&#39;s flush and the release runs after the root ends; <code>flushLocks</code> is gone. The reply, telemetry, cancel/run deregistration and stream terminal keep their place on every path.</li>
+<li><strong>Push paths.</strong> <code>src/infrastructure/persistence/push_paths.ts</code> (<code>pushNamespace</code>, <code>pushModelLockScope</code>, <code>pushGlobalLockAtEnd</code>). Commands and handlers pass these as a flush or checkpoint and never call <code>pushChanged</code> themselves. The module sits in infrastructure because the DDD layer ratchet refuses new serve→cli imports.</li>
+<li><strong>One fitness rule.</strong> <code>PINNED_DIRECT_PUSHES</code> pins every production <code>pushChanged</code> call: the push paths, the coordinator, and the deliberate exceptions (datastore sync, datastore setup mig</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261006.003435.0-sha.94baeb4c" rel="noopener">release v20261006.003435.0-sha.94baeb4c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/94baeb4cb0b5d71658f1f27cb9be63198d145d75" rel="noopener">94baeb4c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗔 <a href="https://swamp-club.com/lab/3055" rel="noopener">lab#3055</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261005-232211-0-sha-45184a1e">
 <h2><span class="tier B">B</span>a root unit can checkpoint, and the CLI token commands push mid-command through it (swamp-club#3053) (#2853)</h2>
 <p class="lede">`refactor` change · swamp-club/swamp</p>
@@ -2276,13 +2340,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>94 items across 1 source(s) in this window:
-0 critical, 85 notable, 6 routine,
+<p>97 items across 1 source(s) in this window:
+0 critical, 87 notable, 7 routine,
 3 minor.</p>
-<ul><li><strong>fix</strong> — 65</li><li><strong>feat</strong> — 20</li><li><strong>refactor</strong> — 6</li><li><strong>test</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
+<ul><li><strong>fix</strong> — 67</li><li><strong>feat</strong> — 20</li><li><strong>refactor</strong> — 7</li><li><strong>test</strong> — 2</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-06T06:02:09.974Z">2026-10-06T06:02:09.974Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-06T07:02:09.754Z">2026-10-06T07:02:09.754Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

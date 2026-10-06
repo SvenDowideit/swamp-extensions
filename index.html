@@ -70,44 +70,76 @@ footer .ver{color:var(--acc)}
 <main>
 <h2 class="page-title">Documentation changes — This month</h2>
 <div class="cards">
-<div class="card"><div class="n">70</div><div class="l">FILES CHANGED</div></div>
-<div class="card"><div class="n">102</div><div class="l">CHANGES</div></div>
-<div class="card"><div class="n">15</div><div class="l">WITH MANUAL PAGE</div></div>
+<div class="card"><div class="n">64</div><div class="l">FILES CHANGED</div></div>
+<div class="card"><div class="n">93</div><div class="l">CHANGES</div></div>
+<div class="card"><div class="n">13</div><div class="l">WITH MANUAL PAGE</div></div>
 </div>
 <p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
 <a href="leaderboard.html">Leaderboard</a> page.</p>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>5 changes</span><span>updated <time datetime="2026-10-06T18:48:51Z">2026-10-06T18:48:51Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T19:36:59Z">2026-10-06T19:36:59Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T18:48:51Z">2026-10-06T18:48:51Z</time></span>
-<span class="doc-title">a nested swamp on a same-host worker skips its dispatched step&#39;s lock (swamp-club#2983) (#2877)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c4c1ed5618a98cd9fd46a8f52eff9ddcc5c1e099" rel="noopener">c4c1ed56</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2877" rel="noopener">#2877</a>𝗔 <a href="https://swamp-club.com/lab/2983" rel="noopener">lab#2983</a></span>
+<span class="doc-date"><time datetime="2026-10-06T19:36:59Z">2026-10-06T19:36:59Z</time></span>
+<span class="doc-title">authorize expression text and direct-run targets against the caller (swamp-club#2786, swamp-club#2755, swamp-club#2672) (#2878)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0d6b876f2631579fb29688348bd8df15ffa49c71" rel="noopener">0d6b876f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2878" rel="noopener">#2878</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-10-06T19:36:59Z">2026-10-06T19:36:59Z</time></span><span><a href="https://swamp-club.com/manual/reference/cel-expressions" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-06T19:36:59Z">2026-10-06T19:36:59Z</time></span>
+<span class="doc-title">authorize expression text and direct-run targets against the caller (swamp-club#2786, swamp-club#2755, swamp-club#2672) (#2878)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0d6b876f2631579fb29688348bd8df15ffa49c71" rel="noopener">0d6b876f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2878" rel="noopener">#2878</a></span>
 </li>
 <li class="doc-change">
 <span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T09:59:55Z">2026-10-06T09:59:55Z</time></span>
-<span class="doc-title">find, wrap and warn on hooked writes outside a unit of work (swamp-club#3056) (#2858)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d9670e548ccc08d18e279bdeaebb1fbc2ebd06b5" rel="noopener">d9670e54</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2858" rel="noopener">#2858</a>𝗔 <a href="https://swamp-club.com/lab/3056" rel="noopener">lab#3056</a></span>
-</li>
-<li class="doc-change">
-<span class="tier B">B</span>
-<span class="doc-date"><time datetime="2026-10-06T00:34:21Z">2026-10-06T00:34:21Z</time></span>
-<span class="doc-title">one flush path — every push is a root&#39;s flush or checkpoint (swamp-club#3055) (#2855)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/94baeb4cb0b5d71658f1f27cb9be63198d145d75" rel="noopener">94baeb4c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗔 <a href="https://swamp-club.com/lab/3055" rel="noopener">lab#3055</a></span>
-</li>
-<li class="doc-change">
-<span class="tier B">B</span>
-<span class="doc-date"><time datetime="2026-10-03T00:59:40Z">2026-10-03T00:59:40Z</time></span>
-<span class="doc-title">lock repository marks at zero and close out Phase 1 (swamp-club#2996) (#2821)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a93520bc328dd311fae66ff79925457a7764b712" rel="noopener">a93520bc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2821" rel="noopener">#2821</a>𝗔 <a href="https://swamp-club.com/lab/2996" rel="noopener">lab#2996</a></span>
-</li>
-<li class="doc-change">
+<span class="doc-date"><time datetime="2026-10-02T20:16:05Z">2026-10-02T20:16:05Z</time></span>
+<span class="doc-title">expose the forEach iteration index as self._index (swamp-club#2348) (#2810)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/16ff3cbf5f5f1a88c12490d5bb3f43055fb41eef" rel="noopener">16ff3cbf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2810" rel="noopener">#2810</a>𝗔 <a href="https://swamp-club.com/lab/2348" rel="noopener">lab#2348</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/datastore/gcs/README.md" rel="noopener">datastore/gcs/README.md</a></h2>
+<div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-10-06T19:34:34Z">2026-10-06T19:34:34Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-02T13:45:42Z">2026-10-02T13:45:42Z</time></span>
-<span class="doc-title">cap per-model lock backoff at 250ms so queued waiters stay near the release (swamp-club#2870) (#2791)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9f9302582b39ea0e4d3b20072f7a65c575bf02bb" rel="noopener">9f930258</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2791" rel="noopener">#2791</a></span>
+<span class="doc-date"><time datetime="2026-10-06T19:34:34Z">2026-10-06T19:34:34Z</time></span>
+<span class="doc-title">keep a peer&#39;s deletions deleted across pull and push (swamp-club #2999) (#463)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/8ecc124a60ff9adb0bab173b20bdecd7000243f9" rel="noopener">8ecc124a</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/463" rel="noopener">#463</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2999" rel="noopener">#2999</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/datastore/s3/README.md" rel="noopener">datastore/s3/README.md</a></h2>
+<div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-10-06T19:34:34Z">2026-10-06T19:34:34Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-06T19:34:34Z">2026-10-06T19:34:34Z</time></span>
+<span class="doc-title">keep a peer&#39;s deletions deleted across pull and push (swamp-club #2999) (#463)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/8ecc124a60ff9adb0bab173b20bdecd7000243f9" rel="noopener">8ecc124a</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/463" rel="noopener">#463</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2999" rel="noopener">#2999</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/vault/testing.md" rel="noopener">.claude/skills/swamp/references/extension/references/vault/testing.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T19:28:38Z">2026-10-06T19:28:38Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-06T19:28:38Z">2026-10-06T19:28:38Z</time></span>
+<span class="doc-title">withMockedCommand records env, cwd and clearEnv (swamp-club#3090) (#2880)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/461e9282c0b6344951e66d7e76f52e262aef8903" rel="noopener">461e9282</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2880" rel="noopener">#2880</a>𝗔 <a href="https://swamp-club.com/lab/3090" rel="noopener">lab#3090</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/references/concurrency.md" rel="noopener">.claude/skills/swamp/references/model/references/concurrency.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T19:24:02Z">2026-10-06T19:24:02Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-06T19:24:02Z">2026-10-06T19:24:02Z</time></span>
+<span class="doc-title">forward held-lock identity over --server so a loopback nested swamp skips its caller&#39;s lock (swamp-club#2982) (#2879)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/658c0c4de419154e95584efb20306dca675f4cbc" rel="noopener">658c0c4d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2879" rel="noopener">#2879</a>𝗔 <a href="https://swamp-club.com/lab/2982" rel="noopener">lab#2982</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -127,60 +159,6 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>4 changes</span><span>updated <time datetime="2026-10-06T18:43:56Z">2026-10-06T18:43:56Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T18:43:56Z">2026-10-06T18:43:56Z</time></span>
-<span class="doc-title">restore deep links across tabs (#2876)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f9e9c45b7f44ff69c5bca2141ee253c8deac583d" rel="noopener">f9e9c45b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2876" rel="noopener">#2876</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T00:55:01Z">2026-10-06T00:55:01Z</time></span>
-<span class="doc-title">stop reading OAuth bootstrap secrets from the user vault on every start (swamp-club#2471) (#2857)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/18eb14fcd0cc64c1834b8208b691cf0ad8b0c5ef" rel="noopener">18eb14fc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2857" rel="noopener">#2857</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-02T23:40:57Z">2026-10-02T23:40:57Z</time></span>
-<span class="doc-title">attach model add-ons that extend built-in types (swamp-club#2846) (#2818)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b4084916279255836f233681f5e9f5b4f6d47eea" rel="noopener">b4084916</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2818" rel="noopener">#2818</a>𝗔 <a href="https://swamp-club.com/lab/2846" rel="noopener">lab#2846</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-01T18:36:28Z">2026-10-01T18:36:28Z</time></span>
-<span class="doc-title">suspend the parent when a nested workflow suspends on approval (swamp-club#2736) (#2768)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6bd579f319b60da663cfe108707e7d8ff7607834" rel="noopener">6bd579f3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2768" rel="noopener">#2768</a>𝗔 <a href="https://swamp-club.com/lab/2736" rel="noopener">lab#2736</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/references/publishing.md" rel="noopener">.claude/skills/swamp/references/extension-publish/references/publishing.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T18:32:32Z">2026-10-06T18:32:32Z</time></span><span><span class="dim">no published page</span></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T18:32:32Z">2026-10-06T18:32:32Z</time></span>
-<span class="doc-title">a refused private push names the collective, its plan and what it needs (swamp-club#1545) (#2875)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/84495bbfa5df42836cd31faad87ae34bb7ce2838" rel="noopener">84495bbf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2875" rel="noopener">#2875</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-10-06T18:32:32Z">2026-10-06T18:32:32Z</time></span><span><a href="https://swamp-club.com/manual/reference/extensions" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T18:32:32Z">2026-10-06T18:32:32Z</time></span>
-<span class="doc-title">a refused private push names the collective, its plan and what it needs (swamp-club#1545) (#2875)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/84495bbfa5df42836cd31faad87ae34bb7ce2838" rel="noopener">84495bbf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2875" rel="noopener">#2875</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-02T23:40:57Z">2026-10-02T23:40:57Z</time></span>
-<span class="doc-title">attach model add-ons that extend built-in types (swamp-club#2846) (#2818)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b4084916279255836f233681f5e9f5b4f6d47eea" rel="noopener">b4084916</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2818" rel="noopener">#2818</a>𝗔 <a href="https://swamp-club.com/lab/2846" rel="noopener">lab#2846</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/codegen/designs/aws.md" rel="noopener">codegen/designs/aws.md</a></h2>
 <div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-10-06T18:31:50Z">2026-10-06T18:31:50Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
@@ -188,16 +166,6 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-10-06T18:31:50Z">2026-10-06T18:31:50Z</time></span>
 <span class="doc-title">write custom-method output to dedicated resources (swamp-club #1735) (#462)</span>
 <span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/30313b23f5908e975885a87b2092d16637e92b33" rel="noopener">30313b23</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/462" rel="noopener">#462</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/1735" rel="noopener">#1735</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/model/references/concurrency.md" rel="noopener">.claude/skills/swamp/references/model/references/concurrency.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T18:31:14Z">2026-10-06T18:31:14Z</time></span><span><span class="dim">no published page</span></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T18:31:14Z">2026-10-06T18:31:14Z</time></span>
-<span class="doc-title">fail fast when nested structural commands wait on each other&#39;s locks (swamp-club#2981) (#2874)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8aef1ff2ac7ce0053a01dea657e54761b9545478" rel="noopener">8aef1ff2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2874" rel="noopener">#2874</a>𝗔 <a href="https://swamp-club.com/lab/2981" rel="noopener">lab#2981</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -231,16 +199,6 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T17:48:40Z">2026-10-06T17:48:40Z</time></span><span><span class="dim">no published page</span></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T17:48:40Z">2026-10-06T17:48:40Z</time></span>
-<span class="doc-title">wait_for_signal step pauses a run for a JSON message (swamp-club#3068) (#2873)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ef35951d45c840bf4bb3b6fa77422d0a3d8bf8db" rel="noopener">ef35951d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2873" rel="noopener">#2873</a>𝗔 <a href="https://swamp-club.com/lab/3068" rel="noopener">lab#3068</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/guide.md" rel="noopener">.claude/skills/swamp/references/workflow/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-10-06T17:48:40Z">2026-10-06T17:48:40Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
@@ -257,27 +215,7 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T17:48:40Z">2026-10-06T17:48:40Z</time></span><span><span class="dim">no published page</span></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T17:48:40Z">2026-10-06T17:48:40Z</time></span>
-<span class="doc-title">wait_for_signal step pauses a run for a JSON message (swamp-club#3068) (#2873)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ef35951d45c840bf4bb3b6fa77422d0a3d8bf8db" rel="noopener">ef35951d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2873" rel="noopener">#2873</a>𝗔 <a href="https://swamp-club.com/lab/3068" rel="noopener">lab#3068</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/data-chaining.md" rel="noopener">.claude/skills/swamp/references/workflow/references/data-chaining.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T17:48:40Z">2026-10-06T17:48:40Z</time></span><span><span class="dim">no published page</span></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T17:48:40Z">2026-10-06T17:48:40Z</time></span>
-<span class="doc-title">wait_for_signal step pauses a run for a JSON message (swamp-club#3068) (#2873)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ef35951d45c840bf4bb3b6fa77422d0a3d8bf8db" rel="noopener">ef35951d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2873" rel="noopener">#2873</a>𝗔 <a href="https://swamp-club.com/lab/3068" rel="noopener">lab#3068</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/execution-semantics.md" rel="noopener">.claude/skills/swamp/references/workflow/references/execution-semantics.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T17:48:40Z">2026-10-06T17:48:40Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
@@ -313,16 +251,6 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T17:48:40Z">2026-10-06T17:48:40Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-workflow-execution-model" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T17:48:40Z">2026-10-06T17:48:40Z</time></span>
-<span class="doc-title">wait_for_signal step pauses a run for a JSON message (swamp-club#3068) (#2873)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ef35951d45c840bf4bb3b6fa77422d0a3d8bf8db" rel="noopener">ef35951d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2873" rel="noopener">#2873</a>𝗔 <a href="https://swamp-club.com/lab/3068" rel="noopener">lab#3068</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T17:06:33Z">2026-10-06T17:06:33Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-run-tracker" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
@@ -330,16 +258,6 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-10-06T17:06:33Z">2026-10-06T17:06:33Z</time></span>
 <span class="doc-title">run doctor through serve no longer interrupts a live run of another serve instance (swamp-club#3059) (#2872)</span>
 <span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/895b83bb51a4484b7a2e59efed34bde2fb0d3e7b" rel="noopener">895b83bb</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2872" rel="noopener">#2872</a>𝗔 <a href="https://swamp-club.com/lab/3059" rel="noopener">lab#3059</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/vaults.md" rel="noopener">design/primitives/vaults.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T16:31:49Z">2026-10-06T16:31:49Z</time></span><span><a href="https://swamp-club.com/manual/reference/vaults" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T16:31:49Z">2026-10-06T16:31:49Z</time></span>
-<span class="doc-title">keep secrets out of worker shell argv, and let serve scope the dispatched env (swamp-club#2760, swamp-club#2791) (#2871)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/959961d6a8621b915c09618c554d969906d82e54" rel="noopener">959961d6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2871" rel="noopener">#2871</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -401,13 +319,53 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/reference.md" rel="noopener">.claude/skills/swamp/references/extension-publish/reference.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-06T15:12:06Z">2026-10-06T15:12:06Z</time></span><span><span class="dim">no published page</span></span></div>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>4 changes</span><span>updated <time datetime="2026-10-06T09:59:55Z">2026-10-06T09:59:55Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-06T15:12:06Z">2026-10-06T15:12:06Z</time></span>
-<span class="doc-title">make a green extension push dry run mean a green push (swamp-club#3016) (#2863)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4c64b68c39f63df95a2f43f9c9fdd655f958dd22" rel="noopener">4c64b68c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2863" rel="noopener">#2863</a>𝗔 <a href="https://swamp-club.com/lab/3016" rel="noopener">lab#3016</a></span>
+<span class="doc-date"><time datetime="2026-10-06T09:59:55Z">2026-10-06T09:59:55Z</time></span>
+<span class="doc-title">find, wrap and warn on hooked writes outside a unit of work (swamp-club#3056) (#2858)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d9670e548ccc08d18e279bdeaebb1fbc2ebd06b5" rel="noopener">d9670e54</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2858" rel="noopener">#2858</a>𝗔 <a href="https://swamp-club.com/lab/3056" rel="noopener">lab#3056</a></span>
+</li>
+<li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-10-06T00:34:21Z">2026-10-06T00:34:21Z</time></span>
+<span class="doc-title">one flush path — every push is a root&#39;s flush or checkpoint (swamp-club#3055) (#2855)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/94baeb4cb0b5d71658f1f27cb9be63198d145d75" rel="noopener">94baeb4c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗔 <a href="https://swamp-club.com/lab/3055" rel="noopener">lab#3055</a></span>
+</li>
+<li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-10-03T00:59:40Z">2026-10-03T00:59:40Z</time></span>
+<span class="doc-title">lock repository marks at zero and close out Phase 1 (swamp-club#2996) (#2821)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a93520bc328dd311fae66ff79925457a7764b712" rel="noopener">a93520bc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2821" rel="noopener">#2821</a>𝗔 <a href="https://swamp-club.com/lab/2996" rel="noopener">lab#2996</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-02T13:45:42Z">2026-10-02T13:45:42Z</time></span>
+<span class="doc-title">cap per-model lock backoff at 250ms so queued waiters stay near the release (swamp-club#2870) (#2791)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9f9302582b39ea0e4d3b20072f7a65c575bf02bb" rel="noopener">9f930258</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2791" rel="noopener">#2791</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>3 changes</span><span>updated <time datetime="2026-10-06T00:55:01Z">2026-10-06T00:55:01Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-06T00:55:01Z">2026-10-06T00:55:01Z</time></span>
+<span class="doc-title">stop reading OAuth bootstrap secrets from the user vault on every start (swamp-club#2471) (#2857)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/18eb14fcd0cc64c1834b8208b691cf0ad8b0c5ef" rel="noopener">18eb14fc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2857" rel="noopener">#2857</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-02T23:40:57Z">2026-10-02T23:40:57Z</time></span>
+<span class="doc-title">attach model add-ons that extend built-in types (swamp-club#2846) (#2818)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b4084916279255836f233681f5e9f5b4f6d47eea" rel="noopener">b4084916</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2818" rel="noopener">#2818</a>𝗔 <a href="https://swamp-club.com/lab/2846" rel="noopener">lab#2846</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-01T18:36:28Z">2026-10-01T18:36:28Z</time></span>
+<span class="doc-title">suspend the parent when a nested workflow suspends on approval (swamp-club#2736) (#2768)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6bd579f319b60da663cfe108707e7d8ff7607834" rel="noopener">6bd579f3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2768" rel="noopener">#2768</a>𝗔 <a href="https://swamp-club.com/lab/2736" rel="noopener">lab#2736</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -441,16 +399,6 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-05T22:08:18Z">2026-10-05T22:08:18Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-05T22:08:18Z">2026-10-05T22:08:18Z</time></span>
-<span class="doc-title">stop a server token record being paired with another mint&#39;s secret (swamp-club#2482) (#2847)</span>
-<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.220644.0-sha.ebe87ef2" rel="noopener">release v20261005.220644.0-sha.ebe87ef2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ebe87ef2007e5b397ee3f60501b3011aa60b8f35" rel="noopener">ebe87ef2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2847" rel="noopener">#2847</a>𝗔 <a href="https://swamp-club.com/lab/2482" rel="noopener">lab#2482</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/codegen/designs/vercel.md" rel="noopener">codegen/designs/vercel.md</a></h2>
 <div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-10-05T20:01:05Z">2026-10-05T20:01:05Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
@@ -458,22 +406,6 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-10-05T20:01:05Z">2026-10-05T20:01:05Z</time></span>
 <span class="doc-title">mark secret-named spec fields sensitive (swamp-club #3030) (#455)</span>
 <span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/98f67ba2e779026b8bbf4aa92b280e288f74d1ab" rel="noopener">98f67ba2</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/455" rel="noopener">#455</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/3030" rel="noopener">#3030</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-10-05T18:32:39Z">2026-10-05T18:32:39Z</time></span><span><a href="https://swamp-club.com/manual/reference/cel-expressions" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-05T18:32:39Z">2026-10-05T18:32:39Z</time></span>
-<span class="doc-title">data accessors return data written before a model rename (swamp-club#3029) (#2838)</span>
-<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.183103.0-sha.d22f8674" rel="noopener">release v20261005.183103.0-sha.d22f8674</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d22f86743ff40da5e197ec1c6278780f8a30e370" rel="noopener">d22f8674</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2838" rel="noopener">#2838</a>𝗔 <a href="https://swamp-club.com/lab/3029" rel="noopener">lab#3029</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-02T20:16:05Z">2026-10-02T20:16:05Z</time></span>
-<span class="doc-title">expose the forEach iteration index as self._index (swamp-club#2348) (#2810)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/16ff3cbf5f5f1a88c12490d5bb3f43055fb41eef" rel="noopener">16ff3cbf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2810" rel="noopener">#2810</a>𝗔 <a href="https://swamp-club.com/lab/2348" rel="noopener">lab#2348</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -596,6 +528,16 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-10-03T00:09:59Z">2026-10-03T00:09:59Z</time></span>
 <span class="doc-title">resolve models and follow renames in data query like data get (swamp-club#2960, swamp-club#2968) (#2817)</span>
 <span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/85653e52bf209f7d22e901b2fb8920879e6d2801" rel="noopener">85653e52</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2817" rel="noopener">#2817</a>𝗔 <a href="https://swamp-club.com/lab/2960" rel="noopener">lab#2960</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-10-02T23:40:57Z">2026-10-02T23:40:57Z</time></span><span><a href="https://swamp-club.com/manual/reference/extensions" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-02T23:40:57Z">2026-10-02T23:40:57Z</time></span>
+<span class="doc-title">attach model add-ons that extend built-in types (swamp-club#2846) (#2818)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b4084916279255836f233681f5e9f5b4f6d47eea" rel="noopener">b4084916</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2818" rel="noopener">#2818</a>𝗔 <a href="https://swamp-club.com/lab/2846" rel="noopener">lab#2846</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -933,26 +875,6 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/datastore/gcs/README.md" rel="noopener">datastore/gcs/README.md</a></h2>
-<div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-10-01T14:29:18Z">2026-10-01T14:29:18Z</time></span><span><span class="dim">no published page</span></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-01T14:29:18Z">2026-10-01T14:29:18Z</time></span>
-<span class="doc-title">keep a failed push&#39;s changes dirty through a pull so the retry sends them (swamp-club #2888) (#409)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/5e86301899ec5210900fffdf4a4a685613d3a2e5" rel="noopener">5e863018</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/409" rel="noopener">#409</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2888" rel="noopener">#2888</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/datastore/s3/README.md" rel="noopener">datastore/s3/README.md</a></h2>
-<div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-10-01T14:29:18Z">2026-10-01T14:29:18Z</time></span><span><span class="dim">no published page</span></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-01T14:29:18Z">2026-10-01T14:29:18Z</time></span>
-<span class="doc-title">keep a failed push&#39;s changes dirty through a pull so the retry sends them (swamp-club #2888) (#409)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/5e86301899ec5210900fffdf4a4a685613d3a2e5" rel="noopener">5e863018</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/409" rel="noopener">#409</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2888" rel="noopener">#2888</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/references/tracing.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/tracing.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-10-01T09:59:07Z">2026-10-01T09:59:07Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
@@ -970,7 +892,7 @@ footer .ver{color:var(--acc)}
 </article>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-06T20:03:42.309Z">2026-10-06T20:03:42.309Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-06T21:03:57.863Z">2026-10-06T21:03:57.863Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

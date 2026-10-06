@@ -71,11 +71,39 @@ footer .ver{color:var(--acc)}
 <h2 class="page-title">Documentation changes — This month</h2>
 <div class="cards">
 <div class="card"><div class="n">66</div><div class="l">FILES CHANGED</div></div>
-<div class="card"><div class="n">96</div><div class="l">CHANGES</div></div>
+<div class="card"><div class="n">97</div><div class="l">CHANGES</div></div>
 <div class="card"><div class="n">14</div><div class="l">WITH MANUAL PAGE</div></div>
 </div>
 <p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
 <a href="leaderboard.html">Leaderboard</a> page.</p>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>4 changes</span><span>updated <time datetime="2026-10-06T09:59:55Z">2026-10-06T09:59:55Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-06T09:59:55Z">2026-10-06T09:59:55Z</time></span>
+<span class="doc-title">find, wrap and warn on hooked writes outside a unit of work (swamp-club#3056) (#2858)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d9670e548ccc08d18e279bdeaebb1fbc2ebd06b5" rel="noopener">d9670e54</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2858" rel="noopener">#2858</a>𝗔 <a href="https://swamp-club.com/lab/3056" rel="noopener">lab#3056</a></span>
+</li>
+<li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-10-06T00:34:21Z">2026-10-06T00:34:21Z</time></span>
+<span class="doc-title">one flush path — every push is a root&#39;s flush or checkpoint (swamp-club#3055) (#2855)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/94baeb4cb0b5d71658f1f27cb9be63198d145d75" rel="noopener">94baeb4c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗔 <a href="https://swamp-club.com/lab/3055" rel="noopener">lab#3055</a></span>
+</li>
+<li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-10-03T00:59:40Z">2026-10-03T00:59:40Z</time></span>
+<span class="doc-title">lock repository marks at zero and close out Phase 1 (swamp-club#2996) (#2821)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a93520bc328dd311fae66ff79925457a7764b712" rel="noopener">a93520bc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2821" rel="noopener">#2821</a>𝗔 <a href="https://swamp-club.com/lab/2996" rel="noopener">lab#2996</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-02T13:45:42Z">2026-10-02T13:45:42Z</time></span>
+<span class="doc-title">cap per-model lock backoff at 250ms so queued waiters stay near the release (swamp-club#2870) (#2791)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9f9302582b39ea0e4d3b20072f7a65c575bf02bb" rel="noopener">9f930258</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2791" rel="noopener">#2791</a></span>
+</li></ul>
+</article>
 <article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>4 changes</span><span>updated <time datetime="2026-10-06T00:56:51Z">2026-10-06T00:56:51Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
@@ -118,28 +146,6 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-10-06T00:45:32Z">2026-10-06T00:45:32Z</time></span>
 <span class="doc-title">WAL replay deletes segments only once the store confirms them (swamp-club#3054) (#2856)</span>
 <span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3072db1867b3ebdb9089be092230b4b868403adb" rel="noopener">3072db18</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2856" rel="noopener">#2856</a>𝗔 <a href="https://swamp-club.com/lab/3054" rel="noopener">lab#3054</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>3 changes</span><span>updated <time datetime="2026-10-06T00:34:21Z">2026-10-06T00:34:21Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier B">B</span>
-<span class="doc-date"><time datetime="2026-10-06T00:34:21Z">2026-10-06T00:34:21Z</time></span>
-<span class="doc-title">one flush path — every push is a root&#39;s flush or checkpoint (swamp-club#3055) (#2855)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/94baeb4cb0b5d71658f1f27cb9be63198d145d75" rel="noopener">94baeb4c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗔 <a href="https://swamp-club.com/lab/3055" rel="noopener">lab#3055</a></span>
-</li>
-<li class="doc-change">
-<span class="tier B">B</span>
-<span class="doc-date"><time datetime="2026-10-03T00:59:40Z">2026-10-03T00:59:40Z</time></span>
-<span class="doc-title">lock repository marks at zero and close out Phase 1 (swamp-club#2996) (#2821)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a93520bc328dd311fae66ff79925457a7764b712" rel="noopener">a93520bc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2821" rel="noopener">#2821</a>𝗔 <a href="https://swamp-club.com/lab/2996" rel="noopener">lab#2996</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-02T13:45:42Z">2026-10-02T13:45:42Z</time></span>
-<span class="doc-title">cap per-model lock backoff at 250ms so queued waiters stay near the release (swamp-club#2870) (#2791)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9f9302582b39ea0e4d3b20072f7a65c575bf02bb" rel="noopener">9f930258</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2791" rel="noopener">#2791</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -918,7 +924,7 @@ footer .ver{color:var(--acc)}
 </article>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-06T10:08:47.586Z">2026-10-06T10:08:47.586Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-06T11:02:16.683Z">2026-10-06T11:02:16.683Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

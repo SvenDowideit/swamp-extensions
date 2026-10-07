@@ -67,8 +67,56 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3080"><span class="tier A">A</span>serve --remote-only: step output from workers is never persi</a><a href="#issue-3119"><span class="tier A">A</span>extension quality and push crash with IsADirectory when addi</a><a href="#issue-3088"><span class="tier A">A</span>extension push --dry-run: authentication verdict prints &#39;Sig</a><a href="#issue-3094"><span class="tier A">A</span>Deliver workflow signals through swamp serve</a><a href="#issue-2621"><span class="tier A">A</span>datastore config migrate checks the sentinel in the stale lo</a><a href="#issue-3117"><span class="tier A">A</span>datastore config migrate writes its sentinel before pushing;</a><a href="#issue-3022"><span class="tier A">A</span>extension quality, fmt --check and push disagree: bare-speci</a><a href="#issue-3071"><span class="tier A">A</span>Docs: extension push dry-run reference and how-to need the r</a><a href="#issue-3076"><span class="tier A">A</span>Resolve non-admin actors in dashboard audit logs</a><a href="#issue-3096"><span class="tier A">A</span>A nested structural swamp still waits on its run&#39;s lock when</a><a href="#issue-3093"><span class="tier A">A</span>Deliver workflow signals through a write-once outcome record</a><a href="#issue-3101"><span class="tier A">A</span>Shell steps: a vault.get on a continuation line of a multi-l</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3069"><span class="tier A">A</span>extension push: version-drift check reports &#39;no previously p</a><a href="#issue-3100"><span class="tier A">A</span>extension push: resolved file names and content hash are rel</a><a href="#issue-3040"><span class="tier A">A</span>extension promote accepts a yanked version and reports it pr</a><a href="#issue-3112"><span class="tier A">A</span>extension push: &#39;Requested visibility&#39; line prints to stdout</a><a href="#issue-3118"><span class="tier A">A</span>extension push: a required global argument renders with a st</a><a href="#issue-3017"><span class="tier A">A</span>extension push output: double-quoted adjacent interpolations</a><a href="#issue-3080"><span class="tier A">A</span>serve --remote-only: step output from workers is never persi</a><a href="#issue-3119"><span class="tier A">A</span>extension quality and push crash with IsADirectory when addi</a><a href="#issue-3088"><span class="tier A">A</span>extension push --dry-run: authentication verdict prints &#39;Sig</a><a href="#issue-3094"><span class="tier A">A</span>Deliver workflow signals through swamp serve</a><a href="#issue-2621"><span class="tier A">A</span>datastore config migrate checks the sentinel in the stale lo</a><a href="#issue-3117"><span class="tier A">A</span>datastore config migrate writes its sentinel before pushing;</a></aside><div>
 
+<article class="item" id="issue-3069">
+<h2><span class="tier A">A</span>extension push: version-drift check reports &#39;no previously published version found&#39; when the registry call failed</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-07T18:38:50.245Z">2026-10-07T18:38:50.245Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3069" rel="noopener">lab#3069</a></div>
+</article>
+<article class="item" id="issue-3100">
+<h2><span class="tier A">A</span>extension push: resolved file names and content hash are relative to the repo dir, so a push from outside the extension root shows ../ paths and a hash that differs from publish.yml</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-07T18:34:04.306Z">2026-10-07T18:34:04.306Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3100" rel="noopener">lab#3100</a></div>
+</article>
+<article class="item" id="issue-3040">
+<h2><span class="tier A">A</span>extension promote accepts a yanked version and reports it promoted</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-07T18:25:57.511Z">2026-10-07T18:25:57.511Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3040" rel="noopener">lab#3040</a></div>
+</article>
+<article class="item" id="issue-3112">
+<h2><span class="tier A">A</span>extension push: &#39;Requested visibility&#39; line prints to stdout without the logger prefix, twice per run</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-07T18:14:16.807Z">2026-10-07T18:14:16.807Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3112" rel="noopener">lab#3112</a></div>
+</article>
+<article class="item" id="issue-3118">
+<h2><span class="tier A">A</span>extension push: a required global argument renders with a stray &quot;&quot; (&quot;text&quot;: &quot;string&quot;&quot;&quot;)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-07T18:14:16.732Z">2026-10-07T18:14:16.732Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3118" rel="noopener">lab#3118</a></div>
+</article>
+<article class="item" id="issue-3017">
+<h2><span class="tier A">A</span>extension push output: double-quoted adjacent interpolations, repo-relative paths, and --json emits three JSON documents</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-07T18:14:16.659Z">2026-10-07T18:14:16.659Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3017" rel="noopener">lab#3017</a></div>
+</article>
 <article class="item" id="issue-3080">
 <h2><span class="tier A">A</span>serve --remote-only: step output from workers is never persisted to the run log (history logs always empty)</h2>
 <p class="lede">Shipped bug fix</p>
@@ -117,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3117" rel="noopener">lab#3117</a></div>
 </article>
-<article class="item" id="issue-3022">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3022">
 <h2><span class="tier A">A</span>extension quality, fmt --check and push disagree: bare-specifier severity, cache hit skips gates, gate failure hides the rubric, fmt ignores project config</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-06T23:24:44.162Z">2026-10-06T23:24:44.162Z</time></span></div>
@@ -165,7 +213,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3101" rel="noopener">lab#3101</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3020">
+<article class="item" id="issue-3020">
 <h2><span class="tier A">A</span>extension push: testing-completeness warns once per generated model (262 warnings in 25 extensions) with no way to mark a package generated</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-06T20:35:36.762Z">2026-10-06T20:35:36.762Z</time></span></div>
@@ -1741,61 +1789,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-3013">
+<h2><span class="tier B">B</span>auto-resolve: the Installing line prints the extension&#39;s entire multi-line description</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-07T19:01:54.651Z">2026-10-07T19:01:54.651Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3013" rel="noopener">lab#3013</a></div>
+</article>
+<article class="item" id="issue-3145">
+<h2><span class="tier B">B</span>Record the commands affected by a change in the verification attestation</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-07T19:00:43.110Z">2026-10-07T19:00:43.110Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3145" rel="noopener">lab#3145</a></div>
+</article>
 <article class="item" id="issue-3108">
 <h2><span class="tier B">B</span>Resume signalled workflow runs automatically under swamp serve</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T17:24:00.650Z">2026-10-07T17:24:00.650Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-07T18:59:40.259Z">2026-10-07T18:59:40.259Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3108" rel="noopener">lab#3108</a></div>
 </article>
-<article class="item" id="issue-3069">
-<h2><span class="tier B">B</span>extension push: version-drift check reports &#39;no previously published version found&#39; when the registry call failed</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T17:21:55.976Z">2026-10-07T17:21:55.976Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3069" rel="noopener">lab#3069</a></div>
-</article>
-<article class="item" id="issue-3112">
-<h2><span class="tier B">B</span>extension push: &#39;Requested visibility&#39; line prints to stdout without the logger prefix, twice per run</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T17:21:49.281Z">2026-10-07T17:21:49.281Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3112" rel="noopener">lab#3112</a></div>
-</article>
-<article class="item" id="issue-3118">
-<h2><span class="tier B">B</span>extension push: a required global argument renders with a stray &quot;&quot; (&quot;text&quot;: &quot;string&quot;&quot;&quot;)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T17:21:49.211Z">2026-10-07T17:21:49.211Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3118" rel="noopener">lab#3118</a></div>
-</article>
-<article class="item" id="issue-3017">
-<h2><span class="tier B">B</span>extension push output: double-quoted adjacent interpolations, repo-relative paths, and --json emits three JSON documents</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T17:21:49.143Z">2026-10-07T17:21:49.143Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3017" rel="noopener">lab#3017</a></div>
-</article>
-<article class="item" id="issue-3100">
-<h2><span class="tier B">B</span>extension push: resolved file names and content hash are relative to the repo dir, so a push from outside the extension root shows ../ paths and a hash that differs from publish.yml</h2>
+<article class="item" id="issue-3111">
+<h2><span class="tier B">B</span>A nested structural swamp that outlives the run that started it keeps skipping that run&#39;s lock while the holder writes</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-07T17:21:35.289Z">2026-10-07T17:21:35.289Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-07T18:53:02.843Z">2026-10-07T18:53:02.843Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3100" rel="noopener">lab#3100</a></div>
-</article>
-<article class="item" id="issue-3040">
-<h2><span class="tier B">B</span>extension promote accepts a yanked version and reports it promoted</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T17:01:48.574Z">2026-10-07T17:01:48.574Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3040" rel="noopener">lab#3040</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3111" rel="noopener">lab#3111</a></div>
 </article>
 <article class="item" id="issue-3030">
 <h2><span class="tier B">B</span>digitalocean codegen: app-platform and database spec secret fields are not marked sensitive</h2>
@@ -2044,14 +2068,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3114" rel="noopener">lab#3114</a></div>
-</article>
-<article class="item" id="issue-3111">
-<h2><span class="tier C">C</span>A nested structural swamp that outlives the run that started it keeps skipping that run&#39;s lock while the holder writes</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-06T21:11:40.243Z">2026-10-06T21:11:40.243Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3111" rel="noopener">lab#3111</a></div>
 </article>
 <article class="item" id="issue-3110">
 <h2><span class="tier C">C</span>Show signal waits to remote clients and the dashboard</h2>
@@ -2348,14 +2364,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2993" rel="noopener">lab#2993</a></div>
-</article>
-<article class="item" id="issue-3013">
-<h2><span class="tier C">C</span>auto-resolve: the Installing line prints the extension&#39;s entire multi-line description</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-05T13:46:14.146Z">2026-10-05T13:46:14.146Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3013" rel="noopener">lab#3013</a></div>
 </article>
 <article class="item" id="issue-3010">
 <h2><span class="tier C">C</span>s3-datastore/serve: readResource without a version returns an older version; the latest marker is rewritten backwards</h2>
@@ -2678,13 +2686,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>326 items across 1 source(s) in this window:
-0 critical, 209 notable, 11 routine,
-106 minor.</p>
-<ul><li><strong>issues</strong> — 326</li></ul></section>
+<p>327 items across 1 source(s) in this window:
+0 critical, 215 notable, 8 routine,
+104 minor.</p>
+<ul><li><strong>issues</strong> — 327</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-07T18:03:06.146Z">2026-10-07T18:03:06.146Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-07T19:02:59.273Z">2026-10-07T19:02:59.273Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

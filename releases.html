@@ -67,8 +67,30 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261007-155916-0-sha-577deb87"><span class="tier A">A</span>a directory in additionalFiles, binaries or include is a val</a><a href="#release-swamp-club-swamp-v20261007-155025-0-sha-5643085b"><span class="tier A">A</span>restricted-model-types matches any @ spelling; workers never</a><a href="#release-swamp-club-swamp-v20261007-152316-0-sha-c45dd5dd"><span class="tier A">A</span>name the credential in the dry-run authentication verdict (s</a><a href="#release-swamp-club-swamp-v20261007-143007-0-sha-953cea2a"><span class="tier A">A</span>deliver workflow signals through swamp serve (swamp-club#309</a><a href="#release-swamp-club-swamp-v20261006-233151-0-sha-0387ae0a"><span class="tier A">A</span>config migrate publishes its sentinel only after the migrati</a><a href="#release-swamp-club-swamp-v20261006-232708-0-sha-bc0dde52"><span class="tier A">A</span>accept a subjects list on a grant file entry (swamp-club#307</a><a href="#release-swamp-club-swamp-v20261006-231101-0-sha-9a8ec977"><span class="tier A">A</span>extension quality, fmt --check and push agree (swamp-club#30</a><a href="#release-swamp-club-swamp-v20261006-221608-0-sha-5c0c6532"><span class="tier A">A</span>channel-aware push prompts and promote from a manifest (swam</a><a href="#release-swamp-club-swamp-v20261006-215416-0-sha-5517e708"><span class="tier A">A</span>name every OAuth user in audit events by username and email </a><a href="#release-swamp-club-swamp-v20261006-215047-0-sha-5b7ce4f4"><span class="tier A">A</span>a nested swamp skips its run&#39;s lock by nonce across hosts, w</a><a href="#release-swamp-club-swamp-v20261006-213119-0-sha-b16011e2"><span class="tier A">A</span>read here-doc quotes per line so shell-code quotes don&#39;t unq</a><a href="#release-swamp-club-swamp-v20261006-205552-0-sha-5c0ccbc9"><span class="tier A">A</span>deliver signals through a write-once outcome record (swamp-c</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261007-174127-0-sha-3fd625ae"><span class="tier A">A</span>write a remote step&#39;s output to its run log (swamp-club#3080</a><a href="#release-swamp-club-swamp-v20261007-155916-0-sha-577deb87"><span class="tier A">A</span>a directory in additionalFiles, binaries or include is a val</a><a href="#release-swamp-club-swamp-v20261007-155025-0-sha-5643085b"><span class="tier A">A</span>restricted-model-types matches any @ spelling; workers never</a><a href="#release-swamp-club-swamp-v20261007-152316-0-sha-c45dd5dd"><span class="tier A">A</span>name the credential in the dry-run authentication verdict (s</a><a href="#release-swamp-club-swamp-v20261007-143007-0-sha-953cea2a"><span class="tier A">A</span>deliver workflow signals through swamp serve (swamp-club#309</a><a href="#release-swamp-club-swamp-v20261006-233151-0-sha-0387ae0a"><span class="tier A">A</span>config migrate publishes its sentinel only after the migrati</a><a href="#release-swamp-club-swamp-v20261006-232708-0-sha-bc0dde52"><span class="tier A">A</span>accept a subjects list on a grant file entry (swamp-club#307</a><a href="#release-swamp-club-swamp-v20261006-231101-0-sha-9a8ec977"><span class="tier A">A</span>extension quality, fmt --check and push agree (swamp-club#30</a><a href="#release-swamp-club-swamp-v20261006-221608-0-sha-5c0c6532"><span class="tier A">A</span>channel-aware push prompts and promote from a manifest (swam</a><a href="#release-swamp-club-swamp-v20261006-215416-0-sha-5517e708"><span class="tier A">A</span>name every OAuth user in audit events by username and email </a><a href="#release-swamp-club-swamp-v20261006-215047-0-sha-5b7ce4f4"><span class="tier A">A</span>a nested swamp skips its run&#39;s lock by nonce across hosts, w</a><a href="#release-swamp-club-swamp-v20261006-213119-0-sha-b16011e2"><span class="tier A">A</span>read here-doc quotes per line so shell-code quotes don&#39;t unq</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261007-174127-0-sha-3fd625ae">
+<h2><span class="tier A">A</span>write a remote step&#39;s output to its run log (swamp-club#3080) (#2900)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-07T17:43:11Z">2026-10-07T17:43:11Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): write a remote step&#39;s output to its run log (swamp-club#3080) (#2900)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A step dispatched to a worker streamed its output to the client but never to the run log. <code>swamp workflow history logs</code> reported &quot;Log file not found or empty&quot; for every remote run, and the output was gone once the live stream ended.</p>
+<p>The run log only accepts records tagged with the run&#39;s id. A worker&#39;s method logger has no run id, and its lines came back to serve as stream events that reached only the in-memory event buffer. The worker&#39;s console capture (<code>DispatchResult.logs</code>) was returned and then dropped.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong>Serve persists worker output.</strong> <code>MethodExecutionService</code> writes each <code>output</code> event a worker streams back through the run logger before forwarding it. This covers workflow steps and direct model method runs, which share the code.</li>
+<li>The event is worker-supplied, so its shape is checked, the level is whitelisted, and a line is split on every line separator into one record each.</li>
+<li><strong>Level preserved.</strong> The output event carries an optional <code>level</code>, so an error line is not recorded as a warning. A worker that predates it falls back to the stream.</li>
+<li><strong>Console capture forwarded.</strong> <code>DispatchService</code> turns <code>DispatchResult.logs</code> into output events, for a failed dispatch as well as a successful one. A listener that throws while they are forwarded does not fail the dispatch.</li>
+<li><strong>Worker redacts before sending.</strong> The worker scrubs output events and the co</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261007.174127.0-sha.3fd625ae" rel="noopener">release v20261007.174127.0-sha.3fd625ae</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3fd625ae2a98e100f1ca9e61705efb8545a63029" rel="noopener">3fd625ae</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2900" rel="noopener">#2900</a>𝗔 <a href="https://swamp-club.com/lab/3080" rel="noopener">lab#3080</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261007-155916-0-sha-577deb87">
 <h2><span class="tier A">A</span>a directory in additionalFiles, binaries or include is a validation error, not a crash (swamp-club#3119) (#2899)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -339,7 +361,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/vaults.md" rel="noopener">design/primitives/vaults.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261006.213119.0-sha.b16011e2" rel="noopener">release v20261006.213119.0-sha.b16011e2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b16011e2b3f1e420c9b278c715fbedeed0d8e19a" rel="noopener">b16011e2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2887" rel="noopener">#2887</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2885" rel="noopener">#2885</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3089" rel="noopener">#3089</a>𝗔 <a href="https://swamp-club.com/lab/3101" rel="noopener">lab#3101</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261006-205552-0-sha-5c0ccbc9">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261006-205552-0-sha-5c0ccbc9">
 <h2><span class="tier A">A</span>deliver signals through a write-once outcome record (swamp-club#3093) (#2886)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-06T20:57:38Z">2026-10-06T20:57:38Z</time></span><span>workflows</span><span>feat</span></div>
@@ -361,7 +383,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/execution-semantics.md" rel="noopener">.claude/skills/swamp/references/workflow/references/execution-semantics.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261006.205552.0-sha.5c0ccbc9" rel="noopener">release v20261006.205552.0-sha.5c0ccbc9</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5c0ccbc97af2468930183b9c1c3d56d75544df8f" rel="noopener">5c0ccbc9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2886" rel="noopener">#2886</a>𝗔 <a href="https://swamp-club.com/lab/3093" rel="noopener">lab#3093</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261006-205014-0-sha-e9c9416b">
+<article class="item" id="release-swamp-club-swamp-v20261006-205014-0-sha-e9c9416b">
 <h2><span class="tier A">A</span>keep vault.get here-doc placement right for multi-line strings and prose (swamp-club#3101) (#2885)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-06T20:51:40Z">2026-10-06T20:51:40Z</time></span><span>vaults</span><span>fix</span></div>
@@ -3275,29 +3297,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.194016.0-sha.c0c751a1" rel="noopener">release v20261002.194016.0-sha.c0c751a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0c751a17fa31d512cb5ee65da19e47284547cd0" rel="noopener">c0c751a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2808" rel="noopener">#2808</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/2979" rel="noopener">lab#2979</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261007-174127-0-sha-3fd625ae">
-<h2><span class="tier C">C</span>swamp 20261007.174127.0-sha.3fd625ae</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-07T17:43:11Z">2026-10-07T17:43:11Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): write a remote step&#39;s output to its run log (swamp-club#3080) (#2900)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>A step dispatched to a worker streamed its output to the client but never to the run log. <code>swamp workflow history logs</code> reported &quot;Log file not found or empty&quot; for every remote run, and the output was gone once the live stream ended.</p>
-<p>The run log only accepts records tagged with the run&#39;s id. A worker&#39;s method logger has no run id, and its lines came back to serve as stream events that reached only the in-memory event buffer. The worker&#39;s console capture (<code>DispatchResult.logs</code>) was returned and then dropped.</p>
-<h4 class="body-h">Changes</h4>
-<ul>
-<li><strong>Serve persists worker output.</strong> <code>MethodExecutionService</code> writes each <code>output</code> event a worker streams back through the run logger before forwarding it. This covers workflow steps and direct model method runs, which share the code.</li>
-<li>The event is worker-supplied, so its shape is checked, the level is whitelisted, and a line is split on every line separator into one record each.</li>
-<li><strong>Level preserved.</strong> The output event carries an optional <code>level</code>, so an error line is not recorded as a warning. A worker that predates it falls back to the stream.</li>
-<li><strong>Console capture forwarded.</strong> <code>DispatchService</code> turns <code>DispatchResult.logs</code> into output events, for a failed dispatch as well as a successful one. A listener that throws while they are forwarded does not fail the dispatch.</li>
-<li><strong>Worker redacts before sending.</strong> The worker scrubs output events and the co</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261007.174127.0-sha.3fd625ae" rel="noopener">release v20261007.174127.0-sha.3fd625ae</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3fd625ae" rel="noopener">3fd625ae</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2900" rel="noopener">#2900</a>𝗔 <a href="https://swamp-club.com/lab/3080" rel="noopener">lab#3080</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261006-214330-0-sha-d2cafb4e">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261006-214330-0-sha-d2cafb4e">
 <h2><span class="tier C">C</span>vault.get expressions are an author capability over serve (swamp-club#3086) (#2888)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-06T21:45:09Z">2026-10-06T21:45:09Z</time></span><span>design</span><span>docs</span></div>
@@ -3383,12 +3383,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>139 items across 1 source(s) in this window:
-0 critical, 126 notable, 8 routine,
-5 minor.</p>
-<ul><li><strong>fix</strong> — 95</li><li><strong>feat</strong> — 31</li><li><strong>refactor</strong> — 8</li><li><strong>docs</strong> — 2</li><li><strong>test</strong> — 2</li><li><strong>changes</strong> — 1</li></ul></section>
+0 critical, 127 notable, 8 routine,
+4 minor.</p>
+<ul><li><strong>fix</strong> — 96</li><li><strong>feat</strong> — 31</li><li><strong>refactor</strong> — 8</li><li><strong>docs</strong> — 2</li><li><strong>test</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-07T18:03:06.146Z">2026-10-07T18:03:06.146Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-07T19:02:59.273Z">2026-10-07T19:02:59.273Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

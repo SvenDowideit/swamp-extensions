@@ -67,8 +67,40 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3111"><span class="tier A">A</span>A nested structural swamp that outlives the run that started</a><a href="#issue-3107"><span class="tier A">A</span>extension push/quality: structured acceptances for agents, a</a><a href="#issue-3116"><span class="tier A">A</span>Docs: extension publishing reference is stale on bare specif</a><a href="#issue-3147"><span class="tier A">A</span>Flaky test: WalSink pruning the queue under a hung downstrea</a><a href="#issue-3148"><span class="tier A">A</span>A lock file read during its holder&#39;s heartbeat rewrite is tr</a><a href="#issue-3104"><span class="tier A">A</span>extension push: the undecided private-entitlement verdict st</a><a href="#issue-3145"><span class="tier A">A</span>Record the commands affected by a change in the verification</a><a href="#issue-3013"><span class="tier A">A</span>auto-resolve: the Installing line prints the extension&#39;s ent</a><a href="#issue-3069"><span class="tier A">A</span>extension push: version-drift check reports &#39;no previously p</a><a href="#issue-3100"><span class="tier A">A</span>extension push: resolved file names and content hash are rel</a><a href="#issue-3040"><span class="tier A">A</span>extension promote accepts a yanked version and reports it pr</a><a href="#issue-3112"><span class="tier A">A</span>extension push: &#39;Requested visibility&#39; line prints to stdout</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3120"><span class="tier A">A</span>Flaky property test: analyzeExpression hyphenated dot access</a><a href="#issue-3124"><span class="tier A">A</span>Flaky property test: analyzeExpression dot/bracket agreement</a><a href="#issue-3157"><span class="tier A">A</span>A cancelled shell step can fail with a lock timeout instead </a><a href="#issue-3152"><span class="tier A">A</span>datastore lock release gives the wrong reason when the lock </a><a href="#issue-3111"><span class="tier A">A</span>A nested structural swamp that outlives the run that started</a><a href="#issue-3107"><span class="tier A">A</span>extension push/quality: structured acceptances for agents, a</a><a href="#issue-3116"><span class="tier A">A</span>Docs: extension publishing reference is stale on bare specif</a><a href="#issue-3147"><span class="tier A">A</span>Flaky test: WalSink pruning the queue under a hung downstrea</a><a href="#issue-3148"><span class="tier A">A</span>A lock file read during its holder&#39;s heartbeat rewrite is tr</a><a href="#issue-3104"><span class="tier A">A</span>extension push: the undecided private-entitlement verdict st</a><a href="#issue-3145"><span class="tier A">A</span>Record the commands affected by a change in the verification</a><a href="#issue-3013"><span class="tier A">A</span>auto-resolve: the Installing line prints the extension&#39;s ent</a></aside><div>
 
+<article class="item" id="issue-3120">
+<h2><span class="tier A">A</span>Flaky property test: analyzeExpression hyphenated dot access fails when modelName generates a CEL keyword (&quot;in&quot;)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-07T21:55:37.740Z">2026-10-07T21:55:37.740Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3120" rel="noopener">lab#3120</a></div>
+</article>
+<article class="item" id="issue-3124">
+<h2><span class="tier A">A</span>Flaky property test: analyzeExpression dot/bracket agreement fails when the generated model name is a CEL keyword</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-07T21:55:37.554Z">2026-10-07T21:55:37.554Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3124" rel="noopener">lab#3124</a></div>
+</article>
+<article class="item" id="issue-3157">
+<h2><span class="tier A">A</span>A cancelled shell step can fail with a lock timeout instead of reporting as cancelled</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-07T21:54:21.086Z">2026-10-07T21:54:21.086Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3157" rel="noopener">lab#3157</a></div>
+</article>
+<article class="item" id="issue-3152">
+<h2><span class="tier A">A</span>datastore lock release gives the wrong reason when the lock file is caught mid-write</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-07T21:07:00.234Z">2026-10-07T21:07:00.234Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3152" rel="noopener">lab#3152</a></div>
+</article>
 <article class="item" id="issue-3111">
 <h2><span class="tier A">A</span>A nested structural swamp that outlives the run that started it keeps skipping that run&#39;s lock while the holder writes</h2>
 <p class="lede">Shipped bug fix</p>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3013" rel="noopener">lab#3013</a></div>
 </article>
-<article class="item" id="issue-3069">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3069">
 <h2><span class="tier A">A</span>extension push: version-drift check reports &#39;no previously published version found&#39; when the registry call failed</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-07T18:38:50.245Z">2026-10-07T18:38:50.245Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3112" rel="noopener">lab#3112</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3118">
+<article class="item" id="issue-3118">
 <h2><span class="tier A">A</span>extension push: a required global argument renders with a stray &quot;&quot; (&quot;text&quot;: &quot;string&quot;&quot;&quot;)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-07T18:14:16.732Z">2026-10-07T18:14:16.732Z</time></span></div>
@@ -1853,42 +1885,26 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3095">
-<h2><span class="tier B">B</span>registry: store and show declared acceptances sent in contentMetadata.acceptances at confirm (swamp-club#3021)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-07T21:01:51.024Z">2026-10-07T21:01:51.024Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3095" rel="noopener">lab#3095</a></div>
-</article>
-<article class="item" id="issue-3157">
-<h2><span class="tier B">B</span>A cancelled shell step can fail with a lock timeout instead of reporting as cancelled</h2>
+<article class="item" id="issue-3136">
+<h2><span class="tier B">B</span>serve: token secret migration repoints a token even when copying its OAuth access token failed</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T21:00:37.367Z">2026-10-07T21:00:37.367Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-07T22:00:49.256Z">2026-10-07T22:00:49.256Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3157" rel="noopener">lab#3157</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3136" rel="noopener">lab#3136</a></div>
 </article>
-<article class="item" id="issue-3152">
-<h2><span class="tier B">B</span>datastore lock release gives the wrong reason when the lock file is caught mid-write</h2>
+<article class="item" id="issue-3159">
+<h2><span class="tier B">B</span>Datastore sync: read one remote file without writing it to the local cache (fetchContent)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T21:00:05.451Z">2026-10-07T21:00:05.451Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-07T22:00:27.575Z">2026-10-07T22:00:27.575Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3152" rel="noopener">lab#3152</a></div>
-</article>
-<article class="item" id="issue-3108">
-<h2><span class="tier B">B</span>Resume signalled workflow runs automatically under swamp serve</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T19:57:03.058Z">2026-10-07T19:57:03.058Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3108" rel="noopener">lab#3108</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3159" rel="noopener">lab#3159</a></div>
 </article>
 <article class="item" id="issue-2844">
 <h2><span class="tier B">B</span>datastore setup can overwrite an existing remote config tier when it moves an in-repo tier into an extension datastore</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-07T19:48:14.164Z">2026-10-07T19:48:14.164Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-07T21:58:02.663Z">2026-10-07T21:58:02.663Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2844" rel="noopener">lab#2844</a></div>
@@ -1896,34 +1912,42 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-2382">
 <h2><span class="tier B">B</span>model delete resolves auto-definitions from repo-local .swamp instead of the datastore cache</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-07T19:46:30.112Z">2026-10-07T19:46:30.112Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-07T21:44:49.688Z">2026-10-07T21:44:49.688Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2382" rel="noopener">lab#2382</a></div>
 </article>
-<article class="item" id="issue-3124">
-<h2><span class="tier B">B</span>Flaky property test: analyzeExpression dot/bracket agreement fails when the generated model name is a CEL keyword</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-07T19:44:00.073Z">2026-10-07T19:44:00.073Z</time></span></div>
+<article class="item" id="issue-3162">
+<h2><span class="tier B">B</span>datastore setup filesystem --path .swamp copies .swamp onto itself and never writes the datastore block</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-07T21:42:18.336Z">2026-10-07T21:42:18.336Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3124" rel="noopener">lab#3124</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3162" rel="noopener">lab#3162</a></div>
 </article>
-<article class="item" id="issue-3136">
-<h2><span class="tier B">B</span>serve: token secret migration repoints a token even when copying its OAuth access token failed</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-07T19:40:04.174Z">2026-10-07T19:40:04.174Z</time></span></div>
+<article class="item" id="issue-3108">
+<h2><span class="tier B">B</span>Resume signalled workflow runs automatically under swamp serve</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-07T21:15:54.167Z">2026-10-07T21:15:54.167Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3136" rel="noopener">lab#3136</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3108" rel="noopener">lab#3108</a></div>
 </article>
-<article class="item" id="issue-3120">
-<h2><span class="tier B">B</span>Flaky property test: analyzeExpression hyphenated dot access fails when modelName generates a CEL keyword (&quot;in&quot;)</h2>
+<article class="item" id="issue-3114">
+<h2><span class="tier B">B</span>swamp-extensions: replace bare import specifiers with npm:/jsr: specifiers in first-party extensions</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-07T19:35:48.663Z">2026-10-07T19:35:48.663Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-07T21:12:36.309Z">2026-10-07T21:12:36.309Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3120" rel="noopener">lab#3120</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3114" rel="noopener">lab#3114</a></div>
+</article>
+<article class="item" id="issue-3095">
+<h2><span class="tier B">B</span>registry: store and show declared acceptances sent in contentMetadata.acceptances at confirm (swamp-club#3021)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-07T21:10:32.596Z">2026-10-07T21:10:32.596Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3095" rel="noopener">lab#3095</a></div>
 </article>
 <article class="item" id="issue-3030">
 <h2><span class="tier B">B</span>digitalocean codegen: app-platform and database spec secret fields are not marked sensitive</h2>
@@ -1957,21 +1981,53 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3158">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3165">
+<h2><span class="tier C">C</span>Docs: vault grants and run vault scoping on swamp serve (swamp-club#2676, swamp-club#2206)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-07T21:59:24.828Z">2026-10-07T21:59:24.828Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3165" rel="noopener">lab#3165</a></div>
+</article>
+<article class="item" id="issue-3164">
+<h2><span class="tier C">C</span>Docs: document DatastoreSyncService.fetchContent in the datastore provider reference</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-07T21:40:07.470Z">2026-10-07T21:40:07.470Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3164" rel="noopener">lab#3164</a></div>
+</article>
+<article class="item" id="issue-3163">
+<h2><span class="tier C">C</span>codegen/aws: 9 services still pin @aws-sdk/client-cloudcontrol@3.1090.0</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-07T21:11:36.035Z">2026-10-07T21:11:36.035Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3163" rel="noopener">lab#3163</a></div>
+</article>
+<article class="item" id="issue-3161">
+<h2><span class="tier C">C</span>GCS datastore: implement fetchContent, a read of one remote file that writes nothing locally</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-07T21:03:19.251Z">2026-10-07T21:03:19.251Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3161" rel="noopener">lab#3161</a></div>
+</article>
+<article class="item" id="issue-3160">
+<h2><span class="tier C">C</span>S3 datastore: implement fetchContent, a read of one remote file that writes nothing locally</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-07T21:03:17.496Z">2026-10-07T21:03:17.496Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3160" rel="noopener">lab#3160</a></div>
+</article>
+<article class="item" id="issue-3158">
 <h2><span class="tier C">C</span>extension info: show the accepted warnings the registry returns for the latest version (swamp-club#3095)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-07T21:00:28.042Z">2026-10-07T21:00:28.042Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3158" rel="noopener">lab#3158</a></div>
-</article>
-<article class="item" id="issue-3114">
-<h2><span class="tier C">C</span>swamp-extensions: replace bare import specifiers with npm:/jsr: specifiers in first-party extensions</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-07T20:54:48.785Z">2026-10-07T20:54:48.785Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3114" rel="noopener">lab#3114</a></div>
 </article>
 <article class="item" id="issue-3155">
 <h2><span class="tier C">C</span>worker prune cannot delete worker models when auto-definitions live in a remote datastore</h2>
@@ -2790,13 +2846,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>340 items across 1 source(s) in this window:
-0 critical, 223 notable, 13 routine,
-104 minor.</p>
-<ul><li><strong>issues</strong> — 340</li></ul></section>
+<p>347 items across 1 source(s) in this window:
+0 critical, 227 notable, 12 routine,
+108 minor.</p>
+<ul><li><strong>issues</strong> — 347</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-07T21:02:39.459Z">2026-10-07T21:02:39.459Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-07T22:04:15.185Z">2026-10-07T22:04:15.185Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

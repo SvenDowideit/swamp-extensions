@@ -1,0 +1,127 @@
+manifestVersion: 1
+name: "@svendowideit/container-service"
+version: "2026.10.07.1"
+description: >
+  Build, run, push — and keep alive — containers from swamp, on Docker,
+  Podman, or Apple Containers.
+
+  WHAT IT DOES
+
+    A vendored fork of @swamp/container-image that adds the one thing its
+    upstream `run` method cannot do: run a container as a long-lived service.
+    Upstream `run` is `docker run --rm` in the foreground, so it is right for
+    one-shot jobs and wrong for a database or an API server. This fork keeps the
+    whole build/run/push surface untouched and adds a desired-state `service`
+    lifecycle — `ensure` (create + start, a no-op when already correct), `stop`,
+    `restart`, `remove` — plus `serviceStatus`. A service can be kept alive by
+    the runtime restart policy (`--restart`) or handed to systemd: Podman gets a
+    Quadlet `.container`, and Docker (which has no native unit generator in this
+    range) gets a user unit that runs `docker start -a <name>`. An `exec` method
+    runs a one-off argv inside a service container — the counterpart to
+    `service` for seeding a database or poking a running server — and a
+    `network` method idempotently creates the network services join by name.
+    Prefer it over `docker run -d` glued together in a shell step: it is
+    idempotent, records typed state, and can wait on an in-container health
+    check before reporting success.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/container-service
+
+  DEPENDENCIES
+
+    A container runtime on PATH — Docker, Podman, or Apple Containers. Run the
+    `validate` method to check the binary and daemon before relying on it.
+    `serviceBackend: systemd` additionally needs a running `systemctl --user`
+    (and, for boot persistence, `loginctl enable-linger`).
+
+  RUN
+
+      # Long-lived service kept alive by the runtime restart policy.
+      swamp model @svendowideit/container-service method run service postgres \
+        --input containerName=postgres \
+        --input image=postgres:18-alpine \
+        --input 'ports:json=["127.0.0.1:5432:5432"]' \
+        --input 'volumes:json=["pgdata:/var/lib/postgresql/data"]' \
+        --input 'env:json={"POSTGRES_PASSWORD":"example"}' \
+        --input 'healthCommand:json=["pg_isready"]'
+
+      # Same container, owned by systemd instead (podman Quadlet / docker unit).
+      swamp model create @svendowideit/container-service postgres-svc \
+        --global-arg binary=podman --global-arg serviceBackend=systemd
+      swamp model method run postgres-svc service \
+        --input containerName=postgres \
+        --input image=postgres:18-alpine \
+        --input 'volumes:json=["pgdata:/var/lib/postgresql/data"]' \
+        --input 'env:json={"POSTGRES_PASSWORD":"example"}'
+
+      # Inspect it — running state, health, image, published ports, unit state.
+      swamp model method run postgres-svc serviceStatus \
+        --input containerName=postgres
+
+      # Run a one-off command inside it (argv, not a shell string).
+      swamp model method run postgres-svc exec \
+        --input containerName=postgres \
+        --input 'command:json=["pg_isready","-U","postgres"]'
+
+      # Ensure the network the service (and other services) join by name.
+      swamp model method run postgres-svc network \
+        --input networkName=swamp-net
+
+      # One-shot job (unchanged from upstream): foreground, `--rm`.
+      swamp model method run postgres-svc run --input image=alpine --input 'command:json=["echo","hi"]'
+
+      # Stop and delete the service.
+      swamp model method run postgres-svc service \
+        --input containerName=postgres --input action=remove
+
+  CONFIGURE
+
+    Global arguments (set at model creation with `--global-arg key=value`):
+
+      binary            docker | podman | container  (default docker)
+      serviceBackend    direct | systemd             (default direct)
+      systemdUnitDir    unit dir for docker units    (default ~/.config/systemd/user)
+      quadletDir        dir for podman Quadlets      (default ~/.config/containers/systemd)
+
+    `service` takes: action (ensure|stop|restart|remove), containerName, image,
+    command, env, volumes, ports, network, entrypoint, restart,
+    healthCommand, healthTimeoutMs, pull, privileged, extraArgs. `restart` and
+    `pull` only apply to the `direct` backend. `exec` takes containerName and an
+    argv `command` (plus optional env/user/workdir/input). `network` takes
+    action (ensure|remove), networkName, and driver. Secret env values are
+    never written to a resource or a container label — only env *names* are
+    hashed into the desired-state label.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host by itself. `service` with serviceBackend `systemd`
+    writes a systemd user unit (`~/.config/systemd/user/<name>.service`) or a
+    Podman Quadlet (`~/.config/containers/systemd/<name>.container`) and starts
+    it; otherwise it creates and starts a container through the runtime. It also
+    pulls the image named in the method arguments.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: AGPL-3.0
+
+paths:
+  base: manifest
+
+models:
+  - container_service.ts
+
+workflows: []
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - container_service_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

@@ -67,8 +67,40 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3076"><span class="tier A">A</span>Resolve non-admin actors in dashboard audit logs</a><a href="#issue-3096"><span class="tier A">A</span>A nested structural swamp still waits on its run&#39;s lock when</a><a href="#issue-3093"><span class="tier A">A</span>Deliver workflow signals through a write-once outcome record</a><a href="#issue-3101"><span class="tier A">A</span>Shell steps: a vault.get on a continuation line of a multi-l</a><a href="#issue-3020"><span class="tier A">A</span>extension push: testing-completeness warns once per generate</a><a href="#issue-3021"><span class="tier A">A</span>extension push: declare accepted lint warnings where the fin</a><a href="#issue-3031"><span class="tier A">A</span>extension push: --extensions-dir is ignored for bundled work</a><a href="#issue-3018"><span class="tier A">A</span>extension push: sub-directory extensions cannot be found fro</a><a href="#issue-2669"><span class="tier A">A</span>GCP bigquery datasets update cannot target the dataset: read</a><a href="#issue-3072"><span class="tier A">A</span>Extension bundler rewrites zod import text inside string/tem</a><a href="#issue-2999"><span class="tier A">A</span>s3-datastore: pull never removes files deleted on the remote</a><a href="#issue-3090"><span class="tier A">A</span>swamp-testing withMockedCommand: record env and cwd in Captu</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2621"><span class="tier A">A</span>datastore config migrate checks the sentinel in the stale lo</a><a href="#issue-3117"><span class="tier A">A</span>datastore config migrate writes its sentinel before pushing;</a><a href="#issue-3022"><span class="tier A">A</span>extension quality, fmt --check and push disagree: bare-speci</a><a href="#issue-3071"><span class="tier A">A</span>Docs: extension push dry-run reference and how-to need the r</a><a href="#issue-3076"><span class="tier A">A</span>Resolve non-admin actors in dashboard audit logs</a><a href="#issue-3096"><span class="tier A">A</span>A nested structural swamp still waits on its run&#39;s lock when</a><a href="#issue-3093"><span class="tier A">A</span>Deliver workflow signals through a write-once outcome record</a><a href="#issue-3101"><span class="tier A">A</span>Shell steps: a vault.get on a continuation line of a multi-l</a><a href="#issue-3020"><span class="tier A">A</span>extension push: testing-completeness warns once per generate</a><a href="#issue-3021"><span class="tier A">A</span>extension push: declare accepted lint warnings where the fin</a><a href="#issue-3031"><span class="tier A">A</span>extension push: --extensions-dir is ignored for bundled work</a><a href="#issue-3018"><span class="tier A">A</span>extension push: sub-directory extensions cannot be found fro</a></aside><div>
 
+<article class="item" id="issue-2621">
+<h2><span class="tier A">A</span>datastore config migrate checks the sentinel in the stale local cache and re-runs a full migration over a shared S3 datastore</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-06T23:29:28.455Z">2026-10-06T23:29:28.455Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2621" rel="noopener">lab#2621</a></div>
+</article>
+<article class="item" id="issue-3117">
+<h2><span class="tier A">A</span>datastore config migrate writes its sentinel before pushing; after a failed push a re-run reports &#39;already completed&#39; and never publishes</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-06T23:29:28.252Z">2026-10-06T23:29:28.252Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3117" rel="noopener">lab#3117</a></div>
+</article>
+<article class="item" id="issue-3022">
+<h2><span class="tier A">A</span>extension quality, fmt --check and push disagree: bare-specifier severity, cache hit skips gates, gate failure hides the rubric, fmt ignores project config</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-06T23:24:44.162Z">2026-10-06T23:24:44.162Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3022" rel="noopener">lab#3022</a></div>
+</article>
+<article class="item" id="issue-3071">
+<h2><span class="tier A">A</span>Docs: extension push dry-run reference and how-to need the registry checks, API-call list and content hash from Lab #3016</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-06T23:08:52.263Z">2026-10-06T23:08:52.263Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3071" rel="noopener">lab#3071</a></div>
+</article>
 <article class="item" id="issue-3076">
 <h2><span class="tier A">A</span>Resolve non-admin actors in dashboard audit logs</h2>
 <p class="lede">Shipped bug fix</p>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3018" rel="noopener">lab#3018</a></div>
 </article>
-<article class="item" id="issue-2669">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2669">
 <h2><span class="tier A">A</span>GCP bigquery datasets update cannot target the dataset: reads the id from a name field datasets do not have</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-06T20:21:34.640Z">2026-10-06T20:21:34.640Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3090" rel="noopener">lab#3090</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2982">
+<article class="item" id="issue-2982">
 <h2><span class="tier A">A</span>Forward held-lock identity over --server so a loopback nested swamp does not wait on its caller&#39;s lock</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-06T19:26:18.829Z">2026-10-06T19:26:18.829Z</time></span></div>
@@ -1680,42 +1712,10 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-3094">
 <h2><span class="tier B">B</span>Deliver workflow signals through swamp serve</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-06T22:58:30.569Z">2026-10-06T22:58:30.569Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-06T23:40:57.225Z">2026-10-06T23:40:57.225Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3094" rel="noopener">lab#3094</a></div>
-</article>
-<article class="item" id="issue-3071">
-<h2><span class="tier B">B</span>Docs: extension push dry-run reference and how-to need the registry checks, API-call list and content hash from Lab #3016</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-06T22:57:31.997Z">2026-10-06T22:57:31.997Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3071" rel="noopener">lab#3071</a></div>
-</article>
-<article class="item" id="issue-2621">
-<h2><span class="tier B">B</span>datastore config migrate checks the sentinel in the stale local cache and re-runs a full migration over a shared S3 datastore</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-06T22:56:24.789Z">2026-10-06T22:56:24.789Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2621" rel="noopener">lab#2621</a></div>
-</article>
-<article class="item" id="issue-3117">
-<h2><span class="tier B">B</span>datastore config migrate writes its sentinel before pushing; after a failed push a re-run reports &#39;already completed&#39; and never publishes</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-06T22:56:24.603Z">2026-10-06T22:56:24.603Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3117" rel="noopener">lab#3117</a></div>
-</article>
-<article class="item" id="issue-3022">
-<h2><span class="tier B">B</span>extension quality, fmt --check and push disagree: bare-specifier severity, cache hit skips gates, gate failure hides the rubric, fmt ignores project config</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-06T22:46:33.679Z">2026-10-06T22:46:33.679Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3022" rel="noopener">lab#3022</a></div>
 </article>
 <article class="item" id="issue-3030">
 <h2><span class="tier B">B</span>digitalocean codegen: app-platform and database spec secret fields are not marked sensitive</h2>
@@ -1749,7 +1749,71 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3113">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3063">
+<h2><span class="tier C">C</span>Docs: step and job name rules in the workflows reference</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-06T23:44:57.391Z">2026-10-06T23:44:57.391Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3063" rel="noopener">lab#3063</a></div>
+</article>
+<article class="item" id="issue-3099">
+<h2><span class="tier C">C</span>Docs: vault.get shell references are placed per occurrence, and every single-quoted use is warned about</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-06T23:44:50.050Z">2026-10-06T23:44:50.050Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3099" rel="noopener">lab#3099</a></div>
+</article>
+<article class="item" id="issue-3087">
+<h2><span class="tier C">C</span>Docs: dispatch-env-allow and how remote shell steps receive secrets (swamp-club#2760, swamp-club#2791)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-06T23:44:38.963Z">2026-10-06T23:44:38.963Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3087" rel="noopener">lab#3087</a></div>
+</article>
+<article class="item" id="issue-3115">
+<h2><span class="tier C">C</span>Docs: serve authorization page should cover expression-reference checks and the vault.get trust boundary</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-06T23:44:35.463Z">2026-10-06T23:44:35.463Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3115" rel="noopener">lab#3115</a></div>
+</article>
+<article class="item" id="issue-3091">
+<h2><span class="tier C">C</span>Docs: serve authorization of expression references, env and direct-type runs (swamp-club#2786)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-06T23:44:32.975Z">2026-10-06T23:44:32.975Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3091" rel="noopener">lab#3091</a></div>
+</article>
+<article class="item" id="issue-3122">
+<h2><span class="tier C">C</span>Docs: enable-managed-config should say to re-run config migrate when its push fails</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-06T23:32:10.610Z">2026-10-06T23:32:10.610Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3122" rel="noopener">lab#3122</a></div>
+</article>
+<article class="item" id="issue-3121">
+<h2><span class="tier C">C</span>Docs: grant file reference shows a stale format and omits resources and subjects</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-06T23:32:05.099Z">2026-10-06T23:32:05.099Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3121" rel="noopener">lab#3121</a></div>
+</article>
+<article class="item" id="issue-3123">
+<h2><span class="tier C">C</span>Accept usernames for user subjects in grant files</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-06T23:30:09.609Z">2026-10-06T23:30:09.609Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3123" rel="noopener">lab#3123</a></div>
+</article>
+<article class="item" id="issue-3113">
 <h2><span class="tier C">C</span>Docs: channel-aware extension push prompts and promote with a manifest (follow-up to #2939)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-06T22:58:21.207Z">2026-10-06T22:58:21.207Z</time></span></div>
@@ -1812,14 +1876,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3116" rel="noopener">lab#3116</a></div>
-</article>
-<article class="item" id="issue-3115">
-<h2><span class="tier C">C</span>Docs: serve authorization page should cover expression-reference checks and the vault.get trust boundary</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-06T21:45:28.963Z">2026-10-06T21:45:28.963Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3115" rel="noopener">lab#3115</a></div>
 </article>
 <article class="item" id="issue-3114">
 <h2><span class="tier C">C</span>swamp-extensions: replace bare import specifiers with npm:/jsr: specifiers in first-party extensions</h2>
@@ -1917,14 +1973,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3100" rel="noopener">lab#3100</a></div>
 </article>
-<article class="item" id="issue-3099">
-<h2><span class="tier C">C</span>Docs: vault.get shell references are placed per occurrence, and every single-quoted use is warned about</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-06T19:03:51.254Z">2026-10-06T19:03:51.254Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3099" rel="noopener">lab#3099</a></div>
-</article>
 <article class="item" id="issue-3083">
 <h2><span class="tier C">C</span>Flaky test: WalSink replayed segments are delivered before events written after replay</h2>
 <p class="lede">Open issue</p>
@@ -1933,14 +1981,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3083" rel="noopener">lab#3083</a></div>
 </article>
-<article class="item" id="issue-3091">
-<h2><span class="tier C">C</span>Docs: serve authorization of expression references, env and direct-type runs (swamp-club#2786)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-06T18:42:15.774Z">2026-10-06T18:42:15.774Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3091" rel="noopener">lab#3091</a></div>
-</article>
 <article class="item" id="issue-3095">
 <h2><span class="tier C">C</span>registry: store and show declared acceptances sent in contentMetadata.acceptances at confirm (swamp-club#3021)</h2>
 <p class="lede">Open issue</p>
@@ -1948,14 +1988,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3095" rel="noopener">lab#3095</a></div>
-</article>
-<article class="item" id="issue-3087">
-<h2><span class="tier C">C</span>Docs: dispatch-env-allow and how remote shell steps receive secrets (swamp-club#2760, swamp-club#2791)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-06T17:02:57.892Z">2026-10-06T17:02:57.892Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3087" rel="noopener">lab#3087</a></div>
 </article>
 <article class="item" id="issue-3088">
 <h2><span class="tier C">C</span>extension push --dry-run: authentication verdict prints &#39;Signed in as .&#39; when the credential is an API key with no username</h2>
@@ -2004,14 +2036,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3069" rel="noopener">lab#3069</a></div>
-</article>
-<article class="item" id="issue-3063">
-<h2><span class="tier C">C</span>Docs: step and job name rules in the workflows reference</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-06T14:11:09.487Z">2026-10-06T14:11:09.487Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3063" rel="noopener">lab#3063</a></div>
 </article>
 <article class="item" id="issue-3064">
 <h2><span class="tier C">C</span>verify-reviews: whole-extension rubric review for changed hand-written extensions, carried in the attestation and read by publish (design: Lab #3023)</h2>
@@ -2558,13 +2582,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>311 items across 1 source(s) in this window:
-0 critical, 201 notable, 9 routine,
-101 minor.</p>
-<ul><li><strong>issues</strong> — 311</li></ul></section>
+<p>314 items across 1 source(s) in this window:
+0 critical, 205 notable, 5 routine,
+104 minor.</p>
+<ul><li><strong>issues</strong> — 314</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-06T23:08:05.580Z">2026-10-06T23:08:05.580Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-07T00:02:09.293Z">2026-10-07T00:02:09.293Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

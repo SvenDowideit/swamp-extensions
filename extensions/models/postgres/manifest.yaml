@@ -1,0 +1,110 @@
+manifestVersion: 1
+name: "@svendowideit/postgres"
+version: "2026.10.07.1"
+description: >
+  Provision and configure a PostgreSQL server from swamp, and hand other
+  models a connection to it — without ever writing a password into a resource.
+
+  WHAT IT DOES
+
+    Brings up PostgreSQL as a long-lived, health-gated service and creates the
+    application role and database for you, then writes a non-secret `connection`
+    resource other models consume with CEL. The database password is generated
+    once, stored in a swamp vault, and reused on every later run; role creation
+    is fed to `psql` over stdin inside the container, so the password never
+    appears in a resource, a log, or a process listing. Prefer it over a
+    hand-rolled `docker run postgres`: `provision`/`configure` are idempotent
+    (an already-correct server is left alone), the container is kept alive by
+    the runtime restart policy or systemd, and readiness is gated on
+    `pg_isready` before the model reports success. The current release is
+    container-first; the native lane (package-manager install + initdb) is
+    declared but deferred to a future linux-package-installer extension, and
+    `mode=native` fails with that guidance rather than doing half a job.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/postgres
+
+  DEPENDENCIES
+
+    @svendowideit/container-service (pulled automatically as a declared
+    dependency), and a container runtime on PATH (Docker or Podman). A swamp
+    vault is required — the generated database password is stored there:
+
+      swamp vault create @svendowideit/systemd-creds postgres-secrets
+
+  RUN
+
+      # Create the model, pointing it at a vault and a data directory.
+      swamp model create @svendowideit/postgres postgres \
+        --global-arg vaultName=postgres-secrets \
+        --global-arg dataDir=~/.local/share/swamp-postgres \
+        --global-arg database=dtrack --global-arg username=dtrack
+
+      # Provision (idempotent): network, container, role, database, connection.
+      swamp model method run postgres provision
+
+      # Check it is accepting connections before wiring a consumer to it.
+      swamp model method run postgres status
+
+      # Take a logical backup when you need one; the dump is a swamp file.
+      swamp model method run postgres backup
+
+      # Read the connection facts a consumer should use (no password here).
+      swamp data query 'modelName == "postgres" && name == "current"' --select content
+
+  CONFIGURE
+
+    Global arguments (set at model creation with `--global-arg key=value`):
+
+      mode              auto | container | native   (default auto; native deferred)
+      version           Postgres image tag          (default 18-alpine)
+      image             Full image ref; overrides version
+      port              Host port to publish        (default 5432)
+      bindAddress       Host address to publish on  (default 127.0.0.1)
+      database          Application database        (default app)
+      username          Application role            (default app)
+      adminUser         Image superuser (POSTGRES_USER) (default postgres)
+      postgresDatabase  Image default database      (default postgres)
+      dataDir           Host data directory         (default ~/.local/share/swamp-postgres)
+      network           Container network           (default swamp-postgres)
+      containerName     Container name              (derived from the model name)
+      vaultName         Vault for the password      (required)
+      passwordSecretKey Password vault key          (default POSTGRES_PASSWORD)
+      serviceBackend    direct | systemd            (default direct)
+      healthTimeoutMs   Readiness wait budget       (default 60000)
+
+    Methods: `provision`, `configure` (idempotent re-apply), `status`, `backup`,
+    `remove` (destructive; `removeData=true` also deletes the data directory).
+
+  WHAT IT INSTALLS
+
+    A Postgres container managed by @svendowideit/container-service, a named
+    container network, and a host data directory persisted as the container
+    volume. With serviceBackend=systemd it also writes a systemd user unit.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - postgres.ts
+
+workflows: []
+
+dependencies:
+  - "@svendowideit/container-service"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - postgres_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

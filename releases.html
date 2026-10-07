@@ -122,7 +122,7 @@ footer .ver{color:var(--acc)}
 <li>Rewriting repeated single-subject entries as one <code>subjects</code> entry reconciles to the same grants, with nothing created, updated or revoked.</li>
 </ul>
 <p>The docs are updated in <code>design/enablers/access-control.md</code> a</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261006.232708.0-sha.bc0dde52" rel="noopener">release v20261006.232708.0-sha.bc0dde52</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bc0dde52c2a5d17612ec19a99ce1fae4858b3a7f" rel="noopener">bc0dde52</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2894" rel="noopener">#2894</a>𝗔 <a href="https://swamp-club.com/lab/3121" rel="noopener">lab#3121</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261006-231101-0-sha-9a8ec977">
@@ -140,7 +140,7 @@ footer .ver{color:var(--acc)}
 <li><strong>The rubric is printed beside gate failures.</strong> Quality prints the rubric, then each failed check with its details, then the files left out of the scored archive, and exits non-zero. In <code>--json</code> mode, <code>status</code> is the run&#39;s outcome (<code>&quot;failed&quot;</code> on any failed check or an unscorable extension); <code>allPassed</code> stays the rubric&#39;s own result. A file a check rejects (hidden, symlink, disallowed type, oversized, unreadable, disallowed <code>additionalFiles</code> entry) is never copied into the archive. Such an archive is never cached or uploaded.</li>
 <li><strong>Cache entries are tied to the swamp version.</strong> An entry is reused only by the swamp version that wrote it, because a reused archive skips the fmt/lint gate. The content hash is unchanged, since it also keys adversarial-review reports</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/references/publishing.md" rel="noopener">.claude/skills/swamp/references/extension-publish/references/publishing.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/quality/templates.md" rel="noopener">.claude/skills/swamp/references/extension/references/quality/templates.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/quality/templates.md" rel="noopener">.claude/skills/swamp/references/extension/references/quality/templates.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261006.231101.0-sha.9a8ec977" rel="noopener">release v20261006.231101.0-sha.9a8ec977</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9a8ec9778137d67e46e84086eecd3bf782925da7" rel="noopener">9a8ec977</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2892" rel="noopener">#2892</a>𝗔 <a href="https://swamp-club.com/lab/3022" rel="noopener">lab#3022</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261006-221608-0-sha-5c0c6532">
@@ -265,7 +265,7 @@ footer .ver{color:var(--acc)}
 <li><code>workflow resume</code> is refused while the process that suspended the run is still running the level it suspended in, for a wait or an approval gate. A decision made in that window may need to be given again.</li>
 <li>`</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/execution-semantics.md" rel="noopener">.claude/skills/swamp/references/workflow/references/execution-semantics.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/execution-semantics.md" rel="noopener">.claude/skills/swamp/references/workflow/references/execution-semantics.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261006.205552.0-sha.5c0ccbc9" rel="noopener">release v20261006.205552.0-sha.5c0ccbc9</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5c0ccbc97af2468930183b9c1c3d56d75544df8f" rel="noopener">5c0ccbc9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2886" rel="noopener">#2886</a>𝗔 <a href="https://swamp-club.com/lab/3093" rel="noopener">lab#3093</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261006-205014-0-sha-e9c9416b">
@@ -480,7 +480,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>A worker on another host sharing the datastore still waits, and locks held by a swamp abo</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261006.184908.0-sha.c4c1ed56" rel="noopener">release v20261006.184908.0-sha.c4c1ed56</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c4c1ed5618a98cd9fd46a8f52eff9ddcc5c1e099" rel="noopener">c4c1ed56</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2877" rel="noopener">#2877</a>𝗔 <a href="https://swamp-club.com/lab/2983" rel="noopener">lab#2983</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261006-184413-0-sha-f9e9c45b">
@@ -1022,7 +1022,7 @@ footer .ver{color:var(--acc)}
 <li>The <code>acceptedWarnings</code> record from #3015 stays, with the same JSON shape, whenever <code>--yes</code> or <code>--force</code> waived at least one warning. The log summary header names the flag: <code>Accepted N warnings with --yes:</code>.</li>
 <li>Interactive behaviour unchanged: two prompts, two answers. Safety and review-ru</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/guide.md" rel="noopener">.claude/skills/swamp/references/extension-publish/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/guide.md" rel="noopener">.claude/skills/swamp/references/extension/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/reference.md" rel="noopener">.claude/skills/swamp/references/extension/reference.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/guide.md" rel="noopener">.claude/skills/swamp/references/extension-publish/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/guide.md" rel="noopener">.claude/skills/swamp/references/extension/guide.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.231834.0-sha.6a4d7d6e" rel="noopener">release v20261005.231834.0-sha.6a4d7d6e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6a4d7d6e8f54a04b4b78a182d973ad6ed50fe567" rel="noopener">6a4d7d6e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2852" rel="noopener">#2852</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3015" rel="noopener">#3015</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2833" rel="noopener">#2833</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/532" rel="noopener">#532</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/537" rel="noopener">#537</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3026" rel="noopener">#3026</a>𝗔 <a href="https://swamp-club.com/lab/3047" rel="noopener">lab#3047</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261005-224645-0-sha-d58cdf00">
@@ -3273,7 +3273,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 92</li><li><strong>feat</strong> — 30</li><li><strong>refactor</strong> — 8</li><li><strong>docs</strong> — 2</li><li><strong>test</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-07T16:02:49.795Z">2026-10-07T16:02:49.795Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-07T17:14:24.329Z">2026-10-07T17:14:24.329Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

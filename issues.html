@@ -67,8 +67,48 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3177"><span class="tier A">A</span>audit verify is hidden by accident: auditCommand.hidden() in</a><a href="#issue-3175"><span class="tier A">A</span>swamp help --json: emit aliases, hidden commands, and whethe</a><a href="#issue-3062"><span class="tier A">A</span>Workflow load errors print the raw Zod issue dump instead of</a><a href="#issue-3158"><span class="tier A">A</span>extension info: show the accepted warnings the registry retu</a><a href="#issue-2269"><span class="tier A">A</span>Periodic worker GC sweep prunes outside the sync gate</a><a href="#issue-2965"><span class="tier A">A</span>extension safety analyzer&#39;s Deno.Command( warning is a plain</a><a href="#issue-3095"><span class="tier A">A</span>registry: store and show declared acceptances sent in conten</a><a href="#issue-3161"><span class="tier A">A</span>GCS datastore: implement fetchContent, a read of one remote </a><a href="#issue-3160"><span class="tier A">A</span>S3 datastore: implement fetchContent, a read of one remote f</a><a href="#issue-3155"><span class="tier A">A</span>worker prune cannot delete worker models when auto-definitio</a><a href="#issue-3154"><span class="tier A">A</span>model get and model search miss auto-definitions stored in a</a><a href="#issue-3136"><span class="tier A">A</span>serve: token secret migration repoints a token even when cop</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2501"><span class="tier A">A</span>Orphaned data record survives a model type migration and is </a><a href="#issue-2486"><span class="tier A">A</span>Registry catalog silently drops models whose version is not </a><a href="#issue-3167"><span class="tier A">A</span>Windows Compatibility CI fails on main: about a dozen tests </a><a href="#issue-2671"><span class="tier A">A</span>Concurrent first runs in a fresh repo log &#39;Catalog migration</a><a href="#issue-2513"><span class="tier A">A</span>worker prune: remote datastore keeps deleted worker records </a><a href="#issue-3177"><span class="tier A">A</span>audit verify is hidden by accident: auditCommand.hidden() in</a><a href="#issue-3175"><span class="tier A">A</span>swamp help --json: emit aliases, hidden commands, and whethe</a><a href="#issue-3062"><span class="tier A">A</span>Workflow load errors print the raw Zod issue dump instead of</a><a href="#issue-3158"><span class="tier A">A</span>extension info: show the accepted warnings the registry retu</a><a href="#issue-2269"><span class="tier A">A</span>Periodic worker GC sweep prunes outside the sync gate</a><a href="#issue-2965"><span class="tier A">A</span>extension safety analyzer&#39;s Deno.Command( warning is a plain</a><a href="#issue-3095"><span class="tier A">A</span>registry: store and show declared acceptances sent in conten</a></aside><div>
 
+<article class="item" id="issue-2501">
+<h2><span class="tier A">A</span>Orphaned data record survives a model type migration and is unreachable by data delete/versions/prune</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-08T17:56:20.704Z">2026-10-08T17:56:20.704Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2501" rel="noopener">lab#2501</a></div>
+</article>
+<article class="item" id="issue-2486">
+<h2><span class="tier A">A</span>Registry catalog silently drops models whose version is not a literal in the export const model block</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-08T17:53:33.293Z">2026-10-08T17:53:33.293Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2486" rel="noopener">lab#2486</a></div>
+</article>
+<article class="item" id="issue-3167">
+<h2><span class="tier A">A</span>Windows Compatibility CI fails on main: about a dozen tests across serve, sync, CLI path resolution, process and tracing</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-08T17:42:07.231Z">2026-10-08T17:42:07.231Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3167" rel="noopener">lab#3167</a></div>
+</article>
+<article class="item" id="issue-2671">
+<h2><span class="tier A">A</span>Concurrent first runs in a fresh repo log &#39;Catalog migration to per-extension-aggregate-v3 failed (database is locked)&#39;</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-08T17:41:42.358Z">2026-10-08T17:41:42.358Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2671" rel="noopener">lab#2671</a></div>
+</article>
+<article class="item" id="issue-2513">
+<h2><span class="tier A">A</span>worker prune: remote datastore keeps deleted worker records (no-path markDirty() skips deletions)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-08T17:26:48.471Z">2026-10-08T17:26:48.471Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2513" rel="noopener">lab#2513</a></div>
+</article>
 <article class="item" id="issue-3177">
 <h2><span class="tier A">A</span>audit verify is hidden by accident: auditCommand.hidden() in mod.ts hides the last subcommand, not audit</h2>
 <p class="lede">Shipped bug fix</p>
@@ -125,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3095" rel="noopener">lab#3095</a></div>
 </article>
-<article class="item" id="issue-3161">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3161">
 <h2><span class="tier A">A</span>GCS datastore: implement fetchContent, a read of one remote file that writes nothing locally</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-08T12:50:47.196Z">2026-10-08T12:50:47.196Z</time></span></div>
@@ -165,7 +205,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3136" rel="noopener">lab#3136</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3166">
+<article class="item" id="issue-3166">
 <h2><span class="tier A">A</span>Extension quality check output carries ANSI codes when FORCE_COLOR is set</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-07T22:33:44.614Z">2026-10-07T22:33:44.614Z</time></span></div>
@@ -2021,53 +2061,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-2513">
-<h2><span class="tier B">B</span>worker prune: remote datastore keeps deleted worker records (no-path markDirty() skips deletions)</h2>
+<article class="item" id="issue-2900">
+<h2><span class="tier B">B</span>Tell the pushing client when its extension contentMetadata fails validation</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-08T17:01:43.769Z">2026-10-08T17:01:43.769Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-08T18:04:39.299Z">2026-10-08T18:04:39.299Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2513" rel="noopener">lab#2513</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2900" rel="noopener">lab#2900</a></div>
 </article>
-<article class="item" id="issue-2671">
-<h2><span class="tier B">B</span>Concurrent first runs in a fresh repo log &#39;Catalog migration to per-extension-aggregate-v3 failed (database is locked)&#39;</h2>
+<article class="item" id="issue-2477">
+<h2><span class="tier B">B</span>Clear error when hydrateFile reports success but the file is missing</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-08T17:01:39.964Z">2026-10-08T17:01:39.964Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-08T18:01:55.127Z">2026-10-08T18:01:55.127Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2671" rel="noopener">lab#2671</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2477" rel="noopener">lab#2477</a></div>
 </article>
-<article class="item" id="issue-3167">
-<h2><span class="tier B">B</span>Windows Compatibility CI fails on main: about a dozen tests across serve, sync, CLI path resolution, process and tracing</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-08T17:01:08.412Z">2026-10-08T17:01:08.412Z</time></span></div>
+<article class="item" id="issue-2906">
+<h2><span class="tier B">B</span>Tests: bring the in-memory remote&#39;s default semantics up to @swamp/s3-datastore and @swamp/gcs-datastore 2026.10.01.1</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-08T18:01:46.525Z">2026-10-08T18:01:46.525Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3167" rel="noopener">lab#3167</a></div>
-</article>
-<article class="item" id="issue-2486">
-<h2><span class="tier B">B</span>Registry catalog silently drops models whose version is not a literal in the export const model block</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-08T16:57:34.074Z">2026-10-08T16:57:34.074Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2486" rel="noopener">lab#2486</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2906" rel="noopener">lab#2906</a></div>
 </article>
 <article class="item" id="issue-3108">
 <h2><span class="tier B">B</span>Resume signalled workflow runs automatically under swamp serve</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-08T16:56:07.194Z">2026-10-08T16:56:07.194Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-08T17:53:58.171Z">2026-10-08T17:53:58.171Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3108" rel="noopener">lab#3108</a></div>
-</article>
-<article class="item" id="issue-2501">
-<h2><span class="tier B">B</span>Orphaned data record survives a model type migration and is unreachable by data delete/versions/prune</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-08T16:56:03.643Z">2026-10-08T16:56:03.643Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2501" rel="noopener">lab#2501</a></div>
 </article>
 <article class="item" id="issue-2435">
 <h2><span class="tier B">B</span>serve: boot hydration ignores `hydrationStrategy: lazy` and downloads every payload</h2>
@@ -2125,7 +2149,87 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3182">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3186">
+<h2><span class="tier C">C</span>Docs: worker connect no longer needs a swamp-club credential (swamp-club#3128)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T17:58:41.964Z">2026-10-08T17:58:41.964Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3186" rel="noopener">lab#3186</a></div>
+</article>
+<article class="item" id="issue-2255">
+<h2><span class="tier C">C</span>Lab status never returns to shipped on merge — transitions are manual and drift silently</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T17:55:07.292Z">2026-10-08T17:55:07.292Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2255" rel="noopener">lab#2255</a></div>
+</article>
+<article class="item" id="issue-3036">
+<h2><span class="tier C">C</span>Docs: doctor install reports a stale or failing autoupdate scheduler</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T17:31:11.986Z">2026-10-08T17:31:11.986Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3036" rel="noopener">lab#3036</a></div>
+</article>
+<article class="item" id="issue-3134">
+<h2><span class="tier C">C</span>Docs: serve restricted-model-types matches any @ spelling; restriction warnings in serve and check-config</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T17:28:10.313Z">2026-10-08T17:28:10.313Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3134" rel="noopener">lab#3134</a></div>
+</article>
+<article class="item" id="issue-3165">
+<h2><span class="tier C">C</span>Docs: vault grants and run vault scoping on swamp serve (swamp-club#2676, swamp-club#2206)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T17:28:04.530Z">2026-10-08T17:28:04.530Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3165" rel="noopener">lab#3165</a></div>
+</article>
+<article class="item" id="issue-3172">
+<h2><span class="tier C">C</span>Docs: restricted-model-types covers edit, delete, data delete/rename and workflow step changes</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T17:27:58.162Z">2026-10-08T17:27:58.162Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3172" rel="noopener">lab#3172</a></div>
+</article>
+<article class="item" id="issue-3176">
+<h2><span class="tier C">C</span>Docs: extension info reference should show the Accepted warnings block and contentMetadata.acceptances (swamp-club#3158)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T17:27:53.666Z">2026-10-08T17:27:53.666Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3176" rel="noopener">lab#3176</a></div>
+</article>
+<article class="item" id="issue-3185">
+<h2><span class="tier C">C</span>Docs: state the literal type/version catalog contract and the uncatalogued-model push warning in the extensions publishing reference</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T17:27:49.635Z">2026-10-08T17:27:49.635Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3185" rel="noopener">lab#3185</a></div>
+</article>
+<article class="item" id="issue-3183">
+<h2><span class="tier C">C</span>serve never continues a signalled run after a manual resume re-entered its open wait</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T17:14:27.551Z">2026-10-08T17:14:27.551Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3183" rel="noopener">lab#3183</a></div>
+</article>
+<article class="item" id="issue-3126">
+<h2><span class="tier C">C</span>Session-start &#39;swamp model search --json&#39; in the AGENTS.md template is unfulfillable - wire it to a hook or drop it</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T17:05:51.502Z">2026-10-08T17:05:51.502Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3126" rel="noopener">lab#3126</a></div>
+</article>
+<article class="item" id="issue-3182">
 <h2><span class="tier C">C</span>access grant create: a refused condition still leaves an empty grant-… definition and a failed run behind</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-08T16:28:52.508Z">2026-10-08T16:28:52.508Z</time></span></div>
@@ -2149,22 +2253,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3178" rel="noopener">lab#3178</a></div>
 </article>
-<article class="item" id="issue-3176">
-<h2><span class="tier C">C</span>Docs: extension info reference should show the Accepted warnings block and contentMetadata.acceptances (swamp-club#3158)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-08T14:53:52.377Z">2026-10-08T14:53:52.377Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3176" rel="noopener">lab#3176</a></div>
-</article>
-<article class="item" id="issue-3172">
-<h2><span class="tier C">C</span>Docs: restricted-model-types covers edit, delete, data delete/rename and workflow step changes</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-08T13:46:29.241Z">2026-10-08T13:46:29.241Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3172" rel="noopener">lab#3172</a></div>
-</article>
 <article class="item" id="issue-3170">
 <h2><span class="tier C">C</span>dynamic-code safety error reports Babel line numbers, which disagree with the analyzer&#39;s newline-split lines</h2>
 <p class="lede">Open issue</p>
@@ -2180,14 +2268,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3169" rel="noopener">lab#3169</a></div>
-</article>
-<article class="item" id="issue-3165">
-<h2><span class="tier C">C</span>Docs: vault grants and run vault scoping on swamp serve (swamp-club#2676, swamp-club#2206)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-07T21:59:24.828Z">2026-10-07T21:59:24.828Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3165" rel="noopener">lab#3165</a></div>
 </article>
 <article class="item" id="issue-3164">
 <h2><span class="tier C">C</span>Docs: document DatastoreSyncService.fetchContent in the datastore provider reference</h2>
@@ -2285,14 +2365,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3138" rel="noopener">lab#3138</a></div>
 </article>
-<article class="item" id="issue-3134">
-<h2><span class="tier C">C</span>Docs: serve restricted-model-types matches any @ spelling; restriction warnings in serve and check-config</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-07T14:53:33.442Z">2026-10-07T14:53:33.442Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3134" rel="noopener">lab#3134</a></div>
-</article>
 <article class="item" id="issue-3133">
 <h2><span class="tier C">C</span>Model types: decide whether names like @/@x/y or a+b/c should be legal (type grammar)</h2>
 <p class="lede">Open issue</p>
@@ -2308,14 +2380,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3132" rel="noopener">lab#3132</a></div>
-</article>
-<article class="item" id="issue-3126">
-<h2><span class="tier C">C</span>Session-start &#39;swamp model search --json&#39; in the AGENTS.md template is unfulfillable - wire it to a hook or drop it</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-07T05:10:07.893Z">2026-10-07T05:10:07.893Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3126" rel="noopener">lab#3126</a></div>
 </article>
 <article class="item" id="issue-3063">
 <h2><span class="tier C">C</span>Docs: step and job name rules in the workflows reference</h2>
@@ -2661,14 +2725,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3041" rel="noopener">lab#3041</a></div>
 </article>
-<article class="item" id="issue-3036">
-<h2><span class="tier C">C</span>Docs: doctor install reports a stale or failing autoupdate scheduler</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-05T18:30:05.836Z">2026-10-05T18:30:05.836Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3036" rel="noopener">lab#3036</a></div>
-</article>
 <article class="item" id="issue-2993">
 <h2><span class="tier C">C</span>Feedback: Swamp as an approval-gated control plane for a small fleet</h2>
 <p class="lede">Open issue</p>
@@ -2853,14 +2909,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2832" rel="noopener">lab#2832</a></div>
 </article>
-<article class="item" id="issue-2900">
-<h2><span class="tier C">C</span>Tell the pushing client when its extension contentMetadata fails validation</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T18:30:11.311Z">2026-10-01T18:30:11.311Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2900" rel="noopener">lab#2900</a></div>
-</article>
 <article class="item" id="issue-2811">
 <h2><span class="tier C">C</span>gatorwalk-factory: replace the Mermaid design page with a static studio export</h2>
 <p class="lede">Open issue</p>
@@ -2900,14 +2948,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2797" rel="noopener">lab#2797</a></div>
-</article>
-<article class="item" id="issue-2906">
-<h2><span class="tier C">C</span>Tests: bring the in-memory remote&#39;s default semantics up to @swamp/s3-datastore and @swamp/gcs-datastore 2026.10.01.1</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T17:21:13.194Z">2026-10-01T17:21:13.194Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2906" rel="noopener">lab#2906</a></div>
 </article>
 <article class="item" id="issue-2892">
 <h2><span class="tier C">C</span>Extension datastore: query still returns an item after its delete is pulled</h2>
@@ -2990,13 +3030,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>365 items across 1 source(s) in this window:
-0 critical, 244 notable, 13 routine,
-108 minor.</p>
-<ul><li><strong>issues</strong> — 365</li></ul></section>
+<p>370 items across 1 source(s) in this window:
+0 critical, 249 notable, 11 routine,
+110 minor.</p>
+<ul><li><strong>issues</strong> — 370</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T17:04:09.573Z">2026-10-08T17:04:09.573Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T18:05:12.932Z">2026-10-08T18:05:12.932Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

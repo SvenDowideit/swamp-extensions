@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.10.05.2"
+version: "2026.10.08.1"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -10,12 +10,15 @@ description: >
     binary, run it as a systemd user service, and drive routes, static file
     serving, and TLS live through Caddy's admin API. Prefer it over hand-editing
     a Caddyfile or a Go Caddy plugin when you want routes added and removed
-    without a restart and managed from swamp; no Go toolchain is needed. It can
-    also publish a settings/document directory over HTTP(S) with file_server, and
-    issue wildcard certificates through DNS-challenge providers (including
-    multi-field ones like Gandi, Namecheap, and DreamHost). It can manage static
-    A/AAAA/CNAME records through any dns.providers module, and serves a default
-    health contract (/, /teapot) on each configured hostname.
+    without a restart and managed from swamp; no Go toolchain is needed. Adding
+    a route implies the DNS and TLS it needs: every route hostname under
+    baseDomain automatically gains a TLS subject and an A record, so a single
+    ensureDnsProxy makes a host reachable without hand-listing subjects or
+    records. It can also publish a settings/document directory over HTTP(S) with
+    file_server, issue wildcard certificates through DNS-challenge providers
+    (including multi-field ones like Gandi, Namecheap, and DreamHost), manage
+    static A/AAAA/CNAME records through any dns.providers module, and serve a
+    default health contract (/, /teapot) on each configured hostname.
 
     It runs unprivileged (plain HTTP on high ports) or as a Let's Encrypt TLS
     proxy on 80/443, and routes persist across restarts via autosave + --resume.

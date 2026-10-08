@@ -21,7 +21,10 @@ restarts and reboots** (Caddy autosave + `--resume`). It can:
   HTTP.
 - **Proxy services** — add/remove reverse-proxy routes live through the admin
   API (no restart), or declare the route you want and let `ensureDnsProxy`
-  reconcile it.
+  reconcile it. **Adding a route implies the DNS and TLS it needs**: every route
+  hostname under `baseDomain` is automatically added to the TLS subjects and
+  given an A record (see [Automatic route DNS and TLS](#automatic-route-dns-and-tls)),
+  so a single `ensureDnsProxy` makes a host reachable.
 - **Serve static files** — publish a directory (e.g. a rendered settings bundle)
   over HTTP(S) at a hostname with `serveSettings` (`file_server`), so documents
   are fetchable network-wide without running another server.
@@ -46,6 +49,55 @@ restarts and reboots** (Caddy autosave + `--resume`). It can:
 Side effects: it writes a binary to `caddyBinPath`, writes a systemd user unit
 and a Caddyfile under `~/.config`, starts/stops services via `systemctl --user`,
 and downloads from `caddyserver.com`.
+
+## Automatic route DNS and TLS
+
+**You usually do not need to list TLS subjects or DNS records by hand.** Adding
+a route is a promise that clients will connect on that name, so the model
+derives what the name needs:
+
+- Every route hostname **under `baseDomain`** is added to the **TLS subjects**,
+  so Caddy issues it a certificate (`autoRouteTls`, default `true`).
+- Each such hostname also gets an **A record** in `dnsRecords`
+  (`autoRouteDns`, default `true`), pointing at `routeIp` — or, when that is
+  empty, at an IP this Caddy already declares for that zone. Writing the record
+  needs a DNS provider (set `dnsProvider` via `configureTls`); without one the
+  TLS subject is still added but no record is written.
+
+So a model with `baseDomain=example.com`, a `configureTls` DNS provider, and at
+least one existing A record needs **nothing else**:
+
+```sh
+# Configure TLS once (DNS-01 provider + a shared credential).
+swamp model method run my-caddy configureTls \
+  --input dnsProvider=gandi \
+  --input 'providerConfig:json={"bearer_token":"GANDI_BEARER_TOKEN"}' \
+  --input 'subjects:json=["*.example.com","example.com"]'
+# Add a route — its cert and A record follow automatically.
+swamp model method run my-caddy ensureDnsProxy \
+  --input hostname=app.example.com --input upstream=127.0.0.1:8080
+# The derived records still need one apply step.
+swamp model method run my-caddy applyDnsRecords
+```
+
+Scope and safety: only names under this Caddy's `baseDomain` are touched; a name
+already covered by a wildcard subject is left alone; an existing subject or
+record is never duplicated; and a name listed in `dnsRemovals` is skipped rather
+than fought over. Set `autoRouteTls=false` / `autoRouteDns=false` (or leave
+`baseDomain` unset) to opt out, and `routeIp=192.0.2.5` to pin the address when
+there is no record to infer it from.
+
+### Avoiding DNS propagation waits
+
+Because the record and the certificate are reconciled together from the same
+declared state, the only wait is Caddy's own ACME issuance. To keep it short:
+
+- Set a short `dnsTtl` (the default is `5m`) so a freshly written record is
+  visible to the ACME resolver quickly.
+- Give `baseDomain` a DNS provider (DNS-01) — issuance then does not depend on
+  the host being publicly reachable, and a wildcard subject (`*.example.com`)
+  covers every new route under it with **one** certificate, so adding routes
+  later needs no new issuance or propagation wait at all.
 
 ## Install
 
@@ -72,7 +124,10 @@ when it is unset.
 | `adminApiToken` | string | *(unset)* | Optional admin API token (Bearer header). |
 | `autoHttps` | string | `on` | Automatic HTTPS mode: `on`, `off` (plain HTTP), or `disable_redirects` / `disable_certs` / `ignore_loaded_certs`. |
 | `listenAddrs` | array | `[":443", ":80"]` | HTTP server listen addresses for admin-API routes (e.g. `[":8888", ":8443"]` for unprivileged ports). |
-| `baseDomain` | string | *(unset)* | Base domain for derived hostnames (`addProxyService`). |
+| `baseDomain` | string | *(unset)* | Base domain for derived hostnames (`addProxyService`) and for the scope of automatic route TLS/DNS. |
+| `autoRouteTls` | boolean | `true` | Add every route hostname under `baseDomain` to the TLS subjects automatically, so Caddy issues it a certificate. Set `false` to opt out (e.g. a plain-HTTP name). |
+| `autoRouteDns` | boolean | `true` | Give every route hostname under `baseDomain` an A record in `dnsRecords`, pointing at `routeIp` or an already-declared IP. Needs `dnsProvider` via `configureTls`; skipped without one. |
+| `routeIp` | string | *(unset)* | Comma-separated IP(s) for auto-created route A records. Empty infers from an existing A/AAAA record in this Caddy's `dnsRecords`. |
 | `letsEncryptEmail` | string | *(unset)* | ACME / Let's Encrypt email (`configureTls`). |
 | `plugins` | array | `[]` | Extra module packages to compile into the downloaded binary, each optionally `@version`-pinned. `github.com/SvenDowideit/caddy-host-dns` and `github.com/hairyhenderson/caddy-teapot-module` are always added automatically. |
 | `dnsRecords` | array | `[]` | Static A/AAAA/CNAME records this model wants Caddy to own, e.g. `[{"name":"otel.example.com","type":"A","value":["192.0.2.5"],"zone":"example.com"}]` (optional `ttl`). Set `zone` unless the provider implements `libdns.ZoneLister` (Gandi does not). Requires `tls`'s `dnsProvider`; apply with `applyDnsRecords`. See [Static DNS records](#static-dns-records). |
@@ -88,7 +143,8 @@ common configuration choices:
 
 | I want… | Set |
 | ------- | --- |
-| Public TLS reverse proxy on 443 | `baseDomain=example.com letsEncryptEmail=admin@example.com` |
+| Public TLS reverse proxy on 443 | `baseDomain=example.com letsEncryptEmail=admin@example.com` — adding a route then also gets it a cert + DNS automatically |
+| A route with no DNS/TLS derivation | `autoRouteTls=false autoRouteDns=false` (or leave `baseDomain` unset) |
 | Unprivileged plain HTTP | `autoHttps=off listenAddrs:json=[":8888",":8443"]` |
 | Extra Caddy modules in the binary | `plugins:json=["github.com/caddy-dns/route53"]` |
 | Own static DNS records | `dnsRecords:json=[{"name":"otel.example.com","type":"A","value":["192.0.2.5"]}]` + `dnsProvider` via `configureTls` |
@@ -339,7 +395,7 @@ it exposes, with its per-run arguments:
 | `settingsGuidance` | none | Print the minimal Let's Encrypt settings (base domain, ACME email, admin API token). |
 | `addProxyService` | `serviceName`, `upstream`, `baseDomain` | Derive a hostname (`<service-name>.<base-domain>`) and add a reverse-proxy route via the admin API (`POST /config/`) — live, no restart. |
 | `removeProxyService` | `serviceName`, `baseDomain` | Stop the backend systemd service and remove the Caddy route for the derived domain. |
-| `ensureDnsProxy` | `hostname`, `upstream`, `rootPath` | Idempotently ensure a full hostname proxies to a backend `host:port` (add if missing, update if the upstream changed, no-op if correct). `rootPath` (e.g. `/dashboard`) serves an app that lives under a sub-path at the hostname root: only the exact path `/` is rewritten to it, so the app's absolute asset/API paths pass through. Safe to run repeatedly — the desired-state entry point. |
+| `ensureDnsProxy` | `hostname`, `upstream`, `rootPath` | Idempotently ensure a full hostname proxies to a backend `host:port` (add if missing, update if the upstream changed, no-op if correct). A hostname under `baseDomain` also gains a TLS subject and an A record automatically (see [Automatic route DNS and TLS](#automatic-route-dns-and-tls)). `rootPath` (e.g. `/dashboard`) serves an app that lives under a sub-path at the hostname root: only the exact path `/` is rewritten to it, so the app's absolute asset/API paths pass through. Safe to run repeatedly — the desired-state entry point. |
 | `serveSettings` | `hostname`, `root`, `browse` (boolean) | Idempotently serve a static directory (e.g. a rendered settings bundle) at a full hostname via Caddy `file_server` (add if missing, update if the root or browse flag changed, no-op if correct). |
 | `startBackendService` | `serviceName` | Start a backend systemd user service by name. |
 | `stopBackendService` | `serviceName` | Stop a backend systemd user service by name. |

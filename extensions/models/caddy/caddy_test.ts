@@ -20,6 +20,7 @@ import {
   DEFAULT_CADDY_PLUGINS,
   defaultStatusHostnames,
   deriveHostname,
+  deriveRouteDnsTls,
   detectSwampServeServices,
   diffRoutes,
   dnsProviderPlugin,
@@ -2161,6 +2162,157 @@ Deno.test("mergeDesired unions DNS records and errors on value conflicts", () =>
   assertEquals(diff.errors.length, 1);
   assertStringIncludes(diff.errors[0], "a");
   assertStringIncludes(diff.errors[0], "b");
+});
+
+Deno.test("deriveRouteDnsTls adds subjects and records for in-scope routes", () => {
+  const r = deriveRouteDnsTls({
+    baseDomains: ["example.com"],
+    tls: {
+      email: "a@example.com",
+      dnsProvider: "gandi",
+      dnsEnvVar: "",
+      providerConfig: { bearer_token: "GANDI_TOKEN" },
+      subjects: ["example.com"],
+      issuer: "",
+    },
+    dnsRecords: [{
+      name: "example.com",
+      type: "A",
+      value: ["192.0.2.10"],
+      zone: "example.com",
+      ttl: "",
+    }],
+    dnsRemovals: [],
+    autoRouteTls: true,
+    autoRouteDns: true,
+    routeIp: "",
+    routes: [
+      {
+        hostname: "app.example.com",
+        kind: "proxy",
+        upstream: "127.0.0.1:1",
+        root: "",
+        browse: false,
+      },
+      {
+        hostname: "example.com",
+        kind: "proxy",
+        upstream: "127.0.0.1:2",
+        root: "",
+        browse: false,
+      },
+      {
+        hostname: "elsewhere.net",
+        kind: "proxy",
+        upstream: "127.0.0.1:3",
+        root: "",
+        browse: false,
+      },
+    ],
+  });
+  // In-scope route hostnames get a TLS subject; example.com already has one.
+  assertEquals(r.tls?.subjects, ["app.example.com", "example.com"]);
+  assertEquals(r.derivedSubjects, ["app.example.com"]);
+  // A record inferred from the existing A record's IP, only for the new host.
+  const names = r.dnsRecords.map((x) => x.name);
+  assert(names.includes("app.example.com"));
+  assert(!names.includes("elsewhere.net"));
+  const app = r.dnsRecords.find((x) => x.name === "app.example.com")!;
+  assertEquals(app.value, ["192.0.2.10"]);
+  assertEquals(app.zone, "example.com");
+});
+
+Deno.test("deriveRouteDnsTls honours routeIp and never conflicts with a removal", () => {
+  const withIp = deriveRouteDnsTls({
+    baseDomains: ["example.com"],
+    tls: {
+      email: "",
+      dnsProvider: "gandi",
+      dnsEnvVar: "",
+      providerConfig: { bearer_token: "T" },
+      subjects: [],
+      issuer: "",
+    },
+    dnsRecords: [],
+    dnsRemovals: [{ name: "skip.example.com", type: "A", value: [], zone: "" }],
+    autoRouteTls: false,
+    autoRouteDns: true,
+    routeIp: "198.51.100.5, 198.51.100.6",
+    routes: [
+      {
+        hostname: "new.example.com",
+        kind: "proxy",
+        upstream: "127.0.0.1:1",
+        root: "",
+        browse: false,
+      },
+      {
+        hostname: "skip.example.com",
+        kind: "proxy",
+        upstream: "127.0.0.1:2",
+        root: "",
+        browse: false,
+      },
+    ],
+  });
+  const n = withIp.dnsRecords.find((x) => x.name === "new.example.com")!;
+  assertEquals(n.value, ["198.51.100.5", "198.51.100.6"]);
+  assert(!withIp.dnsRecords.some((x) => x.name === "skip.example.com"));
+});
+
+Deno.test("deriveRouteDnsTls leaves a wildcard-covered hostname alone", () => {
+  const r = deriveRouteDnsTls({
+    baseDomains: ["example.com"],
+    tls: {
+      email: "",
+      dnsProvider: "",
+      dnsEnvVar: "",
+      providerConfig: {},
+      subjects: ["*.example.com"],
+      issuer: "",
+    },
+    dnsRecords: [],
+    dnsRemovals: [],
+    autoRouteTls: true,
+    autoRouteDns: true,
+    routeIp: "192.0.2.1",
+    routes: [
+      {
+        hostname: "covered.example.com",
+        kind: "proxy",
+        upstream: "127.0.0.1:1",
+        root: "",
+        browse: false,
+      },
+    ],
+  });
+  // The wildcard already covers it, so no explicit subject is added.
+  assertEquals(r.tls?.subjects, ["*.example.com"]);
+  assertEquals(r.derivedSubjects, []);
+});
+
+Deno.test("deriveRouteDnsTls adds no records without a DNS provider", () => {
+  const r = deriveRouteDnsTls({
+    baseDomains: ["example.com"],
+    tls: null,
+    dnsRecords: [],
+    dnsRemovals: [],
+    autoRouteTls: true,
+    autoRouteDns: true,
+    routeIp: "192.0.2.1",
+    routes: [
+      {
+        hostname: "app.example.com",
+        kind: "proxy",
+        upstream: "127.0.0.1:1",
+        root: "",
+        browse: false,
+      },
+    ],
+  });
+  assertEquals(r.dnsRecords.length, 0);
+  // TLS still derives (no provider needed for HTTP-01).
+  assertEquals(r.tls?.subjects, ["app.example.com"]);
 });
 
 Deno.test("mergeDesired errors when a record is both declared and removed", () => {

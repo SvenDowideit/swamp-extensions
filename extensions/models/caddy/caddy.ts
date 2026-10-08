@@ -175,6 +175,15 @@ const GlobalArgsSchema = z.object({
   dnsTtl: z.string().default("5m").describe(
     "Default TTL for dnsRecords, e.g. 5m or 300s. Short by default so records added/changed here propagate quickly; a record's own ttl field overrides it.",
   ),
+  autoRouteTls: z.boolean().default(true).describe(
+    "When true, every route hostname under baseDomain is automatically added to the TLS subjects, so Caddy issues it a certificate. Adding a route is a promise that clients will connect on that name, so this defaults on; set false to opt out (e.g. a name served over plain HTTP, or already covered by a wildcard you manage elsewhere).",
+  ),
+  autoRouteDns: z.boolean().default(true).describe(
+    "When true, every route hostname under baseDomain is automatically given an A record in dnsRecords, pointing at routeIp (or an IP already declared in this Caddy's dnsRecords). Requires a DNS provider in tls (dnsProvider); silently skipped when no provider or no IP can be determined. Defaults on so a route is reachable without hand-adding records.",
+  ),
+  routeIp: z.string().default("").describe(
+    "Comma-separated IP(s) for auto-created route A records (autoRouteDns). Empty infers from an existing A record in this Caddy's dnsRecords, so a host that already publishes its address needs nothing here.",
+  ),
   healthRoutes: z.boolean().default(true).describe(
     "On status/default hostnames, add a health contract: '/' -> 200 (status page), '/teapot' -> 418, and any other path -> 404. Hostnames with their own route are unaffected.",
   ),
@@ -597,6 +606,12 @@ const DesiredStateSchema = z.object({
   dnsRemovals: z.array(DnsRemovalSchema).default([]),
   dnsTtl: z.string().default("5m"),
   healthRoutes: z.boolean().default(true),
+  /** Derive TLS subjects from route hostnames (see global autoRouteTls). */
+  autoRouteTls: z.boolean().default(true),
+  /** Derive A records from route hostnames (see global autoRouteDns). */
+  autoRouteDns: z.boolean().default(true),
+  /** Explicit IP(s) for auto-created route records (see global routeIp). */
+  routeIp: z.string().default(""),
   updatedAt: z.string(),
 });
 
@@ -1560,6 +1575,16 @@ export interface DesiredState {
   dnsTtl: string;
   /** Whether to install the / -> 200, /teapot -> 418, other -> 404 health contract. */
   healthRoutes: boolean;
+  /**
+   * Derive TLS subjects from route hostnames (see global autoRouteTls).
+   * Optional so older stored states and test fixtures need no change; absent
+   * is treated as the default (true).
+   */
+  autoRouteTls?: boolean;
+  /** Derive A records from route hostnames (see global autoRouteDns). Optional; default true. */
+  autoRouteDns?: boolean;
+  /** Explicit IP(s) for auto-created route records (see global routeIp). Optional; default "". */
+  routeIp?: string;
   /** Last update timestamp. */
   updatedAt: string;
 }
@@ -1736,22 +1761,192 @@ export function mergeDesired(states: DesiredState[]): {
     .sort((a, b) => a.hostname.localeCompare(b.hostname));
   const listenAddrs = [...listenSet].sort();
 
+  // Adding a route is a promise that clients connect on that name, so by
+  // default it implies a certificate (autoRouteTls) and, when a DNS provider is
+  // configured, an A record (autoRouteDns). This is what makes `ensureDnsProxy`
+  // sufficient on its own: the DNS and TLS a route needs are derived, not
+  // hand-listed. It is scoped to the Caddy's own baseDomain, so a route for a
+  // name you manage elsewhere (or a wildcard already covered) is left alone;
+  // autoRouteTls/autoRouteDns/routeIp let a model opt out or pin the address.
+  const auto = deriveRouteDnsTls({
+    routes,
+    // Several models may share this Caddy with different base domains (e.g.
+    // fi.gy and otel.fi.gy). A route is in scope when it sits under any of them;
+    // the longest matching domain is that route's zone.
+    baseDomains: [
+      ...new Set(
+        states.map((s) => s.baseDomain).filter((d) =>
+          d !== undefined && d !== ""
+        ),
+      ),
+    ] as string[],
+    tls,
+    dnsRecords,
+    dnsRemovals,
+    // Default on: only a model that explicitly sets false turns it off, and one
+    // opt-out disables derivation for the whole merged Caddy (the routes are
+    // merged, so per-model attribution is no longer available here).
+    autoRouteTls: states.every((s) => s.autoRouteTls !== false),
+    autoRouteDns: states.every((s) => s.autoRouteDns !== false),
+    routeIp: states.find((s) => s.routeIp)?.routeIp ?? "",
+  });
+
   return {
     merged: {
       routes,
       listenAddrs,
       autoHttps: states[0]?.autoHttps ?? "on",
-      tls,
+      tls: auto.tls,
       statusPage,
       models,
       tlsModels,
       statusPageModel: statusStates[0]?.modelName ?? "",
-      dnsRecords,
-      dnsRemovals,
+      dnsRecords: auto.dnsRecords,
+      dnsRemovals: auto.dnsRemovals,
       dnsTtl,
       healthRoutes,
     },
     errors,
+  };
+}
+
+export interface DeriveRouteDnsTlsOptions {
+  routes: Array<DesiredRoute & { model?: string }>;
+  /** Base domain(s) this Caddy is authoritative for; a route under any is in scope. */
+  baseDomains: string[];
+  tls: DesiredTls | null;
+  dnsRecords: DnsRecord[];
+  dnsRemovals: DnsRemoval[];
+  autoRouteTls: boolean;
+  autoRouteDns: boolean;
+  routeIp: string;
+}
+
+export interface DeriveRouteDnsTlsResult {
+  tls: DesiredTls | null;
+  dnsRecords: DnsRecord[];
+  dnsRemovals: DnsRemoval[];
+  /** Hostnames that gained a TLS subject and/or an A record this pass. */
+  derivedSubjects: string[];
+  derivedRecords: string[];
+}
+
+/**
+ * Derive the TLS subjects and A records a set of routes implies.
+ *
+ * A route hostname that sits under one of this Caddy's base domains is a name
+ * this Caddy is the authority for, so it defaults to needing a certificate and
+ * a DNS record. The address for the record is `routeIp` when set, otherwise the
+ * IP of an A/AAAA record this Caddy already declares for the zone (so a host
+ * that publishes its address once needs nothing more). A record that would
+ * conflict with an explicit dnsRemoval is skipped rather than fought over.
+ *
+ * Pure and exported for testing.
+ */
+export function deriveRouteDnsTls(
+  opts: DeriveRouteDnsTlsOptions,
+): DeriveRouteDnsTlsResult {
+  const { routes, baseDomains, tls, dnsRecords, dnsRemovals } = opts;
+  const derivedSubjects: string[] = [];
+  const derivedRecords: string[] = [];
+
+  // The base domain a hostname falls under, longest match wins (so a route under
+  // otel.fi.gy uses that zone, not fi.gy).
+  const zoneFor = (host: string): string | null => {
+    if (host.startsWith("*.")) return null;
+    let best: string | null = null;
+    for (const d of baseDomains) {
+      if (
+        (host === d || host.endsWith(`.${d}`)) &&
+        (best === null || d.length > best.length)
+      ) {
+        best = d;
+      }
+    }
+    return best;
+  };
+
+  // The address to publish for derived records: an explicit routeIp, else any
+  // IP already declared for an A/AAAA record (first one wins, deterministic by
+  // the sort the caller applied).
+  const explicitIps = opts.routeIp
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  let inferredIps: string[] = [];
+  for (const rec of dnsRecords) {
+    if ((rec.type === "A" || rec.type === "AAAA") && rec.value.length > 0) {
+      inferredIps = rec.value;
+      break;
+    }
+  }
+  const ips = explicitIps.length > 0 ? explicitIps : inferredIps;
+
+  let nextTls = tls;
+  if (opts.autoRouteTls) {
+    const subjects = new Set(nextTls?.subjects ?? []);
+    // Also treat an existing wildcard subject as covering its subtree.
+    const hasWildcard = (host: string): boolean => {
+      const parts = host.split(".");
+      for (let i = 1; i < parts.length; i++) {
+        if (subjects.has(`*.${parts.slice(i).join(".")}`)) return true;
+      }
+      return false;
+    };
+    for (const r of routes) {
+      if (zoneFor(r.hostname) === null) continue;
+      if (subjects.has(r.hostname) || hasWildcard(r.hostname)) continue;
+      subjects.add(r.hostname);
+      derivedSubjects.push(r.hostname);
+    }
+    if (subjects.size > 0) {
+      nextTls = {
+        email: nextTls?.email ?? "",
+        dnsProvider: nextTls?.dnsProvider ?? "",
+        dnsEnvVar: nextTls?.dnsEnvVar ?? "",
+        providerConfig: nextTls?.providerConfig ?? {},
+        subjects: [...subjects].sort(),
+        issuer: nextTls?.issuer ?? "",
+      };
+    }
+  }
+
+  const nextRecords = [...dnsRecords];
+  const haveProvider = !!nextTls?.dnsProvider;
+  if (opts.autoRouteDns && haveProvider && ips.length > 0) {
+    const removed = new Set(dnsRemovals.map((r) => `${r.type}\u0000${r.name}`));
+    const present = new Set(
+      nextRecords.map((r) => `${r.type}\u0000${r.name}`),
+    );
+    for (const r of routes) {
+      const zone = zoneFor(r.hostname);
+      if (zone === null) continue;
+      const key = `A\u0000${r.hostname}`;
+      if (present.has(key) || removed.has(key)) continue;
+      nextRecords.push({
+        name: r.hostname,
+        type: "A",
+        value: [...ips],
+        // The registered zone is the matching base domain; set it so providers
+        // without a libdns.ZoneLister (e.g. Gandi) can write the record.
+        zone,
+        ttl: "",
+      });
+      present.add(key);
+      derivedRecords.push(r.hostname);
+    }
+  }
+
+  nextRecords.sort((a, b) =>
+    a.name.localeCompare(b.name) || a.type.localeCompare(b.type)
+  );
+
+  return {
+    tls: nextTls,
+    dnsRecords: nextRecords,
+    dnsRemovals,
+    derivedSubjects,
+    derivedRecords,
   };
 }
 
@@ -3131,6 +3326,9 @@ function emptyDesired(
     dnsRemovals: g.dnsRemovals,
     dnsTtl: g.dnsTtl,
     healthRoutes: g.healthRoutes,
+    autoRouteTls: g.autoRouteTls,
+    autoRouteDns: g.autoRouteDns,
+    routeIp: g.routeIp,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -3862,7 +4060,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.05.2",
+  version: "2026.10.08.1",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -4100,6 +4298,12 @@ export const model = {
       toVersion: "2026.10.05.2",
       description:
         "configureTls accepts `issuer=internal` to use Caddy's local CA (self-signed TLS) instead of ACME, for non-public names such as *.example.com or test hostnames where Let's Encrypt cannot issue. `renderTlsAutomation` takes an `issuer` field; DesiredTls carries it so it merges across models. With the internal issuer an ACME email is not required and any provider/challenge fields are ignored. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.08.1",
+      description:
+        "Adding a route now implies the DNS and TLS it needs, so `ensureDnsProxy` alone makes a hostname reachable. At merge time, every route hostname under one of this Caddy's base domains is added to the TLS subjects (global autoRouteTls, default true) and given an A record in dnsRecords (autoRouteDns, default true) pointing at routeIp or, when empty, the IP this Caddy already declares for that zone. This is pure derivation — an existing subject or record is never duplicated, a name already covered by a wildcard subject is left alone, and a record named in dnsRemovals is skipped. New globals autoRouteTls, autoRouteDns and routeIp are additive and default to the safe behaviour, so existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

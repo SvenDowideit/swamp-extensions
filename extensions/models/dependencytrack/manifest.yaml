@@ -1,0 +1,117 @@
+manifestVersion: 1
+name: "@svendowideit/dependencytrack"
+version: "2026.10.08.1"
+description: >
+  Deploy and configure OWASP Dependency-Track v5 — and hand a later model an
+  agent API key it can upload SBOMs with, without a human ever copying it.
+
+  WHAT IT DOES
+
+    Runs Dependency-Track v5's two images — the stateless API server and the
+    frontend SPA — as long-lived, restart-managed services against a PostgreSQL
+    database you supply (typically from @svendowideit/postgres), then does the
+    setup that makes the platform usable: Dependency-Track forces an admin
+    password change on first login, does not create an API key with a team by
+    default, and shows a new key exactly once. bootstrapAgentKey performs that
+    sequence idempotently and stores the key in a swamp vault, so the SBOM
+    uploader reads it with vault.get(...) and nothing sensitive is ever written
+    into a resource or a log. Prefer it over the project's docker-compose file:
+    it composes with the rest of your swamp repo (the database connection and
+    password come from the Postgres model's data and vault), it is idempotent,
+    and it reports readiness by polling the API rather than guessing. Point the
+    frontend and CORS at your public URLs with the two URL globals, or leave them
+    and get localhost defaults.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/dependencytrack
+
+  DEPENDENCIES
+
+    @svendowideit/container-service (pulled automatically), a container runtime
+    on PATH, and a PostgreSQL database. Easiest is the companion
+    @svendowideit/postgres, whose `connection` resource and vault password feed
+    this model's install inputs. A vault is required — it holds the agent API
+    key and the rotated admin password:
+
+      swamp vault create @svendowideit/systemd-creds dependencytrack-secrets
+
+  RUN
+
+      # Deploy, wiring the database in from the postgres model via CEL.
+      swamp model create @svendowideit/dependencytrack dependencytrack \
+        --global-arg vaultName=dependencytrack-secrets \
+        --global-arg network=swamp-postgres
+      swamp model method run dependencytrack install \
+        --input dbHost=${{ data.latest("postgres","current").attributes.host }} \
+        --input dbDatabase=${{ data.latest("postgres","current").attributes.database }} \
+        --input dbUsername=${{ data.latest("postgres","current").attributes.username }} \
+        --input dbPassword=${{ vault.get("postgres-secrets","POSTGRES_PASSWORD") }}
+
+      # Provision the agent API key (rotates the forced admin password).
+      swamp model method run dependencytrack bootstrapAgentKey
+
+      # Check the API and frontend are up.
+      swamp model method run dependencytrack status
+
+      # The endpoint and header a later SBOM model should use.
+      swamp data query 'modelName == "dependencytrack" && name == "current"' --select content
+
+  CONFIGURE
+
+    Global arguments (set at model creation with `--global-arg key=value`):
+
+      apiserverImage     API server image   (default ghcr.io/dependencytrack/apiserver:5.1.2)
+      frontendImage      Frontend image     (default ghcr.io/dependencytrack/frontend:5.1.2)
+      apiPort            Host port, API     (default 8080)
+      uiPort             Host port, frontend (default 8081)
+      bindAddress        Bind address       (default 127.0.0.1)
+      publicBackendUrl   API_BASE_URL for the frontend (default http://<bind>:<apiPort>)
+      publicFrontendUrl  CORS allow-origin  (default http://<bind>:<uiPort>)
+      network            Container network  (default swamp-postgres; must match the database)
+      containerPrefix    Container name prefix (default from model name)
+      vaultName          Vault for admin password + agent key (required)
+      adminUser          Admin username     (default admin)
+      adminSecretKey     Admin password vault key (default DEPENDENCYTRACK_ADMIN_PASSWORD)
+      apiKeySecretKey    Agent key vault key (default DEPENDENCYTRACK_API_KEY)
+      agentTeamName      Team owning the key (default automation)
+      serviceBackend     direct | systemd   (default direct)
+      healthTimeoutMs    Readiness wait      (default 180000)
+
+    Methods: `install`, `configure` (idempotent re-apply), `bootstrapAgentKey`,
+    `status`, `remove`. `install`/`configure` take the db* inputs (dbPassword is
+    sensitive) and `force`; `bootstrapAgentKey` takes `adminPassword` and `force`.
+
+  WHAT IT INSTALLS
+
+    Two containers (API server and frontend) managed by
+    @svendowideit/container-service on the database's network, a host data
+    directory for the API server's /data volume, and (with serviceBackend
+    systemd) systemd user units. On bootstrap: an `automation` team and one API
+    key, stored in the vault.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - dependencytrack.ts
+
+workflows: []
+
+dependencies:
+  - "@svendowideit/container-service"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - dependencytrack_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

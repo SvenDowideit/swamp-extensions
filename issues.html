@@ -67,8 +67,24 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3155"><span class="tier A">A</span>worker prune cannot delete worker models when auto-definitio</a><a href="#issue-3154"><span class="tier A">A</span>model get and model search miss auto-definitions stored in a</a><a href="#issue-3136"><span class="tier A">A</span>serve: token secret migration repoints a token even when cop</a><a href="#issue-3166"><span class="tier A">A</span>Extension quality check output carries ANSI codes when FORCE</a><a href="#issue-2382"><span class="tier A">A</span>model delete resolves auto-definitions from repo-local .swam</a><a href="#issue-3162"><span class="tier A">A</span>datastore setup filesystem --path .swamp copies .swamp onto </a><a href="#issue-2844"><span class="tier A">A</span>datastore setup can overwrite an existing remote config tier</a><a href="#issue-3159"><span class="tier A">A</span>Datastore sync: read one remote file without writing it to t</a><a href="#issue-3120"><span class="tier A">A</span>Flaky property test: analyzeExpression hyphenated dot access</a><a href="#issue-3124"><span class="tier A">A</span>Flaky property test: analyzeExpression dot/bracket agreement</a><a href="#issue-3157"><span class="tier A">A</span>A cancelled shell step can fail with a lock timeout instead </a><a href="#issue-3152"><span class="tier A">A</span>datastore lock release gives the wrong reason when the lock </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3161"><span class="tier A">A</span>GCS datastore: implement fetchContent, a read of one remote </a><a href="#issue-3160"><span class="tier A">A</span>S3 datastore: implement fetchContent, a read of one remote f</a><a href="#issue-3155"><span class="tier A">A</span>worker prune cannot delete worker models when auto-definitio</a><a href="#issue-3154"><span class="tier A">A</span>model get and model search miss auto-definitions stored in a</a><a href="#issue-3136"><span class="tier A">A</span>serve: token secret migration repoints a token even when cop</a><a href="#issue-3166"><span class="tier A">A</span>Extension quality check output carries ANSI codes when FORCE</a><a href="#issue-2382"><span class="tier A">A</span>model delete resolves auto-definitions from repo-local .swam</a><a href="#issue-3162"><span class="tier A">A</span>datastore setup filesystem --path .swamp copies .swamp onto </a><a href="#issue-2844"><span class="tier A">A</span>datastore setup can overwrite an existing remote config tier</a><a href="#issue-3159"><span class="tier A">A</span>Datastore sync: read one remote file without writing it to t</a><a href="#issue-3120"><span class="tier A">A</span>Flaky property test: analyzeExpression hyphenated dot access</a><a href="#issue-3124"><span class="tier A">A</span>Flaky property test: analyzeExpression dot/bracket agreement</a></aside><div>
 
+<article class="item" id="issue-3161">
+<h2><span class="tier A">A</span>GCS datastore: implement fetchContent, a read of one remote file that writes nothing locally</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-08T12:50:47.196Z">2026-10-08T12:50:47.196Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3161" rel="noopener">lab#3161</a></div>
+</article>
+<article class="item" id="issue-3160">
+<h2><span class="tier A">A</span>S3 datastore: implement fetchContent, a read of one remote file that writes nothing locally</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-08T12:50:22.018Z">2026-10-08T12:50:22.018Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3160" rel="noopener">lab#3160</a></div>
+</article>
 <article class="item" id="issue-3155">
 <h2><span class="tier A">A</span>worker prune cannot delete worker models when auto-definitions live in a remote datastore</h2>
 <p class="lede">Shipped bug fix</p>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3124" rel="noopener">lab#3124</a></div>
 </article>
-<article class="item" id="issue-3157">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3157">
 <h2><span class="tier A">A</span>A cancelled shell step can fail with a lock timeout instead of reporting as cancelled</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-07T21:54:21.086Z">2026-10-07T21:54:21.086Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3152" rel="noopener">lab#3152</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3111">
+<article class="item" id="issue-3111">
 <h2><span class="tier A">A</span>A nested structural swamp that outlives the run that started it keeps skipping that run&#39;s lock while the holder writes</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-07T20:45:01.117Z">2026-10-07T20:45:01.117Z</time></span></div>
@@ -1949,6 +1965,22 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-3095">
+<h2><span class="tier B">B</span>registry: store and show declared acceptances sent in contentMetadata.acceptances at confirm (swamp-club#3021)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-08T12:59:28.153Z">2026-10-08T12:59:28.153Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3095" rel="noopener">lab#3095</a></div>
+</article>
+<article class="item" id="issue-2965">
+<h2><span class="tier B">B</span>extension safety analyzer&#39;s Deno.Command( warning is a plain substring match</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-08T12:57:35.671Z">2026-10-08T12:57:35.671Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2965" rel="noopener">lab#2965</a></div>
+</article>
 <article class="item" id="issue-3114">
 <h2><span class="tier B">B</span>swamp-extensions: replace bare import specifiers with npm:/jsr: specifiers in first-party extensions</h2>
 <p class="lede">Issue in_progress</p>
@@ -1956,38 +1988,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3114" rel="noopener">lab#3114</a></div>
-</article>
-<article class="item" id="issue-3160">
-<h2><span class="tier B">B</span>S3 datastore: implement fetchContent, a read of one remote file that writes nothing locally</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T23:14:59.754Z">2026-10-07T23:14:59.754Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3160" rel="noopener">lab#3160</a></div>
-</article>
-<article class="item" id="issue-3161">
-<h2><span class="tier B">B</span>GCS datastore: implement fetchContent, a read of one remote file that writes nothing locally</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T23:11:20.408Z">2026-10-07T23:11:20.408Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3161" rel="noopener">lab#3161</a></div>
-</article>
-<article class="item" id="issue-2965">
-<h2><span class="tier B">B</span>extension safety analyzer&#39;s Deno.Command( warning is a plain substring match</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-07T22:32:16.384Z">2026-10-07T22:32:16.384Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2965" rel="noopener">lab#2965</a></div>
-</article>
-<article class="item" id="issue-3095">
-<h2><span class="tier B">B</span>registry: store and show declared acceptances sent in contentMetadata.acceptances at confirm (swamp-club#3021)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T22:13:28.592Z">2026-10-07T22:13:28.592Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3095" rel="noopener">lab#3095</a></div>
 </article>
 <article class="item" id="issue-3108">
 <h2><span class="tier B">B</span>Resume signalled workflow runs automatically under swamp serve</h2>
@@ -2029,7 +2029,23 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3167">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3170">
+<h2><span class="tier C">C</span>dynamic-code safety error reports Babel line numbers, which disagree with the analyzer&#39;s newline-split lines</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T12:57:27.519Z">2026-10-08T12:57:27.519Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3170" rel="noopener">lab#3170</a></div>
+</article>
+<article class="item" id="issue-3169">
+<h2><span class="tier C">C</span>extension safety analyzer does not warn on node:child_process or cluster subprocess spawning</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T12:30:42.019Z">2026-10-08T12:30:42.019Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3169" rel="noopener">lab#3169</a></div>
+</article>
+<article class="item" id="issue-3167">
 <h2><span class="tier C">C</span>Windows Compatibility CI fails on main: about a dozen tests across serve, sync, CLI path resolution, process and tracing</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-08T00:10:27.489Z">2026-10-08T00:10:27.489Z</time></span></div>
@@ -2862,13 +2878,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>349 items across 1 source(s) in this window:
-0 critical, 235 notable, 10 routine,
-104 minor.</p>
-<ul><li><strong>issues</strong> — 349</li></ul></section>
+<p>351 items across 1 source(s) in this window:
+0 critical, 237 notable, 8 routine,
+106 minor.</p>
+<ul><li><strong>issues</strong> — 351</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T12:02:41.769Z">2026-10-08T12:02:41.769Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T13:02:34.756Z">2026-10-08T13:02:34.756Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

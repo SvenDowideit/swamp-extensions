@@ -67,8 +67,32 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3166"><span class="tier A">A</span>Extension quality check output carries ANSI codes when FORCE</a><a href="#issue-2382"><span class="tier A">A</span>model delete resolves auto-definitions from repo-local .swam</a><a href="#issue-3162"><span class="tier A">A</span>datastore setup filesystem --path .swamp copies .swamp onto </a><a href="#issue-2844"><span class="tier A">A</span>datastore setup can overwrite an existing remote config tier</a><a href="#issue-3159"><span class="tier A">A</span>Datastore sync: read one remote file without writing it to t</a><a href="#issue-3120"><span class="tier A">A</span>Flaky property test: analyzeExpression hyphenated dot access</a><a href="#issue-3124"><span class="tier A">A</span>Flaky property test: analyzeExpression dot/bracket agreement</a><a href="#issue-3157"><span class="tier A">A</span>A cancelled shell step can fail with a lock timeout instead </a><a href="#issue-3152"><span class="tier A">A</span>datastore lock release gives the wrong reason when the lock </a><a href="#issue-3111"><span class="tier A">A</span>A nested structural swamp that outlives the run that started</a><a href="#issue-3107"><span class="tier A">A</span>extension push/quality: structured acceptances for agents, a</a><a href="#issue-3116"><span class="tier A">A</span>Docs: extension publishing reference is stale on bare specif</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3155"><span class="tier A">A</span>worker prune cannot delete worker models when auto-definitio</a><a href="#issue-3154"><span class="tier A">A</span>model get and model search miss auto-definitions stored in a</a><a href="#issue-3136"><span class="tier A">A</span>serve: token secret migration repoints a token even when cop</a><a href="#issue-3166"><span class="tier A">A</span>Extension quality check output carries ANSI codes when FORCE</a><a href="#issue-2382"><span class="tier A">A</span>model delete resolves auto-definitions from repo-local .swam</a><a href="#issue-3162"><span class="tier A">A</span>datastore setup filesystem --path .swamp copies .swamp onto </a><a href="#issue-2844"><span class="tier A">A</span>datastore setup can overwrite an existing remote config tier</a><a href="#issue-3159"><span class="tier A">A</span>Datastore sync: read one remote file without writing it to t</a><a href="#issue-3120"><span class="tier A">A</span>Flaky property test: analyzeExpression hyphenated dot access</a><a href="#issue-3124"><span class="tier A">A</span>Flaky property test: analyzeExpression dot/bracket agreement</a><a href="#issue-3157"><span class="tier A">A</span>A cancelled shell step can fail with a lock timeout instead </a><a href="#issue-3152"><span class="tier A">A</span>datastore lock release gives the wrong reason when the lock </a></aside><div>
 
+<article class="item" id="issue-3155">
+<h2><span class="tier A">A</span>worker prune cannot delete worker models when auto-definitions live in a remote datastore</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-08T00:16:23.422Z">2026-10-08T00:16:23.422Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3155" rel="noopener">lab#3155</a></div>
+</article>
+<article class="item" id="issue-3154">
+<h2><span class="tier A">A</span>model get and model search miss auto-definitions stored in a remote datastore</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-08T00:12:03.798Z">2026-10-08T00:12:03.798Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3154" rel="noopener">lab#3154</a></div>
+</article>
+<article class="item" id="issue-3136">
+<h2><span class="tier A">A</span>serve: token secret migration repoints a token even when copying its OAuth access token failed</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-08T00:10:49.369Z">2026-10-08T00:10:49.369Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3136" rel="noopener">lab#3136</a></div>
+</article>
 <article class="item" id="issue-3166">
 <h2><span class="tier A">A</span>Extension quality check output carries ANSI codes when FORCE_COLOR is set</h2>
 <p class="lede">Shipped bug fix</p>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3152" rel="noopener">lab#3152</a></div>
 </article>
-<article class="item" id="issue-3111">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3111">
 <h2><span class="tier A">A</span>A nested structural swamp that outlives the run that started it keeps skipping that run&#39;s lock while the holder writes</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-07T20:45:01.117Z">2026-10-07T20:45:01.117Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3116" rel="noopener">lab#3116</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3147">
+<article class="item" id="issue-3147">
 <h2><span class="tier A">A</span>Flaky test: WalSink pruning the queue under a hung downstream keeps the checkpoint delivered segments wait on</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-07T19:52:46.625Z">2026-10-07T19:52:46.625Z</time></span></div>
@@ -1925,22 +1949,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3155">
-<h2><span class="tier B">B</span>worker prune cannot delete worker models when auto-definitions live in a remote datastore</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-08T00:05:09.416Z">2026-10-08T00:05:09.416Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3155" rel="noopener">lab#3155</a></div>
-</article>
-<article class="item" id="issue-3154">
-<h2><span class="tier B">B</span>model get and model search miss auto-definitions stored in a remote datastore</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T23:24:57.250Z">2026-10-07T23:24:57.250Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3154" rel="noopener">lab#3154</a></div>
-</article>
 <article class="item" id="issue-3160">
 <h2><span class="tier B">B</span>S3 datastore: implement fetchContent, a read of one remote file that writes nothing locally</h2>
 <p class="lede">Issue in_progress</p>
@@ -1956,14 +1964,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3161" rel="noopener">lab#3161</a></div>
-</article>
-<article class="item" id="issue-3136">
-<h2><span class="tier B">B</span>serve: token secret migration repoints a token even when copying its OAuth access token failed</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-07T23:03:05.928Z">2026-10-07T23:03:05.928Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3136" rel="noopener">lab#3136</a></div>
 </article>
 <article class="item" id="issue-3114">
 <h2><span class="tier B">B</span>swamp-extensions: replace bare import specifiers with npm:/jsr: specifiers in first-party extensions</h2>
@@ -2029,7 +2029,15 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3165">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3167">
+<h2><span class="tier C">C</span>Windows Compatibility CI fails on main: about a dozen tests across serve, sync, CLI path resolution, process and tracing</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T00:10:27.489Z">2026-10-08T00:10:27.489Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3167" rel="noopener">lab#3167</a></div>
+</article>
+<article class="item" id="issue-3165">
 <h2><span class="tier C">C</span>Docs: vault grants and run vault scoping on swamp serve (swamp-club#2676, swamp-club#2206)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-07T21:59:24.828Z">2026-10-07T21:59:24.828Z</time></span></div>
@@ -2854,13 +2862,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>348 items across 1 source(s) in this window:
-0 critical, 232 notable, 13 routine,
-103 minor.</p>
-<ul><li><strong>issues</strong> — 348</li></ul></section>
+<p>349 items across 1 source(s) in this window:
+0 critical, 235 notable, 10 routine,
+104 minor.</p>
+<ul><li><strong>issues</strong> — 349</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T00:09:22.315Z">2026-10-08T00:09:22.315Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T01:02:39.789Z">2026-10-08T01:02:39.789Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -615,7 +615,7 @@ export async function apiKeyWorks(
 
 export const model = {
   type: "@svendowideit/dependencytrack",
-  version: "2026.10.08.1",
+  version: "2026.10.09.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -629,6 +629,16 @@ export const model = {
         "to the local bind address (resolveAdminBaseUrl), never the public URL, " +
         "so bootstrap works before a reverse proxy exists; the public URL is " +
         "only baked into the frontend and reported as the SBOM endpoint.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.09.1",
+      description:
+        "Bundle the deployment workflows with the model: the deploy workflow " +
+        "(postgres → install → bootstrap agent key → optional Caddy TLS → " +
+        "asserts), the dependencytrack-postgres wrapper, and the reusable " +
+        "postgres-provision workflow now ship in this extension alongside the " +
+        "model, so a single pull installs the whole stack. No model API change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

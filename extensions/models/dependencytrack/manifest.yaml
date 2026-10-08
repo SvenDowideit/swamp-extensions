@@ -1,26 +1,31 @@
 manifestVersion: 1
 name: "@svendowideit/dependencytrack"
-version: "2026.10.08.1"
+version: "2026.10.09.1"
 description: >
-  Deploy and configure OWASP Dependency-Track v5 — and hand a later model an
-  agent API key it can upload SBOMs with, without a human ever copying it.
+  Deploy and configure OWASP Dependency-Track v5 end to end — PostgreSQL, the
+  API server and frontend, an agent API key — and hand a later model the key it
+  uploads SBOMs with, without a human ever copying it.
 
   WHAT IT DOES
 
-    Runs Dependency-Track v5's two images — the stateless API server and the
-    frontend SPA — as long-lived, restart-managed services against a PostgreSQL
-    database you supply (typically from @svendowideit/postgres), then does the
-    setup that makes the platform usable: Dependency-Track forces an admin
-    password change on first login, does not create an API key with a team by
-    default, and shows a new key exactly once. bootstrapAgentKey performs that
-    sequence idempotently and stores the key in a swamp vault, so the SBOM
-    uploader reads it with vault.get(...) and nothing sensitive is ever written
-    into a resource or a log. Prefer it over the project's docker-compose file:
-    it composes with the rest of your swamp repo (the database connection and
-    password come from the Postgres model's data and vault), it is idempotent,
-    and it reports readiness by polling the API rather than guessing. Point the
-    frontend and CORS at your public URLs with the two URL globals, or leave them
-    and get localhost defaults.
+    Brings up the whole Dependency-Track v5 stack from swamp. The
+    `@svendowideit/dependencytrack` model runs DT's two images — the stateless
+    API server and the frontend SPA — as long-lived, restart-managed services
+    against a PostgreSQL database you supply, then does the setup that makes the
+    platform usable: Dependency-Track forces an admin password change on first
+    login, does not create an API key with a team by default, and shows a new
+    key exactly once. `bootstrapAgentKey` performs that sequence idempotently
+    and stores the key in a swamp vault, so an SBOM uploader reads it with
+    vault.get(...) and nothing sensitive is ever written into a resource or a
+    log. On top of the model this extension ships three ready-to-run workflows:
+    `@svendowideit/dependencytrack-deploy` (PostgreSQL → install DT → bootstrap
+    the agent key → optional Caddy TLS proxying → readiness asserts),
+    `@svendowideit/dependencytrack-postgres` (a thin database-only wrapper), and
+    `@svendowideit/postgres-provision` (the reusable PostgreSQL provisioner the
+    deploy workflow delegates to). Prefer it over the project's docker-compose
+    file: the database connection and password come from the Postgres model's
+    data and vault, the deployment is idempotent, and readiness is reported by
+    polling the API rather than guessing.
 
   INSTALL
 
@@ -28,17 +33,19 @@ description: >
 
   DEPENDENCIES
 
-    @svendowideit/container-service (pulled automatically), a container runtime
-    on PATH, and a PostgreSQL database. Easiest is the companion
-    @svendowideit/postgres, whose `connection` resource and vault password feed
-    this model's install inputs. A vault is required — it holds the agent API
-    key and the rotated admin password:
+    @svendowideit/container-service and @svendowideit/postgres (both pulled
+    automatically) and a container runtime on PATH. The companion
+    @svendowideit/postgres model's `connection` resource and vault password feed
+    this model's install inputs, and the bundled `dependencytrack-deploy` /
+    `dependencytrack-postgres` workflows drive it. When you name a Caddy model,
+    @svendowideit/caddy is used for TLS. A swamp vault is required — it holds
+    the agent API key and the rotated admin password:
 
       swamp vault create @svendowideit/systemd-creds dependencytrack-secrets
 
   RUN
 
-      # Deploy, wiring the database in from the postgres model via CEL.
+      # Deploy the model directly, wiring the database in from postgres via CEL.
       swamp model create @svendowideit/dependencytrack dependencytrack \
         --global-arg vaultName=dependencytrack-secrets \
         --global-arg network=swamp-postgres
@@ -47,6 +54,11 @@ description: >
         --input dbDatabase=${{ data.latest("postgres","current").attributes.database }} \
         --input dbUsername=${{ data.latest("postgres","current").attributes.username }} \
         --input dbPassword=${{ vault.get("postgres-secrets","POSTGRES_PASSWORD") }}
+
+      # Or stand up the whole stack in one command (database, DT, agent key).
+      swamp workflow run @svendowideit/dependencytrack-deploy \
+        --input dbVaultName=postgres-secrets \
+        --input vaultName=dependencytrack-secrets
 
       # Provision the agent API key (rotates the forced admin password).
       swamp model method run dependencytrack bootstrapAgentKey
@@ -82,13 +94,32 @@ description: >
     `status`, `remove`. `install`/`configure` take the db* inputs (dbPassword is
     sensitive) and `force`; `bootstrapAgentKey` takes `adminPassword` and `force`.
 
+    @svendowideit/dependencytrack-deploy inputs:
+
+      postgresModel      @svendowideit/postgres model instance   (default postgres)
+      dbVaultName        Vault holding the DB password           (required)
+      dbPasswordKey      DB password vault key                   (default POSTGRES_PASSWORD)
+      dtModel            @svendowideit/dependencytrack instance  (default dependencytrack)
+      vaultName          Vault for DT admin password + agent key (required)
+      network            Shared container network                (default swamp-postgres)
+      apiPort/uiPort     Host ports for API/frontend             (default 8080/8081)
+      publicBackendUrl   Frontend API_BASE_URL                   (default localhost)
+      publicFrontendUrl  CORS allow-origin                       (default localhost)
+      caddyModel         Caddy model to proxy through ("" = skip)
+      caddyBaseDomain    Domain for the proxy hostnames
+
+    @svendowideit/dependencytrack-postgres and @svendowideit/postgres-provision take the database inputs
+    (modelName, vaultName, database, username, network, dataDir).
+
   WHAT IT INSTALLS
 
     Two containers (API server and frontend) managed by
     @svendowideit/container-service on the database's network, a host data
     directory for the API server's /data volume, and (with serviceBackend
     systemd) systemd user units. On bootstrap: an `automation` team and one API
-    key, stored in the vault.
+    key, stored in the vault. The workflows orchestrate these model methods —
+    through them they also provision a PostgreSQL container and, when a Caddy
+    model is named, two reverse-proxy routes.
 
 repository: https://github.com/svendowideit/swamp-extensions
 
@@ -100,10 +131,14 @@ paths:
 models:
   - dependencytrack.ts
 
-workflows: []
+workflows:
+  - postgres.yaml
+  - dependencytrack-postgres.yaml
+  - dependencytrack-deploy.yaml
 
 dependencies:
   - "@svendowideit/container-service"
+  - "@svendowideit/postgres"
 
 additionalFiles:
   - README.md

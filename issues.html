@@ -67,8 +67,64 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3140"><span class="tier A">A</span>@swamp/hetzner-cloud/servers: add power actions (poweron, sh</a><a href="#issue-3187"><span class="tier A">A</span>access grant create: --methods is silently dropped on the lo</a><a href="#issue-3182"><span class="tier A">A</span>access grant create: a refused condition still leaves an emp</a><a href="#issue-3109"><span class="tier A">A</span>Settle expired signal waits from swamp serve</a><a href="#issue-3163"><span class="tier A">A</span>codegen/aws: 9 services still pin @aws-sdk/client-cloudcontr</a><a href="#issue-2643"><span class="tier A">A</span>Codegen/DigitalOcean: create-only required fields block list</a><a href="#issue-2477"><span class="tier A">A</span>Clear error when hydrateFile reports success but the file is</a><a href="#issue-2906"><span class="tier A">A</span>Tests: bring the in-memory remote&#39;s default semantics up to </a><a href="#issue-3183"><span class="tier A">A</span>serve never continues a signalled run after a manual resume </a><a href="#issue-2900"><span class="tier A">A</span>Tell the pushing client when its extension contentMetadata f</a><a href="#issue-3108"><span class="tier A">A</span>Resume signalled workflow runs automatically under swamp ser</a><a href="#issue-2501"><span class="tier A">A</span>Orphaned data record survives a model type migration and is </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3045"><span class="tier A">A</span>Show expired approval gates as expired, with a Cancel action</a><a href="#issue-3178"><span class="tier A">A</span>Lazy hydration: content readers bypass hydration (stream, st</a><a href="#issue-3179"><span class="tier A">A</span>Lazy hydration: expressions reading another model&#39;s data get</a><a href="#issue-2257"><span class="tier A">A</span>-q does not suppress the update, auth-nudge and autoupdate b</a><a href="#issue-3186"><span class="tier A">A</span>Docs: worker connect no longer needs a swamp-club credential</a><a href="#issue-3189"><span class="tier A">A</span>Datastore rework Phase 3: format-guard release, so swamp ref</a><a href="#issue-2922"><span class="tier A">A</span>Tell timeouts apart from cancels in method-run records, and </a><a href="#issue-3140"><span class="tier A">A</span>@swamp/hetzner-cloud/servers: add power actions (poweron, sh</a><a href="#issue-3187"><span class="tier A">A</span>access grant create: --methods is silently dropped on the lo</a><a href="#issue-3182"><span class="tier A">A</span>access grant create: a refused condition still leaves an emp</a><a href="#issue-3109"><span class="tier A">A</span>Settle expired signal waits from swamp serve</a><a href="#issue-3163"><span class="tier A">A</span>codegen/aws: 9 services still pin @aws-sdk/client-cloudcontr</a></aside><div>
 
+<article class="item" id="issue-3045">
+<h2><span class="tier A">A</span>Show expired approval gates as expired, with a Cancel action in the dashboard</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-08T20:32:37.560Z">2026-10-08T20:32:37.560Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3045" rel="noopener">lab#3045</a></div>
+</article>
+<article class="item" id="issue-3178">
+<h2><span class="tier A">A</span>Lazy hydration: content readers bypass hydration (stream, stale raw after append); add one ensuring read path and a fitness test</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-08T20:31:27.131Z">2026-10-08T20:31:27.131Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3178" rel="noopener">lab#3178</a></div>
+</article>
+<article class="item" id="issue-3179">
+<h2><span class="tier A">A</span>Lazy hydration: expressions reading another model&#39;s data get empty attributes; hydrate a step&#39;s read set before evaluation</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-08T20:31:26.874Z">2026-10-08T20:31:26.874Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3179" rel="noopener">lab#3179</a></div>
+</article>
+<article class="item" id="issue-2257">
+<h2><span class="tier A">A</span>-q does not suppress the update, auth-nudge and autoupdate banners</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-08T20:21:05.742Z">2026-10-08T20:21:05.742Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2257" rel="noopener">lab#2257</a></div>
+</article>
+<article class="item" id="issue-3186">
+<h2><span class="tier A">A</span>Docs: worker connect no longer needs a swamp-club credential (swamp-club#3128)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-08T20:18:55.869Z">2026-10-08T20:18:55.869Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3186" rel="noopener">lab#3186</a></div>
+</article>
+<article class="item" id="issue-3189">
+<h2><span class="tier A">A</span>Datastore rework Phase 3: format-guard release, so swamp refuses datastores with a newer format and writes nothing</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-08T20:13:31.249Z">2026-10-08T20:13:31.249Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3189" rel="noopener">lab#3189</a></div>
+</article>
+<article class="item" id="issue-2922">
+<h2><span class="tier A">A</span>Tell timeouts apart from cancels in method-run records, and review the hidden 30 s fallback timer for step-called model methods</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-08T20:10:28.856Z">2026-10-08T20:10:28.856Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2922" rel="noopener">lab#2922</a></div>
+</article>
 <article class="item" id="issue-3140">
 <h2><span class="tier A">A</span>@swamp/hetzner-cloud/servers: add power actions (poweron, shutdown, poweroff, reboot, reset)</h2>
 <p class="lede">Shipped feature</p>
@@ -109,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3163" rel="noopener">lab#3163</a></div>
 </article>
-<article class="item" id="issue-2643">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2643">
 <h2><span class="tier A">A</span>Codegen/DigitalOcean: create-only required fields block list/get/delete in generated DigitalOcean models</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-08T19:11:47.500Z">2026-10-08T19:11:47.500Z</time></span></div>
@@ -165,7 +221,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2501" rel="noopener">lab#2501</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2486">
+<article class="item" id="issue-2486">
 <h2><span class="tier A">A</span>Registry catalog silently drops models whose version is not a literal in the export const model block</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-08T17:53:33.293Z">2026-10-08T17:53:33.293Z</time></span></div>
@@ -2149,61 +2205,45 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-2257">
-<h2><span class="tier B">B</span>-q does not suppress the update, auth-nudge and autoupdate banners</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-08T20:01:26.566Z">2026-10-08T20:01:26.566Z</time></span></div>
+<article class="item" id="issue-3194">
+<h2><span class="tier B">B</span>stagecraft: upgrade stored factory definitions on read, so a format change does not break work in progress</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-08T21:01:42.000Z">2026-10-08T21:01:42.000Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2257" rel="noopener">lab#2257</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3194" rel="noopener">lab#3194</a></div>
 </article>
-<article class="item" id="issue-3189">
-<h2><span class="tier B">B</span>Datastore rework Phase 3: format-guard release, so swamp refuses datastores with a newer format and writes nothing</h2>
+<article class="item" id="issue-3110">
+<h2><span class="tier B">B</span>Show signal waits to remote clients and the dashboard</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-08T20:00:12.277Z">2026-10-08T20:00:12.277Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-08T20:57:44.257Z">2026-10-08T20:57:44.257Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3189" rel="noopener">lab#3189</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3110" rel="noopener">lab#3110</a></div>
 </article>
-<article class="item" id="issue-3179">
-<h2><span class="tier B">B</span>Lazy hydration: expressions reading another model&#39;s data get empty attributes; hydrate a step&#39;s read set before evaluation</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-08T19:58:23.509Z">2026-10-08T19:58:23.509Z</time></span></div>
+<article class="item" id="issue-3195">
+<h2><span class="tier B">B</span>extension source add imports src/cli/mod.ts, so every change lists extension as an affected command</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-08T20:56:46.319Z">2026-10-08T20:56:46.319Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3179" rel="noopener">lab#3179</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3195" rel="noopener">lab#3195</a></div>
 </article>
-<article class="item" id="issue-3186">
-<h2><span class="tier B">B</span>Docs: worker connect no longer needs a swamp-club credential (swamp-club#3128)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-08T19:56:02.828Z">2026-10-08T19:56:02.828Z</time></span></div>
+<article class="item" id="issue-3192">
+<h2><span class="tier B">B</span>Datastore rework Phase 3: publish the extension lockfile as a unit-of-work commit (no behaviour change)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-08T20:43:29.136Z">2026-10-08T20:43:29.136Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3186" rel="noopener">lab#3186</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3192" rel="noopener">lab#3192</a></div>
 </article>
-<article class="item" id="issue-2922">
-<h2><span class="tier B">B</span>Tell timeouts apart from cancels in method-run records, and review the hidden 30 s fallback timer for step-called model methods</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-08T19:55:42.896Z">2026-10-08T19:55:42.896Z</time></span></div>
+<article class="item" id="issue-3191">
+<h2><span class="tier B">B</span>Datastore rework Phase 3: measure and bound the format-guard marker read&#39;s cost</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-08T20:42:24.605Z">2026-10-08T20:42:24.605Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2922" rel="noopener">lab#2922</a></div>
-</article>
-<article class="item" id="issue-3045">
-<h2><span class="tier B">B</span>Show expired approval gates as expired, with a Cancel action in the dashboard</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-08T19:54:10.321Z">2026-10-08T19:54:10.321Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3045" rel="noopener">lab#3045</a></div>
-</article>
-<article class="item" id="issue-3178">
-<h2><span class="tier B">B</span>Lazy hydration: content readers bypass hydration (stream, stale raw after append); add one ensuring read path and a fitness test</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-08T19:25:30.568Z">2026-10-08T19:25:30.568Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3178" rel="noopener">lab#3178</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3191" rel="noopener">lab#3191</a></div>
 </article>
 <article class="item" id="issue-3190">
 <h2><span class="tier B">B</span>stagecraft: let a method or workflow stage&#39;s target use {{binding}} placeholders</h2>
@@ -2269,7 +2309,23 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-2418">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3193">
+<h2><span class="tier C">C</span>Datastore sync: a no-op push after a model-scoped pull arms the remote commitSeq, hiding other hosts&#39; commits until the next commit</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T20:29:50.924Z">2026-10-08T20:29:50.924Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3193" rel="noopener">lab#3193</a></div>
+</article>
+<article class="item" id="issue-2865">
+<h2><span class="tier C">C</span>Tracking: test baseline required before the datastore refactor (commit-log design)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-08T20:16:00.211Z">2026-10-08T20:16:00.211Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2865" rel="noopener">lab#2865</a></div>
+</article>
+<article class="item" id="issue-2418">
 <h2><span class="tier C">C</span>serve: after lazy hydration, scoped poller pulls never take the fast path, and the login mint waits behind them on the sync gate</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-08T18:47:56.183Z">2026-10-08T18:47:56.183Z</time></span></div>
@@ -2573,14 +2629,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3097" rel="noopener">lab#3097</a></div>
 </article>
-<article class="item" id="issue-3110">
-<h2><span class="tier C">C</span>Show signal waits to remote clients and the dashboard</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-06T21:11:28.138Z">2026-10-06T21:11:28.138Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3110" rel="noopener">lab#3110</a></div>
-</article>
 <article class="item" id="issue-3060">
 <h2><span class="tier C">C</span>Decide a stricter naming rule for workflow step and job names</h2>
 <p class="lede">Open issue</p>
@@ -2845,14 +2893,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2998" rel="noopener">lab#2998</a></div>
 </article>
-<article class="item" id="issue-2865">
-<h2><span class="tier C">C</span>Tracking: test baseline required before the datastore refactor (commit-log design)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-02T21:50:28.691Z">2026-10-02T21:50:28.691Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2865" rel="noopener">lab#2865</a></div>
-</article>
 <article class="item" id="issue-2102">
 <h2><span class="tier C">C</span>Serve Audit Log - Phase 6: Full documentation</h2>
 <p class="lede">Open issue</p>
@@ -3102,13 +3142,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>379 items across 1 source(s) in this window:
-0 critical, 260 notable, 15 routine,
+<p>384 items across 1 source(s) in this window:
+0 critical, 267 notable, 13 routine,
 104 minor.</p>
-<ul><li><strong>issues</strong> — 379</li></ul></section>
+<ul><li><strong>issues</strong> — 384</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T20:02:50.647Z">2026-10-08T20:02:50.647Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T21:02:39.541Z">2026-10-08T21:02:39.541Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

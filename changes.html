@@ -67,8 +67,80 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html" class="active">Changes</a><a href="releases.html">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-extensions-7c0b1eacf3ccec0ae020e8f72932a5b0357d544d"><span class="tier A">A</span>read one remote file without writing it to the cache (swamp-</a><a href="#commit-swamp-club-swamp-extensions-6c24d4c2c8a94736478bf74f05deb7aec57ebad8"><span class="tier A">A</span>read one remote file without writing it to the cache (swamp-</a><a href="#commit-swamp-club-swamp-1ce4bbebd7a38c77017e0c1253692faee0cf7868"><span class="tier A">A</span>worker prune finds worker models kept in the datastore (swam</a><a href="#commit-swamp-club-swamp-dec75126c8a72bfe0dd110e2312c83da65a1cd2f"><span class="tier A">A</span>model get finds auto-definitions stored in the datastore (sw</a><a href="#commit-swamp-club-swamp-063a2248f53d29b0003a1f9740a89f20e3831ab3"><span class="tier A">A</span>token secret migration keeps a token on its vault when copyi</a><a href="#commit-swamp-club-swamp-df160ca3c71d3c9f07cd585b19aae672b105799d"><span class="tier A">A</span>lock release names a lock caught mid-write instead of a chan</a><a href="#commit-swamp-club-swamp-32f46d7ff73b923f0e21ee24f0cc12b0212382ed"><span class="tier A">A</span>a run re-keys its locks when the hop it lent them to ends (s</a><a href="#commit-swamp-club-swamp-cb93fb25e5bfd42273ea3b3677e1cd54e2558d44"><span class="tier A">A</span>structured acceptances, Unresolved warnings and an optional </a><a href="#commit-swamp-club-swamp-db0494453858794dd0dbc4050e1605a81ee517be"><span class="tier A">A</span>count a lock file caught mid-write as held (swamp-club#3148)</a><a href="#commit-swamp-club-swamp-59ad9f029d76127944ba251f81974fbfc914ada2"><span class="tier A">A</span>WalSink tests poll for the checkpoint instead of racing a 20</a><a href="#commit-swamp-club-swamp-a852623f7cb6b45e44e25c2834149a3eb7abb89a"><span class="tier A">A</span>a private push to a free collective with no trial fails its </a><a href="#commit-swamp-club-swamp-ff3e576c355262d1c9b67cd1cd859a10fb8cfc5d"><span class="tier A">A</span>record the commands a change can affect in the attestation (</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-3a59b162dd6a9af9e7db30ba5b3d0842349ab05a"><span class="tier A">A</span>lazy hydration readers read current content, including other</a><a href="#commit-swamp-club-swamp-a7ab377460fc191fc811cfefb61a2f3d5d1ba3c0"><span class="tier A">A</span>-q silences the update banners, autoupdate warnings and prog</a><a href="#commit-swamp-club-swamp-979692486f81d42379023843098d961845f4b0a9"><span class="tier A">A</span>list expired approval gates and cancel them from the dashboa</a><a href="#commit-swamp-club-swamp-c4e65dbe611bb2cf2a6158f08cbfa3315b4a83f8"><span class="tier A">A</span>refuse a datastore marked with a newer format before writing</a><a href="#commit-swamp-club-swamp-6a954e7473279877bc1b7c9ad04aa905d36ae226"><span class="tier A">A</span>a cancelled method run records what cancelled it, and guard </a><a href="#commit-swamp-club-swamp-extensions-df7e6d4b9b87064b9050d1aae911af2e50b63fac"><span class="tier A">A</span>add server power methods (swamp-club #3140) (#475)</a><a href="#commit-swamp-club-swamp-extensions-13ee90b6c656a251bd4637f6a5b62e6e62a8a1a1"><span class="tier A">A</span>prune dropped services and bump AWS SDK to 3.1147.0 (swamp-c</a><a href="#commit-swamp-club-swamp-extensions-daf80edf678fa64ffd9bac686963819fb16e6ca7"><span class="tier A">A</span>make create-only required fields optional in global args (sw</a><a href="#commit-swamp-club-swamp-0f3259df8f078c4e616e89cf246668418363e48f"><span class="tier A">A</span>worker prune deletes pruned workers from a remote datastore </a><a href="#commit-swamp-club-swamp-extensions-7c0b1eacf3ccec0ae020e8f72932a5b0357d544d"><span class="tier A">A</span>read one remote file without writing it to the cache (swamp-</a><a href="#commit-swamp-club-swamp-extensions-6c24d4c2c8a94736478bf74f05deb7aec57ebad8"><span class="tier A">A</span>read one remote file without writing it to the cache (swamp-</a><a href="#commit-swamp-club-swamp-1ce4bbebd7a38c77017e0c1253692faee0cf7868"><span class="tier A">A</span>worker prune finds worker models kept in the datastore (swam</a></aside><div>
 
+<article class="item" id="commit-swamp-club-swamp-3a59b162dd6a9af9e7db30ba5b3d0842349ab05a">
+<h2><span class="tier A">A</span>lazy hydration readers read current content, including other models&#39; data in expressions (swamp-club#3179, swamp-club#3178) (#2949)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T20:24:12Z">2026-10-08T20:24:12Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><p>fix(datastore): lazy hydration readers read current content, including other models&#39; data in expressions (swamp-club#3179, swamp-club#3178) (#2949)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3a59b162dd6a9af9e7db30ba5b3d0842349ab05a" rel="noopener">3a59b162</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2949" rel="noopener">#2949</a>𝗔 <a href="https://swamp-club.com/lab/3179" rel="noopener">lab#3179</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-a7ab377460fc191fc811cfefb61a2f3d5d1ba3c0">
+<h2><span class="tier A">A</span>-q silences the update banners, autoupdate warnings and progress notices (swamp-club#2257) (#2948)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T20:16:25Z">2026-10-08T20:16:25Z</time></span><span>cli</span><span>fix</span></div>
+<div class="body"><p>fix(cli): -q silences the update banners, autoupdate warnings and progress notices (swamp-club#2257) (#2948)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a7ab377460fc191fc811cfefb61a2f3d5d1ba3c0" rel="noopener">a7ab3774</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2948" rel="noopener">#2948</a>𝗔 <a href="https://swamp-club.com/lab/2257" rel="noopener">lab#2257</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-979692486f81d42379023843098d961845f4b0a9">
+<h2><span class="tier A">A</span>list expired approval gates and cancel them from the dashboard (swamp-club#3045) (#2947)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T20:15:57Z">2026-10-08T20:15:57Z</time></span><span>workflows</span><span>feat</span></div>
+<div class="body"><p>feat(workflows): list expired approval gates and cancel them from the dashboard (swamp-club#3045) (#2947)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/979692486f81d42379023843098d961845f4b0a9" rel="noopener">97969248</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2947" rel="noopener">#2947</a>𝗔 <a href="https://swamp-club.com/lab/3045" rel="noopener">lab#3045</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-c4e65dbe611bb2cf2a6158f08cbfa3315b4a83f8">
+<h2><span class="tier A">A</span>refuse a datastore marked with a newer format before writing anything (swamp-club#3189) (#2946)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T20:07:53Z">2026-10-08T20:07:53Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><p>feat(datastore): refuse a datastore marked with a newer format before writing anything (swamp-club#3189) (#2946)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c4e65dbe611bb2cf2a6158f08cbfa3315b4a83f8" rel="noopener">c4e65dbe</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2946" rel="noopener">#2946</a>𝗔 <a href="https://swamp-club.com/lab/3189" rel="noopener">lab#3189</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-6a954e7473279877bc1b7c9ad04aa905d36ae226">
+<h2><span class="tier A">A</span>a cancelled method run records what cancelled it, and guard model methods lose their hidden 30 s timer (swamp-club#2922) (#2945)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T20:06:19Z">2026-10-08T20:06:19Z</time></span><span>workflows</span><span>feat</span></div>
+<div class="body"><p>feat(workflows): a cancelled method run records what cancelled it, and guard model methods lose their hidden 30 s timer (swamp-club#2922) (#2945)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6a954e7473279877bc1b7c9ad04aa905d36ae226" rel="noopener">6a954e74</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2945" rel="noopener">#2945</a>𝗔 <a href="https://swamp-club.com/lab/2922" rel="noopener">lab#2922</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-df7e6d4b9b87064b9050d1aae911af2e50b63fac">
+<h2><span class="tier A">A</span>add server power methods (swamp-club #3140) (#475)</h2>
+<p class="lede">`feat` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-10-08T19:37:53Z">2026-10-08T19:37:53Z</time></span><span>codegen/hetzner</span><span>feat</span></div>
+<div class="body"><p>feat(codegen/hetzner): add server power methods (swamp-club #3140) (#475)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/df7e6d4b9b87064b9050d1aae911af2e50b63fac" rel="noopener">df7e6d4b</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/475" rel="noopener">#475</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/3140" rel="noopener">#3140</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-13ee90b6c656a251bd4637f6a5b62e6e62a8a1a1">
+<h2><span class="tier A">A</span>prune dropped services and bump AWS SDK to 3.1147.0 (swamp-club #3163) (#473)</h2>
+<p class="lede">`fix` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-10-08T19:14:04Z">2026-10-08T19:14:04Z</time></span><span>codegen/aws</span><span>fix</span></div>
+<div class="body"><p>fix(codegen/aws): prune dropped services and bump AWS SDK to 3.1147.0 (swamp-club #3163) (#473)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/13ee90b6c656a251bd4637f6a5b62e6e62a8a1a1" rel="noopener">13ee90b6</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/473" rel="noopener">#473</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/3163" rel="noopener">#3163</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-daf80edf678fa64ffd9bac686963819fb16e6ca7">
+<h2><span class="tier A">A</span>make create-only required fields optional in global args (swamp-club #2643) (#474)</h2>
+<p class="lede">`fix` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-10-08T19:10:44Z">2026-10-08T19:10:44Z</time></span><span>codegen/digitalocean</span><span>fix</span></div>
+<div class="body"><p>fix(codegen/digitalocean): make create-only required fields optional in global args (swamp-club #2643) (#474)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/daf80edf678fa64ffd9bac686963819fb16e6ca7" rel="noopener">daf80edf</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/474" rel="noopener">#474</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2643" rel="noopener">#2643</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-0f3259df8f078c4e616e89cf246668418363e48f">
+<h2><span class="tier A">A</span>worker prune deletes pruned workers from a remote datastore (swamp-club#2513) (#2933)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T17:13:53Z">2026-10-08T17:13:53Z</time></span><span>worker</span><span>fix</span></div>
+<div class="body"><p>fix(worker): worker prune deletes pruned workers from a remote datastore (swamp-club#2513) (#2933)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0f3259df8f078c4e616e89cf246668418363e48f" rel="noopener">0f3259df</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2933" rel="noopener">#2933</a>𝗔 <a href="https://swamp-club.com/lab/2513" rel="noopener">lab#2513</a></div>
+</article>
 <article class="item" id="commit-swamp-club-swamp-extensions-7c0b1eacf3ccec0ae020e8f72932a5b0357d544d">
 <h2><span class="tier A">A</span>read one remote file without writing it to the cache (swamp-club #3161) (#471)</h2>
 <p class="lede">`feat` change · swamp-club/swamp-extensions</p>
@@ -93,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1ce4bbebd7a38c77017e0c1253692faee0cf7868" rel="noopener">1ce4bbeb</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2922" rel="noopener">#2922</a>𝗔 <a href="https://swamp-club.com/lab/3155" rel="noopener">lab#3155</a></div>
 </article>
-<article class="item" id="commit-swamp-club-swamp-dec75126c8a72bfe0dd110e2312c83da65a1cd2f">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-dec75126c8a72bfe0dd110e2312c83da65a1cd2f">
 <h2><span class="tier A">A</span>model get finds auto-definitions stored in the datastore (swamp-club#3154) (#2921)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-07T23:26:28Z">2026-10-07T23:26:28Z</time></span><span>models</span><span>fix</span></div>
@@ -165,7 +237,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/issue-lifecycle/references/verification.md" rel="noopener">.claude/skills/issue-lifecycle/references/verification.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ff3e576c355262d1c9b67cd1cd859a10fb8cfc5d" rel="noopener">ff3e576c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2906" rel="noopener">#2906</a>𝗔 <a href="https://swamp-club.com/lab/3145" rel="noopener">lab#3145</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-b15eaf6648f1c1f5b033f983f9efd847ecd4d6f7">
+<article class="item" id="commit-swamp-club-swamp-b15eaf6648f1c1f5b033f983f9efd847ecd4d6f7">
 <h2><span class="tier A">A</span>auto-resolve Installing line shows a one-line description summary (swamp-club#3013) (#2905)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-07T19:07:37Z">2026-10-07T19:07:37Z</time></span><span>extensions</span><span>fix</span></div>
@@ -1381,6 +1453,14 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/cf33c80ce92abaed216a5d5a6766143e63eb6840" rel="noopener">cf33c80c</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/400" rel="noopener">#400</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2680" rel="noopener">#2680</a></div>
 </article>
+<article class="item" id="commit-swamp-club-swamp-extensions-696f0de27ca62270b6c8e5b4886cfcfba412795e">
+<h2><span class="tier B">B</span>regenerate models from upstream schemas (#469)</h2>
+<p class="lede">`chore` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-10-08T18:35:48Z">2026-10-08T18:35:48Z</time></span><span>chore</span></div>
+<div class="body"><p>chore: regenerate models from upstream schemas (#469)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/696f0de27ca62270b6c8e5b4886cfcfba412795e" rel="noopener">696f0de2</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/469" rel="noopener">#469</a></div>
+</article>
 <article class="item" id="commit-swamp-club-swamp-extensions-0f757c5b93d3ac8635bd95872406d7c2870f922c">
 <h2><span class="tier B">B</span>regenerate models from upstream schemas (#465)</h2>
 <p class="lede">`chore` change · swamp-club/swamp-extensions</p>
@@ -1510,13 +1590,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/7dbd8d5ff29f8e1fcf15f230b7993d3823bb99ba" rel="noopener">7dbd8d5f</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/436" rel="noopener">#436</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2819" rel="noopener">#2819</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>180 items across 2 source(s) in this window:
-0 critical, 164 notable, 14 routine,
+<p>190 items across 2 source(s) in this window:
+0 critical, 173 notable, 15 routine,
 2 minor.</p>
-<ul><li><strong>fix</strong> — 106</li><li><strong>feat</strong> — 58</li><li><strong>chore</strong> — 7</li><li><strong>refactor</strong> — 7</li><li><strong>docs</strong> — 2</li></ul></section>
+<ul><li><strong>fix</strong> — 111</li><li><strong>feat</strong> — 62</li><li><strong>chore</strong> — 8</li><li><strong>refactor</strong> — 7</li><li><strong>docs</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T20:02:50.647Z">2026-10-08T20:02:50.647Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T21:02:39.541Z">2026-10-08T21:02:39.541Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

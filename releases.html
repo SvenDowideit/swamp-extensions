@@ -67,8 +67,505 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261008-000640-0-sha-1ce4bbeb"><span class="tier A">A</span>worker prune finds worker models kept in the datastore (swam</a><a href="#release-swamp-club-swamp-v20261007-232643-0-sha-dec75126"><span class="tier A">A</span>model get finds auto-definitions stored in the datastore (sw</a><a href="#release-swamp-club-swamp-v20261007-230130-0-sha-063a2248"><span class="tier A">A</span>token secret migration keeps a token on its vault when copyi</a><a href="#release-swamp-club-swamp-v20261007-223330-0-sha-32b5b84b"><span class="tier A">A</span>model delete finds auto-definitions kept in the datastore (s</a><a href="#release-swamp-club-swamp-v20261007-222930-0-sha-4e5472f6"><span class="tier A">A</span>captured deno output stays plain when FORCE_COLOR is set (sw</a><a href="#release-swamp-club-swamp-v20261007-222343-0-sha-41fd29a8"><span class="tier A">A</span>vault grant kind and run vault scoping on serve (swamp-club#</a><a href="#release-swamp-club-swamp-v20261007-221519-0-sha-6443c92f"><span class="tier A">A</span>keep a remote config tier when setup joins it, and never mig</a><a href="#release-swamp-club-swamp-v20261007-221135-0-sha-0f586ec3"><span class="tier A">A</span>read one remote file without writing it to the cache (swamp-</a><a href="#release-swamp-club-swamp-v20261007-214606-0-sha-b352b2cf"><span class="tier A">A</span>keep CEL keywords out of the dot-access property for analyze</a><a href="#release-swamp-club-swamp-v20261007-214013-0-sha-56e04feb"><span class="tier A">A</span>a cancelled step does not wait on a structural command to ta</a><a href="#release-swamp-club-swamp-v20261007-210207-0-sha-df160ca3"><span class="tier A">A</span>lock release names a lock caught mid-write instead of a chan</a><a href="#release-swamp-club-swamp-v20261007-204106-0-sha-32f46d7f"><span class="tier A">A</span>a run re-keys its locks when the hop it lent them to ends (s</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261008-192309-0-sha-9f2da9f2"><span class="tier A">A</span>a refused grant create leaves no definition behind, and a lo</a><a href="#release-swamp-club-swamp-v20261008-191723-0-sha-9f9d52fa"><span class="tier A">A</span>settle expired signal waits from the continuation sweep (swa</a><a href="#release-swamp-club-swamp-v20261008-184215-0-sha-03ca42ca"><span class="tier A">A</span>a hydrateFile success with no file fails as a contract viola</a><a href="#release-swamp-club-swamp-v20261008-183339-0-sha-231eda34"><span class="tier A">A</span>a worker without a swamp-club credential passes the auth gat</a><a href="#release-swamp-club-swamp-v20261008-181122-0-sha-25d6c2db"><span class="tier A">A</span>print the registry&#39;s warnings after a push (swamp-club#2900)</a><a href="#release-swamp-club-swamp-v20261008-180526-0-sha-cbb99ed9"><span class="tier A">A</span>resume signalled workflow runs automatically (swamp-club#310</a><a href="#release-swamp-club-swamp-v20261008-175630-0-sha-060b2a17"><span class="tier A">A</span>data.latest() no longer reports a false ambiguity after a mo</a><a href="#release-swamp-club-swamp-v20261008-174952-0-sha-6d62c1fc"><span class="tier A">A</span>push and quality warn when a model would be left out of the </a><a href="#release-swamp-club-swamp-v20261008-174305-0-sha-2d55d5e3"><span class="tier A">A</span>stop concurrent first runs logging a failed catalog migratio</a><a href="#release-swamp-club-swamp-v20261008-173829-0-sha-b4f52e8e"><span class="tier A">A</span>datastore compact works on Windows, and Windows CI passes on</a><a href="#release-swamp-club-swamp-v20261008-154432-0-sha-3daa8254"><span class="tier A">A</span>a managedConfig instance retries a failed boot hydration, th</a><a href="#release-swamp-club-swamp-v20261008-153857-0-sha-fc65606b"><span class="tier A">A</span>hide audit where it is defined so audit verify is no longer </a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261008-192309-0-sha-9f2da9f2">
+<h2><span class="tier A">A</span>a refused grant create leaves no definition behind, and a local create keeps --methods (swamp-club#3182, swamp-club#3187) (#2944)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T19:25:00Z">2026-10-08T19:25:00Z</time></span><span>access</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(access): a refused grant create leaves no definition behind, and a local create keeps --methods (swamp-club#3182, swamp-club#3187) (#2944)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3182 and swamp-club#3187.</p>
+<p><strong>#3182.</strong> <code>swamp access grant create</code> checked the action list and the <code>--on</code> selector before writing anything. The grant model checked the subject, the CEL condition and condition type literals (swamp-club#3130) only inside its <code>create</code> method, after the run had saved the grant&#39;s auto-definition. Each refused create therefore left an empty <code>grant-*</code> definition plus a failed run record and log behind, locally and on a server reached through <code>--server</code>.</p>
+<p>Those checks now live in <code>checkGrantCreateInputs</code> (<code>src/domain/models/access/grant_model.ts</code>). The model&#39;s <code>create</code> calls it, and so does the command, before it opens the repo, takes a lock or sends anything to a server. The model still enforces the checks itself. Messages are byte-identical, and a unit test pins that the function and <code>create</code> throw the same message for each refusal.</p>
+<p><strong>Failed run record:</strong> a refused create no longer starts a run, so no failed run record is kept. This matches how an unknown action is already refused.</p>
+<p><strong>#3187.</strong> The local create path never passed <code>--methods</code> to the model, so a grant scoped to some methods covered every method. The <code>--server</code> path already passed them. The local path now does too.</p>
+<h4 class="body-h">User-visible changes</h4>
+<ul>
+<li><strong>A refused create leaves nothing behind.</strong> That cover</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.192309.0-sha.9f2da9f2" rel="noopener">release v20261008.192309.0-sha.9f2da9f2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9f2da9f263311d2ec0b68cae972ab06cc22cd15c" rel="noopener">9f2da9f2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2944" rel="noopener">#2944</a>𝗔 <a href="https://swamp-club.com/lab/3182" rel="noopener">lab#3182</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-191723-0-sha-9f9d52fa">
+<h2><span class="tier A">A</span>settle expired signal waits from the continuation sweep (swamp-club#3109) (#2943)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T19:19:10Z">2026-10-08T19:19:10Z</time></span><span>serve</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(serve): settle expired signal waits from the continuation sweep (swamp-club#3109) (#2943)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Under <code>swamp serve</code> nothing looked at a <code>wait_for_signal</code> deadline, so an expired wait stayed suspended and its <code>failed</code> handlers did not run until someone resumed the run (swamp-club#3109, split out of swamp-club#3094).</p>
+<ul>
+<li><strong>The continuation sweep settles expired waits.</strong> When <code>continueSettledRun</code> finds a run held back only by its waits, <code>settleExpiredWaits</code> settles each wait that is past its deadline, has no outcome and is still registered, through the write-once create. The run then continues on the path a signalled run takes, so the resume fails the step with <code>wait_timeout</code> and <code>failed</code> handlers run with no client action.</li>
+<li><strong><code>--max-signal-wait-timeout</code></strong> on serve (env <code>SWAMP_MAX_SIGNAL_WAIT_TIMEOUT</code>, config key <code>max-signal-wait-timeout</code>, at most one year). A step that asks for a longer wait fails when it would open the wait. A wait already open keeps its deadline.</li>
+</ul>
+<h4 class="body-h">Behaviour to know</h4>
+<ul>
+<li>Timeouts follow the workflow&#39;s auto-resume policy, as signals do. A workflow serve may not resume keeps its expired wait unsettled and its run suspended.</li>
+<li>The sweep settles only a wait whose registration can still be read, so a suspended copy of a run that ended or was deleted elsewhere never gets an outcome.</li>
+<li>Each instance reads the deadline against its own clock and the first create wins, so serve hosts need synchronised clocks. There is no skew allowance.</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.191723.0-sha.9f9d52fa" rel="noopener">release v20261008.191723.0-sha.9f9d52fa</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9f9d52fa1afb3f29a3d18632fcb6bdb586371169" rel="noopener">9f9d52fa</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2943" rel="noopener">#2943</a>𝗔 <a href="https://swamp-club.com/lab/3109" rel="noopener">lab#3109</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-184215-0-sha-03ca42ca">
+<h2><span class="tier A">A</span>a hydrateFile success with no file fails as a contract violation, not a bare ENOENT (swamp-club#2477) (#2939)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T18:44:19Z">2026-10-08T18:44:19Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): a hydrateFile success with no file fails as a contract violation, not a bare ENOENT (swamp-club#2477) (#2939)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2477.</p>
+<p>When a datastore&#39;s <code>hydrateFile</code> returned <code>true</code> but the file was not at the path core asked for, the retry read in <code>UnifiedDataRepository.getContent</code> surfaced a bare <code>No such file or directory</code>. Nothing said the datastore had claimed success, which hid swamp-club#2404 in production.</p>
+<ul>
+<li><code>buildHydrateFileHook</code> in <code>src/cli/repo_context.ts</code> now checks that the file exists after a <code>true</code> result. For a path inside the cache with no file, it logs a warning and throws <code>HydrateContractViolationError</code>.</li>
+<li>The new error (a <code>UserError</code>, code <code>datastore_hydrate_contract_violation</code>) names the datastore type, the cache-relative path it was given and the absolute path core read.</li>
+<li>Paths outside the cache are not checked, because there the datastore writes somewhere other than the path core reads.</li>
+<li>The <code>HydrateFileHook</code> contract in <code>design/enablers/datastores.md</code> and the doc comments extension authors read describe the new guarantee.</li>
+</ul>
+<p>The check is in the hook wrapper rather than in <code>getContent</code>: the wrapper is the only place that knows both paths and the datastore type, and every production consumer (data get, data query, workflow run and resume, serve) receives the wrapped hook.</p>
+<p>Not covered: <code>hydrateSentinel</code> in <code>src/libswamp/datastores/setup.ts</code> calls <code>hydrateFile</code> directly and still trusts an unverified `tr</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.184215.0-sha.03ca42ca" rel="noopener">release v20261008.184215.0-sha.03ca42ca</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/03ca42ca225db77f84a3d0953ce6291d4f193eb1" rel="noopener">03ca42ca</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2939" rel="noopener">#2939</a>𝗔 <a href="https://swamp-club.com/lab/2477" rel="noopener">lab#2477</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-183339-0-sha-231eda34">
+<h2><span class="tier A">A</span>a worker without a swamp-club credential passes the auth gate through its serve (swamp-club#3128) (#2942)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T18:35:28Z">2026-10-08T18:35:28Z</time></span><span>worker</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(worker): a worker without a swamp-club credential passes the auth gate through its serve (swamp-club#3128) (#2942)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3128.</p>
+<h4 class="body-h">The problem</h4>
+<p>Since the auth gate (swamp-club#2231), <code>swamp worker connect</code> needs its own swamp-club credential to start. A remote worker already authenticates to its orchestrator with an enrollment token, and can also hold a server token. So the extra key adds no identity, and it forces a long-lived swamp-club key into every worker pod. Some teams keep worker pods credential-free on purpose, because the pods run LLM-driven code.</p>
+<h4 class="body-h">The fix</h4>
+<p>A worker passes the gate through the serve that enrolls it. This follows the nested-pass flow from swamp-club#2924 (PR #2781). The admitting serve takes the place of the live-ancestor check.</p>
+<ul>
+<li><strong>Gate timing.</strong> <code>worker connect</code> gets a new gate timing, <code>enrollment</code>. A <code>no_credential</code> block waits for enrollment instead of ending the run. Every other block still ends the run before the command starts, including a rejected key and a day of failing open. A worker with its own credential behaves exactly as before.</li>
+<li><strong>Protocol.</strong> A keyless worker sends <code>needsGatePass</code>. The serve replies with <code>gatePass</code>: the swamp-club-signed proof its own pass rests on, encoded as <code>&lt;proof&gt;.&lt;signature&gt;</code> with no pid. Both fields are optional, so the protocol version is unchanged. A serve with no pass to give refuses with <code>gate_pass_unavailable</code> before it redeems the token, so no enro</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.183339.0-sha.231eda34" rel="noopener">release v20261008.183339.0-sha.231eda34</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/231eda3435c41f9db556fff3645a0bbaa02280b2" rel="noopener">231eda34</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2942" rel="noopener">#2942</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2781" rel="noopener">#2781</a>𝗔 <a href="https://swamp-club.com/lab/2231" rel="noopener">lab#2231</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-181122-0-sha-25d6c2db">
+<h2><span class="tier A">A</span>print the registry&#39;s warnings after a push (swamp-club#2900) (#2938)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T18:13:14Z">2026-10-08T18:13:14Z</time></span><span>extensions</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(extensions): print the registry&#39;s warnings after a push (swamp-club#2900) (#2938)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>When the registry accepts a push but discards something the client sent, such as <code>contentMetadata</code> over a registry limit, it says so in a <code>warnings</code> array on the confirm response (shipped with swamp-club#2890). The CLI dropped that field, so the publisher never learned the listing came from the registry&#39;s own extraction. This prints it (swamp-club#2900).</p>
+<p>The registry half of the issue already shipped, so this is CLI-only.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong>API client.</strong> <code>ExtensionApiClient.confirmPush</code> reads <code>warnings</code> and reduces it to text that is safe to print, returned as <code>{ messages, omitted }</code>:</li>
+<li>strings only; blank entries dropped;</li>
+<li>every control, format, line-separator and paragraph-separator character replaced with a space, so each warning is one line. This splits joined emoji into their parts;</li>
+<li>each warning cut at 1000 code points;</li>
+<li>at most 20 kept, with a count of the rest.</li>
+<li>A malformed field never fails a push that has already been published.</li>
+<li><strong>Push service.</strong> <code>extensionPush</code> carries them on the completed event as <code>registryWarnings</code>, only when there are some.</li>
+<li><strong>Log mode.</strong> A <code>Registry warnings:</code> block after the push summary, one line per warning, closed with <code>N more registry warnings omitted</code> when any were left out.</li>
+<li><strong><code>--json</code>.</strong> A new <code>registry</code> family under <code>warnings</code>, one <code>{ &quot;message&quot;: ... }</code> object per warning like the other families, and</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.181122.0-sha.25d6c2db" rel="noopener">release v20261008.181122.0-sha.25d6c2db</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/25d6c2dbe220b55ebca811445179da8d4b172859" rel="noopener">25d6c2db</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2938" rel="noopener">#2938</a>𝗔 <a href="https://swamp-club.com/lab/2900" rel="noopener">lab#2900</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-180526-0-sha-cbb99ed9">
+<h2><span class="tier A">A</span>resume signalled workflow runs automatically (swamp-club#3108) (#2932)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T18:07:26Z">2026-10-08T18:07:26Z</time></span><span>serve</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(serve): resume signalled workflow runs automatically (swamp-club#3108) (#2932)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp serve</code> now resumes a suspended run by itself once nothing on it is left to decide: every approval gate is decided, no step waits on a nested run, and every <code>wait_for_signal</code> step has an outcome. Before this, auto-resume only followed an approval, so a run released by a signal stayed suspended until someone ran <code>swamp workflow resume</code>.</p>
+<p><strong><code>signal</code> now releases the rest of a run where auto-resume is on.</strong> Auto-resume is still off by default: a workflow opts in with <code>autoResume: true</code>, or serve runs with <code>--auto-resume</code> for workflows that declare no inputs.</p>
+<p>How a run is continued:</p>
+<ul>
+<li>The instance that accepts the signal continues the run at once.</li>
+<li>A sweep at boot and every <code>--continuation-sweep-interval</code> (default <code>30s</code>, <code>0</code> disables) picks up a launch that was lost and runs signalled by a local command.</li>
+<li>A continuation claim in the control plane keeps two serve instances, or an instance and a local <code>workflow resume</code>, from resuming the same suspension. The sweep does not start on a synced datastore that has no shared atomic claim store.</li>
+<li>A resume that starts and fails is retried with a backoff from 30s to 15m, per suspension.</li>
+</ul>
+<p>What serve does not continue:</p>
+<ul>
+<li>A parent waiting on a nested run, except right after a caller with the right grant continued its child.</li>
+<li>A suspended copy of a run whose wait was cancelled.</li>
+<li>On a synced datastore, a run whose lo</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.180526.0-sha.cbb99ed9" rel="noopener">release v20261008.180526.0-sha.cbb99ed9</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cbb99ed94113138c00af039da94ddf1ae0181c7a" rel="noopener">cbb99ed9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2932" rel="noopener">#2932</a>𝗔 <a href="https://swamp-club.com/lab/3108" rel="noopener">lab#3108</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-175630-0-sha-060b2a17">
+<h2><span class="tier A">A</span>data.latest() no longer reports a false ambiguity after a model is retyped (swamp-club#2501) (#2937)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T17:58:20Z">2026-10-08T17:58:20Z</time></span><span>expressions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(expressions): data.latest() no longer reports a false ambiguity after a model is retyped (swamp-club#2501) (#2937)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#2501.</p>
+<p>When a model&#39;s type is changed in place, it keeps its id, so the records it wrote under the old type stay in the catalog until <code>data prune</code> reclaims them. The spec-name ambiguity check behind <code>data.latest()</code> counted latest rows by model name and spec name only. That old-type row therefore counted as a second match, and any expression or workflow using <code>data.latest(&quot;&lt;model&gt;&quot;, &quot;&lt;name&gt;&quot;)</code> failed with:</p>
+<p>```</p>
+<p>Ambiguous data.latest() match: specName &quot;foo&quot; resolves to 2 data items (foo, foo)</p>
+<p>```</p>
+<p>This failed even though the lookup had already found the current type&#39;s record.</p>
+<ul>
+<li><code>DataQueryService.checkSpecNameAmbiguity</code> takes an optional resolved <code>{ modelType, modelId }</code>. When given, it skips rows that have that model id under a different type: the orphaned lineage that <code>data prune</code> already reclaims (swamp-club#1737).</li>
+<li><code>data.latest()</code> passes the type and id it found the record under, on the path that resolves the model&#39;s definition.</li>
+<li>Real ambiguity still throws: several data names under one spec at the current type, or rows under another model id. Callers that pass no identity behave exactly as before.</li>
+<li><code>design/enablers/data-query.md</code> describes the rule.</li>
+</ul>
+<h4 class="body-h">Behaviour left unchanged on purpose</h4>
+<p>These behave as they do today, and <code>data prune</code> clears the stale rows behind each one:</p>
+<ul>
+<li>`data.latest(&quot;*:&lt;model&gt;&quot;,</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.175630.0-sha.060b2a17" rel="noopener">release v20261008.175630.0-sha.060b2a17</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/060b2a1788cdbe3252d1c89b484d76e98f2dce29" rel="noopener">060b2a17</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2937" rel="noopener">#2937</a>𝗔 <a href="https://swamp-club.com/lab/2501" rel="noopener">lab#2501</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-174952-0-sha-6d62c1fc">
+<h2><span class="tier A">A</span>push and quality warn when a model would be left out of the registry catalog (swamp-club#2486) (#2936)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T17:51:48Z">2026-10-08T17:51:48Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): push and quality warn when a model would be left out of the registry catalog (swamp-club#2486) (#2936)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The push content metadata reads a model&#39;s <code>type</code> and <code>version</code> as string literals from a plain <code>export const model = { ... }</code> object, and silently dropped any entry point where either was unreadable. A model built by a shared factory and spread into the export (with only <code>type</code> repeated), or a type-annotated export, shipped in the archive and ran after pull, but the registry listed no model type for it — <code>contentTypes: [&quot;skills&quot;]</code>, invisible to <code>extension search --content-type models</code> — while push reported <code>modelCount: 10</code>.</p>
+<ul>
+<li><code>modelCatalogGap</code> (<code>src/domain/extensions/model_catalog_gap.ts</code>) says why a model entry point would not be catalogued: a type-annotated or non-object export, or no string-literal <code>type</code> / <code>version</code>. It is built on the extractors the catalog uses (the extractor now shares <code>extractModelExportBody</code>), and a property test pins that it reports a gap exactly when <code>extractContentMetadata</code> leaves the file out.</li>
+<li><code>runQualityFindings</code> reports one file-scoped <code>uncatalogued-model</code> warning per such entry point, so <code>extension push</code> (including <code>--dry-run</code> and <code>--json</code>) and <code>extension quality</code> both show it, with a remediation. Like <code>bare-specifiers</code> it cannot be accepted.</li>
+<li>No extractor, error gate or exit code changes. Like any unaccepted warning it prompts an interactive push; <code>--yes</code>/<code>--force</code> waive it, dry runs and</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.174952.0-sha.6d62c1fc" rel="noopener">release v20261008.174952.0-sha.6d62c1fc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6d62c1fc690b993b024365bd36339b1769125713" rel="noopener">6d62c1fc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2936" rel="noopener">#2936</a>𝗔 <a href="https://swamp-club.com/lab/2486" rel="noopener">lab#2486</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-174305-0-sha-2d55d5e3">
+<h2><span class="tier A">A</span>stop concurrent first runs logging a failed catalog migration and wiping the catalog (swamp-club#2671) (#2935)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T17:44:55Z">2026-10-08T17:44:55Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): stop concurrent first runs logging a failed catalog migration and wiping the catalog (swamp-club#2671) (#2935)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>When several swamp processes started at once in a fresh repo, one could log:</p>
+<p>```</p>
+<p>[WRN] Catalog migration to per-extension-aggregate-v3 failed (Error: database is locked …); falling back to cold-start rebuild</p>
+<p>[WRN] Catalog cold-start rebuild complete; loaders will repopulate from disk on next access</p>
+<p>```</p>
+<p><code>runDataMigrationTransaction</code> opened a deferred <code>BEGIN</code>, read the catalog, then blocked on its first write. When another process committed meanwhile, the stale WAL snapshot failed with <code>database is locked</code>, and <code>busy_timeout</code> does not retry that. The catch treated the error as a data failure: it warned and ran the cold-start rebuild, which empties the catalog. On a fresh catalog that is only noise. On a populated pre-v3 catalog being upgraded, it would wipe every row and force a full re-import.</p>
+<p>The migration now:</p>
+<ul>
+<li>takes the write lock up front with <code>BEGIN IMMEDIATE</code>, as <code>CatalogStore</code> already does;</li>
+<li>re-checks its marker under the lock, and skips work another process committed while it waited;</li>
+<li>rolls back and rethrows lock errors, so <code>initializeWithRetry</code> retries them with backoff, as its docs already said it did.</li>
+</ul>
+<p>Only real migration failures still fall back to the cold-start rebuild.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Three unit tests use the file&#39;s existing private-access pattern:</li>
+<li>a lock error rethrows and leaves rows, popu</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.174305.0-sha.2d55d5e3" rel="noopener">release v20261008.174305.0-sha.2d55d5e3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2d55d5e36c8df6147df0b20881595cba22880045" rel="noopener">2d55d5e3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2935" rel="noopener">#2935</a>𝗔 <a href="https://swamp-club.com/lab/2671" rel="noopener">lab#2671</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-173829-0-sha-b4f52e8e">
+<h2><span class="tier A">A</span>datastore compact works on Windows, and Windows CI passes on main again (swamp-club#3167) (#2934)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T17:40:49Z">2026-10-08T17:40:49Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): datastore compact works on Windows, and Windows CI passes on main again (swamp-club#3167) (#2934)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Windows Compatibility CI has failed on every main commit since e7a55150 (2026-10-05). I bisected the failures to their introducing commits across 43 run logs. Two of the failures are product bugs; the rest are test portability or timing bugs.</p>
+<p><strong>Product fixes</strong></p>
+<ul>
+<li><code>swamp datastore compact</code> failed on every run on Windows. It opened a second catalog connection next to <code>repoContext.catalogStore</code>. With that connection open, <code>vacuum()</code> couldn&#39;t rename the rebuilt catalog into place, and <code>close()</code> then hid the real error behind &quot;database is not open&quot;.</li>
+<li>Compact now runs through the repo context&#39;s own store.</li>
+<li>A new fitness rule (<code>integration/catalog_connection_rules_test.ts</code>) stops a second store from coming back.</li>
+<li><code>CatalogStore.vacuum()</code> no longer leaves the store closed when the swap fails:</li>
+<li>If the original file is intact, it reopens it and returns <code>false</code>, with a warning.</li>
+<li>If the original is gone, it retries moving the rebuilt file into place.</li>
+<li>If that also fails, it rethrows the real error and marks the store closed.</li>
+<li>The <code>upstream_extensions.json</code> lock now retries when Windows reports <code>PermissionDenied</code> for a lock file another writer is still deleting. A <code>PermissionDenied</code> that outlasts every retry is rethrown. The decision is one OS-parameterised function (<code>lockAttemptOutcome</code>), and its Windows cases are unit-tested</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.173829.0-sha.b4f52e8e" rel="noopener">release v20261008.173829.0-sha.b4f52e8e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b4f52e8edab132a784ded46720404f9b68a1a7d7" rel="noopener">b4f52e8e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2934" rel="noopener">#2934</a>𝗔 <a href="https://swamp-club.com/lab/3167" rel="noopener">lab#3167</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-154432-0-sha-3daa8254">
+<h2><span class="tier A">A</span>a managedConfig instance retries a failed boot hydration, then refuses to start (swamp-club#3180) (#2931)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T15:46:13Z">2026-10-08T15:46:13Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a managedConfig instance retries a failed boot hydration, then refuses to start (swamp-club#3180) (#2931)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>When <code>swamp serve</code> failed to hydrate its local cache at boot, the failure was logged at WARN and serve started on whatever the cache held. A <code>managedConfig</code> instance has no state but its datastore, so it then served from a partial or empty cache.</p>
+<p>Under <code>managedConfig</code>, boot hydration is now required:</p>
+<ul>
+<li>It is tried up to three times in the same process, each attempt with the full <code>--hydration-timeout</code>, with a 1s then 2s pause between attempts.</li>
+<li>If every attempt fails, serve refuses to start with an error naming <code>--hydration-timeout</code> and <code>SWAMP_HYDRATION_TIMEOUT</code>.</li>
+<li>Retrying in process keeps the files earlier attempts downloaded, so a store too large for one timeout converges instead of failing identically on every restart of a stateless pod.</li>
+</ul>
+<p>Without <code>managedConfig</code> the behaviour is unchanged: one attempt, a WARN, and serve starts.</p>
+<p>Split out of swamp-club#2435. The lazy-hydration part of that issue is not in this PR; it waits on swamp-club#3178 and swamp-club#3179.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Five unit tests on <code>hydrateLocalCache</code> with an injected backoff and per-attempt signals: retry then success, catalog invalidation when the retry pulls nothing more, throw after the last attempt, custom attempt count, non-finite attempt count.</li>
+<li>Live against MinIO with the compiled binary, pausing the container mid-hydration with a 1s timeout:</li>
+</ul>
+<p>  -</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.154432.0-sha.3daa8254" rel="noopener">release v20261008.154432.0-sha.3daa8254</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3daa8254f8a382b0455bc7012234269c8b823071" rel="noopener">3daa8254</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2931" rel="noopener">#2931</a>𝗔 <a href="https://swamp-club.com/lab/2435" rel="noopener">lab#2435</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-153857-0-sha-fc65606b">
+<h2><span class="tier A">A</span>hide audit where it is defined so audit verify is no longer hidden (swamp-club#3177) (#2930)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T15:40:53Z">2026-10-08T15:40:53Z</time></span><span>cli</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): hide audit where it is defined so audit verify is no longer hidden (swamp-club#3177) (#2930)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3177.</p>
+<p><code>registerCommands</code> registered audit with <code>auditCommand.hidden()</code>. Cliffy applies <code>hidden()</code> to the command a chain last selected, and <code>auditCommand</code> ends its chain with <code>.command(&quot;verify&quot;, ...)</code>, so the first registration hid <code>audit verify</code> rather than <code>audit</code>. <code>audit</code> itself was hidden only because <code>registerCommands</code> runs twice per process and the first registration resets the selection.</p>
+<ul>
+<li><code>src/cli/commands/audit.ts</code>: call <code>.hidden()</code> in the <code>auditCommand</code> builder, ahead of the subcommand chain, with a doc comment explaining why it must stay there.</li>
+<li><code>src/cli/mod.ts</code>: register the command plainly as <code>.command(&quot;audit&quot;, auditCommand)</code>.</li>
+<li><code>src/cli/commands/audit_test.ts</code> (new): after a single registration, <code>audit</code> is hidden and all seven subcommands, including <code>verify</code>, are visible.</li>
+</ul>
+<h4 class="body-h">User-visible change</h4>
+<p><code>swamp audit --help</code>, the unknown-subcommand listing and shell completions now include <code>verify</code>. <code>audit</code> stays hidden from <code>swamp --help</code> and from the <code>swamp help</code> JSON schema, as it was in released binaries.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>New unit test fails against the unfixed code (audit visible after one registration) and passes with the fix.</li>
+<li>Compiled binary: <code>swamp audit --help</code> lists <code>verify</code>; <code>swamp --help</code> does not list <code>audit</code>.</li>
+<li>Verification workflows passed on 42be4725 (10/10 steps, 3 skipped by guard); attestation p</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.153857.0-sha.fc65606b" rel="noopener">release v20261008.153857.0-sha.fc65606b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fc65606b3d732c3088342d358b615558589cc1cc" rel="noopener">fc65606b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2930" rel="noopener">#2930</a>𝗔 <a href="https://swamp-club.com/lab/3177" rel="noopener">lab#3177</a></div>
+</article>
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261008-153454-0-sha-476553ac">
+<h2><span class="tier A">A</span>deny grants match model types in any spelling; report spellings that match no type (swamp-club#3130) (#2929)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T15:36:41Z">2026-10-08T15:36:41Z</time></span><span>access</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(access): deny grants match model types in any spelling; report spellings that match no type (swamp-club#3130) (#2929)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3130: model-type spellings in grant <code>model:</code> / <code>access:</code> selectors and CEL <code>modelType</code> conditions were compared raw against the normalized type, so an admin-authored deny spelled any other way (<code>model:@Acme/*</code>, <code>model:AWS::EC2::*</code>, a bare <code>model:acme/*</code> for <code>@acme/...</code>) silently matched nothing.</p>
+<ul>
+<li><strong>Denies match their type in any spelling.</strong> A <code>model:</code> deny, and an <code>access:</code> deny on a control-plane record, also matches the type with case, <code>::</code>/<code>.</code> separators folded, and — for a pattern written as a type path (with <code>/</code> or <code>::</code>) — a leading <code>@</code> ignored. Patterns that may be model names (<code>prod-*</code>, <code>web.prod</code>, <code>@*</code>) keep their <code>@</code> as written. Instance names still match only as written.</li>
+<li><strong>Allows match only as written.</strong> No allow widens; property tests pin this.</li>
+<li><strong>Spellings are reported, naming the canonical form:</strong> a warning at grant create, once per grant at serve policy load (with the grant&#39;s source), and in <code>swamp serve check-config</code> for grant files. A finding never advises respelling a pattern that may name model names.</li>
+<li><strong>Grant create refuses</strong> a condition literal compared with <code>modelType</code> (or a control-plane access <code>name</code>) that no type is spelled as. Stored and file grants with one only warn, so existing deployments keep starting.</li>
+<li><strong><code>swamp serve check-config</code> checks grant files</strong> through the loade</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.153454.0-sha.476553ac" rel="noopener">release v20261008.153454.0-sha.476553ac</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/476553ac9e3cc761c4a02213169d1cdc92728f23" rel="noopener">476553ac</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2929" rel="noopener">#2929</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-151602-0-sha-c557b7a1">
+<h2><span class="tier A">A</span>the CLI schema lists aliases, hidden entries and whether an option takes a value (swamp-club#3175) (#2928)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T15:17:40Z">2026-10-08T15:17:40Z</time></span><span>help</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(help): the CLI schema lists aliases, hidden entries and whether an option takes a value (swamp-club#3175) (#2928)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp help</code> is the schema an argv parser reads, but it could not map an alias to its command, see a hidden command, or tell a value-taking option from a bare flag. swamp-uat carries three hand-copied tables to fill the gap. Fixes swamp-club#3175.</p>
+<ul>
+<li><strong>Commands</strong> carry <code>aliases</code> (empty when none) and <code>hidden</code>.</li>
+<li><strong>Options</strong> (both <code>options</code> and <code>globalOptions</code>) carry <code>takesValue</code>, <code>hidden</code>, and <code>value</code> — the declared spec such as <code>&lt;level:string&gt;</code> or <code>[tag:string]</code>, present only when a value is taken.</li>
+<li><strong><code>swamp help --include-hidden</code></strong> lists hidden commands and hidden options. Without it the command list is unchanged, so <code>first-rule</code> stays out of the default schema.</li>
+<li><strong>Alias paths resolve</strong>: <code>swamp help extension ls</code> returns the <code>list</code> schema.</li>
+</ul>
+<p>All fields are additive. The two duplicated option mappers in <code>cli_schema.ts</code> became one helper so the new fields are defined once.</p>
+<p><code>hidden</code> describes the node itself and is not inherited: a visible child of a hidden group reports <code>hidden: false</code>.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit tests in <code>src/cli/cli_schema_test.ts</code>: aliases (none, one, several), hidden commands and options with and without <code>includeHidden</code>, a hidden subtree root with a visible child, <code>takesValue</code>/<code>value</code> for a bare flag, a required value and an optional value, and the <code>globalOptions</code> path.</li>
+<li>Unit tests in `src/cli/commands/help</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.151602.0-sha.c557b7a1" rel="noopener">release v20261008.151602.0-sha.c557b7a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c557b7a17f995c4bc76527112f73cfe2c5d2d56c" rel="noopener">c557b7a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2928" rel="noopener">#2928</a>𝗔 <a href="https://swamp-club.com/lab/3175" rel="noopener">lab#3175</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-151134-0-sha-f7261fb0">
+<h2><span class="tier A">A</span>report a workflow schema failure as one readable line instead of the raw Zod dump (swamp-club#3062) (#2926)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T15:13:38Z">2026-10-08T15:13:38Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): report a workflow schema failure as one readable line instead of the raw Zod dump (swamp-club#3062) (#2926)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A workflow file that failed schema validation reached the user as the raw</p>
+<p>ZodError message: a multi-line JSON array of issues. `swamp workflow</p>
+<p>validate<code>, </code>get<code> and </code>create<code> crashed with an </code>[FTL]` dump and a stack</p>
+<p>trace, <code>workflow run</code> wrapped the dump in its failure message, and</p>
+<p><code>doctor workflows</code> printed it under the file (swamp-club#3062).</p>
+<p>The same file now reports one <code>path: message</code> entry per issue on a single</p>
+<p>line, with no stack trace:</p>
+<p>    workflow-repro.yaml: jobs[0].weight: Invalid input: expected number, received string</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong><code>WorkflowSchemaError</code></strong> (<code>src/domain/workflows/</code>), a <code>UserError</code> built</li>
+</ul>
+<p>  from a ZodError. Its message joins the issues on one line so it reads</p>
+<p>  cleanly inside the warnings and <code>(file: ...)</code> suffixes that embed it.</p>
+<p>  Paths and messages are passed through <code>escapeControlCharacters</code>: the</p>
+<p>  JSON dump escaped an author-controlled record key or unknown key name,</p>
+<p>  and plain text would otherwise print it to the terminal.</p>
+<ul>
+<li><strong><code>Workflow.fromData</code></strong> rethrows a ZodError as <code>WorkflowSchemaError</code>, so</li>
+</ul>
+<p>  every caller inherits the message. Other errors pass through unchanged.</p>
+<ul>
+<li><strong><code>YamlWorkflowRepository</code></strong> names the file on the <code>findById</code> and</li>
+</ul>
+<p>  <code>findByName</code> fast paths. The message carries the basename only and the</p>
+<p>  full path rides on the error through <code>markErrorPaths</code>, because</p>
+<p>  `sanitizeErro</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.151134.0-sha.f7261fb0" rel="noopener">release v20261008.151134.0-sha.f7261fb0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f7261fb037d99b408966ee7b497ad575a2c78900" rel="noopener">f7261fb0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2926" rel="noopener">#2926</a>𝗔 <a href="https://swamp-club.com/lab/3062" rel="noopener">lab#3062</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-150714-0-sha-8a135d77">
+<h2><span class="tier A">A</span>list-keys without a vault name reports the available vaults (swamp-club#2871) (#2927)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T15:09:06Z">2026-10-08T15:09:06Z</time></span><span>vault</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(vault): list-keys without a vault name reports the available vaults (swamp-club#2871) (#2927)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp vault list-keys</code> with no argument failed with Cliffy&#39;s bare <code>Missing argument(s): vault_name</code>, while a wrong vault name already listed the vaults that exist. Omitting the name now gets the same help:</p>
+<p>```</p>
+<p>$ swamp vault list-keys</p>
+<p>Error: Missing argument(s): vault_name. Available vaults: zwift-secrets</p>
+<p>```</p>
+<p>With no vaults configured it says so and points at <code>swamp vault create &lt;type&gt; &lt;name&gt;</code>.</p>
+<ul>
+<li><code>vault_name</code> is now an optional Cliffy argument, so the libswamp <code>vaultListKeys</code> generator owns the missing-name error for both the CLI and the serve path.</li>
+<li>The generator&#39;s empty-name branch calls <code>findAllVaults</code> and lists the names the same way the not-found branch does.</li>
+<li>The Cliffy wording is kept as the message prefix, so the existing swamp-uat assertion on it keeps passing.</li>
+<li><code>design/primitives/vaults.md</code> notes the behaviour.</li>
+</ul>
+<p>Over <code>--server</code> the vault names are returned only after the handler has authorized <code>read</code> on the vault resource, the same grant that already covers <code>vault.search</code> and the not-found listing.</p>
+<p>Fixes swamp-club#2871.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>src/libswamp/vaults/list_keys_test.ts</code>: exact messages for the empty name with and without configured vaults, and that no vault lookup or key listing happens.</li>
+<li><code>src/cli/commands/vault_list_keys_test.ts</code> (new): the argument is optional; a no-argument call against a temp repo throws a `UserError</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/vaults.md" rel="noopener">design/primitives/vaults.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.150714.0-sha.8a135d77" rel="noopener">release v20261008.150714.0-sha.8a135d77</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8a135d7714aa24c008b718fee38502cd907d2d42" rel="noopener">8a135d77</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2927" rel="noopener">#2927</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-143625-0-sha-ee36b409">
+<h2><span class="tier A">A</span>extension info shows the accepted warnings the registry returns (swamp-club#3158) (#2925)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T14:38:19Z">2026-10-08T14:38:19Z</time></span><span>extensions</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(extensions): extension info shows the accepted warnings the registry returns (swamp-club#3158) (#2925)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Since swamp-club#3095 (PR 1309, deployed), the registry returns the latest version&#39;s declared acceptances on <code>latestVersionDetail.acceptances</code>. <code>swamp extension info</code> dropped them, so an installer deciding at the CLI never saw what the author acknowledged. Now it shows them.</p>
+<ul>
+<li><strong>Parser</strong> (<code>src/domain/extensions/registry_acceptances.ts</code>): <code>parseRegistryAcceptances</code> turns the registry shape into <code>ExtensionAcceptances</code>. Nulls become absent fields and malformed entries are dropped. It keeps at most 500 entries, and <code>total</code> is never less than the number of entries read. It returns nothing when the field is absent (a registry from before #3095), null or malformed. Unit and property tests cover it.</li>
+<li><strong>Client:</strong> <code>getLatestVersionDetail</code> adds <code>contentMetadata.acceptances</code> only when the parser returns something. <code>--json</code> is therefore byte-identical to today for extensions without acceptances and for older registries.</li>
+<li><strong>Renderer:</strong> <code>info</code> prints an <code>Accepted warnings:</code> block in push&#39;s line format. The two line formatters are now shared with the push report, so push output is unchanged. Files show as archive paths. Control characters in text the author wrote are escaped. <code>and N more</code> appears when <code>total</code> exceeds the entries returned. The renderer reads acceptances only through the parser, so data relayed by a remote <code>swamp serve</code> gets the same</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.143625.0-sha.ee36b409" rel="noopener">release v20261008.143625.0-sha.ee36b409</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ee36b40988d5ccd563290a23776de3472db35ebd" rel="noopener">ee36b409</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2925" rel="noopener">#2925</a>𝗔 <a href="https://swamp-club.com/lab/3158" rel="noopener">lab#3158</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-141902-0-sha-fd2f2f50">
+<h2><span class="tier A">A</span>restricted-model-types gates model edit, delete, data delete/rename and changed workflow steps (swamp-club#3131) (#2924)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T14:21:03Z">2026-10-08T14:21:03Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): restricted-model-types gates model edit, delete, data delete/rename and changed workflow steps (swamp-club#3131) (#2924)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>restricted-model-types</code> required admin on <code>access:*</code> only to <strong>create</strong> or <strong>run</strong> a model of a restricted type. A non-admin with ordinary <code>write</code> could still rewrite a restricted model&#39;s definition, delete it, delete or rename its data, or change the inputs of a stored workflow step that runs it. Each of these changes what an admin later runs. Fixes swamp-club#3131.</p>
+<p>Each of these served operations now judges the <strong>stored</strong> type with <code>isAdminOnlyModelType</code>, so every spelling from swamp-club#3129 applies (<code>command/shell</code>, <code>@x/y</code>, <code>x/y</code>, <code>@X::Y</code>):</p>
+<ul>
+<li><code>model.edit</code> (including rename and retag), and <code>model.delete</code> by id or name</li>
+<li><code>data.delete</code> and <code>data.rename</code> on a restricted model&#39;s data, judged on the model&#39;s type</li>
+<li><code>workflow.edit</code> that changes a stored step — its inputs, method or <code>dependsOn</code>, or its name or job — when the step runs a restricted or control-plane model or computes its model target. <code>changedStepTargets</code> compares steps keyed by job and step name, so edits to other steps, inserted steps and retags stay open to non-admins.</li>
+</ul>
+<p>Refusals:</p>
+<ul>
+<li>Model edit and delete, and data delete and rename, return the same <code>unauthorized</code> error on <code>access:*</code> as create and run.</li>
+<li>A changed step is refused with <code>Access denied: a workflow step changed here runs …, which needs admin</code>.</li>
+</ul>
+<p>Unchanged:</p>
+<ul>
+<li>Reads.</li>
+<li><code>data.gc</code>, `data</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.141902.0-sha.fd2f2f50" rel="noopener">release v20261008.141902.0-sha.fd2f2f50</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fd2f2f50bd24dd389a296ac872ee4c1a6bd921b4" rel="noopener">fd2f2f50</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2924" rel="noopener">#2924</a>𝗔 <a href="https://swamp-club.com/lab/3172" rel="noopener">lab#3172</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-131818-0-sha-af4fd1dc">
+<h2><span class="tier A">A</span>detect Deno.Command on a syntax tree instead of matching Deno.Command( text (swamp-club#2965) (#2923)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T13:20:15Z">2026-10-08T13:20:15Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): detect Deno.Command on a syntax tree instead of matching Deno.Command( text (swamp-club#2965) (#2923)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The <code>deno-command</code> safety warning (run by <code>extension push</code>, <code>extension quality</code> and <code>extension pull</code>) fired on any <code>.ts</code> line containing the text <code>Deno.Command(</code>. Comments and strings warned, and aliased forms did not. It now reads the Babel syntax tree that swamp-club#2949 introduced for the dynamic-code check, and both rules share one parse per file.</p>
+<p><strong>Flagged:</strong></p>
+<ul>
+<li><code>Command</code> read off <code>Deno</code> in any spelling:</li>
+<li><code>Deno.Command</code>, <code>Deno?.Command</code>, <code>Deno[&quot;Command&quot;]</code></li>
+<li>through casts</li>
+<li>through a global object (<code>globalThis.Deno.Command</code>)</li>
+<li>off a member named <code>Deno</code> on any receiver (<code>g.Deno.Command</code>, <code>this.Deno.Command</code>)</li>
+<li><code>import C = Deno.Command</code></li>
+<li><code>Deno</code> itself used as a value, because an alias reaches <code>Command</code>:</li>
+<li><code>const d = Deno</code></li>
+<li>destructuring from <code>Deno</code></li>
+<li>passing or spreading it</li>
+<li><code>import D = Deno</code></li>
+<li>a <code>Deno</code> key destructured from a global-object pattern</li>
+<li><code>Reflect.get(globalThis, &quot;Deno&quot;)</code></li>
+<li><code>Deno[key]</code> with a non-literal key</li>
+</ul>
+<p><strong>Not flagged:</strong></p>
+<ul>
+<li>comments, strings, template text, regex literals and TypeScript types</li>
+<li><code>typeof Deno</code> and <code>&quot;x&quot; in Deno</code></li>
+<li>other <code>Deno</code> members (<code>Deno.env</code>)</li>
+<li>a member named <code>Command</code> on any other object (a CLI framework&#39;s <code>Command</code>)</li>
+<li>names that are declared rather than read (<code>import type</code>, re-exports, namespace exports)</li>
+</ul>
+<p>A file that does not parse keeps the old text check. F</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/references/publishing.md" rel="noopener">.claude/skills/swamp/references/extension-publish/references/publishing.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.131818.0-sha.af4fd1dc" rel="noopener">release v20261008.131818.0-sha.af4fd1dc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/af4fd1dc7969a8c6fe793aa0a62928bd0229e6ba" rel="noopener">af4fd1dc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2923" rel="noopener">#2923</a>𝗔 <a href="https://swamp-club.com/lab/2965" rel="noopener">lab#2965</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261008-000640-0-sha-1ce4bbeb">
 <h2><span class="tier A">A</span>worker prune finds worker models kept in the datastore (swamp-club#3155) (#2922)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -402,7 +899,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261007.204106.0-sha.32f46d7f" rel="noopener">release v20261007.204106.0-sha.32f46d7f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/32f46d7ff73b923f0e21ee24f0cc12b0212382ed" rel="noopener">32f46d7f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2910" rel="noopener">#2910</a>𝗔 <a href="https://swamp-club.com/lab/3111" rel="noopener">lab#3111</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261007-203413-0-sha-cb93fb25">
+<article class="item" id="release-swamp-club-swamp-v20261007-203413-0-sha-cb93fb25">
 <h2><span class="tier A">A</span>structured acceptances, Unresolved warnings and an optional reason (swamp-club#3107) (#2911)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-07T20:36:05Z">2026-10-07T20:36:05Z</time></span><span>extensions</span><span>feat</span></div>
@@ -3847,97 +4344,10 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.194016.0-sha.c0c751a1" rel="noopener">release v20261002.194016.0-sha.c0c751a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0c751a17fa31d512cb5ee65da19e47284547cd0" rel="noopener">c0c751a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2808" rel="noopener">#2808</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/2979" rel="noopener">lab#2979</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261008-192309-0-sha-9f2da9f2">
-<h2><span class="tier C">C</span>swamp 20261008.192309.0-sha.9f2da9f2</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T19:25:00Z">2026-10-08T19:25:00Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(access): a refused grant create leaves no definition behind, and a local create keeps --methods (swamp-club#3182, swamp-club#3187) (#2944)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3182 and swamp-club#3187.</p>
-<p><strong>#3182.</strong> <code>swamp access grant create</code> checked the action list and the <code>--on</code> selector before writing anything. The grant model checked the subject, the CEL condition and condition type literals (swamp-club#3130) only inside its <code>create</code> method, after the run had saved the grant&#39;s auto-definition. Each refused create therefore left an empty <code>grant-*</code> definition plus a failed run record and log behind, locally and on a server reached through <code>--server</code>.</p>
-<p>Those checks now live in <code>checkGrantCreateInputs</code> (<code>src/domain/models/access/grant_model.ts</code>). The model&#39;s <code>create</code> calls it, and so does the command, before it opens the repo, takes a lock or sends anything to a server. The model still enforces the checks itself. Messages are byte-identical, and a unit test pins that the function and <code>create</code> throw the same message for each refusal.</p>
-<p><strong>Failed run record:</strong> a refused create no longer starts a run, so no failed run record is kept. This matches how an unknown action is already refused.</p>
-<p><strong>#3187.</strong> The local create path never passed <code>--methods</code> to the model, so a grant scoped to some methods covered every method. The <code>--server</code> path already passed them. The local path now does too.</p>
-<h4 class="body-h">User-visible changes</h4>
-<ul>
-<li><strong>A refused create leaves nothing behind.</strong> That cover</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.192309.0-sha.9f2da9f2" rel="noopener">release v20261008.192309.0-sha.9f2da9f2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9f2da9f2" rel="noopener">9f2da9f2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2944" rel="noopener">#2944</a>𝗔 <a href="https://swamp-club.com/lab/3182" rel="noopener">lab#3182</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-191723-0-sha-9f9d52fa">
-<h2><span class="tier C">C</span>swamp 20261008.191723.0-sha.9f9d52fa</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T19:19:10Z">2026-10-08T19:19:10Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(serve): settle expired signal waits from the continuation sweep (swamp-club#3109) (#2943)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Under <code>swamp serve</code> nothing looked at a <code>wait_for_signal</code> deadline, so an expired wait stayed suspended and its <code>failed</code> handlers did not run until someone resumed the run (swamp-club#3109, split out of swamp-club#3094).</p>
-<ul>
-<li><strong>The continuation sweep settles expired waits.</strong> When <code>continueSettledRun</code> finds a run held back only by its waits, <code>settleExpiredWaits</code> settles each wait that is past its deadline, has no outcome and is still registered, through the write-once create. The run then continues on the path a signalled run takes, so the resume fails the step with <code>wait_timeout</code> and <code>failed</code> handlers run with no client action.</li>
-<li><strong><code>--max-signal-wait-timeout</code></strong> on serve (env <code>SWAMP_MAX_SIGNAL_WAIT_TIMEOUT</code>, config key <code>max-signal-wait-timeout</code>, at most one year). A step that asks for a longer wait fails when it would open the wait. A wait already open keeps its deadline.</li>
-</ul>
-<h4 class="body-h">Behaviour to know</h4>
-<ul>
-<li>Timeouts follow the workflow&#39;s auto-resume policy, as signals do. A workflow serve may not resume keeps its expired wait unsettled and its run suspended.</li>
-<li>The sweep settles only a wait whose registration can still be read, so a suspended copy of a run that ended or was deleted elsewhere never gets an outcome.</li>
-<li>Each instance reads the deadline against its own clock and the first create wins, so serve hosts need synchronised clocks. There is no skew allowance.</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.191723.0-sha.9f9d52fa" rel="noopener">release v20261008.191723.0-sha.9f9d52fa</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9f9d52fa" rel="noopener">9f9d52fa</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2943" rel="noopener">#2943</a>𝗔 <a href="https://swamp-club.com/lab/3109" rel="noopener">lab#3109</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-184215-0-sha-03ca42ca">
-<h2><span class="tier C">C</span>swamp 20261008.184215.0-sha.03ca42ca</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T18:44:19Z">2026-10-08T18:44:19Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(datastore): a hydrateFile success with no file fails as a contract violation, not a bare ENOENT (swamp-club#2477) (#2939)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2477.</p>
-<p>When a datastore&#39;s <code>hydrateFile</code> returned <code>true</code> but the file was not at the path core asked for, the retry read in <code>UnifiedDataRepository.getContent</code> surfaced a bare <code>No such file or directory</code>. Nothing said the datastore had claimed success, which hid swamp-club#2404 in production.</p>
-<ul>
-<li><code>buildHydrateFileHook</code> in <code>src/cli/repo_context.ts</code> now checks that the file exists after a <code>true</code> result. For a path inside the cache with no file, it logs a warning and throws <code>HydrateContractViolationError</code>.</li>
-<li>The new error (a <code>UserError</code>, code <code>datastore_hydrate_contract_violation</code>) names the datastore type, the cache-relative path it was given and the absolute path core read.</li>
-<li>Paths outside the cache are not checked, because there the datastore writes somewhere other than the path core reads.</li>
-<li>The <code>HydrateFileHook</code> contract in <code>design/enablers/datastores.md</code> and the doc comments extension authors read describe the new guarantee.</li>
-</ul>
-<p>The check is in the hook wrapper rather than in <code>getContent</code>: the wrapper is the only place that knows both paths and the datastore type, and every production consumer (data get, data query, workflow run and resume, serve) receives the wrapped hook.</p>
-<p>Not covered: <code>hydrateSentinel</code> in <code>src/libswamp/datastores/setup.ts</code> calls <code>hydrateFile</code> directly and still trusts an unverified `tr</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.184215.0-sha.03ca42ca" rel="noopener">release v20261008.184215.0-sha.03ca42ca</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/03ca42ca" rel="noopener">03ca42ca</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2939" rel="noopener">#2939</a>𝗔 <a href="https://swamp-club.com/lab/2477" rel="noopener">lab#2477</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-183339-0-sha-231eda34">
-<h2><span class="tier C">C</span>swamp 20261008.183339.0-sha.231eda34</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T18:35:28Z">2026-10-08T18:35:28Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(worker): a worker without a swamp-club credential passes the auth gate through its serve (swamp-club#3128) (#2942)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3128.</p>
-<h4 class="body-h">The problem</h4>
-<p>Since the auth gate (swamp-club#2231), <code>swamp worker connect</code> needs its own swamp-club credential to start. A remote worker already authenticates to its orchestrator with an enrollment token, and can also hold a server token. So the extra key adds no identity, and it forces a long-lived swamp-club key into every worker pod. Some teams keep worker pods credential-free on purpose, because the pods run LLM-driven code.</p>
-<h4 class="body-h">The fix</h4>
-<p>A worker passes the gate through the serve that enrolls it. This follows the nested-pass flow from swamp-club#2924 (PR #2781). The admitting serve takes the place of the live-ancestor check.</p>
-<ul>
-<li><strong>Gate timing.</strong> <code>worker connect</code> gets a new gate timing, <code>enrollment</code>. A <code>no_credential</code> block waits for enrollment instead of ending the run. Every other block still ends the run before the command starts, including a rejected key and a day of failing open. A worker with its own credential behaves exactly as before.</li>
-<li><strong>Protocol.</strong> A keyless worker sends <code>needsGatePass</code>. The serve replies with <code>gatePass</code>: the swamp-club-signed proof its own pass rests on, encoded as <code>&lt;proof&gt;.&lt;signature&gt;</code> with no pid. Both fields are optional, so the protocol version is unchanged. A serve with no pass to give refuses with <code>gate_pass_unavailable</code> before it redeems the token, so no enro</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.183339.0-sha.231eda34" rel="noopener">release v20261008.183339.0-sha.231eda34</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/231eda34" rel="noopener">231eda34</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2942" rel="noopener">#2942</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2781" rel="noopener">#2781</a>𝗔 <a href="https://swamp-club.com/lab/2231" rel="noopener">lab#2231</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-182818-0-sha-73f1374f">
-<h2><span class="tier C">C</span>swamp 20261008.182818.0-sha.73f1374f</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T18:30:07Z">2026-10-08T18:30:07Z</time></span></div>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261008-182818-0-sha-73f1374f">
+<h2><span class="tier C">C</span>bring the in-memory remote&#39;s defaults up to the S3/GCS datastore 2026.10.07.1 (swamp-club#2906) (#2941)</h2>
+<p class="lede">`test` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T18:30:07Z">2026-10-08T18:30:07Z</time></span><span>testing</span><span>test</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>test(testing): bring the in-memory remote&#39;s defaults up to the S3/GCS datastore 2026.10.07.1 (swamp-club#2906) (#2941)</li>
@@ -3957,12 +4367,12 @@ footer .ver{color:var(--acc)}
 <li><strong><code>ops()</code>.</strong> Records gain an optional `rem</li>
 </ul></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.182818.0-sha.73f1374f" rel="noopener">release v20261008.182818.0-sha.73f1374f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/73f1374f" rel="noopener">73f1374f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2941" rel="noopener">#2941</a>𝗔 <a href="https://swamp-club.com/lab/2906" rel="noopener">lab#2906</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.182818.0-sha.73f1374f" rel="noopener">release v20261008.182818.0-sha.73f1374f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/73f1374f81bb455bf229bf61a40d8b5f3e883735" rel="noopener">73f1374f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2941" rel="noopener">#2941</a>𝗔 <a href="https://swamp-club.com/lab/2906" rel="noopener">lab#2906</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261008-182207-0-sha-282268b7">
-<h2><span class="tier C">C</span>swamp 20261008.182207.0-sha.282268b7</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T18:23:58Z">2026-10-08T18:23:58Z</time></span></div>
+<h2><span class="tier C">C</span>pin that a resume refused on an open wait leaves no continuation claim (swamp-club#3183) (#2940)</h2>
+<p class="lede">`test` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T18:23:58Z">2026-10-08T18:23:58Z</time></span><span>workflows</span><span>test</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>test(workflows): pin that a resume refused on an open wait leaves no continuation claim (swamp-club#3183) (#2940)</li>
@@ -3979,417 +4389,7 @@ footer .ver{color:var(--acc)}
 <h4 class="body-h">Not covered</h4>
 <p>Concurre</p></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.182207.0-sha.282268b7" rel="noopener">release v20261008.182207.0-sha.282268b7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/282268b7" rel="noopener">282268b7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2940" rel="noopener">#2940</a>𝗔 <a href="https://swamp-club.com/lab/3183" rel="noopener">lab#3183</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-181122-0-sha-25d6c2db">
-<h2><span class="tier C">C</span>swamp 20261008.181122.0-sha.25d6c2db</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T18:13:14Z">2026-10-08T18:13:14Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(extensions): print the registry&#39;s warnings after a push (swamp-club#2900) (#2938)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>When the registry accepts a push but discards something the client sent, such as <code>contentMetadata</code> over a registry limit, it says so in a <code>warnings</code> array on the confirm response (shipped with swamp-club#2890). The CLI dropped that field, so the publisher never learned the listing came from the registry&#39;s own extraction. This prints it (swamp-club#2900).</p>
-<p>The registry half of the issue already shipped, so this is CLI-only.</p>
-<h4 class="body-h">Changes</h4>
-<ul>
-<li><strong>API client.</strong> <code>ExtensionApiClient.confirmPush</code> reads <code>warnings</code> and reduces it to text that is safe to print, returned as <code>{ messages, omitted }</code>:</li>
-<li>strings only; blank entries dropped;</li>
-<li>every control, format, line-separator and paragraph-separator character replaced with a space, so each warning is one line. This splits joined emoji into their parts;</li>
-<li>each warning cut at 1000 code points;</li>
-<li>at most 20 kept, with a count of the rest.</li>
-<li>A malformed field never fails a push that has already been published.</li>
-<li><strong>Push service.</strong> <code>extensionPush</code> carries them on the completed event as <code>registryWarnings</code>, only when there are some.</li>
-<li><strong>Log mode.</strong> A <code>Registry warnings:</code> block after the push summary, one line per warning, closed with <code>N more registry warnings omitted</code> when any were left out.</li>
-<li><strong><code>--json</code>.</strong> A new <code>registry</code> family under <code>warnings</code>, one <code>{ &quot;message&quot;: ... }</code> object per warning like the other families, and</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.181122.0-sha.25d6c2db" rel="noopener">release v20261008.181122.0-sha.25d6c2db</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/25d6c2db" rel="noopener">25d6c2db</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2938" rel="noopener">#2938</a>𝗔 <a href="https://swamp-club.com/lab/2900" rel="noopener">lab#2900</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-180526-0-sha-cbb99ed9">
-<h2><span class="tier C">C</span>swamp 20261008.180526.0-sha.cbb99ed9</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T18:07:26Z">2026-10-08T18:07:26Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(serve): resume signalled workflow runs automatically (swamp-club#3108) (#2932)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>swamp serve</code> now resumes a suspended run by itself once nothing on it is left to decide: every approval gate is decided, no step waits on a nested run, and every <code>wait_for_signal</code> step has an outcome. Before this, auto-resume only followed an approval, so a run released by a signal stayed suspended until someone ran <code>swamp workflow resume</code>.</p>
-<p><strong><code>signal</code> now releases the rest of a run where auto-resume is on.</strong> Auto-resume is still off by default: a workflow opts in with <code>autoResume: true</code>, or serve runs with <code>--auto-resume</code> for workflows that declare no inputs.</p>
-<p>How a run is continued:</p>
-<ul>
-<li>The instance that accepts the signal continues the run at once.</li>
-<li>A sweep at boot and every <code>--continuation-sweep-interval</code> (default <code>30s</code>, <code>0</code> disables) picks up a launch that was lost and runs signalled by a local command.</li>
-<li>A continuation claim in the control plane keeps two serve instances, or an instance and a local <code>workflow resume</code>, from resuming the same suspension. The sweep does not start on a synced datastore that has no shared atomic claim store.</li>
-<li>A resume that starts and fails is retried with a backoff from 30s to 15m, per suspension.</li>
-</ul>
-<p>What serve does not continue:</p>
-<ul>
-<li>A parent waiting on a nested run, except right after a caller with the right grant continued its child.</li>
-<li>A suspended copy of a run whose wait was cancelled.</li>
-<li>On a synced datastore, a run whose lo</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.180526.0-sha.cbb99ed9" rel="noopener">release v20261008.180526.0-sha.cbb99ed9</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cbb99ed9" rel="noopener">cbb99ed9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2932" rel="noopener">#2932</a>𝗔 <a href="https://swamp-club.com/lab/3108" rel="noopener">lab#3108</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-175630-0-sha-060b2a17">
-<h2><span class="tier C">C</span>swamp 20261008.175630.0-sha.060b2a17</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T17:58:20Z">2026-10-08T17:58:20Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(expressions): data.latest() no longer reports a false ambiguity after a model is retyped (swamp-club#2501) (#2937)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#2501.</p>
-<p>When a model&#39;s type is changed in place, it keeps its id, so the records it wrote under the old type stay in the catalog until <code>data prune</code> reclaims them. The spec-name ambiguity check behind <code>data.latest()</code> counted latest rows by model name and spec name only. That old-type row therefore counted as a second match, and any expression or workflow using <code>data.latest(&quot;&lt;model&gt;&quot;, &quot;&lt;name&gt;&quot;)</code> failed with:</p>
-<p>```</p>
-<p>Ambiguous data.latest() match: specName &quot;foo&quot; resolves to 2 data items (foo, foo)</p>
-<p>```</p>
-<p>This failed even though the lookup had already found the current type&#39;s record.</p>
-<ul>
-<li><code>DataQueryService.checkSpecNameAmbiguity</code> takes an optional resolved <code>{ modelType, modelId }</code>. When given, it skips rows that have that model id under a different type: the orphaned lineage that <code>data prune</code> already reclaims (swamp-club#1737).</li>
-<li><code>data.latest()</code> passes the type and id it found the record under, on the path that resolves the model&#39;s definition.</li>
-<li>Real ambiguity still throws: several data names under one spec at the current type, or rows under another model id. Callers that pass no identity behave exactly as before.</li>
-<li><code>design/enablers/data-query.md</code> describes the rule.</li>
-</ul>
-<h4 class="body-h">Behaviour left unchanged on purpose</h4>
-<p>These behave as they do today, and <code>data prune</code> clears the stale rows behind each one:</p>
-<ul>
-<li>`data.latest(&quot;*:&lt;model&gt;&quot;,</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.175630.0-sha.060b2a17" rel="noopener">release v20261008.175630.0-sha.060b2a17</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/060b2a17" rel="noopener">060b2a17</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2937" rel="noopener">#2937</a>𝗔 <a href="https://swamp-club.com/lab/2501" rel="noopener">lab#2501</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-174952-0-sha-6d62c1fc">
-<h2><span class="tier C">C</span>swamp 20261008.174952.0-sha.6d62c1fc</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T17:51:48Z">2026-10-08T17:51:48Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): push and quality warn when a model would be left out of the registry catalog (swamp-club#2486) (#2936)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>The push content metadata reads a model&#39;s <code>type</code> and <code>version</code> as string literals from a plain <code>export const model = { ... }</code> object, and silently dropped any entry point where either was unreadable. A model built by a shared factory and spread into the export (with only <code>type</code> repeated), or a type-annotated export, shipped in the archive and ran after pull, but the registry listed no model type for it — <code>contentTypes: [&quot;skills&quot;]</code>, invisible to <code>extension search --content-type models</code> — while push reported <code>modelCount: 10</code>.</p>
-<ul>
-<li><code>modelCatalogGap</code> (<code>src/domain/extensions/model_catalog_gap.ts</code>) says why a model entry point would not be catalogued: a type-annotated or non-object export, or no string-literal <code>type</code> / <code>version</code>. It is built on the extractors the catalog uses (the extractor now shares <code>extractModelExportBody</code>), and a property test pins that it reports a gap exactly when <code>extractContentMetadata</code> leaves the file out.</li>
-<li><code>runQualityFindings</code> reports one file-scoped <code>uncatalogued-model</code> warning per such entry point, so <code>extension push</code> (including <code>--dry-run</code> and <code>--json</code>) and <code>extension quality</code> both show it, with a remediation. Like <code>bare-specifiers</code> it cannot be accepted.</li>
-<li>No extractor, error gate or exit code changes. Like any unaccepted warning it prompts an interactive push; <code>--yes</code>/<code>--force</code> waive it, dry runs and</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.174952.0-sha.6d62c1fc" rel="noopener">release v20261008.174952.0-sha.6d62c1fc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6d62c1fc" rel="noopener">6d62c1fc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2936" rel="noopener">#2936</a>𝗔 <a href="https://swamp-club.com/lab/2486" rel="noopener">lab#2486</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-174305-0-sha-2d55d5e3">
-<h2><span class="tier C">C</span>swamp 20261008.174305.0-sha.2d55d5e3</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T17:44:55Z">2026-10-08T17:44:55Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): stop concurrent first runs logging a failed catalog migration and wiping the catalog (swamp-club#2671) (#2935)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>When several swamp processes started at once in a fresh repo, one could log:</p>
-<p>```</p>
-<p>[WRN] Catalog migration to per-extension-aggregate-v3 failed (Error: database is locked …); falling back to cold-start rebuild</p>
-<p>[WRN] Catalog cold-start rebuild complete; loaders will repopulate from disk on next access</p>
-<p>```</p>
-<p><code>runDataMigrationTransaction</code> opened a deferred <code>BEGIN</code>, read the catalog, then blocked on its first write. When another process committed meanwhile, the stale WAL snapshot failed with <code>database is locked</code>, and <code>busy_timeout</code> does not retry that. The catch treated the error as a data failure: it warned and ran the cold-start rebuild, which empties the catalog. On a fresh catalog that is only noise. On a populated pre-v3 catalog being upgraded, it would wipe every row and force a full re-import.</p>
-<p>The migration now:</p>
-<ul>
-<li>takes the write lock up front with <code>BEGIN IMMEDIATE</code>, as <code>CatalogStore</code> already does;</li>
-<li>re-checks its marker under the lock, and skips work another process committed while it waited;</li>
-<li>rolls back and rethrows lock errors, so <code>initializeWithRetry</code> retries them with backoff, as its docs already said it did.</li>
-</ul>
-<p>Only real migration failures still fall back to the cold-start rebuild.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>Three unit tests use the file&#39;s existing private-access pattern:</li>
-<li>a lock error rethrows and leaves rows, popu</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.174305.0-sha.2d55d5e3" rel="noopener">release v20261008.174305.0-sha.2d55d5e3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2d55d5e3" rel="noopener">2d55d5e3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2935" rel="noopener">#2935</a>𝗔 <a href="https://swamp-club.com/lab/2671" rel="noopener">lab#2671</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-173829-0-sha-b4f52e8e">
-<h2><span class="tier C">C</span>swamp 20261008.173829.0-sha.b4f52e8e</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T17:40:49Z">2026-10-08T17:40:49Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(datastore): datastore compact works on Windows, and Windows CI passes on main again (swamp-club#3167) (#2934)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Windows Compatibility CI has failed on every main commit since e7a55150 (2026-10-05). I bisected the failures to their introducing commits across 43 run logs. Two of the failures are product bugs; the rest are test portability or timing bugs.</p>
-<p><strong>Product fixes</strong></p>
-<ul>
-<li><code>swamp datastore compact</code> failed on every run on Windows. It opened a second catalog connection next to <code>repoContext.catalogStore</code>. With that connection open, <code>vacuum()</code> couldn&#39;t rename the rebuilt catalog into place, and <code>close()</code> then hid the real error behind &quot;database is not open&quot;.</li>
-<li>Compact now runs through the repo context&#39;s own store.</li>
-<li>A new fitness rule (<code>integration/catalog_connection_rules_test.ts</code>) stops a second store from coming back.</li>
-<li><code>CatalogStore.vacuum()</code> no longer leaves the store closed when the swap fails:</li>
-<li>If the original file is intact, it reopens it and returns <code>false</code>, with a warning.</li>
-<li>If the original is gone, it retries moving the rebuilt file into place.</li>
-<li>If that also fails, it rethrows the real error and marks the store closed.</li>
-<li>The <code>upstream_extensions.json</code> lock now retries when Windows reports <code>PermissionDenied</code> for a lock file another writer is still deleting. A <code>PermissionDenied</code> that outlasts every retry is rethrown. The decision is one OS-parameterised function (<code>lockAttemptOutcome</code>), and its Windows cases are unit-tested</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.173829.0-sha.b4f52e8e" rel="noopener">release v20261008.173829.0-sha.b4f52e8e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b4f52e8e" rel="noopener">b4f52e8e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2934" rel="noopener">#2934</a>𝗔 <a href="https://swamp-club.com/lab/3167" rel="noopener">lab#3167</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-154432-0-sha-3daa8254">
-<h2><span class="tier C">C</span>swamp 20261008.154432.0-sha.3daa8254</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T15:46:13Z">2026-10-08T15:46:13Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): a managedConfig instance retries a failed boot hydration, then refuses to start (swamp-club#3180) (#2931)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>When <code>swamp serve</code> failed to hydrate its local cache at boot, the failure was logged at WARN and serve started on whatever the cache held. A <code>managedConfig</code> instance has no state but its datastore, so it then served from a partial or empty cache.</p>
-<p>Under <code>managedConfig</code>, boot hydration is now required:</p>
-<ul>
-<li>It is tried up to three times in the same process, each attempt with the full <code>--hydration-timeout</code>, with a 1s then 2s pause between attempts.</li>
-<li>If every attempt fails, serve refuses to start with an error naming <code>--hydration-timeout</code> and <code>SWAMP_HYDRATION_TIMEOUT</code>.</li>
-<li>Retrying in process keeps the files earlier attempts downloaded, so a store too large for one timeout converges instead of failing identically on every restart of a stateless pod.</li>
-</ul>
-<p>Without <code>managedConfig</code> the behaviour is unchanged: one attempt, a WARN, and serve starts.</p>
-<p>Split out of swamp-club#2435. The lazy-hydration part of that issue is not in this PR; it waits on swamp-club#3178 and swamp-club#3179.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>Five unit tests on <code>hydrateLocalCache</code> with an injected backoff and per-attempt signals: retry then success, catalog invalidation when the retry pulls nothing more, throw after the last attempt, custom attempt count, non-finite attempt count.</li>
-<li>Live against MinIO with the compiled binary, pausing the container mid-hydration with a 1s timeout:</li>
-</ul>
-<p>  -</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.154432.0-sha.3daa8254" rel="noopener">release v20261008.154432.0-sha.3daa8254</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3daa8254" rel="noopener">3daa8254</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2931" rel="noopener">#2931</a>𝗔 <a href="https://swamp-club.com/lab/2435" rel="noopener">lab#2435</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-153857-0-sha-fc65606b">
-<h2><span class="tier C">C</span>swamp 20261008.153857.0-sha.fc65606b</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T15:40:53Z">2026-10-08T15:40:53Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(cli): hide audit where it is defined so audit verify is no longer hidden (swamp-club#3177) (#2930)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3177.</p>
-<p><code>registerCommands</code> registered audit with <code>auditCommand.hidden()</code>. Cliffy applies <code>hidden()</code> to the command a chain last selected, and <code>auditCommand</code> ends its chain with <code>.command(&quot;verify&quot;, ...)</code>, so the first registration hid <code>audit verify</code> rather than <code>audit</code>. <code>audit</code> itself was hidden only because <code>registerCommands</code> runs twice per process and the first registration resets the selection.</p>
-<ul>
-<li><code>src/cli/commands/audit.ts</code>: call <code>.hidden()</code> in the <code>auditCommand</code> builder, ahead of the subcommand chain, with a doc comment explaining why it must stay there.</li>
-<li><code>src/cli/mod.ts</code>: register the command plainly as <code>.command(&quot;audit&quot;, auditCommand)</code>.</li>
-<li><code>src/cli/commands/audit_test.ts</code> (new): after a single registration, <code>audit</code> is hidden and all seven subcommands, including <code>verify</code>, are visible.</li>
-</ul>
-<h4 class="body-h">User-visible change</h4>
-<p><code>swamp audit --help</code>, the unknown-subcommand listing and shell completions now include <code>verify</code>. <code>audit</code> stays hidden from <code>swamp --help</code> and from the <code>swamp help</code> JSON schema, as it was in released binaries.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>New unit test fails against the unfixed code (audit visible after one registration) and passes with the fix.</li>
-<li>Compiled binary: <code>swamp audit --help</code> lists <code>verify</code>; <code>swamp --help</code> does not list <code>audit</code>.</li>
-<li>Verification workflows passed on 42be4725 (10/10 steps, 3 skipped by guard); attestation p</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.153857.0-sha.fc65606b" rel="noopener">release v20261008.153857.0-sha.fc65606b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fc65606b" rel="noopener">fc65606b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2930" rel="noopener">#2930</a>𝗔 <a href="https://swamp-club.com/lab/3177" rel="noopener">lab#3177</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-153454-0-sha-476553ac">
-<h2><span class="tier C">C</span>swamp 20261008.153454.0-sha.476553ac</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T15:36:41Z">2026-10-08T15:36:41Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(access): deny grants match model types in any spelling; report spellings that match no type (swamp-club#3130) (#2929)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3130: model-type spellings in grant <code>model:</code> / <code>access:</code> selectors and CEL <code>modelType</code> conditions were compared raw against the normalized type, so an admin-authored deny spelled any other way (<code>model:@Acme/*</code>, <code>model:AWS::EC2::*</code>, a bare <code>model:acme/*</code> for <code>@acme/...</code>) silently matched nothing.</p>
-<ul>
-<li><strong>Denies match their type in any spelling.</strong> A <code>model:</code> deny, and an <code>access:</code> deny on a control-plane record, also matches the type with case, <code>::</code>/<code>.</code> separators folded, and — for a pattern written as a type path (with <code>/</code> or <code>::</code>) — a leading <code>@</code> ignored. Patterns that may be model names (<code>prod-*</code>, <code>web.prod</code>, <code>@*</code>) keep their <code>@</code> as written. Instance names still match only as written.</li>
-<li><strong>Allows match only as written.</strong> No allow widens; property tests pin this.</li>
-<li><strong>Spellings are reported, naming the canonical form:</strong> a warning at grant create, once per grant at serve policy load (with the grant&#39;s source), and in <code>swamp serve check-config</code> for grant files. A finding never advises respelling a pattern that may name model names.</li>
-<li><strong>Grant create refuses</strong> a condition literal compared with <code>modelType</code> (or a control-plane access <code>name</code>) that no type is spelled as. Stored and file grants with one only warn, so existing deployments keep starting.</li>
-<li><strong><code>swamp serve check-config</code> checks grant files</strong> through the loade</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.153454.0-sha.476553ac" rel="noopener">release v20261008.153454.0-sha.476553ac</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/476553ac" rel="noopener">476553ac</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2929" rel="noopener">#2929</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-151602-0-sha-c557b7a1">
-<h2><span class="tier C">C</span>swamp 20261008.151602.0-sha.c557b7a1</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T15:17:40Z">2026-10-08T15:17:40Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(help): the CLI schema lists aliases, hidden entries and whether an option takes a value (swamp-club#3175) (#2928)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>swamp help</code> is the schema an argv parser reads, but it could not map an alias to its command, see a hidden command, or tell a value-taking option from a bare flag. swamp-uat carries three hand-copied tables to fill the gap. Fixes swamp-club#3175.</p>
-<ul>
-<li><strong>Commands</strong> carry <code>aliases</code> (empty when none) and <code>hidden</code>.</li>
-<li><strong>Options</strong> (both <code>options</code> and <code>globalOptions</code>) carry <code>takesValue</code>, <code>hidden</code>, and <code>value</code> — the declared spec such as <code>&lt;level:string&gt;</code> or <code>[tag:string]</code>, present only when a value is taken.</li>
-<li><strong><code>swamp help --include-hidden</code></strong> lists hidden commands and hidden options. Without it the command list is unchanged, so <code>first-rule</code> stays out of the default schema.</li>
-<li><strong>Alias paths resolve</strong>: <code>swamp help extension ls</code> returns the <code>list</code> schema.</li>
-</ul>
-<p>All fields are additive. The two duplicated option mappers in <code>cli_schema.ts</code> became one helper so the new fields are defined once.</p>
-<p><code>hidden</code> describes the node itself and is not inherited: a visible child of a hidden group reports <code>hidden: false</code>.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>Unit tests in <code>src/cli/cli_schema_test.ts</code>: aliases (none, one, several), hidden commands and options with and without <code>includeHidden</code>, a hidden subtree root with a visible child, <code>takesValue</code>/<code>value</code> for a bare flag, a required value and an optional value, and the <code>globalOptions</code> path.</li>
-<li>Unit tests in `src/cli/commands/help</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.151602.0-sha.c557b7a1" rel="noopener">release v20261008.151602.0-sha.c557b7a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c557b7a1" rel="noopener">c557b7a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2928" rel="noopener">#2928</a>𝗔 <a href="https://swamp-club.com/lab/3175" rel="noopener">lab#3175</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-151134-0-sha-f7261fb0">
-<h2><span class="tier C">C</span>swamp 20261008.151134.0-sha.f7261fb0</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T15:13:38Z">2026-10-08T15:13:38Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): report a workflow schema failure as one readable line instead of the raw Zod dump (swamp-club#3062) (#2926)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>A workflow file that failed schema validation reached the user as the raw</p>
-<p>ZodError message: a multi-line JSON array of issues. `swamp workflow</p>
-<p>validate<code>, </code>get<code> and </code>create<code> crashed with an </code>[FTL]` dump and a stack</p>
-<p>trace, <code>workflow run</code> wrapped the dump in its failure message, and</p>
-<p><code>doctor workflows</code> printed it under the file (swamp-club#3062).</p>
-<p>The same file now reports one <code>path: message</code> entry per issue on a single</p>
-<p>line, with no stack trace:</p>
-<p>    workflow-repro.yaml: jobs[0].weight: Invalid input: expected number, received string</p>
-<h4 class="body-h">Changes</h4>
-<ul>
-<li><strong><code>WorkflowSchemaError</code></strong> (<code>src/domain/workflows/</code>), a <code>UserError</code> built</li>
-</ul>
-<p>  from a ZodError. Its message joins the issues on one line so it reads</p>
-<p>  cleanly inside the warnings and <code>(file: ...)</code> suffixes that embed it.</p>
-<p>  Paths and messages are passed through <code>escapeControlCharacters</code>: the</p>
-<p>  JSON dump escaped an author-controlled record key or unknown key name,</p>
-<p>  and plain text would otherwise print it to the terminal.</p>
-<ul>
-<li><strong><code>Workflow.fromData</code></strong> rethrows a ZodError as <code>WorkflowSchemaError</code>, so</li>
-</ul>
-<p>  every caller inherits the message. Other errors pass through unchanged.</p>
-<ul>
-<li><strong><code>YamlWorkflowRepository</code></strong> names the file on the <code>findById</code> and</li>
-</ul>
-<p>  <code>findByName</code> fast paths. The message carries the basename only and the</p>
-<p>  full path rides on the error through <code>markErrorPaths</code>, because</p>
-<p>  `sanitizeErro</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.151134.0-sha.f7261fb0" rel="noopener">release v20261008.151134.0-sha.f7261fb0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f7261fb0" rel="noopener">f7261fb0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2926" rel="noopener">#2926</a>𝗔 <a href="https://swamp-club.com/lab/3062" rel="noopener">lab#3062</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-150714-0-sha-8a135d77">
-<h2><span class="tier C">C</span>swamp 20261008.150714.0-sha.8a135d77</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T15:09:06Z">2026-10-08T15:09:06Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(vault): list-keys without a vault name reports the available vaults (swamp-club#2871) (#2927)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>swamp vault list-keys</code> with no argument failed with Cliffy&#39;s bare <code>Missing argument(s): vault_name</code>, while a wrong vault name already listed the vaults that exist. Omitting the name now gets the same help:</p>
-<p>```</p>
-<p>$ swamp vault list-keys</p>
-<p>Error: Missing argument(s): vault_name. Available vaults: zwift-secrets</p>
-<p>```</p>
-<p>With no vaults configured it says so and points at <code>swamp vault create &lt;type&gt; &lt;name&gt;</code>.</p>
-<ul>
-<li><code>vault_name</code> is now an optional Cliffy argument, so the libswamp <code>vaultListKeys</code> generator owns the missing-name error for both the CLI and the serve path.</li>
-<li>The generator&#39;s empty-name branch calls <code>findAllVaults</code> and lists the names the same way the not-found branch does.</li>
-<li>The Cliffy wording is kept as the message prefix, so the existing swamp-uat assertion on it keeps passing.</li>
-<li><code>design/primitives/vaults.md</code> notes the behaviour.</li>
-</ul>
-<p>Over <code>--server</code> the vault names are returned only after the handler has authorized <code>read</code> on the vault resource, the same grant that already covers <code>vault.search</code> and the not-found listing.</p>
-<p>Fixes swamp-club#2871.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li><code>src/libswamp/vaults/list_keys_test.ts</code>: exact messages for the empty name with and without configured vaults, and that no vault lookup or key listing happens.</li>
-<li><code>src/cli/commands/vault_list_keys_test.ts</code> (new): the argument is optional; a no-argument call against a temp repo throws a `UserError</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.150714.0-sha.8a135d77" rel="noopener">release v20261008.150714.0-sha.8a135d77</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8a135d77" rel="noopener">8a135d77</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2927" rel="noopener">#2927</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-143625-0-sha-ee36b409">
-<h2><span class="tier C">C</span>swamp 20261008.143625.0-sha.ee36b409</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T14:38:19Z">2026-10-08T14:38:19Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(extensions): extension info shows the accepted warnings the registry returns (swamp-club#3158) (#2925)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Since swamp-club#3095 (PR 1309, deployed), the registry returns the latest version&#39;s declared acceptances on <code>latestVersionDetail.acceptances</code>. <code>swamp extension info</code> dropped them, so an installer deciding at the CLI never saw what the author acknowledged. Now it shows them.</p>
-<ul>
-<li><strong>Parser</strong> (<code>src/domain/extensions/registry_acceptances.ts</code>): <code>parseRegistryAcceptances</code> turns the registry shape into <code>ExtensionAcceptances</code>. Nulls become absent fields and malformed entries are dropped. It keeps at most 500 entries, and <code>total</code> is never less than the number of entries read. It returns nothing when the field is absent (a registry from before #3095), null or malformed. Unit and property tests cover it.</li>
-<li><strong>Client:</strong> <code>getLatestVersionDetail</code> adds <code>contentMetadata.acceptances</code> only when the parser returns something. <code>--json</code> is therefore byte-identical to today for extensions without acceptances and for older registries.</li>
-<li><strong>Renderer:</strong> <code>info</code> prints an <code>Accepted warnings:</code> block in push&#39;s line format. The two line formatters are now shared with the push report, so push output is unchanged. Files show as archive paths. Control characters in text the author wrote are escaped. <code>and N more</code> appears when <code>total</code> exceeds the entries returned. The renderer reads acceptances only through the parser, so data relayed by a remote <code>swamp serve</code> gets the same</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.143625.0-sha.ee36b409" rel="noopener">release v20261008.143625.0-sha.ee36b409</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ee36b409" rel="noopener">ee36b409</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2925" rel="noopener">#2925</a>𝗔 <a href="https://swamp-club.com/lab/3158" rel="noopener">lab#3158</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-141902-0-sha-fd2f2f50">
-<h2><span class="tier C">C</span>swamp 20261008.141902.0-sha.fd2f2f50</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T14:21:03Z">2026-10-08T14:21:03Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): restricted-model-types gates model edit, delete, data delete/rename and changed workflow steps (swamp-club#3131) (#2924)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>restricted-model-types</code> required admin on <code>access:*</code> only to <strong>create</strong> or <strong>run</strong> a model of a restricted type. A non-admin with ordinary <code>write</code> could still rewrite a restricted model&#39;s definition, delete it, delete or rename its data, or change the inputs of a stored workflow step that runs it. Each of these changes what an admin later runs. Fixes swamp-club#3131.</p>
-<p>Each of these served operations now judges the <strong>stored</strong> type with <code>isAdminOnlyModelType</code>, so every spelling from swamp-club#3129 applies (<code>command/shell</code>, <code>@x/y</code>, <code>x/y</code>, <code>@X::Y</code>):</p>
-<ul>
-<li><code>model.edit</code> (including rename and retag), and <code>model.delete</code> by id or name</li>
-<li><code>data.delete</code> and <code>data.rename</code> on a restricted model&#39;s data, judged on the model&#39;s type</li>
-<li><code>workflow.edit</code> that changes a stored step — its inputs, method or <code>dependsOn</code>, or its name or job — when the step runs a restricted or control-plane model or computes its model target. <code>changedStepTargets</code> compares steps keyed by job and step name, so edits to other steps, inserted steps and retags stay open to non-admins.</li>
-</ul>
-<p>Refusals:</p>
-<ul>
-<li>Model edit and delete, and data delete and rename, return the same <code>unauthorized</code> error on <code>access:*</code> as create and run.</li>
-<li>A changed step is refused with <code>Access denied: a workflow step changed here runs …, which needs admin</code>.</li>
-</ul>
-<p>Unchanged:</p>
-<ul>
-<li>Reads.</li>
-<li><code>data.gc</code>, `data</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.141902.0-sha.fd2f2f50" rel="noopener">release v20261008.141902.0-sha.fd2f2f50</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fd2f2f50" rel="noopener">fd2f2f50</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2924" rel="noopener">#2924</a>𝗔 <a href="https://swamp-club.com/lab/3172" rel="noopener">lab#3172</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-131818-0-sha-af4fd1dc">
-<h2><span class="tier C">C</span>swamp 20261008.131818.0-sha.af4fd1dc</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T13:20:15Z">2026-10-08T13:20:15Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): detect Deno.Command on a syntax tree instead of matching Deno.Command( text (swamp-club#2965) (#2923)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>The <code>deno-command</code> safety warning (run by <code>extension push</code>, <code>extension quality</code> and <code>extension pull</code>) fired on any <code>.ts</code> line containing the text <code>Deno.Command(</code>. Comments and strings warned, and aliased forms did not. It now reads the Babel syntax tree that swamp-club#2949 introduced for the dynamic-code check, and both rules share one parse per file.</p>
-<p><strong>Flagged:</strong></p>
-<ul>
-<li><code>Command</code> read off <code>Deno</code> in any spelling:</li>
-<li><code>Deno.Command</code>, <code>Deno?.Command</code>, <code>Deno[&quot;Command&quot;]</code></li>
-<li>through casts</li>
-<li>through a global object (<code>globalThis.Deno.Command</code>)</li>
-<li>off a member named <code>Deno</code> on any receiver (<code>g.Deno.Command</code>, <code>this.Deno.Command</code>)</li>
-<li><code>import C = Deno.Command</code></li>
-<li><code>Deno</code> itself used as a value, because an alias reaches <code>Command</code>:</li>
-<li><code>const d = Deno</code></li>
-<li>destructuring from <code>Deno</code></li>
-<li>passing or spreading it</li>
-<li><code>import D = Deno</code></li>
-<li>a <code>Deno</code> key destructured from a global-object pattern</li>
-<li><code>Reflect.get(globalThis, &quot;Deno&quot;)</code></li>
-<li><code>Deno[key]</code> with a non-literal key</li>
-</ul>
-<p><strong>Not flagged:</strong></p>
-<ul>
-<li>comments, strings, template text, regex literals and TypeScript types</li>
-<li><code>typeof Deno</code> and <code>&quot;x&quot; in Deno</code></li>
-<li>other <code>Deno</code> members (<code>Deno.env</code>)</li>
-<li>a member named <code>Command</code> on any other object (a CLI framework&#39;s <code>Command</code>)</li>
-<li>names that are declared rather than read (<code>import type</code>, re-exports, namespace exports)</li>
-</ul>
-<p>A file that does not parse keeps the old text check. F</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.131818.0-sha.af4fd1dc" rel="noopener">release v20261008.131818.0-sha.af4fd1dc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/af4fd1dc" rel="noopener">af4fd1dc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2923" rel="noopener">#2923</a>𝗔 <a href="https://swamp-club.com/lab/2965" rel="noopener">lab#2965</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.182207.0-sha.282268b7" rel="noopener">release v20261008.182207.0-sha.282268b7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/282268b770d69482a07bfe90f0ee4bdc19e6bee5" rel="noopener">282268b7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2940" rel="noopener">#2940</a>𝗔 <a href="https://swamp-club.com/lab/3183" rel="noopener">lab#3183</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261006-214330-0-sha-d2cafb4e">
 <h2><span class="tier C">C</span>vault.get expressions are an author capability over serve (swamp-club#3086) (#2888)</h2>
@@ -4477,12 +4477,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>181 items across 1 source(s) in this window:
-0 critical, 147 notable, 9 routine,
-25 minor.</p>
-<ul><li><strong>fix</strong> — 112</li><li><strong>feat</strong> — 35</li><li><strong>changes</strong> — 21</li><li><strong>refactor</strong> — 9</li><li><strong>docs</strong> — 2</li><li><strong>test</strong> — 2</li></ul></section>
+0 critical, 166 notable, 9 routine,
+6 minor.</p>
+<ul><li><strong>fix</strong> — 124</li><li><strong>feat</strong> — 42</li><li><strong>refactor</strong> — 9</li><li><strong>test</strong> — 4</li><li><strong>docs</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T20:02:50.647Z">2026-10-08T20:02:50.647Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T21:02:39.541Z">2026-10-08T21:02:39.541Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

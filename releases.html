@@ -67,8 +67,47 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261008-225927-0-sha-6cb5098b"><span class="tier A">A</span>run scheduled workflows concurrently and report queue delay </a><a href="#release-swamp-club-swamp-v20261008-225550-0-sha-3aa438b6"><span class="tier A">A</span>show signal waits to remote clients and the dashboard (swamp</a><a href="#release-swamp-club-swamp-v20261008-214314-0-sha-fbfa141c"><span class="tier A">A</span>a type-path deny covers a model type that is only an @ (swam</a><a href="#release-swamp-club-swamp-v20261008-212427-0-sha-128d7de4"><span class="tier A">A</span>extension source add imports the directory resolvers from th</a><a href="#release-swamp-club-swamp-v20261008-202431-0-sha-3a59b162"><span class="tier A">A</span>lazy hydration readers read current content, including other</a><a href="#release-swamp-club-swamp-v20261008-202013-0-sha-a7ab3774"><span class="tier A">A</span>-q silences the update banners, autoupdate warnings and prog</a><a href="#release-swamp-club-swamp-v20261008-201612-0-sha-97969248"><span class="tier A">A</span>list expired approval gates and cancel them from the dashboa</a><a href="#release-swamp-club-swamp-v20261008-201010-0-sha-c4e65dbe"><span class="tier A">A</span>refuse a datastore marked with a newer format before writing</a><a href="#release-swamp-club-swamp-v20261008-200633-0-sha-6a954e74"><span class="tier A">A</span>a cancelled method run records what cancelled it, and guard </a><a href="#release-swamp-club-swamp-v20261008-192309-0-sha-9f2da9f2"><span class="tier A">A</span>a refused grant create leaves no definition behind, and a lo</a><a href="#release-swamp-club-swamp-v20261008-191723-0-sha-9f9d52fa"><span class="tier A">A</span>settle expired signal waits from the continuation sweep (swa</a><a href="#release-swamp-club-swamp-v20261008-184215-0-sha-03ca42ca"><span class="tier A">A</span>a hydrateFile success with no file fails as a contract viola</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261009-154711-0-sha-8df63c9b"><span class="tier A">A</span>push and promote know when a published version is yanked (sw</a><a href="#release-swamp-club-swamp-v20261009-153540-0-sha-ecb7a372"><span class="tier A">A</span>walk repository directories in name order so listings match </a><a href="#release-swamp-club-swamp-v20261008-225927-0-sha-6cb5098b"><span class="tier A">A</span>run scheduled workflows concurrently and report queue delay </a><a href="#release-swamp-club-swamp-v20261008-225550-0-sha-3aa438b6"><span class="tier A">A</span>show signal waits to remote clients and the dashboard (swamp</a><a href="#release-swamp-club-swamp-v20261008-214314-0-sha-fbfa141c"><span class="tier A">A</span>a type-path deny covers a model type that is only an @ (swam</a><a href="#release-swamp-club-swamp-v20261008-212427-0-sha-128d7de4"><span class="tier A">A</span>extension source add imports the directory resolvers from th</a><a href="#release-swamp-club-swamp-v20261008-202431-0-sha-3a59b162"><span class="tier A">A</span>lazy hydration readers read current content, including other</a><a href="#release-swamp-club-swamp-v20261008-202013-0-sha-a7ab3774"><span class="tier A">A</span>-q silences the update banners, autoupdate warnings and prog</a><a href="#release-swamp-club-swamp-v20261008-201612-0-sha-97969248"><span class="tier A">A</span>list expired approval gates and cancel them from the dashboa</a><a href="#release-swamp-club-swamp-v20261008-201010-0-sha-c4e65dbe"><span class="tier A">A</span>refuse a datastore marked with a newer format before writing</a><a href="#release-swamp-club-swamp-v20261008-200633-0-sha-6a954e74"><span class="tier A">A</span>a cancelled method run records what cancelled it, and guard </a><a href="#release-swamp-club-swamp-v20261008-192309-0-sha-9f2da9f2"><span class="tier A">A</span>a refused grant create leaves no definition behind, and a lo</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261009-154711-0-sha-8df63c9b">
+<h2><span class="tier A">A</span>push and promote know when a published version is yanked (swamp-club#3138) (#2957)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-09T15:48:57Z">2026-10-09T15:48:57Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): push and promote know when a published version is yanked (swamp-club#3138) (#2957)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3138.</p>
+<p>The CLI treated a yanked version like any other published version. The registry lookup dropped the yank, so <code>extension push</code> offered to promote a yanked version from a lower channel, and <code>extension promote</code> sent it to the registry.</p>
+<p><strong>Lookup.</strong> <code>findPublishedVersion</code> keeps <code>yankedAt</code> and <code>yankReason</code> from <code>/versions</code>. A yanked version still answers: its number stays taken.</p>
+<p><strong>Push.</strong> The version-exists check fails for a yanked version on any channel with a message that names the channel, the yank and its reason, and never the promote command. An interactive push offers bump or stop only; <code>--yes</code>, <code>--force</code> and <code>--json</code> refuse with that message. The error details gain <code>existingYanked</code> and <code>existingYankReason</code>.</p>
+<p><strong>Promote.</strong> The manifest form already looks the version up, so it now refuses a yanked version before calling the registry, in the registry&#39;s own sentence.</p>
+<p><strong>Refusal reason.</strong> <code>checkResponse</code> appends a refusal body&#39;s <code>reason</code> to the error when the error does not already carry it, so a refused pull of a yanked version says why. This applies to any registry refusal that sends a <code>reason</code>; today only yank refusals do.</p>
+<p><strong>Yank reasons are cleaned where they enter.</strong> A yank reason is written by a publisher and printed to other people&#39;s terminals, and the bump prompt writes raw to stderr. The HTTP client reduces it to o</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.154711.0-sha.8df63c9b" rel="noopener">release v20261009.154711.0-sha.8df63c9b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8df63c9bb5d8e2d346adb8b25a25da51843b124f" rel="noopener">8df63c9b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2957" rel="noopener">#2957</a>𝗔 <a href="https://swamp-club.com/lab/3138" rel="noopener">lab#3138</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261009-153540-0-sha-ecb7a372">
+<h2><span class="tier A">A</span>walk repository directories in name order so listings match across filesystems (swamp-club#3067) (#2956)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-09T15:37:16Z">2026-10-09T15:37:16Z</time></span><span>persistence</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(persistence): walk repository directories in name order so listings match across filesystems (swamp-club#3067) (#2956)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3067.</p>
+<p>The definition, workflow, vault, output, workflow-run and telemetry repositories returned results in whatever order <code>Deno.readDir</code> or the <code>@std/fs</code> walk produced: name order on APFS and NTFS, hash order on ext4, creation order on tmpfs. The model, workflow and vault search generators do not sort, so the same repository listed differently per machine, and first-match lookups (vault <code>findByName</code> on a duplicated name, the serve non-local vault probe, definition name search) could resolve to a different file per filesystem.</p>
+<ul>
+<li>New <code>src/infrastructure/persistence/sorted_dir_entries.ts</code>: <code>readDirSorted</code> sorts entries by UTF-16 code unit, and <code>comparePathsBySegment</code> orders walked paths per level so the platform separator cannot change the result.</li>
+<li><code>YamlDefinitionRepository</code>, <code>YamlWorkflowRepository</code>, <code>YamlOutputRepository</code>, <code>YamlWorkflowRunRepository</code> and <code>JsonTelemetryRepository.findByDate</code> read each directory through <code>readDirSorted</code> wherever the order reaches a returned list. A rebuilt workflow-run status index has the same key order, and so the same tie order, on every machine.</li>
+<li><code>YamlVaultConfigRepository</code> keeps the <code>@std/fs</code> walk and sorts its paths by segment. Vault files are named by id, so vault listings are ordered by type then id, not by name.</li>
+<li><code>extensionWorkflowFiles</code> is now a recursive walk</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.153540.0-sha.ecb7a372" rel="noopener">release v20261009.153540.0-sha.ecb7a372</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ecb7a37217844a6c7fe6fec4e977d821eb6a11d4" rel="noopener">ecb7a372</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2956" rel="noopener">#2956</a>𝗔 <a href="https://swamp-club.com/lab/3067" rel="noopener">lab#3067</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261008-225927-0-sha-6cb5098b">
 <h2><span class="tier A">A</span>run scheduled workflows concurrently and report queue delay (swamp-club#3046) (#2955)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
@@ -319,7 +358,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.192309.0-sha.9f2da9f2" rel="noopener">release v20261008.192309.0-sha.9f2da9f2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9f2da9f263311d2ec0b68cae972ab06cc22cd15c" rel="noopener">9f2da9f2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2944" rel="noopener">#2944</a>𝗔 <a href="https://swamp-club.com/lab/3182" rel="noopener">lab#3182</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261008-191723-0-sha-9f9d52fa">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261008-191723-0-sha-9f9d52fa">
 <h2><span class="tier A">A</span>settle expired signal waits from the continuation sweep (swamp-club#3109) (#2943)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-08T19:19:10Z">2026-10-08T19:19:10Z</time></span><span>serve</span><span>feat</span></div>
@@ -364,7 +403,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.184215.0-sha.03ca42ca" rel="noopener">release v20261008.184215.0-sha.03ca42ca</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/03ca42ca225db77f84a3d0953ce6291d4f193eb1" rel="noopener">03ca42ca</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2939" rel="noopener">#2939</a>𝗔 <a href="https://swamp-club.com/lab/2477" rel="noopener">lab#2477</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261008-183339-0-sha-231eda34">
+<article class="item" id="release-swamp-club-swamp-v20261008-183339-0-sha-231eda34">
 <h2><span class="tier A">A</span>a worker without a swamp-club credential passes the auth gate through its serve (swamp-club#3128) (#2942)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-08T18:35:28Z">2026-10-08T18:35:28Z</time></span><span>worker</span><span>feat</span></div>
@@ -4594,7 +4633,38 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.194016.0-sha.c0c751a1" rel="noopener">release v20261002.194016.0-sha.c0c751a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0c751a17fa31d512cb5ee65da19e47284547cd0" rel="noopener">c0c751a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2808" rel="noopener">#2808</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/2979" rel="noopener">lab#2979</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261008-213342-0-sha-5261ce0a">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261009-165514-0-sha-174d96d4">
+<h2><span class="tier C">C</span>swamp 20261009.165514.0-sha.174d96d4</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-09T16:57:06Z">2026-10-09T16:57:06Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(workflows): let a wait_for_signal step declare a key held by one open wait at a time (swamp-club#3209) (#2958)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Part 1 of 6 of keyed signal waits (swamp-club#3209). A <code>wait_for_signal</code> task takes an optional literal <code>key</code>, held by at most one open wait of the workflow at a time. Nothing can be signalled by key yet; that is swamp-club#3210.</p>
+<p>```yaml</p>
+<ul>
+<li>name: identify</li>
+</ul>
+<p>  allowFailure: true</p>
+<p>  task:</p>
+<p>    type: wait_for_signal</p>
+<p>    key: kitchen-verdict</p>
+<p>    timeout: 30</p>
+<p>    schema: { type: object }</p>
+<p>```</p>
+<ul>
+<li><strong>Key</strong>: 1 to 64 lowercase letters, digits, <code>-</code> and <code>_</code>, starting with a letter or digit. No expressions, and no Windows device names (<code>con</code>, <code>nul</code>, <code>com1</code>, ...).</li>
+<li><strong>Validation</strong>: <code>workflow validate</code> refuses the same key on two steps of a workflow and a key on a step under <code>forEach</code>, naming the steps.</li>
+<li><strong>One key, one open wait</strong>: a step claims its key before it registers its wait. A step that finds the key held by another open wait fails with <code>wait_key_held</code> and opens nothing, so <code>allowFailure</code> and <code>failed</code> dependents apply. A second run never replaces the holder.</li>
+<li><strong>Claims</strong>: numbered write-once records in the control-plane store, <code>wait-keys/&lt;workflowId&gt;/&lt;key&gt;/&lt;generation&gt;</code>, created with <code>putIfAbsent</code> as continuation claims are. The holder is the wait of the highest claim for as long as that wait has no outcome. The S3 and GCS datastore extensions need no change.</li>
+<li><strong>Listing</strong>: <code>swamp workflow waits</code> shows a wait&#39;s key in log and JSON output.</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.165514.0-sha.174d96d4" rel="noopener">release v20261009.165514.0-sha.174d96d4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/174d96d4" rel="noopener">174d96d4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2958" rel="noopener">#2958</a>𝗔 <a href="https://swamp-club.com/lab/3209" rel="noopener">lab#3209</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-213342-0-sha-5261ce0a">
 <h2><span class="tier C">C</span>pin the pollers against a real catalog, policy and peer (swamp-club#2863) (#2951)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-08T21:35:31Z">2026-10-08T21:35:31Z</time></span><span>serve</span><span>test</span></div>
@@ -4748,13 +4818,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>192 items across 1 source(s) in this window:
-0 critical, 175 notable, 10 routine,
-7 minor.</p>
-<ul><li><strong>fix</strong> — 128</li><li><strong>feat</strong> — 47</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 2</li></ul></section>
+<p>195 items across 1 source(s) in this window:
+0 critical, 177 notable, 10 routine,
+8 minor.</p>
+<ul><li><strong>fix</strong> — 130</li><li><strong>feat</strong> — 47</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 2</li><li><strong>changes</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-09T16:09:14.930Z">2026-10-09T16:09:14.930Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-09T17:02:37.601Z">2026-10-09T17:02:37.601Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -29,7 +29,7 @@ description: |
 tags:
   domain: fitness
 trigger:
-  schedule: "0 */3 * * *"
+  schedule: "30 * * * *"
   inputs: {}
 inputs:
   properties:

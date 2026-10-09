@@ -55,8 +55,10 @@ pulled by the same command.
 | `eventsName` | string | `zwift-events` | Zwift event-calendar instance. |
 | `recommenderName` | string | `zwift-recommender` | Zwift recommender instance. |
 
-The trigger is `0 */3 * * *` (every 3 hours, host-local) while `swamp serve`
-runs. Note that `swamp serve --no-schedule` disables triggers entirely.
+The trigger is `30 * * * *` (hourly at :30, host-local) while `swamp serve`
+runs — a quarter-hour before the diary's `:45` refresh, so the consumer reads a
+freshly synced day. Note that `swamp serve --no-schedule` disables triggers
+entirely.
 
 ## Examples
 
@@ -98,7 +100,7 @@ one only orders them.
   `@svendowideit/zwift` credentials in `zwift-secrets`. See those extensions'
   READMEs for the one-time setup.
 - `swamp serve` must not be running with `--no-schedule` if you want the
-  3-hourly trigger to fire; manual `swamp workflow run` always works.
+  hourly trigger to fire; manual `swamp workflow run` always works.
 
 ### Extending it
 

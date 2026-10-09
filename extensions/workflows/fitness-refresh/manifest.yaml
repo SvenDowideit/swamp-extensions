@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/fitness-refresh"
-version: "2026.10.04.1"
+version: "2026.10.09.1"
 description: |
   Refresh every Garmin and Zwift data source in one ordered run, so a
   downstream consumer always reads a complete, current local day.
@@ -55,14 +55,15 @@ description: |
     morning. The remaining inputs are instance names — `sessionName`,
     `devicesName`, `healthName`, `activitiesName`, `riderName`, `eventsName`,
     `recommenderName` — for when you renamed a model. Schedule a custom time with
-    the trigger: it fires every 3 hours while `swamp serve` runs.
+    the trigger: it fires hourly at :30 while `swamp serve` runs.
 
   WHAT IT INSTALLS
 
     Nothing on the host. It writes swamp data through the Garmin and Zwift
     models it calls. One cron trigger is registered while `swamp serve` runs:
-    `0 */3 * * *` (every 3 hours, host-local). Remove or disable the trigger if
-    you prefer to invoke it by hand.
+    `30 * * * *` (hourly at :30, host-local) — timed a quarter-hour before the
+    diary's own :45 refresh so a consumer always reads a freshly synced day.
+    Remove or disable the trigger if you prefer to invoke it by hand.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

@@ -7,8 +7,10 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import {
   dateRange,
+  localDate,
   normalizeWeighIn,
   resolveWindow,
+  shiftDate,
   weighInsOf,
   WEIGHT_DAY_PATH,
   WEIGHT_RANGE_PATH,
@@ -30,7 +32,7 @@ Deno.test("WEIGHT_DAY_PATH and WEIGHT_RANGE_PATH build correctly", () => {
 
 // --- window resolution ------------------------------------------------------
 
-Deno.test("resolveWindow prefers range, then date, then yesterday", () => {
+Deno.test("resolveWindow prefers range, then date, then a local days window", () => {
   assertEquals(
     resolveWindow({ startDate: "2026-01-01", endDate: "2026-01-03" }),
     {
@@ -42,7 +44,29 @@ Deno.test("resolveWindow prefers range, then date, then yesterday", () => {
     dates: ["2026-01-05"],
     mode: "daily",
   });
-  assertEquals(resolveWindow({}).dates.length, 1);
+  // Default window ends today (in `timezone`) and spans `days` days inclusive.
+  const now = new Date("2026-10-04T20:00:00Z"); // 2026-10-05 in Brisbane (+10)
+  const win = resolveWindow({}, "Australia/Brisbane", 3, now);
+  assertEquals(win.dates, ["2026-10-03", "2026-10-04", "2026-10-05"]);
+  assertEquals(win.mode, "range");
+  // A single day when days=1.
+  assertEquals(
+    resolveWindow({}, "Australia/Brisbane", 1, now).dates,
+    ["2026-10-05"],
+  );
+});
+
+Deno.test("localDate and shiftDate resolve the local calendar day", () => {
+  assertEquals(
+    localDate("Australia/Brisbane", new Date("2026-10-04T20:00:00Z")),
+    "2026-10-05",
+  );
+  assertEquals(
+    localDate("UTC", new Date("2026-10-04T20:00:00Z")),
+    "2026-10-04",
+  );
+  assertEquals(shiftDate("2026-10-05", -2), "2026-10-03");
+  assertEquals(shiftDate("2026-10-05", 1), "2026-10-06");
 });
 
 Deno.test("dateRange is inclusive", () => {
@@ -146,4 +170,50 @@ Deno.test("weighInsOf reads the day-view and range shapes", () => {
   assertEquals(weighInsOf([{ weight: 85000 }]).length, 1);
   assertEquals(weighInsOf({}).length, 0);
   assertEquals(weighInsOf(null).length, 0);
+});
+
+Deno.test("weighInsOf flattens the range dailyWeightSummaries shape", () => {
+  // Garmin's range endpoint groups entries by day; each summary carries its
+  // entries in allWeightMetrics. This is the real shape the body sync caches —
+  // missing it left every weigh-in unparsed and `body-range.count` at 0.
+  const raw = {
+    dailyWeightSummaries: [
+      {
+        summaryDate: "2026-10-09",
+        numOfWeightEntries: 1,
+        latestWeight: { calendarDate: "2026-10-09", weight: 87360 },
+        allWeightMetrics: [
+          {
+            calendarDate: "2026-10-09",
+            weight: 87360,
+            bodyFat: 27.6,
+            muscleMass: 33209,
+          },
+        ],
+      },
+      {
+        summaryDate: "2026-10-08",
+        numOfWeightEntries: 1,
+        allWeightMetrics: [{ calendarDate: "2026-10-08", weight: 87959 }],
+      },
+    ],
+  };
+  const recs = weighInsOf(raw);
+  assertEquals(recs.length, 2);
+  assertEquals(recs[0].weight, 87360);
+  assertEquals(normalizeWeighIn(recs[0])?.bodyFatPercent, 27.6);
+});
+
+Deno.test("weighInsOf falls back to latestWeight when a summary has no metrics", () => {
+  const raw = {
+    dailyWeightSummaries: [
+      {
+        summaryDate: "2026-10-09",
+        latestWeight: { calendarDate: "2026-10-09", weight: 87360 },
+      },
+    ],
+  };
+  const recs = weighInsOf(raw);
+  assertEquals(recs.length, 1);
+  assertEquals(recs[0].weight, 87360);
 });

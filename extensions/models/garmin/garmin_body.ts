@@ -46,6 +46,17 @@ const GlobalArgsSchema = z.object({
   unit: z.enum(["kg", "lb"]).default("kg").describe(
     "Display unit for the normalised `weight` field; raw grams are always kept",
   ),
+  timezone: z.string().default("").describe(
+    "IANA timezone (e.g. Australia/Brisbane) used to resolve the default date " +
+      "window. Empty uses the host's local zone — set it so a morning run " +
+      "fetches the calendar day you are actually living in, not the previous " +
+      "UTC day.",
+  ),
+  days: z.number().int().positive().max(14).default(3).describe(
+    "Number of local days to fetch (through today) when no explicit date or " +
+      "range is given. A small overlap re-fetches recent data so a missed run " +
+      "self-heals; capped so a default run stays fast.",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -60,6 +71,14 @@ const PathsArgsSchema = z.object({
   ),
   startDate: z.string().optional().describe("Range start, YYYY-MM-DD"),
   endDate: z.string().optional().describe("Range end, YYYY-MM-DD"),
+  timezone: z.string().optional().describe(
+    "Override the global timezone for resolving the default date window. " +
+      "Omit or leave empty to use the model's global timezone.",
+  ),
+  days: z.number().int().positive().max(14).optional().describe(
+    "Override the global `days` (local days through today) for the default " +
+      "window. Omit to use the model's global value.",
+  ),
   maxDays: z.number().int().positive().max(365).default(31).describe(
     "Safety cap on range days when fanning out per-day paths",
   ),
@@ -171,16 +190,29 @@ export function normalizeWeighIn(
   // that entirely and is what Garmin intends by the field.
   const localTs = raw.timestampLocal ?? raw.dateTimestamp;
   const gmtTs = raw.timestampGMT;
-  const calendar = String(raw.calendarDate ?? raw.date ?? "").slice(0, 10);
+  // `calendarDate` is Garmin's explicit calendar day. Fall back to a `date`
+  // only when it is a string — the range payload's numeric `date` is an epoch,
+  // not a calendar day.
+  const calendar = String(
+    raw.calendarDate ?? (typeof raw.date === "string" ? raw.date : ""),
+  ).slice(0, 10);
   const date = calendar ||
     datePartOf(localTs) ||
     datePartOf(gmtTs) ||
     "";
 
-  // A true instant, when one is available: parse the local timestamp (JS local
-  // parse is correct for a local wall-clock); fall back to none rather than a
+  // A true instant, when one is available. The range payload carries epoch-ms
+  // numbers in `date`/`timestampGMT`; the day-view carries naive local strings.
+  // Parse a local wall-clock string as JS-local (correct for a naive local
+  // time), or take a numeric epoch directly; fall back to none rather than a
   // shifted value.
-  const timestampMs = localTs ? Date.parse(String(localTs)) : NaN;
+  const timestampMs = typeof localTs === "string"
+    ? Date.parse(localTs)
+    : typeof raw.date === "number"
+    ? raw.date
+    : typeof raw.timestampGMT === "number"
+    ? raw.timestampGMT
+    : NaN;
 
   const rawWeight = pickNumber(raw, "weight", "value");
   if (rawWeight === null && !date) return null;
@@ -198,7 +230,11 @@ export function normalizeWeighIn(
   const muscleMassGrams = pickNumber(raw, "muscleMass", "muscleMassGrams");
   const boneMassGrams = pickNumber(raw, "boneMass", "boneMassGrams");
   const visceralFatMassGrams = pickNumber(raw, "visceralFatMass");
-  const visceralFatRating = pickNumber(raw, "visceralFatRating");
+  const visceralFatRating = pickNumber(
+    raw,
+    "visceralFatRating",
+    "visceralFat",
+  );
   const metabolicAge = pickNumber(raw, "metabolicAge");
   const physiqueRating = pickNumber(raw, "physiqueRating");
   const basalMetabolism = pickNumber(raw, "basalMet");
@@ -235,10 +271,12 @@ export function normalizeWeighIn(
 }
 
 /**
- * Extract the weigh-in records from either response shape.
+ * Extract the weigh-in records from any of the response shapes Garmin returns.
  *
- * The day-view uses `dateWeightList`; the range uses `dateWeightList` with a
- * `totalAverage`, or the records may arrive as a bare array.
+ * The day-view uses `dateWeightList`; the range endpoint groups by day in
+ * `dailyWeightSummaries`, each summary carrying its entries in
+ * `allWeightMetrics` (with the most recent repeated as `latestWeight`); and the
+ * records may also arrive as a bare array or under `weighIns`/`results`.
  */
 export function weighInsOf(value: unknown): Record<string, unknown>[] {
   if (Array.isArray(value)) return value as Record<string, unknown>[];
@@ -246,6 +284,24 @@ export function weighInsOf(value: unknown): Record<string, unknown>[] {
     const obj = value as Record<string, unknown>;
     for (const key of ["dateWeightList", "weighIns", "results"]) {
       if (Array.isArray(obj[key])) return obj[key] as Record<string, unknown>[];
+    }
+    if (Array.isArray(obj.dailyWeightSummaries)) {
+      const out: Record<string, unknown>[] = [];
+      for (
+        const summary of obj.dailyWeightSummaries as Array<
+          Record<string, unknown>
+        >
+      ) {
+        const metrics = summary.allWeightMetrics;
+        if (Array.isArray(metrics) && metrics.length > 0) {
+          out.push(...(metrics as Record<string, unknown>[]));
+        } else if (
+          summary.latestWeight && typeof summary.latestWeight === "object"
+        ) {
+          out.push(summary.latestWeight as Record<string, unknown>);
+        }
+      }
+      return out;
     }
   }
   return [];
@@ -334,7 +390,7 @@ const SetupSchema = z.object({ report: z.string() });
 /** The `@svendowideit/garmin-body` model definition. */
 export const model = {
   type: "@svendowideit/garmin-body",
-  version: "2026.10.01.1",
+  version: "2026.10.09.1",
   upgrades: [
     {
       toVersion: "2026.10.01.1",
@@ -342,6 +398,19 @@ export const model = {
         "Version bump to stay in step with the @svendowideit/garmin extension; " +
         "no schema or behaviour change in this model.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.09.1",
+      description:
+        "Timezone-aware default window: added `timezone` and `days` globals. " +
+        "The default window is now the last `days` local days through today " +
+        "(was a single UTC 'yesterday'), so a morning run picks up a weigh-in " +
+        "recorded today — which the diary needs to show today's weight.",
+      upgradeAttributes: (old: Record<string, unknown>) => ({
+        timezone: "",
+        days: 3,
+        ...old,
+      }),
     },
   ],
   globalArguments: GlobalArgsSchema,
@@ -419,7 +488,12 @@ export const model = {
         args: z.infer<typeof PathsArgsSchema>,
         ctx: MethodContext,
       ) => {
-        const { dates, mode } = resolveWindow(args);
+        const g = ctx.globalArgs;
+        const { dates, mode } = resolveWindow(
+          args,
+          args.timezone?.trim() || g.timezone,
+          args.days ?? g.days,
+        );
         if (dates.length === 0) {
           throw new Error("No dates resolved — check date/startDate/endDate");
         }
@@ -467,7 +541,7 @@ export const model = {
           : [];
         const dates = Array.isArray(pathsResource?.dates)
           ? pathsResource!.dates as string[]
-          : resolveWindow(args).dates;
+          : resolveWindow(args, g.timezone, g.days).dates;
 
         if (paths.length === 0) {
           throw new Error(
@@ -530,20 +604,52 @@ export const model = {
 };
 
 /** Resolve the window and mode from method args. */
-export function resolveWindow(args: {
-  date?: string;
-  startDate?: string;
-  endDate?: string;
-  mode?: "range" | "daily";
-}): { dates: string[]; mode: "range" | "daily" } {
+export function resolveWindow(
+  args: {
+    date?: string;
+    startDate?: string;
+    endDate?: string;
+    mode?: "range" | "daily";
+    timezone?: string;
+    days?: number;
+  },
+  timezone = "",
+  days = 3,
+  now: Date = new Date(),
+): { dates: string[]; mode: "range" | "daily" } {
   const mode = args.mode ?? "range";
   if (args.date?.trim()) return { dates: [args.date.trim()], mode };
   if (args.startDate?.trim()) {
     const end = args.endDate?.trim() || args.startDate.trim();
     return { dates: dateRange(args.startDate.trim(), end), mode };
   }
-  const yesterday = new Date(Date.now() - 86_400_000);
-  return { dates: [yesterday.toISOString().slice(0, 10)], mode };
+  const zone = (args.timezone ?? timezone).trim();
+  const span = Math.max(1, Math.floor(args.days ?? days));
+  const today = localDate(zone, now);
+  return { dates: dateRange(shiftDate(today, -(span - 1)), today), mode };
+}
+
+/**
+ * The local calendar day (`YYYY-MM-DD`) for an instant in an IANA timezone.
+ *
+ * A morning run in a timezone ahead of UTC (e.g. Brisbane +10) is still the
+ * previous UTC day, so a UTC "today" would fetch the wrong day. An empty
+ * timezone uses the host's local zone.
+ */
+export function localDate(timezone: string, now: Date = new Date()): string {
+  const zone = timezone.trim();
+  return new Intl.DateTimeFormat("en-CA", {
+    ...(zone ? { timeZone: zone } : {}),
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+/** `date` shifted by `delta` whole days, staying on the `YYYY-MM-DD` grid. */
+export function shiftDate(date: string, delta: number): string {
+  const t = Date.parse(`${date}T00:00:00Z`) + delta * 86_400_000;
+  return new Date(t).toISOString().slice(0, 10);
 }
 
 /** An inclusive list of `YYYY-MM-DD` dates from `start` to `end`. */

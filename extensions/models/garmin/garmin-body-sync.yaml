@@ -19,7 +19,9 @@ description: |
   only appears when a compatible scale is paired; a weight-only scale reports
   weight alone, and `body-range.hasBodyComposition` says which you have.
 
-  Default window is yesterday. Widen it for a backfill.
+  Default window is the last `days` local days through today (default 3), so a
+  morning run picks up a weigh-in recorded today — which the diary needs to show
+  today's weight. Widen it with startDate/endDate for a backfill.
 
   Runs daily at 05:40, last of the daily syncs.
 
@@ -45,11 +47,24 @@ inputs:
     startDate:
       type: string
       default: ""
-      description: Window start, YYYY-MM-DD; empty = yesterday.
+      description: Window start, YYYY-MM-DD; empty = the last `days` local days through today.
     endDate:
       type: string
       default: ""
-      description: Window end, YYYY-MM-DD; empty = start date.
+      description: Window end, YYYY-MM-DD; empty = start date, or today.
+    timezone:
+      type: string
+      default: ""
+      description: >
+        IANA timezone (e.g. Australia/Brisbane) used to resolve the default
+        window so a morning run fetches the local calendar day. Empty = host
+        local zone.
+    days:
+      type: integer
+      default: 3
+      description: >
+        Local days to fetch through today when no explicit range is given.
+        A small overlap self-heals a missed run; capped at 14.
     mode:
       type: string
       default: range
@@ -79,6 +94,8 @@ jobs:
           inputs:
             startDate: ${{ inputs.startDate }}
             endDate: ${{ inputs.endDate }}
+            timezone: ${{ inputs.timezone }}
+            days: ${{ inputs.days }}
             mode: ${{ inputs.mode }}
         dependsOn:
           - step: session

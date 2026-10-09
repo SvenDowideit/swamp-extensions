@@ -108,6 +108,8 @@ with `--input key=value` where a method exposes it.
 | -------- | ---- | ------- | ----------- |
 | `cacheDir` | string | `"~/.swamp/garmin-cache"` | Shared cache the transport writes to; must match `garmin-connect`. |
 | `unit` | string | `"kg"` | Display unit for the normalised `weight` field (`kg` or `lb`); exact grams are always kept. |
+| `timezone` | string | `""` | IANA zone used to resolve the default date window; empty uses the host's local zone. Set this so a morning run fetches the calendar day you are living in, not the previous UTC day. |
+| `days` | integer | `3` | Local days to fetch through today when no explicit date/range is given. A small overlap self-heals a missed run; capped at 14. |
 
 ### `@svendowideit/garmin-performance`
 
@@ -175,8 +177,9 @@ swamp workflow run @svendowideit/garmin-activities-sync --input days=90 --input 
 swamp workflow run @svendowideit/garmin-health-sync
 swamp workflow run @svendowideit/garmin-health-sync --input startDate=2026-01-01 --input endDate=2026-01-31
 
-# Sync weight and body composition (default: yesterday). Body composition only
-# appears when a compatible scale is paired.
+# Sync weight and body composition (default: the last 3 local days through
+# today, so a weigh-in recorded this morning is picked up). Body composition
+# only appears when a compatible scale is paired.
 swamp workflow run @svendowideit/garmin-body-sync
 swamp workflow run @svendowideit/garmin-body-sync --input startDate=2025-01-01 --input endDate=2026-01-31
 
@@ -277,7 +280,7 @@ swamp model @svendowideit/garmin-activities method run detail-paths garmin-activ
 | Method | Arguments | Produces |
 | ------ | --------- | -------- |
 | `setup` | — | A `setup` report of unit and whether body composition has been seen. Read-only. |
-| `paths` | `date`/`startDate`/`endDate`, `mode`, `maxDays` | A `paths` resource — one range request, or one day-view request per day. |
+| `paths` | `date`/`startDate`/`endDate`, `timezone`, `days`, `mode`, `maxDays` | A `paths` resource — one range request, or one day-view request per day. |
 | `sync` | `date`/`startDate`/`endDate` | One `weigh-in-<date>` per weigh-in (latest sample per day) and a `body-range` roll-up with `hasBodyComposition`. |
 
 **`@svendowideit/garmin-performance`** — training and performance metrics:

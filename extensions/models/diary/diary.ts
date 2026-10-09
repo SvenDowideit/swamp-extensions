@@ -11,8 +11,8 @@
  * origin.
  *
  * Methods:
- *   - `collect`  gather a date's activities, wellness and Zwift picks into one
- *                JSON resource (`collect` / `daily-<date>`)
+ *   - `collect`  gather a date's activities, wellness, weigh-in and Zwift picks
+ *                into one JSON resource (`collect` / `daily-<date>`)
  *   - `render`   turn that resource into the markdown page (`page` /
  *                `daily-<date>`) without writing to the vault
  *   - `publish`  render, merge into any existing note between managed markers,
@@ -53,6 +53,11 @@ const CollectArgsSchema = z.object({
   ),
   healthModel: z.string().default("garmin-health").describe(
     "Model instance holding Garmin daily wellness",
+  ),
+  bodyModel: z.string().default("garmin-body").describe(
+    "Optional @svendowideit/garmin-body instance whose stored weigh-ins " +
+      "provide the day's weight and body composition. Absent data simply " +
+      "omits the weight line.",
   ),
   recommenderModel: z.string().default("zwift-recommender").describe(
     "Model instance holding ranked Zwift recommendations",
@@ -171,6 +176,37 @@ export interface CollectedWeather {
   shortText: string | null;
 }
 
+/**
+ * The day's Garmin weigh-in, when a `@svendowideit/garmin-body` instance holds
+ * one. Body-composition fields are null when the scale does not measure them.
+ */
+export interface CollectedWeight {
+  /** `YYYY-MM-DD` of the sample. */
+  date: string;
+  /** Weight in grams (exact), or null when not reported. */
+  weightGrams: number | null;
+  /** Weight in the model's display unit, rounded to 2 dp. */
+  weight: number | null;
+  /** Display unit the `weight` field is expressed in (`kg` or `lb`). */
+  unit: string;
+  /** Body mass index. */
+  bmi: number | null;
+  /** Body fat percentage. */
+  bodyFatPercent: number | null;
+  /** Body water percentage. */
+  bodyWaterPercent: number | null;
+  /** Skeletal muscle mass in grams. */
+  muscleMassGrams: number | null;
+  /** Bone mass in grams. */
+  boneMassGrams: number | null;
+  /** Visceral fat rating. */
+  visceralFatRating: number | null;
+  /** Metabolic age in years. */
+  metabolicAge: number | null;
+  /** True when at least one body-composition field was measured. */
+  hasBodyComposition: boolean;
+}
+
 /** A suggested ride, with a link where one could be built. */
 export interface CollectedSuggestion {
   /** Rank from the recommender, 1-based. */
@@ -222,6 +258,8 @@ export interface CollectedDay {
   };
   /** Daily wellness, or null when no health data was found. */
   wellness: CollectedWellness | null;
+  /** The day's weigh-in, or null when no body data was found. */
+  weight: CollectedWeight | null;
   /** The day's BOM forecast, or null when no BOM data was found. */
   weather: CollectedWeather | null;
   /** Ranked Zwift picks for the day. */
@@ -450,6 +488,73 @@ export function selectWeather(
 }
 
 /**
+ * Reduce a raw @svendowideit/garmin-body `body-range` resource to the day's
+ * weigh-in, keeping only the fields the diary renders. Returns null when the
+ * resource carries no weigh-in for `date` (e.g. a day with no measurement).
+ */
+export function selectWeight(
+  raw: Record<string, unknown> | null,
+  date: string,
+): CollectedWeight | null {
+  if (!raw) return null;
+  const weighIns = Array.isArray(raw.weighIns)
+    ? raw.weighIns as Array<Record<string, unknown>>
+    : [];
+  const weighIn = weighIns.find((w) => String(w.date ?? "") === date);
+  if (!weighIn) return null;
+  const num = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? v : null;
+  return {
+    date: String(weighIn.date ?? date),
+    weightGrams: num(weighIn.weightGrams),
+    weight: num(weighIn.weight),
+    unit: String(raw.unit ?? "kg"),
+    bmi: num(weighIn.bmi),
+    bodyFatPercent: num(weighIn.bodyFatPercent),
+    bodyWaterPercent: num(weighIn.bodyWaterPercent),
+    muscleMassGrams: num(weighIn.muscleMassGrams),
+    boneMassGrams: num(weighIn.boneMassGrams),
+    visceralFatRating: num(weighIn.visceralFatRating),
+    metabolicAge: num(weighIn.metabolicAge),
+    hasBodyComposition: weighIn.hasBodyComposition === true,
+  };
+}
+
+/** Round to one decimal place, dropping a trailing `.0`. */
+export function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+/**
+ * One `## Weight` line for the day, or null when no weight was recorded. Reads
+ * naturally with or without body composition, e.g.
+ * `- **Weight:** 81.2 kg · body fat 21%` or `- **Weight:** 81.2 kg`.
+ */
+export function formatWeightLine(
+  weight: CollectedWeight | null,
+): string | null {
+  if (!weight || weight.weight === null) return null;
+  const unit = weight.unit || "kg";
+  const head = `- **Weight:** ${weight.weight} ${unit}`;
+  const perUnit = unit === "lb" ? 453.59237 : 1000;
+  const extras = [
+    weight.bodyFatPercent !== null
+      ? `body fat ${weight.bodyFatPercent}%`
+      : null,
+    weight.muscleMassGrams !== null
+      ? `muscle ${
+        Math.round((weight.muscleMassGrams / perUnit) * 10) / 10
+      } ${unit}`
+      : null,
+    weight.bmi !== null ? `BMI ${round1(weight.bmi)}` : null,
+    weight.metabolicAge !== null
+      ? `metabolic age ${weight.metabolicAge}`
+      : null,
+  ].filter(Boolean);
+  return extras.length ? `${head} · ${extras.join(" · ")}` : head;
+}
+
+/**
  * One header line describing the day's forecast, or null when the day has no
  * temperature or précis to show. Leads with the resolved place, e.g.
  * `Stafford Heights: min 16°C max 27°C; Mostly clear.; 5% chance`.
@@ -481,25 +586,27 @@ export function renderManagedSection(day: CollectedDay): string {
 
   lines.push("## Health");
   const w = day.wellness;
-  if (!w) {
+  const weightLine = formatWeightLine(day.weight);
+  if (!w && !weightLine) {
     lines.push("- No Garmin wellness data for this day");
   } else {
-    if (w.sleepSeconds != null) {
+    if (w?.sleepSeconds != null) {
       const score = w.sleepScore != null ? ` (score ${w.sleepScore})` : "";
       lines.push(`- **Sleep:** ${formatDuration(w.sleepSeconds)}${score}`);
     }
-    if (w.steps != null) {
+    if (w?.steps != null) {
       const goal = w.stepGoal != null ? ` of ${formatCount(w.stepGoal)}` : "";
       lines.push(`- **Steps:** ${formatCount(w.steps)}${goal}`);
     }
     const extras = [
-      w.restingHeartRate != null ? `resting HR ${w.restingHeartRate}` : null,
-      w.avgStress != null ? `stress ${w.avgStress}` : null,
-      w.bodyBatteryHighest != null
+      w?.restingHeartRate != null ? `resting HR ${w.restingHeartRate}` : null,
+      w?.avgStress != null ? `stress ${w.avgStress}` : null,
+      w?.bodyBatteryHighest != null
         ? `body battery ${w.bodyBatteryLowest ?? "?"}–${w.bodyBatteryHighest}`
         : null,
     ].filter(Boolean);
     if (extras.length) lines.push(`- ${extras.join(" · ")}`);
+    if (weightLine) lines.push(weightLine);
   }
   lines.push("");
 
@@ -619,6 +726,7 @@ const resources = {
       rides: z.array(z.record(z.string(), z.unknown())),
       totals: z.record(z.string(), z.number()),
       wellness: z.record(z.string(), z.unknown()).nullable(),
+      weight: z.record(z.string(), z.unknown()).nullable().optional(),
       weather: z.record(z.string(), z.unknown()).nullable().optional(),
       suggested: z.array(z.record(z.string(), z.unknown())),
       truncated: z.boolean(),
@@ -698,6 +806,9 @@ async function executeCollect(
   const bomRecords = await read(args.bomModel, "forecast");
   const weather = selectWeather(bomRecords[0] ?? null, date);
 
+  const bodyRecords = await read(args.bodyModel, "range");
+  const weight = selectWeight(bodyRecords[0] ?? null, date);
+
   const recRecords = await read(args.recommenderModel, "recommendations");
   const recommendations = recRecords[0]?.recommendations as
     | Array<Record<string, unknown>>
@@ -723,6 +834,7 @@ async function executeCollect(
     rides,
     totals: summariseRides(rides),
     wellness,
+    weight,
     weather,
     suggested,
     truncated: picksForDate > suggested.length,
@@ -731,12 +843,13 @@ async function executeCollect(
 
   context.logger.info(
     "Collected {date}: {rides} ride(s), {suggested} suggestion(s), " +
-      "forecast {forecast}",
+      "forecast {forecast}, weight {weight}",
     {
       date,
       rides: rides.length,
       suggested: suggested.length,
       forecast: weather ? "yes" : "no",
+      weight: weight ? `${weight.weight} ${weight.unit}` : "no",
     },
   );
 
@@ -875,8 +988,9 @@ export const extension = {
     {
       collect: {
         description:
-          "Read a day's Garmin activities/wellness and Zwift picks from other " +
-          "models and write one collect resource. Never touches the network.",
+          "Read a day's Garmin activities/wellness/weigh-in and Zwift picks " +
+          "from other models and write one collect resource. Never touches the " +
+          "network.",
         arguments: CollectArgsSchema,
         execute: executeCollect,
       },

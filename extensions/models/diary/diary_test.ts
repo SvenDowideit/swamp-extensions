@@ -13,6 +13,7 @@ import {
   type CollectedDay,
   type CollectedRide,
   type CollectedWeather,
+  type CollectedWeight,
   END_MARKER,
   extension,
   filterActivities,
@@ -20,6 +21,7 @@ import {
   formatDistance,
   formatDuration,
   formatForecastLine,
+  formatWeightLine,
   indexSchedule,
   mergeManagedSection,
   renderManagedSection,
@@ -27,6 +29,7 @@ import {
   resolveDate,
   selectSuggestions,
   selectWeather,
+  selectWeight,
   summariseRides,
   zwiftEventUrl,
 } from "./diary.ts";
@@ -63,9 +66,28 @@ const day = (overrides: Partial<CollectedDay> = {}): CollectedDay => ({
     bodyBatteryLowest: 39,
   },
   weather: null,
+  weight: null,
   suggested: [],
   truncated: false,
   missing: [],
+  ...overrides,
+});
+
+const weight = (
+  overrides: Partial<CollectedWeight> = {},
+): CollectedWeight => ({
+  date: "2026-10-04",
+  weightGrams: 81200,
+  weight: 81.2,
+  unit: "kg",
+  bmi: 24.6,
+  bodyFatPercent: 21,
+  bodyWaterPercent: 55,
+  muscleMassGrams: 34200,
+  boneMassGrams: 3200,
+  visceralFatRating: 8,
+  metabolicAge: 41,
+  hasBodyComposition: true,
   ...overrides,
 });
 
@@ -288,6 +310,121 @@ Deno.test("formatForecastLine leads with the place and both temperatures", () =>
     formatForecastLine({ ...weather, tempMax: null, tempMin: null, shortText: null }),
     null,
   );
+});
+
+Deno.test("selectWeight picks the matching day from a body-range resource", () => {
+  const raw = {
+    unit: "kg",
+    weighIns: [
+      {
+        date: "2026-10-03",
+        weightGrams: 81000,
+        weight: 81,
+        bmi: 24.5,
+        bodyFatPercent: 21,
+        hasBodyComposition: true,
+      },
+      {
+        date: "2026-10-04",
+        weightGrams: 80500,
+        weight: 80.5,
+        bmi: 24.4,
+        muscleMassGrams: 34000,
+        hasBodyComposition: true,
+      },
+    ],
+  };
+  const w = selectWeight(raw, "2026-10-04");
+  assertEquals(w?.date, "2026-10-04");
+  assertEquals(w?.weight, 80.5);
+  assertEquals(w?.unit, "kg");
+  assertEquals(w?.bmi, 24.4);
+  assertEquals(w?.muscleMassGrams, 34000);
+  assertEquals(w?.hasBodyComposition, true);
+
+  // A day with no weigh-in, a null resource, and an empty roll-up are all null.
+  assertEquals(selectWeight(raw, "2026-10-09"), null);
+  assertEquals(selectWeight(null, "2026-10-04"), null);
+  assertEquals(selectWeight({ unit: "kg", weighIns: [] }, "2026-10-04"), null);
+});
+
+Deno.test("selectWeight tolerates a weight-only scale with null composition", () => {
+  const raw = {
+    unit: "lb",
+    weighIns: [
+      {
+        date: "2026-10-04",
+        weightGrams: 81200,
+        weight: 179.02,
+        hasBodyComposition: false,
+      },
+    ],
+  };
+  const w = selectWeight(raw, "2026-10-04");
+  assertEquals(w?.unit, "lb");
+  assertEquals(w?.bodyFatPercent, null);
+  assertEquals(w?.hasBodyComposition, false);
+});
+
+Deno.test("formatWeightLine renders weight with and without composition", () => {
+  assertEquals(
+    formatWeightLine(weight()),
+    "- **Weight:** 81.2 kg · body fat 21% · muscle 34.2 kg · BMI 24.6 · " +
+      "metabolic age 41",
+  );
+  // Weight-only scale: just the weight, no empty separators.
+  assertEquals(
+    formatWeightLine(weight({
+      bodyFatPercent: null,
+      muscleMassGrams: null,
+      bmi: null,
+      metabolicAge: null,
+      hasBodyComposition: false,
+    })),
+    "- **Weight:** 81.2 kg",
+  );
+  // Pound display unit scales the muscle-mass conversion.
+  assertEquals(
+    formatWeightLine(weight({
+      unit: "lb",
+      weight: 179.02,
+      muscleMassGrams: 34000,
+      bodyFatPercent: null,
+      bmi: null,
+      metabolicAge: null,
+    })),
+    "- **Weight:** 179.02 lb · muscle 75 lb",
+  );
+  // No weight at all -> no line.
+  assertEquals(formatWeightLine(null), null);
+  assertEquals(formatWeightLine(weight({ weight: null })), null);
+});
+
+Deno.test("formatWeightLine rounds a floaty Garmin BMI", () => {
+  // Garmin sends BMI as e.g. 27.600000381469727; the line must read 27.6.
+  assertEquals(
+    formatWeightLine(weight({ bmi: 27.600000381469727 })),
+    "- **Weight:** 81.2 kg · body fat 21% · muscle 34.2 kg · BMI 27.6 · " +
+      "metabolic age 41",
+  );
+});
+
+Deno.test("renderManagedSection adds a weight line in the Health section", () => {
+  const md = renderManagedSection(day({ weight: weight() }));
+  assertStringIncludes(md, "**Weight:** 81.2 kg · body fat 21%");
+  // The weight line sits inside the Health section, before the Activities one.
+  assertEquals(md.indexOf("**Weight:**") < md.indexOf("## Activities"), true);
+});
+
+Deno.test("renderManagedSection still shows weight when wellness is absent", () => {
+  const md = renderManagedSection(day({ wellness: null, weight: weight() }));
+  assertEquals(md.includes("No Garmin wellness data for this day"), false);
+  assertStringIncludes(md, "**Weight:** 81.2 kg");
+});
+
+Deno.test("renderManagedSection omits the weight line when absent", () => {
+  const md = renderManagedSection(day({ weight: null }));
+  assertEquals(md.includes("**Weight:**"), false);
 });
 
 Deno.test("renderManagedSection puts the forecast at the top of the block", () => {
@@ -557,6 +694,18 @@ Deno.test("collect reads the synced models and writes a filtered day", async () 
           shortText: "Mostly clear.",
         }],
       }],
+      "garmin-body/range": [{
+        unit: "kg",
+        weighIns: [{
+          date: "2026-10-04",
+          weightGrams: 80500,
+          weight: 80.5,
+          bmi: 24.4,
+          bodyFatPercent: 21,
+          muscleMassGrams: 34000,
+          hasBodyComposition: true,
+        }],
+      }],
     },
   });
 
@@ -579,6 +728,52 @@ Deno.test("collect reads the synced models and writes a filtered day", async () 
   const weather = written[0].data.weather as Record<string, unknown>;
   assertEquals(weather.tempMax, 27);
   assertEquals(weather.shortText, "Mostly clear.");
+  const weight = written[0].data.weight as Record<string, unknown>;
+  assertEquals(weight.weight, 80.5);
+  assertEquals(weight.bodyFatPercent, 21);
+});
+
+Deno.test("collect omits weight and records it missing when body has none", async () => {
+  const { context, written } = fakeContext({
+    modelData: {
+      "garmin-activities/list": [{ activities: [] }],
+      "zwift-recommender/recommendations": [{ recommendations: [] }],
+      "zwift-events/schedule": [{ events: [] }],
+    },
+  });
+  await collect.execute(
+    { timezone: "UTC", date: "2026-10-04", topN: 5 },
+    context,
+  );
+  assertEquals(written[0].data.weight, null);
+  const missing = written[0].data.missing as string[];
+  assertEquals(missing.includes("garmin-body/range"), true);
+});
+
+Deno.test("collect ignores body data for a different day", async () => {
+  const { context, written } = fakeContext({
+    modelData: {
+      "garmin-activities/list": [{ activities: [] }],
+      "zwift-recommender/recommendations": [{ recommendations: [] }],
+      "zwift-events/schedule": [{ events: [] }],
+      "garmin-body/range": [{
+        unit: "kg",
+        weighIns: [{
+          date: "2026-10-03",
+          weightGrams: 81000,
+          weight: 81,
+          hasBodyComposition: false,
+        }],
+      }],
+    },
+  });
+  await collect.execute(
+    { timezone: "UTC", date: "2026-10-04", topN: 5 },
+    context,
+  );
+  assertEquals(written[0].data.weight, null);
+  // The resource existed, so it is not reported missing.
+  assertEquals((written[0].data.missing as string[]).includes("garmin-body/range"), false);
 });
 
 Deno.test("collect omits weather and records it missing when BOM has none", async () => {

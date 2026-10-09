@@ -16,14 +16,23 @@ still applies.
 `collect` reads a day's data from the fitness models swamp already holds:
 Garmin activities (from `garmin-activities`), the Garmin daily wellness roll-up
 (from `garmin-health`) — sleep duration and score, steps, resting HR, stress and
-body battery — the ranked Zwift picks (from `zwift-recommender`, linked back to
+body battery — the Garmin weigh-in (from `garmin-body`) — weight plus whatever
+body composition your scale measured: body fat %, muscle mass, BMI and metabolic
+age — the ranked Zwift picks (from `zwift-recommender`, linked back to
 `zwift-events`), and, optionally, the day's weather forecast (from a
 `@svendowideit/bom-weather` instance). It writes one `collect` resource.
 `render` turns that into the markdown page and writes a `page` resource so you
 can inspect it. `publish` renders the page, merges it into any existing note
 between two HTML comment markers, and writes it via the vault model. The page
-has a `## Health` section (sleep, steps) and a `## Activities` section listing
-the day's Garmin activities.
+has a `## Health` section (sleep, steps, weight) and a `## Activities` section
+listing the day's Garmin activities.
+
+When a weigh-in exists for the day, a `- **Weight:** 81.2 kg · body fat 21%`
+line is added to `## Health`; on a weight-only scale it degrades to
+`- **Weight:** 81.2 kg`. Garmin body data is optional: if the `garmin-body`
+instance is absent, has not synced, or holds no weigh-in matching the date, the
+line is simply omitted and `garmin-body/range` is listed in
+`collect.attributes.missing`.
 
 When a BOM forecast exists for the day, a one-line header is placed at the top
 of the managed block, e.g.
@@ -33,8 +42,9 @@ matching the date, the line is simply omitted and `bom/forecast` is listed in
 `collect.attributes.missing`.
 
 The bundled `@svendowideit/diary-daily` workflow chains these — assert sources,
-`collect`, `publish` — and is scheduled daily at 07:00 local under `swamp serve`,
-after the Garmin morning syncs and the Zwift recommend pass.
+`collect`, `publish` — and is scheduled hourly at :45 local under `swamp serve`,
+a quarter-hour after the `@svendowideit/fitness-refresh` run it consumes, so the
+day stays current as new activities land.
 
 Because `collect` only reads stored data, a diary run is cheap and safe: it
 cannot rate-limit Garmin or duplicate a Zwift fetch. If a source has not synced,
@@ -74,6 +84,7 @@ the `@magistr/obsidian/vault` model it extends:
 | `collect` | `date` | string? | today | Calendar day `YYYY-MM-DD` to collect |
 | `collect` | `activitiesModel` | string | `garmin-activities` | Instance holding the Garmin activity list |
 | `collect` | `healthModel` | string | `garmin-health` | Instance holding Garmin daily wellness |
+| `collect` | `bodyModel` | string | `garmin-body` | Optional `@svendowideit/garmin-body` instance for the weight line |
 | `collect` | `recommenderModel` | string | `zwift-recommender` | Instance holding ranked picks |
 | `collect` | `eventsModel` | string | `zwift-events` | Instance holding the schedule (for links) |
 | `collect` | `bomModel` | string | `bom` | Optional `@svendowideit/bom-weather` instance for the forecast line |
@@ -90,15 +101,16 @@ the `@magistr/obsidian/vault` model it extends:
 ### Workflow arguments
 
 The bundled `@svendowideit/diary-daily` workflow exposes the same names as
-`--input` (`vaultModel`, `activitiesModel`, `healthModel`, `recommenderModel`,
-`eventsModel`, `bomModel`, `timezone`, `date`, `folder`, `topN`), and is
-scheduled daily at 07:00 local.
+`--input` (`vaultModel`, `activitiesModel`, `healthModel`, `bodyModel`,
+`recommenderModel`, `eventsModel`, `bomModel`, `timezone`, `date`, `folder`,
+`topN`), and is scheduled hourly at :45 local.
 
 | Input | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `vaultModel` | string | `obsidian-vault` | Vault instance to write into |
 | `activitiesModel` | string | `garmin-activities` | Garmin activity list to read |
 | `healthModel` | string | `garmin-health` | Garmin daily wellness to read |
+| `bodyModel` | string | `garmin-body` | Optional `@svendowideit/garmin-body` instance for the weight line |
 | `recommenderModel` | string | `zwift-recommender` | Ranked Zwift picks to read |
 | `eventsModel` | string | `zwift-events` | Zwift schedule, used for links |
 | `bomModel` | string | `bom` | Optional BOM instance for the forecast line |
@@ -154,7 +166,7 @@ swamp workflow run @svendowideit/diary-daily \
 
 **Keeping it fresh.** The bundled `@svendowideit/bom-weather` workflow already
 polls four times daily (00:30/06:30/12:30/18:30 host-local) under `swamp serve`,
-so a `bom`-named instance stays current for the 07:00 diary run on its own —
+so a `bom`-named instance stays current for the hourly diary run on its own —
 provided the trigger carries **your** location, not the built-in Penrith/NSW
 defaults. Set the override once (it replaces the whole entry, so restate the
 schedule and inputs):
@@ -187,10 +199,16 @@ your own schedule.
 swamp model create @magistr/obsidian/vault obsidian-vault \
   --global-arg vaultRoot=$HOME/Obsidian/Vault
 
-# Collect today's data and inspect the raw payload (rides, wellness, picks,
-# and which sources were missing). collect writes to the 'collect' spec.
+# Collect today's data and inspect the raw payload (rides, wellness, weight,
+# picks, and which sources were missing). collect writes to the 'collect' spec.
 swamp model method run obsidian-vault collect
 swamp data get obsidian-vault daily-$(date +%F) --json
+
+# Read a different Garmin weigh-in instance — run this when your body model is
+# named something other than the `garmin-body` default. The weight line is then
+# sourced from that instance.
+swamp model method run obsidian-vault collect \
+  --input bodyModel=garmin-body-scale
 
 # Render the markdown and read it before publishing — useful when changing the
 # page layout or checking a source model's field names. render writes the
@@ -203,7 +221,7 @@ swamp data get obsidian-vault page-$(date +%F) --json | jq -r '.content.markdown
 swamp model method run obsidian-vault publish
 
 # Or run the whole collect→publish chain as one scheduled job, and inspect the
-# run afterwards. This is what runs at 07:00 under 'swamp serve'.
+# run afterwards. This is what runs hourly at :45 under 'swamp serve'.
 swamp workflow run @svendowideit/diary-daily
 swamp workflow history get @svendowideit/diary-daily --json
 
@@ -228,12 +246,14 @@ swamp model create @magistr/obsidian/vault obsidian-vault \
 ### Methods
 
 - **`collect`** — reads `garmin-activities`/`list`, `garmin-health`/`daily`,
-  `zwift-recommender`/`recommendations`, `zwift-events`/`schedule` and
-  (optionally) `<bomModel>`/`forecast` via `context.readModelData`, filters to
-  `date`, attaches Zwift event URLs from the schedule, picks the day's weather
-  with `selectWeather`, and writes a `collect` resource named `daily-<date>`.
-  Arguments: `timezone`, `date`, `activitiesModel`, `healthModel`,
-  `recommenderModel`, `eventsModel`, `bomModel`, `topN`.
+  `garmin-body`/`range`, `zwift-recommender`/`recommendations`,
+  `zwift-events`/`schedule` and (optionally) `<bomModel>`/`forecast` via
+  `context.readModelData`, filters to `date`, attaches Zwift event URLs from the
+  schedule, picks the day's weather with `selectWeather`, picks the day's
+  weigh-in with `selectWeight`, and writes a `collect` resource named
+  `daily-<date>`. Arguments: `timezone`, `date`, `activitiesModel`,
+  `healthModel`, `bodyModel`, `recommenderModel`, `eventsModel`, `bomModel`,
+  `topN`.
 - **`render`** — reads the collect resource and writes a `page` resource named
   `daily-<date>` with the markdown. Arguments: `timezone`, `date`,
   `collectName`.
@@ -247,7 +267,7 @@ swamp model create @magistr/obsidian/vault obsidian-vault \
 
 | Spec | Name | Shape |
 | --- | --- | --- |
-| `collect` | `daily-<date>` | `date`, `generatedAt`, `timezone`, `rides[]`, `totals`, `wellness`, `weather`, `suggested[]`, `truncated`, `missing[]` |
+| `collect` | `daily-<date>` | `date`, `generatedAt`, `timezone`, `rides[]`, `totals`, `wellness`, `weight`, `weather`, `suggested[]`, `truncated`, `missing[]` |
 | `page` | `page-<date>` | `date`, `markdown`, `timestamp` |
 | `publish` | `publish-<date>` | `date`, `file`, `action`, `merged`, `timestamp` |
 
@@ -262,7 +282,7 @@ steps:
 2. **collect** — calls the `collect` method with the workflow inputs.
 3. **publish** — calls the `publish` method to merge and write the note.
 
-It registers one cron trigger (`0 7 * * *`, host-local) while `swamp serve`
+It registers one cron trigger (`45 * * * *`, host-local) while `swamp serve`
 runs. Override any input with `--input` for a manual or backfill run.
 
 ### The managed region
@@ -277,6 +297,7 @@ Stafford Heights: min 16°C max 27°C; Mostly clear.; 5% chance
 ## Health
 - **Sleep:** 8h 16m (score 82)
 - **Steps:** 5,112 of 5,960
+- **Weight:** 81.2 kg · body fat 21%
 
 ## Activities
 - Zwift - ... (virtual_ride) — 48m · 25.0 km · 151 W avg · 139 bpm
@@ -296,6 +317,12 @@ the page.
 - The Garmin and Zwift syncs must have run at least once so the source models
   hold data. Missing sources are reported in `collect.missing` rather than
   failing the run.
+- The weight line is optional. When a `@svendowideit/garmin-body` instance
+  (`bodyModel`, default `garmin-body`) has synced and holds a weigh-in for the
+  date, the line is added; otherwise it is omitted and `garmin-body/range` is
+  reported in `collect.missing`. Body composition (fat %, muscle, BMI) only
+  appears when a compatible scale is paired; a weight-only scale reports weight
+  alone.
 - The weather header is optional. When a `@svendowideit/bom-weather` instance
   (`bomModel`, default `bom`) has synced and holds a day matching the date, the
   line is added; otherwise it is omitted and `bom/forecast` is reported in
@@ -308,7 +335,8 @@ the page.
 
 `diary.ts` is one file with the pure helpers (`calendarDate`,
 `filterActivities`, `summariseRides`, `selectSuggestions`, `selectWeather`,
-`formatForecastLine`, `renderManagedSection`, `mergeManagedSection`, …) exported
+`selectWeight`, `formatForecastLine`, `formatWeightLine`,
+`renderManagedSection`, `mergeManagedSection`, …) exported
 for unit testing, plus the three `execute`
 functions. `diary_test.ts` tests the helpers without any swamp runtime; the
 `execute` functions are covered by seeding a context via

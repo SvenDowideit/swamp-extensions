@@ -3,14 +3,14 @@ name: '@svendowideit/diary-daily'
 description: |
   Build today's Obsidian diary page from already-synced data.
 
-  Runs after the morning Garmin syncs and the Zwift recommend pass, and joins
-  what they produced into one note:
+  Runs hourly at :45, a quarter-hour after the @svendowideit/fitness-refresh
+  pass, and joins what the Garmin and Zwift syncs produced into one note:
 
     1. assert   today's source data is fresh enough to bother (Garmin activity
                 list cached, Zwift picks generated today). Nothing is fetched —
                 this workflow only reads what the fitness workflows already wrote.
-    2. collect  read a day's activities, wellness and Zwift picks into one
-                `collect` resource (never touches the network).
+    2. collect  read a day's activities, wellness, weigh-in and Zwift picks into
+                one `collect` resource (never touches the network).
     3. publish  render the page and merge it into daily/<date>.md between the
                 managed markers, preserving any prose or ticked boxes already
                 there.
@@ -26,7 +26,7 @@ description: |
 tags:
   domain: fitness
 trigger:
-  schedule: "0 7 * * *"
+  schedule: "45 * * * *"
   inputs: {}
 inputs:
   properties:
@@ -42,6 +42,12 @@ inputs:
       type: string
       default: garmin-health
       description: Instance holding Garmin daily wellness to read.
+    bodyModel:
+      type: string
+      default: garmin-body
+      description: >
+        Optional @svendowideit/garmin-body instance whose stored weigh-in is
+        added as a Weight line. Absent data simply omits the line.
     recommenderModel:
       type: string
       default: zwift-recommender
@@ -97,8 +103,8 @@ jobs:
         allowFailure: false
       - name: collect
         description: >
-          Read the day's activities, wellness and picks into one collect
-          resource. Reads stored data only; never calls Garmin or Zwift.
+          Read the day's activities, wellness, weigh-in and picks into one
+          collect resource. Reads stored data only; never calls Garmin or Zwift.
         task:
           type: model_method
           modelType: "@magistr/obsidian/vault"
@@ -109,6 +115,7 @@ jobs:
             date: ${{ inputs.date }}
             activitiesModel: ${{ inputs.activitiesModel }}
             healthModel: ${{ inputs.healthModel }}
+            bodyModel: ${{ inputs.bodyModel }}
             recommenderModel: ${{ inputs.recommenderModel }}
             eventsModel: ${{ inputs.eventsModel }}
             bomModel: ${{ inputs.bomModel }}

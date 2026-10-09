@@ -67,8 +67,24 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3219"><span class="tier A">A</span>Should repo init&#39;s allowlist include swamp vault read-secret</a><a href="#issue-3221"><span class="tier A">A</span>workflow recover misjudges whether an unknown step is guarde</a><a href="#issue-3220"><span class="tier A">A</span>A log line with a closing brace but no opening brace prints </a><a href="#issue-3149"><span class="tier A">A</span>extension fmt output prints JavaScript string concatenation </a><a href="#issue-3210"><span class="tier A">A</span>Signal a wait by workflow and key</a><a href="#issue-3218"><span class="tier A">A</span>manual_approval timeout is never enforced on a forEach-expan</a><a href="#issue-3217"><span class="tier A">A</span>workflow run reports a forEach-expanded approval gate as wai</a><a href="#issue-3170"><span class="tier A">A</span>dynamic-code safety error reports Babel line numbers, which </a><a href="#issue-3209"><span class="tier A">A</span>Let a wait_for_signal step declare a key held by one open wa</a><a href="#issue-3138"><span class="tier A">A</span>extension push offers to promote a yanked version, and exten</a><a href="#issue-3067"><span class="tier A">A</span>Search and list output follows directory iteration order in </a><a href="#issue-3200"><span class="tier A">A</span>stagecraft: integration test &#39;studio watch: an unchanged fol</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3202"><span class="tier A">A</span>A garbled nested run record crashes a parent resume with a Y</a><a href="#issue-2867"><span class="tier A">A</span>Cancel, reject and supersede of a parent run should settle i</a><a href="#issue-3219"><span class="tier A">A</span>Should repo init&#39;s allowlist include swamp vault read-secret</a><a href="#issue-3221"><span class="tier A">A</span>workflow recover misjudges whether an unknown step is guarde</a><a href="#issue-3220"><span class="tier A">A</span>A log line with a closing brace but no opening brace prints </a><a href="#issue-3149"><span class="tier A">A</span>extension fmt output prints JavaScript string concatenation </a><a href="#issue-3210"><span class="tier A">A</span>Signal a wait by workflow and key</a><a href="#issue-3218"><span class="tier A">A</span>manual_approval timeout is never enforced on a forEach-expan</a><a href="#issue-3217"><span class="tier A">A</span>workflow run reports a forEach-expanded approval gate as wai</a><a href="#issue-3170"><span class="tier A">A</span>dynamic-code safety error reports Babel line numbers, which </a><a href="#issue-3209"><span class="tier A">A</span>Let a wait_for_signal step declare a key held by one open wa</a><a href="#issue-3138"><span class="tier A">A</span>extension push offers to promote a yanked version, and exten</a></aside><div>
 
+<article class="item" id="issue-3202">
+<h2><span class="tier A">A</span>A garbled nested run record crashes a parent resume with a YAML stack trace</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-09T19:42:24.322Z">2026-10-09T19:42:24.322Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3202" rel="noopener">lab#3202</a></div>
+</article>
+<article class="item" id="issue-2867">
+<h2><span class="tier A">A</span>Cancel, reject and supersede of a parent run should settle its suspended nested child runs</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-09T19:09:46.608Z">2026-10-09T19:09:46.608Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2867" rel="noopener">lab#2867</a></div>
+</article>
 <article class="item" id="issue-3219">
 <h2><span class="tier A">A</span>Should repo init&#39;s allowlist include swamp vault read-secret, with auditReads off by default?</h2>
 <p class="lede">Shipped bug fix</p>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3138" rel="noopener">lab#3138</a></div>
 </article>
-<article class="item" id="issue-3067">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3067">
 <h2><span class="tier A">A</span>Search and list output follows directory iteration order in the definition, workflow, vault and output repositories</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-09T15:38:28.853Z">2026-10-09T15:38:28.853Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3200" rel="noopener">lab#3200</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3194">
+<article class="item" id="issue-3194">
 <h2><span class="tier A">A</span>stagecraft: upgrade stored factory definitions on read, so a format change does not break work in progress</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-08T23:46:54.698Z">2026-10-08T23:46:54.698Z</time></span></div>
@@ -2357,29 +2373,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3202">
-<h2><span class="tier B">B</span>A garbled nested run record crashes a parent resume with a YAML stack trace</h2>
+<article class="item" id="issue-3139">
+<h2><span class="tier B">B</span>serve check-config writes the extension catalog into the repo, though its help says nothing is written</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-09T20:01:11.930Z">2026-10-09T20:01:11.930Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3139" rel="noopener">lab#3139</a></div>
+</article>
+<article class="item" id="issue-2478">
+<h2><span class="tier B">B</span>Namespace names are not reserved against cache/datastore layout directories (e.g. data)</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-09T19:00:52.626Z">2026-10-09T19:00:52.626Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-09T19:59:28.001Z">2026-10-09T19:59:28.001Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3202" rel="noopener">lab#3202</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2478" rel="noopener">lab#2478</a></div>
+</article>
+<article class="item" id="issue-2892">
+<h2><span class="tier B">B</span>Extension datastore: query still returns an item after its delete is pulled</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-09T19:46:10.339Z">2026-10-09T19:46:10.339Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2892" rel="noopener">lab#2892</a></div>
 </article>
 <article class="item" id="issue-3211">
 <h2><span class="tier B">B</span>Deliver a signal by key through swamp serve</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-09T18:53:14.498Z">2026-10-09T18:53:14.498Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-09T19:39:34.502Z">2026-10-09T19:39:34.502Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3211" rel="noopener">lab#3211</a></div>
-</article>
-<article class="item" id="issue-2867">
-<h2><span class="tier B">B</span>Cancel, reject and supersede of a parent run should settle its suspended nested child runs</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-09T18:41:08.590Z">2026-10-09T18:41:08.590Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2867" rel="noopener">lab#2867</a></div>
 </article>
 <article class="item" id="issue-3190">
 <h2><span class="tier B">B</span>stagecraft: let a method or workflow stage&#39;s target use {{binding}} placeholders</h2>
@@ -2748,14 +2772,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2463" rel="noopener">lab#2463</a></div>
-</article>
-<article class="item" id="issue-3139">
-<h2><span class="tier C">C</span>serve check-config writes the extension catalog into the repo, though its help says nothing is written</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-07T15:36:09.389Z">2026-10-07T15:36:09.389Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3139" rel="noopener">lab#3139</a></div>
 </article>
 <article class="item" id="issue-3133">
 <h2><span class="tier C">C</span>Model types: decide whether names like @/@x/y or a+b/c should be legal (type grammar)</h2>
@@ -3253,14 +3269,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2797" rel="noopener">lab#2797</a></div>
 </article>
-<article class="item" id="issue-2892">
-<h2><span class="tier C">C</span>Extension datastore: query still returns an item after its delete is pulled</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-01T15:59:42.256Z">2026-10-01T15:59:42.256Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2892" rel="noopener">lab#2892</a></div>
-</article>
 <article class="item" id="issue-2583">
 <h2><span class="tier C">C</span>verify-reviews: adversarial review path guard is a hand-kept list, so new extensions silently skip it</h2>
 <p class="lede">Open issue</p>
@@ -3334,13 +3342,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>408 items across 1 source(s) in this window:
-0 critical, 286 notable, 12 routine,
-110 minor.</p>
-<ul><li><strong>issues</strong> — 408</li></ul></section>
+<p>409 items across 1 source(s) in this window:
+0 critical, 288 notable, 13 routine,
+108 minor.</p>
+<ul><li><strong>issues</strong> — 409</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-09T19:02:44.548Z">2026-10-09T19:02:44.548Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-09T20:02:39.589Z">2026-10-09T20:02:39.589Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

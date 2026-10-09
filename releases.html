@@ -67,8 +67,244 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261009-165514-0-sha-174d96d4"><span class="tier A">A</span>let a wait_for_signal step declare a key held by one open wa</a><a href="#release-swamp-club-swamp-v20261009-154711-0-sha-8df63c9b"><span class="tier A">A</span>push and promote know when a published version is yanked (sw</a><a href="#release-swamp-club-swamp-v20261009-153540-0-sha-ecb7a372"><span class="tier A">A</span>walk repository directories in name order so listings match </a><a href="#release-swamp-club-swamp-v20261008-225927-0-sha-6cb5098b"><span class="tier A">A</span>run scheduled workflows concurrently and report queue delay </a><a href="#release-swamp-club-swamp-v20261008-225550-0-sha-3aa438b6"><span class="tier A">A</span>show signal waits to remote clients and the dashboard (swamp</a><a href="#release-swamp-club-swamp-v20261008-214314-0-sha-fbfa141c"><span class="tier A">A</span>a type-path deny covers a model type that is only an @ (swam</a><a href="#release-swamp-club-swamp-v20261008-212427-0-sha-128d7de4"><span class="tier A">A</span>extension source add imports the directory resolvers from th</a><a href="#release-swamp-club-swamp-v20261008-202431-0-sha-3a59b162"><span class="tier A">A</span>lazy hydration readers read current content, including other</a><a href="#release-swamp-club-swamp-v20261008-202013-0-sha-a7ab3774"><span class="tier A">A</span>-q silences the update banners, autoupdate warnings and prog</a><a href="#release-swamp-club-swamp-v20261008-201612-0-sha-97969248"><span class="tier A">A</span>list expired approval gates and cancel them from the dashboa</a><a href="#release-swamp-club-swamp-v20261008-201010-0-sha-c4e65dbe"><span class="tier A">A</span>refuse a datastore marked with a newer format before writing</a><a href="#release-swamp-club-swamp-v20261008-200633-0-sha-6a954e74"><span class="tier A">A</span>a cancelled method run records what cancelled it, and guard </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261009-185434-0-sha-a97568d8"><span class="tier A">A</span>stop agent permission settings pre-approving vault read-secr</a><a href="#release-swamp-club-swamp-v20261009-184103-0-sha-371d04c3"><span class="tier A">A</span>cancel, reject and supersede of a parent run settle its susp</a><a href="#release-swamp-club-swamp-v20261009-183646-0-sha-e2247532"><span class="tier A">A</span>judge an unknown step&#39;s guard in its own job and by its forE</a><a href="#release-swamp-club-swamp-v20261009-181711-0-sha-ea3bb166"><span class="tier A">A</span>extension fmt prints deno output as plain lines, closing bra</a><a href="#release-swamp-club-swamp-v20261009-181041-0-sha-3a964edd"><span class="tier A">A</span>signal a wait by workflow and key (swamp-club#3210) (#2962)</a><a href="#release-swamp-club-swamp-v20261009-175905-0-sha-67799a63"><span class="tier A">A</span>enforce a manual_approval timeout on a forEach-expanded gate</a><a href="#release-swamp-club-swamp-v20261009-174112-0-sha-8d880ec7"><span class="tier A">A</span>report a forEach-expanded approval gate as a gate (swamp-clu</a><a href="#release-swamp-club-swamp-v20261009-170507-0-sha-d8a46694"><span class="tier A">A</span>count lines by newline alone for dynamic-code findings and a</a><a href="#release-swamp-club-swamp-v20261009-165514-0-sha-174d96d4"><span class="tier A">A</span>let a wait_for_signal step declare a key held by one open wa</a><a href="#release-swamp-club-swamp-v20261009-154711-0-sha-8df63c9b"><span class="tier A">A</span>push and promote know when a published version is yanked (sw</a><a href="#release-swamp-club-swamp-v20261009-153540-0-sha-ecb7a372"><span class="tier A">A</span>walk repository directories in name order so listings match </a><a href="#release-swamp-club-swamp-v20261008-225927-0-sha-6cb5098b"><span class="tier A">A</span>run scheduled workflows concurrently and report queue delay </a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261009-185434-0-sha-a97568d8">
+<h2><span class="tier A">A</span>stop agent permission settings pre-approving vault read-secret (swamp-club#3219) (#2966)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-09T18:56:04Z">2026-10-09T18:56:04Z</time></span><span>repo</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(repo): stop agent permission settings pre-approving vault read-secret (swamp-club#3219) (#2966)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp repo init</code> / <code>repo upgrade</code> wrote <code>Bash(swamp vault:*)</code> into <code>.claude/settings.local.json</code>. That wildcard predates <code>swamp vault read-secret</code> (added three months later) and silently grew to pre-approve it, so an agent could print a secret&#39;s value without asking. Kiro&#39;s trusted commands (<code>swamp *</code> / <code>swamp .*</code>) covered it too.</p>
+<p>This closes <code>read-secret</code> and changes nothing else:</p>
+<ul>
+<li><strong>Claude Code:</strong> <code>Bash(swamp vault:*)</code> is replaced by one entry per vault subcommand and alias (<code>list</code>, <code>write-secret</code>) except <code>read-secret</code>. <code>repo upgrade</code> removes the exact legacy entry and keeps every other entry, including a user&#39;s own <code>Bash(swamp vault read-secret:*)</code>.</li>
+<li><strong>Kiro IDE:</strong> adds <code>kiroAgent.commandDenylist: [&quot;read-secret&quot;]</code> (checked before trusted commands, substring match, so Kiro asks). Merged into an existing denylist on upgrade.</li>
+<li><strong>kiro-cli:</strong> adds <code>toolsSettings.shell.deniedCommands: [&quot;.*read-secret.*&quot;]</code>. kiro-cli <strong>blocks</strong> denied commands rather than asking, and its regex has no look-ahead to carve <code>read-secret</code> out of <code>swamp .*</code>, so under kiro-cli the agent can&#39;t run it; the user still can.</li>
+<li><strong>Amp:</strong> deliberately unchanged — the <code>amp.commands</code> allowlist swamp writes is no longer in Amp&#39;s settings schema, so it grants nothing today. Stale Amp/Kiro settings formats are tracked in swamp-club#3222.</li>
+</ul>
+<p>No command other than <code>read-secret</code> gains</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.185434.0-sha.a97568d8" rel="noopener">release v20261009.185434.0-sha.a97568d8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a97568d803560032447c4e35436c528e018006c7" rel="noopener">a97568d8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2966" rel="noopener">#2966</a>𝗔 <a href="https://swamp-club.com/lab/3219" rel="noopener">lab#3219</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261009-184103-0-sha-371d04c3">
+<h2><span class="tier A">A</span>cancel, reject and supersede of a parent run settle its suspended nested runs (swamp-club#2867) (#2965)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-09T18:42:32Z">2026-10-09T18:42:32Z</time></span><span>workflows</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(workflows): cancel, reject and supersede of a parent run settle its suspended nested runs (swamp-club#2867) (#2965)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Closes swamp-club#2867, the follow-up to swamp-club#2736. Ending a parent run used to leave its suspended nested runs as they were: still listed for approval, still resumable, with nothing left to read their outcome.</p>
+<p><strong>Cascade.</strong> Cancelling, rejecting or superseding a suspended parent now cancels the suspended child runs it waited on, and theirs, to the nesting limit.</p>
+<ul>
+<li>Only a child linked both ways is followed, and each is cancelled under its own claim after being read again.</li>
+<li>A child with a live owner, one that does not link back, or one whose record is not the datastore&#39;s copy is left and reported with its cancel command.</li>
+<li>Through serve the children are cancelled in the parent&#39;s gated unit of work, so one push carries them. A child the instance is running is asked to stop and is not waited for.</li>
+<li>The cascade never writes the parent, and one child&#39;s failure does not stop the rest.</li>
+</ul>
+<p><strong>Backstop on the child.</strong> A suspended nested run whose parent ended, or whose parent step moved on to another child, refuses approve, reject and resume and cancels itself. Recover and signal delivery reach it through resume.</p>
+<ul>
+<li>A parent that cannot be read, has no record, holds a malformed link, or differs from the datastore&#39;s copy refuses and writes nothing.</li>
+<li>The run&#39;s own record is confirmed against the datastore before the cancel is wr</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.184103.0-sha.371d04c3" rel="noopener">release v20261009.184103.0-sha.371d04c3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/371d04c3c2f2c0b6b01499c4c3e37e1277d8d2a7" rel="noopener">371d04c3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2965" rel="noopener">#2965</a>𝗔 <a href="https://swamp-club.com/lab/2867" rel="noopener">lab#2867</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261009-183646-0-sha-e2247532">
+<h2><span class="tier A">A</span>judge an unknown step&#39;s guard in its own job and by its forEach step (swamp-club#3221) (#2964)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-09T18:38:36Z">2026-10-09T18:38:36Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): judge an unknown step&#39;s guard in its own job and by its forEach step (swamp-club#3221) (#2964)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp workflow recover</code> decides whether an interrupted run needs <code>--acknowledge-unknown</code> by checking that every step left <code>unknown</code> has a guard. It found each step&#39;s definition by name alone, across all jobs. Closes swamp-club#3221.</p>
+<ul>
+<li><strong>A guarded forEach iteration read as unguarded.</strong> An iteration is stored under its expanded name (<code>deploy-prod</code>), which no step of the definition has, so recovery asked for an acknowledgement it did not need.</li>
+<li><strong>An unguarded step read as guarded</strong> when another job had a guarded step of the same name, so recovery reset it without the acknowledgement. This direction skipped the operator safeguard.</li>
+<li><strong>Fix.</strong> <code>assessRecoveryForRun</code> resolves each unknown step run in its own job, and an iteration by the step it was expanded from (the step run&#39;s <code>forEachTemplate</code>). A step run that matches no step of its job counts as unguarded, so the assessment fails closed. The JSON shape of <code>workflow recover --assess-only</code> is unchanged.</li>
+</ul>
+<p>Not a regression: the lookup is unchanged since recovery was introduced in #2472.</p>
+<p>Iterations stored without <code>forEachTemplate</code> (older builds, <code>--last-evaluated</code> runs) still read as unguarded, as before.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit tests in <code>recovery_assessment_test.ts</code> for both failure modes, their mirrors, an unexpanded forEach step, and the fail-closed cases.</li>
+<li>Two <code>recover</code> tests in `exec</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.183646.0-sha.e2247532" rel="noopener">release v20261009.183646.0-sha.e2247532</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e2247532acc353e3cf2bf725e9b997c716249381" rel="noopener">e2247532</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2964" rel="noopener">#2964</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2472" rel="noopener">#2472</a>𝗔 <a href="https://swamp-club.com/lab/3221" rel="noopener">lab#3221</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261009-181711-0-sha-ea3bb166">
+<h2><span class="tier A">A</span>extension fmt prints deno output as plain lines, closing braces print once (swamp-club#3149, swamp-club#3220) (#2963)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-09T18:18:48Z">2026-10-09T18:18:48Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): extension fmt prints deno output as plain lines, closing braces print once (swamp-club#3149, swamp-club#3220) (#2963)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3149 and swamp-club#3220.</p>
+<p><strong><code>swamp extension fmt</code> log output (swamp-club#3149)</strong></p>
+<p><code>extension fmt</code> passed deno&#39;s fmt and lint output to LogTape as one interpolated value, so a formatting diff printed as a quoted JavaScript string concatenation (<code>&quot;…\n&quot; +</code>) and one-line output such as <code>Checked 1 file</code> printed in quotes. swamp-club#3017 fixed this for <code>extension push</code> only.</p>
+<ul>
+<li>The push renderer&#39;s text-block printing moves to a shared <code>logTextBlock</code> helper (<code>src/presentation/renderers/log_text_block.ts</code>). Push delegates to it; its output is unchanged.</li>
+<li>The fmt log renderer uses it for fmt output, lint output, check-mode issues and fix-mode remaining issues. Issue output is indented four spaces under its label, as push prints it.</li>
+<li><code>--json</code> output is unchanged.</li>
+</ul>
+<p>Before:</p>
+<p>```</p>
+<p>[ERR] extension·fmt: &quot;from /…/text_entropy.ts:\n&quot; +</p>
+<p>  &quot;2 | +export const model = {\n&quot; +</p>
+<p>[INF] extension·fmt: &quot;Checked 1 file&quot;</p>
+<p>```</p>
+<p>After:</p>
+<p>```</p>
+<p>[ERR] extension·fmt:     from /…/text_entropy.ts:</p>
+<p>[ERR] extension·fmt:     2 | +export const model = {</p>
+<p>[INF] extension·fmt: Checked 1 file</p>
+<p>```</p>
+<p><strong>Doubled closing brace (swamp-club#3220)</strong></p>
+<p><code>escapeLogTemplate</code> doubled both braces, but LogTape only parses a template that contains an opening brace and prints any other verbatim. A line with a closing brace and no opening brace, such as the</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.181711.0-sha.ea3bb166" rel="noopener">release v20261009.181711.0-sha.ea3bb166</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ea3bb166706047086c3f2619263ffa57296e9c8c" rel="noopener">ea3bb166</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2963" rel="noopener">#2963</a>𝗔 <a href="https://swamp-club.com/lab/3149" rel="noopener">lab#3149</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261009-181041-0-sha-3a964edd">
+<h2><span class="tier A">A</span>signal a wait by workflow and key (swamp-club#3210) (#2962)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-09T18:12:41Z">2026-10-09T18:12:41Z</time></span><span>workflows</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(workflows): signal a wait by workflow and key (swamp-club#3210) (#2962)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Part 2 of 6 of keyed signal waits (swamp-club#3210). <code>swamp workflow signal</code></p>
+<p>takes a workflow and a key in place of a wait ID, so a sender that knows both</p>
+<p>in advance no longer looks the wait ID up for every run.</p>
+<p>```</p>
+<p>swamp workflow signal --workflow release --key release-verdict --payload &#39;{&quot;verdict&quot;:&quot;ship&quot;}&#39;</p>
+<p>```</p>
+<ul>
+<li><strong>Address forms</strong>: a wait ID, or <code>--workflow &lt;id_or_name&gt;</code> with <code>--key &lt;key&gt;</code>.</li>
+</ul>
+<p>  Exactly one form is given. The workflow resolves by name, then by ID.</p>
+<ul>
+<li><strong>Resolution</strong>: the use case resolves the workflow and key to the wait that</li>
+</ul>
+<p>  holds the key, then runs the existing acceptance unchanged: the same</p>
+<p>  decision, the same write-once outcome, the same refusals. Resolving reads</p>
+<p>  and never writes (<code>findKeyHolder</code> in <code>wait_key_claim.ts</code>), and a signal still</p>
+<p>  takes no run claim and writes no run record.</p>
+<ul>
+<li><strong>Not found</strong>: an unknown workflow, or a key the workflow does not declare.</li>
+<li><strong>No open wait</strong>: a declared key that no open wait holds is refused with the</li>
+</ul>
+<p>  new kind <code>no_open_wait</code>, and nothing is stored. Holding such a signal is</p>
+<p>  swamp-club#3212.</p>
+<ul>
+<li><strong>Settled in between</strong>: a holder settled between resolving and delivering</li>
+</ul>
+<p>  gets the refusal for what is stored. The signal is never moved on to the</p>
+<p>  wait that claimed the key since.</p>
+<ul>
+<li><strong>Output</strong>: the result names the wait ID that took the signal, and carries</li>
+</ul>
+<p>  the wait&#39;s <code>key</code> in log and JSON output.</p>
+<ul>
+<li>**Through</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.181041.0-sha.3a964edd" rel="noopener">release v20261009.181041.0-sha.3a964edd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3a964edd1e77dfe55ba567283c8ae5f6c48bfb44" rel="noopener">3a964edd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2962" rel="noopener">#2962</a>𝗔 <a href="https://swamp-club.com/lab/3210" rel="noopener">lab#3210</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261009-175905-0-sha-67799a63">
+<h2><span class="tier A">A</span>enforce a manual_approval timeout on a forEach-expanded gate (swamp-club#3218) (#2961)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-09T18:00:45Z">2026-10-09T18:00:45Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): enforce a manual_approval timeout on a forEach-expanded gate (swamp-club#3218) (#2961)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A <code>manual_approval</code> step expanded by <code>forEach</code> never expired. <code>swamp workflow approve</code>, <code>reject</code> and <code>approvals</code> ignored its <code>timeout</code>, so a gate meant to lapse stayed pending and could be approved long after its deadline. Closes swamp-club#3218.</p>
+<ul>
+<li><strong>Cause.</strong> Every reader of a gate&#39;s timeout found the task by looking the waiting step up by name in the workflow definition. An expanded step is stored on the run under its expanded name (<code>approve-prod</code>), which no step of the definition has, so the lookup missed and the gate had no deadline.</li>
+<li><strong>Fix.</strong> The step run records the timeout its gate was requested with (<code>approvalTimeout</code>, beside <code>approvalPrompt</code>). A new domain function, <code>gateTimeoutSeconds</code>, resolves the deadline for every reader: approve, reject, approvals, the nested-run check and the <code>suspended</code> event.</li>
+<li><strong>Runs already suspended.</strong> For a run record written before this change, the resolver falls back to the definition: the step of the run step&#39;s name, then the step a forEach iteration was expanded from. A forEach gate that is already waiting starts expiring too.</li>
+<li><strong>JSON.</strong> <code>workflow run --json</code> now reports <code>timeout</code> in <code>approvalRequired</code> for these gates.</li>
+</ul>
+<h4 class="body-h">Behaviour change for plain gates</h4>
+<p>The recorded timeout wins over the definition. Editing a workflow&#39;s <code>timeout</code> no longer moves the deadline of a gate that is already waiting; i</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.175905.0-sha.67799a63" rel="noopener">release v20261009.175905.0-sha.67799a63</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/67799a63646635a2f690ac7d66285eef5a81ac0e" rel="noopener">67799a63</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2961" rel="noopener">#2961</a>𝗔 <a href="https://swamp-club.com/lab/3218" rel="noopener">lab#3218</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261009-174112-0-sha-8d880ec7">
+<h2><span class="tier A">A</span>report a forEach-expanded approval gate as a gate (swamp-club#3217) (#2960)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-09T17:43:06Z">2026-10-09T17:43:06Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): report a forEach-expanded approval gate as a gate (swamp-club#3217) (#2960)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp workflow run</code> reported a run suspended on a <code>manual_approval</code> step expanded by <code>forEach</code> as waiting on a nested run, and told the user to resume &quot;once it finishes&quot;. The step is an approval gate of the run&#39;s own. Closes swamp-club#3217.</p>
+<ul>
+<li><strong>Cause.</strong> The <code>suspended</code> event read the gate&#39;s prompt by looking the waiting step up by name in the workflow definition. An expanded step is stored on the run under its expanded name (<code>approve-prod</code>), which no step of the definition has, so the event carried an empty prompt. Since #2954 the renderer reads an empty prompt on a step that is not waiting for a signal as a nested run the caller is not shown.</li>
+<li><strong>Fix.</strong> <code>suspendedEventFor</code> takes the prompt from the step run, which records it when the gate is requested, and falls back to the definition for a run record without one. This is the order <code>workflow approvals</code> already uses. The renderer is unchanged.</li>
+<li><strong>JSON.</strong> <code>workflow run --json</code> now reports the prompt in <code>approvalRequired</code> for these gates; it was an empty string.</li>
+</ul>
+<p>This is a regression in the log output, introduced in <code>v20261008.225550.0-sha.3aa438b6</code>. The swamp-uat adversarial test <code>step_name_control_chars_test.ts</code> has failed on every run since and should pass again.</p>
+<h4 class="body-h">Known limits</h4>
+<ul>
+<li>A forEach-expanded gate&#39;s <code>timeout</code> is still not read: the event carries none, and <code>approve</code>, <code>reject</code> and `approval</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.174112.0-sha.8d880ec7" rel="noopener">release v20261009.174112.0-sha.8d880ec7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8d880ec78f78c0829df06e958a7a9c149f3c0736" rel="noopener">8d880ec7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2960" rel="noopener">#2960</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2954" rel="noopener">#2954</a>𝗔 <a href="https://swamp-club.com/lab/3217" rel="noopener">lab#3217</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261009-170507-0-sha-d8a46694">
+<h2><span class="tier A">A</span>count lines by newline alone for dynamic-code findings and acceptance comment sites (swamp-club#3170) (#2959)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-09T17:07:02Z">2026-10-09T17:07:02Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): count lines by newline alone for dynamic-code findings and acceptance comment sites (swamp-club#3170) (#2959)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Babel breaks lines at CR, U+2028 and U+2029 as well as newline, but the</p>
+<p>safety analyzer, the other line checks and the acceptance parser count</p>
+<p>lines by newline only. Two places still read Babel&#39;s <code>loc</code> and so</p>
+<p>disagreed with everything else in a file holding those characters.</p>
+<p>Closes swamp-club#3170.</p>
+<ul>
+<li><strong>Dynamic-code error location.</strong> <code>findDynamicCodeExecution</code> took each</li>
+</ul>
+<p>  finding&#39;s line and column from <code>loc</code>, so the error named the wrong</p>
+<p>  line (in its <code>line</code> field and its message), sometimes past the end of</p>
+<p>  the file. It now computes them from the node&#39;s start offset. The</p>
+<p>  column in such a file is the offset from the last newline, as it</p>
+<p>  already is for deno-command. The error still fired before; only its</p>
+<p>  location was wrong.</p>
+<ul>
+<li><strong>Acceptance comment sites.</strong> <code>commentSites</code> built its barriers (the</li>
+</ul>
+<p>  lines inside a multi-line string, template literal or block comment)</p>
+<p>  from <code>loc</code>, so a CR or U+2028 in an earlier comment shifted them:</p>
+<p>  <code>extension push</code> and <code>extension quality</code> offered an acceptance comment</p>
+<p>  on lines inside a template literal, where it would change the string,</p>
+<p>  and refused it on ordinary lines. Barriers now come from token and</p>
+<p>  comment offsets.</p>
+<ul>
+<li><strong>Shared <code>LineIndex</code>.</strong> The newline-only index added for deno-command</li>
+</ul>
+<p>  in swamp-club#2965 moves to <code>extension_source_ast.ts</code> and all three</p>
+<p>  callers use</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.170507.0-sha.d8a46694" rel="noopener">release v20261009.170507.0-sha.d8a46694</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d8a46694ec026c3bf48555e5708c562cfb2a48da" rel="noopener">d8a46694</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2959" rel="noopener">#2959</a>𝗔 <a href="https://swamp-club.com/lab/3170" rel="noopener">lab#3170</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261009-165514-0-sha-174d96d4">
 <h2><span class="tier A">A</span>let a wait_for_signal step declare a key held by one open wait at a time (swamp-club#3209) (#2958)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
@@ -164,7 +400,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.225927.0-sha.6cb5098b" rel="noopener">release v20261008.225927.0-sha.6cb5098b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6cb5098be1515c6b3e1b1c8c57773a5a114f0b53" rel="noopener">6cb5098b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2955" rel="noopener">#2955</a>𝗔 <a href="https://swamp-club.com/lab/3046" rel="noopener">lab#3046</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261008-225550-0-sha-3aa438b6">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261008-225550-0-sha-3aa438b6">
 <h2><span class="tier A">A</span>show signal waits to remote clients and the dashboard (swamp-club#3110) (#2954)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-08T22:57:29Z">2026-10-08T22:57:29Z</time></span><span>workflows</span><span>feat</span></div>
@@ -368,7 +604,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.200633.0-sha.6a954e74" rel="noopener">release v20261008.200633.0-sha.6a954e74</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6a954e7473279877bc1b7c9ad04aa905d36ae226" rel="noopener">6a954e74</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2945" rel="noopener">#2945</a>𝗔 <a href="https://swamp-club.com/lab/2922" rel="noopener">lab#2922</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261008-192309-0-sha-9f2da9f2">
+<article class="item" id="release-swamp-club-swamp-v20261008-192309-0-sha-9f2da9f2">
 <h2><span class="tier A">A</span>a refused grant create leaves no definition behind, and a local create keeps --methods (swamp-club#3182, swamp-club#3187) (#2944)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-08T19:25:00Z">2026-10-08T19:25:00Z</time></span><span>access</span><span>fix</span></div>
@@ -4664,7 +4900,35 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.194016.0-sha.c0c751a1" rel="noopener">release v20261002.194016.0-sha.c0c751a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0c751a17fa31d512cb5ee65da19e47284547cd0" rel="noopener">c0c751a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2808" rel="noopener">#2808</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/2979" rel="noopener">lab#2979</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261008-213342-0-sha-5261ce0a">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261009-193815-0-sha-1d4d4c18">
+<h2><span class="tier C">C</span>swamp 20261009.193815.0-sha.1d4d4c18</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-09T19:40:04Z">2026-10-09T19:40:04Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): refuse a parent resume by name when a nested run record cannot be read (swamp-club#3202) (#2967)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3202. Resuming a parent run whose nested workflow step waits on a child crashed with a raw YAML parse error and stack trace when the child&#39;s run record did not parse.</p>
+<ul>
+<li><code>NestedRunLink.resolveChild</code> reports a failed read as an <code>unreadable</code> child instead of letting the error escape.</li>
+<li>The resume check refuses with <code>NestedRunUnreadableError</code>, a <code>UserError</code> naming the parent run, the nested run and its workflow, and the next step: repair the record and resume, or cancel the parent. The refusal changes nothing.</li>
+<li>The read error is logged as a warning and kept out of the message, since a parse error quotes the record.</li>
+<li><code>settleNestedWait</code> suspends on the child again when its record turns unreadable after the resume checked it, instead of failing the step for good.</li>
+<li>serve names the nested run only to a principal that may read its workflow, as for <code>NestedRunPendingError</code>.</li>
+<li><code>nestedWaitView</code> no longer shows such a parent as awaiting resume.</li>
+<li><code>design/primitives/workflows.md</code> and the swamp skill&#39;s <code>nested-workflows.md</code> describe the refusal.</li>
+</ul>
+<p>Not changed: the run repository itself, so other reads of a garbled record (for example resuming a run whose own record is garbled) behave as before.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit tests in <code>nested_run_link_test.ts</code> and <code>nested_run_redaction_test.ts</code>.</li>
+<li>Two integration tests in `integration/nes</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.193815.0-sha.1d4d4c18" rel="noopener">release v20261009.193815.0-sha.1d4d4c18</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1d4d4c18" rel="noopener">1d4d4c18</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2967" rel="noopener">#2967</a>𝗔 <a href="https://swamp-club.com/lab/3202" rel="noopener">lab#3202</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-213342-0-sha-5261ce0a">
 <h2><span class="tier C">C</span>pin the pollers against a real catalog, policy and peer (swamp-club#2863) (#2951)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-08T21:35:31Z">2026-10-08T21:35:31Z</time></span><span>serve</span><span>test</span></div>
@@ -4818,13 +5082,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>195 items across 1 source(s) in this window:
-0 critical, 178 notable, 10 routine,
-7 minor.</p>
-<ul><li><strong>fix</strong> — 130</li><li><strong>feat</strong> — 48</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 2</li></ul></section>
+<p>204 items across 1 source(s) in this window:
+0 critical, 186 notable, 10 routine,
+8 minor.</p>
+<ul><li><strong>fix</strong> — 136</li><li><strong>feat</strong> — 50</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 2</li><li><strong>changes</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-09T19:02:44.548Z">2026-10-09T19:02:44.548Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-09T20:02:39.589Z">2026-10-09T20:02:39.589Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -67,8 +67,130 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261008-202431-0-sha-3a59b162"><span class="tier A">A</span>lazy hydration readers read current content, including other</a><a href="#release-swamp-club-swamp-v20261008-202013-0-sha-a7ab3774"><span class="tier A">A</span>-q silences the update banners, autoupdate warnings and prog</a><a href="#release-swamp-club-swamp-v20261008-201612-0-sha-97969248"><span class="tier A">A</span>list expired approval gates and cancel them from the dashboa</a><a href="#release-swamp-club-swamp-v20261008-201010-0-sha-c4e65dbe"><span class="tier A">A</span>refuse a datastore marked with a newer format before writing</a><a href="#release-swamp-club-swamp-v20261008-200633-0-sha-6a954e74"><span class="tier A">A</span>a cancelled method run records what cancelled it, and guard </a><a href="#release-swamp-club-swamp-v20261008-192309-0-sha-9f2da9f2"><span class="tier A">A</span>a refused grant create leaves no definition behind, and a lo</a><a href="#release-swamp-club-swamp-v20261008-191723-0-sha-9f9d52fa"><span class="tier A">A</span>settle expired signal waits from the continuation sweep (swa</a><a href="#release-swamp-club-swamp-v20261008-184215-0-sha-03ca42ca"><span class="tier A">A</span>a hydrateFile success with no file fails as a contract viola</a><a href="#release-swamp-club-swamp-v20261008-183339-0-sha-231eda34"><span class="tier A">A</span>a worker without a swamp-club credential passes the auth gat</a><a href="#release-swamp-club-swamp-v20261008-181122-0-sha-25d6c2db"><span class="tier A">A</span>print the registry&#39;s warnings after a push (swamp-club#2900)</a><a href="#release-swamp-club-swamp-v20261008-180526-0-sha-cbb99ed9"><span class="tier A">A</span>resume signalled workflow runs automatically (swamp-club#310</a><a href="#release-swamp-club-swamp-v20261008-175630-0-sha-060b2a17"><span class="tier A">A</span>data.latest() no longer reports a false ambiguity after a mo</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261008-225927-0-sha-6cb5098b"><span class="tier A">A</span>run scheduled workflows concurrently and report queue delay </a><a href="#release-swamp-club-swamp-v20261008-225550-0-sha-3aa438b6"><span class="tier A">A</span>show signal waits to remote clients and the dashboard (swamp</a><a href="#release-swamp-club-swamp-v20261008-214314-0-sha-fbfa141c"><span class="tier A">A</span>a type-path deny covers a model type that is only an @ (swam</a><a href="#release-swamp-club-swamp-v20261008-212427-0-sha-128d7de4"><span class="tier A">A</span>extension source add imports the directory resolvers from th</a><a href="#release-swamp-club-swamp-v20261008-202431-0-sha-3a59b162"><span class="tier A">A</span>lazy hydration readers read current content, including other</a><a href="#release-swamp-club-swamp-v20261008-202013-0-sha-a7ab3774"><span class="tier A">A</span>-q silences the update banners, autoupdate warnings and prog</a><a href="#release-swamp-club-swamp-v20261008-201612-0-sha-97969248"><span class="tier A">A</span>list expired approval gates and cancel them from the dashboa</a><a href="#release-swamp-club-swamp-v20261008-201010-0-sha-c4e65dbe"><span class="tier A">A</span>refuse a datastore marked with a newer format before writing</a><a href="#release-swamp-club-swamp-v20261008-200633-0-sha-6a954e74"><span class="tier A">A</span>a cancelled method run records what cancelled it, and guard </a><a href="#release-swamp-club-swamp-v20261008-192309-0-sha-9f2da9f2"><span class="tier A">A</span>a refused grant create leaves no definition behind, and a lo</a><a href="#release-swamp-club-swamp-v20261008-191723-0-sha-9f9d52fa"><span class="tier A">A</span>settle expired signal waits from the continuation sweep (swa</a><a href="#release-swamp-club-swamp-v20261008-184215-0-sha-03ca42ca"><span class="tier A">A</span>a hydrateFile success with no file fails as a contract viola</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261008-225927-0-sha-6cb5098b">
+<h2><span class="tier A">A</span>run scheduled workflows concurrently and report queue delay (swamp-club#3046) (#2955)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T23:01:08Z">2026-10-08T23:01:08Z</time></span><span>serve</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(serve): run scheduled workflows concurrently and report queue delay (swamp-club#3046) (#2955)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3046.</p>
+<p><code>swamp serve</code> runs every scheduled workflow through one global queue, one run at a time, and no setting changes that. On the reporter&#39;s serve, each run spends about 37 s in datastore sync. Once a per-minute schedule was added, the queue saturated: a <code>40 */6 * * *</code> fire started 2 h 49 min late, and a <code>2-59/5</code> schedule ran half its fires. Health only shows <code>running</code>, so none of this waiting was visible.</p>
+<p><strong>New setting: <code>max-concurrent-scheduled-runs</code>.</strong> Available as a config key, the <code>SWAMP_MAX_CONCURRENT_SCHEDULED_RUNS</code> env var and the <code>--max-concurrent-scheduled-runs</code> flag on <code>serve</code> and <code>serve daemon enable</code>. It is separate from <code>--max-concurrent-runs</code>, which limits API runs.</p>
+<ul>
+<li><strong>Default is 1</strong>, which keeps today&#39;s behaviour: one scheduled run at a time, in fire order.</li>
+<li><strong>Above 1</strong>, the scheduler starts the first queued run whose workflow isn&#39;t already running. Different workflows run together; a workflow never overlaps itself. A cron fire (keyed by workflow id) and a replayed run (keyed by name) count as the same workflow.</li>
+</ul>
+<p><strong>Queue delay in health.</strong></p>
+<ul>
+<li>Each schedule in the health snapshot, <code>/health</code> and the dashboard now reports <code>queued</code>, <code>oldestQueuedAt</code> and <code>lastQueueDelayMs</code>.</li>
+<li><code>schedule_started</code> carries <code>queueDelayMs</code>.</li>
+<li>All queue data is per schedule, so the per-token health view filters it along with its schedule</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.225927.0-sha.6cb5098b" rel="noopener">release v20261008.225927.0-sha.6cb5098b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6cb5098be1515c6b3e1b1c8c57773a5a114f0b53" rel="noopener">6cb5098b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2955" rel="noopener">#2955</a>𝗔 <a href="https://swamp-club.com/lab/3046" rel="noopener">lab#3046</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-225550-0-sha-3aa438b6">
+<h2><span class="tier A">A</span>show signal waits to remote clients and the dashboard (swamp-club#3110) (#2954)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T22:57:29Z">2026-10-08T22:57:29Z</time></span><span>workflows</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(workflows): show signal waits to remote clients and the dashboard (swamp-club#3110) (#2954)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A run on a server and the dashboard were not told about signal waits. Closes swamp-club#3110.</p>
+<ul>
+<li><strong>Nested wait reaches remote clients.</strong> The <code>suspended</code> event carries <code>nestedSignalWaits</code>: the open wait of each nested run still waited on, at the innermost run that has to act. No new event kind is sent, so a released client still parses every event; a compiler-checked test pins which kinds go on the wire.</li>
+<li><strong>Redaction.</strong> serve names a nested run&#39;s wait only to a caller who may read the workflow the wait belongs to, which can be a grandchild&#39;s.</li>
+<li><strong>Signal command works from the client.</strong> <code>workflow run</code> prints the wait ID and a signal command with the run&#39;s target, so a remote run prints <code>--server</code>. A wait further down also prints the resume of the run that holds it. A direct nested run hidden from the caller no longer produces an approve hint.</li>
+<li><strong>Signal visible before resume.</strong> <code>workflow history get</code> shows a signal&#39;s receipt on a step that still waits, read from the wait&#39;s outcome; the run record is not written.</li>
+<li><strong>Resume refusal.</strong> The refusal to resume a parent asks the wait store, so it no longer names a wait that is already signalled.</li>
+<li><strong>Waits listing.</strong> <code>workflow.waits</code> takes <code>includeSignalled</code> and then also lists signalled waits with their receipt and whether the run can resume. Without it the reply is unchanged.</li>
+<li><strong>Dashboard.</strong> The Approv</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.225550.0-sha.3aa438b6" rel="noopener">release v20261008.225550.0-sha.3aa438b6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3aa438b60c13f1e85e51a4d33fc37e4ca7ad69b5" rel="noopener">3aa438b6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2954" rel="noopener">#2954</a>𝗔 <a href="https://swamp-club.com/lab/3110" rel="noopener">lab#3110</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-214314-0-sha-fbfa141c">
+<h2><span class="tier A">A</span>a type-path deny covers a model type that is only an @ (swamp-club#3188) (#2952)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T21:44:59Z">2026-10-08T21:44:59Z</time></span><span>access</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(access): a type-path deny covers a model type that is only an @ (swamp-club#3188) (#2952)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The scheduled flaky-test run (<a href="https://github.com/swamp-club/swamp/actions/runs/37823942314" rel="noopener">37823942314</a>) failed one property test on Linux: <code>typePatternMatchesIgnoringAt: covers every type the raw pattern matched in canonical spelling</code>, counterexample <code>[&quot;@*&quot;,&quot;@.&quot;]</code> (seed 986965057).</p>
+<p>The test was right and the function was wrong. <code>typePatternMatchesIgnoringAt</code> returned <code>false</code> for a model type that normalizes to nothing once its <code>@</code> is set aside (a bare <code>@</code>), before it reached the branch that matches a pattern without a type path as written. So <code>@*</code> stopped matching type <code>@</code>, though the as-written match succeeds, contradicting the function&#39;s own docstring.</p>
+<h4 class="body-h">Change</h4>
+<ul>
+<li><code>src/domain/access/resource_selector.ts</code>: the as-written branch now runs before the <code>normalizeModelTypeName</code> null check, which only the type-path branch needs.</li>
+</ul>
+<h4 class="body-h">Behaviour</h4>
+<p>Only deny grants reach this function (<code>grantMatchesResource</code>, <code>effect === &quot;deny&quot;</code>), so the change can only widen a deny — it fails closed. In practice: a deny written as <code>model:@::</code> (canonical <code>@</code>) now covers a model of type <code>@</code>; before, it silently matched nothing. Allows are unchanged.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>resource_selector_test.ts</code>: <code>@*</code> and <code>@</code> match type <code>@</code>; <code>acme/*</code> does not. Red-checked on the unfixed code.</li>
+<li><code>grant_based_access_decision_service_test.ts</code>: a <code>@::</code> deny plus a <code>*</code> allow on a type-<code>@</code> model</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.214314.0-sha.fbfa141c" rel="noopener">release v20261008.214314.0-sha.fbfa141c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fbfa141c4db54870408ed70524314305fec49243" rel="noopener">fbfa141c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2952" rel="noopener">#2952</a>𝗔 <a href="https://swamp-club.com/lab/3188" rel="noopener">lab#3188</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261008-212427-0-sha-128d7de4">
+<h2><span class="tier A">A</span>extension source add imports the directory resolvers from their own files, not src/cli/mod.ts (swamp-club#3195) (#2950)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T21:26:18Z">2026-10-08T21:26:18Z</time></span><span>cli</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): extension source add imports the directory resolvers from their own files, not src/cli/mod.ts (swamp-club#3195) (#2950)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>src/cli/commands/extension_source_add.ts</code> imported six directory</p>
+<p>resolvers from <code>src/cli/mod.ts</code>. <code>mod.ts</code> imports every command, so that</p>
+<p>one import put the whole CLI in the <code>extension</code> command&#39;s module</p>
+<p>closure: 1,237 of 1,240 local modules. <code>affectedCommands</code> in the</p>
+<p>verification attestation therefore named <code>extension</code> for almost any</p>
+<p>source change.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><code>extension_source_add.ts</code> imports the six names from</li>
+</ul>
+<p>  <code>src/cli/resolve_&lt;kind&gt;_dir.ts</code>. The closure of</p>
+<p>  <code>src/cli/commands/extension.ts</code> drops to 449 modules, and <code>main.ts</code> is</p>
+<p>  the only importer of <code>src/cli/mod.ts</code>. The re-exports in <code>mod.ts</code> stay.</p>
+<ul>
+<li>A fitness rule in <code>integration/ddd_layer_rules_test.ts</code> fails if a</li>
+</ul>
+<p>  production file under <code>src/</code> imports <code>src/cli/mod.ts</code>.</p>
+<ul>
+<li>The <code>extension</code> bullet under &quot;Affected Commands&quot; in</li>
+</ul>
+<p>  <code>agent-constraints/verification-conventions.md</code> describes the new</p>
+<p>  state.</p>
+<p>Replaying the last 100 commits on main through</p>
+<p><code>computeAffectedCommands</code> lists <code>extension</code> for 95 before this change</p>
+<p>and 70 after. No commit gains a command.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>The new rule fails against the old import, naming</li>
+</ul>
+<p>  <code>extension_source_add.ts</code>, and passes after the rewrite.</p>
+<ul>
+<li><code>integration/ddd_layer_rules_test.ts</code>,</li>
+</ul>
+<p>  <code>integration/affected_commands_rules_test.ts</code>,</p>
+<p>  <code>scripts/affected_commands_test.ts</code> and <code>src/cli/mod_test.ts</code> pass.</p>
+<ul>
+<li>Closure sizes</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.212427.0-sha.128d7de4" rel="noopener">release v20261008.212427.0-sha.128d7de4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/128d7de4b638c0d884aa2067ef9bb8023373629e" rel="noopener">128d7de4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2950" rel="noopener">#2950</a>𝗔 <a href="https://swamp-club.com/lab/3195" rel="noopener">lab#3195</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261008-202431-0-sha-3a59b162">
 <h2><span class="tier A">A</span>lazy hydration readers read current content, including other models&#39; data in expressions (swamp-club#3179, swamp-club#3178) (#2949)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -242,7 +364,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.184215.0-sha.03ca42ca" rel="noopener">release v20261008.184215.0-sha.03ca42ca</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/03ca42ca225db77f84a3d0953ce6291d4f193eb1" rel="noopener">03ca42ca</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2939" rel="noopener">#2939</a>𝗔 <a href="https://swamp-club.com/lab/2477" rel="noopener">lab#2477</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261008-183339-0-sha-231eda34">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261008-183339-0-sha-231eda34">
 <h2><span class="tier A">A</span>a worker without a swamp-club credential passes the auth gate through its serve (swamp-club#3128) (#2942)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-08T18:35:28Z">2026-10-08T18:35:28Z</time></span><span>worker</span><span>feat</span></div>
@@ -345,7 +467,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.175630.0-sha.060b2a17" rel="noopener">release v20261008.175630.0-sha.060b2a17</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/060b2a1788cdbe3252d1c89b484d76e98f2dce29" rel="noopener">060b2a17</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2937" rel="noopener">#2937</a>𝗔 <a href="https://swamp-club.com/lab/2501" rel="noopener">lab#2501</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261008-174952-0-sha-6d62c1fc">
+<article class="item" id="release-swamp-club-swamp-v20261008-174952-0-sha-6d62c1fc">
 <h2><span class="tier A">A</span>push and quality warn when a model would be left out of the registry catalog (swamp-club#2486) (#2936)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-08T17:51:48Z">2026-10-08T17:51:48Z</time></span><span>extensions</span><span>fix</span></div>
@@ -4230,6 +4352,27 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.060930.0-sha.ccae15a5" rel="noopener">release v20261001.060930.0-sha.ccae15a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ccae15a547ef51d5186e3d21f5492683bea56882" rel="noopener">ccae15a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2758" rel="noopener">#2758</a>𝗔 <a href="https://swamp-club.com/lab/2866" rel="noopener">lab#2866</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261008-221248-0-sha-3d79d7aa">
+<h2><span class="tier B">B</span>the managed lockfile publishes at a root unit of work&#39;s checkpoint (swamp-club#3192) (#2953)</h2>
+<p class="lede">`refactor` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T22:14:40Z">2026-10-08T22:14:40Z</time></span><span>datastore</span><span>refactor</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>refactor(datastore): the managed lockfile publishes at a root unit of work&#39;s checkpoint (swamp-club#3192) (#2953)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Datastore rework Phase 3 (tracking swamp-club#2865), swamp-club#3192. The managed extension lockfile was the last writer that marked and pushed by hand. Its publish is now a unit-of-work commit: the transaction stages one write of the lockfile into a root unit of work and pushes at that root&#39;s checkpoint, before the datastore global lock is released. Nothing marks or pushes by hand any more.</p>
+<p>There is no behaviour change. Marks and pushes happen at the same points, with the same 0-files check (<code>managed_config_unpublished</code>), the same pending record and retry, the same CLI <code>throw</code> and serve <code>defer</code>, and the same errors and codes.</p>
+<h4 class="body-h">Commits</h4>
+<p>1. <code>6a3801d7</code> <strong>test</strong>: records today&#39;s behaviour before any conversion.</p>
+<ul>
+<li>The extension use-case rows (install with a pending record, rm) gain <code>syncOrder</code> pins for push vs. lock release and gate exit, plus a check that the pending record is cleared.</li>
+<li>New <code>integration/managed_lockfile_publish_characterization_test.ts</code> runs the real CLI and serve wiring. It covers CLI and serve <code>extension pull</code> and <code>update</code> against a stubbed registry, a push that sends 0 files while the lockfile must upload, an older swamp&#39;s pending record (<code>unknown</code>), a change that throws after writing, serve&#39;s deferred publish failure, and a failed publish followed by a failed lock release.</li>
+</ul>
+<p>2. <code>3593221f</code> <strong>refactor</strong>:</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.221248.0-sha.3d79d7aa" rel="noopener">release v20261008.221248.0-sha.3d79d7aa</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3d79d7aa3f3e8cbe2ad77bffc4a398910875db83" rel="noopener">3d79d7aa</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2953" rel="noopener">#2953</a>𝗔 <a href="https://swamp-club.com/lab/3192" rel="noopener">lab#3192</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261007-181708-0-sha-01b2e6f7">
 <h2><span class="tier B">B</span>import libswamp names from their defining files, not the barrel (swamp-club#3143) (#2902)</h2>
 <p class="lede">`refactor` change · swamp-club/swamp</p>
@@ -4451,103 +4594,10 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.194016.0-sha.c0c751a1" rel="noopener">release v20261002.194016.0-sha.c0c751a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0c751a17fa31d512cb5ee65da19e47284547cd0" rel="noopener">c0c751a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2808" rel="noopener">#2808</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/2979" rel="noopener">lab#2979</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261008-225927-0-sha-6cb5098b">
-<h2><span class="tier C">C</span>swamp 20261008.225927.0-sha.6cb5098b</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T23:01:08Z">2026-10-08T23:01:08Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(serve): run scheduled workflows concurrently and report queue delay (swamp-club#3046) (#2955)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3046.</p>
-<p><code>swamp serve</code> runs every scheduled workflow through one global queue, one run at a time, and no setting changes that. On the reporter&#39;s serve, each run spends about 37 s in datastore sync. Once a per-minute schedule was added, the queue saturated: a <code>40 */6 * * *</code> fire started 2 h 49 min late, and a <code>2-59/5</code> schedule ran half its fires. Health only shows <code>running</code>, so none of this waiting was visible.</p>
-<p><strong>New setting: <code>max-concurrent-scheduled-runs</code>.</strong> Available as a config key, the <code>SWAMP_MAX_CONCURRENT_SCHEDULED_RUNS</code> env var and the <code>--max-concurrent-scheduled-runs</code> flag on <code>serve</code> and <code>serve daemon enable</code>. It is separate from <code>--max-concurrent-runs</code>, which limits API runs.</p>
-<ul>
-<li><strong>Default is 1</strong>, which keeps today&#39;s behaviour: one scheduled run at a time, in fire order.</li>
-<li><strong>Above 1</strong>, the scheduler starts the first queued run whose workflow isn&#39;t already running. Different workflows run together; a workflow never overlaps itself. A cron fire (keyed by workflow id) and a replayed run (keyed by name) count as the same workflow.</li>
-</ul>
-<p><strong>Queue delay in health.</strong></p>
-<ul>
-<li>Each schedule in the health snapshot, <code>/health</code> and the dashboard now reports <code>queued</code>, <code>oldestQueuedAt</code> and <code>lastQueueDelayMs</code>.</li>
-<li><code>schedule_started</code> carries <code>queueDelayMs</code>.</li>
-<li>All queue data is per schedule, so the per-token health view filters it along with its schedule</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.225927.0-sha.6cb5098b" rel="noopener">release v20261008.225927.0-sha.6cb5098b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6cb5098b" rel="noopener">6cb5098b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2955" rel="noopener">#2955</a>𝗔 <a href="https://swamp-club.com/lab/3046" rel="noopener">lab#3046</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-225550-0-sha-3aa438b6">
-<h2><span class="tier C">C</span>swamp 20261008.225550.0-sha.3aa438b6</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T22:57:29Z">2026-10-08T22:57:29Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(workflows): show signal waits to remote clients and the dashboard (swamp-club#3110) (#2954)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>A run on a server and the dashboard were not told about signal waits. Closes swamp-club#3110.</p>
-<ul>
-<li><strong>Nested wait reaches remote clients.</strong> The <code>suspended</code> event carries <code>nestedSignalWaits</code>: the open wait of each nested run still waited on, at the innermost run that has to act. No new event kind is sent, so a released client still parses every event; a compiler-checked test pins which kinds go on the wire.</li>
-<li><strong>Redaction.</strong> serve names a nested run&#39;s wait only to a caller who may read the workflow the wait belongs to, which can be a grandchild&#39;s.</li>
-<li><strong>Signal command works from the client.</strong> <code>workflow run</code> prints the wait ID and a signal command with the run&#39;s target, so a remote run prints <code>--server</code>. A wait further down also prints the resume of the run that holds it. A direct nested run hidden from the caller no longer produces an approve hint.</li>
-<li><strong>Signal visible before resume.</strong> <code>workflow history get</code> shows a signal&#39;s receipt on a step that still waits, read from the wait&#39;s outcome; the run record is not written.</li>
-<li><strong>Resume refusal.</strong> The refusal to resume a parent asks the wait store, so it no longer names a wait that is already signalled.</li>
-<li><strong>Waits listing.</strong> <code>workflow.waits</code> takes <code>includeSignalled</code> and then also lists signalled waits with their receipt and whether the run can resume. Without it the reply is unchanged.</li>
-<li><strong>Dashboard.</strong> The Approv</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.225550.0-sha.3aa438b6" rel="noopener">release v20261008.225550.0-sha.3aa438b6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3aa438b6" rel="noopener">3aa438b6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2954" rel="noopener">#2954</a>𝗔 <a href="https://swamp-club.com/lab/3110" rel="noopener">lab#3110</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-221248-0-sha-3d79d7aa">
-<h2><span class="tier C">C</span>swamp 20261008.221248.0-sha.3d79d7aa</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T22:14:40Z">2026-10-08T22:14:40Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>refactor(datastore): the managed lockfile publishes at a root unit of work&#39;s checkpoint (swamp-club#3192) (#2953)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Datastore rework Phase 3 (tracking swamp-club#2865), swamp-club#3192. The managed extension lockfile was the last writer that marked and pushed by hand. Its publish is now a unit-of-work commit: the transaction stages one write of the lockfile into a root unit of work and pushes at that root&#39;s checkpoint, before the datastore global lock is released. Nothing marks or pushes by hand any more.</p>
-<p>There is no behaviour change. Marks and pushes happen at the same points, with the same 0-files check (<code>managed_config_unpublished</code>), the same pending record and retry, the same CLI <code>throw</code> and serve <code>defer</code>, and the same errors and codes.</p>
-<h4 class="body-h">Commits</h4>
-<p>1. <code>6a3801d7</code> <strong>test</strong>: records today&#39;s behaviour before any conversion.</p>
-<ul>
-<li>The extension use-case rows (install with a pending record, rm) gain <code>syncOrder</code> pins for push vs. lock release and gate exit, plus a check that the pending record is cleared.</li>
-<li>New <code>integration/managed_lockfile_publish_characterization_test.ts</code> runs the real CLI and serve wiring. It covers CLI and serve <code>extension pull</code> and <code>update</code> against a stubbed registry, a push that sends 0 files while the lockfile must upload, an older swamp&#39;s pending record (<code>unknown</code>), a change that throws after writing, serve&#39;s deferred publish failure, and a failed publish followed by a failed lock release.</li>
-</ul>
-<p>2. <code>3593221f</code> <strong>refactor</strong>:</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.221248.0-sha.3d79d7aa" rel="noopener">release v20261008.221248.0-sha.3d79d7aa</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3d79d7aa" rel="noopener">3d79d7aa</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2953" rel="noopener">#2953</a>𝗔 <a href="https://swamp-club.com/lab/3192" rel="noopener">lab#3192</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-214314-0-sha-fbfa141c">
-<h2><span class="tier C">C</span>swamp 20261008.214314.0-sha.fbfa141c</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T21:44:59Z">2026-10-08T21:44:59Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(access): a type-path deny covers a model type that is only an @ (swamp-club#3188) (#2952)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>The scheduled flaky-test run (<a href="https://github.com/swamp-club/swamp/actions/runs/37823942314" rel="noopener">37823942314</a>) failed one property test on Linux: <code>typePatternMatchesIgnoringAt: covers every type the raw pattern matched in canonical spelling</code>, counterexample <code>[&quot;@*&quot;,&quot;@.&quot;]</code> (seed 986965057).</p>
-<p>The test was right and the function was wrong. <code>typePatternMatchesIgnoringAt</code> returned <code>false</code> for a model type that normalizes to nothing once its <code>@</code> is set aside (a bare <code>@</code>), before it reached the branch that matches a pattern without a type path as written. So <code>@*</code> stopped matching type <code>@</code>, though the as-written match succeeds, contradicting the function&#39;s own docstring.</p>
-<h4 class="body-h">Change</h4>
-<ul>
-<li><code>src/domain/access/resource_selector.ts</code>: the as-written branch now runs before the <code>normalizeModelTypeName</code> null check, which only the type-path branch needs.</li>
-</ul>
-<h4 class="body-h">Behaviour</h4>
-<p>Only deny grants reach this function (<code>grantMatchesResource</code>, <code>effect === &quot;deny&quot;</code>), so the change can only widen a deny — it fails closed. In practice: a deny written as <code>model:@::</code> (canonical <code>@</code>) now covers a model of type <code>@</code>; before, it silently matched nothing. Allows are unchanged.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li><code>resource_selector_test.ts</code>: <code>@*</code> and <code>@</code> match type <code>@</code>; <code>acme/*</code> does not. Red-checked on the unfixed code.</li>
-<li><code>grant_based_access_decision_service_test.ts</code>: a <code>@::</code> deny plus a <code>*</code> allow on a type-<code>@</code> model</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.214314.0-sha.fbfa141c" rel="noopener">release v20261008.214314.0-sha.fbfa141c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fbfa141c" rel="noopener">fbfa141c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2952" rel="noopener">#2952</a>𝗔 <a href="https://swamp-club.com/lab/3188" rel="noopener">lab#3188</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-213342-0-sha-5261ce0a">
-<h2><span class="tier C">C</span>swamp 20261008.213342.0-sha.5261ce0a</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T21:35:31Z">2026-10-08T21:35:31Z</time></span></div>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261008-213342-0-sha-5261ce0a">
+<h2><span class="tier C">C</span>pin the pollers against a real catalog, policy and peer (swamp-club#2863) (#2951)</h2>
+<p class="lede">`test` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-08T21:35:31Z">2026-10-08T21:35:31Z</time></span><span>serve</span><span>test</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>test(serve): pin the pollers against a real catalog, policy and peer (swamp-club#2863) (#2951)</li>
@@ -4564,57 +4614,7 @@ footer .ver{color:var(--acc)}
 <li><strong>s6 sync gate:</strong> a poll skips while the gate is held, then queues, pulls ahead of later acquirers, and never overlaps a gated</li>
 </ul></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.213342.0-sha.5261ce0a" rel="noopener">release v20261008.213342.0-sha.5261ce0a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5261ce0a" rel="noopener">5261ce0a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2951" rel="noopener">#2951</a>𝗔 <a href="https://swamp-club.com/lab/2863" rel="noopener">lab#2863</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261008-212427-0-sha-128d7de4">
-<h2><span class="tier C">C</span>swamp 20261008.212427.0-sha.128d7de4</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-08T21:26:18Z">2026-10-08T21:26:18Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(cli): extension source add imports the directory resolvers from their own files, not src/cli/mod.ts (swamp-club#3195) (#2950)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>src/cli/commands/extension_source_add.ts</code> imported six directory</p>
-<p>resolvers from <code>src/cli/mod.ts</code>. <code>mod.ts</code> imports every command, so that</p>
-<p>one import put the whole CLI in the <code>extension</code> command&#39;s module</p>
-<p>closure: 1,237 of 1,240 local modules. <code>affectedCommands</code> in the</p>
-<p>verification attestation therefore named <code>extension</code> for almost any</p>
-<p>source change.</p>
-<h4 class="body-h">Changes</h4>
-<ul>
-<li><code>extension_source_add.ts</code> imports the six names from</li>
-</ul>
-<p>  <code>src/cli/resolve_&lt;kind&gt;_dir.ts</code>. The closure of</p>
-<p>  <code>src/cli/commands/extension.ts</code> drops to 449 modules, and <code>main.ts</code> is</p>
-<p>  the only importer of <code>src/cli/mod.ts</code>. The re-exports in <code>mod.ts</code> stay.</p>
-<ul>
-<li>A fitness rule in <code>integration/ddd_layer_rules_test.ts</code> fails if a</li>
-</ul>
-<p>  production file under <code>src/</code> imports <code>src/cli/mod.ts</code>.</p>
-<ul>
-<li>The <code>extension</code> bullet under &quot;Affected Commands&quot; in</li>
-</ul>
-<p>  <code>agent-constraints/verification-conventions.md</code> describes the new</p>
-<p>  state.</p>
-<p>Replaying the last 100 commits on main through</p>
-<p><code>computeAffectedCommands</code> lists <code>extension</code> for 95 before this change</p>
-<p>and 70 after. No commit gains a command.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>The new rule fails against the old import, naming</li>
-</ul>
-<p>  <code>extension_source_add.ts</code>, and passes after the rewrite.</p>
-<ul>
-<li><code>integration/ddd_layer_rules_test.ts</code>,</li>
-</ul>
-<p>  <code>integration/affected_commands_rules_test.ts</code>,</p>
-<p>  <code>scripts/affected_commands_test.ts</code> and <code>src/cli/mod_test.ts</code> pass.</p>
-<ul>
-<li>Closure sizes</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.212427.0-sha.128d7de4" rel="noopener">release v20261008.212427.0-sha.128d7de4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/128d7de4" rel="noopener">128d7de4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2950" rel="noopener">#2950</a>𝗔 <a href="https://swamp-club.com/lab/3195" rel="noopener">lab#3195</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.213342.0-sha.5261ce0a" rel="noopener">release v20261008.213342.0-sha.5261ce0a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5261ce0a7a18ec92590a188dd0e923ca9dbeeb4b" rel="noopener">5261ce0a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2951" rel="noopener">#2951</a>𝗔 <a href="https://swamp-club.com/lab/2863" rel="noopener">lab#2863</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261008-182818-0-sha-73f1374f">
 <h2><span class="tier C">C</span>bring the in-memory remote&#39;s defaults up to the S3/GCS datastore 2026.10.07.1 (swamp-club#2906) (#2941)</h2>
@@ -4749,12 +4749,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>192 items across 1 source(s) in this window:
-0 critical, 171 notable, 9 routine,
-12 minor.</p>
-<ul><li><strong>fix</strong> — 126</li><li><strong>feat</strong> — 45</li><li><strong>refactor</strong> — 9</li><li><strong>changes</strong> — 6</li><li><strong>test</strong> — 4</li><li><strong>docs</strong> — 2</li></ul></section>
+0 critical, 175 notable, 10 routine,
+7 minor.</p>
+<ul><li><strong>fix</strong> — 128</li><li><strong>feat</strong> — 47</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-08T23:02:47.404Z">2026-10-08T23:02:47.404Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-09T00:02:38.772Z">2026-10-09T00:02:38.772Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

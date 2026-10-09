@@ -1133,13 +1133,23 @@ async function writeText(
 /** Model definition for the release-train dashboard. */
 export const model = {
   type: "@svendowideit/release-train",
-  version: "2026.10.05.1",
+  version: "2026.10.09.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
       toVersion: "2026.10.05.1",
       description:
         "Initial release — dependency and release dashboard across every extension in the repo.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.09.1",
+      description:
+        "The dependency diagram now uses a second green: an extension whose " +
+        "on-disk version is live on stable keeps the bright green, while one " +
+        "already pushed to beta/rc (or whose beta/rc is ahead of stable) is the " +
+        "duller lime `promote` tier, with a report header and legend entry. No " +
+        "global-argument or resource schema changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

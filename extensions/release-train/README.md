@@ -28,13 +28,16 @@ review files. `@svendowideit/release-train` reads all of it once and renders:
   version published to **each** of stable / rc / beta, the version actually
   pulled, and whether it is `up-to-date`, `needs-publish`, `blocked` (a
   dependency must publish first), or `unknown` (the registry could not be
-  reached). `unknown` is never reported as "never published". When the registry
-  is unreachable (offline, or a transient failure), release-train first reuses
-  the versions from a **previous run**, clearly labelled in the `Source` column
-  and the run header as possibly out of date, and otherwise falls back to the
-  lockfile's installed version as a lower bound — so an already-pulled version
-  still reads as `up-to-date` and a lack of registry knowledge is never
-  presented as "needs publishing".
+  reached). The diagram distinguishes two healthy states: a bright **green**
+  `✓ up-to-date` when the on-disk version is already live on **stable**, and a
+  duller **lime** `↑ promote` when it has only been pushed to beta/rc (or those
+  channels are ahead of stable) and still needs promoting. `unknown` is never
+  reported as "never published". When the registry is unreachable (offline, or a
+  transient failure), release-train first reuses the versions from a **previous
+  run**, clearly labelled in the `Source` column and the run header as possibly
+  out of date, and otherwise falls back to the lockfile's installed version as a
+  lower bound — so an already-pulled version still reads as `up-to-date` and a
+  lack of registry knowledge is never presented as "needs publishing".
 - **An ordered publish plan** — dependencies first, with each step's advisory
   target channel, the exact `swamp extension push` command, and the hygiene
   failures to fix first.
@@ -63,9 +66,10 @@ and every section is a markdown table:
 1. **Status** — the legend: how many extensions are up-to-date / need publishing
    / blocked / external / have hygiene issues.
 2. **Dependency graph** — the Mermaid diagram, coloured with the swamp-club
-   palette (green up-to-date, amber needs-publish, red blocked, magenta unknown,
-   grey external) and an explicit label text colour, so it stays legible in both
-   GitHub light and dark mode. The Status table above it is the colour key.
+   palette (bright green up-to-date on stable, duller lime to-promote, amber
+   needs-publish, red blocked, magenta unknown, grey external) and an explicit
+   label text colour, so it stays legible in both GitHub light and dark mode. The
+   Status table above it is the colour key.
 3. **Hygiene and test matrix** — one row per extension: versions, published
    stable/rc/beta, publish state, manifest==model, upgrades, `fmt`, workflow
    validation, docs score, review state, unit-test count + coverage, acceptance

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/release-train"
-version: "2026.10.05.1"
+version: "2026.10.09.1"
 description: >
   The release dashboard for a swamp extension repository. It draws the
   dependency graph of every extension you own plus the extensions they use,
@@ -16,7 +16,9 @@ description: >
     orders them so a dependency is always published before what depends on it.
     Each extension is annotated with its on-disk version, the latest version
     published to each of stable / rc / beta, the version actually pulled, and a
-    publish state — up-to-date, needs-publish, or blocked on a dependency. It
+    publish state — up-to-date on stable (bright green), up-to-date but only on
+    beta/rc, i.e. needs promoting (duller lime), needs-publish, or blocked on a
+    dependency. It
     also reports release-hygiene compliance and test depth, separating colocated
     unit tests (with measured line coverage) from the black-box
     `test-factory.yaml` acceptance tests. Prefer it over reading `git status`,

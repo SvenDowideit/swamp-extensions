@@ -329,7 +329,9 @@ graph LR
 ```
 
 - Edges: dependent → dependency; external deps in a dashed subgraph.
-- Colour classes: `upToDate`, `needsPublish`, `blocked`, `unknown`, `external`,
+- Colour classes: `upToDate` (bright green — on-disk version live on stable),
+  `promote` (duller lime — only on beta/rc, or beta/rc ahead of stable, so it
+  needs promoting), `needsPublish`, `blocked`, `unknown`, `external`,
   using the swamp-club palette (dark tinted fill + neon stroke + explicit bright
   label text) so nodes stay legible in both light and dark Mermaid renderers.
   Status is also in the label so the graph is readable without CSS. The Status

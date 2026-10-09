@@ -116,6 +116,7 @@ Deno.test("STATE_COLOURS covers every publish state", () => {
   for (
     const state of [
       "up-to-date",
+      "promote",
       "needs-publish",
       "blocked",
       "unknown",
@@ -124,6 +125,70 @@ Deno.test("STATE_COLOURS covers every publish state", () => {
   ) {
     assert(STATE_COLOURS[state], `missing colour for ${state}`);
   }
+});
+
+Deno.test("renderMermaid gives a stable up-to-date node the satisfying green", () => {
+  const mmd = renderMermaid(GRAPH, [
+    node({
+      publishState: "up-to-date",
+      published: { stable: "2026.10.05.1", rc: "", beta: "" },
+    }),
+  ]);
+  assertStringIncludes(mmd, ":::upToDate");
+  assertStringIncludes(mmd, "2026.10.05.1 ✓");
+  assert(mmd.includes(":::promote") === false, "stable must not be promote");
+});
+
+Deno.test("renderMermaid marks an on-disk beta/rc as promote (dull green)", () => {
+  const beta = renderMermaid(GRAPH, [
+    node({
+      publishState: "up-to-date",
+      published: { stable: "", rc: "", beta: "2026.10.05.1" },
+    }),
+  ]);
+  assertStringIncludes(beta, ":::promote");
+  assertStringIncludes(beta, "2026.10.05.1 ↑");
+
+  const rc = renderMermaid(GRAPH, [
+    node({
+      publishState: "up-to-date",
+      published: { stable: "", rc: "2026.10.05.1", beta: "" },
+    }),
+  ]);
+  assertStringIncludes(rc, ":::promote");
+});
+
+Deno.test("renderMermaid marks a newer rc/beta ahead of stable as promote", () => {
+  const mmd = renderMermaid(GRAPH, [
+    node({
+      publishState: "up-to-date",
+      published: { stable: "2026.10.05.1", rc: "2026.10.06.1", beta: "" },
+    }),
+  ]);
+  assertStringIncludes(mmd, ":::promote");
+  assertStringIncludes(mmd, "2026.10.05.1 ↑");
+});
+
+Deno.test("renderLegend explains both greens", () => {
+  const md = renderLegend({
+    count: 5,
+    upToDateCount: 2,
+    promoteCount: 1,
+    needsPublishCount: 1,
+    blockedCount: 1,
+    unknownCount: 0,
+    cachedCount: 0,
+    lockfileOnlyCount: 0,
+    externalCount: 1,
+    hygieneFailureCount: 0,
+    hygieneFailures: [],
+    untestedAcceptance: [],
+    staleTestData: [],
+    cycle: [],
+  });
+  assertStringIncludes(md, "🟩 | ✓ up-to-date | green | 2 |");
+  assertStringIncludes(md, "🟢 | ↑ promote | lime | 1 |");
+  assertStringIncludes(md, "two healthy greens");
 });
 
 Deno.test("renderMatrix has a row per node with check marks", () => {
@@ -193,6 +258,7 @@ Deno.test("renderReport assembles graph, matrix, plan and issues", () => {
   const summary: SummaryView = {
     count: 1,
     upToDateCount: 0,
+    promoteCount: 0,
     needsPublishCount: 1,
     blockedCount: 0,
     unknownCount: 0,
@@ -243,6 +309,7 @@ Deno.test("renderLegend explains each publish state", () => {
   const md = renderLegend({
     count: 4,
     upToDateCount: 1,
+    promoteCount: 0,
     needsPublishCount: 1,
     blockedCount: 1,
     unknownCount: 0,
@@ -285,6 +352,7 @@ Deno.test("renderUntested includes manifest paths and unit coverage", () => {
   const md = renderUntested({
     count: 1,
     upToDateCount: 0,
+    promoteCount: 0,
     needsPublishCount: 0,
     blockedCount: 0,
     unknownCount: 0,
@@ -322,6 +390,7 @@ Deno.test("renderDashboard renders from raw resources", () => {
     {
       count: 1,
       upToDateCount: 0,
+      promoteCount: 0,
       needsPublishCount: 1,
       blockedCount: 0,
       unknownCount: 0,

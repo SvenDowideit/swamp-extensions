@@ -9,6 +9,7 @@
  *
  * @module
  */
+import { compareCalVer } from "./graph.ts";
 
 type DataHandle = {
   name: string;
@@ -197,6 +198,8 @@ export interface SummaryView {
   count: number;
   /** Count already published at the on-disk version. */
   upToDateCount: number;
+  /** Count of `up-to-date` extensions that need promoting to stable (pre-release current or ahead). */
+  promoteCount: number;
   /** Count that need publishing. */
   needsPublishCount: number;
   /** Count blocked on a dependency. */
@@ -294,6 +297,14 @@ export const STATE_COLOURS: Record<string, StateColour> = {
     stroke: "#39ff14",
     color: "#7dff9b",
   },
+  promote: {
+    class: "promote",
+    name: "lime",
+    swatch: "🟢",
+    fill: "#1e2e12",
+    stroke: "#8fd14f",
+    color: "#b6e07a",
+  },
   "needs-publish": {
     class: "needsPublish",
     name: "amber",
@@ -334,9 +345,66 @@ export const MERMAID_CLASS_DEFS: string[] = Object.values(STATE_COLOURS).map(
     `  classDef ${c.class} fill:${c.fill},stroke:${c.stroke},color:${c.color};`,
 );
 
-/** Mermaid class for a publish state. */
-function classOf(publishState: string): string {
-  return STATE_COLOURS[publishState]?.class ?? STATE_COLOURS.external.class;
+/** Mermaid class for a colour key (a publish state, or the `promote` tier). */
+function classOf(colourKey: string): string {
+  return STATE_COLOURS[colourKey]?.class ?? STATE_COLOURS.external.class;
+}
+
+/**
+ * The channel holding a version string, or `""` when it matches none.
+ *
+ * Used to detect when an extension has been pushed to a pre-release channel
+ * (`rc`/`beta`) at — or ahead of — the version sitting on `stable`.
+ */
+function channelRelease(
+  published: { stable: string; rc: string; beta: string },
+  version: string,
+): "stable" | "rc" | "beta" | "" {
+  if (!version) return "";
+  if (published.stable === version) return "stable";
+  if (published.rc === version) return "rc";
+  if (published.beta === version) return "beta";
+  return "";
+}
+
+/**
+ * The Mermaid colour key for a node.
+ *
+ * `up-to-date` normally means the on-disk version is already live on stable, so
+ * it gets the satisfying solid green. But the same publish state also covers the
+ * case where the version has been pushed to `rc`/`beta` (or those channels are
+ * ahead of stable) and now needs promoting: that is still *healthy*, just not
+ * finished, so it gets the less pleasant lime instead of amber.
+ */
+function colourKeyOf(node: NodeView): string {
+  if (node.publishState !== "up-to-date") return node.publishState;
+  const released = channelRelease(node.published, node.onDiskVersion);
+  if (released === "rc" || released === "beta") return "promote";
+  if (prereleaseAheadOfStable(node.published)) return "promote";
+  return "up-to-date";
+}
+
+/** True when an `rc`/`beta` version is newer than the published stable version. */
+function prereleaseAheadOfStable(
+  published: { stable: string; rc: string; beta: string },
+): boolean {
+  const { stable, rc, beta } = published;
+  const rcAhead = rc !== "" && compareCalVer(rc, stable) > 0;
+  const betaAhead = beta !== "" && compareCalVer(beta, stable) > 0;
+  return rcAhead || betaAhead;
+}
+
+/**
+ * The status icon shown in a node label.
+ *
+ * `↑` marks an `up-to-date` extension that only needs promoting (a pre-release
+ * is current, or ahead of stable) — distinct from the `✓` of a stable release.
+ */
+function iconOf(node: NodeView): string {
+  if (node.publishState === "up-to-date" && colourKeyOf(node) === "promote") {
+    return "↑";
+  }
+  return stateIcon(node.publishState);
 }
 
 /** The status icon shown in a node label. */
@@ -390,11 +458,13 @@ export function renderMermaid(graph: GraphView, nodes: NodeView[]): string {
     const review = nd ? nd.hygiene.reviewState : "unknown";
     const label =
       `${g.name}<br/>${g.onDiskVersion || "?"} ${
-        stateIcon(g.publishState)
+        nd ? iconOf(nd) : stateIcon(g.publishState)
       } ${advice}<br/>` +
       `${docs} · ${unit} · ${acc} · review ${review}`;
     lines.push(
-      `  ${nodeId(g.name)}["${label}"]:::${classOf(g.publishState)}`,
+      `  ${nodeId(g.name)}["${label}"]:::${
+        classOf(nd ? colourKeyOf(nd) : g.publishState)
+      }`,
     );
   }
   for (const ext of graph.externalNodes) {
@@ -513,7 +583,9 @@ export function renderLegend(summary: SummaryView): string {
   lines.push(
     "_The table below is also the diagram's colour key: each state maps to the " +
       "swamp-club palette (`fill`, `stroke`, label text) used for that node in " +
-      "the Mermaid diagram._",
+      "the Mermaid diagram. There are two healthy greens: the bright `green` " +
+      "means the on-disk version is live on stable, while the duller `lime` " +
+      "means it is only on rc/beta and still needs promoting to stable._",
   );
   lines.push("");
   lines.push("| Swatch | State | Colour | Count | Meaning |");
@@ -522,7 +594,12 @@ export function renderLegend(summary: SummaryView): string {
   lines.push(
     `| ${c("up-to-date").swatch} | ✓ up-to-date | ${
       c("up-to-date").name
-    } | ${summary.upToDateCount} | On-disk version already published on a channel. |`,
+    } | ${summary.upToDateCount} | On-disk version already published on stable — nothing to do. |`,
+  );
+  lines.push(
+    `| ${c("promote").swatch} | ↑ promote | ${
+      c("promote").name
+    } | ${summary.promoteCount} | Already pushed to rc/beta (or those channels are ahead of stable) but not yet on stable — promote it. |`,
   );
   lines.push(
     `| ${c("needs-publish").swatch} | ⚠ needs-publish | ${
@@ -645,12 +722,25 @@ export function renderReport(
     /\.\d+Z$/,
     " UTC",
   );
+  // The promote tier is derived from each node's published channels rather than
+  // stored, so recompute the counts here for the header and the legend. The
+  // greens are disjoint: `up-to-date` covers both, `promote` is subtracted out
+  // so the stable green count matches the diagram.
+  const promoteCount = nodes.filter((nd) => colourKeyOf(nd) === "promote")
+    .length;
+  const stableUpToDate = Math.max(0, summary.upToDateCount - promoteCount);
+  const legendSummary: SummaryView = {
+    ...summary,
+    upToDateCount: stableUpToDate,
+    promoteCount,
+  };
   lines.push("# Release train");
   lines.push("");
   lines.push(`_Generated ${generated}_`);
   lines.push("");
   lines.push(
-    `**${summary.count}** extension(s) · **${summary.upToDateCount}** up-to-date · ` +
+    `**${summary.count}** extension(s) · **${stableUpToDate}** up-to-date · ` +
+      `**${promoteCount}** to promote · ` +
       `**${summary.needsPublishCount}** need publishing · ` +
       `**${summary.blockedCount}** blocked · **${summary.unknownCount}** unknown · ` +
       `**${summary.externalCount}** external · ` +
@@ -700,7 +790,7 @@ export function renderReport(
     );
   }
   lines.push("");
-  lines.push(renderLegend(summary));
+  lines.push(renderLegend(legendSummary));
   lines.push("## Dependency graph");
   lines.push("");
   lines.push(
@@ -774,6 +864,7 @@ export function renderDashboard(
   const summary = (summaryRaw ?? {
     count: nodes.length,
     upToDateCount: 0,
+    promoteCount: 0,
     needsPublishCount: 0,
     blockedCount: 0,
     unknownCount: 0,
@@ -906,6 +997,7 @@ export const report = {
     const summary = (summaryRaws[0] ?? {
       count: nodes.length,
       upToDateCount: 0,
+      promoteCount: 0,
       needsPublishCount: 0,
       blockedCount: 0,
       unknownCount: 0,

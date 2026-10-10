@@ -104,23 +104,6 @@ jobs:
         weight: 0
         allowFailure: false
 
-      - name: set-capabilities
-        description: >-
-          (Re)grant CAP_NET_BIND_SERVICE via @svendowideit/sudo so the user
-          service can bind 80/443.
-        guard: '${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
-        task:
-          type: model_method
-          modelType: "@svendowideit/caddy"
-          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
-          methodName: setCapabilities
-        dependsOn:
-          - step: install
-            condition:
-              type: completed
-        weight: 0
-        allowFailure: true
-
       - name: create-service
         description: Write the systemd user unit from the model's current globals.
         guard: '${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
@@ -130,7 +113,7 @@ jobs:
           modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
           methodName: createService
         dependsOn:
-          - step: set-capabilities
+          - step: install
             condition:
               type: completed
         weight: 0

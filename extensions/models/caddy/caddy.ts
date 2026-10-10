@@ -3018,10 +3018,13 @@ export function writeDnsRecords(
   ttl = "",
 ): void {
   const apps = (config.apps ??= {}) as Record<string, unknown>;
+  // The records are still *wanted* even with no provider — they simply cannot be
+  // written until one is configured (configureTls). Do not reject the whole
+  // config for that: leave the app out and let everything else reconcile. The
+  // records apply on the next reconcile once a provider exists.
   if (!tls || !tls.dnsProvider) {
-    throw new Error(
-      "dnsRecords require a DNS provider: set the tls dnsProvider so Caddy can write the records",
-    );
+    delete apps.dns_records;
+    return;
   }
   const credentials: Record<string, string> = Object.keys(tls.providerConfig)
       .length > 0
@@ -4612,6 +4615,59 @@ export function effectiveServeSettings(opts: {
 }
 
 /**
+ * What the RUNNING config actually serves — measured from it, never assumed.
+ *
+ * `reachable: false` means the admin API could not be read, so nothing could be
+ * measured (and no serving claim may be made). `httpsReady` is true only when the
+ * live config actually listens on `:443`; otherwise it is plain HTTP.
+ */
+export interface LiveServeSummary {
+  reachable: boolean;
+  listenAddrs: string[];
+  httpsReady: boolean;
+  scheme: "http" | "https";
+  hostnames: string[];
+}
+
+/** Measure the serving state from the live config (or mark it unmeasured). */
+export function liveServeSummary(config: CaddyConfig | null): LiveServeSummary {
+  if (!config) {
+    return {
+      reachable: false,
+      listenAddrs: [],
+      httpsReady: false,
+      scheme: "http",
+      hostnames: [],
+    };
+  }
+  const listenAddrs = configuredListens(config);
+  const httpsReady = listenAddrs.some((a) => a === ":443");
+  const hostnames = new Set<string>();
+  for (const route of getRoutes(config)) {
+    for (const h of routeHostnames(route)) hostnames.add(h);
+  }
+  for (const s of liveTlsInfo(config).subjects) hostnames.add(s);
+  return {
+    reachable: true,
+    listenAddrs,
+    httpsReady,
+    scheme: httpsReady ? "https" : "http",
+    hostnames: [...hostnames].sort(),
+  };
+}
+
+/** The measured localhost URL for the live scheme + listen addresses. */
+export function localhostUrl(
+  scheme: "http" | "https",
+  listenAddrs: string[],
+): string {
+  const std = scheme === "https" ? ":443" : ":80";
+  if (listenAddrs.includes(std)) return `${scheme}://localhost/`;
+  const first = listenAddrs.find((a) => a.startsWith(":"));
+  return first ? `${scheme}://localhost${first}/` : `${scheme}://localhost/`;
+}
+
+/**
  * Merge every model's desired state for this target and apply the result to the
  * running Caddy. Throws on a real conflict (so it is surfaced, not silently
  * resolved) and returns the merged summary.
@@ -4912,7 +4968,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.10.16",
+  version: "2026.10.10.17",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -5180,6 +5236,12 @@ export const model = {
       toVersion: "2026.10.10.16",
       description:
         "Two changes. (1) All privileged work is delegated to the new @svendowideit/sudo dependency: the setcap that grants CAP_NET_BIND_SERVICE is run through its elevation ladder (sudo/doas/polkit/…), so caddy no longer calls sudo itself or prints a raw `sudo setcap` command to run by hand. Adds the optional `sudoInstanceKey` global (default 'default'; the target is the `sudo-<key>` model) and a manifest `dependencies:` entry so @svendowideit/sudo is pulled automatically. (2) A config is never rejected for a privileged-port bind failure: when the binary cannot bind 80/443 yet, the applied config serves what is wanted on unprivileged ports (:80 -> :8080, :443 -> :8443, plain HTTP) so Caddy always loads it and serves the status page + health contract on localhost; the desired settings are kept and reapplied automatically once the capability is granted. A status page is now wanted by default (opt out with configureStatusPage disabled=true). `configureTls` infers the DNS provider from the model's plugins and the credential mapping from its environmentFile, so a wildcard/DNS-01 setup needs no repeated provider name. `startService` waits (up to 10s) for the admin API instead of racing it. Ships a new idempotent `@svendowideit/caddy-setup` workflow (install → capability → service → TLS → DNS → status page → gap report, in the order that works) so a fresh install is one command; the upgrade workflow now configures TLS before applying DNS records. Otherwise no global arguments change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.10.17",
+      description:
+        "Honesty and never-reject fixes. `upgradeCheck` now reports only MEASURED facts from the running config — its actual listen addresses, whether :443 is actually bound, and the hostnames it actually serves — instead of the desired settings, so it never prints a URL/HTTPS claim it has not measured; when the admin API is unreachable it says so and claims nothing. Reconcile no longer rejects the whole config because dnsRecords have no provider yet: the records stay wanted and apply once configureTls sets one (the dns_records app is simply omitted meanwhile, so the rest of the config still serves). The setup and upgrade workflows no longer grant the capability twice — installCaddy already does — so the setcap via @svendowideit/sudo is attempted once. No global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -6485,15 +6547,9 @@ export const model = {
         }
         // What hostnames does the running Caddy actually serve? So the run ends
         // by telling the user the URLs that should now work.
-        const servedHosts = new Set<string>();
-        if (liveConfig) {
-          for (const route of getRoutes(liveConfig)) {
-            for (const h of routeHostnames(route)) servedHosts.add(h);
-          }
-          for (const s of liveTlsInfo(liveConfig).subjects) servedHosts.add(s);
-        }
-        const scheme = g.autoHttps === "off" ? "http" : "https";
-        const urls = [...servedHosts].sort().map((h) => `${scheme}://${h}`);
+        // Measured serving state — from the RUNNING config, not the desired
+        // settings. Nothing below may claim a URL that was not measured here.
+        const live = liveServeSummary(liveConfig);
 
         // The environmentFile names the provider too — the model's own file, or
         // the conventional default path when the model does not declare one.
@@ -6543,46 +6599,37 @@ export const model = {
             records: String(dnsRecordCount),
           },
         );
-        // Then say what it actually serves, so the run ends with the URLs that
-        // should now work — and the ports/HTTPS state, so a high-port or
-        // HTTPS-off config is visible rather than implied.
-        context.logger?.info(
-          urls.length > 0
-            ? "Serving on (listening on {listen}; automatic HTTPS {https}): {urls}"
-            : "Serving on (listening on {listen}; automatic HTTPS {https}): (no hostnames configured yet — add a route, or a TLS subject under baseDomain)",
-          {
-            listen: (g.listenAddrs ?? []).join(", ") || "(none)",
-            https: g.autoHttps === "on" ? "on" : `'${g.autoHttps}'`,
-            urls: urls.join(", "),
-          },
-        );
-
-        // Tell the user, in one place, where the generated HTML page is and how
-        // to verify it — the whole point of the upgrade is that this now works.
-        const statusHosts = defaultStatusHostnames({
-          tlsSubjects: own.tls?.subjects ?? [],
-          recordHostnames: (g.dnsRecords ?? []).map((r) => r.name),
-          routedHostnames: (own.routes ?? []).map((r) => r.hostname),
-        }).filter((h) =>
-          !h.includes("*") && h !== "localhost" && h !== "127.0.0.1" &&
-          h !== "[::1]"
-        );
-        const statusUrls = statusHosts.map((h) => `${scheme}://${h}/`);
-        const primary = statusUrls[0] ?? `${scheme}://localhost/`;
-        context.logger?.info(
-          "Status page (the generated HTML that lists your routes and links): {pages}\n" +
-            "  (also served on http://localhost/ on this host)\n" +
-            "Test it:\n" +
-            "  curl -sI {primary}          # 200 (status page)\n" +
-            "  curl -sI {primary}teapot    # 418 (health contract)\n" +
-            "  curl -sI {primary}nope      # 404\n" +
-            "  curl -s http://localhost:2019/config/ | jq -r '[.apps.http.servers[]?.routes[]?.match[]?.host[]?] | unique[]'",
-          {
-            pages: statusUrls.join(", ") ||
-              "(none — name a hostname via a TLS subject or a DNS record)",
-            primary,
-          },
-        );
+        // Report what the RUNNING config actually serves — measured, never the
+        // desired settings. If the admin API could not be read, say so and claim
+        // nothing.
+        if (!live.reachable) {
+          context.logger?.warning?.(
+            "Could not measure the running Caddy config: the admin API at {addr} is unreachable (is {service} running?). Nothing about serving is reported.",
+            { addr: g.adminApiAddr, service: serviceName },
+          );
+        } else {
+          const local = localhostUrl(live.scheme, live.listenAddrs);
+          context.logger?.info(
+            "Serving (measured from the running config): listening on {listen}; {scheme}. Hostnames: {hosts}",
+            {
+              listen: live.listenAddrs.join(", ") || "(none)",
+              scheme: live.httpsReady
+                ? "HTTPS"
+                : "plain HTTP (80/443 not bound — no certificate)",
+              hosts: live.hostnames.length > 0
+                ? live.hostnames.join(", ")
+                : "(none in the running config yet — add a route, or a TLS subject under baseDomain)",
+            },
+          );
+          context.logger?.info(
+            "Verify against the measured endpoint on this host:\n" +
+              "  curl -sI {local}          # 200 (status page)\n" +
+              "  curl -sI {local}teapot    # 418 (health contract)\n" +
+              "  curl -sI {local}nope      # 404\n" +
+              "  curl -s http://localhost:2019/config/ | jq -r '[.apps.http.servers[]?.routes[]?.match[]?.host[]?] | unique[]'",
+            { local },
+          );
+        }
 
         if (upToDate) {
           context.logger?.info(

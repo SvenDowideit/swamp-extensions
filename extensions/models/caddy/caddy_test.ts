@@ -45,7 +45,9 @@ import {
   isSwampRoute,
   isUpToDate,
   listProxyServices,
+  liveServeSummary,
   liveTlsInfo,
+  localhostUrl,
   mergeDesired,
   mergeTlsConfig,
   missingPlugins,
@@ -2099,20 +2101,19 @@ Deno.test("buildReconciledConfig defaults dnsRecords TTL to 5m", () => {
   assertEquals((config.apps as any).dns_records.ttl, "5m");
 });
 
-Deno.test("writeDnsRecords requires a DNS provider", () => {
-  let threw = false;
-  try {
-    writeDnsRecords(baseConfig(), null, [{
-      name: "a.fi.gy",
-      type: "A",
-      value: ["10.0.0.1"],
-      zone: "",
-      ttl: "",
-    }], []);
-  } catch {
-    threw = true;
-  }
-  assert(threw);
+Deno.test("writeDnsRecords skips (never rejects) when there is no DNS provider", () => {
+  const config = baseConfig();
+  writeDnsRecords(config, null, [{
+    name: "a.fi.gy",
+    type: "A",
+    value: ["10.0.0.1"],
+    zone: "",
+    ttl: "",
+  }], []);
+  // No dns_records app is written, but the call does not throw — the records
+  // stay wanted and apply once a provider is configured.
+  const apps = config.apps as Record<string, unknown>;
+  assertEquals("dns_records" in apps, false);
 });
 
 Deno.test("buildReconciledConfig writes dns_records only when records exist", () => {
@@ -2856,4 +2857,28 @@ Deno.test("providerConfigFromEnvKeys maps only the field(s) actually declared", 
 Deno.test("providerConfigFromEnvKeys is empty for an unknown provider or no match", () => {
   assertEquals(providerConfigFromEnvKeys("nope", ["X"]), {});
   assertEquals(providerConfigFromEnvKeys("gandi", ["UNRELATED"]), {});
+});
+
+Deno.test("liveServeSummary measures https only when :443 is actually bound", () => {
+  const https = liveServeSummary(baseConfig([":443", ":80"], "on"));
+  assertEquals(https.reachable, true);
+  assertEquals(https.httpsReady, true);
+  assertEquals(https.scheme, "https");
+
+  const degraded = liveServeSummary(baseConfig([":8443", ":8080"], "off"));
+  assertEquals(degraded.reachable, true);
+  assertEquals(degraded.httpsReady, false);
+  assertEquals(degraded.scheme, "http");
+
+  // Unmeasured when the admin API could not be read.
+  assertEquals(liveServeSummary(null).reachable, false);
+});
+
+Deno.test("localhostUrl uses the measured scheme and listen addresses", () => {
+  assertEquals(localhostUrl("https", [":443", ":80"]), "https://localhost/");
+  assertEquals(localhostUrl("http", [":80"]), "http://localhost/");
+  assertEquals(
+    localhostUrl("http", [":8443", ":8080"]),
+    "http://localhost:8443/",
+  );
 });

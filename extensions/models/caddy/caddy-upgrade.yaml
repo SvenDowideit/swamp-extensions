@@ -153,31 +153,14 @@ jobs:
         weight: 0
         allowFailure: false
 
-      - name: set-capabilities
-        description: >-
-          Re-grant CAP_NET_BIND_SERVICE so the unprivileged user service can bind
-          80/443. Elevation is delegated to @svendowideit/sudo; a failure is
-          recorded, not fatal.
-        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
-        task:
-          type: model_method
-          modelType: "@svendowideit/caddy"
-          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
-          methodName: setCapabilities
-        dependsOn:
-          - step: install
-            condition:
-              type: succeeded
-        weight: 0
-        allowFailure: true
-
       - name: normalize-serving
         description: >-
           Make the model's automatic-HTTPS / listen-address settings match what it
           wants (public HTTPS) and what this host can do (bind 80/443), correcting
           and persisting them — e.g. leaving the unprivileged high-port preset now
           that the binary can bind privileged ports. Skipped when there is nothing
-          to correct.
+          to correct. (installCaddy above already (re)granted CAP_NET_BIND_SERVICE
+          via @svendowideit/sudo, so there is no separate setcap step.)
         guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
         task:
           type: model_method
@@ -185,7 +168,7 @@ jobs:
           modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
           methodName: normalizeServingSettings
         dependsOn:
-          - step: set-capabilities
+          - step: install
             condition:
               type: completed
         weight: 0

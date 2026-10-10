@@ -181,11 +181,19 @@ swamp model method run my-caddy checkHealth
 Bundled idempotent workflows:
 
 ```sh
-# full setup: installCaddy → createService → startService → settingsGuidance → configureTls
-swamp workflow run caddy-setup
+# Full setup in one command: installCaddy (grants the capability via
+# @svendowideit/sudo) → setCapabilities → createService → startService →
+# configureTls (provider inferred from plugins) → applyDnsRecords →
+# configureStatusPage, then a closing gap report. A single caddy model is set up
+# automatically; with several it lists them.
+swamp workflow run @svendowideit/caddy-setup
+```
 
-# desired-state proxy: setup (idempotent) + ensureDnsProxy for hostname/upstream
-swamp workflow run caddy-ensure-proxy \
+To point a hostname at a backend, use `ensureDnsProxy` (it also creates the
+route if it is missing):
+
+```sh
+swamp model method run my-caddy ensureDnsProxy \
   --input hostname=foo.example.com --input upstream=127.0.0.1:8080
 ```
 
@@ -429,7 +437,7 @@ To change any of these (then re-run):
   email / TLS     swamp model method run caddy configureTls --input email=you@example.com --input 'subjects:json=["*.YOUR.DOMAIN"]'
   DNS provider    swamp model method run caddy configureTls --input dnsProvider=<provider>   # multi-field providers also --input providerConfig=...
   DNS records     swamp model get caddy --json | jq '{name, version, tags, globalArguments} | .globalArguments.dnsRecords = [/* record objects */]' | swamp model edit caddy --json  then  swamp model method run caddy applyDnsRecords
-  bind 80/443     sudo setcap 'cap_net_bind_service=+ep' /home/you/.local/bin/caddy
+  bind 80/443     swamp model method run caddy setCapabilities   # elevates via @svendowideit/sudo
   service         swamp model method run caddy startService
 Upgrade check for caddy: 2 thing(s) to fix:
   ✗ The Caddy binary is missing compiled modules: github.com/caddy-dns/cloudflare.
@@ -470,8 +478,9 @@ gandi, dreamhost.` — and gives a template, rather than guessing one.
 Every fix is a real command: the domain/record/provider fixes are a
 `swamp model get … | jq … | swamp model edit …` pipeline (you replace the
 `YOUR.DOMAIN`/`YOUR.SERVER.IP` placeholders), and the rest are
-`swamp model method run` or `sudo setcap` commands. `✗` marks something that
-blocks serving; `•` marks an optional extra.
+`swamp model method run` commands — including `setCapabilities`, which grants
+CAP_NET_BIND_SERVICE by elevating through the `@svendowideit/sudo` extension.
+`✗` marks something that blocks serving; `•` marks an optional extra.
 
 **Already up to date → DONE, and a no-op.** If the model's type version is
 current **and** the running Caddy config already equals what the upgrade would
@@ -482,9 +491,11 @@ live config, not assumed), `upgradeCheck` reports
 and every mutating step. Re-running the upgrade is then a genuine no-op.
 
 It then **pauses at one approval gate** so you can run those commands (the
-capability needs `sudo`, which swamp cannot do for you; a DNS token is a secret,
-so the report names the model's `environmentFile` to write instead of asking for
-it over a signal). Approve and resume:
+capability is granted by `setCapabilities` through `@svendowideit/sudo`, whose
+elevation ladder must find a route — sudo/doas/polkit/… — the host actually
+grants; a DNS token is a secret, so the report names the model's
+`environmentFile` to write instead of asking for it over a signal). Approve and
+resume:
 
 ```sh
 # The run suspends at the gate; approve, then resume to rebuild/restart.
@@ -537,7 +548,7 @@ it exposes, with its per-run arguments:
 | Method | Arguments | Purpose |
 | ------ | --------- | ------- |
 | `installCaddy` | `plugins` (array), `force` (boolean), `setCapabilities` (boolean, default true), `configureStatusPage` (boolean, default true) | Download the binary (with module packages compiled in — `caddy-host-dns` and `caddy-teapot-module` are always added), place it at `caddyBinPath`, verify it runs (`caddy version` + `caddy list-modules`), grant `CAP_NET_BIND_SERVICE` (see [Privileged ports](#privileged-ports-80443)), and install the status page + health contract when the admin API is up. **Rebuilds automatically when the existing binary is missing a wanted/built-in module** (not just when the file is absent). If it rebuilt a *running* service it applies the capability **first**, then restarts and waits for the service — failing with a `journalctl` hint if it did not come back (Caddy runs `--resume`, so a stale `autosave.json` can crash-loop it). The `install` resource reports `rebuilt`, `missingPluginsBeforeBuild`, and `restarted`. |
-| `setCapabilities` | `capabilities` (array), `binPath` (string), `quiet` (boolean) | Grant `CAP_NET_BIND_SERVICE` to the binary via `setcap` (then `sudo -n setcap`), or record the exact `sudo setcap` command when sudo is unavailable. Idempotent. |
+| `setCapabilities` | `capabilities` (array), `binPath` (string), `quiet` (boolean) | Grant `CAP_NET_BIND_SERVICE` to the binary by delegating `setcap` to the `@svendowideit/sudo` extension. Idempotent; records `applied` and the reason when no elevation route is available. |
 | `normalizeServingSettings` | none | Reconcile `autoHttps` / `listenAddrs` with what the model wants and what the host can do: once the binary can bind privileged ports (CAP_NET_BIND_SERVICE) and the model wants public HTTPS (`baseDomain` + ACME email), correct the unprivileged high-port / HTTPS-off preset back to `autoHttps=on`, `listenAddrs=[":443",":80"]` **and persist it to the model**. Idempotent; a no-op when already right. |
 | `configureStatusPage` | `title` (string), `extraLinks` (array of `{label,url}`), `disabled` (boolean) | Install (or, with `disabled=true`, remove) the status page answering `/` (200) on the status/default hostnames, plus the health contract (`/teapot` → 418, other → 404). Idempotent. |
 | `plan` | none | Read-only: for **one** Caddy, merge all its models' desired state, compute the config that would be applied, read the live config, and record desired/actual routes, `onlyDesired`/`onlyActual` drift, foreign routes, the desired DNS records, and both full configs for diffing. Changes nothing. |
@@ -728,24 +739,37 @@ Caddy runs as an unprivileged systemd **user** service, so by default it cannot
 bind ports 80/443. Grant the binary the `CAP_NET_BIND_SERVICE` capability:
 
 ```sh
-# installCaddy tries this automatically (setCapabilities defaults to true).
-# Run it on its own to (re)apply or to get the exact command:
+# installCaddy grants it automatically (setCapabilities defaults to true).
+# Run it on its own to (re)apply it:
 swamp model method run my-caddy setCapabilities
-
-# If the model had no sudo, run the printed command once by hand:
-sudo setcap 'cap_net_bind_service=+ep' ~/.local/bin/caddy
 ```
+
+**A config is never rejected for a privileged-port bind failure.** Until the
+capability is granted, every reconcile serves what the model wants on
+unprivileged ports instead — `:80` → `:8080`, `:443` → `:8443`, over plain HTTP —
+so Caddy always loads the config and serves the status page + health contract on
+`http://localhost:8080`. The desired settings are kept and applied verbatim
+again (auto-HTTPS on, `:443`/`:80`) as soon as the capability is granted; nothing
+is lost in the meantime.
 
 Details:
 
-- `setCapabilities` first tries `setcap`, then non-interactive `sudo -n setcap`.
-  If neither works it does **not** fail — it records the exact `sudo setcap …`
-  command in the `capabilities` resource (field `command`) and logs it, so you
-  can copy-paste it. `installCaddy` does the same and stores it in the `install`
-  resource as `needsSudoForPorts`.
+- `setCapabilities` grants the capability by delegating `setcap` to the
+  **`@svendowideit/sudo`** extension (declared in this extension's
+  `dependencies`, pulled automatically): caddy never calls `sudo` itself. The
+  sudo extension resolves whichever elevation route the host already grants
+  (sudo, doas, polkit/run0, a held capability, a container runtime, …) and runs
+  `setcap` through it, so it works even without passwordless sudo. The target is
+  the `sudo-<sudoInstanceKey>` model (global `sudoInstanceKey`, default
+  `default`), auto-created if absent, with `setcap` added to that call's
+  allowlist because it is opt-in.
+- If no elevation route is granted, the sudo extension reports exactly what it
+  tried and the capability is not applied — the `capabilities` resource records
+  `applied: false` and the reason. Run `swamp model @svendowideit/sudo method run
+  probe sudo-<key>` to see the ladder on this host.
 - **Replacing the binary drops the capability.** `upgradeCaddy` and
-  `installCaddy force=true` reapply it automatically if it was set before; if you
-  ever download a new binary by other means, re-run `setCapabilities`.
+  `installCaddy force=true` re-grant it automatically after writing a new
+  binary; if you download a new binary by other means, re-run `setCapabilities`.
 - **The generated unit is kept out of a user namespace** (no `ProtectSystem` /
   `PrivateTmp`) and does not set `LimitNPROC`, because both would silently break
   privileged binding — see [Why the unit has no hardening](#why-the-unit-has-no-hardening).
@@ -961,7 +985,8 @@ swamp model method run my-caddy configureStatusPage --input disabled=true
 Because `installCaddy` runs before the service exists, the status page is
 installed on a best-effort basis there (it needs the admin API) and is reliably
 (re)installed by `startService`; the `caddy-setup` workflow also calls
-`configureStatusPage` after `start`.
+`configureStatusPage` after `start`. A status page is wanted by default, so a
+bare model always has something to serve (on localhost at minimum).
 
 ### Plain HTTP / unprivileged ports
 
@@ -1143,8 +1168,10 @@ to regenerate the unit with `--resume`.
 - The admin endpoint is written to the Caddyfile's `admin` global option. Caddy
   v2.11+ removed the `caddy run --admin` CLI flag, so the systemd unit does not
   pass `--admin`.
-- The bundled workflows `caddy-setup` and `caddy-ensure-proxy` ship alongside
-  the extension (in this repo's `workflows/`); all their steps are idempotent.
+- The bundled workflows `@svendowideit/caddy-setup` (fresh install, in order) and
+  `@svendowideit/caddy-upgrade` (upgrade in place) ship with the extension; all
+  their steps are idempotent. To point a hostname at a backend use the
+  `ensureDnsProxy` method.
 
 ## Testing
 

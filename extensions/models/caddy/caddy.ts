@@ -447,6 +447,9 @@ const GlobalArgsSchema = z.object({
   environmentFile: z.string().optional().describe(
     "Path to a systemd EnvironmentFile the service reads for secrets such as DNS provider tokens (e.g. ~/.config/caddy/dns.env, chmod 600). Rendered as EnvironmentFile=-<path> in the unit; the leading '-' means a missing file does not stop the service.",
   ),
+  sudoInstanceKey: z.string().default("default").describe(
+    "Instance key of the @svendowideit/sudo model caddy elevates through to grant CAP_NET_BIND_SERVICE (model name sudo-<key>). All privileged work — the setcap that lets the unprivileged user service bind 80/443 — goes through that extension; caddy never calls sudo itself.",
+  ),
   target: z.string().default("").describe(
     "Host this model's Caddy runs on (e.g. a worker hostname, or an SSH host). Empty defaults to this machine's hostname. Together with serviceName it identifies the running Caddy; models sharing (target, serviceName) are merged into one config by reconcile, so use distinct serviceName values for a second Caddy on the same host.",
   ),
@@ -465,7 +468,7 @@ const InstallArgsSchema = z.object({
     "Reinstall even if the binary already exists",
   ),
   setCapabilities: z.boolean().default(true).describe(
-    "After install, try to grant the binary CAP_NET_BIND_SERVICE so the unprivileged systemd user service can bind 80/443. Without sudo this records the exact `sudo setcap` command to run by hand.",
+    "After install, grant the binary CAP_NET_BIND_SERVICE (by delegating setcap to the @svendowideit/sudo extension) so the unprivileged systemd user service can bind 80/443.",
   ),
   configureStatusPage: z.boolean().default(true).describe(
     "After install, install a default status page answering on localhost, summarising the install and linking to the admin API. Requires the admin API to be reachable (a running service); skips with a log otherwise.",
@@ -1136,36 +1139,6 @@ export function hasNetBindService(caps: string[]): boolean {
   return caps.some((c) => c.toLowerCase().includes("cap_net_bind_service"));
 }
 
-/** Render the `sudo setcap` command a user runs to grant one capability. */
-export function renderSetcapCommand(
-  binPath: string,
-  capabilities: string[] = PRIVILEGED_PORT_CAPABILITIES,
-): string {
-  return `sudo setcap '${capabilities.join(" ")}' ${binPath}`;
-}
-
-/**
- * Human guidance for enabling privileged ports, including the exact `setcap`
- * command — so an operator can copy-paste it when sudo is not available to the
- * swarm model.
- */
-export function renderPrivilegedPortGuidance(
-  binPath: string,
-  capabilities: string[] = PRIVILEGED_PORT_CAPABILITIES,
-): string {
-  return [
-    "To let the unprivileged systemd *user* service bind ports 80/443,",
-    "grant the Caddy binary the CAP_NET_BIND_SERVICE capability:",
-    "",
-    `    ${renderSetcapCommand(binPath, capabilities)}`,
-    "",
-    "This is a one-time, per-binary operation. Re-run it after every",
-    "upgradeCaddy/installCaddy with force, because replacing the binary drops",
-    "the capability. (Alternative: run Caddy as a root system service, or keep",
-    "it unprivileged on high ports with autoHttps=off.)",
-  ].join("\n");
-}
-
 /**
  * Render the systemd *user* service unit file content for Caddy.
  *
@@ -1257,7 +1230,6 @@ export function renderSettingsGuidance(opts: {
   binPath?: string;
 }): string {
   const { baseDomain, letsEncryptEmail, adminApiAddr } = opts;
-  const binPath = opts.binPath ?? "~/.local/bin/caddy";
   return [
     "Caddy is installed and running. To make it a useful Let's Encrypt",
     "TLS-configured reverse proxy, provide these minimal settings:",
@@ -1274,11 +1246,10 @@ export function renderSettingsGuidance(opts: {
     "     store the token in the swamp Vault (e.g. caddy/admin-token)",
     "",
     "  4. privileged ports — to serve 80/443 from the unprivileged user",
-    "     service, grant the binary CAP_NET_BIND_SERVICE once:",
+    "     service, run setCapabilities; it elevates through the",
+    "     @svendowideit/sudo extension (sudo/doas/polkit/…), never a raw sudo:",
     "",
-    `         ${renderSetcapCommand(binPath)}`,
-    "",
-    "     (run this yourself if the model lacked sudo; re-run after upgrades)",
+    "         swamp model method run <your-caddy-model> setCapabilities",
     "",
     "Provide these via the model's global arguments or the swamp Vault.",
     "See the README for the exact keys and helper methods.",
@@ -2932,6 +2903,29 @@ export function dnsProviderFromPlugins(plugins: string[]): string {
 }
 
 /**
+ * The credential field -> env var mapping for `provider`, limited to the env
+ * vars `keys` actually declares.
+ *
+ * E.g. gandi + `["GANDI_BEARER_TOKEN"]` -> `{ bearer_token: "GANDI_BEARER_TOKEN" }`.
+ * Lets a model that names a DNS-provider plugin and puts its token in an
+ * `environmentFile` configure TLS/DNS without repeating the provider or mapping.
+ * Pure; returns `{}` when nothing matches.
+ */
+export function providerConfigFromEnvKeys(
+  provider: string,
+  keys: string[],
+): Record<string, string> {
+  const fields = DNS_PROVIDER_CREDENTIALS[provider];
+  if (!fields) return {};
+  const present = new Set(keys.map((k) => k.trim().toUpperCase()));
+  const out: Record<string, string> = {};
+  for (const [field, envVar] of Object.entries(fields)) {
+    if (present.has(envVar.toUpperCase())) out[field] = envVar;
+  }
+  return out;
+}
+
+/**
  * The provider whose credential env-var names appear in `keys`, or "".
  *
  * The environmentFile is often the strongest signal of which DNS provider a
@@ -3431,44 +3425,52 @@ async function readCapabilities(binPath: string): Promise<string[]> {
 }
 
 /**
- * Try to grant capabilities with `sudo -n setcap` (non-interactive).
+ * Grant file capabilities by calling the `@svendowideit/sudo` extension's
+ * `setcap` operation — caddy never calls `sudo`/`setcap` itself. The sudo
+ * extension resolves whichever elevation route the host already grants (sudo,
+ * doas, polkit/run0, a held capability, …) and runs `setcap` through it.
  *
- * Returns whether it was applied, whether it needed sudo, and the command the
- * operator can run by hand. Never throws: a missing/failed setcap is reported,
- * not fatal, so the install flow can still finish and print guidance.
+ * The target is the `sudo-<sudoInstanceKey>` model (type `@svendowideit/sudo`),
+ * auto-created if absent, with `setcap` added to that call's allowlist because
+ * it is an opt-in operation. Never throws: a failure is reported, and the
+ * caller decides whether a missing capability is fatal.
  */
-async function applyCapabilities(
+async function grantCapabilitiesViaSudo(
+  context: MethodContext,
   binPath: string,
   capabilities: string[],
-): Promise<{ applied: boolean; requiresSudo: boolean; message: string }> {
-  const command = renderSetcapCommand(binPath, capabilities);
-  const direct = await runCmd("setcap", [capabilities.join(" "), binPath]);
-  if (direct.code === 0) {
+): Promise<{ applied: boolean; detail: string }> {
+  if (capabilities.length === 0) {
+    return { applied: true, detail: "no capabilities requested" };
+  }
+  if (!context.runModel) {
     return {
-      applied: true,
-      requiresSudo: false,
-      message: `Applied via: ${command}`,
+      applied: false,
+      detail:
+        "cannot grant capabilities: runModel is unavailable in this context",
     };
   }
-  // Try non-interactive sudo (works only if the user has passwordless sudo).
-  const sudo = await runCmd("sudo", [
-    "-n",
-    "setcap",
-    capabilities.join(" "),
-    binPath,
-  ]);
-  if (sudo.code === 0) {
+  const result = await context.runModel({
+    modelType: "@svendowideit/sudo",
+    name: `sudo-${context.globalArgs.sudoInstanceKey}`,
+    method: "run",
+    arguments: {
+      // Global arg of the sudo model: setcap is opt-in.
+      allowedOperations: ["setcap"],
+      // Method args of the sudo model's `run`.
+      operation: "setcap",
+      args: { path: binPath, capabilities: capabilities.join(" ") },
+    },
+  });
+  if (!result.ok) {
     return {
-      applied: true,
-      requiresSudo: true,
-      message: `Applied via: ${command}`,
+      applied: false,
+      detail: `@svendowideit/sudo could not setcap ${binPath}: ${
+        result.error?.message ?? "unknown error"
+      }`,
     };
   }
-  return {
-    applied: false,
-    requiresSudo: true,
-    message: renderPrivilegedPortGuidance(binPath, capabilities),
-  };
+  return { applied: true, detail: capabilities.join(" ") };
 }
 
 // ---------------------------------------------------------------------------
@@ -3609,6 +3611,24 @@ async function checkAdminApi(adminApiAddr: string): Promise<boolean> {
     return resp.status >= 200 && resp.status < 300;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Poll the admin API until it answers or `timeoutMs` elapses. Caddy takes a
+ * moment to start after `systemctl enable --now`, so a single immediate check
+ * races and reports the admin API unreachable while the service is seconds from
+ * ready.
+ */
+async function waitForAdminApi(
+  adminApiAddr: string,
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (await checkAdminApi(adminApiAddr)) return true;
+    if (Date.now() >= deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 250));
   }
 }
 
@@ -3842,6 +3862,26 @@ function resolveTarget(target: string): string {
   }
 }
 
+/**
+ * The status page a model wants before anything is configured: enabled, answering
+ * on localhost. `configureStatusPage --input disabled=true` replaces it with null.
+ */
+function defaultStatusPage(g: GlobalArgs): DesiredStatusPage {
+  return {
+    enabled: true,
+    title: "Caddy",
+    hostnames: statusPageHostnames(),
+    extraLinks: [],
+    version: "",
+    adminUrl: adminApiUrlString(g.adminApiAddr),
+    baseDomain: g.baseDomain ?? "",
+    email: g.letsEncryptEmail ?? "",
+    capabilities: [],
+    plugins: [],
+    links: [],
+  };
+}
+
 /** Build a fresh desired-state object from global args + this model's name. */
 function emptyDesired(
   modelName: string,
@@ -3860,7 +3900,10 @@ function emptyDesired(
     caddyBinPath: g.caddyBinPath,
     routes: [],
     tls: null,
-    statusPage: null,
+    // A status page is wanted by default so Caddy always has something useful to
+    // serve (on localhost at minimum), even before any route/TLS is configured.
+    // `configureStatusPage --input disabled=true` sets it to null to opt out.
+    statusPage: defaultStatusPage(g),
     dnsRecords: g.dnsRecords,
     dnsRemovals: g.dnsRemovals,
     dnsTtl: g.dnsTtl,
@@ -3925,7 +3968,12 @@ async function loadOwnDesired(
     ...base,
     routes: Array.isArray(stored.routes) ? stored.routes : [],
     tls,
-    statusPage: stored.statusPage ?? null,
+    // A stored `null` means the model explicitly disabled the page
+    // (`configureStatusPage disabled=true`); an absent key (an older desired
+    // state) falls back to the default enabled page.
+    statusPage: Object.prototype.hasOwnProperty.call(stored, "statusPage")
+      ? (stored.statusPage ?? null)
+      : base.statusPage,
     // dnsRecords/dnsRemovals follow the global args (like listenAddrs), NOT the
     // stored copy: the stored value is only ever written from the globals, so
     // preferring it would make a later `swamp model edit` of the global a no-op.
@@ -4525,6 +4573,45 @@ async function assessUpToDate(
 }
 
 /**
+ * The listen addresses + autoHttps this host can actually serve *right now*.
+ *
+ * Settings are never rejected. If the binary cannot bind 80/443 (no
+ * CAP_NET_BIND_SERVICE yet), the privileged ports are moved to unprivileged
+ * equivalents (`:80` -> `:8080`, `:443` -> `:8443`) and automatic HTTPS is turned
+ * off, so Caddy can still load the config and serve whatever is wanted — at
+ * minimum the status page + health contract on localhost. The model's *desired*
+ * settings are untouched and are applied verbatim again as soon as the
+ * capability is granted.
+ *
+ * Pure, so it is cheap to unit test.
+ */
+export function effectiveServeSettings(opts: {
+  listenAddrs: string[];
+  autoHttps: string;
+  canBindPrivilegedPorts: boolean;
+}): { listenAddrs: string[]; autoHttps: string; degraded: boolean } {
+  const { listenAddrs, autoHttps, canBindPrivilegedPorts } = opts;
+  if (canBindPrivilegedPorts) {
+    return { listenAddrs, autoHttps, degraded: false };
+  }
+  const remap = (addr: string): string => {
+    if (addr === ":80") return ":8080";
+    if (addr === ":443") return ":8443";
+    return addr;
+  };
+  const wanted = listenAddrs.length > 0 ? listenAddrs : [":443", ":80"];
+  const mapped = [...new Set(wanted.map(remap))];
+  const degraded = wanted.some((a) => a === ":80" || a === ":443");
+  return {
+    listenAddrs: mapped,
+    // No 80/443 means no ACME (HTTP-01/TLS-ALPN); serve plain HTTP rather than a
+    // site that can never obtain a certificate.
+    autoHttps: degraded ? "off" : autoHttps,
+    degraded,
+  };
+}
+
+/**
  * Merge every model's desired state for this target and apply the result to the
  * running Caddy. Throws on a real conflict (so it is surfaced, not silently
  * resolved) and returns the merged summary.
@@ -4565,9 +4652,27 @@ async function applyReconcile(
     g.listenAddrs,
     g.autoHttps,
   );
+  // Never reject: if the binary cannot bind 80/443 yet, serve what is wanted on
+  // unprivileged ports (plain HTTP) so Caddy still loads the config and serves
+  // the status page + health contract. The desired settings are kept and applied
+  // again once the capability is granted.
+  const canBind = hasNetBindService(
+    await readCapabilities(expandHome(g.caddyBinPath)),
+  );
+  const serve = effectiveServeSettings({
+    listenAddrs: merged.listenAddrs,
+    autoHttps: merged.autoHttps,
+    canBindPrivilegedPorts: canBind,
+  });
+  if (serve.degraded) {
+    context.logger?.info(
+      "The Caddy binary cannot bind 80/443 yet; serving what is wanted on {addrs} over plain HTTP until the capability is granted (the desired settings are kept and reapplied automatically)",
+      { addrs: serve.listenAddrs.join(", ") },
+    );
+  }
   const next = buildReconciledConfig(
     current,
-    merged,
+    { ...merged, listenAddrs: serve.listenAddrs, autoHttps: serve.autoHttps },
     extensionVersionOf(context.extensionFile),
   );
   // A config that uses a module the binary lacks fails to load with a cryptic
@@ -4781,6 +4886,18 @@ type MethodContext = {
   ) => Promise<Array<Record<string, unknown> | unknown>>;
   /** Resolve a path to an asset bundled with this extension manifest. */
   extensionFile?: (relPath: string) => string;
+  /** Run another model's method (used to elevate via @svendowideit/sudo). */
+  runModel?: (options: {
+    modelType?: string;
+    definition?: string;
+    name?: string;
+    method: string;
+    arguments?: Record<string, unknown>;
+  }) => Promise<{
+    ok: boolean;
+    resources?: Array<{ name: string }>;
+    error?: { message?: string };
+  }>;
 };
 
 /** Context available to pre-flight checks (no data writers). */
@@ -4795,7 +4912,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.10.15",
+  version: "2026.10.10.16",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -5059,6 +5176,12 @@ export const model = {
         "The status page now shows the extension (package) version read from the bundled manifest.yaml at run time, rather than the model's own `version` (the model-type / schema version). The staleness/upgrade comparisons that legitimately use the installed model-type version are unchanged and marked with a `version-source` exemption. No global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.10.16",
+      description:
+        "Two changes. (1) All privileged work is delegated to the new @svendowideit/sudo dependency: the setcap that grants CAP_NET_BIND_SERVICE is run through its elevation ladder (sudo/doas/polkit/…), so caddy no longer calls sudo itself or prints a raw `sudo setcap` command to run by hand. Adds the optional `sudoInstanceKey` global (default 'default'; the target is the `sudo-<key>` model) and a manifest `dependencies:` entry so @svendowideit/sudo is pulled automatically. (2) A config is never rejected for a privileged-port bind failure: when the binary cannot bind 80/443 yet, the applied config serves what is wanted on unprivileged ports (:80 -> :8080, :443 -> :8443, plain HTTP) so Caddy always loads it and serves the status page + health contract on localhost; the desired settings are kept and reapplied automatically once the capability is granted. A status page is now wanted by default (opt out with configureStatusPage disabled=true). `configureTls` infers the DNS provider from the model's plugins and the credential mapping from its environmentFile, so a wildcard/DNS-01 setup needs no repeated provider name. `startService` waits (up to 10s) for the admin API instead of racing it. Ships a new idempotent `@svendowideit/caddy-setup` workflow (install → capability → service → TLS → DNS → status page → gap report, in the order that works) so a fresh install is one command; the upgrade workflow now configures TLS before applying DNS records. Otherwise no global arguments change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -5251,13 +5374,15 @@ export const model = {
 
         // Grant CAP_NET_BIND_SERVICE BEFORE any restart: replacing the binary
         // drops the capability, and a restart only picks up a binary whose
-        // capability is already set. Without sudo this records the command for
-        // the operator to run by hand; it is never fatal.
+        // capability is already set. Elevation is delegated to the
+        // @svendowideit/sudo extension; caddy never calls sudo itself. A failure
+        // is reported, not fatal.
         let capabilities: string[] = [];
         let canBindPrivilegedPorts = false;
         let needsSudoForPorts = "";
         if (args.setCapabilities) {
-          const result = await applyCapabilities(
+          const result = await grantCapabilitiesViaSudo(
+            context,
             binPath,
             PRIVILEGED_PORT_CAPABILITIES,
           );
@@ -5265,12 +5390,15 @@ export const model = {
           canBindPrivilegedPorts = hasNetBindService(capabilities);
           if (canBindPrivilegedPorts) {
             context.logger?.info(
-              "Granted CAP_NET_BIND_SERVICE to {binPath}; Caddy can bind 80/443 as a user service",
+              "Granted CAP_NET_BIND_SERVICE to {binPath} via @svendowideit/sudo; Caddy can bind 80/443 as a user service",
               { binPath },
             );
           } else {
-            needsSudoForPorts = result.message;
-            context.logger?.info(needsSudoForPorts);
+            needsSudoForPorts = result.detail;
+            context.logger?.warning?.(
+              "Could not grant CAP_NET_BIND_SERVICE to {binPath}: {detail}",
+              { binPath, detail: result.detail },
+            );
           }
         }
 
@@ -5302,7 +5430,7 @@ export const model = {
             restarted = active;
             if (!active) {
               const capHint = args.setCapabilities && !canBindPrivilegedPorts
-                ? " The rebuilt binary also lacks CAP_NET_BIND_SERVICE (run the setcap command above), which would stop it binding 80/443."
+                ? " The rebuilt binary also lacks CAP_NET_BIND_SERVICE (elevation via @svendowideit/sudo failed), which would stop it binding 80/443."
                 : "";
               throw new Error(
                 `Caddy service ${g.serviceName} did not restart cleanly after rebuilding the binary. ` +
@@ -5357,7 +5485,7 @@ export const model = {
 
     setCapabilities: {
       description:
-        "Grant CAP_NET_BIND_SERVICE to the Caddy binary (via sudo) so the unprivileged user service can bind 80/443, or record the exact command to run by hand",
+        "Grant CAP_NET_BIND_SERVICE to the Caddy binary by delegating setcap to the @svendowideit/sudo extension, so the unprivileged user service can bind 80/443",
       arguments: SetCapabilitiesArgsSchema,
       execute: async (
         args: z.infer<typeof SetCapabilitiesArgsSchema>,
@@ -5370,15 +5498,10 @@ export const model = {
         const before = await readCapabilities(binPath);
         const already = capabilities.every((c) => before.includes(c));
         const result = already
-          ? {
-            applied: true,
-            requiresSudo: false,
-            message: "Already granted",
-          }
-          : await applyCapabilities(binPath, capabilities);
+          ? { applied: true, detail: "already granted" }
+          : await grantCapabilitiesViaSudo(context, binPath, capabilities);
         const after = await readCapabilities(binPath);
         const applied = capabilities.every((c) => after.includes(c));
-        const command = renderSetcapCommand(binPath, capabilities);
 
         if (!args.quiet) {
           if (applied) {
@@ -5387,9 +5510,9 @@ export const model = {
               { binPath, caps: after.join(" ") || "(none)" },
             );
           } else {
-            context.logger?.info(
-              result.message ||
-                renderPrivilegedPortGuidance(binPath, capabilities),
+            context.logger?.warning?.(
+              "Could not grant CAP_NET_BIND_SERVICE to {binPath}: {detail}",
+              { binPath, detail: result.detail },
             );
           }
         }
@@ -5402,11 +5525,11 @@ export const model = {
             capabilities: after,
             changed: !already,
             applied,
-            requiresSudo: result.requiresSudo,
-            command,
+            requiresSudo: !applied,
+            command: applied ? "" : result.detail,
             message: applied
-              ? `Granted ${capabilities.join(" ")}`
-              : `Run by hand: ${command}`,
+              ? `Granted ${capabilities.join(" ")} via @svendowideit/sudo`
+              : result.detail,
             checkedAt: new Date().toISOString(),
           },
         );
@@ -5497,7 +5620,10 @@ export const model = {
 
         const active = await systemctl(["is-active", serviceName]);
         const enabled = await systemctl(["is-enabled", serviceName]);
-        const adminApiReachable = await checkAdminApi(g.adminApiAddr);
+        // Give Caddy a moment to finish starting before declaring the admin API
+        // unreachable — it is up within seconds, and a single immediate check
+        // races the start.
+        const adminApiReachable = await waitForAdminApi(g.adminApiAddr, 10_000);
 
         if (active.code !== 0) {
           throw new Error(
@@ -5846,13 +5972,53 @@ export const model = {
         const issuer = (args.issuer ?? existing?.issuer ?? "") === "internal"
           ? "internal"
           : "";
-        const email = args.email ?? g.letsEncryptEmail ?? existing?.email ?? "";
-        const dnsProvider = args.dnsProvider ?? existing?.dnsProvider ?? "";
-        const providerConfig = args.providerConfig ??
-          existing?.providerConfig ??
-          {};
+        // Empty/absent arguments fall through (so a workflow can pass its inputs
+        // unconditionally without clobbering what is already configured).
+        const email = args.email || g.letsEncryptEmail || existing?.email || "";
+        let dnsProvider = args.dnsProvider || existing?.dnsProvider || "";
+        let providerConfig =
+          (args.providerConfig && Object.keys(args.providerConfig).length > 0)
+            ? args.providerConfig
+            : (existing?.providerConfig ?? {});
+        const dnsEnvVar = args.dnsEnvVar || existing?.dnsEnvVar || "";
+        // Infer what the caller did not name, so a model that lists a
+        // DNS-provider plugin and puts its token in `environmentFile` works
+        // without repeating the provider name or the field mapping:
+        //   plugins=["github.com/caddy-dns/gandi"] + env file {GANDI_BEARER_TOKEN}
+        //   -> dnsProvider=gandi, providerConfig={bearer_token:"GANDI_BEARER_TOKEN"}
+        if (!dnsProvider) {
+          const inferred = dnsProviderFromPlugins(g.plugins);
+          if (inferred) {
+            dnsProvider = inferred;
+            context.logger?.info(
+              "Inferred DNS provider '{provider}' from plugins",
+              { provider: inferred },
+            );
+          }
+        }
+        if (
+          dnsProvider && Object.keys(providerConfig).length === 0 &&
+          !dnsEnvVar && g.environmentFile
+        ) {
+          const envPath = expandHome(g.environmentFile);
+          const keys = await readEnvFileKeys(envPath);
+          const inferred = providerConfigFromEnvKeys(dnsProvider, keys);
+          if (Object.keys(inferred).length > 0) {
+            providerConfig = inferred;
+            context.logger?.info(
+              "Mapped '{provider}' credentials from {file}: {fields}",
+              {
+                provider: dnsProvider,
+                file: envPath,
+                fields: Object.keys(inferred).join(", "),
+              },
+            );
+          }
+        }
         const subjects = withoutBaseDomainApex(
-          args.subjects ?? existing?.subjects ?? [],
+          (args.subjects && args.subjects.length > 0)
+            ? args.subjects
+            : (existing?.subjects ?? []),
           g.baseDomain ?? "",
         );
         // The internal (local CA) issuer needs no ACME account, so an email is
@@ -5867,7 +6033,7 @@ export const model = {
         own.tls = {
           email,
           dnsProvider,
-          dnsEnvVar: args.dnsEnvVar ?? existing?.dnsEnvVar ?? "",
+          dnsEnvVar,
           providerConfig,
           subjects,
           issuer,
@@ -6039,8 +6205,9 @@ export const model = {
         const plugins = withDefaultPlugins(args.plugins ?? g.plugins);
         const arch = caddyArch();
 
-        // Replacing the binary drops any file capabilities, so remember whether
-        // CAP_NET_BIND_SERVICE was set and reapply it after the download.
+        // Replacing the binary drops any file capabilities. Re-grant whenever the
+        // binary had them, or whenever this model serves public HTTPS (which
+        // needs 80/443). Elevation goes through @svendowideit/sudo.
         const priorCaps = await readCapabilities(binPath);
         const hadNetBind = hasNetBindService(priorCaps);
 
@@ -6056,13 +6223,17 @@ export const model = {
 
         const verified = await verifyCaddy(binPath);
 
-        if (hadNetBind) {
-          const caps = await applyCapabilities(
+        if (hadNetBind || g.autoHttps !== "off") {
+          const caps = await grantCapabilitiesViaSudo(
+            context,
             binPath,
             PRIVILEGED_PORT_CAPABILITIES,
           );
           if (!caps.applied) {
-            context.logger?.info(caps.message);
+            context.logger?.warning?.(
+              "Could not grant CAP_NET_BIND_SERVICE to the rebuilt binary: {detail}",
+              { detail: caps.detail },
+            );
           }
         }
 
@@ -6444,7 +6615,8 @@ export const model = {
                   ".globalArguments.dnsRecords = [/* record objects */]",
                 )
               }  then  swamp model method run ${name} applyDnsRecords`,
-              setcapCmd: renderSetcapCommand(binPath),
+              setcapCmd:
+                `swamp model method run ${name} setCapabilities   # elevates via @svendowideit/sudo`,
               serviceCmd: `swamp model method run ${name} startService`,
             },
           );
@@ -6471,8 +6643,8 @@ export const model = {
           gaps.push({
             id: "cannot-bind-privileged-ports",
             message:
-              "Caddy cannot bind ports 80/443 (needed for the HTTP-01 certificate challenge): the binary lacks CAP_NET_BIND_SERVICE and swamp has no sudo.",
-            command: renderSetcapCommand(binPath),
+              "Caddy cannot bind ports 80/443 (needed for the HTTP-01 certificate challenge): the binary lacks CAP_NET_BIND_SERVICE. Granting it is delegated to the @svendowideit/sudo extension.",
+            command: `swamp model method run ${name} setCapabilities`,
           });
         }
         if (missingModules.length > 0) {

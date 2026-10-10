@@ -1,0 +1,232 @@
+id: 6f3a1c2e-9b47-4d2e-8a51-0c9d2f4e7a10
+name: "@svendowideit/caddy-setup"
+description: |
+  Set up the Caddy this repo manages, idempotently, in one command.
+
+  Run it after `swamp extension pull @svendowideit/caddy` and `swamp model create
+  @svendowideit/caddy <name> --global-arg baseDomain=… --global-arg
+  letsEncryptEmail=…`. It reads the @svendowideit/caddy model this repo defines
+  (so a never-run model is found and the auto-created scratch instance never is);
+  if exactly one exists it is set up automatically, otherwise pass --input
+  model=<name>.
+
+  In order it: installs the binary (granting CAP_NET_BIND_SERVICE through
+  @svendowideit/sudo), (re)creates and starts the systemd user service,
+  configures TLS (the DNS provider is inferred from the model's plugins and its
+  credential mapping from environmentFile, so --input dnsProvider is optional),
+  applies any declared DNS records, installs the status page, and prints a gap
+  report of anything still missing. Every step is idempotent — re-running is safe.
+
+    swamp workflow run @svendowideit/caddy-setup
+    swamp workflow run @svendowideit/caddy-setup --input model=my-caddy
+
+  For a wildcard cert (DNS-01), name the provider explicitly if you prefer:
+    swamp workflow run @svendowideit/caddy-setup --input model=my-caddy \
+      --input dnsProvider=gandi \
+      --input 'providerConfig:json={"bearer_token":"GANDI_BEARER_TOKEN"}'
+inputs:
+  properties:
+    model:
+      type: string
+      default: ""
+      description: >
+        The @svendowideit/caddy model to set up. Empty (the default) uses the
+        single model the repo defines, or stops when there is more than one.
+    email:
+      type: string
+      default: ""
+      description: >
+        ACME email. Empty uses the model's letsEncryptEmail global.
+    dnsProvider:
+      type: string
+      default: ""
+      description: >
+        DNS provider for DNS-01 (e.g. gandi, cloudflare). Empty infers it from
+        the model's plugins.
+    providerConfig:
+      type: object
+      default: {}
+      description: >
+        Provider credential field -> environment variable map, for multi-field
+        providers, e.g. {"bearer_token":"GANDI_BEARER_TOKEN"}. Empty infers it
+        from the model's environmentFile.
+    subjects:
+      type: array
+      default: []
+      description: >
+        TLS subjects to issue certificates for (e.g. ["*.example.com"]). Empty
+        keeps the subjects already configured.
+  required: []
+tags:
+  swamp: "caddy"
+  kind: "setup"
+jobs:
+  - name: discover
+    description: >-
+      Find every @svendowideit/caddy model this repo defines, so a single model
+      is set up automatically and several are listed (changing nothing).
+    steps:
+      - name: scan
+        description: Discover and print the caddy model(s) in this repo.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: caddy-setup-scan
+          methodName: upgradeTargets
+          globalArgs:
+            serviceName: caddy-setup-scan
+            target: caddy-setup-scan
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+  - name: setup
+    description: >-
+      Install, service, TLS, DNS and status page for one model, in the order that
+      works. Every step is idempotent and each depends on the previous, so
+      nothing contends on the model lock.
+    steps:
+      - name: install
+        description: >-
+          Download the Caddy binary (with the model's module packages) and grant
+          CAP_NET_BIND_SERVICE through @svendowideit/sudo.
+        guard: '${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: installCaddy
+          inputs:
+            setCapabilities: true
+            configureStatusPage: false
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: set-capabilities
+        description: >-
+          (Re)grant CAP_NET_BIND_SERVICE via @svendowideit/sudo so the user
+          service can bind 80/443.
+        guard: '${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: setCapabilities
+        dependsOn:
+          - step: install
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
+      - name: create-service
+        description: Write the systemd user unit from the model's current globals.
+        guard: '${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: createService
+        dependsOn:
+          - step: set-capabilities
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+
+      - name: start-service
+        description: >-
+          Start and enable the service, waiting for the admin API so the status
+          page can be installed.
+        guard: '${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: startService
+        dependsOn:
+          - step: create-service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: tls
+        description: >-
+          Configure the TLS app. The DNS provider is inferred from the model's
+          plugins (and the credential mapping from environmentFile) unless passed
+          explicitly.
+        guard: '${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: configureTls
+          inputs:
+            email: ${{ inputs.email }}
+            dnsProvider: ${{ inputs.dnsProvider }}
+            providerConfig: ${{ inputs.providerConfig }}
+            subjects: ${{ inputs.subjects }}
+        dependsOn:
+          - step: start-service
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
+      - name: dns
+        description: >-
+          Apply the model's declared static DNS records, through the provider
+          configured above.
+        guard: '${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: applyDnsRecords
+        dependsOn:
+          - step: tls
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
+      - name: status-page
+        description: Install the default status page (answers on localhost).
+        guard: '${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: configureStatusPage
+        dependsOn:
+          - step: dns
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
+      - name: check
+        description: >-
+          Print the gap report so the run ends by telling you exactly what is
+          still missing (if anything) and how to fix it.
+        guard: '${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: upgradeCheck
+        dependsOn:
+          - step: status-page
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+    dependsOn:
+      - job: discover
+        condition:
+          type: succeeded
+    weight: 0
+version: 1

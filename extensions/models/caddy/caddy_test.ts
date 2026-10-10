@@ -28,6 +28,7 @@ import {
   dnsProviderFromEnvKeys,
   dnsProviderFromPlugins,
   dnsProviderPlugin,
+  effectiveServeSettings,
   ensureFileServerRoute,
   ensureRoute,
   ensureServerDefaults,
@@ -55,7 +56,7 @@ import {
   parseManifestVersion,
   parseModules,
   parseUpstream,
-  PRIVILEGED_PORT_CAPABILITIES,
+  providerConfigFromEnvKeys,
   reconcileProxyServices,
   removeRouteFromConfig,
   removeStatusPageRoute,
@@ -63,9 +64,7 @@ import {
   renderDomainConflictError,
   renderMinimalConfig,
   renderNextCommands,
-  renderPrivilegedPortGuidance,
   renderServiceUnit,
-  renderSetcapCommand,
   renderSettingsGuidance,
   renderStatusPage,
   renderTlsAutomation,
@@ -867,24 +866,9 @@ Deno.test("hasNetBindService detects the capability in any form", () => {
   assertEquals(hasNetBindService([]), false);
 });
 
-Deno.test("renderSetcapCommand produces the copy-paste sudo command", () => {
-  const cmd = renderSetcapCommand("/home/u/.local/bin/caddy");
-  assertEquals(
-    cmd,
-    "sudo setcap 'cap_net_bind_service=+ep' /home/u/.local/bin/caddy",
-  );
-  assertEquals(PRIVILEGED_PORT_CAPABILITIES, ["cap_net_bind_service=+ep"]);
-});
-
-Deno.test("renderPrivilegedPortGuidance explains why and when", () => {
-  const text = renderPrivilegedPortGuidance("/home/u/.local/bin/caddy");
-  assertStringIncludes(text, "cap_net_bind_service=+ep");
-  assertStringIncludes(text, "after every");
-  assertStringIncludes(text, "autoHttps=off");
-});
-
-Deno.test("setCapabilities method records the command when it cannot apply", async () => {
+Deno.test("setCapabilities delegates setcap to @svendowideit/sudo", async () => {
   let captured: Record<string, unknown> = {};
+  const calls: Array<Record<string, unknown>> = [];
   const ctx = {
     globalArgs: {
       caddyBinPath: "/nonexistent/caddy",
@@ -894,8 +878,13 @@ Deno.test("setCapabilities method records the command when it cannot apply", asy
       listenAddrs: [":443", ":80"],
       serviceName: "caddy",
       plugins: [],
+      sudoInstanceKey: "default",
     },
-    logger: { info: () => {} },
+    logger: { info: () => {}, warning: () => {} },
+    runModel: (opts: Record<string, unknown>) => {
+      calls.push(opts);
+      return Promise.resolve({ ok: true, resources: [{ name: "run" }] });
+    },
     writeResource: (
       _spec: string,
       _name: string,
@@ -907,9 +896,22 @@ Deno.test("setCapabilities method records the command when it cannot apply", asy
     // deno-lint-ignore no-explicit-any
   } as any;
   await model.methods.setCapabilities.execute({ quiet: true }, ctx);
-  assertEquals(typeof captured.command, "string");
-  assertStringIncludes(captured.command as string, "sudo setcap");
-  assertEquals(captured.applied, false);
+
+  // It calls the sudo extension's run method with operation=setcap, not sudo.
+  assertEquals(calls.length, 1);
+  const call = calls[0];
+  assertEquals(call.modelType, "@svendowideit/sudo");
+  assertEquals(call.name, "sudo-default");
+  assertEquals(call.method, "run");
+  const args = call.arguments as Record<string, unknown>;
+  assertEquals(args.operation, "setcap");
+  assertEquals(args.allowedOperations, ["setcap"]);
+  assertEquals(
+    (args.args as Record<string, unknown>).path,
+    "/nonexistent/caddy",
+  );
+  // No raw `sudo setcap …` command is emitted any more.
+  assert(!String(captured.command).includes("sudo setcap"));
 });
 
 Deno.test("defaultStatusHostnames is the default for configured names, minus routed", () => {
@@ -2789,4 +2791,69 @@ Deno.test("buildReconciledConfig puts the manifest extension version on the stat
   assert(json.includes("2099.01.01.9"));
   // The model's own schema version must not leak onto the status page.
   assert(!json.includes(model.version));
+});
+
+// ---------------------------------------------------------------------------
+// Never reject: degrade to bindable ports so the config always loads
+// ---------------------------------------------------------------------------
+
+Deno.test("effectiveServeSettings keeps 80/443 when the binary can bind them", () => {
+  assertEquals(
+    effectiveServeSettings({
+      listenAddrs: [":443", ":80"],
+      autoHttps: "on",
+      canBindPrivilegedPorts: true,
+    }),
+    { listenAddrs: [":443", ":80"], autoHttps: "on", degraded: false },
+  );
+});
+
+Deno.test("effectiveServeSettings degrades 80/443 to unprivileged ports otherwise", () => {
+  const s = effectiveServeSettings({
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    canBindPrivilegedPorts: false,
+  });
+  assertEquals(s.listenAddrs, [":8443", ":8080"]);
+  assertEquals(s.autoHttps, "off");
+  assertEquals(s.degraded, true);
+});
+
+Deno.test("effectiveServeSettings leaves already-unprivileged ports untouched", () => {
+  const s = effectiveServeSettings({
+    listenAddrs: [":8888", ":8443"],
+    autoHttps: "off",
+    canBindPrivilegedPorts: false,
+  });
+  assertEquals(s.listenAddrs, [":8888", ":8443"]);
+  assertEquals(s.autoHttps, "off");
+  assertEquals(s.degraded, false);
+});
+
+Deno.test("effectiveServeSettings degrades the default port set when none is given", () => {
+  const s = effectiveServeSettings({
+    listenAddrs: [],
+    autoHttps: "on",
+    canBindPrivilegedPorts: false,
+  });
+  assertEquals(s.listenAddrs, [":8443", ":8080"]);
+  assertEquals(s.degraded, true);
+});
+
+Deno.test("providerConfigFromEnvKeys maps a provider's field to the declared env var", () => {
+  assertEquals(providerConfigFromEnvKeys("gandi", ["GANDI_BEARER_TOKEN"]), {
+    bearer_token: "GANDI_BEARER_TOKEN",
+  });
+});
+
+Deno.test("providerConfigFromEnvKeys maps only the field(s) actually declared", () => {
+  assertEquals(
+    providerConfigFromEnvKeys("namecheap", ["NAMECHEAP_API_KEY"]),
+    { api_key: "NAMECHEAP_API_KEY" },
+  );
+});
+
+Deno.test("providerConfigFromEnvKeys is empty for an unknown provider or no match", () => {
+  assertEquals(providerConfigFromEnvKeys("nope", ["X"]), {});
+  assertEquals(providerConfigFromEnvKeys("gandi", ["UNRELATED"]), {});
 });

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.10.10.15"
+version: "2026.10.10.16"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -29,8 +29,12 @@ description: >
 
   DEPENDENCIES
 
-    None. It needs only the swamp CLI, a Linux host with systemd user services,
-    and network access to caddyserver.com to download the binary.
+    `@svendowideit/sudo` — pulled automatically. Granting CAP_NET_BIND_SERVICE so
+    the unprivileged user service can bind 80/443 (the setcap that caddy applies
+    after it writes a binary) is delegated to that extension's elevation ladder,
+    so caddy never calls `sudo` itself. Otherwise it needs only the swamp CLI, a
+    Linux host with systemd user services, and network access to caddyserver.com
+    to download the binary.
 
   RUN
 
@@ -46,8 +50,12 @@ description: >
       swamp model method run my-caddy createService
       swamp model method run my-caddy startService
 
-      # Do the whole setup idempotently in one command.
-      swamp workflow run caddy-setup
+      # Do the whole setup idempotently in one command: install the binary and
+      # grant the capability via @svendowideit/sudo, create/start the service,
+      # configure TLS (provider inferred from plugins), apply DNS records, and
+      # install the status page. A single caddy model is set up automatically;
+      # with several it lists them.
+      swamp workflow run @svendowideit/caddy-setup
 
       # Upgrade the Caddy this repo manages after updating the extension. With a
       # single caddy model it upgrades automatically (no name to remember); with
@@ -60,7 +68,7 @@ description: >
       swamp workflow run @svendowideit/caddy-upgrade --input model=my-caddy
 
       # Point a hostname at a backend, creating the route if it is missing.
-      swamp workflow run caddy-ensure-proxy \
+      swamp model method run my-caddy ensureDnsProxy \
         --input hostname=foo.example.com --input upstream=127.0.0.1:8080
 
       # Publish a directory of documents over HTTPS at a hostname.
@@ -68,8 +76,8 @@ description: >
         --input hostname=settings.example.com --input root=/srv/settings/current
 
       # Grant CAP_NET_BIND_SERVICE so the unprivileged user service can bind
-      # 80/443. If sudo is unavailable this prints the exact `sudo setcap`
-      # command to run by hand (also tried automatically during installCaddy).
+      # 80/443. Elevation is delegated to @svendowideit/sudo (run automatically
+      # during installCaddy too).
       swamp model method run my-caddy setCapabilities
 
       # Install the default status page that answers on http://localhost and
@@ -231,16 +239,20 @@ description: >
       reconcile          true (default) merges all models for this target; false
                          writes only this model's config
 
-    Ports 80/443 need CAP_NET_BIND_SERVICE on the binary: installCaddy tries to
-    grant it (setCapabilities=false to skip), setCapabilities can (re)apply it
-    or print the sudo command, and upgradeCaddy reapplies it after replacing the
-    binary.
+    Ports 80/443 need CAP_NET_BIND_SERVICE on the binary: installCaddy grants it
+    (setCapabilities=false to skip), setCapabilities can (re)apply it, and
+    upgradeCaddy re-grants it after replacing the binary. Elevation is delegated
+    to the @svendowideit/sudo extension; caddy never calls sudo itself. A config
+    is never rejected for a privileged-port bind failure: until the capability is
+    granted, reconcile serves what is wanted on unprivileged ports (:80 -> :8080,
+    :443 -> :8443, plain HTTP) so Caddy always loads it, and reapplies the desired
+    settings once the capability arrives.
 
-    A default status page is installed automatically (installCaddy/startService)
-    answering http://localhost and https://localhost, listing the install
-    (version, domain, ACME email, privileged-port capability, and the compiled-in
-    plugins) and linking to the admin API and routes; reconfigure or remove it
-    with configureStatusPage.
+    A status page is wanted by default (opt out with configureStatusPage
+    disabled=true): it answers on localhost and, once the port/TLS layer is up,
+    on each configured hostname, listing the install (version, domain, ACME
+    email, privileged-port capability, and the compiled-in plugins) and linking to
+    the admin API and routes; reconfigure it with configureStatusPage.
 
     Override per call with --input, e.g. addProxyService --input serviceName=app
     --input upstream=127.0.0.1:8080, or configureTls --input
@@ -301,7 +313,11 @@ reports:
   - caddy_report.ts
 
 workflows:
+  - caddy-setup.yaml
   - caddy-upgrade.yaml
+
+dependencies:
+  - "@svendowideit/sudo"
 
 additionalFiles:
   - README.md

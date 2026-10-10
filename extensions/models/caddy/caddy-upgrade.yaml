@@ -156,8 +156,8 @@ jobs:
       - name: set-capabilities
         description: >-
           Re-grant CAP_NET_BIND_SERVICE so the unprivileged user service can bind
-          80/443. If sudo is unavailable this records the exact command to run by
-          hand and does not fail the workflow.
+          80/443. Elevation is delegated to @svendowideit/sudo; a failure is
+          recorded, not fatal.
         guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
         task:
           type: model_method
@@ -240,29 +240,14 @@ jobs:
         weight: 0
         allowFailure: true
 
-      - name: dns
-        description: >-
-          Reconcile desired static DNS records, if the model declares any. A model
-          with no dnsRecords/dnsRemovals or no TLS provider fails here and the
-          workflow tolerates it, so this is a no-op for most models.
-        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
-        task:
-          type: model_method
-          modelType: "@svendowideit/caddy"
-          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
-          methodName: applyDnsRecords
-        dependsOn:
-          - step: status-page
-            condition:
-              type: completed
-        weight: 0
-        allowFailure: true
-
       - name: tls
         description: >-
-          Re-run configureTls with the provider you passed. Skipped entirely when
-          no dnsProvider input is given.
-        guard: '${{ (inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1) || inputs.dnsProvider == "" }}'
+          (Re)configure the TLS app. The DNS provider is inferred from the model's
+          plugins (and the credential mapping from its environmentFile), so passing
+          --input dnsProvider is optional. Runs before the dns step so records are
+          applied through a provider that is already configured. Tolerated when the
+          model has no ACME email yet.
+        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
         task:
           type: model_method
           modelType: "@svendowideit/caddy"
@@ -272,11 +257,29 @@ jobs:
             dnsProvider: ${{ inputs.dnsProvider }}
             providerConfig: ${{ inputs.providerConfig }}
         dependsOn:
-          - step: dns
+          - step: status-page
             condition:
               type: completed
         weight: 0
-        allowFailure: false
+        allowFailure: true
+
+      - name: dns
+        description: >-
+          Reconcile desired static DNS records, if the model declares any. Runs
+          after tls, so the provider is configured first. A model with no
+          dnsRecords/dnsRemovals is a no-op, which the workflow tolerates.
+        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: applyDnsRecords
+        dependsOn:
+          - step: tls
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
 
       - name: check-after
         description: >-
@@ -290,7 +293,7 @@ jobs:
           modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
           methodName: upgradeCheck
         dependsOn:
-          - step: tls
+          - step: dns
             condition:
               type: always
         weight: 0

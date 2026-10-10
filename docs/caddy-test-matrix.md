@@ -54,7 +54,7 @@ done; optional swamp workflow wrapper with `manual_approval` before each PR.
 | ID | Item | Branch | Status | Verify |
 | -- | ---- | ------ | ------ | ------ |
 | F0.1 | dind grants: `docker-rootful` implemented — installs + starts an **in-harness** `dockerd`, waits for `/var/run/docker.sock`, adds the harness user to the `docker` group; harness container is run `--privileged` when a `docker-*` grant is present | `caddy/f0-dind-grants` | review (implemented; dind run pending) | grant renders a real script (unit ✓); `installCaddy` under this grant makes `@svendowideit/sudo probe` find the `docker-run` route |
-| F0.2 | harness runs every phase inside the dind container (own daemon, own ports/systemd) | `caddy/f0-harness-dind` | todo | a candidate test boots and passes entirely in-container |
+| F0.2 | harness runs every phase inside the dind container (own daemon, own ports/systemd) | `caddy/f0-harness-dind` | **blocked** | docker-rootful **proven**: in-harness `dockerd` boots (`Daemon has completed initialization`), `tester` joins the `docker` group, `docker info` → 29.1.3. **But** the non-root harness (`runAs: tester`) returns `harness produced no result (container crashed?)` for *every* candidate (reproduced on `@svendowideit/sudo` too), so no tester-based test runs — see Blocker B1 |
 | F0.3 | one documented "run one scenario in dind, emit report" command | `caddy/f0-run-command` | todo | command + report/data pointer documented; agents call it verbatim |
 | F0.4 | per-test `runAs`/`grants` in `test-factory` (group tests by resolved grant; one container per group) | `caddy/f0-per-test-grants` | todo | positive + degrade groups pass in one candidate file |
 | F0.5 | ACME/DNS stub service (toggle accept/reject/delay) for cert + DNS timing tests | `caddy/f0-acme-stub` | todo | C2/C3/D6 expressible |
@@ -63,6 +63,13 @@ done; optional swamp workflow wrapper with `manual_approval` before each PR.
 
 F0 gate: a trivial candidate (e.g. `@svendowideit/disk-auditor`) boots, runs and
 passes **inside dind**, proving the fleet can rely on it.
+
+### Blockers
+
+| ID | Blocker | Evidence | Owner |
+| -- | ------- | -------- | ----- |
+| **B1** | The non-root harness (`runAs: tester`) yields `harness produced no result (container crashed?)` — the harness's `su -s /bin/sh <user> -c "/bin/sh $0"` handover (`harness.ts:416`) produces no captured stdout, so a tester-based test can never pass. Blocks every positive/degrade group (all use `runAs: tester`). | Reproduced on the dind self-test **and** `@svendowideit/sudo` (`--input phases=tests`, `ubuntu-standalone`); `runAs: root` passes. | test-factory |
+| B2 | `@svendowideit/sudo` route probing can prompt for a password from an automated run (polkit/run0) — the ladder is not fully non-interactive. | t440s transcript (systemd `AUTHENTICATING FOR … manage-units`). | `@svendowideit/sudo` |
 
 ---
 
@@ -241,8 +248,11 @@ passes **inside dind**, proving the fleet can rely on it.
 
 | Phase | Done / Total | Notes |
 | ----- | ------------ | ----- |
-| F0 | 0.5 / 7 | F0.1 implemented (`docker-rootful` grant + privileged harness), 170 test-factory tests pass; dind end-to-end run pending |
+| F0 | 1 / 7 | F0.1 merged-in-PR #1; F0.2 blocked on **B1** (non-root harness broken); docker-rootful dind daemon itself proven working |
 | Regression | 1 / 16 | A1 fixed (quality gate) |
 | Behavioural | 3 / ~86 | D1/D2/D10 covered by the existing suite |
+
+**Blockers:** B1 (non-root harness — blocks F0.2, F0.4 and every tester-based
+test), B2 (`@svendowideit/sudo` interactive prompt).
 
 _(Update this board as items land; keep it the at-a-glance summary.)_

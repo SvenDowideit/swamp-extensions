@@ -73,6 +73,13 @@ import {
   phaseClaims,
 } from "./harness.ts";
 import { inspectExtension } from "./introspect.ts";
+import { applyGrantScript, planGrants } from "./grants.ts";
+import {
+  applyRunToken,
+  evaluateIsolation,
+  type IsolationFacts,
+  type IsolationFinding,
+} from "./isolation.ts";
 import { lintTests, mergeTests, parseTests } from "./tests.ts";
 import type { Expectation, TestSpec, TestStep } from "./tests.ts";
 import { computeCoverage, type CoverageReport } from "./coverage.ts";
@@ -349,6 +356,13 @@ const ResultSchema = z.object({
   doctorStatus: z.string(),
   /** `systemctl is-system-running` output on a systemd scenario. */
   systemdRunning: z.string().optional(),
+  /** Pre-elevation identity + daemon endpoint evidence (§16.1). */
+  harnessIsolation: z.object({
+    whoami: z.string(),
+    uid: z.string(),
+    sandboxId: z.string(),
+    dockerHost: z.string(),
+  }).optional(),
   modelTypes: z.array(z.string()),
   missingTypes: z.array(z.string()),
   phases: z.array(PhaseSchema),
@@ -620,7 +634,8 @@ async function runScenario(
     tests: candidate.tests,
     releaseBaseUrl: deps.releaseBaseUrl,
     expectSystemd: scenario.systemd,
-    variables: systemVariables(candidate.system),
+    runAs: candidate.system.harness.runAs,
+    variables: { ...systemVariables(candidate.system), TF_RUN_ID: suffix },
     dnsTools: candidate.system.harness.dig,
     extensionSources: candidate.extensionDirs.map((e, i) => ({
       name: e.name,
@@ -657,6 +672,12 @@ async function runScenario(
   const files: Record<string, string> = {
     "harness.sh": buildHarnessScript(plan),
   };
+  // Grants are applied as root before the harness runs (§6). A grant that
+  // belongs to a not-yet-built tier is reported, never silently dropped.
+  const grantPlan = planGrants(candidate.system.grants);
+  grantPlan.scripts.forEach((g, i) => {
+    files[`grant-${i + 1}.sh`] = applyGrantScript(g.script);
+  });
   if (scenario.topology !== "standalone") {
     files["serve.sh"] = buildServeScript(serveCfg);
     files["tokens.sh"] = buildTokenScript(serveCfg);
@@ -777,6 +798,30 @@ async function runScenario(
       if (prov.error) result.errors.push(prov.error);
     }
     await exec(deps.runFn, target, ["mkdir", "-p", "/tf-shared"]);
+    // Apply the candidate's grants as root before the harness runs. A grant
+    // from a pending tier is recorded as an error so the run is `uncovered`,
+    // never a silent pass (§2.7).
+    for (const p of grantPlan.pending) {
+      result.errors.push(
+        `grant "${p.profile}" for guest "${p.guest}": ${p.reason}`,
+      );
+    }
+    for (const u of grantPlan.unknown) {
+      result.errors.push(`grant: unknown profile "${u.profile}"`);
+    }
+    for (let i = 0; i < grantPlan.scripts.length; i++) {
+      const applied = await exec(deps.runFn, target, [
+        "/bin/sh",
+        `/tf-scripts/grant-${i + 1}.sh`,
+      ], { timeoutMs: 180_000 });
+      if (applied.code !== 0) {
+        result.errors.push(
+          `grant "${grantPlan.scripts[i].profile}" failed: ${
+            tail(`${applied.stdout}\n${applied.stderr}`, 800)
+          }`,
+        );
+      }
+    }
     await exec(deps.runFn, target, [
       "/bin/sh",
       "/tf-scripts/harness.sh",
@@ -784,11 +829,18 @@ async function runScenario(
     if (!hostProvisioned) await waitHostFile(doneFile, 180_000);
     const raw = await Deno.readTextFile(resultFile).catch(() => "");
 
+    // Boundary negative-control checks (§16.1): the containers are still up, so
+    // the sandbox side runs now and the host probes are evaluated on the host.
+    const isolation = candidate.system.isolation.length > 0
+      ? await runIsolationChecks(deps, candidate, target, suffix)
+      : [];
+
     if (scenario.topology === "standalone") {
       const cap = captureLogs(await logs(deps.runFn, target));
       result.logs = cap.logs;
       result.logsTruncated = cap.truncated;
       finalize(result, raw, scenario, opts, candidate.tests);
+      applyIsolation(result, isolation);
       return finished();
     }
 
@@ -799,6 +851,7 @@ async function runScenario(
       harnessResult = null;
     }
     finalize(result, raw, scenario, opts, candidate.tests, harnessResult);
+    applyIsolation(result, isolation);
 
     const topology = await runTopology(
       scenario,
@@ -916,6 +969,7 @@ function finalize(
   result.sourceAddOk = harness.sourceAddOk;
   result.doctorStatus = harness.doctorStatus;
   result.systemdRunning = harness.systemd;
+  result.harnessIsolation = harness.harnessIsolation;
   result.missingTypes = harness.missingTypes;
   result.phases = evaluation.phases;
   result.definitions = harness.definitions;
@@ -952,6 +1006,88 @@ export function serviceImageTag(name: string): string {
 /** The container name a service runs under. */
 export function serviceContainerName(name: string, suffix: string): string {
   return `tf-svc-${slugify(name)}-${suffix}`;
+}
+
+/** True when a host filesystem path exists (follows the boundary test's intent). */
+function hostPathExists(path: string): boolean {
+  try {
+    Deno.lstatSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Run a candidate's boundary negative-control checks (plan §16.1, §16.7).
+ *
+ * The positive part of each check runs *inside* the harness container (proving
+ * the privileged operation happened there); the host probes are evaluated here,
+ * on the host, by the typed vocabulary only. Never throws: a check that cannot
+ * be evaluated is reported as a failed finding.
+ */
+async function runIsolationChecks(
+  deps: Deps,
+  candidate: Candidate,
+  harnessContainer: string,
+  suffix: string,
+): Promise<IsolationFinding[]> {
+  const findings: IsolationFinding[] = [];
+  const runAs = candidate.system.harness.runAs || "root";
+  for (const check of candidate.system.isolation) {
+    let sandbox: IsolationFacts["sandbox"] = null;
+    if (check.sandbox) {
+      const cmd = applyRunToken(check.sandbox, suffix);
+      const res = await exec(deps.runFn, harnessContainer, [
+        "/bin/sh",
+        "-c",
+        cmd,
+      ], {
+        user: runAs === "root" ? undefined : runAs,
+        timeoutMs: 120_000,
+      });
+      sandbox = { code: res.code, stdout: res.stdout, stderr: res.stderr };
+    }
+    const hostPaths = check.absentOnHost.map((raw) => {
+      const path = applyRunToken(raw, suffix);
+      return { path, exists: hostPathExists(path) };
+    });
+    const publishedPorts = [];
+    for (const role of check.noPublishedPorts) {
+      const container = role === "harness"
+        ? harnessContainer
+        : serviceContainerName(role, suffix);
+      const res = await deps.runFn("docker", ["port", container], {
+        timeoutMs: 30_000,
+      });
+      const bindings = res.stdout.split("\n").map((s) => s.trim()).filter(
+        Boolean,
+      );
+      publishedPorts.push({ role, container, bindings });
+    }
+    findings.push(
+      evaluateIsolation(check, { sandbox, hostPaths, publishedPorts }),
+    );
+  }
+  return findings;
+}
+
+/** Append isolation findings to a result as synthetic tests; a failure fails the run. */
+function applyIsolation(result: Result, findings: IsolationFinding[]): void {
+  for (const f of findings) {
+    result.tests.push({
+      name: f.check.name,
+      confirms: f.check.confirms,
+      cannot: f.check.cannot,
+      ok: f.ok,
+      steps: f.steps,
+    });
+    if (!f.ok) {
+      result.errors.push(`isolation check "${f.check.name}" failed`);
+      result.ok = false;
+      result.status = "fail";
+    }
+  }
 }
 
 /**
@@ -1241,7 +1377,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.05.1",
+  version: "2026.10.10.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1288,6 +1424,12 @@ export const model = {
       toVersion: "2026.10.05.1",
       description:
         "A candidate's `test-factory.yaml` may now list sibling local extensions it calls at runtime (`extensions:`), which the harness copies in and registers alongside the candidate, so model types that compose others (e.g. @svendowideit/swamp-serve calling caddy/systemd-service/otel-settings) resolve and can be tested end to end. A service `healthcheck` may run `in: harness` instead of the service, for a distroless image with no shell (e.g. OpenObserve). On a systemd host the harness now imports SWAMP_API_KEY/SWAMP_SIGNIN_TOKEN into root's user manager, because a systemd *user* service does not inherit the container environment and `swamp serve` otherwise fails with 'requires a swamp-club.com account'. `result` gains `serviceContainers`. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.10.1",
+      description:
+        "Milestone 0 of the virtual-environments plan: a non-root harness, isolation evidence, and boundary negative-control checks. `harness.runAs` (default `root`) runs the swamp phases as a non-root user (e.g. `tester`) — a root prelude installs swamp and hands the sandbox dirs to the user, then the phases drop to it, so the local elevation ladder (sudo/doas/polkit/capability) is genuinely exercised on a plain user. `grants:` applies reviewed, idempotent privilege-state scripts (the T0-nr subset: user-tester, sudo-nopasswd, sudo-none, sudo-interactive-only, doas-nopasswd, no-grant) before the harness runs; a grant from a not-yet-built tier is reported uncovered, never silently passed. `result` gains `harnessIsolation` (whoami/uid/sandboxId/dockerHost) as the evidence a reader needs to conclude the boundary held. A candidate may add an `isolation:` block of boundary negative-control checks (§16.1): an optional in-sandbox `sandbox:` command plus **host-side typed probes** — `absentOnHost:` (paths a root-only in-sandbox write must not have created on the host) and `noPublishedPorts:` (containers whose `-p` bindings must be empty) — evaluated by the model after the harness returns, never running candidate shell on the host. `$TF_RUN_ID`, a per-run token, is exported to the steps and substituted into check commands/paths. Each check appears in `tests` as a synthetic test; a failing check fails the scenario. Also fixes the `systemd` input type in the shipped workflows (was boolean, the model expects a string). Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

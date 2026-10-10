@@ -63,6 +63,12 @@ export interface HarnessPlan {
   tests: TestSpec[];
   /** Base URL for release downloads (overridable for mirrors). */
   releaseBaseUrl: string;
+  /**
+   * User the harness phases run as. `root` (default) keeps today's behavior;
+   * any other user runs a root prelude that installs swamp and hands the
+   * sandbox dirs to that user before the phases run.
+   */
+  runAs?: string;
   /** When true, assert systemd is running as PID 1 (`systemctl` works). */
   expectSystemd: boolean;
   /**
@@ -259,6 +265,8 @@ export function phaseClaims(plan: HarnessPlan): PhaseClaim[] {
  */
 export function buildHarnessScript(plan: HarnessPlan): string {
   const want = (p: HarnessPhase) => plan.phases.includes(p);
+  const runAs = plan.runAs && plan.runAs.length > 0 ? plan.runAs : "root";
+  const nonRoot = runAs !== "root";
   const lines: string[] = [];
   const push = (...l: string[]) => lines.push(...l);
 
@@ -268,16 +276,30 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     "set -u",
     "export SWAMP_TELEMETRY_DISABLED=1",
     'export PATH="/usr/local/bin:$PATH"',
-    // On a systemd host, point `systemctl --user` (used by models such as
-    // @svendowideit/caddy) at root's user-manager bus. Guarded so a non-systemd
-    // host is unaffected.
-    "[ -d /run/user/0 ] && export XDG_RUNTIME_DIR=/run/user/0",
-    "mkdir -p /tf /usr/local/bin",
+    `RUNAS=${shellQuote(runAs)}`,
+    'RUNUID=$(id -u "$RUNAS" 2>/dev/null || echo 0)',
+    // A non-root user must own its HOME: the container carries HOME=/root, and
+    // swamp reads its credentials/config from $HOME. Left as /root the phase
+    // user gets EACCES reading root's dotfiles. `su` sets HOME already; this
+    // also covers the prelude's own `id` calls.
+    '[ -n "$RUNAS" ] && [ "$RUNAS" != "root" ] && export HOME="/home/$RUNAS"',
+    'mkdir -p "$HOME" 2>/dev/null || true',
     `RESULT=${shellQuote(RESULT_PATH)}`,
     `DONE=${shellQuote(DONE_PATH)}`,
-    `rm -f "$DONE"`,
-    `echo '{}' > "$RESULT"`,
+    // Point `systemctl --user` (used by models such as @svendowideit/caddy) at
+    // the running user's manager bus. Guarded so a non-systemd host is
+    // unaffected; on a non-root run the prelude has already enabled linger.
+    '[ -d "/run/user/$(id -u)" ] && export XDG_RUNTIME_DIR="/run/user/$(id -u)"',
     'log() { echo "[tf] $*" >&2; }',
+    "",
+    "# First pass only: start a fresh result file and clear the sentinel. On a",
+    "# non-root run the second (dropped) pass must NOT wipe what the prelude and",
+    "# the install step already recorded.",
+    'if [ "${TF_DROPPED:-0}" != "1" ]; then',
+    "  mkdir -p /tf /usr/local/bin",
+    '  rm -f "$DONE"',
+    `  echo '{}' > "$RESULT"`,
+    "fi",
     "",
     "# append a JSON value at a dotted path is overkill: each step merges a key.",
     "record() { # record <key> <json>",
@@ -287,48 +309,123 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     '  jq -c --arg k "$1" --argjson v "$2" \'.[$k] = ((.[$k] // []) + [$v])\' "$RESULT" > /tf/r.tmp && mv /tf/r.tmp "$RESULT"',
     "}",
     "",
-  );
-
-  // --- 1. install swamp -----------------------------------------------------
-  push(
-    "# --- 1. install swamp ---------------------------------------------------",
-    "ARCH=$(uname -m)",
-    'case "$ARCH" in',
-    "  x86_64|amd64) SWAMP_ARCH=x86_64 ;;",
-    "  aarch64|arm64) SWAMP_ARCH=aarch64 ;;",
-    '  *) SWAMP_ARCH="$ARCH" ;;',
-    "esac",
-  );
-  const url = releaseAssetUrl(plan.releaseBaseUrl, plan.swampVersion);
-  push(
-    `SWAMP_URL="${url}"`,
-    'log "downloading swamp from $SWAMP_URL"',
-    'if curl -fsSL -o /usr/local/bin/swamp "$SWAMP_URL"; then',
-    "  chmod +x /usr/local/bin/swamp",
-    "  swamp --version >/tmp/swamp-version.txt 2>/tmp/swamp-version.err",
-    "  INSTALL_CODE=$?",
-    "else",
-    "  INSTALL_CODE=1",
-    "  echo 'download failed' >/tmp/swamp-version.err",
-    "fi",
-    "SWAMP_VERSION_OUT=$(cat /tmp/swamp-version.txt 2>/dev/null || echo '')",
-    'if [ "$INSTALL_CODE" -ne 0 ]; then',
-    "  ERR=$(cat /tmp/swamp-version.err 2>/dev/null)",
-    "  if [ -f /usr/local/bin/swamp ]; then",
-    "    case \"$ERR\" in *'not found'*|'')",
-    '      ERR="binary downloaded but cannot execute (the swamp binary is glibc-linked, so a musl-only distro such as Alpine cannot run it): $ERR" ;;',
-    "    esac",
-    "  fi",
-    '  jq -n --arg e "$ERR" --arg v "$SWAMP_VERSION_OUT" \'{installOk:false, installError:$e, swampVersion:$v}\' > "$RESULT"',
-    '  touch "$DONE"',
-    '  log "swamp failed to install: $ERR"',
-    "  exit 0",
-    "fi",
-    'record swampVersion "$(jq -Rn --arg v "$SWAMP_VERSION_OUT" \'$v\')"',
-    "record installOk true",
+    "# --- isolation evidence (recorded as the effective phase user) -----------",
+    "# `harnessUser`/`harnessUid` are the pre-elevation identity a reader needs to",
+    "# conclude 'non-root elevated to root inside the sandbox, and did not reach",
+    "# the host'. `sandboxId` is the container's own identity; `dockerHost` is the",
+    "# daemon endpoint the harness saw (must be the sidecar, never the host socket).",
+    "record_iso() {",
+    "  ISO_WHOAMI=$(whoami 2>/dev/null || echo unknown)",
+    "  ISO_UID=$(id -u 2>/dev/null || echo unknown)",
+    "  ISO_SANDBOX=$(cat /etc/hostname 2>/dev/null || hostname 2>/dev/null || echo unknown)",
+    '  ISO_DOCKER="${DOCKER_HOST:-${CONTAINER_HOST:-}}"',
+    '  iso_record_impl "$ISO_WHOAMI" "$ISO_UID" "$ISO_SANDBOX" "$ISO_DOCKER"',
+    "}",
+    "iso_record_impl() { # iso_record_impl <whoami> <uid> <sandboxId> <dockerHost>",
+    '  jq -cn --arg whoami "$1" --arg uid "$2" --arg sandboxId "$3" --arg dockerHost "$4" \\',
+    "    '{whoami:$whoami,uid:$uid,sandboxId:$sandboxId,dockerHost:$dockerHost}' \\",
+    "    > /tf/iso.tmp && mv /tf/iso.tmp /tf/iso.json",
+    '  record harnessIsolation "$(cat /tf/iso.json)"',
+    "}",
     "",
   );
 
+  // --- 1. install swamp (as a function so a non-root prelude and the default
+  // root path share one implementation) ------------------------------------
+  push(
+    "# --- install swamp (function) -------------------------------------------",
+    "tf_install_swamp() {",
+    "  ARCH=$(uname -m)",
+    '  case "$ARCH" in',
+    "    x86_64|amd64) SWAMP_ARCH=x86_64 ;;",
+    "    aarch64|arm64) SWAMP_ARCH=aarch64 ;;",
+    '    *) SWAMP_ARCH="$ARCH" ;;',
+    "  esac",
+  );
+  const url = releaseAssetUrl(plan.releaseBaseUrl, plan.swampVersion);
+  push(
+    `  SWAMP_URL="${url}"`,
+    '  log "downloading swamp from $SWAMP_URL"',
+    '  if curl -fsSL -o /usr/local/bin/swamp "$SWAMP_URL"; then',
+    "    chmod +x /usr/local/bin/swamp",
+    "    swamp --version >/tmp/swamp-version.txt 2>/tmp/swamp-version.err",
+    "    INSTALL_CODE=$?",
+    "  else",
+    "    INSTALL_CODE=1",
+    "    echo 'download failed' >/tmp/swamp-version.err",
+    "  fi",
+    "  SWAMP_VERSION_OUT=$(cat /tmp/swamp-version.txt 2>/dev/null || echo '')",
+    '  if [ "$INSTALL_CODE" -ne 0 ]; then',
+    "    ERR=$(cat /tmp/swamp-version.err 2>/dev/null)",
+    "    if [ -f /usr/local/bin/swamp ]; then",
+    "      case \"$ERR\" in *'not found'*|'')",
+    '        ERR="binary downloaded but cannot execute (the swamp binary is glibc-linked, so a musl-only distro such as Alpine cannot run it): $ERR" ;;',
+    "      esac",
+    "    fi",
+    '    jq -n --arg e "$ERR" --arg v "$SWAMP_VERSION_OUT" \'{installOk:false, installError:$e, swampVersion:$v}\' > "$RESULT"',
+    '    touch "$DONE"',
+    '    log "swamp failed to install: $ERR"',
+    "    exit 0",
+    "  fi",
+    '  record swampVersion "$(jq -Rn --arg v "$SWAMP_VERSION_OUT" \'$v\')"',
+    "  record installOk true",
+    "}",
+    "",
+  );
+
+  if (nonRoot) {
+    // Root prelude: install swamp, prepare the sandbox dirs and the user, then
+    // drop to `runAs` for every phase. The user needs to own the repo and /tf;
+    // swamp itself lives in /usr/local/bin and is world-executable.
+    push(
+      "# --- 0. prelude (root): install swamp, then drop to " + runAs +
+        " -------",
+      'if [ "${TF_DROPPED:-0}" != "1" ]; then',
+      "  tf_install_swamp",
+      "  command -v " + runAs +
+        " >/dev/null 2>&1 || { useradd -m -s /bin/bash " + runAs +
+        " 2>/dev/null || adduser -D -s /bin/sh " + runAs +
+        " 2>/dev/null || true; }",
+      "  mkdir -p /work/repo /tf-shared /home/" + runAs,
+      "  chown -R " + runAs + " /tf /work /home/" + runAs +
+        " 2>/dev/null || true",
+      "  if command -v loginctl >/dev/null 2>&1; then loginctl enable-linger " +
+        runAs + " >/dev/null 2>&1 || true; fi",
+      ...(plan.dnsTools
+        ? [
+          "  # dns tooling needs root; the tests phase skips it once present.",
+          "  if ! command -v dig >/dev/null 2>&1; then",
+          "    if command -v apt-get >/dev/null 2>&1; then",
+          "      apt-get update -qq >/dev/null 2>&1; DEBIAN_FRONTEND=noninteractive apt-get install -y -qq dnsutils >/dev/null 2>&1",
+          "    elif command -v dnf >/dev/null 2>&1; then",
+          "      dnf install -y -q bind-utils >/dev/null 2>&1",
+          "    elif command -v apk >/dev/null 2>&1; then",
+          "      apk add --no-cache bind-tools >/dev/null 2>&1",
+          "    fi",
+          "  fi",
+        ]
+        : []),
+      "",
+      "  # pre-elevation identity, recorded before any phase runs (isolation proof).",
+      "  PU=$(id -u " + runAs + ' 2>/dev/null || echo "")',
+      '  record harnessUid "$(jq -Rn --arg v "$PU" \'$v\')"',
+      '  record harnessUser "$(jq -Rn --arg v ' +
+        shellQuote(runAs) + " '$v')\"",
+      "",
+      "  export TF_DROPPED=1",
+      "  exec su -s /bin/sh " + runAs + ' -c "/bin/sh $0"',
+      "fi",
+      "",
+    );
+  } else {
+    push(
+      "# --- 1. install swamp ---------------------------------------------------",
+      "tf_install_swamp",
+      "",
+    );
+  }
+
+  push("record_iso", "");
   if (plan.expectSystemd) {
     push(
       "# --- systemd check ------------------------------------------------------",
@@ -344,21 +441,21 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     );
   }
   // A model may drive a systemd *user* service (e.g. @svendowideit/caddy runs
-  // `systemctl --user`). Inside a container that needs root's user manager
-  // running and XDG_RUNTIME_DIR pointing at it; enable linger and wait for the
-  // bus before any phase runs, so `systemctl --user` works. Guarded on
+  // `systemctl --user`). Inside a container that needs the running user's
+  // manager running and XDG_RUNTIME_DIR pointing at it; enable linger and wait
+  // for the bus before any phase runs, so `systemctl --user` works. Guarded on
   // systemd+loginctl so other hosts are unaffected.
   if (plan.expectSystemd) {
     push(
       "# --- systemd user manager (for `systemctl --user`) ----------------------",
       "if command -v loginctl >/dev/null 2>&1; then",
-      "  loginctl enable-linger root >/dev/null 2>&1 || true",
+      "  loginctl enable-linger $RUNAS >/dev/null 2>&1 || true",
       "  i=0",
       '  while [ "$i" -lt 30 ]; do',
-      "    [ -S /run/user/0/systemd/private ] && break",
+      '    [ -S "/run/user/$RUNUID/systemd/private" ] && break',
       "    i=$((i+1)); sleep 1",
       "  done",
-      "  [ -d /run/user/0 ] && export XDG_RUNTIME_DIR=/run/user/0",
+      '  [ -d "/run/user/$RUNUID" ] && export XDG_RUNTIME_DIR="/run/user/$RUNUID"',
       "  # A systemd *user* service does not inherit the container environment.",
       "  # Models that run swamp under such a service (e.g. @svendowideit/swamp-serve",
       "  # running `swamp serve`) need the account key the factory exported into the",
@@ -562,6 +659,18 @@ export function buildHarnessScript(plan: HarnessPlan): string {
   return lines.join("\n");
 }
 
+/** Pre-elevation identity and daemon endpoint a result records (§16.1). */
+export interface HarnessIsolation {
+  /** `whoami` as the effective phase user (before any elevation). */
+  whoami: string;
+  /** `id -u` as the effective phase user. */
+  uid: string;
+  /** The sandbox/container identity (its own machine-id/hostname). */
+  sandboxId: string;
+  /** The daemon endpoint seen inside the harness (sidecar, never the host). */
+  dockerHost: string;
+}
+
 /** Parsed outcome of a harness run. */
 export interface HarnessResult {
   /** Whether swamp downloaded and ran. */
@@ -576,6 +685,8 @@ export interface HarnessResult {
   doctorStates: Record<string, number>;
   /** `systemctl is-system-running` output when systemd was expected. */
   systemd?: string;
+  /** Pre-elevation identity + daemon endpoint (isolation evidence, §16.1). */
+  harnessIsolation?: HarnessIsolation;
   /** Whether the extension source was added successfully. */
   sourceAddOk: boolean;
   /** Model types `swamp model type search` reported as registered. */
@@ -637,6 +748,7 @@ export function parseHarnessResult(text: string): HarnessResult {
     doctorStatus: parsed.doctorStatus ?? "unknown",
     doctorStates: parsed.doctorStates ?? {},
     systemd: parsed.systemd,
+    harnessIsolation: parsed.harnessIsolation,
     sourceAddOk: parsed.sourceAddOk ?? false,
     registeredTypes: parsed.registeredTypes ?? [],
     modelTypes: parsed.modelTypes ?? [],

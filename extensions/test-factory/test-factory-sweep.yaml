@@ -30,9 +30,9 @@ inputs:
       default: ""
       description: Named scenario(s) to run instead of the distro filter.
     systemd:
-      type: boolean
-      default: false
-      description: Require a systemd host for every scenario.
+      type: string
+      default: ""
+      description: true/false to require a systemd or non-systemd host (empty = either).
     phases:
       type: string
       default: smoke,load,definitions

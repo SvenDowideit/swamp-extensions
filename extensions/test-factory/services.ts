@@ -19,6 +19,7 @@
  * @module
  */
 import { parse as parseYaml } from "jsr:@std/yaml@1";
+import { grantProfileById } from "./grants.ts";
 
 /** A docker network the test system puts containers on. */
 export interface NetworkSpec {
@@ -84,6 +85,12 @@ export interface HarnessSpec {
   networks: AttachSpec[];
   /** Install `dig` into the harness image (for DNS assertions). */
   dig: boolean;
+  /**
+   * User the swamp harness runs as (`root` by default, `tester` for a non-root
+   * host). Non-root runs a root prelude to install swamp and hand the sandbox
+   * dirs to the user, then runs the phases as that user.
+   */
+  runAs: string;
 }
 
 /**
@@ -98,6 +105,46 @@ export interface ExtensionSource {
   path: string;
 }
 
+/** One grant to apply to a named guest before the harness runs (plan §6). */
+export interface GrantSpec {
+  /** Target guest name (`harness` at the container tier). */
+  guest: string;
+  /** Grant profile id (see `grants.ts`). */
+  profile: string;
+}
+
+/**
+ * A boundary negative-control check (plan §16.1, §16.7).
+ *
+ * A positive test proves a privileged operation worked *inside* the sandbox; an
+ * isolation check proves that same operation did **not** reach the host. The
+ * sandbox side runs in the harness container; the host side is a closed set of
+ * typed probes the *model* evaluates after the harness returns (never
+ * candidate-authored shell on the host — plan §16.2/§16.4). `$TF_RUN_ID` in any
+ * command/path is substituted with the per-run token so a marker cannot
+ * pre-exist.
+ */
+export interface IsolationCheck {
+  /** Check name, shown in the report (pair it with its positive test). */
+  name: string;
+  /** The boundary property this check confirms (prose). */
+  confirms: string;
+  /** What a failure would mean (prose). */
+  cannot: string;
+  /** Optional pointer to where the property is documented. */
+  documents?: string;
+  /**
+   * A shell command run in the harness container; it must exit 0, proving the
+   * privileged operation actually happened *inside* the sandbox. Empty means
+   * the check relies entirely on the host probes.
+   */
+  sandbox?: string;
+  /** Host filesystem paths that must NOT exist (escape markers). */
+  absentOnHost: string[];
+  /** Container roles whose published port bindings must be empty (`harness` or a service name). */
+  noPublishedPorts: string[];
+}
+
 /** The whole container test system described by a `test-factory.yaml`. */
 export interface TestSystem {
   /** Networks to create. */
@@ -108,6 +155,10 @@ export interface TestSystem {
   services: ServiceSpec[];
   /** Sibling local extensions the candidate needs registered alongside it. */
   extensions: ExtensionSource[];
+  /** Privilege-state grants applied before the harness runs. */
+  grants: GrantSpec[];
+  /** Boundary negative-control checks (§16.1). */
+  isolation: IsolationCheck[];
 }
 
 /** True when the test system declares containers/network to provision. */
@@ -215,7 +266,12 @@ function parseHarness(v: unknown): HarnessSpec {
   const o = (v && typeof v === "object" && !Array.isArray(v))
     ? v as Record<string, unknown>
     : {};
-  return { networks: parseAttachments(o.networks), dig: o.dig === true };
+  const runAs = str(o.runAs ?? o.run_as).trim();
+  return {
+    networks: parseAttachments(o.networks),
+    dig: o.dig === true,
+    runAs: runAs.length > 0 ? runAs : "root",
+  };
 }
 
 /**
@@ -247,6 +303,44 @@ function parseExtensions(v: unknown): ExtensionSource[] {
   return out;
 }
 
+function parseGrants(v: unknown): GrantSpec[] {
+  const out: GrantSpec[] = [];
+  if (!Array.isArray(v)) return out;
+  for (const entry of v) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const o = entry as Record<string, unknown>;
+    const profile = str(o.profile).trim();
+    if (!profile) continue;
+    // `guest` defaults to the harness — the only guest at the container tier.
+    out.push({ guest: str(o.guest, "harness").trim() || "harness", profile });
+  }
+  return out;
+}
+
+function parseIsolation(v: unknown): IsolationCheck[] {
+  const out: IsolationCheck[] = [];
+  if (!Array.isArray(v)) return out;
+  for (const entry of v) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const o = entry as Record<string, unknown>;
+    const name = str(o.name).trim();
+    if (!name) continue;
+    out.push({
+      name,
+      confirms: str(o.confirms).trim(),
+      cannot: str(o.cannot).trim(),
+      documents: str(o.documents).trim() || undefined,
+      sandbox: str(o.sandbox).trim() || undefined,
+      absentOnHost: strArray(o.absentOnHost)?.map((s) => s.trim()).filter(
+        Boolean,
+      ) ?? [],
+      noPublishedPorts: strArray(o.noPublishedPorts)?.map((s) => s.trim())
+        .filter(Boolean) ?? [],
+    });
+  }
+  return out;
+}
+
 /** Parse a `test-factory.yaml` document into a {@link TestSystem}. */
 export function parseTestSystem(text: string): TestSystem {
   const doc = parseYaml(text) as unknown;
@@ -274,6 +368,8 @@ export function parseTestSystem(text: string): TestSystem {
     harness: parseHarness(d.harness),
     services,
     extensions: parseExtensions(d.extensions ?? d.dependencies),
+    grants: parseGrants(d.grants),
+    isolation: parseIsolation(d.isolation),
   };
 }
 
@@ -281,9 +377,11 @@ export function parseTestSystem(text: string): TestSystem {
 export function emptyTestSystem(): TestSystem {
   return {
     networks: [],
-    harness: { networks: [], dig: false },
+    harness: { networks: [], dig: false, runAs: "root" },
     services: [],
     extensions: [],
+    grants: [],
+    isolation: [],
   };
 }
 
@@ -338,6 +436,11 @@ export function lintTestSystem(system: TestSystem): string[] {
     }
   };
   for (const a of system.harness.networks) checkAttach("harness", a);
+  if (!/^[a-z_][a-z0-9_-]*$/.test(system.harness.runAs)) {
+    issues.push(
+      `harness.runAs "${system.harness.runAs}" is not a valid user name`,
+    );
+  }
   for (const s of system.services) {
     if (!s.image && !s.build) {
       issues.push(
@@ -385,6 +488,42 @@ export function lintTestSystem(system: TestSystem): string[] {
       issues.push(`duplicate extension source name "${e.name}"`);
     }
     seenExt.add(e.name);
+  }
+  // Grants reference the single `harness` guest at the container tier; an
+  // unknown profile is a typo, not a silent no-op (§6).
+  for (const g of system.grants) {
+    if (g.guest !== "harness") {
+      issues.push(
+        `grant: guest "${g.guest}" is not the harness (multi-guest is the KVM tier, plan §7.1)`,
+      );
+    }
+    if (!grantProfileById(g.profile)) {
+      issues.push(`grant: unknown profile "${g.profile}"`);
+    }
+  }
+  // Isolation checks are host-side boundary proofs (§16.1): at least one probe
+  // must be declared, or the check proves nothing.
+  for (const c of system.isolation) {
+    if (!c.confirms || !c.cannot) {
+      issues.push(
+        `isolation "${c.name}": both \`confirms:\` and \`cannot:\` are required`,
+      );
+    }
+    if (
+      !c.sandbox && c.absentOnHost.length === 0 &&
+      c.noPublishedPorts.length === 0
+    ) {
+      issues.push(
+        `isolation "${c.name}": declare at least one of \`sandbox:\`, \`absentOnHost:\`, \`noPublishedPorts:\``,
+      );
+    }
+    for (const role of c.noPublishedPorts) {
+      if (role !== "harness" && !system.services.some((s) => s.name === role)) {
+        issues.push(
+          `isolation "${c.name}": noPublishedPorts "${role}" is neither the harness nor a declared service`,
+        );
+      }
+    }
   }
   return issues;
 }

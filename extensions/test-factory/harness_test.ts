@@ -75,6 +75,43 @@ Deno.test("buildHarnessScript omits phases that are not requested", () => {
   assertEquals(script.includes("declarative acceptance"), false);
 });
 
+Deno.test("buildHarnessScript records isolation evidence", () => {
+  const script = buildHarnessScript(plan);
+  assertStringIncludes(script, "record harnessIsolation");
+  assertStringIncludes(script, "record_iso");
+  assertStringIncludes(script, "dockerHost");
+});
+
+Deno.test("buildHarnessScript defaults to root with no drop", () => {
+  const script = buildHarnessScript(plan);
+  assertEquals(script.includes("exec su -s /bin/sh"), false);
+  assertEquals(script.includes("enable-linger"), false);
+  assertEquals(script.includes("chown -R"), false);
+});
+
+Deno.test("buildHarnessScript as tester installs as root then drops", () => {
+  const script = buildHarnessScript({ ...plan, runAs: "tester" });
+  assertStringIncludes(script, "exec su -s /bin/sh tester");
+  assertStringIncludes(script, "TF_DROPPED");
+  assertStringIncludes(script, "enable-linger tester");
+  assertStringIncludes(script, "chown -R tester /tf /work");
+  assertStringIncludes(script, "record harnessUser");
+});
+
+Deno.test("parseHarnessResult reads the isolation block", () => {
+  const parsed = parseHarnessResult(JSON.stringify({
+    installOk: true,
+    harnessIsolation: {
+      whoami: "tester",
+      uid: "1000",
+      sandboxId: "abc123",
+      dockerHost: "tcp://dind:2375",
+    },
+  }));
+  assertEquals(parsed.harnessIsolation?.uid, "1000");
+  assertEquals(parsed.harnessIsolation?.dockerHost, "tcp://dind:2375");
+});
+
 Deno.test("buildHarnessScript emits the tests phase only when requested", () => {
   const withTests = buildHarnessScript({
     ...plan,

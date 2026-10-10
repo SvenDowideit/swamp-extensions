@@ -237,6 +237,53 @@ the harness enables linger (`loginctl enable-linger root`) and waits for
 A scenario is a known-good/known-bad expectation: `expected: fail` scenarios
 (such as Alpine) pass when the run indeed fails, so the harness is validated too.
 
+### Privilege and isolation: `harness.runAs`, `grants:`, `isolation:`
+
+By default the harness runs as `root` inside the container. A candidate that
+tests a *local elevation ladder* (sudo/doas/polkit/capability — e.g.
+`@svendowideit/sudo`) asks for a plain user instead, grants it a specific
+privilege state, and then proves the elevation stayed inside the sandbox:
+
+```yaml
+harness:
+  runAs: tester                 # run the swamp phases as a non-root user
+
+grants:                          # applied as root before the harness runs
+  - { guest: harness, profile: sudo-nopasswd }
+
+isolation:                       # boundary negative controls (§16.1)
+  - name: sudo-elevation-does-not-escape-the-sandbox
+    confirms: a root-only write through sudo stays in the sandbox
+    cannot: must not create the marker on the host
+    sandbox: "sudo -n sh -c 'echo escaped > /escaped-$TF_RUN_ID'"
+    absentOnHost: ["/escaped-$TF_RUN_ID"]
+```
+
+- **`harness.runAs`** (default `root`) — the user the swamp phases run as. A
+  root prelude installs swamp and hands the sandbox dirs to the user, then the
+  phases drop to it via `su`.
+- **`grants`** — reviewed, idempotent privilege-state scripts applied as root
+  before the harness runs. The T0-nr subset is `user-tester`, `sudo-nopasswd`,
+  `sudo-none`, `sudo-interactive-only`, `doas-nopasswd`, `no-grant`; a grant that
+  needs a tier not yet built is reported uncovered, never silently passed.
+- **`isolation`** — one or more boundary negative controls. Each may run a
+  `sandbox:` command inside the container (it must exit 0 — the privileged
+  operation really happened) and declares **host-side typed probes** the model
+  evaluates *after* the harness returns, on the host:
+  - `absentOnHost:` — host paths that must not exist. Pair it with a root-only
+    write in the sandbox: if the same path appeared on the host, the boundary
+    broke.
+  - `noPublishedPorts:` — container roles (`harness` or a service name) whose
+    `docker -p` bindings must be empty. Pair it with a listener started in the
+    sandbox: the listener is then reachable only on the scenario network.
+
+  `$TF_RUN_ID` is a per-run token, exported to the steps and substituted into
+  check commands and paths, so a marker cannot pre-exist. The host side is a
+  **closed vocabulary of typed probes** — candidate-authored shell is never run
+  on the host. Each check is reported as a test; a failing check fails the
+  scenario. Every run also records a `harnessIsolation` block (whoami, uid,
+  sandbox id, daemon endpoint) as the evidence the boundary held.
+
 ### What each run records, and why
 
 A pass/fail badge is not enough to judge a test. Every `result` and `summary`

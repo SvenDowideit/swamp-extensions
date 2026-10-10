@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/test-factory"
-version: "2026.10.05.1"
+version: "2026.10.10.1"
 description: >
   Run a swamp extension inside containers on different Linux distributions and
   swamp deployment topologies, and report exactly where it breaks. Prefer it
@@ -31,6 +31,15 @@ description: >
     the harness registers alongside it — so a model that composes others
     (@svendowideit/swamp-serve calling caddy/systemd-service/otel-settings) is
     testable end to end.
+    A candidate can also prove the *sandbox held*: its `test-factory.yaml` may
+    declare `isolation:` checks that run a privileged command inside the
+    container (e.g. `sudo`) and then assert, **from the host**, that the effect
+    stayed there — via typed probes (`absentOnHost:` for a marker a root-only
+    write must not have created on the host; `noPublishedPorts:` for a container
+    that must publish no port). A candidate may run as a non-root `tester` with
+    reviewed privilege-state `grants:` (`sudo-nopasswd`, `doas-nopasswd`, …), and
+    every run records a `harnessIsolation` block so a green result carries the
+    evidence a reader needs to trust the boundary.
     Every run records an audit trail, not just a pass/fail: the candidate name
     and version, a one-line intent, and per phase the assertion a PASS stands
     for plus the literal commands that proved it — so you can judge adequacy and
@@ -80,6 +89,15 @@ description: >
       # in `extensions/test-factory/acceptance/test-factory.yaml`.
       swamp model @svendowideit/test-factory method run test tf \
         --input manifest=extensions/test-factory/manifest.yaml \
+        --input scenario=debian-standalone
+
+      # Prove a boundary negative control. @svendowideit/sudo ships an
+      # `isolation:` check: it runs a root-only write through `sudo` *inside*
+      # the sandbox, then asserts from the host that the marker is absent (and
+      # that the container publishes no port). Run it on a distro whose image
+      # can install `sudo`; each check is reported as a test alongside the rest.
+      swamp model @svendowideit/test-factory method run test tf \
+        --input manifest=extensions/models/sudo/manifest.yaml \
         --input scenario=debian-standalone
 
       # Test an outcome that needs sibling containers. The candidate's
@@ -194,6 +212,12 @@ additionalFiles:
   - coverage.ts
   - services.ts
   - services_test.ts
+  - grants.ts
+  - grants_test.ts
+  - host_capabilities.ts
+  - host_capabilities_test.ts
+  - isolation.ts
+  - isolation_test.ts
   - scenarios_test.ts
   - harness_test.ts
   - topology_test.ts

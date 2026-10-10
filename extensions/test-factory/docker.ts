@@ -167,6 +167,17 @@ export function distroDockerfile(
   }
   lines.push("ENV SWAMP_TELEMETRY_DISABLED=1");
   lines.push("ENV HOME=/root");
+  // A non-root `tester` user for hosts that declare `harness.runAs: tester`
+  // (the sudo/local-elevation ladder). Harmless when the harness runs as root.
+  switch (distro.family) {
+    case "debian":
+    case "rpm":
+      lines.push("RUN useradd -m -s /bin/bash tester 2>/dev/null || true");
+      break;
+    case "apk":
+      lines.push("RUN adduser -D -s /bin/sh tester 2>/dev/null || true");
+      break;
+  }
   // The container is long-lived: systemd as PID 1 on a systemd host, a plain
   // `sleep` otherwise. The model runs each role (harness, serve, workers) with
   // `docker exec`, so it works the same whether or not systemd is present and
@@ -418,12 +429,18 @@ export async function exec(
   runFn: RunFn,
   container: string,
   argv: string[],
-  opts: { env?: Record<string, string>; timeoutMs?: number } = {},
+  opts: {
+    env?: Record<string, string>;
+    timeoutMs?: number;
+    /** Run as this user (`docker exec --user`); root when omitted. */
+    user?: string;
+  } = {},
 ): Promise<CmdResult> {
   const args = ["exec"];
   for (const [k, v] of Object.entries(opts.env ?? {})) {
     args.push("-e", `${k}=${v}`);
   }
+  if (opts.user) args.push("--user", opts.user);
   args.push(container, ...argv);
   return await runFn("docker", args, {
     timeoutMs: opts.timeoutMs ?? DEFAULT_CMD_TIMEOUT_MS,

@@ -39,9 +39,9 @@ inputs:
       default: standalone
       description: Topology(ies) to include - standalone, serve, fleet.
     systemd:
-      type: boolean
-      default: false
-      description: Require a systemd host for every scenario.
+      type: string
+      default: ""
+      description: true/false to require a systemd or non-systemd host (empty = either).
     workers:
       type: integer
       default: 2

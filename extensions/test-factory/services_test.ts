@@ -209,3 +209,93 @@ services:
     true,
   );
 });
+
+Deno.test("parseTestSystem reads harness.runAs (default root)", () => {
+  const root = parseTestSystem("tests: []\n");
+  assertEquals(root.harness.runAs, "root");
+  const tester = parseTestSystem(`
+harness:
+  runAs: tester
+`);
+  assertEquals(tester.harness.runAs, "tester");
+});
+
+Deno.test("lintTestSystem flags an invalid runAs user name", () => {
+  const sys = parseTestSystem(`
+harness:
+  runAs: "not a user"
+`);
+  assertEquals(
+    lintTestSystem(sys).some((i) => i.includes("not a valid user name")),
+    true,
+  );
+});
+
+Deno.test("parseTestSystem reads grants, defaulting guest to harness", () => {
+  const sys = parseTestSystem(`
+grants:
+  - { guest: harness, profile: sudo-nopasswd }
+  - { profile: doas-nopasswd }
+`);
+  assertEquals(sys.grants, [
+    { guest: "harness", profile: "sudo-nopasswd" },
+    { guest: "harness", profile: "doas-nopasswd" },
+  ]);
+});
+
+Deno.test("lintTestSystem flags an unknown grant profile", () => {
+  const sys = parseTestSystem(`
+grants:
+  - { guest: harness, profile: no-such-profile }
+`);
+  assertEquals(
+    lintTestSystem(sys).some((i) => i.includes("unknown profile")),
+    true,
+  );
+});
+
+Deno.test("parseTestSystem reads isolation checks", () => {
+  const sys = parseTestSystem(`
+isolation:
+  - name: sudo-does-not-escape
+    confirms: marker stays in the sandbox
+    cannot: must not write on the host
+    sandbox: "sudo -n sh -c 'echo x > /escaped-$TF_RUN_ID'"
+    absentOnHost: ["/escaped-$TF_RUN_ID"]
+  - name: caddy-port-not-published
+    confirms: no host port
+    cannot: no published binding
+    noPublishedPorts: ["harness"]
+`);
+  assertEquals(sys.isolation.length, 2);
+  assertEquals(sys.isolation[0].name, "sudo-does-not-escape");
+  assertEquals(sys.isolation[0].absentOnHost, ["/escaped-$TF_RUN_ID"]);
+  assertEquals(sys.isolation[1].noPublishedPorts, ["harness"]);
+});
+
+Deno.test("lintTestSystem flags an isolation check with no probe", () => {
+  const sys = parseTestSystem(`
+isolation:
+  - name: proves-nothing
+    confirms: a
+    cannot: b
+`);
+  assertEquals(
+    lintTestSystem(sys).some((i) => i.includes("declare at least one")),
+    true,
+  );
+});
+
+Deno.test("lintTestSystem flags an unknown noPublishedPorts role", () => {
+  const sys = parseTestSystem(`
+isolation:
+  - name: bad-role
+    confirms: a
+    cannot: b
+    noPublishedPorts: ["nope"]
+`);
+  assertEquals(
+    lintTestSystem(sys).some((i) => i.includes("declared service")),
+    true,
+  );
+});

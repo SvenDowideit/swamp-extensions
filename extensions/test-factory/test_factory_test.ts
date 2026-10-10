@@ -22,6 +22,7 @@ import {
   model,
   preflightTests,
   resolveApiKey,
+  stageBundle,
   resolvePhases,
 } from "./test_factory.ts";
 import type { TestSpec } from "./tests.ts";
@@ -720,4 +721,19 @@ Deno.test("preflightTests throws on a non-proving test", () => {
 
 Deno.test("preflightTests is a no-op when tests are not requested", () => {
   preflightTests([{ ...soundTest, confirms: "" }], ["smoke"]);
+});
+
+Deno.test("stageBundle is world-readable so a non-root harness user can read it", async () => {
+  // B1: the bundle is mounted read-only at /tf-scripts but a non-root harness
+  // runs as a container uid that is not the host uid, so a 0700 temp dir is
+  // unreadable ("Permission denied"). It must be traversable and readable.
+  const { dir } = await stageBundle("bundle", { "harness.sh": "#!/bin/sh\n" });
+  try {
+    const dirMode = ((await Deno.stat(dir)).mode ?? 0) & 0o777;
+    assertEquals(dirMode & 0o055, 0o055, `dir mode ${dirMode.toString(8)}`);
+    const fileMode = ((await Deno.stat(`${dir}/harness.sh`)).mode ?? 0) & 0o777;
+    assertEquals(fileMode & 0o044, 0o044, `file mode ${fileMode.toString(8)}`);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
 });

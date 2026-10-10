@@ -413,7 +413,10 @@ export function buildHarnessScript(plan: HarnessPlan): string {
         shellQuote(runAs) + " '$v')\"",
       "",
       "  export TF_DROPPED=1",
-      "  exec su -s /bin/sh " + runAs + ' -c "/bin/sh $0"',
+      // `su` resets the environment, which would drop TF_DROPPED and make the
+      // prelude re-run itself instead of the phases. Preserve the env (-p) and
+      // set TF_DROPPED inline so the re-exec always takes the phase branch.
+      "  exec su -s /bin/sh -p " + runAs + ' -c "TF_DROPPED=1 /bin/sh $0"',
       "fi",
       "",
     );

@@ -424,11 +424,17 @@ interface StagedBundle {
 }
 
 /** Write a set of named scripts into a fresh temp dir (all executable). */
-async function stageBundle(
+export async function stageBundle(
   prefix: string,
   files: Record<string, string>,
 ): Promise<StagedBundle> {
   const dir = await Deno.makeTempDir({ prefix: `tf-${prefix}-` });
+  // The bundle is mounted read-only into the harness. `makeTempDir` creates it
+  // 0700 owned by the *host* user, but a non-root harness runs as a container
+  // user with a different uid, which then cannot traverse it to read
+  // `/tf-scripts/*.sh` ("Permission denied"). Make the dir world-traversable and
+  // the scripts world-readable so any harness user can read them.
+  await Deno.chmod(dir, 0o755);
   for (const [name, content] of Object.entries(files)) {
     await Deno.writeTextFile(join(dir, name), content, { mode: 0o755 });
   }
@@ -705,6 +711,10 @@ async function runScenario(
   // In tests (and for a re-run of a kept failure) the output dir can be
   // supplied directly.
   if (opts.outBaseDir) outDir = opts.outBaseDir;
+  // The harness runs as a container user that may not be the host user, and
+  // chowns /tf to it; make the dir world-traversable so the host can still read
+  // back result.json (which the harness writes world-readable).
+  await Deno.chmod(outDir, 0o755);
   const resultFile = join(outDir, "result.json");
   const doneFile = join(outDir, "done");
   // The harness waits on the container; without a real container the dir must

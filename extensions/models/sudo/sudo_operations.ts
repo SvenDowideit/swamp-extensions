@@ -139,6 +139,13 @@ const RunScriptArgs = z.object({
   args: z.array(z.string().min(1)).default([]),
 }).strict();
 
+const SetcapArgs = z.object({
+  path: z.string().min(1),
+  capabilities: z.string().regex(/^[A-Za-z0-9_,+=+-]+$/).default(
+    "cap_net_bind_service=+ep",
+  ),
+}).strict();
+
 /** Reject control characters anywhere in a script-argument string. */
 function assertScriptArg(field: string, value: string): void {
   if (/[\0\r\n]/.test(value)) {
@@ -402,18 +409,31 @@ export const OPERATIONS: Record<string, Operation> = {
       return { kind: "argv", argv: ["sh", a.script, ...a.args] };
     },
   },
+  setcap: {
+    id: "setcap",
+    description:
+      "Grant a file capability to a binary at an absolute path (setcap), e.g. cap_net_bind_service=+ep so an unprivileged service can bind 80/443.",
+    argsSchema: SetcapArgs,
+    localOnly: true,
+    build: (args) => {
+      const a = SetcapArgs.parse(args);
+      assertAbsoluteNoSymlinkIntent("path", a.path);
+      assertNotOption("capabilities", a.capabilities);
+      return { kind: "argv", argv: ["setcap", a.capabilities, a.path] };
+    },
+  },
 };
 
 /**
  * Operations enabled by default. `mount`, `ensureDirectory`, `chown`,
  * `addUserToGroup`, `createUser`, `installFile`, `removePath`,
- * `copyDirectory`, and `runScript`
- * are omitted: they mutate the filesystem or account state at arbitrary
- * absolute paths (and `runScript` executes an arbitrary script as root),
- * which is little safer than an arbitrary command. `sysctl` is omitted too: it
- * writes an arbitrary kernel knob (e.g. `kernel.core_pattern`,
- * `kernel.modprobe`), which is a root persistence primitive. All of these must
- * be added to `allowedOperations` explicitly.
+ * `copyDirectory`, `runScript`, and `setcap`
+ * are omitted: they mutate the filesystem, account state, or a file's
+ * capabilities at arbitrary absolute paths (and `runScript` executes an
+ * arbitrary script as root), which is little safer than an arbitrary command.
+ * `sysctl` is omitted too: it writes an arbitrary kernel knob (e.g.
+ * `kernel.core_pattern`, `kernel.modprobe`), which is a root persistence
+ * primitive. All of these must be added to `allowedOperations` explicitly.
  */
 export const DEFAULT_ALLOWED_OPERATIONS: string[] = [
   "installPackage",

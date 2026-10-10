@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/sudo"
-version: "2026.10.10.1"
+version: "2026.10.10.2"
 description: >
   Run one privileged operation on the host — install a package, restart a
   system service, set a sysctl — from any workflow, without writing sudo logic
@@ -45,6 +45,14 @@ description: >
         --input operation=installPackage \
         --input 'args:json={"manager":"apt","packages":["caddy"]}'
 
+      # Grant a binary a file capability so an unprivileged service can bind
+      # privileged ports — e.g. let a Caddy *user* service bind 80/443. It is
+      # opt-in, so add it to allowedOperations on the call.
+      swamp workflow run @svendowideit/sudo-run \
+        --input operation=setcap \
+        --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}' \
+        --input 'allowedOperations:json=["setcap"]'
+
       # Read-only: list every elevation route this host offers and how it was
       # proved. Use it to see what a scheduled workflow will pick before you
       # trust it. (It runs no target command; a container route may briefly
@@ -75,8 +83,8 @@ description: >
       manageService     unit, action (start|stop|restart|enable|disable)
 
     Also available, but disabled by default because they mutate the filesystem,
-    account state, kernel knobs, or run arbitrary code as root — add them to
-    `allowedOperations` to enable:
+    account state, a file's capabilities, kernel knobs, or run arbitrary code as
+    root — add them to `allowedOperations` to enable:
 
       sysctl            key, value
       ensureDirectory   path, mode, owner, group
@@ -89,6 +97,9 @@ description: >
       removePath        path (rm -rf, refuses /)
       copyDirectory     src, dest (cp -a, refuses /)
       runScript         script (absolute), args[] — runs a script as root
+      setcap            path (absolute), capabilities (default
+                        cap_net_bind_service=+ep) — grant a file capability so
+                        an unprivileged service can bind 80/443
 
     Every @svendowideit/sudo-run call also takes `strategy` (pin one route
     instead of auto), `instanceKey` (give concurrent callers their own model

@@ -1293,7 +1293,7 @@ type ExecContext = {
 /** Model definition for the extension documentation meta-factory. */
 export const model = {
   type: "@svendowideit/meta-factory",
-  version: "2026.10.02.1",
+  version: "2026.10.10.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1322,6 +1322,12 @@ export const model = {
         testFactoryModel: old.testFactoryModel ?? "test-factory",
         testFactoryType: old.testFactoryType ?? "@svendowideit/test-factory",
       }),
+    },
+    {
+      toVersion: "2026.10.10.1",
+      description:
+        "Adds the upgrade-workflow requirement: every extension must document a single upgrade workflow in a new `## Upgrade` README section (a `swamp workflow run <name>-upgrade` command, or a statement that it installs nothing on the host so `swamp extension update` is the whole upgrade) and an `UPGRADE` section in the manifest manual. The rubric gains an `upgrade` check (5 points); README now requires the `## Upgrade` section, the manifest manual now requires `UPGRADE`, and the weights of format/examples/explain/packaging/symbols/creation were trimmed to keep the maximum at 100. Schema is additive — no global arguments change, existing models upgrade with no action beyond re-running a score.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
   resources: {

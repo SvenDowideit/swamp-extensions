@@ -21,8 +21,12 @@ import {
   defaultStatusHostnames,
   deriveHostname,
   deriveRouteDnsTls,
+  desiredServingSettings,
   detectSwampServeServices,
   diffRoutes,
+  discoverCaddyModels,
+  dnsProviderFromEnvKeys,
+  dnsProviderFromPlugins,
   dnsProviderPlugin,
   ensureFileServerRoute,
   ensureRoute,
@@ -31,10 +35,12 @@ import {
   expandHome,
   findRouteByHost,
   hasNetBindService,
+  isDnsCredentialFailure,
   isGeneratedRoute,
   isHealthRoute,
   isStatusPageRoute,
   isSwampRoute,
+  isUpToDate,
   listProxyServices,
   liveTlsInfo,
   mergeDesired,
@@ -66,12 +72,14 @@ import {
   routeHostnames,
   routeId,
   routeUpstream,
+  stalenessOf,
   statusPageHostnames,
   statusPageLinks,
   thirdPartyPlugins,
   validateBaseDomain,
   validateEmail,
   withDefaultPlugins,
+  withoutBaseDomainApex,
   writeDnsRecords,
 } from "./caddy.ts";
 
@@ -924,6 +932,26 @@ Deno.test("defaultStatusHostnames excludes routed hosts even if a TLS subject", 
   assert(hosts.includes("localhost"));
 });
 
+Deno.test("defaultStatusHostnames includes DNS-record hostnames but never the base domain implicitly", () => {
+  const hosts = defaultStatusHostnames({
+    tlsSubjects: [],
+    recordHostnames: ["xeon.fi.gy"],
+  });
+  // A hostname named only by a declared DNS record is served by default…
+  assert(hosts.includes("xeon.fi.gy"));
+  assert(hosts.includes("localhost"));
+  // …but the base domain is NOT added unless a model names it explicitly.
+  assertEquals(hosts.includes("fi.gy"), false);
+});
+
+Deno.test("defaultStatusHostnames excludes a routed DNS-record hostname", () => {
+  const hosts = defaultStatusHostnames({
+    recordHostnames: ["xeon.fi.gy"],
+    routedHostnames: ["xeon.fi.gy"],
+  });
+  assertEquals(hosts.includes("xeon.fi.gy"), false);
+});
+
 Deno.test("statusPageHostnames covers localhost and loopback", () => {
   const hosts = statusPageHostnames();
   assertStringIncludes(hosts.join(","), "localhost");
@@ -1151,9 +1179,10 @@ Deno.test("renderStatusPage always shows a Routes & services section", () => {
     modules: [],
     listens: [],
   });
-  // The section is present even with no routes, with guidance.
+  // The section is present even with no managed routes, and lists the generated
+  // services (the admin API) so it is always useful.
   assertStringIncludes(empty, "Routes &amp; services");
-  assertStringIncludes(empty, "No routes are managed by swamp models yet");
+  assertStringIncludes(empty, "Caddy admin API");
 
   const withLinks = renderStatusPage({
     title: "Caddy",
@@ -1167,7 +1196,7 @@ Deno.test("renderStatusPage always shows a Routes & services section", () => {
     listens: [":443"],
   });
   assertStringIncludes(withLinks, "https://app.example.com");
-  assert(!withLinks.includes("No routes are managed"));
+  assertStringIncludes(withLinks, "Caddy admin API");
 });
 
 Deno.test("renderStatusPage lists compiled-in plugins or says stock", () => {
@@ -2435,4 +2464,243 @@ Deno.test("requiredCaddyModules includes the dns_records app", () => {
   assert(
     requiredCaddyModules(config).includes("dns_records"),
   );
+});
+
+Deno.test("discoverCaddyModels finds real definitions and ignores scratch/non-caddy", async () => {
+  const root = await Deno.makeTempDir();
+  const mk = async (rel: string, body: string) => {
+    const p = `${root}/${rel}`;
+    await Deno.mkdir(p.slice(0, p.lastIndexOf("/")), { recursive: true });
+    await Deno.writeTextFile(p, body);
+  };
+  // A real caddy model definition (has id + name + type).
+  await mk(
+    "models/@me/caddy/homelab.yaml",
+    `type: "@svendowideit/caddy"\ntypeVersion: "2026.01.01.1"\nid: 11111111-1111-1111-1111-111111111111\nname: homelab\nglobalArguments:\n  baseDomain: example.com\n  serviceName: caddy\n`,
+  );
+  // The scratch instance swamp auto-creates — under .swamp/, must be ignored.
+  await mk(
+    ".swamp/auto-definitions/@svendowideit/caddy/scan.yaml",
+    `type: "@svendowideit/caddy"\nid: 22222222-2222-2222-2222-222222222222\nname: caddy-upgrade-scan\nglobalArguments: {}\n`,
+  );
+  // A different model type that mentions the string in a comment.
+  await mk(
+    "models/@me/other/thing.yaml",
+    `type: "@me/other"\nid: 33333333-3333-3333-3333-333333333333\nname: thing\n# not @svendowideit/caddy\n`,
+  );
+  const found = await discoverCaddyModels(root);
+  assertEquals(found.map((f) => f.name), ["homelab"]);
+  assertEquals(found[0].baseDomain, "example.com");
+  assertEquals(found[0].serviceName, "caddy");
+});
+
+Deno.test("stalenessOf classifies typeVersions", () => {
+  assertEquals(stalenessOf("2026.10.10.2", "2026.10.10.2"), "current");
+  assertEquals(stalenessOf("2025.01.01.1", "2026.10.10.2"), "upgradable");
+  assertEquals(stalenessOf("", "2026.10.10.2"), "unknown");
+});
+
+Deno.test("dnsProviderFromPlugins extracts the provider name", () => {
+  assertEquals(
+    dnsProviderFromPlugins(["github.com/caddy-dns/gandi"]),
+    "gandi",
+  );
+  assertEquals(
+    dnsProviderFromPlugins(["github.com/caddy-dns/cloudflare@v1.2.3"]),
+    "cloudflare",
+  );
+  assertEquals(dnsProviderFromPlugins(["github.com/other/thing"]), "");
+  assertEquals(dnsProviderFromPlugins([]), "");
+});
+
+Deno.test("dnsProviderFromEnvKeys infers the provider from env var names", () => {
+  assertEquals(dnsProviderFromEnvKeys(["GANDI_BEARER_TOKEN"]), "gandi");
+  assertEquals(
+    dnsProviderFromEnvKeys(["PATH", "CLOUDFLARE_API_TOKEN", "X"]),
+    "cloudflare",
+  );
+  assertEquals(dnsProviderFromEnvKeys(["NAMECHEAP_API_KEY"]), "namecheap");
+  assertEquals(dnsProviderFromEnvKeys(["CADDY_DNS_API_TOKEN"]), "");
+  assertEquals(dnsProviderFromEnvKeys([]), "");
+});
+
+Deno.test("isDnsCredentialFailure recognises the Gandi/LiveDNS credential error", () => {
+  assertEquals(
+    isDnsCredentialFailure(
+      'Failed to apply Caddy config (500): {"error":"...dns_records app module... LiveDNS returned a 0 (You must provide an access token or an API Key...)"}',
+    ),
+    true,
+  );
+  assertEquals(
+    isDnsCredentialFailure(
+      "Failed to apply Caddy config (500): unknown module",
+    ),
+    false,
+  );
+});
+
+Deno.test("buildReconciledConfig gives a DNS-record hostname a default route when it has none", () => {
+  const config = buildReconciledConfig(baseConfig(), {
+    routes: [],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: exampleTls,
+    statusPage: {
+      enabled: true,
+      title: "Caddy",
+      hostnames: [],
+      extraLinks: [],
+      version: "",
+      adminUrl: "",
+      baseDomain: "fi.gy",
+      email: "a@b.c",
+      capabilities: [],
+      plugins: [],
+      links: [],
+    },
+    statusPageModel: "m",
+    healthRoutes: true,
+    dnsRecords: [{
+      name: "xeon.fi.gy",
+      type: "A",
+      value: ["10.0.0.1"],
+      zone: "fi.gy",
+      ttl: "",
+    }],
+    dnsRemovals: [],
+    dnsTtl: "5m",
+  });
+  const apps = (config.apps ?? {}) as Record<string, unknown>;
+  const servers = ((apps.http ?? {}) as Record<string, unknown>).servers as
+    | Record<string, unknown>
+    | undefined ?? {};
+  const hosts = new Set<string>();
+  for (const s of Object.values(servers)) {
+    const routes = ((s as Record<string, unknown>).routes ?? []) as Array<
+      Record<string, unknown>
+    >;
+    for (const r of routes) {
+      for (const m of (r.match ?? []) as Array<Record<string, unknown>>) {
+        for (const h of (m.host ?? []) as string[]) hosts.add(h);
+      }
+    }
+  }
+  // The DNS-record hostname gets a default route; the base domain apex does not
+  // (it is only served when a model names it explicitly).
+  assert(hosts.has("xeon.fi.gy"));
+  assertEquals(hosts.has("fi.gy"), false);
+});
+
+Deno.test("desiredServingSettings leaves the unprivileged preset once 80/443 can be bound", () => {
+  // Public-HTTPS intent (domain + email) and the binary can bind 80/443: the
+  // high-port / HTTPS-off preset is no longer needed, so it is corrected.
+  const want = desiredServingSettings({
+    baseDomain: "fi.gy",
+    acmeEmail: "a@b.c",
+    canBindPrivilegedPorts: true,
+    autoHttps: "off",
+    listenAddrs: [":8888", ":8443"],
+  });
+  assertEquals(want, { autoHttps: "on", listenAddrs: [":443", ":80"] });
+});
+
+Deno.test("desiredServingSettings is a no-op when already correct", () => {
+  assertEquals(
+    desiredServingSettings({
+      baseDomain: "fi.gy",
+      acmeEmail: "a@b.c",
+      canBindPrivilegedPorts: true,
+      autoHttps: "on",
+      listenAddrs: [":443", ":80"],
+    }),
+    null,
+  );
+});
+
+Deno.test("desiredServingSettings keeps the preset when 80/443 cannot be bound", () => {
+  assertEquals(
+    desiredServingSettings({
+      baseDomain: "fi.gy",
+      acmeEmail: "a@b.c",
+      canBindPrivilegedPorts: false,
+      autoHttps: "off",
+      listenAddrs: [":8888", ":8443"],
+    }),
+    null,
+  );
+});
+
+Deno.test("desiredServingSettings does not touch a model with no public-HTTPS intent", () => {
+  assertEquals(
+    desiredServingSettings({
+      baseDomain: "",
+      acmeEmail: "",
+      canBindPrivilegedPorts: true,
+      autoHttps: "off",
+      listenAddrs: [":8888"],
+    }),
+    null,
+  );
+});
+
+Deno.test("renderStatusPage links plugins, shows the extension version and status hostnames", () => {
+  const html = renderStatusPage({
+    title: "Caddy",
+    version: "v2.11.7",
+    adminUrl: "http://localhost:2019/config/",
+    baseDomain: "example.com",
+    email: "a@b.c",
+    capabilities: [],
+    links: [],
+    modules: [],
+    plugins: [{
+      packagePath: "github.com/caddy-dns/gandi",
+      version: "v1.1.0",
+      modules: ["dns.providers.gandi"],
+    }],
+    extensionVersion: "2026.10.10.2",
+    statusHostnames: ["localhost", "example.com"],
+    scheme: "https",
+  });
+  // The extension version that generated the page.
+  assertStringIncludes(html, "@svendowideit/caddy");
+  assertStringIncludes(html, "2026.10.10.2");
+  // Each compiled-in plugin links to its repo (README).
+  assertStringIncludes(html, 'href="https://github.com/caddy-dns/gandi"');
+  // The status page's own hostnames are listed, and the ACME email is shown.
+  assertStringIncludes(html, "https://example.com/");
+  assertStringIncludes(html, "a@b.c");
+});
+
+Deno.test("withoutBaseDomainApex drops the apex but keeps wildcards and subdomains", () => {
+  assertEquals(
+    withoutBaseDomainApex(
+      ["*.fi.gy", "fi.gy", "xeon.fi.gy", "other.example"],
+      "fi.gy",
+    ),
+    ["*.fi.gy", "xeon.fi.gy", "other.example"],
+  );
+  // No base domain: unchanged.
+  assertEquals(withoutBaseDomainApex(["fi.gy"], ""), ["fi.gy"]);
+  // Only an exact apex match is removed.
+  assertEquals(withoutBaseDomainApex(["fi.gy"], "example.com"), ["fi.gy"]);
+});
+
+Deno.test("isUpToDate requires every proven condition", () => {
+  const base = {
+    typeVersionCurrent: true,
+    configInSync: true,
+    serviceActive: true,
+    canBindPrivilegedPorts: true,
+    missingModules: 0,
+    servingSettingsOk: true,
+  };
+  assertEquals(isUpToDate(base), true);
+  // Any single unmet condition means not done.
+  assertEquals(isUpToDate({ ...base, typeVersionCurrent: false }), false);
+  assertEquals(isUpToDate({ ...base, configInSync: false }), false);
+  assertEquals(isUpToDate({ ...base, serviceActive: false }), false);
+  assertEquals(isUpToDate({ ...base, canBindPrivilegedPorts: false }), false);
+  assertEquals(isUpToDate({ ...base, missingModules: 1 }), false);
+  assertEquals(isUpToDate({ ...base, servingSettingsOk: false }), false);
 });

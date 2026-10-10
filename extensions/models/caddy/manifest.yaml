@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.10.08.1"
+version: "2026.10.10.14"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -48,6 +48,16 @@ description: >
 
       # Do the whole setup idempotently in one command.
       swamp workflow run caddy-setup
+
+      # Upgrade the Caddy this repo manages after updating the extension. With a
+      # single caddy model it upgrades automatically (no name to remember); with
+      # several it lists them and stops without changing anything, printing the
+      # command for each. It prints a gap report (everything missing to serve:
+      # capability for 80/443, baseDomain, ACME email, TLS, DNS records) with the
+      # exact fix command for each, then pauses for approval before
+      # rebuilding/restarting.
+      swamp workflow run @svendowideit/caddy-upgrade
+      swamp workflow run @svendowideit/caddy-upgrade --input model=my-caddy
 
       # Point a hostname at a backend, creating the route if it is missing.
       swamp workflow run caddy-ensure-proxy \
@@ -242,6 +252,29 @@ description: >
     `plugins` AND its token is in the service environment (`environmentFile`);
     see the RUN wildcard example and the README's step-by-step section.
 
+  UPGRADE
+
+    Update the extension (`swamp extension update`), then run the upgrade
+    workflow. It reads the caddy model definitions on disk — you never need to
+    know a name: a single model is upgraded automatically, and when there are
+    several it lists them, changes nothing, and prints the command for each:
+
+        swamp workflow run @svendowideit/caddy-upgrade
+
+    Before changing anything it prints a gap report: every setting that stops
+    Caddy serving (capability to bind 80/443, baseDomain, ACME email, TLS, DNS
+    provider/records, a stale binary) with the exact command to fix each. It
+    pauses at one approval gate, then rebuilds the binary if stale, re-grants the
+    capability, regenerates the unit, and restarts; and re-runs the gap report so
+    you see what is left. Idempotent:
+
+        swamp workflow run @svendowideit/caddy-upgrade --input model=my-caddy
+
+    Approve the gate with `swamp workflow approve @svendowideit/caddy-upgrade
+    confirm` then `swamp workflow resume @svendowideit/caddy-upgrade`. Secrets
+    (a DNS token) are never collected over a signal — the gap report names the
+    model's environmentFile to write instead.
+
   WHAT IT INSTALLS
 
     A Caddy binary at caddyBinPath (default ~/.local/bin/caddy) — optionally
@@ -266,6 +299,9 @@ models:
 
 reports:
   - caddy_report.ts
+
+workflows:
+  - caddy-upgrade.yaml
 
 additionalFiles:
   - README.md

@@ -58,6 +58,8 @@
  * @module
  */
 import { z } from "npm:zod@4";
+import { join } from "jsr:@std/path@1";
+import { parse as parseYaml } from "jsr:@std/yaml@1";
 
 // ---------------------------------------------------------------------------
 // Always-on Caddy modules + shared input schemas
@@ -95,6 +97,179 @@ export function withDefaultPlugins(plugins: string[]): string[] {
     byPath.set(p.split("@")[0], p);
   }
   return [...byPath.values()];
+}
+
+/** A `@svendowideit/caddy` model definition discovered on disk. */
+export interface CaddyModelRef {
+  /** The model instance name (as used in `swamp model …`). */
+  name: string;
+  /** Absolute path of the definition file. */
+  path: string;
+  /** The host this model manages (empty = local host). */
+  target: string;
+  /** The systemd unit / Caddy identity. */
+  serviceName: string;
+  /** Base domain, if set. */
+  baseDomain: string;
+  /** ACME email, if set. */
+  letsEncryptEmail: string;
+  /** Configured module packages (e.g. github.com/caddy-dns/gandi), if any. */
+  plugins: string[];
+  /** The model's `typeVersion`. */
+  typeVersion: string;
+}
+
+/** Directories that never contain a user's model definition. */
+const DISCOVERY_SKIP = new Set([
+  ".git",
+  ".swamp",
+  ".agents",
+  ".deno-cache",
+  ".reviews",
+  "node_modules",
+  "extensions",
+]);
+
+function asString(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+
+/**
+ * Find every `@svendowideit/caddy` model definition a repo holds.
+ *
+ * Scans the repo for definition YAML (`type: "@svendowideit/caddy"` with a
+ * generated `id:` and a `name:`), skipping `.swamp/` and other non-definition
+ * trees — so it finds the models the user actually created, never the
+ * auto-created scratch instances (`caddy-upgrade-scan`, `caddy-status`, …) that
+ * swamp stores under `.swamp/`. Unlike a `desired`-data query, this sees a model
+ * that was created but has never had a method run.
+ *
+ * Pure with respect to its input directory (filesystem only), so it is cheap to
+ * unit test.
+ */
+export async function discoverCaddyModels(
+  repoDir: string,
+): Promise<CaddyModelRef[]> {
+  const out: CaddyModelRef[] = [];
+  const seen = new Set<string>();
+  async function walk(dir: string): Promise<void> {
+    let entries: Deno.DirEntry[];
+    try {
+      entries = [];
+      for await (const e of Deno.readDir(dir)) entries.push(e);
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const full = join(dir, e.name);
+      if (e.isDirectory) {
+        if (DISCOVERY_SKIP.has(e.name) || e.name.startsWith(".")) continue;
+        await walk(full);
+        continue;
+      }
+      if (!e.isFile) continue;
+      if (!e.name.endsWith(".yaml") && !e.name.endsWith(".yml")) continue;
+      let text = "";
+      try {
+        text = await Deno.readTextFile(full);
+      } catch {
+        continue;
+      }
+      // Cheap pre-filter before the YAML parse.
+      if (!text.includes("@svendowideit/caddy")) continue;
+      let doc: unknown;
+      try {
+        doc = parseYaml(text);
+      } catch {
+        continue;
+      }
+      if (!doc || typeof doc !== "object") continue;
+      const d = doc as Record<string, unknown>;
+      if (d.type !== "@svendowideit/caddy") continue;
+      const name = asString(d.name);
+      const id = asString(d.id);
+      if (!name || !id) continue; // a real definition carries both
+      if (seen.has(name)) continue;
+      seen.add(name);
+      const g = (d.globalArguments ?? {}) as Record<string, unknown>;
+      out.push({
+        name,
+        path: full,
+        target: asString(g.target),
+        serviceName: asString(g.serviceName) || "caddy",
+        baseDomain: asString(g.baseDomain),
+        letsEncryptEmail: asString(g.letsEncryptEmail),
+        plugins: Array.isArray(g.plugins)
+          ? (g.plugins as unknown[]).filter((p): p is string =>
+            typeof p === "string"
+          )
+          : [],
+        typeVersion: asString(d.typeVersion),
+      });
+    }
+  }
+  await walk(repoDir);
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Whether a definition's `typeVersion` is behind `current`. */
+export function stalenessOf(
+  typeVersion: string,
+  current: string,
+): "current" | "upgradable" | "unknown" {
+  if (!typeVersion) return "unknown";
+  if (typeVersion === current) return "current";
+  return typeVersion < current ? "upgradable" : "current";
+}
+
+/**
+ * The serving settings (`autoHttps` + `listenAddrs`) a model *should* have, or
+ * `null` when its current ones are already right.
+ *
+ * These two are the extension's to own, not the user's: a model on high ports
+ * with automatic HTTPS off only makes sense because the unprivileged service
+ * could not bind 80/443. Once the binary can bind privileged ports
+ * (CAP_NET_BIND_SERVICE) and the model wants public HTTPS (a base domain and an
+ * ACME email), it should serve `:443`/`:80` with automatic HTTPS on. Callers
+ * persist the correction back to the model (see `normalizeServingSettings`).
+ */
+export function desiredServingSettings(opts: {
+  baseDomain: string;
+  acmeEmail: string;
+  canBindPrivilegedPorts: boolean;
+  autoHttps: string;
+  listenAddrs: string[];
+}): { autoHttps: string; listenAddrs: string[] } | null {
+  const wantsPublicHttps = !!opts.baseDomain && !!opts.acmeEmail;
+  if (!wantsPublicHttps || !opts.canBindPrivilegedPorts) return null;
+  const listens = [":443", ":80"];
+  const alreadyRight = opts.autoHttps === "on" &&
+    listens.every((p) => opts.listenAddrs.includes(p));
+  if (alreadyRight) return null;
+  return { autoHttps: "on", listenAddrs: listens };
+}
+
+/**
+ * Whether a model is already fully upgraded — so an upgrade run can report
+ * "done" and change nothing.
+ *
+ * "Done" is proven, not assumed: the model's definition is at the current type
+ * version (`typeVersionCurrent`), the **running** Caddy config already equals
+ * what the upgrade would apply (`configInSync` — desired-vs-actual, the same
+ * comparison `plan`/`audit` do), the service is active, the binary can bind
+ * 80/443, no wanted module is missing, and the serving settings need no
+ * correction. Any false input means the model is not done.
+ */
+export function isUpToDate(o: {
+  typeVersionCurrent: boolean;
+  configInSync: boolean;
+  serviceActive: boolean;
+  canBindPrivilegedPorts: boolean;
+  missingModules: number;
+  servingSettingsOk: boolean;
+}): boolean {
+  return o.typeVersionCurrent && o.configInSync && o.serviceActive &&
+    o.canBindPrivilegedPorts && o.missingModules === 0 && o.servingSettingsOk;
 }
 
 /**
@@ -506,12 +681,80 @@ const EnsureProxyOutputSchema = z.object({
   ensuredAt: z.string(),
 });
 
+const UpgradeTargetSchema = z.object({
+  name: z.string(),
+  target: z.string(),
+  serviceName: z.string(),
+  baseDomain: z.string(),
+  letsEncryptEmail: z.string(),
+  /** DNS provider, from the model's config or its plugins ("" if none). */
+  dnsProvider: z.string().default(""),
+  typeVersion: z.string(),
+  staleness: z.enum(["current", "upgradable", "unknown"]),
+  /** True when the model is already fully upgraded (nothing to do). */
+  upToDate: z.boolean().default(false),
+});
+
+const UpgradeTargetsOutputSchema = z.object({
+  repoDir: z.string(),
+  count: z.number(),
+  /** Comma-joined model names, for one-line messages. */
+  names: z.string(),
+  /** The first model name, or "" — lets a workflow target the single model. */
+  firstModel: z.string(),
+  models: z.array(UpgradeTargetSchema),
+  discoveredAt: z.string(),
+});
+
+const UpgradeGapSchema = z.object({
+  id: z.string(),
+  message: z.string(),
+  /** The exact command that fixes or diagnoses this gap. */
+  command: z.string(),
+  /** True for a nice-to-have (e.g. static DNS records); it does not block `ok`. */
+  optional: z.boolean().default(false),
+});
+
+const UpgradeCheckOutputSchema = z.object({
+  model: z.string(),
+  typeVersion: z.string(),
+  currentVersion: z.string(),
+  staleness: z.enum(["current", "upgradable", "unknown"]),
+  /** True when the model is already fully upgraded (nothing to do). */
+  upToDate: z.boolean().default(false),
+  /** True when the running config already equals what the upgrade would apply. */
+  configInSync: z.boolean().default(false),
+  serviceName: z.string(),
+  serviceActive: z.boolean(),
+  canBindPrivilegedPorts: z.boolean(),
+  missingModules: z.array(z.string()),
+  baseDomain: z.string(),
+  letsEncryptEmail: z.string(),
+  tlsConfigured: z.boolean(),
+  dnsProvider: z.string(),
+  dnsRecordCount: z.number(),
+  environmentFile: z.string(),
+  environmentFileExists: z.boolean(),
+  gaps: z.array(UpgradeGapSchema),
+  ok: z.boolean(),
+  checkedAt: z.string(),
+});
+
 const ServeSettingsOutputSchema = z.object({
   hostname: z.string(),
   root: z.string(),
   browse: z.boolean(),
   changed: z.boolean(),
   servedAt: z.string(),
+});
+
+const ServingOutputSchema = z.object({
+  model: z.string(),
+  autoHttps: z.string(),
+  listenAddrs: z.array(z.string()),
+  /** Whether the settings were corrected (and persisted) this run. */
+  changed: z.boolean(),
+  checkedAt: z.string(),
 });
 
 const StatusPageOutputSchema = z.object({
@@ -1064,10 +1307,13 @@ export function defaultStatusHostnames(opts: {
   tlsSubjects?: string[];
   explicit?: string[];
   routedHostnames?: string[];
+  /** Hostnames named by declared static DNS records (also served by default). */
+  recordHostnames?: string[];
 }): string[] {
   const out = new Set(statusPageHostnames());
   for (const s of opts.tlsSubjects ?? []) if (s) out.add(s);
   for (const s of opts.explicit ?? []) if (s) out.add(s);
+  for (const s of opts.recordHostnames ?? []) if (s) out.add(s);
   // A hostname that already has a real route is served by that route, so it is
   // not a status-page default.
   for (const h of opts.routedHostnames ?? []) out.delete(h);
@@ -1268,12 +1514,22 @@ export function renderStatusPage(opts: {
   listens?: string[];
   /** The swamp model instance that owns this service. */
   modelName?: string;
+  /** The `@svendowideit/caddy` extension version that generated this page. */
+  extensionVersion?: string;
+  /** Hostnames the status page itself answers on (its own routes). */
+  statusHostnames?: string[];
+  /** URL scheme the status page is reached on (`http` or `https`). */
+  scheme?: string;
 }): string {
   const esc = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
   const canBind = hasNetBindService(opts.capabilities);
   const links = opts.links.filter((l) => l.url);
+  const scheme = opts.scheme ?? "https";
+  const statusHosts = (opts.statusHostnames ?? []).filter((h) =>
+    h !== "localhost" && h !== "127.0.0.1" && h !== "[::1]"
+  );
   const listens = opts.listens ?? [];
   const listenRows = listens.map((l) => `      <li><code>${esc(l)}</code></li>`)
     .join("\n");
@@ -1289,18 +1545,46 @@ ${listenRows}
     `      <li><a href="${esc(l.url)}">${esc(l.label)}</a>${
       l.description ? ` — <span class="muted">${esc(l.description)}</span>` : ""
     }</li>`
-  ).join("\n");
-  const routesSection = links.length > 0
-    ? `<ul>\n${linkRows}\n  </ul>`
-    : `<p class="muted">No routes are managed by swamp models yet. Add one with
-  <code>swamp model method run @svendowideit/caddy ensureDnsProxy NAME
-  --input hostname=app.example.com --input upstream=127.0.0.1:8080</code>.</p>`;
+  );
+  // The generated routes are services too: the admin API, this status page, and
+  // the health contract. List them alongside the managed proxy/file routes so the
+  // section is complete.
+  const systemRows: string[] = [
+    `      <li><a href="${
+      esc(opts.adminUrl)
+    }">Caddy admin API</a> — <span class="muted">live JSON config</span></li>`,
+  ];
+  for (const h of statusHosts) {
+    systemRows.push(
+      `      <li><a href="${esc(`${scheme}://${h}/`)}">${
+        esc(h)
+      }</a> — <span class="muted">status page (this page)</span></li>`,
+    );
+  }
+  if (statusHosts.length > 0) {
+    systemRows.push(
+      `      <li><span class="muted">health contract on ${
+        statusHosts.map((h) => `<code>${esc(h)}</code>`).join(", ")
+      }: <code>/</code> &rarr; 200, <code>/teapot</code> &rarr; <code>418</code>, other paths &rarr; <code>404</code></span></li>`,
+    );
+  }
+  const routeRows = [...linkRows, ...systemRows];
+  const routesSection = `<ul>\n${routeRows.join("\n")}\n  </ul>`;
   const plugins = opts.plugins ?? thirdPartyPlugins(opts.modules ?? []);
-  const pluginRows = plugins.map((p) =>
-    `      <li><code>${esc(p.packagePath)}</code>${
-      p.version ? ` <span class="muted">${esc(p.version)}</span>` : ""
-    }<br><span class="muted">${p.modules.map(esc).join(", ")}</span></li>`
-  ).join("\n");
+  const pluginRows = plugins.map((p) => {
+    const pkg = esc(p.packagePath);
+    // A Go package path like github.com/owner/repo links to its repo (README).
+    const href = /^[a-z0-9.-]+\.[a-z]{2,}\//i.test(p.packagePath)
+      ? `https://${esc(p.packagePath.split("@")[0])}`
+      : "";
+    const label = href ? `<a href="${href}">${pkg}</a>` : `<code>${pkg}</code>`;
+    const ver = p.version
+      ? ` <span class="muted">${esc(p.version)}</span>`
+      : "";
+    return `      <li>${label}${ver}<br><span class="muted">${
+      p.modules.map(esc).join(", ")
+    }</span></li>`;
+  }).join("\n");
   const pluginsSection = plugins.length > 0
     ? `<h2>Compiled-in plugins</h2>
   <ul>
@@ -1344,6 +1628,11 @@ ${pluginRows}
   <h2>Installed</h2>
   <table>
     <tr><td>Caddy version</td><td><code>${esc(opts.version)}</code></td></tr>
+    <tr><td>Swamp extension</td><td><code>@svendowideit/caddy</code>${
+    opts.extensionVersion
+      ? ` <span class="muted">${esc(opts.extensionVersion)}</span>`
+      : ""
+  }</td></tr>
     <tr><td>Base domain</td><td>${
     opts.baseDomain
       ? `<code>${esc(opts.baseDomain)}</code>`
@@ -1650,12 +1939,15 @@ export function mergeDesired(states: DesiredState[]): {
   }
 
   // Singleton settings: union where sensible, error on contradiction.
+  const targetKey = states.length > 0
+    ? `${states[0].target}:${states[0].serviceName}`
+    : "";
   const autoHttpsValues = new Set(states.map((s) => s.autoHttps));
   if (autoHttpsValues.size > 1) {
     errors.push(
       `autoHttps conflict across models ${models.join(", ")}: ${
         [...autoHttpsValues].join(" vs ")
-      }`,
+      } — they share the Caddy '${targetKey}', so reconcile merges them. Set the same autoHttps on all of them, or give the extra model a different serviceName.`,
     );
   }
 
@@ -1670,14 +1962,18 @@ export function mergeDesired(states: DesiredState[]): {
       errors.push(
         `TLS email conflict across models ${
           tlsStates.map((s) => s.modelName).join(", ")
-        }: ${[...emails].join(" vs ")}`,
+        }: ${
+          [...emails].join(" vs ")
+        } — these models share the Caddy '${targetKey}'. Set the same ACME email on all of them, or give the extra model a different serviceName.`,
       );
     }
     if (providers.size > 1) {
       errors.push(
         `TLS DNS provider conflict across models ${
           tlsStates.map((s) => s.modelName).join(", ")
-        }: ${[...providers].join(" vs ")}`,
+        }: ${
+          [...providers].join(" vs ")
+        } — these models share the Caddy '${targetKey}'. Set the same DNS provider on all of them, or give the extra model a different serviceName.`,
       );
     }
     const subjects = new Set<string>();
@@ -2018,6 +2314,7 @@ export function buildReconciledConfig(
   const statusHostnames = defaultStatusHostnames({
     tlsSubjects: merged.tls?.subjects ?? [],
     explicit: merged.statusPage?.hostnames ?? [],
+    recordHostnames: (merged.dnsRecords ?? []).map((r) => r.name),
     routedHostnames,
   });
   if (wantStatus) {
@@ -2034,13 +2331,18 @@ export function buildReconciledConfig(
       version: sp.version,
       adminUrl: sp.adminUrl,
       baseDomain: sp.baseDomain,
-      email: sp.email,
+      // Prefer the *configured* TLS email (configureTls records it there) over
+      // the value captured when configureStatusPage last ran.
+      email: merged.tls?.email || sp.email,
       capabilities: sp.capabilities,
       links,
       modules: [],
       listens: merged.listenAddrs,
       modelName: merged.statusPageModel,
       plugins: sp.plugins,
+      extensionVersion: model.version,
+      statusHostnames,
+      scheme: merged.autoHttps === "off" ? "http" : "https",
     });
     // Pushed before the health routes so the `/` match wins over the 404.
     const route = buildStatusPageRoute(html, statusHostnames);
@@ -2524,6 +2826,65 @@ export function dnsProviderPlugin(provider: string): string {
     );
   }
   return plugin;
+}
+
+/**
+ * Each provider's credential field(s) and a conventional environment-variable
+ * name to hold each value, so `upgradeCheck` can print a concrete command.
+ */
+const DNS_PROVIDER_CREDENTIALS: Record<string, Record<string, string>> = {
+  cloudflare: { api_token: "CLOUDFLARE_API_TOKEN" },
+  route53: { api_token: "ROUTE53_API_TOKEN" },
+  digitalocean: { api_token: "DIGITALOCEAN_API_TOKEN" },
+  duckdns: { api_token: "DUCKDNS_API_TOKEN" },
+  porkbun: { api_token: "PORKBUN_API_TOKEN" },
+  gandi: { bearer_token: "GANDI_BEARER_TOKEN" },
+  namecheap: { api_key: "NAMECHEAP_API_KEY", user: "NAMECHEAP_USER" },
+  dreamhost: { api_key: "DREAMHOST_API_KEY" },
+};
+
+/** The provider name embedded in a `github.com/caddy-dns/<name>` plugin, or "". */
+export function dnsProviderFromPlugins(plugins: string[]): string {
+  for (const p of plugins) {
+    const m = p.split("@")[0].match(/github\.com\/caddy-dns\/([a-z0-9-]+)/i);
+    if (m) return m[1].toLowerCase();
+  }
+  return "";
+}
+
+/**
+ * The provider whose credential env-var names appear in `keys`, or "".
+ *
+ * The environmentFile is often the strongest signal of which DNS provider a
+ * setup already uses: its variable names are that provider's credential fields
+ * (GANDI_BEARER_TOKEN → gandi, CLOUDFLARE_API_TOKEN → cloudflare, …).
+ */
+export function dnsProviderFromEnvKeys(keys: string[]): string {
+  const set = new Set(keys.map((k) => k.trim().toUpperCase()));
+  for (const [provider, fields] of Object.entries(DNS_PROVIDER_CREDENTIALS)) {
+    if (Object.values(fields).some((envVar) => set.has(envVar.toUpperCase()))) {
+      return provider;
+    }
+  }
+  return "";
+}
+
+/** Read the variable names (never the values) from a systemd EnvironmentFile. */
+async function readEnvFileKeys(path: string): Promise<string[]> {
+  let text = "";
+  try {
+    text = await Deno.readTextFile(path);
+  } catch {
+    return [];
+  }
+  const keys: string[] = [];
+  for (const line of text.split("\n")) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const eq = t.indexOf("=");
+    if (eq > 0) keys.push(t.slice(0, eq).trim());
+  }
+  return keys;
 }
 
 /** Render the Caddy TLS automation config (ACME email + optional DNS challenge). */
@@ -3289,6 +3650,105 @@ async function writeConfig(
   }
 }
 
+/**
+ * Whether a Caddy config-apply error is the running service failing to read a
+ * DNS provider credential. This is expected and self-healable: the service was
+ * started before `environmentFile` was set, so the provider token is not in its
+ * environment.
+ */
+export function isDnsCredentialFailure(message: string): boolean {
+  return /dns_records|dns\.providers|LiveDNS|provide an access token|API Key|provider.*(token|key)|credential/i
+    .test(message);
+}
+
+/** Render a clear, actionable error for a genuinely unfixable credential gap. */
+function enrichDnsError(
+  err: unknown,
+  context: MethodContext,
+  g: GlobalArgs,
+): Error {
+  const name = context.definition?.name ?? "(this model)";
+  const raw = err instanceof Error ? err.message : String(err);
+  const envFile = g.environmentFile
+    ? expandHome(g.environmentFile)
+    : "the model's environmentFile (not set)";
+  return new Error(
+    `Caddy refused the configuration: ${raw}\n` +
+      `The running Caddy service cannot read the DNS provider credential. Check that ${envFile} defines the provider's token ` +
+      `(e.g. GANDI_BEARER_TOKEN), then load it into the service:\n` +
+      `  swamp model method run ${name} createService\n` +
+      `  swamp model method run ${name} restartService`,
+  );
+}
+
+/**
+ * Regenerate the systemd unit (so it renders the current `environmentFile`) and
+ * restart Caddy, waiting for it to come back.
+ */
+async function reloadServiceUnitAndRestart(g: GlobalArgs): Promise<void> {
+  const serviceName = g.serviceName;
+  const unitPath = expandHome(
+    `~/.config/systemd/user/${serviceName}.service`,
+  );
+  const unit = renderServiceUnit({
+    binPath: expandHome(g.caddyBinPath),
+    configPath: expandHome(g.configPath),
+    environmentFile: g.environmentFile
+      ? expandHome(g.environmentFile)
+      : undefined,
+  });
+  await writeUnitFile(unitPath, unit);
+  await systemctl(["daemon-reload"]);
+  const restart = await systemctl(["restart", serviceName]);
+  if (restart.code !== 0) {
+    throw new Error(
+      `systemctl --user restart ${serviceName} failed (${restart.code}): ${
+        restart.stderr || restart.stdout
+      }`,
+    );
+  }
+  await waitForService(serviceName, 15);
+}
+
+/**
+ * Apply the reconciled config, self-healing the common "service predates the
+ * environmentFile" case: reload the unit, restart, and retry once. This is
+ * expected behaviour, so it logs progress rather than failing; only a genuinely
+ * missing credential stops, with an actionable message.
+ */
+async function applyConfig(
+  context: MethodContext,
+  g: GlobalArgs,
+  config: CaddyConfig,
+): Promise<void> {
+  try {
+    await writeConfig(g.adminApiAddr, config, g.adminApiToken);
+    return;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const canHeal = !!g.environmentFile && isDnsCredentialFailure(message) &&
+      await isServiceActive(g.serviceName);
+    if (!canHeal) {
+      throw isDnsCredentialFailure(message)
+        ? enrichDnsError(err, context, g)
+        : err;
+    }
+    context.logger?.info(
+      "Caddy could not read the DNS provider credential; reloading the service unit so it loads {envFile} and retrying",
+      { envFile: expandHome(g.environmentFile!) },
+    );
+    await reloadServiceUnitAndRestart(g);
+    try {
+      await writeConfig(g.adminApiAddr, config, g.adminApiToken);
+    } catch (err2) {
+      const message2 = err2 instanceof Error ? err2.message : String(err2);
+      throw isDnsCredentialFailure(message2)
+        ? enrichDnsError(err2, context, g)
+        : err2;
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Desired-state reconciliation (multi-model → one Caddy)
 // ---------------------------------------------------------------------------
@@ -3334,6 +3794,24 @@ function emptyDesired(
 }
 
 /**
+ * Drop the base-domain apex from a TLS subject list.
+ *
+ * A base domain (e.g. `example.com`) is a *zone*, shared by many hosts, not a
+ * hostname this Caddy should claim. An earlier version of this extension's own
+ * gap command suggested adding it (`subjects:json=["*.example.com","example.com"]`),
+ * so a model may carry the apex from that. Normalise it away: the apex is
+ * removed, while a wildcard (`*.example.com`) and real subdomains stay. Applied
+ * wherever subjects are read, so the correction also persists on the next save.
+ */
+export function withoutBaseDomainApex(
+  subjects: string[],
+  baseDomain: string,
+): string[] {
+  if (!baseDomain) return subjects;
+  return subjects.filter((s) => s !== baseDomain);
+}
+
+/**
  * Read this model's previously stored desired state and refresh the
  * model-level fields (target/serviceName/listenAddrs/autoHttps) from the
  * current global args, keeping the accumulated routes/tls/statusPage.
@@ -3353,10 +3831,21 @@ async function loadOwnDesired(
     stored = null;
   }
   if (!stored) return base;
+  const tls = stored.tls ?? null;
+  if (tls) {
+    const pruned = withoutBaseDomainApex(tls.subjects ?? [], base.baseDomain);
+    if (pruned.length !== (tls.subjects?.length ?? 0)) {
+      context.logger?.info(
+        "Dropped the base domain apex '{apex}' from TLS subjects — the apex is the zone, not a hostname this Caddy claims",
+        { apex: base.baseDomain },
+      );
+      tls.subjects = pruned;
+    }
+  }
   return {
     ...base,
     routes: Array.isArray(stored.routes) ? stored.routes : [],
-    tls: stored.tls ?? null,
+    tls,
     statusPage: stored.statusPage ?? null,
     // dnsRecords/dnsRemovals follow the global args (like listenAddrs), NOT the
     // stored copy: the stored value is only ever written from the globals, so
@@ -3382,7 +3871,40 @@ function desiredFromRecord(rec: Record<string, unknown>): DesiredState | null {
   if (typeof d.target !== "string" || typeof d.serviceName !== "string") {
     return null;
   }
-  return d as unknown as DesiredState;
+  const state = d as unknown as DesiredState;
+  // Normalise away the base-domain apex (an earlier version's gap command told
+  // the user to add it); see withoutBaseDomainApex.
+  if (state.tls) {
+    state.tls.subjects = withoutBaseDomainApex(
+      state.tls.subjects ?? [],
+      state.baseDomain ?? "",
+    );
+  }
+  return state;
+}
+
+/**
+ * The names of the models this repo actually defines.
+ *
+ * Reconcile merges every model whose (target, serviceName) matches. An
+ * auto-created *scratch* instance — the `caddy-upgrade-scan` a discovery step
+ * creates, or an `audit`/`plan` scratch — carries default globals and must never
+ * be merged into a real model's config, or it conflicts (a differing
+ * `autoHttps`, email, …). Model definitions a user created live in the repo
+ * (found by {@link discoverCaddyModels}); scratch instances live under
+ * `.swamp/` and are not. Returns null when the repo root is unknown, so callers
+ * skip filtering rather than guess.
+ */
+async function realCaddyModelNames(
+  context: MethodContext,
+): Promise<Set<string> | null> {
+  if (!context.repoDir) return null;
+  try {
+    const refs = await discoverCaddyModels(context.repoDir);
+    return new Set(refs.map((r) => r.name));
+  } catch {
+    return null;
+  }
 }
 
 /** Collect this model's + every peer's desired state for the same target. */
@@ -3402,12 +3924,15 @@ async function gatherDesiredForTarget(
   } catch {
     return states;
   }
+  // Never merge an auto-created scratch instance into a real model's config.
+  const realNames = await realCaddyModelNames(context);
   for (const r of records) {
     const rec = r as Record<string, unknown>;
     const name = typeof rec.modelName === "string"
       ? rec.modelName
       : (rec.tags as Record<string, string> | undefined)?.modelName;
     if (!name || name === own.modelName) continue;
+    if (realNames && !realNames.has(name)) continue;
     const d = desiredFromRecord(rec);
     if (d && caddyTargetKey(d.target, d.serviceName) === key) states.push(d);
   }
@@ -3429,9 +3954,12 @@ async function gatherAllDesired(
   }
   const seen = new Set<string>();
   const out: DesiredState[] = [];
+  // Exclude auto-created scratch instances (see realCaddyModelNames).
+  const realNames = await realCaddyModelNames(context);
   for (const r of records) {
     const d = desiredFromRecord(r as Record<string, unknown>);
     if (!d) continue;
+    if (realNames && !realNames.has(d.modelName)) continue;
     const key = `${d.modelName}\u0000${d.target}\u0000${d.serviceName}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -3778,6 +4306,7 @@ async function computeCaddyPlan(
     ? defaultStatusHostnames({
       tlsSubjects: desiredSubjects,
       explicit: merged.statusPage.hostnames,
+      recordHostnames: (merged.dnsRecords ?? []).map((r) => r.name),
       routedHostnames: merged.routes.map((r) => r.hostname),
     })
     : [];
@@ -3867,6 +4396,52 @@ async function computeCaddyPlan(
 }
 
 /**
+ * Prove whether a model is already fully upgraded, from the RUNNING config +
+ * stored facts (not from belief): merge desired, build the config the upgrade
+ * would apply, compare it to what Caddy runs, and check the host facts.
+ */
+async function assessUpToDate(
+  context: MethodContext,
+  own: DesiredState,
+  typeVersionCurrent: boolean,
+  adminToken: string,
+): Promise<{ upToDate: boolean; configInSync: boolean }> {
+  let configInSync = false;
+  try {
+    const plan = await computeCaddyPlan(context, own, adminToken);
+    configInSync = plan.reachable &&
+      JSON.stringify(plan.desiredConfig) === JSON.stringify(plan.actualConfig);
+  } catch {
+    configInSync = false;
+  }
+  const binPath = expandHome(own.caddyBinPath || "~/.local/bin/caddy");
+  const canBind = hasNetBindService(await readCapabilities(binPath));
+  const serviceActive = await isServiceActive(own.serviceName);
+  const missingModules = missingPlugins(
+    withDefaultPlugins(own.plugins ?? []),
+    await compiledPluginPaths(binPath),
+  ).length;
+  const servingSettingsOk = desiredServingSettings({
+    baseDomain: own.baseDomain ?? "",
+    acmeEmail: own.tls?.email ?? "",
+    canBindPrivilegedPorts: canBind,
+    autoHttps: own.autoHttps,
+    listenAddrs: own.listenAddrs ?? [],
+  }) === null;
+  return {
+    upToDate: isUpToDate({
+      typeVersionCurrent,
+      configInSync,
+      serviceActive,
+      canBindPrivilegedPorts: canBind,
+      missingModules,
+      servingSettingsOk,
+    }),
+    configInSync,
+  };
+}
+
+/**
  * Merge every model's desired state for this target and apply the result to the
  * running Caddy. Throws on a real conflict (so it is surfaced, not silently
  * resolved) and returns the merged summary.
@@ -3916,7 +4491,7 @@ async function applyReconcile(
   ]);
   const changed = JSON.stringify(next) !== JSON.stringify(current);
   if (changed) {
-    await writeConfig(g.adminApiAddr, next, g.adminApiToken);
+    await applyConfig(context, g, next);
   }
   return {
     models: merged.models,
@@ -4020,6 +4595,75 @@ async function backendServiceAction(
   }
 }
 
+/** Run the swamp CLI with optional stdin, returning the exit code and output. */
+async function runSwamp(
+  args: string[],
+  stdin?: string,
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  const proc = new Deno.Command("swamp", {
+    args,
+    stdin: stdin === undefined ? "null" : "piped",
+    stdout: "piped",
+    stderr: "piped",
+  });
+  if (stdin === undefined) {
+    const out = await proc.output();
+    return {
+      code: out.code,
+      stdout: new TextDecoder().decode(out.stdout),
+      stderr: new TextDecoder().decode(out.stderr),
+    };
+  }
+  const child = proc.spawn();
+  const writer = child.stdin.getWriter();
+  await writer.write(new TextEncoder().encode(stdin));
+  await writer.close();
+  const out = await child.output();
+  return {
+    code: out.code,
+    stdout: new TextDecoder().decode(out.stdout),
+    stderr: new TextDecoder().decode(out.stderr),
+  };
+}
+
+/**
+ * Persist changes to a model's global arguments (merging `patch`) via the swamp
+ * CLI, the same non-interactive pipeline the README documents — so a setting the
+ * extension worked out is written back and survives future runs.
+ */
+async function persistGlobalArgs(
+  context: MethodContext,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  const name = context.definition?.name;
+  if (!name) throw new Error("cannot persist global args: model has no name");
+  const get = await runSwamp(["model", "get", name, "--json"]);
+  if (get.code !== 0) {
+    throw new Error(
+      `swamp model get ${name} failed (${get.code}): ${get.stderr}`,
+    );
+  }
+  const def = JSON.parse(get.stdout) as Record<string, unknown>;
+  const globalArgs = {
+    ...(def.globalArguments as Record<string, unknown> ?? {}),
+    ...patch,
+  };
+  const body = JSON.stringify({
+    name: def.name,
+    version: def.version,
+    tags: def.tags ?? {},
+    globalArguments: globalArgs,
+  });
+  const edit = await runSwamp(["model", "edit", name, "--json"], body);
+  if (edit.code !== 0) {
+    throw new Error(
+      `swamp model edit ${name} failed (${edit.code}): ${
+        edit.stderr || edit.stdout
+      }`,
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Model
 // ---------------------------------------------------------------------------
@@ -4027,6 +4671,8 @@ async function backendServiceAction(
 type MethodContext = {
   globalArgs: GlobalArgs;
   definition?: { id: string; name: string; version: string };
+  /** Repository root — used to discover sibling model definitions. */
+  repoDir?: string;
   logger?: {
     info: (msg: string, props?: Record<string, unknown>) => void;
     debug?: (msg: string, props?: Record<string, unknown>) => void;
@@ -4060,7 +4706,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.08.1",
+  version: "2026.10.10.14",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -4306,6 +4952,18 @@ export const model = {
         "Adding a route now implies the DNS and TLS it needs, so `ensureDnsProxy` alone makes a hostname reachable. At merge time, every route hostname under one of this Caddy's base domains is added to the TLS subjects (global autoRouteTls, default true) and given an A record in dnsRecords (autoRouteDns, default true) pointing at routeIp or, when empty, the IP this Caddy already declares for that zone. This is pure derivation — an existing subject or record is never duplicated, a name already covered by a wildcard subject is left alone, and a record named in dnsRemovals is skipped. New globals autoRouteTls, autoRouteDns and routeIp are additive and default to the safe behaviour, so existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.10.1",
+      description:
+        "Test-only: the shipped acceptance fixture (`test-factory.yaml`) gains an `isolation:` boundary negative control — because Caddy serves its health contract inside the harness container, a `noPublishedPorts: [harness]` check proves the container publishes no port to the dev host, so the listener is reachable only on the test-factory network. No model schema, argument or resource-shape change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.10.14",
+      description:
+        "Adds a single, documented upgrade path with no model name to remember. Two read-only methods: `upgradeTargets` lists every @svendowideit/caddy model the repo defines (read from the model definition files, so a never-run model is found and the auto-created scratch instance is not) with its target/baseDomain/email/staleness; `upgradeCheck` reports everything blocking the Caddy from serving (CAP_NET_BIND_SERVICE for 80/443, baseDomain, ACME email, TLS, DNS provider/records, stale binary, service health) with the exact fix command for each. The shipped `@svendowideit/caddy-upgrade` workflow discovers the model(s) — using the single one, or stopping and listing them when there are several — prints the gap report, pauses at one approval gate, then migrates the definition, rebuilds only a stale binary, re-grants the capability, regenerates the unit, restarts, re-applies status page/DNS, and re-runs the gap report. No global arguments change; existing models upgrade automatically when the workflow first runs a method.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -4361,6 +5019,24 @@ export const model = {
       schema: UpgradeOutputSchema,
       lifetime: "infinite",
       garbageCollection: 10,
+    },
+    upgradeTargets: {
+      description: "Every @svendowideit/caddy model this repo defines",
+      schema: UpgradeTargetsOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    upgradeCheck: {
+      description: "Pre/post-upgrade readiness check for one Caddy model",
+      schema: UpgradeCheckOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    serving: {
+      description: "Normalised automatic-HTTPS / listen-address settings",
+      schema: ServingOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
     },
     health: {
       description: "Caddy service + admin API health check",
@@ -5066,43 +5742,58 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
-        const issuer = args.issuer === "internal" ? "internal" : "";
-        const email = args.email ?? g.letsEncryptEmail ?? "";
+        // Preserve anything already configured: an omitted argument falls back to
+        // the current TLS config, so re-running configureTls to change one thing
+        // (e.g. add a DNS provider) never loses the email or subjects you already
+        // gave. Anything passed explicitly still overrides.
+        const own = await loadOwnDesired(context, g);
+        const existing = own.tls;
+        const issuer = (args.issuer ?? existing?.issuer ?? "") === "internal"
+          ? "internal"
+          : "";
+        const email = args.email ?? g.letsEncryptEmail ?? existing?.email ?? "";
+        const dnsProvider = args.dnsProvider ?? existing?.dnsProvider ?? "";
+        const providerConfig = args.providerConfig ??
+          existing?.providerConfig ??
+          {};
+        const subjects = withoutBaseDomainApex(
+          args.subjects ?? existing?.subjects ?? [],
+          g.baseDomain ?? "",
+        );
         // The internal (local CA) issuer needs no ACME account, so an email is
         // only required for the default ACME issuer.
         if (!email && issuer !== "internal") {
           throw new Error(
-            "email is required — set letsEncryptEmail or pass it to configureTls (or pass issuer=internal to use Caddy's local CA)",
+            "email is required — set letsEncryptEmail, pass it to configureTls, or pass issuer=internal to use Caddy's local CA",
           );
         }
         if (email) validateEmail(email);
 
-        const own = await loadOwnDesired(context, g);
         own.tls = {
           email,
-          dnsProvider: args.dnsProvider ?? "",
-          dnsEnvVar: args.dnsEnvVar ?? "",
-          providerConfig: args.providerConfig ?? {},
-          subjects: args.subjects ?? [],
+          dnsProvider,
+          dnsEnvVar: args.dnsEnvVar ?? existing?.dnsEnvVar ?? "",
+          providerConfig,
+          subjects,
           issuer,
         };
         await saveAndReconcile(context, g, own);
 
-        const credentialFields = args.providerConfig
-          ? Object.keys(args.providerConfig)
-          : args.dnsProvider
+        const credentialFields = Object.keys(providerConfig).length > 0
+          ? Object.keys(providerConfig)
+          : dnsProvider
           ? ["api_token"]
           : [];
 
         context.logger?.info(
           "Configured TLS: email={email} dnsProvider={dnsProvider}",
-          { email, dnsProvider: args.dnsProvider ?? "(none)" },
+          { email, dnsProvider: dnsProvider || "(none)" },
         );
 
         const handle = await context.writeResource("tlsConfig", "current", {
           email,
-          dnsProvider: args.dnsProvider ?? "",
-          subjects: args.subjects ?? [],
+          dnsProvider,
+          subjects,
           credentialFields,
           configuredAt: new Date().toISOString(),
         });
@@ -5351,6 +6042,594 @@ export const model = {
           adminApiReachable,
           healthy: health.healthy,
           status: health.status,
+          checkedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    upgradeTargets: {
+      description:
+        "Discover every @svendowideit/caddy model this repo defines, with the settings an upgrade needs — no model name required",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const repoDir = context.repoDir ?? Deno.cwd();
+        const refs = await discoverCaddyModels(repoDir);
+        // Prefer what each model is actually *configured* with (its stored
+        // desired state) over the definition's globals — configureTls records
+        // the email/provider there, so a model with no global email is not
+        // misreported as "unset".
+        const desiredByModel = new Map<string, DesiredState>();
+        if (context.queryData) {
+          try {
+            const records = await context.queryData(
+              'modelType == "@svendowideit/caddy" && specName == "desired"',
+            );
+            for (const r of records) {
+              const d = desiredFromRecord(r as Record<string, unknown>);
+              if (d) desiredByModel.set(d.modelName, d);
+            }
+          } catch {
+            // no data access — fall back to the definition globals.
+          }
+        }
+        const models: Array<{
+          name: string;
+          target: string;
+          serviceName: string;
+          baseDomain: string;
+          letsEncryptEmail: string;
+          dnsProvider: string;
+          typeVersion: string;
+          staleness: "current" | "upgradable" | "unknown";
+          upToDate: boolean;
+        }> = [];
+        for (const r of refs) {
+          const configured = desiredByModel.get(r.name);
+          // Prove up-to-date against the running config (not belief): a model
+          // that is already correct must not be listed as needing an upgrade.
+          let upToDate = false;
+          if (configured) {
+            try {
+              upToDate = (await assessUpToDate(
+                context,
+                configured,
+                r.typeVersion === model.version,
+                context.globalArgs.adminApiToken ?? "",
+              )).upToDate;
+            } catch {
+              upToDate = false;
+            }
+          }
+          models.push({
+            name: r.name,
+            target: r.target || "(local host)",
+            serviceName: r.serviceName,
+            baseDomain: r.baseDomain,
+            letsEncryptEmail: configured?.tls?.email || r.letsEncryptEmail,
+            dnsProvider: configured?.tls?.dnsProvider ||
+              dnsProviderFromPlugins(r.plugins ?? []),
+            typeVersion: r.typeVersion,
+            staleness: stalenessOf(r.typeVersion, model.version),
+            upToDate,
+          });
+        }
+        if (models.length === 0) {
+          context.logger?.warning?.(
+            "No @svendowideit/caddy model found under {repoDir} — there is nothing to upgrade.",
+            { repoDir },
+          );
+        } else {
+          context.logger?.info(
+            "Found {count} @svendowideit/caddy model(s) in this repo:",
+            { count: models.length },
+          );
+          for (const m of models) {
+            context.logger?.info(
+              "  • {name} — target {target}, service {service}, baseDomain {domain}, ACME email {email}, DNS provider {provider}, typeVersion {v} ({staleness})",
+              {
+                name: m.name,
+                target: m.target,
+                service: m.serviceName,
+                domain: m.baseDomain || "(unset)",
+                email: m.letsEncryptEmail || "(unset)",
+                provider: m.dnsProvider || "(unset)",
+                v: m.typeVersion || "?",
+                staleness: m.staleness,
+              },
+            );
+            if (m.upToDate) {
+              context.logger?.info(
+                "      DONE — already up to date (nothing to upgrade)",
+              );
+            } else {
+              context.logger?.info(
+                "      upgrade it: swamp workflow run @svendowideit/caddy-upgrade --input model={name}",
+                { name: m.name },
+              );
+            }
+          }
+        }
+        const handle = await context.writeResource(
+          "upgradeTargets",
+          "targets",
+          {
+            repoDir,
+            count: models.length,
+            names: models.map((m) => m.name).join(", "),
+            firstModel: models.length > 0 ? models[0].name : "",
+            models,
+            discoveredAt: new Date().toISOString(),
+          },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    upgradeCheck: {
+      description:
+        "Report everything blocking this Caddy from serving — the capability to bind 80/443, baseDomain/ACME email, TLS, DNS provider/records, a stale binary, service health — each with the exact command to fix it",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const name = context.definition?.name ?? "";
+        const serviceName = g.serviceName;
+        const binPath = expandHome(g.caddyBinPath);
+        // The context does not expose the model's `typeVersion`, so read the
+        // definitions on disk. `refs` also lets us see which DNS provider your
+        // other caddy models already use, so we never have to guess one.
+        const refs = await discoverCaddyModels(context.repoDir ?? Deno.cwd());
+        const ref = refs.find((r) => r.name === name);
+        const typeVersion = ref?.typeVersion ?? "";
+
+        const serviceActive = await isServiceActive(serviceName);
+        const caps = await readCapabilities(binPath);
+        const canBind = hasNetBindService(caps);
+        const wanted = withDefaultPlugins(g.plugins ?? []);
+        const compiled = await compiledPluginPaths(binPath);
+        const missingModules = missingPlugins(wanted, compiled);
+        const own = await loadOwnDesired(context, g);
+        const tlsConfigured = !!own.tls &&
+          (!!own.tls.email || (own.tls.subjects?.length ?? 0) > 0 ||
+            !!own.tls.dnsProvider);
+        const dnsProvider = own.tls?.dnsProvider ?? "";
+        const envFile = g.environmentFile ? expandHome(g.environmentFile) : "";
+        const envExists = envFile ? await fileExists(envFile) : false;
+        const dnsRecordCount = g.dnsRecords?.length ?? 0;
+        const acmeEmail = g.letsEncryptEmail || own.tls?.email || "";
+        const pluginProvider = dnsProviderFromPlugins(wanted);
+        let liveProvider = "";
+        let liveConfig: CaddyConfig | null = null;
+        try {
+          liveConfig = await readConfig(
+            g.adminApiAddr,
+            g.adminApiToken,
+            g.listenAddrs,
+            g.autoHttps,
+          );
+          liveProvider = liveTlsInfo(liveConfig).dnsProvider;
+        } catch {
+          // admin API not reachable — skip live detection.
+        }
+        // What hostnames does the running Caddy actually serve? So the run ends
+        // by telling the user the URLs that should now work.
+        const servedHosts = new Set<string>();
+        if (liveConfig) {
+          for (const route of getRoutes(liveConfig)) {
+            for (const h of routeHostnames(route)) servedHosts.add(h);
+          }
+          for (const s of liveTlsInfo(liveConfig).subjects) servedHosts.add(s);
+        }
+        const scheme = g.autoHttps === "off" ? "http" : "https";
+        const urls = [...servedHosts].sort().map((h) => `${scheme}://${h}`);
+
+        // The environmentFile names the provider too — the model's own file, or
+        // the conventional default path when the model does not declare one.
+        const envCandidates = envFile
+          ? [envFile]
+          : [expandHome("~/.config/caddy/dns.env")];
+        let envProvider = "";
+        let envProviderPath = "";
+        for (const candidate of envCandidates) {
+          const found = dnsProviderFromEnvKeys(
+            await readEnvFileKeys(candidate),
+          );
+          if (found) {
+            envProvider = found;
+            envProviderPath = candidate;
+            break;
+          }
+        }
+
+        // Copy-pasteable model-edit pipeline: read the definition, set one
+        // global argument, write it back. See the README's "Change an existing
+        // model" section.
+        const editModel = (jqSet: string): string =>
+          `swamp model get ${name} --json | jq '{name, version, tags, globalArguments} | ${jqSet}' | swamp model edit ${name} --json`;
+
+        // Prove "already done" against the RUNNING config, not just the
+        // definition (see assessUpToDate).
+        const { upToDate, configInSync } = await assessUpToDate(
+          context,
+          own,
+          stalenessOf(typeVersion, model.version) === "current",
+          g.adminApiToken ?? "",
+        );
+
+        // Print the configuration found, so the run shows the user what they are
+        // being asked to confirm before anything is changed.
+        context.logger?.info(
+          "Upgrade check for {name}: baseDomain={domain}, ACME email={email}, TLS subjects=[{subjects}], DNS provider={provider}, static records={records}",
+          {
+            name,
+            domain: g.baseDomain || "(none)",
+            email: acmeEmail || "(none)",
+            subjects: (own.tls?.subjects ?? []).join(", ") || "(none)",
+            provider: dnsProvider || pluginProvider || liveProvider ||
+              envProvider ||
+              "(none)",
+            records: String(dnsRecordCount),
+          },
+        );
+        // Then say what it actually serves, so the run ends with the URLs that
+        // should now work — and the ports/HTTPS state, so a high-port or
+        // HTTPS-off config is visible rather than implied.
+        context.logger?.info(
+          urls.length > 0
+            ? "Serving on (listening on {listen}; automatic HTTPS {https}): {urls}"
+            : "Serving on (listening on {listen}; automatic HTTPS {https}): (no hostnames configured yet — add a route, or a TLS subject under baseDomain)",
+          {
+            listen: (g.listenAddrs ?? []).join(", ") || "(none)",
+            https: g.autoHttps === "on" ? "on" : `'${g.autoHttps}'`,
+            urls: urls.join(", "),
+          },
+        );
+
+        // Tell the user, in one place, where the generated HTML page is and how
+        // to verify it — the whole point of the upgrade is that this now works.
+        const statusHosts = defaultStatusHostnames({
+          tlsSubjects: own.tls?.subjects ?? [],
+          recordHostnames: (g.dnsRecords ?? []).map((r) => r.name),
+          routedHostnames: (own.routes ?? []).map((r) => r.hostname),
+        }).filter((h) =>
+          !h.includes("*") && h !== "localhost" && h !== "127.0.0.1" &&
+          h !== "[::1]"
+        );
+        const statusUrls = statusHosts.map((h) => `${scheme}://${h}/`);
+        const primary = statusUrls[0] ?? `${scheme}://localhost/`;
+        context.logger?.info(
+          "Status page (the generated HTML that lists your routes and links): {pages}\n" +
+            "  (also served on http://localhost/ on this host)\n" +
+            "Test it:\n" +
+            "  curl -sI {primary}          # 200 (status page)\n" +
+            "  curl -sI {primary}teapot    # 418 (health contract)\n" +
+            "  curl -sI {primary}nope      # 404\n" +
+            "  curl -s http://localhost:2019/config/ | jq -r '[.apps.http.servers[]?.routes[]?.match[]?.host[]?] | unique[]'",
+          {
+            pages: statusUrls.join(", ") ||
+              "(none — name a hostname via a TLS subject or a DNS record)",
+            primary,
+          },
+        );
+
+        if (upToDate) {
+          context.logger?.info(
+            "Upgrade check for {name}: DONE — already up to date (type version current; the running Caddy config already matches what the upgrade would apply; service healthy). Nothing to upgrade.",
+            { name },
+          );
+        } else {
+          // Not up to date: show how to change each setting, and list what
+          // blocks serving. A confirmation gate is only meaningful if the user
+          // can see what they might correct and how. Brace-containing command
+          // values are passed as props so they are not read as placeholders.
+          context.logger?.info(
+            "To change any of these (then re-run):\n" +
+              "  baseDomain      {domainCmd}\n" +
+              "  email / TLS     {tlsCmd}\n" +
+              "  DNS provider    {providerCmd}\n" +
+              "  DNS records     {recordsCmd}\n" +
+              "  bind 80/443     {setcapCmd}\n" +
+              "  service         {serviceCmd}",
+            {
+              domainCmd: editModel(
+                '.globalArguments.baseDomain = "YOUR.DOMAIN"',
+              ),
+              tlsCmd:
+                `swamp model method run ${name} configureTls --input email=you@example.com --input 'subjects:json=["*.YOUR.DOMAIN"]'`,
+              providerCmd:
+                `swamp model method run ${name} configureTls --input dnsProvider=<provider>   # multi-field providers also --input providerConfig=...`,
+              recordsCmd: `${
+                editModel(
+                  ".globalArguments.dnsRecords = [/* record objects */]",
+                )
+              }  then  swamp model method run ${name} applyDnsRecords`,
+              setcapCmd: renderSetcapCommand(binPath),
+              serviceCmd: `swamp model method run ${name} startService`,
+            },
+          );
+        }
+
+        interface Gap {
+          id: string;
+          message: string;
+          command: string;
+          optional?: boolean;
+        }
+        const gaps: Gap[] = [];
+
+        // Host-level gaps — independent of any domain.
+        if (!serviceActive) {
+          gaps.push({
+            id: "service-inactive",
+            message:
+              "The Caddy systemd user service is not active, so nothing is listening.",
+            command: `swamp model method run ${name} startService`,
+          });
+        }
+        if (!canBind) {
+          gaps.push({
+            id: "cannot-bind-privileged-ports",
+            message:
+              "Caddy cannot bind ports 80/443 (needed for the HTTP-01 certificate challenge): the binary lacks CAP_NET_BIND_SERVICE and swamp has no sudo.",
+            command: renderSetcapCommand(binPath),
+          });
+        }
+        if (missingModules.length > 0) {
+          gaps.push({
+            id: "missing-modules",
+            message: `The Caddy binary is missing compiled modules: ${
+              missingModules.join(", ")
+            }.`,
+            command: `swamp model method run ${name} installCaddy`,
+          });
+        }
+
+        if (!g.baseDomain) {
+          // Every TLS/DNS gap needs a domain to be specific. Report the one
+          // blocking step, not five vague ones that depend on it.
+          gaps.push({
+            id: "no-base-domain",
+            message:
+              "No baseDomain is set — the domain this Caddy serves (e.g. example.com) — so there is no domain for TLS subjects or DNS records. Set this first, then re-run upgradeCheck to see the rest.",
+            command: editModel('.globalArguments.baseDomain = "YOUR.DOMAIN"'),
+          });
+        } else {
+          const domain = g.baseDomain;
+          // The automatic-HTTPS / listen-address settings are the extension's to
+          // own, not the user's: the upgrade normalises them (see
+          // normalizeServingSettings) rather than reporting them as gaps.
+          if (!tlsConfigured) {
+            gaps.push({
+              id: "no-tls",
+              message:
+                `No TLS is configured, so Caddy has no certificate for *.${domain} (this also sets the ACME email). Only the wildcard ${domain} is added — add any other hostnames you want explicitly.`,
+              command:
+                `swamp model method run ${name} configureTls --input email=${
+                  acmeEmail || "you@example.com"
+                } --input 'subjects:json=["*.${domain}"]'`,
+            });
+          }
+          // A DNS provider is optional — only for a wildcard cert (DNS-01) or
+          // for letting Caddy write static records. Detect which one your setup
+          // already uses — this model's plugins, the running Caddy config, the
+          // env file, or your other caddy models — instead of assuming one.
+          if (!dnsProvider) {
+            const others = refs
+              .filter((r) => r.name !== name)
+              .map((r) => ({
+                model: r.name,
+                provider: dnsProviderFromPlugins(r.plugins ?? []),
+              }))
+              .filter((x) => x.provider);
+            const detected = pluginProvider || liveProvider || envProvider ||
+              (others.length > 0 ? others[0].provider : "");
+            const source = pluginProvider
+              ? "this model's plugins"
+              : liveProvider
+              ? "the running Caddy config"
+              : envProvider
+              ? `the env file ${envProviderPath}`
+              : others.length > 0
+              ? `your other model '${others[0].model}'`
+              : "";
+            if (detected) {
+              const fields = DNS_PROVIDER_CREDENTIALS[detected] ??
+                { api_token: "CADDY_DNS_API_TOKEN" };
+              const envPath = envProviderPath || envFile ||
+                "~/.config/caddy/dns.env";
+              // If we read the token's variable name out of the env file, it is
+              // already there — don't tell the user to add it again.
+              const tokenPresent = !!envProviderPath;
+              const configJson = "{" +
+                Object.entries(fields).map(([f, e]) => `"${f}":"${e}"`).join(
+                  ",",
+                ) +
+                "}";
+              const envLines = Object.entries(fields).map(
+                ([, e]) => `      #     ${e}=<your ${detected} token>`,
+              ).join("\n");
+              const plugin = DNS_PROVIDER_PLUGINS[detected] ??
+                `github.com/caddy-dns/${detected}`;
+              const plugSet = wanted.some((p) => p.split("@")[0] === plugin);
+              gaps.push({
+                id: "no-dns-provider",
+                message:
+                  `Optional (only for a wildcard cert *.${domain} or static records): no DNS provider is set on this model. Detected '${detected}' from ${source} — if that is what you use:`,
+                command:
+                  `# add the ${detected} driver to the model and point it at the env file:\n` +
+                  `      ${
+                    editModel(
+                      `${
+                        plugSet
+                          ? ""
+                          : `.globalArguments.plugins = ["${plugin}"] | `
+                      }.globalArguments.environmentFile = "${envPath}"`,
+                    )
+                  }\n` +
+                  (tokenPresent
+                    ? `      # the token is already in ${envPath}; now:\n`
+                    : `      # put the token(s) in ${envPath}:\n${envLines}\n`) +
+                  `      swamp model method run ${name} installCaddy\n` +
+                  `      swamp model method run ${name} configureTls --input dnsProvider=${detected} --input 'providerConfig:json=${configJson}'`,
+                optional: true,
+              });
+            } else {
+              const supported = Object.keys(DNS_PROVIDER_PLUGINS).join(", ");
+              gaps.push({
+                id: "no-dns-provider",
+                message:
+                  `Optional (only for a wildcard cert *.${domain} or static records): no DNS provider is set, and none could be detected. Which DNS provider do you use? Supported: ${supported}.`,
+                command:
+                  `# 1. add ONE driver for your provider and an env file to the model\n` +
+                  `      #    (replace <provider> with one of: ${supported}):\n` +
+                  `      ${
+                    editModel(
+                      `.globalArguments.plugins = ["github.com/caddy-dns/<provider>"] | .globalArguments.environmentFile = "~/.config/caddy/dns.env"`,
+                    )
+                  }\n` +
+                  `      # 2. put the provider token in ~/.config/caddy/dns.env (see the README's DNS section for the field/env-var names), then:\n` +
+                  `      swamp model method run ${name} installCaddy\n` +
+                  `      swamp model method run ${name} configureTls --input dnsProvider=<provider> --input 'providerConfig:json={"<field>":"<ENV_VAR>"}'`,
+                optional: true,
+              });
+            }
+          }
+          if (dnsRecordCount === 0) {
+            gaps.push({
+              id: "no-dns-records",
+              message:
+                `Optional: no static DNS records are declared, so a hostname you route under ${domain} has no A/AAAA record created by swamp.`,
+              command:
+                `# declare an A record (replace the host and server IP), then apply it:\n` +
+                `      ${
+                  editModel(
+                    `.globalArguments.dnsRecords = [{"name":"app.${domain}","type":"A","value":["YOUR.SERVER.IP"],"zone":"${domain}"}]`,
+                  )
+                }\n` +
+                `      swamp model method run ${name} applyDnsRecords`,
+              optional: true,
+            });
+          }
+        }
+
+        const required = gaps.filter((gap) => !gap.optional);
+        if (required.length === 0) {
+          context.logger?.info(
+            "Upgrade check for {name}: ready — nothing blocks Caddy serving.",
+            { name },
+          );
+        } else {
+          context.logger?.warning?.(
+            "Upgrade check for {name}: {count} thing(s) to fix:",
+            { name, count: required.length },
+          );
+        }
+        if (!upToDate) {
+          for (const gap of gaps) {
+            context.logger?.warning?.(
+              `${gap.optional ? "  •" : "  ✗"} {message}\n      fix: {command}`,
+              { message: gap.message, command: gap.command },
+            );
+          }
+        }
+
+        const handle = await context.writeResource("upgradeCheck", "current", {
+          model: name,
+          typeVersion,
+          currentVersion: model.version,
+          staleness: stalenessOf(typeVersion, model.version),
+          upToDate,
+          configInSync,
+          serviceName,
+          serviceActive,
+          canBindPrivilegedPorts: canBind,
+          missingModules,
+          baseDomain: g.baseDomain ?? "",
+          letsEncryptEmail: g.letsEncryptEmail ?? "",
+          tlsConfigured,
+          dnsProvider,
+          dnsRecordCount,
+          environmentFile: envFile,
+          environmentFileExists: envExists,
+          gaps,
+          ok: required.length === 0,
+          checkedAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    normalizeServingSettings: {
+      description:
+        "Make this model's automatic-HTTPS and listen-address settings match what it wants (public HTTPS) and what this host can do (bind 80/443) — correcting and persisting them. E.g. once the binary can bind privileged ports, switch off the unprivileged high-port preset the extension originally used because it could not.",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const name = context.definition?.name ?? "";
+        const binPath = expandHome(g.caddyBinPath);
+        const canBind = hasNetBindService(await readCapabilities(binPath));
+        const own = await loadOwnDesired(context, g);
+        const acmeEmail = g.letsEncryptEmail || own.tls?.email || "";
+        const want = desiredServingSettings({
+          baseDomain: g.baseDomain ?? "",
+          acmeEmail,
+          canBindPrivilegedPorts: canBind,
+          autoHttps: g.autoHttps,
+          listenAddrs: g.listenAddrs ?? [],
+        });
+        if (!want) {
+          context.logger?.info(
+            "Serving settings OK for {name}: autoHttps={autoHttps}, listenAddrs=[{listens}]",
+            {
+              name,
+              autoHttps: g.autoHttps,
+              listens: (g.listenAddrs ?? []).join(", ") || "(none)",
+            },
+          );
+        } else {
+          context.logger?.info(
+            "Normalising serving settings for {name}: autoHttps {oldAuto} -> {newAuto}, listenAddrs [{oldListens}] -> [{newListens}] (Caddy can now bind 80/443, so the unprivileged high-port preset is no longer needed)",
+            {
+              name,
+              oldAuto: g.autoHttps,
+              newAuto: want.autoHttps,
+              oldListens: (g.listenAddrs ?? []).join(", ") || "(none)",
+              newListens: want.listenAddrs.join(", "),
+            },
+          );
+          try {
+            await persistGlobalArgs(context, {
+              autoHttps: want.autoHttps,
+              listenAddrs: want.listenAddrs,
+            });
+            context.logger?.info(
+              "Saved the corrected serving settings on model {name}",
+              { name },
+            );
+          } catch (err) {
+            context.logger?.warning?.(
+              "Could not save the corrected serving settings on {name} ({error}) — not fatal; it will be retried on the next run",
+              {
+                name,
+                error: err instanceof Error ? err.message : String(err),
+              },
+            );
+          }
+        }
+        const handle = await context.writeResource("serving", "current", {
+          model: name,
+          autoHttps: want?.autoHttps ?? g.autoHttps,
+          listenAddrs: want?.listenAddrs ?? (g.listenAddrs ?? []),
+          changed: !!want,
           checkedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };

@@ -8,7 +8,7 @@ description: >
   "manifest description", "is my extension well documented", "extension quality
   score", "meta-factory", or any work inside extensions/. Requires a full
   user-manual manifest description and visible What it does / Install /
-  Configuration / Examples / Details README sections, and produces a
+  Configuration / Examples / Upgrade / Details README sections, and produces a
   deterministic 0-100 documentation score.
 ---
 
@@ -35,7 +35,7 @@ documentation gap. Apply this to **every** swamp extension you touch.
 
 ## The manifest manual contract
 
-The manifest `description:` must cover all seven elements
+The manifest `description:` must cover all eight elements
 (`MANUAL_ELEMENTS` in `quality-rubric.ts`), and be at least 300 characters.
 **Put the important information first**, in this canonical order
 (`MANUAL_ORDER`) — the method reference goes **last**:
@@ -47,7 +47,8 @@ The manifest `description:` must cover all seven elements
 | 3 | `DEPENDENCIES` | its dependencies, or that it has none / is self-contained |
 | 4 | `RUN` | how to run it (a `swamp workflow run` / `swamp model …` command) |
 | 5 | `CONFIGURE` | how to configure its optional parts (global args, `--input`) |
-| 6 | `WHAT IT INSTALLS` | what it puts on the host — services, triggers, webhooks — or none |
+| 6 | `UPGRADE` | how to upgrade an existing install — one workflow that automates it |
+| 7 | `WHAT IT INSTALLS` | what it puts on the host — services, triggers, webhooks — or none |
 
 `WHAT IT DOES` is a 20–140 word pitch so a user can decide it beats a similar
 extension — **not** a dump of every method.
@@ -129,11 +130,46 @@ Every extension README has these `##` sections, in this order:
 | `## Install` | yes | The exact `swamp extension pull <name>` command. |
 | `## Configuration` | yes | A markdown table of every global argument (name, type, default, meaning). |
 | `## Examples` | yes* | Fenced commands showing the options in use. |
+| `## Upgrade` | yes | The single upgrade workflow, explained (see below). |
 | `## Details` | yes | Models, methods, resources, prerequisites, caveats — plus how the code is structured and how to extend/test it. |
 
 \* `## Examples` may be omitted only when the extension has **no configurable
 global arguments** — there is nothing to exemplify. If `## Configuration` is
 present, `## Examples` is required.
+
+## The upgrade workflow — one command to upgrade
+
+Every extension must ship **one** documented upgrade entry point, so an existing
+install can be brought up to date without the user working out which methods to
+re-run. The `upgrade` check (5 pts) and the `## Upgrade` README section enforce
+it.
+
+- The canonical shape is a workflow named `<extension>-upgrade` whose README
+  section shows `swamp workflow run <extension>-upgrade …` and explains what it
+  does automatically and how it collects anything it cannot infer.
+- **Never make the user supply an internal name.** The workflow must discover
+  its own targets (scan the repo / read model data) and, when there is more than
+  one candidate, **list them and ask** rather than requiring `--input model=…`.
+  An identity input is acceptable only as an optional override shown alongside
+  discovery words ("discovers every…", "lists them", "no model name to
+  remember"); an unexplained `--input model=…` caps the check at ⅖.
+- The workflow should do as much as possible automatically: migrate the model
+  definition (a version bump alone only migrates lazily on the next method run),
+  rebuild/reinstall anything on the host, reconcile configuration, restart
+  services, and verify. Make it **idempotent** so re-running is safe.
+- Where it needs information from the user, prompt for it. Use `manual_approval`
+  to confirm a destructive step or to collect/confirm anything that is a secret
+  (write it to a vault or an environment file — **never** send a secret through a
+  `wait_for_signal` payload, which is stored in plaintext); use `wait_for_signal`
+  only for non-secret values, whose JSON answer the run then uses.
+- An extension that installs nothing on the host may instead say so in the
+  section and give `swamp extension update <name>` as the whole upgrade — the
+  check accepts that exemption.
+
+```sh
+# Document and ship the upgrade entry point, then run it after updating.
+swamp workflow run @mycollective/my-extension-upgrade
+```
 
 ## Workflow: when you create or edit an extension
 
@@ -143,7 +179,7 @@ present, `## Examples` is required.
    [references/rubric.md](references/rubric.md); ready-to-adapt manifest and
    README skeletons are in [references/templates.md](references/templates.md).
 
-2. **Draft the manifest manual.** Cover all six elements above. For a new
+2. **Draft the manifest manual.** Cover all eight elements above. For a new
    extension, copy the skeleton from
    [references/templates.md](references/templates.md).
 
@@ -158,7 +194,17 @@ present, `## Examples` is required.
    must name **every method** the extension's models expose, with its
    arguments. The coverage check fails when a method is unnamed.
 
-5. **Score it.** Run the deterministic verification:
+5. **Ship and document the upgrade workflow.** Create the `<extension>-upgrade`
+   workflow with `swamp workflow create`, declare it in the manifest
+   `workflows:`, and write the `## Upgrade` section (see
+   [The upgrade workflow](#the-upgrade-workflow--one-command-to-upgrade)).
+   Validate it before shipping:
+
+   ```sh
+   swamp workflow validate @mycollective/my-extension-upgrade
+   ```
+
+6. **Score it.** Run the deterministic verification:
 
    ```sh
    swamp workflow run @svendowideit/meta-factory \
@@ -174,16 +220,16 @@ present, `## Examples` is required.
      --model @svendowideit/meta-factory --markdown
    ```
 
-6. **Fix below-threshold scores.** The report lists the exact failing checks and
+7. **Fix below-threshold scores.** The report lists the exact failing checks and
    next actions. Re-run until the score clears the threshold (default 75).
 
-7. **Score the whole repo.** Before publishing, or periodically:
+8. **Score the whole repo.** Before publishing, or periodically:
 
    ```sh
    swamp workflow run @svendowideit/meta-factory --input root=extensions
    ```
 
-8. **Print the scoreboard.** For a table of every git-tracked extension and the
+9. **Print the scoreboard.** For a table of every git-tracked extension and the
    reasons each is not 100/100 (pulled/generated copies excluded):
 
    ```sh
@@ -192,28 +238,29 @@ present, `## Examples` is required.
 
 ## What the score measures
 
-The 0-100 score is the weighted sum of eighteen deterministic checks. Full
+The 0-100 score is the weighted sum of nineteen deterministic checks. Full
 detail in [references/rubric.md](references/rubric.md); the weights:
 
 | Check | Points | What it verifies |
 | ----- | ------ | ---------------- |
 | Manifest name + description | 4 | `@collective/name`, non-placeholder description |
 | **`WHAT IT DOES` is a short pitch** | **5** | 20–140 words, not a method dump |
-| Manifest-as-user-manual | 8 | all six manual elements, 300+ chars |
+| Manifest-as-user-manual | 8 | all eight manual elements, 300+ chars |
 | **Manual order (installs last)** | **5** | sections in canonical priority order |
 | **No methods section in the manifest** | **5** | swamp-club generates the method reference at publish |
 | **Single-step install** | **13** | one `swamp extension pull`, no extra setup |
-| Manifest formatting | 5 | literal block, blank-line sections, indented commands |
-| Functional examples | 6 | ≥3 distinct runnable `swamp …` commands, no placeholders |
-| **Explained examples** | **6** | every non-install command says why/when to run it |
-| Canonical README sections | 5 | the five visible sections above |
+| Manifest formatting | 4 | literal block, blank-line sections, indented commands |
+| Functional examples | 5 | ≥3 distinct runnable `swamp …` commands, no placeholders |
+| **Explained examples** | **5** | every non-install command says why/when to run it |
+| Canonical README sections | 6 | the six visible sections above |
 | README substance | 3 | ≥1200 chars, ≥1 table |
-| README + LICENSE packaged | 6 | both listed in `additionalFiles:` |
+| **A documented single upgrade workflow** | **5** | an `## Upgrade` section naming one `swamp workflow run <name>-upgrade` entry point, explained; a required `--input model=`/`name=` identity input caps it at ⅖ unless discovery is documented |
+| README + LICENSE packaged | 5 | both listed in `additionalFiles:` |
 | Platforms / repository / license | 4 | declared metadata |
 | Artifacts declared | 4 | at least one model/report/etc. |
 | README documents every method | 5 | coverage of model types and method names |
-| **Definitions created by swamp** | **5** | model/workflow/vault configs carry a generated, unique `id` — not hand-written or copied; `lintDefinitions` additionally flags a recent definition the `swamp audit` timeline does not confirm |
-| Source symbols documented | 5 | JSDoc coverage via `deno doc --json` |
+| **Definitions created by swamp** | **4** | model/workflow/vault configs carry a generated, unique `id` — not hand-written or copied; `lintDefinitions` additionally flags a recent definition the `swamp audit` timeline does not confirm |
+| Source symbols documented | 4 | JSDoc coverage via `deno doc --json` |
 | No slow types | 3 | no slow-type codes in `deno doc --lint` stderr |
 | Dependency trust | 3 | `swamp extension quality` audit (partial when offline) |
 
@@ -249,7 +296,7 @@ A swamp **definition** — a model, workflow, or vault config YAML — must be
 created with the matching command, never hand-written or copied from another
 extension. These commands assign a fresh `id:` (and, for models, a
 `typeVersion:`); a copied file instead carries the source's `id:`, and a
-hand-written file has none or a fabricated one. The `creation` check (5 pts)
+hand-written file has none or a fabricated one. The `creation` check (4 pts)
 fails on those structural symptoms:
 
 | Definition | Create it with |
@@ -319,3 +366,10 @@ skill is re-scanned.
    `swamp vault create` so swamp assigns a fresh `id`; a copied `id`, a missing
    one, or a recent definition the `swamp audit` timeline cannot confirm fails
    or warns via the `creation` check and `lintDefinitions`.
+8. **Every extension ships one documented upgrade workflow.** Provide an
+   `<extension>-upgrade` workflow that automates the whole upgrade (migrate,
+   rebuild, reconcile, restart, verify), make it idempotent, prompt for anything
+   it cannot infer (secrets only via a gate + vault/env file, never a
+   `wait_for_signal` payload), and document it in the `## Upgrade` README
+   section. An extension that installs nothing on the host may instead document
+   `swamp extension update` as the whole upgrade.

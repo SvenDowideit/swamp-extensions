@@ -9,12 +9,26 @@
  * no API that hands back the manifest path directly, so this module anchors on
  * a bundled asset and walks up from it until it finds the `manifest.yaml`.
  *
- * That makes the manifest the single source of truth for the extension's
- * version, with no version literal duplicated in this file.
+ * That makes the manifest the single source of truth for the *extension*
+ * (package) version. The model's own `version` below is a different thing — the
+ * model-type / data-schema version that drives `typeVersion` and the upgrade
+ * chain — and is deliberately kept different from the manifest version to show
+ * the two are independent.
  *
  * @module
  */
 import { z } from "npm:zod@4";
+
+/**
+ * The model's *schema* (type) version — the version that becomes an instance's
+ * `typeVersion` and that the `upgrades` chain must terminate at.
+ *
+ * This is NOT the extension (package) version, which lives only in
+ * `manifest.yaml` and is read from there at run time. The two are independent in
+ * swamp: an unchanged model keeps its version across extension releases. A test
+ * asserts they stay different.
+ */
+const MODEL_VERSION = "2026.10.10.1";
 
 /** No global arguments. */
 const GlobalArgsSchema = z.object({});
@@ -23,7 +37,12 @@ const GlobalArgsSchema = z.object({});
 const OutputSchema = z.object({
   manifestPath: z.string(),
   exists: z.boolean(),
-  version: z.string(),
+  /** The extension (package) version, read from the model's manifest.yaml. */
+  manifestVersion: z.string(),
+  /** The model-type / schema version from this model object. */
+  modelVersion: z.string(),
+  /** Whether the two happen to be equal (they should not be). */
+  versionsMatch: z.boolean(),
   manifest: z.string(),
 });
 
@@ -90,11 +109,11 @@ export function parseManifestVersion(manifest: string): string {
 /** Model definition for the manifest locator. */
 export const model = {
   type: "@svendowideit/manifest-locator",
-  version: "2026.10.10.3133",
+  version: MODEL_VERSION,
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
-      toVersion: "2026.10.10.3133",
+      toVersion: MODEL_VERSION,
       description:
         "Locate manifest.yaml robustly for pulled extensions: anchor on a bundled additionalFile (or the extension files root) and walk up to the manifest, instead of assuming the manifest sits beside the resolved asset. No global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
@@ -112,7 +131,7 @@ export const model = {
   methods: {
     locate: {
       description:
-        "Print the manifest.yaml path this model was loaded from and its version",
+        "Print the manifest path, the extension version from manifest.yaml, and the model's own schema version",
       arguments: z.object({}),
       execute: async (
         _args: Record<string, never>,
@@ -137,15 +156,27 @@ export const model = {
           // Reported as exists=false below.
         }
 
-        const version = parseManifestVersion(manifest);
+        const manifestVersion = parseManifestVersion(manifest);
+        const modelVersion = model.version;
+        const versionsMatch = manifestVersion === modelVersion;
 
         context.logger?.info("manifest.yaml: {path}", { path: manifestPath });
-        context.logger?.info("manifest.yaml version: {version}", { version });
+        context.logger?.info("extension (manifest) version: {version}", {
+          version: manifestVersion,
+        });
+        context.logger?.info("model (schema) version: {version}", {
+          version: modelVersion,
+        });
+        context.logger?.info("versions match: {versionsMatch}", {
+          versionsMatch,
+        });
 
         const handle = await context.writeResource("location", "manifest", {
           manifestPath,
           exists: manifestPath !== "",
-          version,
+          manifestVersion,
+          modelVersion,
+          versionsMatch,
           manifest,
         });
         return { dataHandles: [handle] };

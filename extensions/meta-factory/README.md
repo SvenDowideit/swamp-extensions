@@ -185,16 +185,50 @@ swamp model @svendowideit/meta-factory method run lintDefinitions meta-factory
 swamp model @svendowideit/meta-factory method run lintDefinitions meta-factory \
   --input auditHours=336
 
-swamp report get @svendowideit/meta-factory-report \
+swap report get @svendowideit/meta-factory-report \
   --model @svendowideit/meta-factory --markdown
 ```
+
+## Upgrade
+
+Upgrade an existing install in one command after updating the extension:
+
+```sh
+# Update the extension, then refresh the bundled skill and re-score.
+swamp extension update @svendowideit/meta-factory
+swamp workflow run @svendowideit/meta-factory-upgrade
+```
+
+Why run it: a version bump alone does nothing on the host. Meta-factory installs
+nothing on the host — its only local side effect is the bundled `extension-docs`
+skill it copies into your tool's skill directory — so the upgrade workflow
+re-installs that skill at the current version (overwriting the previous copy so
+the local skill always matches the installed extension) and re-scores your
+extensions under the new rules, so you can see whether a rubric change moved any
+score. It is idempotent; re-running it is safe.
+
+It takes the skill `target` (`project`, `global`, or `both`), and optionally a
+single `manifest` to score instead of scanning the whole `root`:
+
+```sh
+# Refresh only the project-local skill, and score one extension.
+swamp workflow run @svendowideit/meta-factory-upgrade \
+  --input target=project --input manifest=extensions/models/caddy/manifest.yaml
+```
+
+The re-score step is tolerated to fail, so a below-threshold score does not fail
+the upgrade; read the `summary` (rollup) resource for the numbers. When the
+upgrade also needs new global arguments on the model, the upgrade chain in
+`meta_factory.ts` seeds them on the next method run — the workflow's `checkAll`
+step is that run.
 
 ## Details
 
 `@svendowideit/meta-factory` ships one model type (`@svendowideit/meta-factory`),
 two reports (`@svendowideit/meta-factory-report`, `@svendowideit/meta-factory-scoreboard`),
-two workflows (`@svendowideit/meta-factory`, `@svendowideit/meta-factory-scoreboard`),
-and the `extension-docs` skill. Every method:
+three workflows (`@svendowideit/meta-factory`, `@svendowideit/meta-factory-scoreboard`,
+`@svendowideit/meta-factory-upgrade`), and the `extension-docs` skill. Every
+method:
 
 | Method | Arguments | Produces |
 | ------ | --------- | -------- |
@@ -231,19 +265,22 @@ Reports and workflows:
 - `@svendowideit/meta-factory-scoreboard` workflow — scores only git-tracked
   extensions (`checkAll gitOnly=true`) and prints the scoreboard, without
   gating.
+- `@svendowideit/meta-factory-upgrade` workflow — refreshes the bundled skill
+  and re-scores; the single upgrade entry point (see [Upgrade](#upgrade)).
 
-The score is the weighted sum of eighteen checks (maximum 100): manifest name
+The score is the weighted sum of nineteen checks (maximum 100): manifest name
 and description (4), short `WHAT IT DOES` pitch (5), manifest-as-user-manual
 (8), manual section order, installs last (5), **no methods section in the
-manifest (5)**, single-step install (13), manifest formatting (5), functional
-examples (6), explained examples (6), canonical README sections (5), README
-substance (3), README + LICENSE packaging (6), platforms/repository/license
-metadata (4), declared artifacts (4), README coverage of every model and method
-(5), **definitions created by swamp creation commands (5)**, JSDoc symbol
-coverage (5), no slow-type diagnostics from `deno doc --lint` (3, filtered to
-the rubric's slow-type codes so JSDoc warnings are not double-counted), and
-dependency trust (3). Grades: A ≥ 90, B ≥ 75, C ≥ 60, D ≥ 40, else F. The full
-breakdown is in the bundled skill's `references/rubric.md`.
+manifest (5)**, single-step install (13), manifest formatting (4), functional
+examples (5), explained examples (5), canonical README sections (6), README
+substance (3), **a documented single upgrade workflow (5)**, README + LICENSE
+packaging (5), platforms/repository/license metadata (4), declared artifacts
+(4), README coverage of every model and method (5), **definitions created by
+swamp creation commands (4)**, JSDoc symbol coverage (4), no slow-type
+diagnostics from `deno doc --lint` (3, filtered to the rubric's slow-type codes
+so JSDoc warnings are not double-counted), and dependency trust (3). Grades:
+A ≥ 90, B ≥ 75, C ≥ 60, D ≥ 40, else F. The full breakdown is in the bundled
+skill's `references/rubric.md`.
 
 ### Code metrics (CRAP)
 
@@ -294,7 +331,7 @@ touching orchestration:
 
 | File | Responsibility |
 | ---- | -------------- |
-| `quality-rubric.ts` | The contract and scorer: `SECTIONS`, `MANUAL_ELEMENTS`, `WEIGHTS`, every `check*` function (including `checkFormat` and `checkExamples`), and `scoreExtension`. Pure — manifests are parsed from YAML text, README from markdown text. |
+| `quality-rubric.ts` | The contract and scorer: `SECTIONS`, `MANUAL_ELEMENTS`, `WEIGHTS`, every `check*` function (including `checkFormat`, `checkExamples`, and `checkUpgrade`), and `scoreExtension`. Pure — manifests are parsed from YAML text, README from markdown text. |
 | `readme-lint.ts` | README structural lint (canonical sections, heading levels, config table, code blocks). |
 | `manifest-lint.ts` | Manifest structural lint (required fields, CalVer, manual coverage, artifact existence). |
 | `definitions-lint.ts` | Creation-command lint: classifies each model/workflow/vault config, checks its `id` is generated, valid, and unique, and cross-references the `swamp audit` timeline (`parseCreationCommands`) to flag a recent definition no create command confirms. Pure per-source; `lintDefinitions` only walks the filesystem. |
@@ -324,7 +361,18 @@ weight to `WEIGHTS`, and include it in the `checks` array in `scoreExtension`.
 Keep `Object.values(WEIGHTS)` summing to 100 — rebalance existing weights when
 adding one. To change what the manifest manual must contain: edit
 `MANUAL_ELEMENTS` (both the scorer and `manifest-lint.ts` consume it). To change
-the README section contract: edit `SECTIONS`.
+the README section contract: edit `SECTIONS` (both the scorer and
+`readme-lint.ts` consume it). The `upgrade` check is the worked example of all
+three: it adds an `UPGRADE` manual element, an `## Upgrade` README section, and a
+`checkUpgrade` function (in `checks`) that scores the documented single upgrade
+workflow; adding the section to `SECTIONS` also made `readme-lint.ts` require it.
+`checkUpgrade` rewards a `swamp workflow run <name>-upgrade` command with an
+explanation of what is automatic and how the user is prompted, and accepts a
+"installs nothing on the host, so `swamp extension update` is the whole upgrade"
+exemption. It also enforces the **no-memory-game** rule: an upgrade must discover
+its own targets, so an `--input model=…`/`--input name=…` identity input caps the
+check at ⅖ unless the section also explains the discovery ("discovers every…",
+"lists them", "no model name to remember").
 
 ### Developing and testing
 

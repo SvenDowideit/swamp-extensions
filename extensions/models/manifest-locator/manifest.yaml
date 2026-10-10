@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/manifest-locator"
-version: "2026.10.10.3187"
+version: "2026.10.10.3289"
 description: >
   Prints the absolute path to this extension's own `manifest.yaml`, resolved at
   method-run time.
@@ -13,10 +13,12 @@ description: >
     `<extension-dir>/files/` and its `manifest.yaml` one level up, so the method
     anchors on a bundled asset and walks up to the manifest rather than assuming
     they sit side by side. That makes the manifest the single source of truth for
-    the extension's version, with no version literal duplicated in the source.
-    The method logs the path and version and writes a `location` resource holding
-    the path, whether the file exists, the version parsed from it, and the raw
-    YAML.
+    the extension (package) version. The model object's own `version` is the
+    model-type / schema version (it drives `typeVersion` and the upgrade chain) —
+    a different value, kept deliberately different here — so the method prints
+    both to show they are independent. It writes a `location` resource holding the
+    path, whether the file exists, the extension version, the model schema
+    version, whether they match, and the raw YAML.
 
   INSTALL
 
@@ -28,10 +30,12 @@ description: >
 
   RUN
 
-      # Run the locate method and print the manifest path and version.
+      # Run the locate method: prints the manifest path and both versions.
       swamp model @svendowideit/manifest-locator method run locate manifest-locator
 
-      # Read the recorded path and version from the resource.
+      # Read the recorded path and both versions from the resource; note
+      # versionsMatch is false — the model schema version is not the extension
+      # version.
       swamp data query 'model("manifest-locator") && name == "location"' --select content
 
   WHAT IT INSTALLS

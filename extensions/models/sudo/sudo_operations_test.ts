@@ -21,6 +21,7 @@ Deno.test("filesystem/account-mutating operations are localOnly (refuse remote r
       "removePath",
       "copyDirectory",
       "runScript",
+      "setcap",
     ]
   ) {
     assertEquals(getOperation(id)!.localOnly, true, `${id} must be localOnly`);
@@ -54,6 +55,7 @@ Deno.test("writeFile is removed; the default allowlist is the narrow set", () =>
       "removePath",
       "copyDirectory",
       "runScript",
+      "setcap",
     ]
   ) {
     assertEquals(getOperation(id) !== undefined, true, `${id} missing`);
@@ -146,6 +148,10 @@ Deno.test("absolute-path operations reject relative paths", () => {
   );
   assertThrows(() => getOperation("removePath")!.build({ path: "tmp/x" }));
   assertThrows(() => getOperation("runScript")!.build({ script: "-c" }));
+  assertThrows(() => getOperation("setcap")!.build({ path: "rel/bin" }));
+  assertThrows(() =>
+    getOperation("setcap")!.build({ path: "/bin/x", capabilities: "-r" })
+  );
 });
 
 Deno.test("installFile builds an install -D -m argv", () => {
@@ -253,4 +259,26 @@ Deno.test("manageService builds a normalised systemctl argv", () => {
     getOperation("manageService")!.build({ unit: "caddy", action: "restart" }),
     { kind: "argv", argv: ["systemctl", "restart", "caddy"] },
   );
+});
+
+Deno.test("setcap builds a setcap argv with the capability and path", () => {
+  assertEquals(
+    getOperation("setcap")!.build({
+      path: "/home/sven/.local/bin/caddy",
+      capabilities: "cap_net_bind_service=+ep",
+    }),
+    {
+      kind: "argv",
+      argv: [
+        "setcap",
+        "cap_net_bind_service=+ep",
+        "/home/sven/.local/bin/caddy",
+      ],
+    },
+  );
+  // The capability defaults to cap_net_bind_service=+ep.
+  assertEquals(getOperation("setcap")!.build({ path: "/usr/bin/x" }), {
+    kind: "argv",
+    argv: ["setcap", "cap_net_bind_service=+ep", "/usr/bin/x"],
+  });
 });

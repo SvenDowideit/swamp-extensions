@@ -10,3 +10,7 @@
 # Idea factory Phase 0 artifacts
 .deno-cache/
 explorer/idea-factory/
+
+# release-train generated diagram and dashboard
+release-train.mmd
+release-train.md

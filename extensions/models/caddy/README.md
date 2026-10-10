@@ -181,11 +181,19 @@ swamp model method run my-caddy checkHealth
 Bundled idempotent workflows:
 
 ```sh
-# full setup: installCaddy → createService → startService → settingsGuidance → configureTls
-swamp workflow run caddy-setup
+# Full setup in one command: installCaddy (grants the capability via
+# @svendowideit/sudo) → setCapabilities → createService → startService →
+# configureTls (provider inferred from plugins) → applyDnsRecords →
+# configureStatusPage, then a closing gap report. A single caddy model is set up
+# automatically; with several it lists them.
+swamp workflow run @svendowideit/caddy-setup
+```
 
-# desired-state proxy: setup (idempotent) + ensureDnsProxy for hostname/upstream
-swamp workflow run caddy-ensure-proxy \
+To point a hostname at a backend, use `ensureDnsProxy` (it also creates the
+route if it is missing):
+
+```sh
+swamp model method run my-caddy ensureDnsProxy \
   --input hostname=foo.example.com --input upstream=127.0.0.1:8080
 ```
 
@@ -375,6 +383,163 @@ Set `reconcile=false` on a model if you want it to write only its own config and
 ignore peers (rarely what you want). The `reconcile` resource records which
 models were merged on the last run, and the status page names the owning model.
 
+## Upgrade
+
+Upgrade the Caddy this repo manages, and see exactly what is missing, with no
+model name to remember:
+
+```sh
+# Update the extension, then upgrade. With a single caddy model in the repo,
+# running with no arguments upgrades it automatically.
+swamp extension update @svendowideit/caddy
+swamp workflow run @svendowideit/caddy-upgrade
+```
+
+The first step lists every `@svendowideit/caddy` model this repo defines — by
+reading the model *definitions* on disk, not stored state, so it finds a model
+that has never had a method run, and never mistakes the auto-created scratch
+instance for a real one. If the repo defines **exactly one model it is upgraded
+automatically**. If it defines **more than one, the run lists them and finishes
+without changing anything** (it does not fail), and prints the exact command for
+each:
+
+```
+  • otel-caddy — target xeon, service caddy, baseDomain otel.fi.gy, ACME email you@example.com, DNS provider gandi, typeVersion 2026.09.20.3 (upgradable)
+      upgrade it: swamp workflow run @svendowideit/caddy-upgrade --input model=otel-caddy
+  • caddy-lab — target xeon, service caddy-lab, baseDomain (unset), ...
+      upgrade it: swamp workflow run @svendowideit/caddy-upgrade --input model=caddy-lab
+```
+
+The email and provider shown are what the model is actually **configured** with
+(its stored state), not just its definition's globals.
+
+Copy and run the one you want:
+
+```sh
+swamp workflow run @svendowideit/caddy-upgrade --input model=otel-caddy
+```
+
+Why run it: a version bump alone is not enough. Global arguments only take
+effect on the next method run, and replacing the binary drops its file
+capability, so an updated extension leaves the host running the old binary and
+systemd unit until the right methods run again.
+
+**The gap report.** With a model named, the workflow runs `upgradeCheck`: it first
+prints the configuration it found **and the command to change each setting** — so
+the confirmation step is meaningful even when nothing is wrong — then reports only
+what actually blocks Caddy serving, each with a copy-paste `fix` command. A model
+with no domain yet:
+
+```
+Upgrade check for caddy: baseDomain=(none), ACME email=(none), TLS subjects=[(none)], DNS provider=cloudflare, static records=0
+To change any of these (then re-run):
+  baseDomain      swamp model get caddy --json | jq '{name, version, tags, globalArguments} | .globalArguments.baseDomain = "YOUR.DOMAIN"' | swamp model edit caddy --json
+  email / TLS     swamp model method run caddy configureTls --input email=you@example.com --input 'subjects:json=["*.YOUR.DOMAIN"]'
+  DNS provider    swamp model method run caddy configureTls --input dnsProvider=<provider>   # multi-field providers also --input providerConfig=...
+  DNS records     swamp model get caddy --json | jq '{name, version, tags, globalArguments} | .globalArguments.dnsRecords = [/* record objects */]' | swamp model edit caddy --json  then  swamp model method run caddy applyDnsRecords
+  bind 80/443     swamp model method run caddy setCapabilities   # elevates via @svendowideit/sudo
+  service         swamp model method run caddy startService
+Upgrade check for caddy: 2 thing(s) to fix:
+  ✗ The Caddy binary is missing compiled modules: github.com/caddy-dns/cloudflare.
+      fix: swamp model method run caddy installCaddy
+  ✗ No baseDomain is set — the domain this Caddy serves (e.g. example.com) — so there is no domain for TLS subjects or DNS records. Set this first, then re-run upgradeCheck to see the rest.
+      fix: swamp model get caddy --json | jq '{name, version, tags, globalArguments} | .globalArguments.baseDomain = "YOUR.DOMAIN"' | swamp model edit caddy --json
+```
+
+Once the domain is set it moves on to the ACME email and TLS subjects (with the
+real domain filled in), and lists the DNS provider and static DNS records as
+**optional** `•` items. It never assumes a provider: it detects the one your
+setup already uses — this model's plugins, the running Caddy config, the
+`environmentFile`'s variable names (`GANDI_BEARER_TOKEN` → gandi, …), or your
+other caddy models — and offers the exact command for it (and, when the token is
+already in the env file, skips telling you to add it again), or asks which
+provider you use if it can't tell:
+
+```
+Upgrade check for caddy: baseDomain=example.com, ACME email=you@example.com, TLS subjects=[*.example.com, example.com], DNS provider=gandi, static records=0
+Serving on (listening on :443, :80; automatic HTTPS on): https://*.example.com, https://example.com, https://app.example.com
+Status page (the generated HTML that lists your routes and links): https://example.com/
+  (also served on http://localhost/ on this host)
+Test it:
+  curl -sI https://example.com/          # 200 (status page)
+  curl -sI https://example.com/teapot    # 418 (health contract)
+  curl -sI https://example.com/nope      # 404
+  curl -s http://localhost:2019/config/ | jq -r '[.apps.http.servers[]?.routes[]?.match[]?.host[]?] | unique[]'
+Upgrade check for caddy: ready — nothing blocks Caddy serving.
+  • Optional (only for a wildcard cert *.example.com or static records): no static DNS records are declared, so a hostname you route under example.com has no A/AAAA record created by swamp.
+      fix: swamp model get caddy --json | jq '{name, version, tags, globalArguments} | .globalArguments.dnsRecords = [{"name":"app.example.com","type":"A","value":["YOUR.SERVER.IP"],"zone":"example.com"}]' | swamp model edit caddy --json
+      swamp model method run caddy applyDnsRecords
+```
+
+When it can't detect a provider, it asks — `Which DNS provider do you use?
+Supported: cloudflare, route53, digitalocean, duckdns, porkbun, namecheap,
+gandi, dreamhost.` — and gives a template, rather than guessing one.
+
+Every fix is a real command: the domain/record/provider fixes are a
+`swamp model get … | jq … | swamp model edit …` pipeline (you replace the
+`YOUR.DOMAIN`/`YOUR.SERVER.IP` placeholders), and the rest are
+`swamp model method run` commands — including `setCapabilities`, which grants
+CAP_NET_BIND_SERVICE by elevating through the `@svendowideit/sudo` extension.
+`✗` marks something that blocks serving; `•` marks an optional extra.
+
+**Already up to date → DONE, and a no-op.** If the model's type version is
+current **and** the running Caddy config already equals what the upgrade would
+apply (the same desired-vs-actual check `plan`/`audit` do — proven against the
+live config, not assumed), `upgradeCheck` reports
+`DONE — already up to date … Nothing to upgrade`, the discovery list marks it
+`DONE` and omits its upgrade command, and the workflow skips the approval gate
+and every mutating step. Re-running the upgrade is then a genuine no-op.
+
+It then **pauses at one approval gate** so you can run those commands (the
+capability is granted by `setCapabilities` through `@svendowideit/sudo`, whose
+elevation ladder must find a route — sudo/doas/polkit/… — the host actually
+grants; a DNS token is a secret, so the report names the model's
+`environmentFile` to write instead of asking for it over a signal). Approve and
+resume:
+
+```sh
+# The run suspends at the gate; approve, then resume to rebuild/restart.
+swamp workflow approvals
+swamp workflow approve @svendowideit/caddy-upgrade confirm
+swamp workflow resume @svendowideit/caddy-upgrade
+```
+
+On resume it migrates the model definition, rebuilds the binary only when a
+wanted module (including the always-on `caddy-host-dns` and
+`caddy-teapot-module`) is missing, re-grants `CAP_NET_BIND_SERVICE`, regenerates
+the systemd unit from the current global args, restarts the service, re-applies
+the status page and any declared DNS records, and **re-runs the gap report** so
+the run ends by telling you exactly what is still missing — and **where to see
+it**: the status-page URL and how to test it (`curl` for `/` 200, `/teapot` 418,
+`/nope` 404). It is idempotent, so re-running is safe.
+
+It also **owns `autoHttps` and `listenAddrs` on your behalf.** Those aren't
+settings you should have to manage: the unprivileged high-port / HTTPS-off preset
+exists only because Caddy couldn't bind 80/443. Once the upgrade has granted
+`CAP_NET_BIND_SERVICE` and the model wants public HTTPS (`baseDomain` + ACME
+email), it corrects them to `autoHttps=on`, `listenAddrs=[":443",":80"]` and
+**saves that back to the model** before regenerating the unit — so the run ends
+with Caddy serving on 443/80 with certificates, and later runs re-check and
+re-correct if the situation changes.
+
+To (re)configure TLS as part of the same run, name the provider:
+
+```sh
+swamp workflow run @svendowideit/caddy-upgrade \
+  --input model=otel-caddy --input dnsProvider=gandi \
+  --input 'providerConfig:json={"bearer_token":"GANDI_TOKEN"}'
+```
+
+The same discovery and gap report are available read-only:
+
+```sh
+# List every caddy model this repo defines (definition-based, no names needed).
+swamp model method run @svendowideit/caddy upgradeTargets caddy-status
+
+# Report just the gaps for one model, changing nothing.
+swamp model method run @svendowideit/caddy upgradeCheck caddy-status
+```
+
 ## Details
 
 `@svendowideit/caddy` ships one model type (`@svendowideit/caddy`). Every method
@@ -383,10 +548,13 @@ it exposes, with its per-run arguments:
 | Method | Arguments | Purpose |
 | ------ | --------- | ------- |
 | `installCaddy` | `plugins` (array), `force` (boolean), `setCapabilities` (boolean, default true), `configureStatusPage` (boolean, default true) | Download the binary (with module packages compiled in — `caddy-host-dns` and `caddy-teapot-module` are always added), place it at `caddyBinPath`, verify it runs (`caddy version` + `caddy list-modules`), grant `CAP_NET_BIND_SERVICE` (see [Privileged ports](#privileged-ports-80443)), and install the status page + health contract when the admin API is up. **Rebuilds automatically when the existing binary is missing a wanted/built-in module** (not just when the file is absent). If it rebuilt a *running* service it applies the capability **first**, then restarts and waits for the service — failing with a `journalctl` hint if it did not come back (Caddy runs `--resume`, so a stale `autosave.json` can crash-loop it). The `install` resource reports `rebuilt`, `missingPluginsBeforeBuild`, and `restarted`. |
-| `setCapabilities` | `capabilities` (array), `binPath` (string), `quiet` (boolean) | Grant `CAP_NET_BIND_SERVICE` to the binary via `setcap` (then `sudo -n setcap`), or record the exact `sudo setcap` command when sudo is unavailable. Idempotent. |
+| `setCapabilities` | `capabilities` (array), `binPath` (string), `quiet` (boolean) | Grant `CAP_NET_BIND_SERVICE` to the binary by delegating `setcap` to the `@svendowideit/sudo` extension. Idempotent; records `applied` and the reason when no elevation route is available. |
+| `normalizeServingSettings` | none | Reconcile `autoHttps` / `listenAddrs` with what the model wants and what the host can do: once the binary can bind privileged ports (CAP_NET_BIND_SERVICE) and the model wants public HTTPS (`baseDomain` + ACME email), correct the unprivileged high-port / HTTPS-off preset back to `autoHttps=on`, `listenAddrs=[":443",":80"]` **and persist it to the model**. Idempotent; a no-op when already right. |
 | `configureStatusPage` | `title` (string), `extraLinks` (array of `{label,url}`), `disabled` (boolean) | Install (or, with `disabled=true`, remove) the status page answering `/` (200) on the status/default hostnames, plus the health contract (`/teapot` → 418, other → 404). Idempotent. |
 | `plan` | none | Read-only: for **one** Caddy, merge all its models' desired state, compute the config that would be applied, read the live config, and record desired/actual routes, `onlyDesired`/`onlyActual` drift, foreign routes, the desired DNS records, and both full configs for diffing. Changes nothing. |
 | `audit` | none | Read-only, and the one-command entry point: find **every** caddy model, group by the Caddy each manages, and per Caddy report the merged routes (and which model wants each), desired-vs-actual drift, the TLS/DNS layer (including desired static DNS records), and reachability. Prints a table via the `@svendowideit/caddy-status` report. |
+| `upgradeTargets` | none | Read-only: list every `@svendowideit/caddy` model this repo **defines** (read from the model definition files on disk, so a never-run model is found and the auto-created scratch instance is not), with each one's target, serviceName, baseDomain, and its **configured** ACME email / DNS provider (from stored state) plus typeVersion/staleness. Writes an `upgradeTargets` resource. |
+| `upgradeCheck` | none | Read-only: print this model's configuration **and the command to change each setting**, then report everything blocking Caddy serving — capability to bind 80/443, baseDomain, ACME email, TLS, DNS provider/records, a stale binary, service health — each with the exact command to fix it. Writes an `upgradeCheck` resource. |
 | `createService` | `serviceName` (string) | Write the systemd user unit (`~/.config/systemd/user/caddy.service`) and a minimal Caddyfile. |
 | `startService` | `serviceName` (string) | `systemctl --user enable --now caddy` and verify the admin API responds on `localhost:2019`. |
 | `stopService` | `serviceName` (string) | Stop the Caddy systemd user service. |
@@ -403,7 +571,7 @@ it exposes, with its per-run arguments:
 | `storeConfig` | `baseDomain`, `letsEncryptEmail`, `adminApiToken`, `vaultName` | Validate and write the base domain, ACME email, and admin API token to the swamp Vault (`swamp vault put`). |
 | `syncConfig` | none | Snapshot the effective config into a swamp resource. |
 | `getConfig` | none | Read the stored config back from the swamp resource. |
-| `configureTls` | `email`, `dnsProvider`, `dnsEnvVar`, `providerConfig` (object), `subjects` (array), `issuer` | Configure the Caddy TLS app with the ACME email and an optional DNS provider for wildcard / DNS-challenge issuance. Single-field providers use `dnsEnvVar` (rendered as `api_token`); multi-field providers use `providerConfig` (field → env var), e.g. Gandi `{bearer_token: GANDI_TOKEN}`. `issuer=internal` uses Caddy's **local CA** (self-signed) instead of ACME — for non-public names such as `*.example.com`, or tests, where Let's Encrypt cannot issue; `email`/`dnsProvider` are then ignored. |
+| `configureTls` | `email`, `dnsProvider`, `dnsEnvVar`, `providerConfig` (object), `subjects` (array), `issuer` | Configure the Caddy TLS app with the ACME email and an optional DNS provider for wildcard / DNS-challenge issuance. Single-field providers use `dnsEnvVar` (rendered as `api_token`); multi-field providers use `providerConfig` (field → env var), e.g. Gandi `{bearer_token: GANDI_TOKEN}`. `issuer=internal` uses Caddy's **local CA** (self-signed) instead of ACME — for non-public names such as `*.example.com`, or tests, where Let's Encrypt cannot issue; `email`/`dnsProvider` are then ignored. **An omitted argument keeps the value already configured** (email, provider, subjects, …), so re-running to change one thing never loses the rest. |
 | `applyDnsRecords` | none | Reconcile the desired static DNS records (`dnsRecords`/`dnsRemovals` globals) into Caddy and write a `dnsConfig` resource. The one command to add/update/delete records. Errors clearly if no records are set or no `dnsProvider` is configured. Idempotent. |
 | `autoProxySwampServe` | `baseDomain`, `prefix`, `port` | Detect running `swamp serve` systemd user services (prefix `swamp-serve-`), derive hostnames, and reconcile their reverse-proxy routes (adds new, removes stopped). |
 | `upgradeCaddy` | `plugins` (array), `confirm` (string) | Replace the Caddy binary (current release, with module packages) after explicit confirmation (`confirm=upgrade`), then restart the service. Existing configuration is preserved. |
@@ -571,24 +739,37 @@ Caddy runs as an unprivileged systemd **user** service, so by default it cannot
 bind ports 80/443. Grant the binary the `CAP_NET_BIND_SERVICE` capability:
 
 ```sh
-# installCaddy tries this automatically (setCapabilities defaults to true).
-# Run it on its own to (re)apply or to get the exact command:
+# installCaddy grants it automatically (setCapabilities defaults to true).
+# Run it on its own to (re)apply it:
 swamp model method run my-caddy setCapabilities
-
-# If the model had no sudo, run the printed command once by hand:
-sudo setcap 'cap_net_bind_service=+ep' ~/.local/bin/caddy
 ```
+
+**A config is never rejected for a privileged-port bind failure.** Until the
+capability is granted, every reconcile serves what the model wants on
+unprivileged ports instead — `:80` → `:8080`, `:443` → `:8443`, over plain HTTP —
+so Caddy always loads the config and serves the status page + health contract on
+`http://localhost:8080`. The desired settings are kept and applied verbatim
+again (auto-HTTPS on, `:443`/`:80`) as soon as the capability is granted; nothing
+is lost in the meantime.
 
 Details:
 
-- `setCapabilities` first tries `setcap`, then non-interactive `sudo -n setcap`.
-  If neither works it does **not** fail — it records the exact `sudo setcap …`
-  command in the `capabilities` resource (field `command`) and logs it, so you
-  can copy-paste it. `installCaddy` does the same and stores it in the `install`
-  resource as `needsSudoForPorts`.
+- `setCapabilities` grants the capability by delegating `setcap` to the
+  **`@svendowideit/sudo`** extension (declared in this extension's
+  `dependencies`, pulled automatically): caddy never calls `sudo` itself. The
+  sudo extension resolves whichever elevation route the host already grants
+  (sudo, doas, polkit/run0, a held capability, a container runtime, …) and runs
+  `setcap` through it, so it works even without passwordless sudo. The target is
+  the `sudo-<sudoInstanceKey>` model (global `sudoInstanceKey`, default
+  `default`), auto-created if absent, with `setcap` added to that call's
+  allowlist because it is opt-in.
+- If no elevation route is granted, the sudo extension reports exactly what it
+  tried and the capability is not applied — the `capabilities` resource records
+  `applied: false` and the reason. Run `swamp model @svendowideit/sudo method run
+  probe sudo-<key>` to see the ladder on this host.
 - **Replacing the binary drops the capability.** `upgradeCaddy` and
-  `installCaddy force=true` reapply it automatically if it was set before; if you
-  ever download a new binary by other means, re-run `setCapabilities`.
+  `installCaddy force=true` re-grant it automatically after writing a new
+  binary; if you download a new binary by other means, re-run `setCapabilities`.
 - **The generated unit is kept out of a user namespace** (no `ProtectSystem` /
   `PrivateTmp`) and does not set `LimitNPROC`, because both would silently break
   privileged binding — see [Why the unit has no hardening](#why-the-unit-has-no-hardening).
@@ -606,6 +787,14 @@ replaces it with exactly the declared values (pruning extras — nothing else in
 the zone is touched). The provider block reuses the TLS `dnsProvider` and its
 credential, so one token in the `environmentFile` covers both DNS-01 and
 record-writing.
+
+If the running Caddy service was started before `environmentFile` was set, it
+can't read the provider token — so any method that applies a config (adding a
+record, configuring TLS, …) would get a cryptic Caddy `500`. `@svendowideit/caddy`
+handles that itself: it detects the credential failure, reloads the service unit
+so it renders the current `EnvironmentFile=`, restarts Caddy, and retries the
+apply — so you don't have to run `createService`/`restartService` by hand. Only a
+token that is genuinely absent stops it, with the exact command to add it.
 
 ```sh
 # Create a model that owns one A record, using the Gandi provider.
@@ -750,21 +939,28 @@ unit after `createService` (swamp will rewrite it on the next `createService`).
 A fresh Caddy has no routes, so it answers nothing useful. `installCaddy`
 (default) and `startService` install a status page showing:
 
-- the installed Caddy version, base domain, and ACME email,
+- the installed Caddy version, the `@svendowideit/caddy` extension version that
+  generated the page (read from the bundled `manifest.yaml` at run time — not the
+  model's schema version), base domain, and the **configured** ACME email,
 - whether `CAP_NET_BIND_SERVICE` is set (i.e. whether 80/443 will work),
 - the **third-party plugins compiled into the binary** (parsed from
   `caddy list-modules --json`), grouped by Go package with version and module
-  names — or a note that the binary is stock,
-- a link to the Caddy admin API (`http://localhost:2019/config/`), and
-- a link per configured proxy route.
+  names, each linking to its repo/README — or a note that the binary is stock,
+- the addresses Caddy is **listening on**, and
+- a **Routes & services** list: every managed proxy/file route, plus the generated
+  services — the Caddy admin API, this status page's own hostnames, and the health
+  contract (`/` → 200, `/teapot` → 418, other → 404).
 
 **It answers on every hostname your models name, as a fallback.** The page's
 hostnames are the loopback set (`localhost`, `127.0.0.1`, `[::1]`) **plus every
-TLS subject and explicit status hostname** any model declares, **minus any
-hostname that already has its own route**. So:
+hostname any model names explicitly** — TLS subjects, explicit status hostnames,
+and the names of declared static DNS records — **minus any hostname that already
+has its own route**. The `baseDomain` is **never** added on its own: a domain that
+many hosts share is not a hostname, so the apex appears only if a model names it
+explicitly (as a TLS subject or a DNS record). So:
 
-- a configured hostname (e.g. `x1yoga.fi.gy`) is never a blank 404 — it serves the
-  status page until a real route claims it;
+- a named hostname (a TLS subject or DNS-record name such as `x1yoga.fi.gy`) is
+  never a blank 404 — it serves the status page until a real route claims it;
 - an explicit route always wins (the status route is written last);
 - crucially, because the hostname now appears in a route match, **Caddy requests a
   certificate for it**. Caddy only issues certs for names it sees in a route, so
@@ -789,7 +985,8 @@ swamp model method run my-caddy configureStatusPage --input disabled=true
 Because `installCaddy` runs before the service exists, the status page is
 installed on a best-effort basis there (it needs the admin API) and is reliably
 (re)installed by `startService`; the `caddy-setup` workflow also calls
-`configureStatusPage` after `start`.
+`configureStatusPage` after `start`. A status page is wanted by default, so a
+bare model always has something to serve (on localhost at minimum).
 
 ### Plain HTTP / unprivileged ports
 
@@ -971,8 +1168,10 @@ to regenerate the unit with `--resume`.
 - The admin endpoint is written to the Caddyfile's `admin` global option. Caddy
   v2.11+ removed the `caddy run --admin` CLI flag, so the systemd unit does not
   pass `--admin`.
-- The bundled workflows `caddy-setup` and `caddy-ensure-proxy` ship alongside
-  the extension (in this repo's `workflows/`); all their steps are idempotent.
+- The bundled workflows `@svendowideit/caddy-setup` (fresh install, in order) and
+  `@svendowideit/caddy-upgrade` (upgrade in place) ship with the extension; all
+  their steps are idempotent. To point a hostname at a backend use the
+  `ensureDnsProxy` method.
 
 ## Testing
 

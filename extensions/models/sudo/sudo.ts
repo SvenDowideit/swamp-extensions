@@ -59,9 +59,10 @@ const GlobalArgsSchema = z.object({
   allowedOperations: z.array(z.string()).default([]).describe(
     "Operations `run` may execute. An empty array falls back to the narrow " +
       "default set (installPackage, removePackage, manageService); " +
-      "filesystem/account-mutating or kernel-knob operations (mount, chown, " +
-      "ensureDirectory, addUserToGroup, createUser, installFile, removePath, " +
-      "copyDirectory, runScript, sysctl) must be added explicitly.",
+      "filesystem/account-mutating, file-capability, or kernel-knob operations " +
+      "(mount, chown, ensureDirectory, addUserToGroup, createUser, installFile, " +
+      "removePath, copyDirectory, runScript, setcap, sysctl) must be added " +
+      "explicitly.",
   ),
   allowArbitrary: z.boolean().default(false).describe(
     "Enable the approval-gated arbitrary-command methods `request`/`runApproved`.",
@@ -791,7 +792,7 @@ function ladderReport(ladder: z.infer<typeof LadderEntrySchema>[]): string {
  */
 export const model = {
   type: "@svendowideit/sudo",
-  version: "2026.10.04.2",
+  version: "2026.10.10.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -802,6 +803,30 @@ export const model = {
         "daemon-reload), removePath (rm -rf, refuses /), runScript (sh " +
         "<script>), copyDirectory (cp -a). All localOnly; all must be added " +
         "to allowedOperations.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.10.1",
+      description:
+        "Ship the milestone-0 test-factory acceptance fixture (`test-factory.yaml`, " +
+        "now listed in additionalFiles) so the local elevation ladder can be tested " +
+        "in a non-root container: the harness runs as `tester` with a NOPASSWD " +
+        "sudoers grant, `probe` selects `sudo-n`, `run ensureDirectory` proves real " +
+        "root elevation inside the sandbox, and a pinned unavailable route fails " +
+        "closed. The fixture also carries an `isolation:` boundary negative control: " +
+        "a root-only write through `sudo` creates a per-run marker that must be " +
+        "absent on the host, so a successful sudo is proved not to have escaped the " +
+        "sandbox. No model schema, argument or resource-shape change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.10.2",
+      description:
+        "New opt-in operation `setcap` (argv builder only, no resource-shape " +
+        "change): grants a file capability to a binary at an absolute path, " +
+        "e.g. `cap_net_bind_service=+ep` so an unprivileged systemd user " +
+        "service can bind 80/443. localOnly; must be added to " +
+        "allowedOperations.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

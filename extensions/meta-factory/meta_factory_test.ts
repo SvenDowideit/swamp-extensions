@@ -46,11 +46,19 @@ swamp extension pull @me/tool
 swamp model create @me/tool t --global-arg path=/tmp
 \`\`\`
 
+## Upgrade
+
+Upgrade in place with the bundled upgrade workflow; it rebuilds and reconciles
+the install and is idempotent.
+
+\`\`\`sh
+swamp workflow run @me/tool-upgrade
+\`\`\`
+
 ## Details
 
 Some details about the model and its methods.
 `;
-
 const GOOD_MANIFEST = `manifestVersion: 1
 name: "@me/tool"
 version: "2026.09.21.1"
@@ -78,6 +86,13 @@ description: >
 
     Set the optional global arguments when creating the model, e.g.
     --global-arg path=/tmp, or override per call with --input.
+
+  UPGRADE
+
+    Upgrade an existing install with the bundled upgrade workflow; it rebuilds
+    and reconciles anything on the host automatically and is idempotent.
+
+        swamp workflow run @me/tool-upgrade
 
   WHAT IT INSTALLS
 

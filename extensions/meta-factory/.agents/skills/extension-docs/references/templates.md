@@ -38,6 +38,13 @@ description: >
     Set the optional global arguments when creating the model, e.g.
     --global-arg exampleArg=value; override per call with --input force=true.
 
+  UPGRADE
+
+    Upgrade an existing install with the bundled upgrade workflow; it rebuilds
+    and reconciles anything on the host automatically and is idempotent:
+
+        swamp workflow run @mycollective/my-extension-upgrade
+
   WHAT IT INSTALLS
 
     Nothing — no services, triggers, schedules, or webhooks on the host.
@@ -60,9 +67,9 @@ platforms: []
 ```
 
 Checklist: `name` is `@collective/name`; the `description` is a literal block
-(`>`) covering all six manual elements **in order — `WHAT IT DOES` (a short
-pitch, not a method list), `INSTALL`, `DEPENDENCIES`, `RUN`, `CONFIGURE`, and
-`WHAT IT INSTALLS` last** — 300+ chars, sections blank-line
+(`>`) covering all eight manual elements **in order — `WHAT IT DOES` (a short
+pitch, not a method list), `INSTALL`, `DEPENDENCIES`, `RUN`, `CONFIGURE`,
+`UPGRADE`, and `WHAT IT INSTALLS` last** — 300+ chars, sections blank-line
 separated, commands indented; the manifest has **no `METHODS` section**
 (swamp-club generates the method reference at publish — put the method list in
 the README); installing is a **single** `swamp extension pull`;
@@ -111,6 +118,19 @@ swamp model create @mycollective/my-extension my-model \
 
 # Run the primary method
 swamp model method run my-model run
+```
+
+## Upgrade
+
+Upgrade an existing install with the single bundled upgrade workflow: it
+discovers the targets it manages (so you never have to know a name) and lists
+them, migrates the model definition, rebuilds or reconciles anything on the
+host, restarts services, prompts for anything it cannot infer, and is
+idempotent.
+
+```sh
+# Upgrade an existing install in place; the workflow finds the targets itself.
+swamp workflow run @mycollective/my-extension-upgrade
 ```
 
 ## Details
@@ -211,6 +231,7 @@ swamp extension quality extensions/models/my-extension/manifest.yaml --json
 | ------- | ---- | --- |
 | Missing `## Configuration` section | 1 section point + coverage ambiguity | Add the argument table |
 | Configuration present but no `## Examples` | 1 section point | Add a fenced command block |
+| No `## Upgrade` section, or no upgrade workflow | up to 5 upgrade points + 1 section point | Ship an idempotent `<name>-upgrade` workflow and document it in `## Upgrade` |
 | One method not named in the README | coverage points | Add it to the `## Details` table |
 | README shorter than 1200 chars | 2 substance points | Expand the sections with real content |
 | No table in the README | 2 substance points | Use a table for configuration/methods |

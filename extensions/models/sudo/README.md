@@ -35,7 +35,7 @@ attributes):
 | Argument              | Type     | Default                                            | Meaning                                                                                                                                                                              |
 | --------------------- | -------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `strategyOrder`       | string[] | side-effect-ordered ladder                         | Routes to try, in order.                                                                                                                                                             |
-| `allowedOperations`   | string[] | `installPackage`, `removePackage`, `manageService` | Operations `run` may execute. An empty value falls back to this narrow default set. The filesystem/account-mutating and kernel-knob operations (`sysctl`, `ensureDirectory`, `chown`, `addUserToGroup`, `createUser`, `installFile`, `daemonReload`, `removePath`, `copyDirectory`, `runScript`, `mount`) are opt-in. |
+| `allowedOperations`   | string[] | `installPackage`, `removePackage`, `manageService` | Operations `run` may execute. An empty value falls back to this narrow default set. The filesystem/account-mutating, file-capability, and kernel-knob operations (`sysctl`, `ensureDirectory`, `chown`, `addUserToGroup`, `createUser`, `installFile`, `daemonReload`, `removePath`, `copyDirectory`, `runScript`, `setcap`, `mount`) are opt-in. |
 | `allowArbitrary`      | boolean  | `false`                                            | Enable `request`/`runApproved`.                                                                                                                                                      |
 | `sshHost`             | string   | `""`                                               | Host for the `ssh-root` route; empty disables it.                                                                                                                                    |
 | `sshKnownHosts`       | string   | `""`                                               | Pinned known_hosts for `ssh-root`.                                                                                                                                                   |
@@ -66,6 +66,14 @@ swamp workflow run @svendowideit/sudo-run \
 swamp workflow run @svendowideit/sudo-run \
   --input operation=installPackage \
   --input 'args:json={"manager":"apt","packages":["caddy"]}'
+
+# Grant a binary a file capability so an unprivileged service can bind
+# privileged ports — e.g. let a Caddy *user* service bind 80/443. Opt-in, so
+# add it to allowedOperations.
+swamp workflow run @svendowideit/sudo-run \
+  --input operation=setcap \
+  --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}' \
+  --input 'allowedOperations:json=["setcap"]'
 
 # Read-only: list every elevation route this host offers and how it was proved.
 # (It runs no target command; a container route may briefly start a container to
@@ -134,6 +142,7 @@ the others must be added to `allowedOperations`.
 | `removePath`      | `path`                                                  | opt-in  | `rm -rf -- <path>` — refuses the filesystem root                                                                |
 | `copyDirectory`   | `src`, `dest`                                           | opt-in  | `cp -a <src>/. <dest>/` — refuses the filesystem root                                                           |
 | `runScript`       | `script` (absolute), `args[]?`                          | opt-in  | `sh <script> [args…]` — runs a script as root through an interpreter; opt in deliberately                       |
+| `setcap`          | `path` (absolute), `capabilities?` (default `cap_net_bind_service=+ep`) | opt-in  | `setcap <capabilities> <path>` — grant a file capability, e.g. so an unprivileged service can bind 80/443       |
 
 ### Strategies
 
@@ -266,20 +275,22 @@ so route resolution and the gate can be tested without touching the host.
   configured, `manageService caddy restart` restarts caddy on the ssh host; with
   `k8sNode` set, the operation acts on that cluster node. To keep operations
   strictly local, omit `sshHost` and `k8sNode`, or pin `strategy` to a local
-  route (e.g. `sudo-n`). Filesystem/account operations (`ensureDirectory`,
-  `chown`, `addUserToGroup`, `createUser`, `mount`, `installFile`, `removePath`,
-  `copyDirectory`, `runScript`) are `localOnly` and already
-  refuse remote/orchestrator routes.
+  route (e.g. `sudo-n`). Filesystem/account/capability operations
+  (`ensureDirectory`, `chown`, `addUserToGroup`, `createUser`, `mount`,
+  `installFile`, `removePath`, `copyDirectory`, `runScript`, `setcap`) are
+  `localOnly` and already refuse remote/orchestrator routes.
 - `ensureDirectory`, `chown`, `addUserToGroup`, `createUser`, and `mount` are
   **local-route only** — they are refused when the only available route is a
   remote/orchestrator/oob one. `ssh-root` is classed `remote` and `k8s-node`
   `orchestrator`, so both are excluded; container routes run on the host through
   `chroot /host` and _are_ allowed.
-- `installFile`, `daemonReload`, `removePath`, `copyDirectory`, and
-  `runScript` are also **local-route only**. `removePath` and `copyDirectory`
+- `installFile`, `daemonReload`, `removePath`, `copyDirectory`, `runScript`, and
+  `setcap` are also **local-route only**. `removePath` and `copyDirectory`
   refuse the filesystem root; `runScript` executes an arbitrary script as
   root, so it must be added to `allowedOperations` explicitly and only pointed
-  at scripts you control.
+  at scripts you control. `setcap` writes a file capability (e.g.
+  `cap_net_bind_service=+ep`) so an unprivileged service can bind privileged
+  ports; it also needs an explicit `allowedOperations` entry.
 - `ssh-root` needs a pinned `sshKnownHosts` (or a pre-populated known_hosts) or
   host-key verification fails closed.
 - The k8s/container/ssh routes are disabled until configured (`k8sNode`,

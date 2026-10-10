@@ -1,0 +1,89 @@
+id: 052c5b23-04ae-4f82-94de-86291f10dd8e
+name: "@svendowideit/meta-factory-upgrade"
+description: |
+  Upgrade an existing @svendowideit/meta-factory install in one command.
+
+  Run this after updating the extension (`swamp extension update`). Meta-factory
+  installs nothing on the host — its only local side effect is the bundled
+  `extension-docs` skill it copies into your tool's skill directory — so the
+  upgrade is: re-install that skill at the extension's current version, then
+  re-score the extensions you care about so you can see whether the new rules
+  changed any score. It is idempotent; re-running it is safe.
+
+  Run:
+    # Refresh the bundled skill and re-score every extension in the repo.
+    swamp workflow run @svendowideit/meta-factory-upgrade
+
+    # Refresh only the project-local skill, and score a single extension:
+    swamp workflow run @svendowideit/meta-factory-upgrade \
+      --input target=project --input manifest=extensions/models/caddy/manifest.yaml
+
+  The re-score step does not fail the run when an extension is below the
+  threshold; read the summary resource for the numbers.
+inputs:
+  properties:
+    target:
+      type: string
+      default: both
+      description: "Where to install the bundled skill: project, global, or both."
+    root:
+      type: string
+      default: extensions
+      description: "Directory the post-upgrade checkAll scores."
+    manifest:
+      type: string
+      default: ""
+      description: >
+        Optional single manifest to score instead of scanning root (e.g.
+        extensions/models/caddy/manifest.yaml).
+    writeSummary:
+      type: boolean
+      default: true
+      description: "Write the checkAll summary rollup resource."
+  required: []
+tags:
+  swamp: "meta-factory"
+  kind: "upgrade"
+jobs:
+  - name: upgrade
+    description: Refresh the bundled skill, then re-score extensions.
+    steps:
+      - name: install-skill
+        description: >-
+          Copy the extension's bundled extension-docs skill into the project
+          and/or global skill directory, overwriting the previous version so the
+          local copy always matches the installed extension.
+        task:
+          type: model_method
+          modelType: "@svendowideit/meta-factory"
+          modelName: meta-factory
+          methodName: installSkill
+          inputs:
+            target: ${{ inputs.target }}
+            force: true
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: rescore
+        description: >-
+          Re-score the extensions with the upgraded rules and write the summary
+          rollup. Tolerated to fail so a below-threshold score does not fail the
+          upgrade — read the summary resource for the numbers.
+        task:
+          type: model_method
+          modelType: "@svendowideit/meta-factory"
+          modelName: meta-factory
+          methodName: checkAll
+          inputs:
+            root: ${{ inputs.root }}
+            manifest: ${{ inputs.manifest }}
+            writeSummary: ${{ inputs.writeSummary }}
+        dependsOn:
+          - step: install-skill
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

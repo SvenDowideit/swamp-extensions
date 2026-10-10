@@ -20,6 +20,8 @@ import {
   checkSections,
   checkSubstance,
   checkSymbols,
+  checkUpgrade,
+  checkVersionSource,
   countCodeBlocks,
   declaredArtifactFiles,
   extractExamples,
@@ -78,6 +80,18 @@ swamp model method run t run
 swamp model method run t run --input force=true
 \`\`\`
 
+## Upgrade
+
+Upgrade an existing install with the single bundled upgrade workflow. It
+migrates the model definition, rebuilds or reconciles anything on the host,
+restarts the service, and prompts for any information it cannot infer. It is
+idempotent, so re-running it is safe.
+
+\`\`\`sh
+# Upgrade an existing model in place.
+swamp workflow run @me/tool-upgrade
+\`\`\`
+
 ## Details
 
 | Method | Arguments | Produces |
@@ -121,6 +135,13 @@ description: >
 
     Set the optional global arguments when creating the model, e.g.
     --global-arg path=/tmp, or override per call with --input.
+
+  UPGRADE
+
+    Upgrade an existing install with the bundled upgrade workflow; it rebuilds
+    anything on the host, migrates the model definition, and is idempotent:
+
+        swamp workflow run @me/tool-upgrade
 
   WHAT IT INSTALLS
 
@@ -308,10 +329,61 @@ Deno.test("checkSections errors on a missing section", () => {
 
 Deno.test("checkSections auto-credits Examples when Configuration is absent", () => {
   const noConfig =
-    `# x\n\n## What it does\n\nSomething useful here for a reader.\n\n## Install\n\n\`\`\`sh\nswamp extension pull x\n\`\`\`\n\n## Details\n\nSome details about the model and its methods.\n`;
+    `# x\n\n## What it does\n\nSomething useful here for a reader.\n\n## Install\n\n\`\`\`sh\nswamp extension pull x\n\`\`\`\n\n## Upgrade\n\nRun the upgrade workflow to rebuild and restart in place.\n\n\`\`\`sh\nswamp workflow run x-upgrade\n\`\`\`\n\n## Details\n\nSome details about the model and its methods.\n`;
   const check = checkSections(noConfig, parseManifest(GOOD_MANIFEST));
   assertStringIncludes(check.note ?? "", "Configuration");
   assertEquals(check.earned, WEIGHTS.sections - 1);
+});
+
+Deno.test("checkUpgrade documents a single upgrade workflow", () => {
+  const check = checkUpgrade(GOOD_README);
+  assertEquals(check.earned, WEIGHTS.upgrade);
+  assertEquals(check.status, "pass");
+  assertStringIncludes(check.note ?? "", "@me/tool-upgrade");
+});
+
+Deno.test("checkUpgrade fails when the section is missing", () => {
+  const check = checkUpgrade("# x\n\n## Details\n\nnone");
+  assertEquals(check.earned, 0);
+  assertEquals(check.status, "fail");
+});
+
+Deno.test("checkUpgrade accepts a no-host-artifacts exemption", () => {
+  const md =
+    "## Upgrade\n\nThe extension installs nothing on the host, so upgrading is\n" +
+    "just `swamp extension update @me/tool` — nothing to rebuild.\n";
+  const check = checkUpgrade(md);
+  assertEquals(check.earned, WEIGHTS.upgrade);
+  assertEquals(check.status, "pass");
+});
+
+Deno.test("checkUpgrade partial when the entry point is unexplained", () => {
+  const md = "## Upgrade\n\n```sh\nswamp workflow run @me/tool-upgrade\n```\n";
+  const check = checkUpgrade(md);
+  assertEquals(check.earned, Math.round(WEIGHTS.upgrade * 0.75));
+  assertEquals(check.status, "partial");
+});
+
+Deno.test("checkUpgrade penalises making the user know a name", () => {
+  const md =
+    "## Upgrade\n\nRun the upgrade workflow and explain what it rebuilds and\n" +
+    "restarts automatically:\n\n```sh\n" +
+    "swamp workflow run @me/tool-upgrade --input model=my-thing\n```\n";
+  const check = checkUpgrade(md);
+  assertEquals(check.earned, Math.round(WEIGHTS.upgrade * 0.4));
+  assertEquals(check.status, "partial");
+  assertStringIncludes(check.note ?? "", "name");
+});
+
+Deno.test("checkUpgrade accepts an identity input when discovery is documented", () => {
+  const md =
+    "## Upgrade\n\nIt discovers and lists every model this repo manages, so you\n" +
+    "never have to know a name, then upgrades them automatically. To restrict it\n" +
+    "to one you saw in the list:\n\n```sh\n" +
+    "swamp workflow run @me/tool-upgrade --input model=my-thing\n```\n";
+  const check = checkUpgrade(md);
+  assertEquals(check.earned, WEIGHTS.upgrade);
+  assertEquals(check.status, "pass");
 });
 
 Deno.test("checkSubstance requires length, blocks, and a table", () => {
@@ -547,6 +619,37 @@ Deno.test("checkDefinitions does not penalise advisory warnings", () => {
   assertStringIncludes(check.note ?? "", "advisory");
 });
 
+Deno.test("checkVersionSource passes when the version comes from the manifest", () => {
+  const check = checkVersionSource([]);
+  assertEquals(check.earned, WEIGHTS.versionSource);
+  assertEquals(check.status, "pass");
+});
+
+Deno.test("checkVersionSource fails on a model/instance version reference", () => {
+  const check = checkVersionSource([
+    {
+      severity: "error",
+      rule: "model-version-used",
+      message: "used model.version",
+      path: "tool.ts",
+      line: 12,
+    },
+  ]);
+  assertEquals(check.earned, 0);
+  assertEquals(check.status, "fail");
+  assertStringIncludes(check.note ?? "", "manifest.yaml");
+});
+
+Deno.test("model and extension versions are not required to be in lock-step", () => {
+  // The check consumes issues, never the version values, so an extension whose
+  // model schema version differs from the manifest version still passes.
+  assertEquals(checkVersionSource([]).status, "pass");
+});
+
+Deno.test("the weighted maximum stays 100", () => {
+  assertEquals(MAX_SCORE, 100);
+});
+
 Deno.test("gradeFor maps score bands", () => {
   assertEquals(gradeFor(95), "A");
   assertEquals(gradeFor(80), "B");
@@ -670,6 +773,13 @@ description: >
   CONFIGURE
 
     Set --config credstoreDir.
+
+  UPGRADE
+
+    Upgrade in place with the bundled workflow; it rebuilds the vault store and
+    is idempotent.
+
+        swamp workflow run @me/vault-upgrade
 
   WHAT IT INSTALLS
 

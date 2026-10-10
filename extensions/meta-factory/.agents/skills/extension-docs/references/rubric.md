@@ -18,28 +18,30 @@ The contract splits documentation by audience:
 
 ## Scoring model
 
-The score is `round(earned / 100 * 100)`, where `earned` is the sum of eighteen
+The score is `round(earned / 100 * 100)`, where `earned` is the sum of twenty-one
 weighted checks. The maximum is always 100.
 
 | Check id | Label | Max | Pass condition |
 | -------- | ----- | --- | -------------- |
 | `manifest` | Manifest name and description | 4 | name matches `@collective/name` (2) and description is non-placeholder (2) |
 | `pitch` | `WHAT IT DOES` is a short pitch | 5 | section present (2), 20–140 words (2), not a method dump (2) |
-| `manual` | Manifest description is a complete user manual | 8 | all six `MANUAL_ELEMENTS` present and description ≥300 chars |
+| `manual` | Manifest description is a complete user manual | 8 | all eight `MANUAL_ELEMENTS` present and description ≥300 chars |
 | `order` | Manual sections are in priority order (installs last) | 5 | headings appear in `MANUAL_ORDER` |
 | `no-methods` | Manifest omits a hand-written methods section | 5 | no `METHODS`/`API`/`WHAT IT SHIPS` heading in the description |
 | `install` | Getting it is a single step | 13 | exactly one `swamp extension pull`, no extra setup commands |
-| `format` | Manifest description is well-spaced and readable | 5 | literal block, blank-line sections, indented commands, blank-line keys |
-| `examples` | Manifest/README carry functional examples | 6 | ≥3 distinct runnable `swamp …` commands with no placeholders |
-| `explain` | Example commands say why/when to run them | 6 | every functional non-install command has an adjacent comment or sentence; the one-line `swamp extension pull` is exempt |
-| `sections` | Canonical README sections | 5 | all five sections present and substantive |
+| `format` | Manifest description is well-spaced and readable | 4 | literal block, blank-line sections, indented commands, blank-line keys |
+| `examples` | Manifest/README carry functional examples | 4 | ≥3 distinct runnable `swamp …` commands with no placeholders |
+| `explain` | Example commands say why/when to run them | 4 | every functional non-install command has an adjacent comment or sentence; the one-line `swamp extension pull` is exempt |
+| `sections` | Canonical README sections | 6 | all six sections present and substantive |
 | `substance` | README substance | 3 | ≥1200 chars (2), ≥1 markdown table (1) |
-| `packaging` | README and LICENSE packaged | 6 | `README.md` in `additionalFiles:` (3) and a license file (3) |
+| `upgrade` | README documents a single upgrade workflow | 5 | an `## Upgrade` section names one `swamp workflow run <name>-upgrade` entry point (or the no-host-artifacts exemption) and explains what is automatic or prompted; entry point present but unexplained (¾), section with no entry point (⅖), no section (0) |
+| `packaging` | README and LICENSE packaged | 4 | `README.md` in `additionalFiles:` (3) and a license file (3) |
 | `metadata` | Platforms, repository, license | 4 | platforms empty-or-≥2 (2), allowlisted HTTPS repo (1), license (1) |
 | `artifacts` | Declares shipped artifacts | 4 | ≥1 model/vault/datastore/report/workflow/skill |
 | `coverage` | README documents every model and method | 5 | 30% for types named, 70% for methods named |
-| `creation` | Definitions created by swamp creation commands | 5 | every model/workflow/vault config has a generated, valid, unique `id` |
-| `symbols` | Source symbols documented (JSDoc) | 5 | scaled by `documented / total` exported declarations |
+| `creation` | Definitions created by swamp creation commands | 4 | every model/workflow/vault config has a generated, valid, unique `id` |
+| `version-source` | Extension version read from manifest.yaml | 3 | no model source uses `model.version` or `context.definition.version` (the model-type or instance version) as the extension version; a `// swamp-quality-ignore version-source: <reason>` comment exempts a legitimate type-version use |
+| `symbols` | Source symbols documented (JSDoc) | 4 | scaled by `documented / total` exported declarations |
 | `fasttypes` | No slow types (`deno doc --lint`) | 3 | no slow-type diagnostics on stderr |
 | `deps` | Dependency trust | 3 | full on a passing audit, ~50% when skipped offline |
 
@@ -102,6 +104,33 @@ timeline is best-effort evidence, not proof:
 The unmatched result is a `create-unconfirmed` **warning**; it never turns the
 `creation` check into a failure on its own.
 
+## The extension version comes from manifest.yaml
+
+`version-source` checks that an extension which needs to know its own version at
+run time reads it from the bundled `manifest.yaml`, not from the model instance.
+Two values look like "the version" but are **not** the extension (package)
+version:
+
+| Value | What it actually is |
+| ----- | ------------------- |
+| `model.version` | the model-type / data-schema version (drives `typeVersion` and the `upgrades` chain) |
+| `context.definition.version` | the model *instance's* own version |
+
+Both are per-type/per-instance and independent of the manifest version: an
+unchanged model keeps its schema version across extension releases, and the two
+are **not** required to be in lock-step. So the extension version must be
+resolved from the manifest — anchor on a shipped asset with `ctx.extensionFile()`
+and walk up to `manifest.yaml` (the pulled layout keeps assets under
+`<ext>/files/` with the manifest one level up). `version-source-lint.ts` reads
+every declared `.ts` artifact and reports each runtime reference to
+`model.version` or `context.definition.version`.
+
+A legitimate type-version use — e.g. comparing an instance's `typeVersion` to
+the installed model version for staleness — is exempted with a
+`// swamp-quality-ignore version-source: <reason>` comment on the line or the
+line directly above it. Any unexempted reference fails the `version-source`
+check (3 points).
+
 ## No methods section in the manifest
 
 The manifest `description:` must **not** contain a hand-written methods list.
@@ -130,10 +159,11 @@ The manual puts the important information first, following this canonical order
 3. **dependencies** — or that it has none
 4. **run** — how to run it
 5. **configure** — how to set its options
-6. **installs** — what it puts on the host
+6. **upgrade** — how to upgrade an existing install (one workflow)
+7. **installs** — what it puts on the host
 
 Any section appearing before an earlier one is an inversion
-and costs `5 / 6` points each. A heading is a full-line canonical label (≤45
+and costs `5 / 7` points each. A heading is a full-line canonical label (≤45
 chars), so a method row like `run   Read the path.` is not mistaken for the
 `RUN` heading.
 
@@ -149,6 +179,33 @@ The `install` check reads the manifest's `INSTALL` section. If it contains more
 than one `swamp extension pull`, or any extra setup command (a `source add`,
 a model-create prerequisite, etc.), the check scores **0/13** — a multi-step
 install loses the full 13%.
+
+## The upgrade workflow (5 points)
+
+Every extension ships **one** documented upgrade entry point so an existing
+install can be brought up to date without the user working out which methods to
+re-run. The `upgrade` check reads the README's `## Upgrade` section:
+
+- **full** — the section names a `swamp workflow run <name>-upgrade` command
+  (the workflow name contains `upgrade`) and explains what it does
+  automatically or how it prompts for input, **or** the section states the
+  extension installs nothing on the host and gives `swamp extension update` as
+  the whole upgrade;
+- **¾** — the entry point is present but the section does not explain the
+  automation or the prompting;
+- **⅖** — the section exists but names no recognizable single entry point;
+- **0** — no `## Upgrade` section.
+
+The workflow itself should migrate the model definition, rebuild/reinstall
+anything on the host, reconcile configuration, restart services, and verify,
+and be idempotent. It must **discover its own targets** — never require the user
+to know an internal name. When there is more than one candidate, list them and
+ask. An `--input model=…` identity input caps the check at ⅖ unless the section
+also explains how targets are discovered ("discovers every…", "lists them", "no
+model name to remember"). Prompt for anything it cannot infer: use
+`manual_approval` for a destructive confirmation or anything secret (store it in
+a vault or an environment file — never a `wait_for_signal` payload, which is
+plaintext), and `wait_for_signal` only for non-secret values.
 
 ## Well-spaced manifest format
 
@@ -184,7 +241,7 @@ and the report names the offenders.
 
 ## The manifest-as-user-manual elements
 
-`MANUAL_ELEMENTS` in `quality-rubric.ts` defines the six things the manifest
+`MANUAL_ELEMENTS` in `quality-rubric.ts` defines the eight things the manifest
 `description:` must cover. A detection regex must match each:
 
 | id | Must tell the reader… |
@@ -194,9 +251,10 @@ and the report names the offenders.
 | `dependencies` | its dependencies, or that it has none / is self-contained |
 | `run` | how to run it (a `swamp workflow run` / `swamp model …` command) |
 | `configure` | how to configure its optional parts (global args, `--input`) |
+| `upgrade` | how to upgrade an existing install — one workflow that automates it |
 | `installs` | what it installs — services, triggers, schedules, webhooks — or none |
 
-Each present element earns `8 / 6` points. A description shorter than 300
+Each present element earns `8 / 8` points. A description shorter than 300
 characters cannot earn a full pass even if all keywords appear, because it has
 no room to be a usable manual.
 
@@ -214,10 +272,10 @@ The default `wellDocumented` threshold is **75** (grade B).
 
 ## Coverage scoring detail
 
-`coverage` is a strong lever (18 points). It is computed as:
+`coverage` is a strong lever (5 points). It is computed as:
 
 ```
-earned = round(18 * (0.3 * namedTypes/totalTypes + 0.7 * namedMethods/totalMethods))
+earned = round(5 * (0.3 * namedTypes/totalTypes + 0.7 * namedMethods/totalMethods))
 ```
 
 A method counts as named when its exact identifier appears anywhere in the
@@ -240,9 +298,9 @@ issues appear in the report:
 - `manifest-lint.ts` — required fields, CalVer version, placeholder
   description, every manual element (`manual-*` rules), artifact existence,
   `README.md` packaging.
-- `readme-lint.ts` — canonical sections present and in order, no skipped
-  heading levels, a configuration table, ≥2 code blocks, no empty fenced
-  blocks.
+- `readme-lint.ts` — canonical sections present and in order (including the
+  required `## Upgrade` section), no skipped heading levels, a configuration
+  table, ≥2 code blocks, no empty fenced blocks.
 - `definitions-lint.ts` — model/workflow/vault configs carry a generated,
   valid, unique `id` (`id-missing` / `id-format` / `id-duplicate`), plus
   `name`/`typeVersion` warnings.
@@ -250,7 +308,7 @@ issues appear in the report:
 The manifest and README lints are `error`/`warning` rows in the report and are
 not part of the numeric score, so the score stays comparable across versions.
 The definitions lint is different: it also feeds the scored `creation` check
-(any error costs the whole 5 points).
+(any error costs the whole 4 points).
 
 ## The scoreboard workflow
 

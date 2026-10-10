@@ -21,22 +21,33 @@ import {
   defaultStatusHostnames,
   deriveHostname,
   deriveRouteDnsTls,
+  desiredServingSettings,
   detectSwampServeServices,
   diffRoutes,
+  discoverCaddyModels,
+  dnsProviderFromEnvKeys,
+  dnsProviderFromPlugins,
   dnsProviderPlugin,
+  effectiveServeSettings,
   ensureFileServerRoute,
   ensureRoute,
   ensureServerDefaults,
   ensureStatusPageRoute,
   expandHome,
+  extensionVersionOf,
+  findManifestPath,
   findRouteByHost,
   hasNetBindService,
+  isDnsCredentialFailure,
   isGeneratedRoute,
   isHealthRoute,
   isStatusPageRoute,
   isSwampRoute,
+  isUpToDate,
   listProxyServices,
+  liveServeSummary,
   liveTlsInfo,
+  localhostUrl,
   mergeDesired,
   mergeTlsConfig,
   missingPlugins,
@@ -44,9 +55,10 @@ import {
   parseAdminAddr,
   parseCaddyVersion,
   parseGetcap,
+  parseManifestVersion,
   parseModules,
   parseUpstream,
-  PRIVILEGED_PORT_CAPABILITIES,
+  providerConfigFromEnvKeys,
   reconcileProxyServices,
   removeRouteFromConfig,
   removeStatusPageRoute,
@@ -54,9 +66,7 @@ import {
   renderDomainConflictError,
   renderMinimalConfig,
   renderNextCommands,
-  renderPrivilegedPortGuidance,
   renderServiceUnit,
-  renderSetcapCommand,
   renderSettingsGuidance,
   renderStatusPage,
   renderTlsAutomation,
@@ -66,12 +76,14 @@ import {
   routeHostnames,
   routeId,
   routeUpstream,
+  stalenessOf,
   statusPageHostnames,
   statusPageLinks,
   thirdPartyPlugins,
   validateBaseDomain,
   validateEmail,
   withDefaultPlugins,
+  withoutBaseDomainApex,
   writeDnsRecords,
 } from "./caddy.ts";
 
@@ -856,24 +868,9 @@ Deno.test("hasNetBindService detects the capability in any form", () => {
   assertEquals(hasNetBindService([]), false);
 });
 
-Deno.test("renderSetcapCommand produces the copy-paste sudo command", () => {
-  const cmd = renderSetcapCommand("/home/u/.local/bin/caddy");
-  assertEquals(
-    cmd,
-    "sudo setcap 'cap_net_bind_service=+ep' /home/u/.local/bin/caddy",
-  );
-  assertEquals(PRIVILEGED_PORT_CAPABILITIES, ["cap_net_bind_service=+ep"]);
-});
-
-Deno.test("renderPrivilegedPortGuidance explains why and when", () => {
-  const text = renderPrivilegedPortGuidance("/home/u/.local/bin/caddy");
-  assertStringIncludes(text, "cap_net_bind_service=+ep");
-  assertStringIncludes(text, "after every");
-  assertStringIncludes(text, "autoHttps=off");
-});
-
-Deno.test("setCapabilities method records the command when it cannot apply", async () => {
+Deno.test("setCapabilities delegates setcap to @svendowideit/sudo", async () => {
   let captured: Record<string, unknown> = {};
+  const calls: Array<Record<string, unknown>> = [];
   const ctx = {
     globalArgs: {
       caddyBinPath: "/nonexistent/caddy",
@@ -883,8 +880,13 @@ Deno.test("setCapabilities method records the command when it cannot apply", asy
       listenAddrs: [":443", ":80"],
       serviceName: "caddy",
       plugins: [],
+      sudoInstanceKey: "default",
     },
-    logger: { info: () => {} },
+    logger: { info: () => {}, warning: () => {} },
+    runModel: (opts: Record<string, unknown>) => {
+      calls.push(opts);
+      return Promise.resolve({ ok: true, resources: [{ name: "run" }] });
+    },
     writeResource: (
       _spec: string,
       _name: string,
@@ -896,9 +898,22 @@ Deno.test("setCapabilities method records the command when it cannot apply", asy
     // deno-lint-ignore no-explicit-any
   } as any;
   await model.methods.setCapabilities.execute({ quiet: true }, ctx);
-  assertEquals(typeof captured.command, "string");
-  assertStringIncludes(captured.command as string, "sudo setcap");
-  assertEquals(captured.applied, false);
+
+  // It calls the sudo extension's run method with operation=setcap, not sudo.
+  assertEquals(calls.length, 1);
+  const call = calls[0];
+  assertEquals(call.modelType, "@svendowideit/sudo");
+  assertEquals(call.name, "sudo-default");
+  assertEquals(call.method, "run");
+  const args = call.arguments as Record<string, unknown>;
+  assertEquals(args.operation, "setcap");
+  assertEquals(args.allowedOperations, ["setcap"]);
+  assertEquals(
+    (args.args as Record<string, unknown>).path,
+    "/nonexistent/caddy",
+  );
+  // No raw `sudo setcap …` command is emitted any more.
+  assert(!String(captured.command).includes("sudo setcap"));
 });
 
 Deno.test("defaultStatusHostnames is the default for configured names, minus routed", () => {
@@ -922,6 +937,26 @@ Deno.test("defaultStatusHostnames excludes routed hosts even if a TLS subject", 
   });
   assertEquals(hosts.includes("app.fi.gy"), false);
   assert(hosts.includes("localhost"));
+});
+
+Deno.test("defaultStatusHostnames includes DNS-record hostnames but never the base domain implicitly", () => {
+  const hosts = defaultStatusHostnames({
+    tlsSubjects: [],
+    recordHostnames: ["xeon.fi.gy"],
+  });
+  // A hostname named only by a declared DNS record is served by default…
+  assert(hosts.includes("xeon.fi.gy"));
+  assert(hosts.includes("localhost"));
+  // …but the base domain is NOT added unless a model names it explicitly.
+  assertEquals(hosts.includes("fi.gy"), false);
+});
+
+Deno.test("defaultStatusHostnames excludes a routed DNS-record hostname", () => {
+  const hosts = defaultStatusHostnames({
+    recordHostnames: ["xeon.fi.gy"],
+    routedHostnames: ["xeon.fi.gy"],
+  });
+  assertEquals(hosts.includes("xeon.fi.gy"), false);
 });
 
 Deno.test("statusPageHostnames covers localhost and loopback", () => {
@@ -1151,9 +1186,10 @@ Deno.test("renderStatusPage always shows a Routes & services section", () => {
     modules: [],
     listens: [],
   });
-  // The section is present even with no routes, with guidance.
+  // The section is present even with no managed routes, and lists the generated
+  // services (the admin API) so it is always useful.
   assertStringIncludes(empty, "Routes &amp; services");
-  assertStringIncludes(empty, "No routes are managed by swamp models yet");
+  assertStringIncludes(empty, "Caddy admin API");
 
   const withLinks = renderStatusPage({
     title: "Caddy",
@@ -1167,7 +1203,7 @@ Deno.test("renderStatusPage always shows a Routes & services section", () => {
     listens: [":443"],
   });
   assertStringIncludes(withLinks, "https://app.example.com");
-  assert(!withLinks.includes("No routes are managed"));
+  assertStringIncludes(withLinks, "Caddy admin API");
 });
 
 Deno.test("renderStatusPage lists compiled-in plugins or says stock", () => {
@@ -2065,20 +2101,19 @@ Deno.test("buildReconciledConfig defaults dnsRecords TTL to 5m", () => {
   assertEquals((config.apps as any).dns_records.ttl, "5m");
 });
 
-Deno.test("writeDnsRecords requires a DNS provider", () => {
-  let threw = false;
-  try {
-    writeDnsRecords(baseConfig(), null, [{
-      name: "a.fi.gy",
-      type: "A",
-      value: ["10.0.0.1"],
-      zone: "",
-      ttl: "",
-    }], []);
-  } catch {
-    threw = true;
-  }
-  assert(threw);
+Deno.test("writeDnsRecords skips (never rejects) when there is no DNS provider", () => {
+  const config = baseConfig();
+  writeDnsRecords(config, null, [{
+    name: "a.fi.gy",
+    type: "A",
+    value: ["10.0.0.1"],
+    zone: "",
+    ttl: "",
+  }], []);
+  // No dns_records app is written, but the call does not throw — the records
+  // stay wanted and apply once a provider is configured.
+  const apps = config.apps as Record<string, unknown>;
+  assertEquals("dns_records" in apps, false);
 });
 
 Deno.test("buildReconciledConfig writes dns_records only when records exist", () => {
@@ -2434,5 +2469,416 @@ Deno.test("requiredCaddyModules includes the dns_records app", () => {
   (config.apps as Record<string, unknown>).dns_records = { providers: [] };
   assert(
     requiredCaddyModules(config).includes("dns_records"),
+  );
+});
+
+Deno.test("discoverCaddyModels finds real definitions and ignores scratch/non-caddy", async () => {
+  const root = await Deno.makeTempDir();
+  const mk = async (rel: string, body: string) => {
+    const p = `${root}/${rel}`;
+    await Deno.mkdir(p.slice(0, p.lastIndexOf("/")), { recursive: true });
+    await Deno.writeTextFile(p, body);
+  };
+  // A real caddy model definition (has id + name + type).
+  await mk(
+    "models/@me/caddy/homelab.yaml",
+    `type: "@svendowideit/caddy"\ntypeVersion: "2026.01.01.1"\nid: 11111111-1111-1111-1111-111111111111\nname: homelab\nglobalArguments:\n  baseDomain: example.com\n  serviceName: caddy\n`,
+  );
+  // The scratch instance swamp auto-creates — under .swamp/, must be ignored.
+  await mk(
+    ".swamp/auto-definitions/@svendowideit/caddy/scan.yaml",
+    `type: "@svendowideit/caddy"\nid: 22222222-2222-2222-2222-222222222222\nname: caddy-upgrade-scan\nglobalArguments: {}\n`,
+  );
+  // A different model type that mentions the string in a comment.
+  await mk(
+    "models/@me/other/thing.yaml",
+    `type: "@me/other"\nid: 33333333-3333-3333-3333-333333333333\nname: thing\n# not @svendowideit/caddy\n`,
+  );
+  const found = await discoverCaddyModels(root);
+  assertEquals(found.map((f) => f.name), ["homelab"]);
+  assertEquals(found[0].baseDomain, "example.com");
+  assertEquals(found[0].serviceName, "caddy");
+});
+
+Deno.test("stalenessOf classifies typeVersions", () => {
+  assertEquals(stalenessOf("2026.10.10.2", "2026.10.10.2"), "current");
+  assertEquals(stalenessOf("2025.01.01.1", "2026.10.10.2"), "upgradable");
+  assertEquals(stalenessOf("", "2026.10.10.2"), "unknown");
+});
+
+Deno.test("dnsProviderFromPlugins extracts the provider name", () => {
+  assertEquals(
+    dnsProviderFromPlugins(["github.com/caddy-dns/gandi"]),
+    "gandi",
+  );
+  assertEquals(
+    dnsProviderFromPlugins(["github.com/caddy-dns/cloudflare@v1.2.3"]),
+    "cloudflare",
+  );
+  assertEquals(dnsProviderFromPlugins(["github.com/other/thing"]), "");
+  assertEquals(dnsProviderFromPlugins([]), "");
+});
+
+Deno.test("dnsProviderFromEnvKeys infers the provider from env var names", () => {
+  assertEquals(dnsProviderFromEnvKeys(["GANDI_BEARER_TOKEN"]), "gandi");
+  assertEquals(
+    dnsProviderFromEnvKeys(["PATH", "CLOUDFLARE_API_TOKEN", "X"]),
+    "cloudflare",
+  );
+  assertEquals(dnsProviderFromEnvKeys(["NAMECHEAP_API_KEY"]), "namecheap");
+  assertEquals(dnsProviderFromEnvKeys(["CADDY_DNS_API_TOKEN"]), "");
+  assertEquals(dnsProviderFromEnvKeys([]), "");
+});
+
+Deno.test("isDnsCredentialFailure recognises the Gandi/LiveDNS credential error", () => {
+  assertEquals(
+    isDnsCredentialFailure(
+      'Failed to apply Caddy config (500): {"error":"...dns_records app module... LiveDNS returned a 0 (You must provide an access token or an API Key...)"}',
+    ),
+    true,
+  );
+  assertEquals(
+    isDnsCredentialFailure(
+      "Failed to apply Caddy config (500): unknown module",
+    ),
+    false,
+  );
+});
+
+Deno.test("buildReconciledConfig gives a DNS-record hostname a default route when it has none", () => {
+  const config = buildReconciledConfig(baseConfig(), {
+    routes: [],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: exampleTls,
+    statusPage: {
+      enabled: true,
+      title: "Caddy",
+      hostnames: [],
+      extraLinks: [],
+      version: "",
+      adminUrl: "",
+      baseDomain: "fi.gy",
+      email: "a@b.c",
+      capabilities: [],
+      plugins: [],
+      links: [],
+    },
+    statusPageModel: "m",
+    healthRoutes: true,
+    dnsRecords: [{
+      name: "xeon.fi.gy",
+      type: "A",
+      value: ["10.0.0.1"],
+      zone: "fi.gy",
+      ttl: "",
+    }],
+    dnsRemovals: [],
+    dnsTtl: "5m",
+  });
+  const apps = (config.apps ?? {}) as Record<string, unknown>;
+  const servers = ((apps.http ?? {}) as Record<string, unknown>).servers as
+    | Record<string, unknown>
+    | undefined ?? {};
+  const hosts = new Set<string>();
+  for (const s of Object.values(servers)) {
+    const routes = ((s as Record<string, unknown>).routes ?? []) as Array<
+      Record<string, unknown>
+    >;
+    for (const r of routes) {
+      for (const m of (r.match ?? []) as Array<Record<string, unknown>>) {
+        for (const h of (m.host ?? []) as string[]) hosts.add(h);
+      }
+    }
+  }
+  // The DNS-record hostname gets a default route; the base domain apex does not
+  // (it is only served when a model names it explicitly).
+  assert(hosts.has("xeon.fi.gy"));
+  assertEquals(hosts.has("fi.gy"), false);
+});
+
+Deno.test("desiredServingSettings leaves the unprivileged preset once 80/443 can be bound", () => {
+  // Public-HTTPS intent (domain + email) and the binary can bind 80/443: the
+  // high-port / HTTPS-off preset is no longer needed, so it is corrected.
+  const want = desiredServingSettings({
+    baseDomain: "fi.gy",
+    acmeEmail: "a@b.c",
+    canBindPrivilegedPorts: true,
+    autoHttps: "off",
+    listenAddrs: [":8888", ":8443"],
+  });
+  assertEquals(want, { autoHttps: "on", listenAddrs: [":443", ":80"] });
+});
+
+Deno.test("desiredServingSettings is a no-op when already correct", () => {
+  assertEquals(
+    desiredServingSettings({
+      baseDomain: "fi.gy",
+      acmeEmail: "a@b.c",
+      canBindPrivilegedPorts: true,
+      autoHttps: "on",
+      listenAddrs: [":443", ":80"],
+    }),
+    null,
+  );
+});
+
+Deno.test("desiredServingSettings keeps the preset when 80/443 cannot be bound", () => {
+  assertEquals(
+    desiredServingSettings({
+      baseDomain: "fi.gy",
+      acmeEmail: "a@b.c",
+      canBindPrivilegedPorts: false,
+      autoHttps: "off",
+      listenAddrs: [":8888", ":8443"],
+    }),
+    null,
+  );
+});
+
+Deno.test("desiredServingSettings does not touch a model with no public-HTTPS intent", () => {
+  assertEquals(
+    desiredServingSettings({
+      baseDomain: "",
+      acmeEmail: "",
+      canBindPrivilegedPorts: true,
+      autoHttps: "off",
+      listenAddrs: [":8888"],
+    }),
+    null,
+  );
+});
+
+Deno.test("renderStatusPage links plugins, shows the extension version and status hostnames", () => {
+  const html = renderStatusPage({
+    title: "Caddy",
+    version: "v2.11.7",
+    adminUrl: "http://localhost:2019/config/",
+    baseDomain: "example.com",
+    email: "a@b.c",
+    capabilities: [],
+    links: [],
+    modules: [],
+    plugins: [{
+      packagePath: "github.com/caddy-dns/gandi",
+      version: "v1.1.0",
+      modules: ["dns.providers.gandi"],
+    }],
+    extensionVersion: "2026.10.10.2",
+    statusHostnames: ["localhost", "example.com"],
+    scheme: "https",
+  });
+  // The extension version that generated the page.
+  assertStringIncludes(html, "@svendowideit/caddy");
+  assertStringIncludes(html, "2026.10.10.2");
+  // Each compiled-in plugin links to its repo (README).
+  assertStringIncludes(html, 'href="https://github.com/caddy-dns/gandi"');
+  // The status page's own hostnames are listed, and the ACME email is shown.
+  assertStringIncludes(html, "https://example.com/");
+  assertStringIncludes(html, "a@b.c");
+});
+
+Deno.test("withoutBaseDomainApex drops the apex but keeps wildcards and subdomains", () => {
+  assertEquals(
+    withoutBaseDomainApex(
+      ["*.fi.gy", "fi.gy", "xeon.fi.gy", "other.example"],
+      "fi.gy",
+    ),
+    ["*.fi.gy", "xeon.fi.gy", "other.example"],
+  );
+  // No base domain: unchanged.
+  assertEquals(withoutBaseDomainApex(["fi.gy"], ""), ["fi.gy"]);
+  // Only an exact apex match is removed.
+  assertEquals(withoutBaseDomainApex(["fi.gy"], "example.com"), ["fi.gy"]);
+});
+
+Deno.test("isUpToDate requires every proven condition", () => {
+  const base = {
+    typeVersionCurrent: true,
+    configInSync: true,
+    serviceActive: true,
+    canBindPrivilegedPorts: true,
+    missingModules: 0,
+    servingSettingsOk: true,
+  };
+  assertEquals(isUpToDate(base), true);
+  // Any single unmet condition means not done.
+  assertEquals(isUpToDate({ ...base, typeVersionCurrent: false }), false);
+  assertEquals(isUpToDate({ ...base, configInSync: false }), false);
+  assertEquals(isUpToDate({ ...base, serviceActive: false }), false);
+  assertEquals(isUpToDate({ ...base, canBindPrivilegedPorts: false }), false);
+  assertEquals(isUpToDate({ ...base, missingModules: 1 }), false);
+  assertEquals(isUpToDate({ ...base, servingSettingsOk: false }), false);
+});
+
+// ---------------------------------------------------------------------------
+// Extension version from manifest.yaml (not the model schema version)
+// ---------------------------------------------------------------------------
+
+/** A `ctx.extensionFile` look-alike: join, and throw when the path is absent. */
+function extResolver(root: string) {
+  return (relPath: string): string => {
+    const path = `${root.replace(/\/+$/, "")}/${relPath}`;
+    try {
+      Deno.statSync(path);
+    } catch {
+      throw new Error(`Extension file not found: ${relPath}`);
+    }
+    return path;
+  };
+}
+
+const MANIFEST_TEXT =
+  `manifestVersion: 1\nname: "@x/y"\nversion: "2099.01.01.9"\n`;
+
+Deno.test("parseManifestVersion reads the manifest version line", () => {
+  assertEquals(parseManifestVersion(MANIFEST_TEXT), "2099.01.01.9");
+  assertEquals(parseManifestVersion("name: x\n"), "");
+});
+
+Deno.test("findManifestPath resolves the source layout", () => {
+  const ext = Deno.makeTempDirSync();
+  Deno.writeTextFileSync(`${ext}/manifest.yaml`, MANIFEST_TEXT);
+  Deno.writeTextFileSync(`${ext}/README.md`, "readme");
+  assertEquals(findManifestPath(extResolver(ext)), `${ext}/manifest.yaml`);
+});
+
+Deno.test("findManifestPath resolves the pulled layout (manifest above files/)", () => {
+  const ext = Deno.makeTempDirSync();
+  Deno.mkdirSync(`${ext}/files`, { recursive: true });
+  Deno.writeTextFileSync(`${ext}/manifest.yaml`, MANIFEST_TEXT);
+  Deno.writeTextFileSync(`${ext}/files/README.md`, "readme");
+  assertEquals(
+    findManifestPath(extResolver(`${ext}/files`)),
+    `${ext}/manifest.yaml`,
+  );
+});
+
+Deno.test("findManifestPath returns empty when no manifest is reachable", () => {
+  const ext = Deno.makeTempDirSync();
+  assertEquals(findManifestPath(extResolver(ext)), "");
+});
+
+Deno.test("extensionVersionOf reads the version from the bundled manifest", () => {
+  const ext = Deno.makeTempDirSync();
+  Deno.writeTextFileSync(`${ext}/manifest.yaml`, MANIFEST_TEXT);
+  assertEquals(extensionVersionOf(extResolver(ext)), "2099.01.01.9");
+  assertEquals(extensionVersionOf(undefined), "");
+});
+
+Deno.test("buildReconciledConfig puts the manifest extension version on the status page", () => {
+  const config = buildReconciledConfig(baseConfig(), {
+    routes: [],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "off",
+    tls: null,
+    statusPage: {
+      enabled: true,
+      title: "Caddy",
+      hostnames: ["localhost"],
+      extraLinks: [],
+      version: "2.8.4",
+      adminUrl: "http://localhost:2019",
+      baseDomain: "",
+      email: "",
+      capabilities: [],
+      plugins: [],
+      links: [],
+    },
+    statusPageModel: "a",
+    healthRoutes: false,
+  }, "2099.01.01.9");
+  const json = JSON.stringify(config);
+  assert(json.includes("2099.01.01.9"));
+  // The model's own schema version must not leak onto the status page.
+  assert(!json.includes(model.version));
+});
+
+// ---------------------------------------------------------------------------
+// Never reject: degrade to bindable ports so the config always loads
+// ---------------------------------------------------------------------------
+
+Deno.test("effectiveServeSettings keeps 80/443 when the binary can bind them", () => {
+  assertEquals(
+    effectiveServeSettings({
+      listenAddrs: [":443", ":80"],
+      autoHttps: "on",
+      canBindPrivilegedPorts: true,
+    }),
+    { listenAddrs: [":443", ":80"], autoHttps: "on", degraded: false },
+  );
+});
+
+Deno.test("effectiveServeSettings degrades 80/443 to unprivileged ports otherwise", () => {
+  const s = effectiveServeSettings({
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    canBindPrivilegedPorts: false,
+  });
+  assertEquals(s.listenAddrs, [":8443", ":8080"]);
+  assertEquals(s.autoHttps, "off");
+  assertEquals(s.degraded, true);
+});
+
+Deno.test("effectiveServeSettings leaves already-unprivileged ports untouched", () => {
+  const s = effectiveServeSettings({
+    listenAddrs: [":8888", ":8443"],
+    autoHttps: "off",
+    canBindPrivilegedPorts: false,
+  });
+  assertEquals(s.listenAddrs, [":8888", ":8443"]);
+  assertEquals(s.autoHttps, "off");
+  assertEquals(s.degraded, false);
+});
+
+Deno.test("effectiveServeSettings degrades the default port set when none is given", () => {
+  const s = effectiveServeSettings({
+    listenAddrs: [],
+    autoHttps: "on",
+    canBindPrivilegedPorts: false,
+  });
+  assertEquals(s.listenAddrs, [":8443", ":8080"]);
+  assertEquals(s.degraded, true);
+});
+
+Deno.test("providerConfigFromEnvKeys maps a provider's field to the declared env var", () => {
+  assertEquals(providerConfigFromEnvKeys("gandi", ["GANDI_BEARER_TOKEN"]), {
+    bearer_token: "GANDI_BEARER_TOKEN",
+  });
+});
+
+Deno.test("providerConfigFromEnvKeys maps only the field(s) actually declared", () => {
+  assertEquals(
+    providerConfigFromEnvKeys("namecheap", ["NAMECHEAP_API_KEY"]),
+    { api_key: "NAMECHEAP_API_KEY" },
+  );
+});
+
+Deno.test("providerConfigFromEnvKeys is empty for an unknown provider or no match", () => {
+  assertEquals(providerConfigFromEnvKeys("nope", ["X"]), {});
+  assertEquals(providerConfigFromEnvKeys("gandi", ["UNRELATED"]), {});
+});
+
+Deno.test("liveServeSummary measures https only when :443 is actually bound", () => {
+  const https = liveServeSummary(baseConfig([":443", ":80"], "on"));
+  assertEquals(https.reachable, true);
+  assertEquals(https.httpsReady, true);
+  assertEquals(https.scheme, "https");
+
+  const degraded = liveServeSummary(baseConfig([":8443", ":8080"], "off"));
+  assertEquals(degraded.reachable, true);
+  assertEquals(degraded.httpsReady, false);
+  assertEquals(degraded.scheme, "http");
+
+  // Unmeasured when the admin API could not be read.
+  assertEquals(liveServeSummary(null).reachable, false);
+});
+
+Deno.test("localhostUrl uses the measured scheme and listen addresses", () => {
+  assertEquals(localhostUrl("https", [":443", ":80"]), "https://localhost/");
+  assertEquals(localhostUrl("http", [":80"]), "http://localhost/");
+  assertEquals(
+    localhostUrl("http", [":8443", ":8080"]),
+    "http://localhost:8443/",
   );
 });

@@ -49,6 +49,22 @@ services:
       intervalSeconds: 1
       retries: 30
 
+# Boundary negative control (plan §16.1/§16.7). The positive tests below serve
+# Caddy's health contract on :80 *inside* the harness container (proved by
+# `curl` from within); this proves the harness container publishes **no** port
+# to the dev host, so the listener is reachable only on the scenario network.
+isolation:
+  - name: caddy-listener-is-not-published-to-the-host
+    confirms: >
+      Caddy serves its health contract inside the harness container but the
+      container publishes no port bindings: the listener is reachable only from
+      the test-factory network, never on the dev host.
+    cannot: >
+      must not publish the harness container's port to the host, so the host must
+      not gain a listener for this run.
+    documents: README.md#examples
+    noPublishedPorts: ["harness"]
+
 tests:
   - name: installs-binary-service-and-health-contract
     confirms: >

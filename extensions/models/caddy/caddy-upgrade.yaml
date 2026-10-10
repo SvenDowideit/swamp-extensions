@@ -1,0 +1,289 @@
+id: 5add36ac-50d1-4042-b5c5-5af5e4820b8b
+name: "@svendowideit/caddy-upgrade"
+description: |
+  Upgrade the Caddy managed by @svendowideit/caddy — with no model name to
+  remember — and tell you exactly what is still missing.
+
+  Run it after updating the extension (`swamp extension update`). Caddy global
+  arguments only take effect on the next method run, and a replaced binary drops
+  its capability, so a version bump alone is not enough.
+
+  It first discovers every @svendowideit/caddy model this repo defines (read from
+  the model definitions on disk, so a never-run model is found and the
+  auto-created scratch instance never is). If the repo defines exactly one model
+  it is upgraded automatically. If it defines more than one, the run lists them
+  (with the exact command to upgrade each) and finishes without changing
+  anything — then run the one you want:
+
+    swamp workflow run @svendowideit/caddy-upgrade
+    swamp workflow run @svendowideit/caddy-upgrade --input model=otel-caddy
+
+  It then prints the configuration it found for that model (baseDomain, ACME
+  email, TLS subjects, DNS provider, records) and a gap report: every setting
+  that stops Caddy serving — the capability to bind 80/443, a baseDomain, an ACME
+  email, TLS, a DNS provider and records, a stale binary, service health — each
+  with the exact command to fix it. Confirm the configuration is right (run any
+  correction command first), then approve; it rebuilds the binary if stale,
+  re-grants the capability, regenerates the unit, and restarts, then re-runs the
+  gap report so you can see what is left. Every step runs in order (no parallel
+  calls against one model), and is idempotent — re-running is safe.
+
+    # The run suspends at the gate; approve and resume:
+    swamp workflow approvals
+    swamp workflow approve @svendowideit/caddy-upgrade confirm
+    swamp workflow resume @svendowideit/caddy-upgrade
+
+  To (re)configure TLS as part of the same run, name the provider:
+    swamp workflow run @svendowideit/caddy-upgrade \
+      --input model=otel-caddy --input dnsProvider=gandi \
+      --input 'providerConfig:json={"bearer_token":"GANDI_TOKEN"}'
+inputs:
+  properties:
+    model:
+      type: string
+      default: ""
+      description: >
+        The @svendowideit/caddy model to upgrade. Leave empty (the default) to
+        auto-upgrade the single model the repo defines, or to list the models
+        (changing nothing) when there is more than one.
+    dnsProvider:
+      type: string
+      default: ""
+      description: >
+        Optional DNS provider (e.g. gandi, cloudflare) to (re)configure TLS with
+        after the upgrade. Empty leaves the existing TLS configuration alone.
+    providerConfig:
+      type: object
+      default: {}
+      description: >
+        Optional provider credential field -> environment variable map, for
+        multi-field providers, e.g. {"bearer_token":"GANDI_TOKEN"} for Gandi.
+  required: []
+tags:
+  swamp: "caddy"
+  kind: "upgrade"
+jobs:
+  - name: discover
+    description: >-
+      List every @svendowideit/caddy model this repo defines, with the settings
+      and staleness that matter for an upgrade, and the exact command to upgrade
+      each one. Reads model definitions on disk, so it finds a model that has
+      never been run and never mistakes the auto-created scratch instance for a
+      real one.
+    steps:
+      - name: scan
+        description: Discover and print the caddy model(s) in this repo.
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: caddy-upgrade-scan
+          methodName: upgradeTargets
+          globalArgs:
+            serviceName: caddy-upgrade-scan
+            target: caddy-upgrade-scan
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+  - name: upgrade
+    description: >-
+      Report the configuration and gaps, confirm, then rebuild/re-unit/restart
+      and re-report. Every step targets one model and runs strictly in order
+      (each depends on the previous), so nothing contends on the model lock.
+    steps:
+      - name: check-before
+        description: >-
+          Print the configuration found for this model and every gap that stops
+          it serving — capability to bind 80/443, baseDomain, ACME email, TLS,
+          DNS provider/records, stale binary, service health — each with the
+          exact command to fix it.
+        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: upgradeCheck
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: confirm
+        description: >-
+          Interactive gate: the configuration and gap report are printed above.
+          If they are correct, approve; if not, run the correction command shown
+          in the report first, then approve. Skipped entirely when the single
+          target model is already up to date (nothing to do).
+        guard: '${{ inputs.model == "" && (data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 || data.latest("caddy-upgrade-scan", "targets").?attributes.?models[0].?upToDate.orValue(false)) }}'
+        task:
+          type: manual_approval
+          prompt: >-
+            The configuration for this model, and the command to change each
+            setting, are printed above. If it is all correct, approve to
+            continue. Otherwise run the relevant command above, then approve.
+            Approving rebuilds the binary if its modules are stale, re-grants
+            CAP_NET_BIND_SERVICE, regenerates the systemd unit, and restarts
+            Caddy. If this model uses a DNS provider, make sure its token is in
+            the model's environmentFile before approving.
+        dependsOn:
+          - step: check-before
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: install
+        description: >-
+          Migrate the model definition and (re)install the binary. Downloads a
+          new build only when a wanted module is missing, grants the capability
+          first, and restarts a running service so it picks up the new build.
+        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: installCaddy
+          inputs:
+            setCapabilities: true
+            configureStatusPage: false
+        dependsOn:
+          - step: confirm
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: normalize-serving
+        description: >-
+          Make the model's automatic-HTTPS / listen-address settings match what it
+          wants (public HTTPS) and what this host can do (bind 80/443), correcting
+          and persisting them — e.g. leaving the unprivileged high-port preset now
+          that the binary can bind privileged ports. Skipped when there is nothing
+          to correct. (installCaddy above already (re)granted CAP_NET_BIND_SERVICE
+          via @svendowideit/sudo, so there is no separate setcap step.)
+        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: normalizeServingSettings
+        dependsOn:
+          - step: install
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+
+      - name: recreate-unit
+        description: >-
+          Regenerate the systemd unit from the model's current global args and
+          reload the daemon.
+        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: createService
+        dependsOn:
+          - step: normalize-serving
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+
+      - name: restart
+        description: Restart the Caddy service so it runs the upgraded unit.
+        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: restartService
+        dependsOn:
+          - step: recreate-unit
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: status-page
+        description: >-
+          Re-install the default status page. Does not fail the workflow if the
+          admin API is not yet reachable.
+        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: configureStatusPage
+        dependsOn:
+          - step: restart
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
+      - name: tls
+        description: >-
+          (Re)configure the TLS app. The DNS provider is inferred from the model's
+          plugins (and the credential mapping from its environmentFile), so passing
+          --input dnsProvider is optional. Runs before the dns step so records are
+          applied through a provider that is already configured. Tolerated when the
+          model has no ACME email yet.
+        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: configureTls
+          inputs:
+            dnsProvider: ${{ inputs.dnsProvider }}
+            providerConfig: ${{ inputs.providerConfig }}
+        dependsOn:
+          - step: status-page
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
+      - name: dns
+        description: >-
+          Reconcile desired static DNS records, if the model declares any. Runs
+          after tls, so the provider is configured first. A model with no
+          dnsRecords/dnsRemovals is a no-op, which the workflow tolerates.
+        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: applyDnsRecords
+        dependsOn:
+          - step: tls
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
+      - name: check-after
+        description: >-
+          Re-run the gap report so the run ends by telling you exactly what is
+          still missing (if anything) and the command to fix each gap. A report,
+          so it never fails the run.
+        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: upgradeCheck
+        dependsOn:
+          - step: dns
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+    dependsOn:
+      - job: discover
+        condition:
+          type: succeeded
+    weight: 0
+version: 1

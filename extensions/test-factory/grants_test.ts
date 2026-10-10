@@ -31,9 +31,9 @@ Deno.test("the T0-nr subset is implemented", () => {
 });
 
 Deno.test("a not-yet-built tier grant throws rather than silently no-op-ing", () => {
-  const docker = grantProfileById("docker-rootful")!;
-  assertEquals(docker.implemented, false);
-  assertThrows(() => renderGrantScript(docker));
+  const pending = grantProfileById("k8s-node")!;
+  assertEquals(pending.implemented, false);
+  assertThrows(() => renderGrantScript(pending));
 });
 
 Deno.test("user-tester creates a non-root user", () => {
@@ -54,6 +54,13 @@ Deno.test("sudo-interactive-only has no NOPASSWD", () => {
   assertEquals(s.includes("NOPASSWD"), false);
 });
 
+Deno.test("docker-rootful starts an in-harness dockerd and grants the docker group", () => {
+  const s = renderGrantScript(grantProfileById("docker-rootful")!);
+  assertStringIncludes(s, "dockerd");
+  assertStringIncludes(s, "/var/run/docker.sock");
+  assertStringIncludes(s, "usermod -aG docker tester");
+});
+
 Deno.test("doas-nopasswd writes a permit-nopass rule", () => {
   const s = renderGrantScript(grantProfileById("doas-nopasswd")!);
   assertStringIncludes(s, "permit nopass tester");
@@ -63,13 +70,13 @@ Deno.test("doas-nopasswd writes a permit-nopass rule", () => {
 Deno.test("planGrants separates scripts, pending tiers and unknown ids", () => {
   const plan = planGrants([
     { guest: "harness", profile: "user-tester" },
-    { guest: "harness", profile: "docker-rootful" },
+    { guest: "harness", profile: "k8s-node" },
     { guest: "harness", profile: "does-not-exist" },
   ]);
   assertEquals(plan.scripts.length, 1);
   assertEquals(plan.scripts[0].profile, "user-tester");
   assertEquals(plan.pending.length, 1);
-  assertStringIncludes(plan.pending[0].reason, "T1 tier");
+  assertStringIncludes(plan.pending[0].reason, "T1-k8s tier");
   assertEquals(plan.unknown.length, 1);
 });
 

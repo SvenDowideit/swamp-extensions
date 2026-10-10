@@ -770,6 +770,11 @@ async function runScenario(
       name: target,
       image: img.image,
       systemd: scenario.systemd,
+      // A `docker-*` grant runs a real dockerd *inside* the harness; that needs
+      // the container privileged even when systemd is off (a systemd harness is
+      // already privileged via the systemd flag).
+      privileged: !scenario.systemd &&
+        candidate.system.grants.some((g) => g.profile.startsWith("docker-")),
       networks: harnessNetworks.length > 0 ? harnessNetworks : undefined,
       mounts,
       env: containerEnv(deps.swampApiKey),

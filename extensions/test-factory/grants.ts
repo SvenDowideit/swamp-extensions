@@ -91,9 +91,9 @@ export const GRANT_PROFILES: GrantProfile[] = [
   {
     id: "docker-rootful",
     tier: "T1",
-    provisions: "rootful dockerd sidecar + tester in docker group",
+    provisions: "rootful dockerd inside the harness + tester in docker group",
     exercises: "docker-run",
-    implemented: false,
+    implemented: true,
   },
   {
     id: "docker-rootless",
@@ -225,6 +225,28 @@ export function renderGrantScript(
         "mkdir -p /etc",
         `printf 'permit nopass ${user}\\n' > /etc/doas.conf 2>/dev/null || true`,
         "chmod 0400 /etc/doas.conf 2>/dev/null || true",
+      );
+      break;
+    case "docker-rootful":
+      // A Docker engine *inside* the harness — never the host daemon. The
+      // systemd/privileged scenario already starts the harness privileged, so
+      // dockerd can run in it: install it, start it, wait for the socket, and
+      // add the harness user to the docker group so @svendowideit/sudo finds its
+      // `docker-run` elevation route.
+      lines.push(
+        ...ensureUser(user),
+        "if ! command -v dockerd >/dev/null 2>&1; then",
+        "  if command -v apt-get >/dev/null 2>&1; then",
+        "    apt-get update -qq >/dev/null 2>&1; DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io >/dev/null 2>&1 || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-ce >/dev/null 2>&1 || true",
+        "  elif command -v dnf >/dev/null 2>&1; then",
+        "    dnf install -y -q docker >/dev/null 2>&1 || dnf install -y -q moby-engine >/dev/null 2>&1 || true",
+        "  fi",
+        "fi",
+        "mkdir -p /var/log /var/run",
+        "if ! pgrep -x dockerd >/dev/null 2>&1; then dockerd >/var/log/dockerd.log 2>&1 & fi",
+        "i=0; while [ ! -S /var/run/docker.sock ] && [ $i -lt 60 ]; do i=$((i+1)); sleep 1; done",
+        `usermod -aG docker ${user} 2>/dev/null || addgroup ${user} docker 2>/dev/null || true`,
+        "chmod 0666 /var/run/docker.sock 2>/dev/null || true",
       );
       break;
     case "no-grant":

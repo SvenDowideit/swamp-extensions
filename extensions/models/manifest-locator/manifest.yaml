@@ -1,0 +1,55 @@
+manifestVersion: 1
+name: "@svendowideit/manifest-locator"
+version: "2026.10.10.3187"
+description: >
+  Prints the absolute path to this extension's own `manifest.yaml`, resolved at
+  method-run time.
+
+  WHAT IT DOES
+
+    A demonstration model whose single method resolves — while it is running —
+    the path to the `manifest.yaml` the model was loaded from, in both the
+    source-loaded and pulled layouts. A pulled extension keeps its assets under
+    `<extension-dir>/files/` and its `manifest.yaml` one level up, so the method
+    anchors on a bundled asset and walks up to the manifest rather than assuming
+    they sit side by side. That makes the manifest the single source of truth for
+    the extension's version, with no version literal duplicated in the source.
+    The method logs the path and version and writes a `location` resource holding
+    the path, whether the file exists, the version parsed from it, and the raw
+    YAML.
+
+  INSTALL
+
+      swamp extension source add extensions/models/manifest-locator
+
+  DEPENDENCIES
+
+    None.
+
+  RUN
+
+      # Run the locate method and print the manifest path and version.
+      swamp model @svendowideit/manifest-locator method run locate manifest-locator
+
+      # Read the recorded path and version from the resource.
+      swamp data query 'model("manifest-locator") && name == "location"' --select content
+
+  WHAT IT INSTALLS
+
+    Nothing on the host. It only writes a swamp resource.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - manifest_locator.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

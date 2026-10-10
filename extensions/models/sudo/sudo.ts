@@ -791,7 +791,7 @@ function ladderReport(ladder: z.infer<typeof LadderEntrySchema>[]): string {
  */
 export const model = {
   type: "@svendowideit/sudo",
-  version: "2026.10.04.2",
+  version: "2026.10.10.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -802,6 +802,20 @@ export const model = {
         "daemon-reload), removePath (rm -rf, refuses /), runScript (sh " +
         "<script>), copyDirectory (cp -a). All localOnly; all must be added " +
         "to allowedOperations.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.10.1",
+      description:
+        "Ship the milestone-0 test-factory acceptance fixture (`test-factory.yaml`, " +
+        "now listed in additionalFiles) so the local elevation ladder can be tested " +
+        "in a non-root container: the harness runs as `tester` with a NOPASSWD " +
+        "sudoers grant, `probe` selects `sudo-n`, `run ensureDirectory` proves real " +
+        "root elevation inside the sandbox, and a pinned unavailable route fails " +
+        "closed. The fixture also carries an `isolation:` boundary negative control: " +
+        "a root-only write through `sudo` creates a per-run marker that must be " +
+        "absent on the host, so a successful sudo is proved not to have escaped the " +
+        "sandbox. No model schema, argument or resource-shape change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

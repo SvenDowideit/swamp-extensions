@@ -1,0 +1,130 @@
+# Acceptance tests for @svendowideit/sudo, run by @svendowideit/test-factory.
+#
+# This is the milestone-0 (T0-nr) fixture: the harness runs as a **non-root**
+# `tester` user on a glibc, systemd-capable Debian host, and a `sudo-nopasswd`
+# grant provisions `/etc/sudoers.d/010-tester` so the elevation ladder has
+# exactly one granted route. It proves the local-elevation premise the whole
+# test-factory virtual-environments plan exists to test: a plain user elevates
+# to root **inside the sandbox**, with the isolation boundary recorded.
+#
+# Run it:
+#   swamp model @svendowideit/test-factory method run test tf \
+#     --input manifest=extensions/models/sudo/manifest.yaml \
+#     --input scenario=debian-standalone
+#
+# Per-grant coverage (sudo-nopasswd, doas-nopasswd, sudo-none, …) is a
+# milestone-1 concern: grants are declared per candidate here, so one run
+# exercises one grant profile. Until per-test grants land, this fixture is the
+# headline `probe-sudo-n-wins` case plus a host-visible run effect and a
+# fail-closed control.
+
+harness:
+  runAs: tester
+
+grants:
+  - { guest: harness, profile: sudo-nopasswd }
+
+# Boundary negative control (plan §16.1/§16.7). The positive tests below prove
+# the ladder elevates to root *inside* the sandbox; this proves that elevation
+# did not reach the host. The marker carries the per-run token (`$TF_RUN_ID`),
+# so it cannot pre-exist.
+isolation:
+  - name: sudo-elevation-does-not-escape-the-sandbox
+    confirms: >
+      The elevation ladder genuinely reaches root *inside* the sandbox: `sudo`
+      writes a marker at the container's filesystem root, and that marker is
+      absent on the dev host — so a successful sudo acted on the sandbox, not
+      the host.
+    cannot: >
+      must not create the marker on the host, and the sandbox must not be able to
+      write outside its own root filesystem.
+    documents: README.md#elevation-routes
+    sandbox: >
+      sudo -n sh -c 'echo escaped > /escaped-$TF_RUN_ID'
+    absentOnHost: ["/escaped-$TF_RUN_ID"]
+
+tests:
+  - name: probe-selects-sudo-n-on-a-nopasswd-host
+    confirms: >
+      On a Debian host with a non-root `tester` user and a NOPASSWD sudoers
+      rule, `@svendowideit/sudo`'s probe resolves the elevation ladder and
+      reports `capability: root-via-sudo-n` — the first route that proves host
+      root, with every other route explained.
+    cannot: >
+      must not report any other route (ssm, run0, docker-run, …) as the granted
+      capability when only sudo-n is granted.
+    documents: README.md#elevation-routes
+    steps:
+      - name: probe-reports-sudo-n-capability
+        run: >
+          swamp model @svendowideit/sudo method run probe sudo-t0
+          --json 2>&1
+        expect:
+          exitCode: 0
+          stdoutContains: ["root-via-sudo-n"]
+          stdoutNotContains: ["root-via-docker-run", "root-via-run0"]
+
+  - name: run-elevates-and-mutates-the-sandbox
+    confirms: >
+      `run` executes a privileged operation through the resolved `sudo-n`
+      route: an `ensureDirectory` operation creates a root-owned directory
+      inside the sandbox, proving the elevation was real (the path cannot be
+      created by the unprivileged user) while staying inside the sandbox.
+    cannot: >
+      must not fail to create the directory or record an elevation failure.
+    documents: README.md#operations
+    steps:
+      - name: create-model-with-allowlist
+        run: >
+          swamp model create @svendowideit/sudo sudo-ops
+          --global-arg 'allowedOperations:json=["ensureDirectory"]'
+        expect:
+          exitCode: 0
+      - name: ensure-directory-via-elevation
+        run: >
+          swamp model method run sudo-ops run
+          --input operation=ensureDirectory
+          --input 'args:json={"path":"/opt/tf-proof","mode":"750"}'
+          --json 2>&1
+        expect:
+          exitCode: 0
+          stdoutNotContains: ['"elevationFailed":true']
+      - name: the-directory-exists-and-is-root-owned
+        run: >
+          stat -c '%a %U' /opt/tf-proof
+        expect:
+          stdoutContains: ["750 root"]
+          stdoutNotContains: ["tester"]
+
+  - name: pinned-unavailable-route-does-not-fallback
+    confirms: >
+      Pinning a route the sandbox does not grant (`doas-n`, not installed)
+      fails closed with the pinned route named in the error, rather than
+      silently falling back to the working `sudo-n` route — the conservative
+      behavior the README promises.
+    cannot: >
+      must not succeed, and must not create the would-be directory via a
+      fallback route.
+    documents: README.md#elevation-routes
+    steps:
+      - name: create-model-with-allowlist
+        run: >
+          swamp model create @svendowideit/sudo sudo-pinned
+          --global-arg 'allowedOperations:json=["ensureDirectory"]'
+        expect:
+          exitCode: 0
+      - name: pinned-doas-on-a-sudo-host-fails-closed
+        run: >
+          swamp model method run sudo-pinned run
+          --input operation=ensureDirectory
+          --input strategy=doas-n
+          --input 'args:json={"path":"/opt/tf-proof-2","mode":"750"}'
+        expect:
+          exitCode: [1, 2]
+          outputNotContains: ["exit 0"]
+      - name: the-fallback-path-was-not-created
+        run: >
+          test -e /opt/tf-proof-2 && echo CREATED || echo ABSENT
+        expect:
+          stdoutContains: ["ABSENT"]
+          stdoutNotContains: ["CREATED"]

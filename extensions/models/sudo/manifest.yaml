@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/sudo"
-version: "2026.10.04.2"
+version: "2026.10.10.1"
 description: >
   Run one privileged operation on the host — install a package, restart a
   system service, set a sysctl — from any workflow, without writing sudo logic
@@ -176,6 +176,7 @@ additionalFiles:
   - sudo_test.ts
   - sudo_strategies_test.ts
   - sudo_operations_test.ts
+  - test-factory.yaml
 
 platforms:
   - linux-x86_64

@@ -91,7 +91,7 @@ Deno.test("buildHarnessScript defaults to root with no drop", () => {
 
 Deno.test("buildHarnessScript as tester installs as root then drops", () => {
   const script = buildHarnessScript({ ...plan, runAs: "tester" });
-  assertStringIncludes(script, "exec su -s /bin/sh tester");
+  assertStringIncludes(script, "exec su -s /bin/sh -p tester");
   assertStringIncludes(script, "TF_DROPPED");
   assertStringIncludes(script, "enable-linger tester");
   assertStringIncludes(script, "chown -R tester /tf /work");
@@ -410,4 +410,19 @@ Deno.test("phaseClaims records fixture expectations", () => {
   );
   assertStringIncludes(claims[0].commands.join("\n"), "owner/name");
   assertStringIncludes(claims[0].commands.join("\n"), "'ok'");
+});
+
+Deno.test("buildHarnessScript preserves TF_DROPPED when dropping to a non-root user", () => {
+  const script = buildHarnessScript({ ...plan, runAs: "tester" });
+  // `su` resets the environment. If TF_DROPPED is not re-set inline, the prelude
+  // re-runs itself instead of the phases and the harness produces no result (B1).
+  assertStringIncludes(
+    script,
+    'su -s /bin/sh -p tester -c "TF_DROPPED=1 /bin/sh $0"',
+  );
+});
+
+Deno.test("buildHarnessScript runs as root without a su drop by default", () => {
+  const script = buildHarnessScript(plan);
+  assertEquals(script.includes("exec su -s /bin/sh"), false);
 });

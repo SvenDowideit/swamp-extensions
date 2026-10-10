@@ -268,19 +268,41 @@ Reports and workflows:
 - `@svendowideit/meta-factory-upgrade` workflow — refreshes the bundled skill
   and re-scores; the single upgrade entry point (see [Upgrade](#upgrade)).
 
-The score is the weighted sum of nineteen checks (maximum 100): manifest name
+The score is the weighted sum of twenty-one checks (maximum 100): manifest name
 and description (4), short `WHAT IT DOES` pitch (5), manifest-as-user-manual
 (8), manual section order, installs last (5), **no methods section in the
 manifest (5)**, single-step install (13), manifest formatting (4), functional
-examples (5), explained examples (5), canonical README sections (6), README
+examples (4), explained examples (4), canonical README sections (6), README
 substance (3), **a documented single upgrade workflow (5)**, README + LICENSE
-packaging (5), platforms/repository/license metadata (4), declared artifacts
+packaging (4), platforms/repository/license metadata (4), declared artifacts
 (4), README coverage of every model and method (5), **definitions created by
-swamp creation commands (4)**, JSDoc symbol coverage (4), no slow-type
-diagnostics from `deno doc --lint` (3, filtered to the rubric's slow-type codes
-so JSDoc warnings are not double-counted), and dependency trust (3). Grades:
+swamp creation commands (4)**, **the extension version read from `manifest.yaml`
+rather than the model's own or an instance's version (3)**, JSDoc symbol
+coverage (4), no slow-type diagnostics from `deno doc --lint` (3, filtered to
+the rubric's slow-type codes so JSDoc warnings are not double-counted), and
+dependency trust (3). Grades:
 A ≥ 90, B ≥ 75, C ≥ 60, D ≥ 40, else F. The full breakdown is in the bundled
 skill's `references/rubric.md`.
+
+### Extension (package) vs model version
+
+The `version-source` check enforces that an extension which needs to know its
+own version at run time reads it from the bundled `manifest.yaml` — anchoring on
+a shipped asset with `ctx.extensionFile()` and walking up to the manifest — and
+**not** from the model instance. Two values look like "the version" but are not
+the extension version:
+
+| Value | What it actually is |
+| ----- | ------------------- |
+| `model.version` | the model-type / data-schema version (drives `typeVersion` and the `upgrades` chain) |
+| `context.definition.version` | the model *instance's* own version |
+
+They are per-type/per-instance and independent of the manifest version: an
+unchanged model keeps its schema version across extension releases, and the two
+are **not** required to be in lock-step. A legitimate type-version use (e.g.
+comparing an instance's `typeVersion` to the installed model version for
+staleness) is exempted with a `// swamp-quality-ignore version-source: <reason>`
+comment on the line or the line directly above it.
 
 ### Code metrics (CRAP)
 

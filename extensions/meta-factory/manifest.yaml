@@ -13,15 +13,20 @@ description: >
     eyeballing your docs or a one-off review: the score is repeatable, so you can
     gate publishing and CI on it. It covers everything the Swamp Club rubric
     does, plus the manifest-as-user-manual, manual order, single-step install,
-    formatting, functional-example, single-upgrade-workflow, and
-    creation-command rules that rubric does not — so `swamp model create` /
+    formatting, functional-example, single-upgrade-workflow, creation-command,
+    and version-source rules that rubric does not — so `swamp model create` /
     `swamp workflow create` / `swamp vault create` are used instead of
     hand-writing or copying definition configs, and every extension ships one
     documented `swamp workflow run <name>-upgrade` command that discovers its
     own targets (never requiring the user to remember an internal name). The
     `lintDefinitions` method also cross-references the `swamp audit` timeline,
     so a recent definition with no matching create command is flagged even when
-    it carries a plausible id. A second workflow prints a scoreboard — a text
+    it carries a plausible id. It also checks that an extension needing its own
+    version at run time reads it from `manifest.yaml` rather than from
+    `model.version` (the model-type / schema version) or
+    `context.definition.version` (the model instance's version) — neither is the
+    package version, and the model and manifest versions are independent and need
+    not be in lock-step. A second workflow prints a scoreboard — a text
     table of every git-tracked extension with the reasons each is not 100/100.
     Each score can also carry test-factory coverage: how many of an extension's
     documented `swamp …` commands, and how many of the methods and workflows it

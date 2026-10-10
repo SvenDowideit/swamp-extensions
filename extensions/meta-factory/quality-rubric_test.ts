@@ -21,6 +21,7 @@ import {
   checkSubstance,
   checkSymbols,
   checkUpgrade,
+  checkVersionSource,
   countCodeBlocks,
   declaredArtifactFiles,
   extractExamples,
@@ -616,6 +617,37 @@ Deno.test("checkDefinitions does not penalise advisory warnings", () => {
   assertEquals(check.earned, WEIGHTS.creation);
   assertEquals(check.status, "pass");
   assertStringIncludes(check.note ?? "", "advisory");
+});
+
+Deno.test("checkVersionSource passes when the version comes from the manifest", () => {
+  const check = checkVersionSource([]);
+  assertEquals(check.earned, WEIGHTS.versionSource);
+  assertEquals(check.status, "pass");
+});
+
+Deno.test("checkVersionSource fails on a model/instance version reference", () => {
+  const check = checkVersionSource([
+    {
+      severity: "error",
+      rule: "model-version-used",
+      message: "used model.version",
+      path: "tool.ts",
+      line: 12,
+    },
+  ]);
+  assertEquals(check.earned, 0);
+  assertEquals(check.status, "fail");
+  assertStringIncludes(check.note ?? "", "manifest.yaml");
+});
+
+Deno.test("model and extension versions are not required to be in lock-step", () => {
+  // The check consumes issues, never the version values, so an extension whose
+  // model schema version differs from the manifest version still passes.
+  assertEquals(checkVersionSource([]).status, "pass");
+});
+
+Deno.test("the weighted maximum stays 100", () => {
+  assertEquals(MAX_SCORE, 100);
 });
 
 Deno.test("gradeFor maps score bands", () => {

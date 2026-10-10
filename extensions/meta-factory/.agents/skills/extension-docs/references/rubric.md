@@ -18,7 +18,7 @@ The contract splits documentation by audience:
 
 ## Scoring model
 
-The score is `round(earned / 100 * 100)`, where `earned` is the sum of nineteen
+The score is `round(earned / 100 * 100)`, where `earned` is the sum of twenty-one
 weighted checks. The maximum is always 100.
 
 | Check id | Label | Max | Pass condition |
@@ -30,16 +30,17 @@ weighted checks. The maximum is always 100.
 | `no-methods` | Manifest omits a hand-written methods section | 5 | no `METHODS`/`API`/`WHAT IT SHIPS` heading in the description |
 | `install` | Getting it is a single step | 13 | exactly one `swamp extension pull`, no extra setup commands |
 | `format` | Manifest description is well-spaced and readable | 4 | literal block, blank-line sections, indented commands, blank-line keys |
-| `examples` | Manifest/README carry functional examples | 5 | ≥3 distinct runnable `swamp …` commands with no placeholders |
-| `explain` | Example commands say why/when to run them | 5 | every functional non-install command has an adjacent comment or sentence; the one-line `swamp extension pull` is exempt |
+| `examples` | Manifest/README carry functional examples | 4 | ≥3 distinct runnable `swamp …` commands with no placeholders |
+| `explain` | Example commands say why/when to run them | 4 | every functional non-install command has an adjacent comment or sentence; the one-line `swamp extension pull` is exempt |
 | `sections` | Canonical README sections | 6 | all six sections present and substantive |
 | `substance` | README substance | 3 | ≥1200 chars (2), ≥1 markdown table (1) |
 | `upgrade` | README documents a single upgrade workflow | 5 | an `## Upgrade` section names one `swamp workflow run <name>-upgrade` entry point (or the no-host-artifacts exemption) and explains what is automatic or prompted; entry point present but unexplained (¾), section with no entry point (⅖), no section (0) |
-| `packaging` | README and LICENSE packaged | 5 | `README.md` in `additionalFiles:` (3) and a license file (3) |
+| `packaging` | README and LICENSE packaged | 4 | `README.md` in `additionalFiles:` (3) and a license file (3) |
 | `metadata` | Platforms, repository, license | 4 | platforms empty-or-≥2 (2), allowlisted HTTPS repo (1), license (1) |
 | `artifacts` | Declares shipped artifacts | 4 | ≥1 model/vault/datastore/report/workflow/skill |
 | `coverage` | README documents every model and method | 5 | 30% for types named, 70% for methods named |
 | `creation` | Definitions created by swamp creation commands | 4 | every model/workflow/vault config has a generated, valid, unique `id` |
+| `version-source` | Extension version read from manifest.yaml | 3 | no model source uses `model.version` or `context.definition.version` (the model-type or instance version) as the extension version; a `// swamp-quality-ignore version-source: <reason>` comment exempts a legitimate type-version use |
 | `symbols` | Source symbols documented (JSDoc) | 4 | scaled by `documented / total` exported declarations |
 | `fasttypes` | No slow types (`deno doc --lint`) | 3 | no slow-type diagnostics on stderr |
 | `deps` | Dependency trust | 3 | full on a passing audit, ~50% when skipped offline |
@@ -102,6 +103,33 @@ timeline is best-effort evidence, not proof:
 
 The unmatched result is a `create-unconfirmed` **warning**; it never turns the
 `creation` check into a failure on its own.
+
+## The extension version comes from manifest.yaml
+
+`version-source` checks that an extension which needs to know its own version at
+run time reads it from the bundled `manifest.yaml`, not from the model instance.
+Two values look like "the version" but are **not** the extension (package)
+version:
+
+| Value | What it actually is |
+| ----- | ------------------- |
+| `model.version` | the model-type / data-schema version (drives `typeVersion` and the `upgrades` chain) |
+| `context.definition.version` | the model *instance's* own version |
+
+Both are per-type/per-instance and independent of the manifest version: an
+unchanged model keeps its schema version across extension releases, and the two
+are **not** required to be in lock-step. So the extension version must be
+resolved from the manifest — anchor on a shipped asset with `ctx.extensionFile()`
+and walk up to `manifest.yaml` (the pulled layout keeps assets under
+`<ext>/files/` with the manifest one level up). `version-source-lint.ts` reads
+every declared `.ts` artifact and reports each runtime reference to
+`model.version` or `context.definition.version`.
+
+A legitimate type-version use — e.g. comparing an instance's `typeVersion` to
+the installed model version for staleness — is exempted with a
+`// swamp-quality-ignore version-source: <reason>` comment on the line or the
+line directly above it. Any unexempted reference fails the `version-source`
+check (3 points).
 
 ## No methods section in the manifest
 

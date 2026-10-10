@@ -54,6 +54,10 @@ import {
   lintDefinitions,
   parseCreationCommands,
 } from "./definitions-lint.ts";
+import {
+  lintVersionSources,
+  type VersionSourceFile,
+} from "./version-source-lint.ts";
 
 export type { AuditEvidence, CreationCommand };
 
@@ -823,6 +827,39 @@ async function definitionIssuesFor(
     }));
 }
 
+/**
+ * Version-source issues for the model sources declared by one extension.
+ *
+ * Reads every declared `.ts` artifact (models, reports, vaults, datastores) and
+ * flags runtime references to the model's own `version` or the instance's
+ * `context.definition.version`, which are not the extension version in
+ * `manifest.yaml`.
+ */
+async function versionSourceIssuesFor(
+  manifest: Manifest,
+  manifestDir: string,
+): Promise<VersionSourceFile[]> {
+  const declared = [
+    ...(manifest.models ?? []),
+    ...(manifest.reports ?? []),
+    ...(manifest.vaults ?? []),
+    ...(manifest.datastores ?? []),
+  ];
+  const files: VersionSourceFile[] = [];
+  for (const file of declared) {
+    if (extname(file) !== ".ts") continue;
+    try {
+      files.push({
+        path: file,
+        source: await Deno.readTextFile(join(manifestDir, file)),
+      });
+    } catch {
+      // Unreadable declaration — the artifacts check reports it separately.
+    }
+  }
+  return files;
+}
+
 /** Pick the coverage-relevant fields from a test-factory `coverage` resource. */
 function toTestCoverage(attrs: Record<string, unknown>): TestCoverage {
   return TestCoverageSchema.parse({
@@ -1219,6 +1256,9 @@ async function scoreManifest(
   const { docJson, lintStdout } = await runDenoDoc(deps, manifest, manifestDir);
   const audit = await runQualityAudit(deps, path);
   const definitionIssues = await definitionIssuesFor(deps, manifestDir);
+  const versionSourceIssues = lintVersionSources(
+    await versionSourceIssuesFor(manifest, manifestDir),
+  );
   const codeMetrics = await collectCodeMetrics(deps, manifest, manifestDir);
 
   const result = scoreExtension({
@@ -1231,6 +1271,7 @@ async function scoreManifest(
     docJson,
     lintStdout,
     definitionIssues,
+    versionSourceIssues,
     depsAudited: audit.audited,
     depsPassed: audit.passed,
     depsDetail: audit.detail,
@@ -1326,7 +1367,7 @@ export const model = {
     {
       toVersion: "2026.10.10.1",
       description:
-        "Adds the upgrade-workflow requirement: every extension must document a single upgrade workflow in a new `## Upgrade` README section (a `swamp workflow run <name>-upgrade` command, or a statement that it installs nothing on the host so `swamp extension update` is the whole upgrade) and an `UPGRADE` section in the manifest manual. The rubric gains an `upgrade` check (5 points); README now requires the `## Upgrade` section, the manifest manual now requires `UPGRADE`, and the weights of format/examples/explain/packaging/symbols/creation were trimmed to keep the maximum at 100. Schema is additive — no global arguments change, existing models upgrade with no action beyond re-running a score.",
+        "Adds the upgrade-workflow requirement: every extension must document a single upgrade workflow in a new `## Upgrade` README section (a `swamp workflow run <name>-upgrade` command, or a statement that it installs nothing on the host so `swamp extension update` is the whole upgrade) and an `UPGRADE` section in the manifest manual. The rubric gains an `upgrade` check (5 points); README now requires the `## Upgrade` section, the manifest manual now requires `UPGRADE`. It also gains a `version-source` check (3 points): a method that needs the extension version must read it from the bundled manifest.yaml, not from `model.version` (the model-type/schema version) or `context.definition.version` (the model instance's version) — the two are independent and need not be in lock-step, and a legitimate type-version use is exempted with `// swamp-quality-ignore version-source: <reason>`. Weights of examples/explain/packaging were trimmed by 1 each to keep the maximum at 100. Schema is additive — no global arguments change, existing models upgrade with no action beyond re-running a score.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -136,6 +136,26 @@ jobs:
         weight: 0
         allowFailure: false
 
+      - name: restart
+        description: >-
+          Restart so the running process loads the freshly written unit (its
+          EnvironmentFile) and, above all, the CAP_NET_BIND_SERVICE capability
+          that installCaddy just set on the binary — a file capability only takes
+          effect at exec() time, so without this Caddy keeps failing to bind
+          80/443 with "permission denied".
+        guard: '${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/caddy"
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+          methodName: restartService
+        dependsOn:
+          - step: start-service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
       - name: tls
         description: >-
           Configure the TLS app. The DNS provider is inferred from the model's
@@ -153,7 +173,7 @@ jobs:
             providerConfig: ${{ inputs.providerConfig }}
             subjects: ${{ inputs.subjects }}
         dependsOn:
-          - step: start-service
+          - step: restart
             condition:
               type: completed
         weight: 0

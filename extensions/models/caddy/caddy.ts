@@ -3905,7 +3905,8 @@ function emptyDesired(
     tls: null,
     // A status page is wanted by default so Caddy always has something useful to
     // serve (on localhost at minimum), even before any route/TLS is configured.
-    // `configureStatusPage --input disabled=true` sets it to null to opt out.
+    // `configureStatusPage --input disabled=true` stores `{enabled:false}` to opt
+    // out — that is the only value that disables it.
     statusPage: defaultStatusPage(g),
     dnsRecords: g.dnsRecords,
     dnsRemovals: g.dnsRemovals,
@@ -3971,12 +3972,13 @@ async function loadOwnDesired(
     ...base,
     routes: Array.isArray(stored.routes) ? stored.routes : [],
     tls,
-    // A stored `null` means the model explicitly disabled the page
-    // (`configureStatusPage disabled=true`); an absent key (an older desired
-    // state) falls back to the default enabled page.
-    statusPage: Object.prototype.hasOwnProperty.call(stored, "statusPage")
-      ? (stored.statusPage ?? null)
-      : base.statusPage,
+    // A status page is wanted by default; the ONLY way to opt out is a stored
+    // `{enabled:false}` (configureStatusPage disabled=true). A stored `null`
+    // from an older version means "never chose", so the default (enabled)
+    // applies — an existing model gains the page on its next reconcile.
+    statusPage: stored.statusPage && stored.statusPage.enabled === false
+      ? stored.statusPage
+      : (stored.statusPage ?? base.statusPage),
     // dnsRecords/dnsRemovals follow the global args (like listenAddrs), NOT the
     // stored copy: the stored value is only ever written from the globals, so
     // preferring it would make a later `swamp model edit` of the global a no-op.
@@ -4668,6 +4670,31 @@ export function localhostUrl(
 }
 
 /**
+ * Measure the install facts the status page reports, from the binary itself
+ * (never from a stored snapshot): its version, file capabilities, and compiled
+ * third-party plugins. Returns empty values when the binary is absent.
+ */
+async function gatherInstallFacts(binPath: string): Promise<{
+  version: string;
+  capabilities: string[];
+  plugins: Array<{ packagePath: string; version: string; modules: string[] }>;
+}> {
+  if (!(await fileExists(binPath))) {
+    return { version: "", capabilities: [], plugins: [] };
+  }
+  let version = "";
+  const v = await runCmd(binPath, ["version"]);
+  if (v.code === 0) version = parseCaddyVersion(v.stdout);
+  const capabilities = await readCapabilities(binPath);
+  let plugins: Array<
+    { packagePath: string; version: string; modules: string[] }
+  > = [];
+  const lm = await runCmd(binPath, ["list-modules", "--json"]);
+  if (lm.code === 0) plugins = thirdPartyPlugins(parseModules(lm.stdout));
+  return { version, capabilities, plugins };
+}
+
+/**
  * Merge every model's desired state for this target and apply the result to the
  * running Caddy. Throws on a real conflict (so it is surfaced, not silently
  * resolved) and returns the merged summary.
@@ -4725,6 +4752,20 @@ async function applyReconcile(
       "The Caddy binary cannot bind 80/443 yet; serving what is wanted on {addrs} over plain HTTP until the capability is granted (the desired settings are kept and reapplied automatically)",
       { addrs: serve.listenAddrs.join(", ") },
     );
+  }
+  // The status page is the page served on localhost; it must report MEASURED
+  // reality. Refresh its install facts (binary version, file capability,
+  // compiled plugins) from the binary now, so a stale snapshot stored when
+  // configureStatusPage last ran can never be shown (e.g. "capability not set"
+  // after the capability was actually granted).
+  if (merged.statusPage?.enabled) {
+    const facts = await gatherInstallFacts(expandHome(g.caddyBinPath));
+    merged.statusPage = {
+      ...merged.statusPage,
+      version: facts.version || merged.statusPage.version,
+      capabilities: facts.capabilities,
+      plugins: facts.plugins,
+    };
   }
   const next = buildReconciledConfig(
     current,
@@ -4968,7 +5009,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.10.17",
+  version: "2026.10.10.19",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -5244,6 +5285,18 @@ export const model = {
         "Honesty and never-reject fixes. `upgradeCheck` now reports only MEASURED facts from the running config — its actual listen addresses, whether :443 is actually bound, and the hostnames it actually serves — instead of the desired settings, so it never prints a URL/HTTPS claim it has not measured; when the admin API is unreachable it says so and claims nothing. Reconcile no longer rejects the whole config because dnsRecords have no provider yet: the records stay wanted and apply once configureTls sets one (the dns_records app is simply omitted meanwhile, so the rest of the config still serves). The setup and upgrade workflows no longer grant the capability twice — installCaddy already does — so the setcap via @svendowideit/sudo is attempted once. No global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.10.18",
+      description:
+        "Fixes a capability that was set on the binary but never took effect. A file capability is applied at exec() time, so setting it after Caddy started does not give the running process the capability, and replacing the binary leaves the old program running: installCaddy now restarts a running service whenever it replaces the binary or (re)grants CAP_NET_BIND_SERVICE, and the setup workflow restarts after (re)writing the unit — so the process actually picks the capability up and can bind 80/443 instead of failing with 'permission denied'. upgradeCheck now reports a measured `capability-not-in-effect` gap (capability present on the binary but the running config listening on unprivileged ports) with the restart command, instead of declaring 'nothing blocks' while serving plain HTTP. No global arguments change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.10.19",
+      description:
+        "The status page (the page served on localhost) is now wanted by default for EVERY model, including existing ones: a stored `null`/absent statusPage is treated as 'never chose' and falls back to the enabled default, so an existing model gains the page on its next reconcile (opt out with configureStatusPage disabled=true, which now stores an explicit `{enabled:false}`). The page also re-measures its own 'Installed' facts from the binary at every reconcile — its version, file capability, and compiled-in plugins — instead of replaying the snapshot stored when configureStatusPage last ran, so it can no longer report a setting that is not true of the running host (e.g. 'capability not set' after the capability was actually granted). Its 'Listening on' list is likewise the address set actually being applied. No global arguments change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -5464,22 +5517,24 @@ export const model = {
           }
         }
 
-        // Replacing the binary under a running service leaves the OLD binary in
-        // the process, so the new modules would still be absent from the live
-        // config. Restart the service (if active) so it picks up the rebuild
-        // (now with its capability already set above).
+        // A file capability is only applied at exec() time: setting it AFTER the
+        // process started does not give the running Caddy the capability, and
+        // replacing the binary leaves the OLD program in the process. So whenever
+        // the binary was replaced OR the capability was (re)granted, restart the
+        // running service — otherwise it keeps failing to bind 80/443 with
+        // "permission denied" even though `getcap` now shows the capability.
         let restarted = false;
-        if (rebuilt) {
+        if (rebuilt || args.setCapabilities) {
           const running = await isServiceActive(g.serviceName);
           if (running) {
             if (!canBindPrivilegedPorts && args.setCapabilities) {
-              context.logger?.info(
-                "Rebuilt binary has no CAP_NET_BIND_SERVICE (sudo unavailable); the service may fail to bind 80/443 until you run the setcap command above",
+              context.logger?.warning?.(
+                "The binary still lacks CAP_NET_BIND_SERVICE (elevation via @svendowideit/sudo did not succeed); the restarted service will not be able to bind 80/443",
               );
             }
             await systemctl(["restart", g.serviceName]);
             context.logger?.info(
-              "Restarted {serviceName} to run the rebuilt binary",
+              "Restarted {serviceName} so it runs the current binary and picks up the capability",
               { serviceName: g.serviceName },
             );
             // Wait for it to settle, then verify it actually came back up. Caddy
@@ -6693,6 +6748,21 @@ export const model = {
               "Caddy cannot bind ports 80/443 (needed for the HTTP-01 certificate challenge): the binary lacks CAP_NET_BIND_SERVICE. Granting it is delegated to the @svendowideit/sudo extension.",
             command: `swamp model method run ${name} setCapabilities`,
           });
+        } else if (
+          live.reachable && !live.httpsReady && g.autoHttps !== "off"
+        ) {
+          // The capability is on the binary, but the RUNNING process is serving
+          // on unprivileged ports — it has not picked the capability up (a file
+          // capability only applies at exec() time, so the service must be
+          // restarted after setcap).
+          gaps.push({
+            id: "capability-not-in-effect",
+            message:
+              `CAP_NET_BIND_SERVICE is set on the binary, but the running Caddy is listening on ${
+                live.listenAddrs.join(", ") || "(no ports)"
+              } rather than 80/443 — the running process has not picked the capability up. Restart the service after setcap.`,
+            command: `swamp model method run ${name} restartService`,
+          });
         }
         if (missingModules.length > 0) {
           gaps.push({
@@ -7222,7 +7292,21 @@ async function applyStatusPage(
 
   if (args.disabled) {
     const own = await loadOwnDesired(context, g);
-    own.statusPage = null;
+    // Store an explicit `{enabled:false}` rather than null: null now means
+    // "never chose" and falls back to the default enabled page.
+    own.statusPage = {
+      enabled: false,
+      title: args.title,
+      hostnames: [],
+      extraLinks: [],
+      version: "",
+      adminUrl: "",
+      baseDomain: "",
+      email: "",
+      capabilities: [],
+      plugins: [],
+      links: [],
+    };
     const { summary } = await saveAndReconcile(context, g, own);
     context.logger?.info(
       "Status page removed (reconciled)",

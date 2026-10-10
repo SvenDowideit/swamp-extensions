@@ -916,7 +916,8 @@ A fresh Caddy has no routes, so it answers nothing useful. `installCaddy`
 (default) and `startService` install a status page showing:
 
 - the installed Caddy version, the `@svendowideit/caddy` extension version that
-  generated the page, base domain, and the **configured** ACME email,
+  generated the page (read from the bundled `manifest.yaml` at run time — not the
+  model's schema version), base domain, and the **configured** ACME email,
 - whether `CAP_NET_BIND_SERVICE` is set (i.e. whether 80/443 will work),
 - the **third-party plugins compiled into the binary** (parsed from
   `caddy list-modules --json`), grouped by Go package with version and module

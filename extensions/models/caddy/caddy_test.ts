@@ -33,6 +33,8 @@ import {
   ensureServerDefaults,
   ensureStatusPageRoute,
   expandHome,
+  extensionVersionOf,
+  findManifestPath,
   findRouteByHost,
   hasNetBindService,
   isDnsCredentialFailure,
@@ -50,6 +52,7 @@ import {
   parseAdminAddr,
   parseCaddyVersion,
   parseGetcap,
+  parseManifestVersion,
   parseModules,
   parseUpstream,
   PRIVILEGED_PORT_CAPABILITIES,
@@ -2703,4 +2706,87 @@ Deno.test("isUpToDate requires every proven condition", () => {
   assertEquals(isUpToDate({ ...base, canBindPrivilegedPorts: false }), false);
   assertEquals(isUpToDate({ ...base, missingModules: 1 }), false);
   assertEquals(isUpToDate({ ...base, servingSettingsOk: false }), false);
+});
+
+// ---------------------------------------------------------------------------
+// Extension version from manifest.yaml (not the model schema version)
+// ---------------------------------------------------------------------------
+
+/** A `ctx.extensionFile` look-alike: join, and throw when the path is absent. */
+function extResolver(root: string) {
+  return (relPath: string): string => {
+    const path = `${root.replace(/\/+$/, "")}/${relPath}`;
+    try {
+      Deno.statSync(path);
+    } catch {
+      throw new Error(`Extension file not found: ${relPath}`);
+    }
+    return path;
+  };
+}
+
+const MANIFEST_TEXT =
+  `manifestVersion: 1\nname: "@x/y"\nversion: "2099.01.01.9"\n`;
+
+Deno.test("parseManifestVersion reads the manifest version line", () => {
+  assertEquals(parseManifestVersion(MANIFEST_TEXT), "2099.01.01.9");
+  assertEquals(parseManifestVersion("name: x\n"), "");
+});
+
+Deno.test("findManifestPath resolves the source layout", () => {
+  const ext = Deno.makeTempDirSync();
+  Deno.writeTextFileSync(`${ext}/manifest.yaml`, MANIFEST_TEXT);
+  Deno.writeTextFileSync(`${ext}/README.md`, "readme");
+  assertEquals(findManifestPath(extResolver(ext)), `${ext}/manifest.yaml`);
+});
+
+Deno.test("findManifestPath resolves the pulled layout (manifest above files/)", () => {
+  const ext = Deno.makeTempDirSync();
+  Deno.mkdirSync(`${ext}/files`, { recursive: true });
+  Deno.writeTextFileSync(`${ext}/manifest.yaml`, MANIFEST_TEXT);
+  Deno.writeTextFileSync(`${ext}/files/README.md`, "readme");
+  assertEquals(
+    findManifestPath(extResolver(`${ext}/files`)),
+    `${ext}/manifest.yaml`,
+  );
+});
+
+Deno.test("findManifestPath returns empty when no manifest is reachable", () => {
+  const ext = Deno.makeTempDirSync();
+  assertEquals(findManifestPath(extResolver(ext)), "");
+});
+
+Deno.test("extensionVersionOf reads the version from the bundled manifest", () => {
+  const ext = Deno.makeTempDirSync();
+  Deno.writeTextFileSync(`${ext}/manifest.yaml`, MANIFEST_TEXT);
+  assertEquals(extensionVersionOf(extResolver(ext)), "2099.01.01.9");
+  assertEquals(extensionVersionOf(undefined), "");
+});
+
+Deno.test("buildReconciledConfig puts the manifest extension version on the status page", () => {
+  const config = buildReconciledConfig(baseConfig(), {
+    routes: [],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "off",
+    tls: null,
+    statusPage: {
+      enabled: true,
+      title: "Caddy",
+      hostnames: ["localhost"],
+      extraLinks: [],
+      version: "2.8.4",
+      adminUrl: "http://localhost:2019",
+      baseDomain: "",
+      email: "",
+      capabilities: [],
+      plugins: [],
+      links: [],
+    },
+    statusPageModel: "a",
+    healthRoutes: false,
+  }, "2099.01.01.9");
+  const json = JSON.stringify(config);
+  assert(json.includes("2099.01.01.9"));
+  // The model's own schema version must not leak onto the status page.
+  assert(!json.includes(model.version));
 });

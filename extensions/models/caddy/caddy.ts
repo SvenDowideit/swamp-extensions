@@ -134,6 +134,82 @@ function asString(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
 
+/** Directory separator-agnostic parent of an absolute path. */
+function parentDir(p: string): string {
+  const trimmed = p.replace(/[/\\]+$/, "");
+  const idx = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  return idx > 0 ? trimmed.slice(0, idx) : trimmed;
+}
+
+/** Whether `path` exists and is a file. */
+function isFile(path: string): boolean {
+  try {
+    return Deno.statSync(path).isFile;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Locate this extension's bundled `manifest.yaml` at run time.
+ *
+ * `resolve` is `ctx.extensionFile`. Its resolution root depends on how the
+ * extension was loaded: a source-loaded extension resolves assets beside its
+ * `manifest.yaml`, while a pulled extension resolves them under
+ * `<ext>/files/` with the manifest one level up. There is no API that returns
+ * the manifest path directly, so anchor on an asset this extension always ships
+ * (`README.md`, `LICENSE.txt`, then the files root via `""`) and walk up until a
+ * `manifest.yaml` is found.
+ *
+ * @returns the absolute manifest path, or `""` when none is reachable.
+ */
+export function findManifestPath(resolve: (relPath: string) => string): string {
+  const anchors = ["README.md", "LICENSE.txt", ""];
+  for (const anchor of anchors) {
+    let dir: string;
+    try {
+      dir = resolve(anchor);
+    } catch {
+      continue;
+    }
+    for (let depth = 0; depth < 6 && dir; depth++) {
+      const candidate = join(dir, "manifest.yaml");
+      if (isFile(candidate)) return candidate;
+      const parent = parentDir(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+  return "";
+}
+
+/** The `version:` value from a manifest's YAML text, or `""`. */
+export function parseManifestVersion(manifest: string): string {
+  const match = manifest.match(/^version:\s*["']?([^"'\n]+?)["']?\s*$/m);
+  return match ? match[1].trim() : "";
+}
+
+/**
+ * The extension (package) version, read from the bundled `manifest.yaml`.
+ *
+ * This is the version `swamp extension pull` / the registry use — not the
+ * model's own `version` (the model-type / schema version) and not the model
+ * instance's version. Returns `""` when the manifest cannot be reached (e.g. a
+ * built-in type with no manifest).
+ */
+export function extensionVersionOf(
+  extensionFile: ((relPath: string) => string) | undefined,
+): string {
+  if (!extensionFile) return "";
+  const manifestPath = findManifestPath(extensionFile);
+  if (!manifestPath) return "";
+  try {
+    return parseManifestVersion(Deno.readTextFileSync(manifestPath));
+  } catch {
+    return "";
+  }
+}
+
 /**
  * Find every `@svendowideit/caddy` model definition a repo holds.
  *
@@ -2266,6 +2342,9 @@ export function buildReconciledConfig(
     dnsTtl?: string;
     healthRoutes?: boolean;
   },
+  // The extension (package) version for the status page, read from
+  // manifest.yaml at run time (NOT the model's own schema version).
+  extensionVersion = "",
 ): CaddyConfig {
   const base = baseConfig(
     merged.listenAddrs.length > 0 ? merged.listenAddrs : [":443", ":80"],
@@ -2340,7 +2419,7 @@ export function buildReconciledConfig(
       listens: merged.listenAddrs,
       modelName: merged.statusPageModel,
       plugins: sp.plugins,
-      extensionVersion: model.version,
+      extensionVersion,
       statusHostnames,
       scheme: merged.autoHttps === "off" ? "http" : "https",
     });
@@ -4192,7 +4271,11 @@ async function computeCaddyPlan(
     actual = {};
   }
 
-  const desiredConfig = buildReconciledConfig(actual, merged);
+  const desiredConfig = buildReconciledConfig(
+    actual,
+    merged,
+    extensionVersionOf(context.extensionFile),
+  );
   const diff = reachable ? diffRoutes(desiredRoutes, actual) : {
     actualSwampRoutes: [],
     foreignRoutes: [],
@@ -4482,7 +4565,11 @@ async function applyReconcile(
     g.listenAddrs,
     g.autoHttps,
   );
-  const next = buildReconciledConfig(current, merged);
+  const next = buildReconciledConfig(
+    current,
+    merged,
+    extensionVersionOf(context.extensionFile),
+  );
   // A config that uses a module the binary lacks fails to load with a cryptic
   // Caddy 500 ("unknown module"). Catch it first and say how to fix it.
   await assertModulesCompiled(next, expandHome(g.caddyBinPath), [
@@ -4692,6 +4779,8 @@ type MethodContext = {
     predicate: string,
     select?: string,
   ) => Promise<Array<Record<string, unknown> | unknown>>;
+  /** Resolve a path to an asset bundled with this extension manifest. */
+  extensionFile?: (relPath: string) => string;
 };
 
 /** Context available to pre-flight checks (no data writers). */
@@ -4706,7 +4795,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.10.14",
+  version: "2026.10.10.15",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -4962,6 +5051,12 @@ export const model = {
       toVersion: "2026.10.10.14",
       description:
         "Adds a single, documented upgrade path with no model name to remember. Two read-only methods: `upgradeTargets` lists every @svendowideit/caddy model the repo defines (read from the model definition files, so a never-run model is found and the auto-created scratch instance is not) with its target/baseDomain/email/staleness; `upgradeCheck` reports everything blocking the Caddy from serving (CAP_NET_BIND_SERVICE for 80/443, baseDomain, ACME email, TLS, DNS provider/records, stale binary, service health) with the exact fix command for each. The shipped `@svendowideit/caddy-upgrade` workflow discovers the model(s) — using the single one, or stopping and listing them when there are several — prints the gap report, pauses at one approval gate, then migrates the definition, rebuilds only a stale binary, re-grants the capability, regenerates the unit, restarts, re-applies status page/DNS, and re-runs the gap report. No global arguments change; existing models upgrade automatically when the workflow first runs a method.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.10.15",
+      description:
+        "The status page now shows the extension (package) version read from the bundled manifest.yaml at run time, rather than the model's own `version` (the model-type / schema version). The staleness/upgrade comparisons that legitimately use the installed model-type version are unchanged and marked with a `version-source` exemption. No global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -6097,7 +6192,7 @@ export const model = {
               upToDate = (await assessUpToDate(
                 context,
                 configured,
-                r.typeVersion === model.version,
+                r.typeVersion === model.version, // meta-factory-ignore version-source: compares the instance typeVersion to the installed model-type version, not the extension version
                 context.globalArgs.adminApiToken ?? "",
               )).upToDate;
             } catch {
@@ -6113,7 +6208,7 @@ export const model = {
             dnsProvider: configured?.tls?.dnsProvider ||
               dnsProviderFromPlugins(r.plugins ?? []),
             typeVersion: r.typeVersion,
-            staleness: stalenessOf(r.typeVersion, model.version),
+            staleness: stalenessOf(r.typeVersion, model.version), // meta-factory-ignore version-source: instance typeVersion vs installed model-type version (staleness)
             upToDate,
           });
         }
@@ -6258,7 +6353,7 @@ export const model = {
         const { upToDate, configInSync } = await assessUpToDate(
           context,
           own,
-          stalenessOf(typeVersion, model.version) === "current",
+          stalenessOf(typeVersion, model.version) === "current", // meta-factory-ignore version-source: instance typeVersion vs installed model-type version (staleness)
           g.adminApiToken ?? "",
         );
 
@@ -6542,7 +6637,7 @@ export const model = {
         const handle = await context.writeResource("upgradeCheck", "current", {
           model: name,
           typeVersion,
-          currentVersion: model.version,
+          currentVersion: model.version, // meta-factory-ignore version-source: the installed model-type version reported alongside the instance typeVersion, not the extension version
           staleness: stalenessOf(typeVersion, model.version),
           upToDate,
           configInSync,

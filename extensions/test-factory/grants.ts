@@ -243,7 +243,7 @@ export function renderGrantScript(
         "  fi",
         "fi",
         "mkdir -p /var/log /var/run",
-        "if ! pgrep -x dockerd >/dev/null 2>&1; then dockerd >/var/log/dockerd.log 2>&1 & fi",
+        "if ! pgrep -x dockerd >/dev/null 2>&1; then (setsid dockerd </dev/null >/var/log/dockerd.log 2>&1 &) 2>/dev/null || (dockerd </dev/null >/var/log/dockerd.log 2>&1 &); fi",
         "i=0; while [ ! -S /var/run/docker.sock ] && [ $i -lt 60 ]; do i=$((i+1)); sleep 1; done",
         `usermod -aG docker ${user} 2>/dev/null || addgroup ${user} docker 2>/dev/null || true`,
         "chmod 0666 /var/run/docker.sock 2>/dev/null || true",

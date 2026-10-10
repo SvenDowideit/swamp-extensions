@@ -801,3 +801,164 @@ Deno.test("installBundledThemes never overwrites a user's chosen theme", async (
     await Deno.remove(dir, { recursive: true });
   }
 });
+
+// ---------------------------------------------------------------------------
+// renderThemeReport
+// ---------------------------------------------------------------------------
+
+function runRenderThemeReport(
+  ctx: { context: unknown },
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const full = {
+    themeId: "",
+    themesDir: "",
+    configPath: "",
+    outputPath: "",
+    open: false,
+    ...args,
+  };
+  return (model.methods.renderThemeReport.execute as unknown as (
+    a: Record<string, unknown>,
+    c: unknown,
+  ) => Promise<unknown>)(full, ctx.context);
+}
+
+Deno.test("renderThemeReport writes an HTML report for a named theme", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const out = `${dir}/report.html`;
+    const ctx = withExtensionFiles(
+      createModelTestContext({
+        globalArgs: { ...GLOBALS },
+        methodName: "renderThemeReport",
+      }),
+    );
+    await runRenderThemeReport(ctx, {
+      themeId: "borland_modern_blue",
+      themesDir: `${EXT_DIR}themes`,
+      configPath: `${dir}/config.toml`,
+      outputPath: out,
+    });
+
+    const report = ctx.getWrittenResources().find((r) =>
+      r.specName === "themeReport"
+    );
+    assertEquals(report?.data.themeId, "borland_modern_blue");
+    assertEquals(report?.data.outputPath, out);
+    assertEquals(report?.data.opened, false);
+    assertEquals(
+      (report?.data.illegible as string[]).includes("purple"),
+      true,
+    );
+
+    const html = await Deno.readTextFile(out);
+    assertStringIncludes(html, "<!DOCTYPE html>");
+    assertStringIncludes(html, "errors, deletions, failing checks");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("renderThemeReport defaults to the configured theme", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const configPath = `${dir}/config.toml`;
+    await Deno.writeTextFile(
+      configPath,
+      "[appearance]\ntheme = 'swamp_club'\n",
+    );
+    const out = `${dir}/report.html`;
+    const ctx = withExtensionFiles(
+      createModelTestContext({
+        globalArgs: { ...GLOBALS },
+        methodName: "renderThemeReport",
+      }),
+    );
+    await runRenderThemeReport(ctx, {
+      themesDir: `${EXT_DIR}themes`,
+      configPath,
+      outputPath: out,
+    });
+    const report = ctx.getWrittenResources().find((r) =>
+      r.specName === "themeReport"
+    );
+    assertEquals(report?.data.themeId, "swamp_club");
+    assertStringIncludes(await Deno.readTextFile(out), "#39ff14");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("renderThemeReport errors when no theme is selected", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const ctx = withExtensionFiles(
+      createModelTestContext({
+        globalArgs: { ...GLOBALS },
+        methodName: "renderThemeReport",
+      }),
+    );
+    await assertRejects(
+      () =>
+        runRenderThemeReport(ctx, {
+          themesDir: `${EXT_DIR}themes`,
+          configPath: `${dir}/config.toml`,
+        }),
+      Error,
+      "No theme selected",
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("renderThemeReport falls back to the binary for a built-in theme", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const listing = JSON.stringify({
+      palette: {
+        id: "dracula",
+        display_name: "Dracula",
+        dark: true,
+        bg: "#282a36",
+        fg: "#f8f8f2",
+        cursor: "#f8f8f2",
+        swatches: [{ name: "red", hex: "#ff5555" }],
+      },
+    });
+    const fakeBinary = `${dir}/tuios`;
+    await Deno.writeTextFile(fakeBinary, "binary");
+    const ctx = withExtensionFiles(
+      createModelTestContext({
+        globalArgs: { ...GLOBALS, path: fakeBinary },
+        methodName: "renderThemeReport",
+      }),
+    );
+    // No theme file in the empty themes dir, so the method shells out; the
+    // mocked `tuios` answers with the palette JSON.
+    await withMockedCommand((command, args) => {
+      if (command === fakeBinary && args[0] === "list-themes") {
+        return { stdout: listing, code: 0 };
+      }
+      return { stdout: "", code: 1 };
+    }, async () => {
+      await runRenderThemeReport(ctx, {
+        themeId: "dracula",
+        themesDir: dir,
+        configPath: `${dir}/config.toml`,
+        outputPath: `${dir}/dracula.html`,
+      });
+    });
+    const report = ctx.getWrittenResources().find((r) =>
+      r.specName === "themeReport"
+    );
+    assertEquals(report?.data.themeId, "dracula");
+    assertStringIncludes(
+      await Deno.readTextFile(`${dir}/dracula.html`),
+      "#ff5555",
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});

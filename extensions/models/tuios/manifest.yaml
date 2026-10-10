@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/tuios"
-version: "2026.09.30.3"
+version: "2026.10.10.1"
 description: >
   Keep TUIOS current and always-on: track the latest release, know exactly what
   to download for this machine, install, upgrade, restart or remove it, and run
@@ -22,11 +22,17 @@ description: >
 
     It also themes TUIOS. Two themes ship with the extension — **Swamp Club**
     (neon green on near-black) and **Borland Modern Blue** (the classic turbo
-    palette) — installable by id, and any other theme can be installed from an
+    palette) —     installable by id, and any other theme can be installed from an
     inline JSON document or a file with `installTheme`. `setTheme` flips
     `appearance.theme` in `config.toml`; TUIOS watches that file, so the change
     is live without a restart. A reusable `@svendowideit/tuios-theme` workflow
     wraps both, so another workflow can install and select a theme in one call.
+    `renderThemeReport` then writes a self-contained HTML page documenting every
+    colour a theme sets and what each one is used for — the 16 ANSI slots with
+    their roles and measured contrast, the interface accents TUIOS derives from
+    them (or the theme's own `chrome` values), the dialog ramp with its ink
+    tiers, and the selection colours — defaulting to the currently selected
+    theme. Open it in any browser; no network required.
 
     Release resolution, platform selection, checksum lookup and download are
     delegated to `@svendowideit/github-release-install`, so this extension keeps
@@ -76,6 +82,15 @@ description: >
       # Select a theme that is already on disk (nothing is written).
       swamp workflow run @svendowideit/tuios-theme \
         --input themeId=dracula --input select=true
+
+      # Document the currently selected theme's colours as an HTML page you can
+      # open in a browser. Writes to <cache>/tuios/theme-<id>.html.
+      swamp model @svendowideit/tuios-installed method run renderThemeReport \
+        tuios-installed
+
+      # Document a named theme and open it in the browser straight away.
+      swamp model @svendowideit/tuios-installed method run renderThemeReport \
+        tuios-installed --input themeId=borland_modern_blue --input open=true
 
   CONFIGURE
 
@@ -128,6 +143,9 @@ description: >
     Theme files land at `<themesDir>/<id>.json`; TUIOS re-reads that directory
     on every call, so a theme is selectable immediately. Check what is present
     and active with `tuios list-themes --json` (`active` and `themes_dir`).
+    `renderThemeReport` additionally writes one HTML file,
+    `theme-<id>.html`, into the TUIOS cache directory (`$XDG_CACHE_HOME/tuios`,
+    else `~/.cache/tuios`) — or wherever `outputPath` points.
 
 repository: https://github.com/svendowideit/swamp-extensions
 
@@ -139,6 +157,7 @@ paths:
 models:
   - tuios_installed.ts
   - tuios_shared.ts
+  - theme_report.ts
 
 workflows:
   - tuios-install.yaml
@@ -156,5 +175,6 @@ additionalFiles:
   - tuios_shared_test.ts
   - tuios_installed_test.ts
   - tuios_installed_methods_test.ts
+  - theme_report_test.ts
 
 platforms: []

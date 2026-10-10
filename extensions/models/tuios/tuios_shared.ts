@@ -58,6 +58,19 @@ export function tuiosConfigPath(home?: string, xdg?: string): string {
   return `${tuiosConfigDir(home, xdg)}/config.toml`;
 }
 
+/**
+ * A cache directory for TUIOS artifacts this extension generates, such as the
+ * HTML theme report: `$XDG_CACHE_HOME/tuios`, falling back to `~/.cache/tuios`.
+ */
+export function tuiosCacheDir(
+  home?: string,
+  xdgCacheHome?: string,
+): string {
+  const xdg = (xdgCacheHome ?? Deno.env.get("XDG_CACHE_HOME") ?? "").trim();
+  const base = xdg || `${home ?? Deno.env.get("HOME") ?? ""}/.cache`;
+  return `${base.replace(/\/+$/, "")}/tuios`;
+}
+
 /** The theme file name TUIOS expects for a theme id: `<id>.json`. */
 export function themeFileName(themeId: string): string {
   return `${themeId.replace(/[^A-Za-z0-9_.-]/g, "_")}.json`;

@@ -33,6 +33,12 @@ you run swamp on:
   palette). `installTheme` writes a theme by id, from an inline JSON document,
   or from a file; `setTheme` makes one active by setting `appearance.theme` in
   `config.toml`. The reusable `@svendowideit/tuios-theme` workflow wraps both.
+- **What do all those colours actually mean?** `renderThemeReport` writes a
+  self-contained HTML page documenting every colour a theme sets and what each
+  one is used for — the 16 ANSI slots with their roles and measured contrast,
+  the interface accents TUIOS derives from them (or the theme's own `chrome`
+  values), the dialog ramp with its ink tiers, and the selection colours.
+  Defaults to the currently selected theme.
 
 Side effects: outbound HTTPS reads from `api.github.com` and the release
 download URL (nothing is written there); install writes a binary into
@@ -40,6 +46,7 @@ download URL (nothing is written there); install writes a binary into
 under the download directory; the workflow writes a systemd user unit, enables
 lingering when `manageService` is true, and writes theme files plus the
 `appearance.theme` line in `config.toml` when `installThemes` is true.
+`renderThemeReport` writes one HTML file into the TUIOS cache directory.
 
 ## Install
 
@@ -89,12 +96,22 @@ falling back to `~/.config/tuios/themes`; both are overridable per call.
 | `installTheme` | `themeId`, `themeJson`, `sourcePath`, `themesDir`, `select`, `force`, `configPath` | `theme` — where the theme landed, whether it changed, and whether it was selected. |
 | `setTheme` | `themeId`, `configPath` | `themeSelection` — the previous theme and whether `config.toml` changed. |
 | `installBundledThemes` | `themes`, `themesDir`, `defaultTheme`, `force`, `configPath` | `themes` — the ids installed vs already present, and the theme now selected. |
+| `renderThemeReport` | `themeId`, `themesDir`, `configPath`, `outputPath`, `open` | `themeReport` — the theme's display name, the HTML path, byte size, the slots below their contrast floor, and whether it was opened. |
 
 `installTheme` resolves its content in this order: inline `themeJson` → a
 `sourcePath` file → the bundled theme of the same id. A non-bundled id with no
 content is an error, and a document with no string `id` is refused rather than
 written. `setTheme` writes the `appearance.theme` line in `config.toml`,
 creating the file and the `[appearance]` table if needed.
+
+`renderThemeReport` resolves the theme to document in this order: `themeId` →
+the `appearance.theme` line in `config.toml`. It reads the theme file directly
+(which carries any `chrome` object), and falls back to `tuios list-themes <id>
+--json` for a built-in theme that has no file. The accents and dialog ramp are
+derived with the same WCAG-contrast and OKLab maths TUIOS uses, so the page
+shows what TUIOS actually draws. It writes `<cache>/tuios/theme-<id>.html`
+(`$XDG_CACHE_HOME`, else `~/.cache`) unless `outputPath` is given, and with
+`open=true` opens it in the default browser.
 
 `installBundledThemes` is what the install workflow runs. It writes both bundled
 themes, then selects `defaultTheme` (Swamp Club) **only if** `config.toml` has
@@ -204,6 +221,16 @@ swamp workflow run @svendowideit/tuios-theme \
 swamp workflow run @svendowideit/tuios-theme \
   --input themeId=my_theme --input sourcePath=~/my_theme.json --input select=false
 
+# Document the currently selected theme's colours: writes a self-contained HTML
+# page (open it in any browser — no network) listing every colour and its role.
+swamp model @svendowideit/tuios-installed method run renderThemeReport tuios-installed
+
+# Document a named theme (bundled or built-in) and open it straight away; ask
+# where it landed and which slots fall below their contrast floor.
+swamp model @svendowideit/tuios-installed method run renderThemeReport \
+  tuios-installed --input themeId=borland_modern_blue --input open=true
+swamp data get tuios-installed theme-report --json
+
 # Write just the bundled themes and pick a default only if none is set (the
 # step the install workflow runs); ask what ended up installed and selected.
 swamp model @svendowideit/tuios-installed method run installBundledThemes tuios-installed
@@ -233,6 +260,7 @@ swamp model @svendowideit/tuios-installed method run uninstall tuios-installed \
 | `@svendowideit/tuios-installed` | `installTheme` | `themeId`, `themeJson`, `sourcePath`, `themesDir`, `select`, `force`, `configPath` | `theme` — file path, changed flag, and whether it was selected. |
 | `@svendowideit/tuios-installed` | `setTheme` | `themeId`, `configPath` | `themeSelection` — previous theme and whether `config.toml` changed. |
 | `@svendowideit/tuios-installed` | `installBundledThemes` | `themes`, `themesDir`, `defaultTheme`, `force`, `configPath` | `themes` — installed vs skipped ids and the selected theme. |
+| `@svendowideit/tuios-installed` | `renderThemeReport` | `themeId`, `themesDir`, `configPath`, `outputPath`, `open` | `themeReport` — HTML report path, byte size, the slots below their floor, and the theme's display name. |
 
 `install` requires `archivePath` — the checksum-verified archive produced by
 `@svendowideit/github-release-install`'s `download` step. It re-verifies the
@@ -296,7 +324,14 @@ start-daemon-service → restart-daemon-service → install-themes → verify`.
   read/write of `appearance.theme`).
 - `tuios_installed.ts` — the model: `sync`, `install` (verify the staged
   archive, extract, atomic install, package-manager guard), `uninstall`, `print`,
-  and the theme methods `installTheme`, `setTheme`, `installBundledThemes`.
+  and the theme methods `installTheme`, `setTheme`, `installBundledThemes`,
+  `renderThemeReport`.
+- `theme_report.ts` — the colour maths and HTML renderer behind
+  `renderThemeReport`: a port of TUIOS's WCAG-luminance, OKLab-blend and
+  contrast-floor helpers (`internal/theme`, `internal/overlay`), the palette and
+  `chrome` normalisation, the accent and dialog-ramp derivation, the
+  `tuios list-themes --json` fallback parser, and the self-contained HTML the
+  method writes.
 - `tuios-install.yaml` — the bundled install/upgrade workflow (created with
   `swamp workflow create`; do not hand-edit its `id`).
 - `tuios-theme.yaml` — the reusable install/select theme workflow.
@@ -304,12 +339,14 @@ start-daemon-service → restart-daemon-service → install-themes → verify`.
   themes, read at runtime through `ctx.extensionFile("themes/<id>.json")` and
   declared in `additionalFiles` so they travel with the extension.
 - `tuios_shared_test.ts` / `tuios_installed_test.ts` /
-  `tuios_installed_methods_test.ts` — pure-helper and execute-level tests; the
-  latter drive the real `execute` functions through `createModelTestContext`
-  with subprocesses stubbed by `withMockedCommand`. There is no network in the
-  install path — the archive is built on disk by the test. Theme methods are
-  tested against temporary directories, with `extensionFile` pointed at the
-  extension tree.
+  `tuios_installed_methods_test.ts` / `theme_report_test.ts` — pure-helper and
+  execute-level tests; the latter drive the real `execute` functions through
+  `createModelTestContext` with subprocesses stubbed by `withMockedCommand`.
+  There is no network in the install path — the archive is built on disk by the
+  test. Theme methods are tested against temporary directories, with
+  `extensionFile` pointed at the extension tree. `theme_report_test.ts` checks
+  the colour maths, the accent/ramp derivation for both bundled themes, and the
+  rendered HTML.
 
 To add another bundled theme, drop `<id>.json` under `themes/`, add it to
 `additionalFiles`, and add the id to `BUNDLED_THEMES` in `tuios_shared.ts`.
@@ -320,11 +357,13 @@ To add another bundled theme, drop `<id>.json` under `themes/`, add it to
 ~/.swamp/deno/deno test --allow-read --allow-write --allow-env --allow-run \
   extensions/models/tuios/tuios_shared_test.ts \
   extensions/models/tuios/tuios_installed_test.ts \
-  extensions/models/tuios/tuios_installed_methods_test.ts
+  extensions/models/tuios/tuios_installed_methods_test.ts \
+  extensions/models/tuios/theme_report_test.ts
 
 ~/.swamp/deno/deno check \
   extensions/models/tuios/tuios_shared.ts \
-  extensions/models/tuios/tuios_installed.ts
+  extensions/models/tuios/tuios_installed.ts \
+  extensions/models/tuios/theme_report.ts
 ```
 
 ### Where things land and how to check them
@@ -366,6 +405,11 @@ Theme files land in the TUIOS themes directory — usually
   the `tuios-theme` workflow (or `setTheme`) explicitly with the id you want.
 - The themes directory defaults to `~/.config/tuios`; a TUIOS configured with a
   non-default config location needs `themesDir`/`configPath` passed per call.
+- `renderThemeReport` documents the palette exactly, but a theme's derived
+  accents and dialog ramp are computed the way TUIOS builds them; a built-in
+  theme with no file is read from `tuios list-themes <id> --json`, which reports
+  the palette but no `chrome` object (built-ins carry none). The report lands in
+  the TUIOS cache directory (`$XDG_CACHE_HOME/tuios`, else `~/.cache/tuios`).
 - An upgrade restarts the daemon; that ends any attached clients, but sessions
   persist because the daemon saves them. The daemon runs the binary present at
   the time it started, so a manual binary replacement outside the workflow also

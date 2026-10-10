@@ -45,11 +45,19 @@ import {
   selectInstallDir,
   setConfiguredTheme,
   themeFileName,
+  tuiosCacheDir,
   tuiosConfigPath,
   tuiosThemesDir,
   verifySha256,
   versionsEqual,
 } from "./tuios_shared.ts";
+import {
+  buildReport,
+  normalizeTheme,
+  readSelectionColors,
+  renderThemeReportHtml,
+  themeFromListThemes,
+} from "./theme_report.ts";
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -125,6 +133,25 @@ const SetThemeArgsSchema = z.object({
   ),
 });
 type SetThemeArgs = z.infer<typeof SetThemeArgsSchema>;
+
+const RenderThemeReportArgsSchema = z.object({
+  themeId: z.string().default("").describe(
+    "Theme id to report on. Empty reports the currently selected theme (`appearance.theme` in config.toml). A theme installed as a file is read directly; a built-in theme is read from `tuios list-themes <id> --json`.",
+  ),
+  themesDir: z.string().default("").describe(
+    "Override the TUIOS themes directory. Empty uses $XDG_CONFIG_HOME/tuios/themes, falling back to ~/.config/tuios/themes.",
+  ),
+  configPath: z.string().default("").describe(
+    "Override the TUIOS config.toml path used to find the selected theme and the selection colours. Empty uses the standard location.",
+  ),
+  outputPath: z.string().default("").describe(
+    "Where to write the HTML report (absolute or ~-prefixed). Empty writes <cache>/tuios/theme-<id>.html ($XDG_CACHE_HOME, else ~/.cache).",
+  ),
+  open: z.boolean().default(false).describe(
+    "Open the written report in the default browser (best-effort; xdg-open/open).",
+  ),
+});
+type RenderThemeReportArgs = z.infer<typeof RenderThemeReportArgsSchema>;
 
 const InstallBundledThemesArgsSchema = z.object({
   themes: z.array(ThemeIdSchema).default([...BUNDLED_THEMES]).describe(
@@ -267,6 +294,19 @@ const InstallThemesResultSchema = z.object({
   configPath: z.string(),
   message: z.string(),
   installedAt: z.string(),
+});
+
+const ThemeReportResultSchema = z.object({
+  themeId: z.string(),
+  displayName: z.string(),
+  dark: z.boolean(),
+  source: z.string(),
+  outputPath: z.string(),
+  bytes: z.number(),
+  illegible: z.array(z.string()),
+  opened: z.boolean(),
+  generatedAt: z.string(),
+  message: z.string(),
 });
 
 // ---------------------------------------------------------------------------
@@ -595,6 +635,40 @@ export async function setThemeInConfig(
   return { previous, changed: true };
 }
 
+/**
+ * The default path for the HTML theme report: `<cache>/tuios/theme-<id>.html`
+ * under `$XDG_CACHE_HOME` (else `~/.cache`). Keeps a generated report out of
+ * the TUIOS config directory and off the repo.
+ */
+export function defaultReportPath(themeId: string): string {
+  const stem = themeFileName(themeId).replace(/\.json$/, "");
+  return `${tuiosCacheDir()}/theme-${stem}.html`;
+}
+
+/**
+ * Open a file in the desktop's default application, best-effort. Spawns the
+ * platform opener (`xdg-open`, `open`, or `cmd /c start`) and returns whether
+ * one was launched; a failure is reported, never thrown.
+ */
+export function openInBrowser(path: string): boolean {
+  const command: [string, string[]] = Deno.build.os === "darwin"
+    ? ["open", [path]]
+    : Deno.build.os === "windows"
+    ? ["cmd", ["/c", "start", "", path]]
+    : ["xdg-open", [path]];
+  try {
+    const proc = new Deno.Command(command[0], {
+      args: command[1],
+      stdout: "null",
+      stderr: "null",
+    }).spawn();
+    proc.unref();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Sync implementation
 // ---------------------------------------------------------------------------
@@ -670,7 +744,7 @@ type CheckContext = {
 /** Tracks and installs the TUIOS binary on this machine. */
 export const model = {
   type: "@svendowideit/tuios-installed",
-  version: "2026.09.30.3",
+  version: "2026.10.10.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -683,6 +757,23 @@ export const model = {
       toVersion: "2026.09.30.3",
       description:
         "Adds TUIOS theme management: installTheme writes a theme file (inline, from a path, or a bundled swamp_club/borland_modern_blue), setTheme sets appearance.theme in config.toml, and installBundledThemes installs both bundled themes and selects swamp_club only when the user has not chosen one. New theme, themeSelection and themes resources; the bundled tuios-install workflow now installs the themes, and a new reusable tuios-theme workflow wraps installTheme + setTheme.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.10.1",
+      description:
+        "Adds renderThemeReport: writes a self-contained HTML document that " +
+        "documents every colour a TUIOS theme sets and what each is used for — " +
+        "the 16 ANSI slots with roles and measured contrast, the derived chrome " +
+        "accents (or the theme's chrome values), the dialog ramp with ink tiers, " +
+        "and the selection colours. Defaults to the currently selected theme; " +
+        "reads a theme file, or the built-in palette from `tuios list-themes " +
+        "<id> --json`. New themeReport resource and theme_report module. Also " +
+        "lifts three bundled Borland Modern Blue colours so they clear their " +
+        "floor on the blue background: red (now #ff5757, from the old " +
+        "bright_red), bright_red (now the orange #ff8c00), and blue (now the " +
+        "azure #1e90ff, which was identical to the background and made the " +
+        "shell prompt invisible).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -746,6 +837,12 @@ export const model = {
     themes: {
       description: "The result of the last `installBundledThemes` call",
       schema: InstallThemesResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    themeReport: {
+      description: "The result of the last `renderThemeReport` call",
+      schema: ThemeReportResultSchema,
       lifetime: "infinite",
       garbageCollection: 20,
     },
@@ -1291,6 +1388,122 @@ export const model = {
           message,
           installedAt: new Date().toISOString(),
         });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    renderThemeReport: {
+      description:
+        "Write a self-contained HTML document that documents every colour a " +
+        "TUIOS theme sets and what each one is used for: the 16 ANSI slots " +
+        "with their roles and measured contrast, the interface accents TUIOS " +
+        "derives from them (or the theme's own `chrome` values), the dialog " +
+        "ramp with its ink tiers, and the selection colours. Defaults to the " +
+        "currently selected theme (`appearance.theme`). A theme installed as a " +
+        "file is read directly; a built-in theme is read from `tuios " +
+        "list-themes <id> --json`. Writes to `theme-<id>.html` under the TUIOS " +
+        "cache directory unless `outputPath` is given.",
+      arguments: RenderThemeReportArgsSchema,
+      execute: async (
+        args: RenderThemeReportArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        assertAbsoluteDir(args.themesDir, "themesDir");
+        assertAbsoluteDir(args.configPath, "configPath");
+        assertAbsoluteDir(args.outputPath, "outputPath");
+
+        const themesDir = args.themesDir.trim()
+          ? expandHome(args.themesDir.trim())
+          : tuiosThemesDir();
+        const configPath = args.configPath.trim()
+          ? expandHome(args.configPath.trim())
+          : tuiosConfigPath();
+
+        let configText = "";
+        try {
+          configText = await Deno.readTextFile(configPath);
+        } catch {
+          configText = "";
+        }
+
+        const themeId = args.themeId.trim() || readConfiguredTheme(configText);
+        if (!themeId) {
+          throw new Error(
+            "No theme selected: pass themeId, or set `appearance.theme` in " +
+              "config.toml (use setTheme or installBundledThemes first).",
+          );
+        }
+
+        // Prefer the theme file (it may carry a `chrome` object); fall back to
+        // the binary, which knows the built-in themes and their resolved palette.
+        let raw: Record<string, unknown> | null = null;
+        let source = "";
+        const themeFile = `${themesDir}/${themeFileName(themeId)}`;
+        try {
+          raw = parseTheme(await Deno.readTextFile(themeFile));
+          if (raw) source = themeFile;
+        } catch {
+          raw = null;
+        }
+        if (!raw) {
+          const binary = await findBinary(g.path);
+          if (binary) {
+            const { stdout, code } = await runCapture(binary, [
+              "list-themes",
+              themeId,
+              "--json",
+            ]);
+            if (code === 0) {
+              raw = themeFromListThemes(stdout, themeId);
+              if (raw) source = `${binary} list-themes ${themeId} --json`;
+            }
+          }
+        }
+        if (!raw) {
+          throw new Error(
+            `No theme '${themeId}' found: no file at ${themeFile}, and no ` +
+              `built-in theme of that id was reported. Install it with ` +
+              `installTheme, or report one that exists.`,
+          );
+        }
+
+        const theme = normalizeTheme(raw);
+        const model = buildReport(theme, readSelectionColors(configText));
+        const html = renderThemeReportHtml(model);
+
+        const outputPath = args.outputPath.trim()
+          ? expandHome(args.outputPath.trim())
+          : defaultReportPath(theme.id);
+        await Deno.mkdir(outputPath.replace(/\/[^/]+$/, ""), {
+          recursive: true,
+        });
+        await Deno.writeTextFile(outputPath, html);
+
+        const opened = args.open ? openInBrowser(outputPath) : false;
+        const message =
+          `Wrote a colour report for theme '${theme.id}' to ${outputPath}: ` +
+          `${model.palette.length} ANSI slots, ` +
+          `${model.illegible.length} below their floor on the background` +
+          (args.open ? opened ? "; opened it" : "; could not open it" : "");
+        context.logger.info(message);
+
+        const handle = await context.writeResource(
+          "themeReport",
+          "theme-report",
+          {
+            themeId: theme.id,
+            displayName: theme.displayName,
+            dark: theme.dark,
+            source,
+            outputPath,
+            bytes: new TextEncoder().encode(html).length,
+            illegible: model.illegible,
+            opened,
+            generatedAt: new Date().toISOString(),
+            message,
+          },
+        );
         return { dataHandles: [handle] };
       },
     },

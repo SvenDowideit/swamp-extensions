@@ -1,0 +1,100 @@
+manifestVersion: 1
+name: "@svendowideit/curl"
+version: "2026.10.11.1"
+description: >
+  A tracked curl wrapper: every HTTP request records exactly what went out and
+  what came back — headers, cookies, body, redirects and timing — with secrets
+  masked, and a persistent cookie jar that carries a session across requests.
+
+  WHAT IT DOES
+
+    Wraps the `curl` binary in a swamp model, so an HTTP call leaves evidence
+    instead of vanishing into a terminal. Each `request` records the method,
+    URL, the headers the wrapper applied, the cookies sent and received, every
+    response header block (including the redirect chain), the body (capped, and
+    optionally saved in full), timing, the exact curl argv, the exit code and
+    stderr. Authorization, cookie, API-key and Set-Cookie values are masked by
+    default, so the record is safe to keep in swamp data. Prefer it over
+    ad-hoc curl: a per-instance Netscape cookie jar (`reuseCookies`) makes a
+    login followed by authenticated calls a matter of running methods in
+    sequence, and the whole exchange is queryable later with `swamp data`.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/curl
+
+  DEPENDENCIES
+
+    The curl binary, which must be on PATH (or set the `curlPath` global
+    argument). No other swamp extension is required, and nothing is installed
+    on the host.
+
+  RUN
+
+      # Send a request and keep the full in/out record. The instance is
+      # auto-created on first use.
+      swamp model @svendowideit/curl method run request http \
+        --input url="https://api.github.com/repos/denoland/deno"
+
+      # POST JSON and fail the run on a 4xx/5xx — the record is written first,
+      # so the evidence survives the failure.
+      swamp model @svendowideit/curl method run post http \
+        --input url="https://httpbin.org/post" \
+        --input 'dataJson:json={"hello":"world"}' \
+        --input failOnHttpError=true
+
+      # Inspect the persistent cookie jar to see what a login-style request
+      # stored, and whether it will be reused.
+      swamp model @svendowideit/curl method run cookie-jar http
+
+  CONFIGURE
+
+    Optional global arguments (set at model creation with
+    `--global-arg key=value`): cookieJar, reuseCookies, userAgent,
+    defaultHeaders, followRedirects, maxRedirects, insecure, timeoutMs,
+    connectTimeoutMs, maxBodyBytes, redactHeaders, redactCookieValues, stateDir
+    and curlPath. Per call: url, method, headers, query, data, dataJson,
+    dataFile, form, cookies, user, bearerToken, label, saveBody, outputFile and
+    the reuseCookies/followRedirects/insecure/timeoutMs/failOn* overrides. See
+    the README for the full tables.
+
+  UPGRADE
+
+    This extension installs nothing on the host, so an upgrade has nothing to
+    rebuild or reconcile. Refresh the pulled model type and its bundled files
+    with one idempotent command:
+
+        swamp extension update
+
+    Model definitions record the version they were created with; the model's
+    bundled `upgrades` entry migrates them automatically on the next method
+    run, and neither swamp data nor the cookie jar is touched.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, cron triggers, daemons or webhooks. It
+    runs the curl binary, reads and writes the cookie jar under `stateDir`, and
+    writes swamp resources (and a `body` file when `saveBody` is set).
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - curl.ts
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - curl_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

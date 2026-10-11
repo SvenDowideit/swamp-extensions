@@ -31,16 +31,19 @@ grants:
 isolation:
   - name: sudo-elevation-does-not-escape-the-sandbox
     confirms: >
-      The elevation ladder genuinely reaches root *inside* the sandbox: `sudo`
-      writes a marker at the container's filesystem root, and that marker is
-      absent on the dev host — so a successful sudo acted on the sandbox, not
-      the host.
+      On a host that grants `sudo`, the elevation ladder genuinely reaches root
+      *inside* the sandbox: `sudo` writes a marker at the container's
+      filesystem root, and that marker is absent on the dev host — so a
+      successful sudo acted on the sandbox, not the host. On a host that grants
+      no route the probe is a no-op, leaving the `absentOnHost` boundary
+      assertion as the control.
     cannot: >
       must not create the marker on the host, and the sandbox must not be able to
       write outside its own root filesystem.
     documents: README.md#elevation-routes
     sandbox: >
-      sudo -n sh -c 'echo escaped > /escaped-$TF_RUN_ID'
+      sh -c 'if sudo -n true 2>/dev/null; then sudo -n sh -c "echo escaped >
+      /escaped-$TF_RUN_ID"; else true; fi'
     absentOnHost: ["/escaped-$TF_RUN_ID"]
 
 tests:
@@ -95,6 +98,95 @@ tests:
         expect:
           stdoutContains: ["750 root"]
           stdoutNotContains: ["tester"]
+
+  # ---- fail-closed / no-prompt acceptance (bug B2) -------------------------
+  # The tests below override the file-level `sudo-nopasswd` grant with a
+  # per-test `sudo-none` / `sudo-interactive-only` grant. A grant is a root,
+  # pre-harness script, so each runs in its own container (see
+  # `groupTestsByGrant`). They lock in the B2 fix: `runCmd` never inherits the
+  # terminal (stdin at EOF) and `systemd-run` passes `--no-ask-password`, so on
+  # a host with no usable non-interactive elevation route `run` fails closed
+  # instead of prompting or hanging.
+  - name: run-fails-closed-with-no-elevation-route
+    confirms: >
+      On a Debian host with a non-root `tester` user and **no** granted
+      elevation route (`sudo-none`), a named `run` operation fails closed:
+      `manageService` exits non-zero with a `No granted elevation route` report
+      naming the ladder it tried, and a filesystem operation that a real
+      elevation would have carried out leaves no marker — so nothing was
+      elevated.
+    cannot: >
+      must not prompt for a password or hang (the step completes well inside a
+      short timeout), must not report a route/uid as if it elevated, and must
+      not create the root-only marker that a successful elevation would have
+      written.
+    documents: README.md#elevation-routes
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-none }
+    steps:
+      - name: no-non-interactive-route-is-granted
+        run: >
+          sh -c 'if sudo -n true 2>/dev/null; then echo sudo-works;
+          else echo sudo-blocked; fi'
+        expect:
+          stdoutContains: ["sudo-blocked"]
+          stdoutNotContains: ["sudo-works"]
+      - name: named-operation-fails-closed-without-prompting
+        run: >
+          swamp model @svendowideit/sudo method run run sudo-failclosed
+          --input operation=manageService
+          --input 'args:json={"unit":"caddy","action":"restart"}' 2>&1
+        timeoutSeconds: 30
+        expect:
+          exitCode: [1, 2]
+          outputContains: ["No granted elevation route"]
+          outputNotContains: ["Password:", "AUTHENTICATING FOR"]
+      - name: elevation-that-would-write-a-marker-still-fails-closed
+        run: |
+          swamp model create @svendowideit/sudo sudo-failclosed-marker \
+            --global-arg 'allowedOperations:json=["ensureDirectory"]'
+          swamp model method run sudo-failclosed-marker run \
+            --input operation=ensureDirectory \
+            --input 'args:json={"path":"/opt/tf-failclosed-marker","mode":"750"}' 2>&1
+        timeoutSeconds: 30
+        expect:
+          exitCode: [1, 2]
+          outputContains: ["No granted elevation route"]
+          outputNotContains: ["Password:", "AUTHENTICATING FOR"]
+      - name: nothing-was-elevated-so-the-marker-is-absent
+        run: >
+          sh -c 'test -e /opt/tf-failclosed-marker && echo CREATED
+          || echo ABSENT'
+        expect:
+          stdoutContains: ["ABSENT"]
+          stdoutNotContains: ["CREATED"]
+
+  - name: interactive-only-credential-never-prompts-or-hangs
+    confirms: >
+      On a host whose only `sudo` rule requires an interactive password and has
+      no askpass helper (`sudo-interactive-only`), `run` treats the route as
+      unavailable and fails closed with `No granted elevation route`,
+      completing well inside a short timeout — it does not block waiting for a
+      password.
+    cannot: >
+      must not prompt for a password (`Password:` / `AUTHENTICATING FOR`), must
+      not hang, and must not report a route/uid as if it elevated.
+    documents: README.md#forbidden-mechanisms
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-interactive-only }
+    steps:
+      - name: named-operation-fails-closed-without-prompting
+        run: >
+          swamp model @svendowideit/sudo method run run sudo-interactive
+          --input operation=manageService
+          --input 'args:json={"unit":"caddy","action":"restart"}' 2>&1
+        timeoutSeconds: 30
+        expect:
+          exitCode: [1, 2]
+          outputContains: ["No granted elevation route"]
+          outputNotContains: ["Password:", "AUTHENTICATING FOR"]
 
   - name: pinned-unavailable-route-does-not-fallback
     confirms: >

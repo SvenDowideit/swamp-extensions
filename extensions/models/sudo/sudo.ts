@@ -836,7 +836,7 @@ export const model = {
     {
       toVersion: "2026.10.11.1",
       description:
-        "Never prompt for a password. The `run` probe and every elevation route now run with stdin at EOF (`Deno.Command` stdin `null`) so no tool — or a polkit agent it spawns — can read a password from the terminal and block an automated run; and the `systemd-run` route now passes `--no-ask-password` (matching `run0`) so polkit's text agent is never invoked. A required interactive credential now fails fast as `unavailable`, never a hung or prompting run. No global-argument change.",
+        "Never prompt for a password. The `run` probe and every elevation route now run with stdin at EOF (`Deno.Command` stdin `null`) so no tool — or a polkit agent it spawns — can read a password from the terminal and block an automated run; and the `systemd-run` route now passes `--no-ask-password` (matching `run0`) so polkit's text agent is never invoked. A required interactive credential now fails fast as `unavailable`, never a hung or prompting run. The shipped test-factory fixture now locks this in: per-test `sudo-none` and `sudo-interactive-only` grants (each in its own container, `runAs: tester`) assert `run` fails closed with `No granted elevation route`, never emits `Password:` / `AUTHENTICATING FOR`, finishes inside a short timeout, and leaves no elevation marker — so a host with no usable non-interactive route can never prompt or hang. No global-argument or resource-shape change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

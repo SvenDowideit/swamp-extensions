@@ -267,22 +267,53 @@ tests:
 
   - name: coexistence
     confirms: >
-      A foreign worker unit (`swamp-worker-rc.service`, another identity) on the
-      same host is left completely alone by `ensureService` — the model only ever
-      manages `swamp-worker-figy`.
+      A second, REAL worker of a different identity (`rc` — its own model
+      instance, token, unit and cache dir) runs on the same host against the same
+      serve alongside `figy`, and reconciling `figy` leaves the other worker and a
+      non-owned foreign unit completely alone.
     cannot: >
-      must not delete, stop or rewrite the foreign unit.
+      must not stop, rewrite or remove the other worker's unit or the non-owned
+      foreign unit.
     documents: README.md#examples
     variables:
       SERVE_URL: ws://127.0.0.1:9090
-      FOREIGN: /root/.config/systemd/user/swamp-worker-rc.service
+      FOREIGN: /root/.config/systemd/user/swamp-worker-zz.service
     steps:
-      - name: install-foreign-unit
+      - name: deploy-a-second-worker-identity-rc
+        run: |
+          swamp model create @svendowideit/swamp-worker worker-rc \
+            --global-arg identity=rc \
+            --global-arg swampBinPath=/usr/local/bin/swamp \
+            --global-arg repoDir=/work/repo --json >/dev/null 2>&1 || true
+          swamp model method run worker-rc mintToken --input duration=1h
+          swamp model method run worker-rc ensureService --input serveUrl=$SERVE_URL
+        expect:
+          exitCode: 0
+          outputContains: ["unit changed"]
+          outputNotContains: ["panic"]
+        timeoutSeconds: 180
+      - name: second-worker-is-active-and-enrolled
+        run: |
+          systemctl --user is-active swamp-worker-rc
+          for i in $(seq 1 30); do
+            swamp worker list --json 2>/dev/null \
+              | jq -e '.workers[] | select(.labels.serve=="rc")' >/dev/null 2>&1 \
+              && { echo RC_ENROLLED; break; }
+            sleep 2
+          done
+          swamp worker list
+        expect:
+          exitCode: 0
+          stdoutContains: ["active"]
+          outputContains: ["RC_ENROLLED", "rc"]
+          outputNotContains: ["inactive", "failed"]
+        timeoutSeconds: 120
+      - name: install-a-non-owned-foreign-unit
         run: |
           mkdir -p /root/.config/systemd/user
           cat > "$FOREIGN" <<'UNIT'
           [Unit]
-          Description=foreign worker (rc)
+          Description=foreign worker (zz, not managed by this repo)
           [Service]
           Type=simple
           ExecStart=/bin/sleep infinity
@@ -290,75 +321,90 @@ tests:
           WantedBy=default.target
           UNIT
           systemctl --user daemon-reload
-          systemctl --user enable swamp-worker-rc.service
+          systemctl --user enable swamp-worker-zz.service
           echo FOREIGN_INSTALLED
         expect:
           exitCode: 0
           outputContains: ["FOREIGN_INSTALLED"]
-      - name: reconcile-again
+      - name: reconcile-figy-leaves-the-others-alone
         run: swamp model method run worker ensureService --input serveUrl=$SERVE_URL
         expect:
           exitCode: 0
           outputNotContains: ["panic"]
         timeoutSeconds: 120
-      - name: foreign-unit-survives
-        run: test -f "$FOREIGN" && grep -q 'foreign worker (rc)' "$FOREIGN" && echo FOREIGN_INTACT
+      - name: the-other-worker-and-foreign-unit-survive
+        run: |
+          systemctl --user is-active swamp-worker-figy
+          systemctl --user is-active swamp-worker-rc
+          grep -q 'identity: rc' /root/.config/systemd/user/swamp-worker-rc.service && echo RC_UNIT_INTACT
+          test -f "$FOREIGN" && echo FOREIGN_INTACT
         expect:
-          stdoutContains: ["FOREIGN_INTACT"]
-          stdoutNotContains: ["missing"]
+          exitCode: 0
+          stdoutContains: ["active", "RC_UNIT_INTACT", "FOREIGN_INTACT"]
+          outputNotContains: ["inactive", "failed", "missing"]
 
   - name: teardown
     confirms: >
-      `remove` completely decommissions the worker in one command: it revokes the
-      enrollment token on the orchestrator (so the worker cannot re-enroll and
-      drops out of the pool), stops and disables the systemd user unit, and deletes
-      the unit file, cache dir and token/env files. The foreign
-      `swamp-worker-rc` unit is left untouched.
+      Removing `figy` completely decommissions only that worker — token revoked,
+      unit/cache/token gone — while the other real worker (`rc`) keeps running and
+      stays enrolled, and a non-owned foreign unit is untouched; removing `rc` too
+      still leaves the foreign unit intact.
     cannot: >
-      must not leave the owned unit active, must not leave the token valid or the
-      worker in the pool, and must not remove the foreign unit.
+      must not leave the figy unit active, must not leave the figy token valid,
+      and must not stop, remove or otherwise touch the rc worker or the foreign
+      unit.
     documents: README.md#examples
     variables:
-      FOREIGN: /root/.config/systemd/user/swamp-worker-rc.service
+      FOREIGN: /root/.config/systemd/user/swamp-worker-zz.service
     steps:
-      - name: remove-owned-worker
+      - name: remove-figy
         run: swamp model method run worker remove
         expect:
           exitCode: 0
           outputContains: ["Removed worker swamp-worker-figy", "revoked token figy-"]
           outputNotContains: ["panic"]
         timeoutSeconds: 120
-      - name: owned-unit-is-gone
+      - name: figy-is-completely-gone
         run: |
-          if systemctl --user is-active swamp-worker-figy >/dev/null 2>&1; then echo STILL_ACTIVE; else echo GONE; fi
-          test -f /root/.config/systemd/user/swamp-worker-figy.service && echo UNIT_FILE_PRESENT || echo UNIT_FILE_REMOVED
+          if systemctl --user is-active swamp-worker-figy >/dev/null 2>&1; then echo FIGY_ACTIVE; else echo FIGY_GONE; fi
+          test -f /root/.config/systemd/user/swamp-worker-figy.service && echo FIGY_UNIT_PRESENT || echo FIGY_UNIT_REMOVED
+          test -e /root/.local/share/swamp-worker/figy && echo FIGY_CACHE_PRESENT || echo FIGY_CACHE_GONE
+          test -e /root/.config/swamp-worker/figy.token && echo FIGY_TOKEN_PRESENT || echo FIGY_TOKEN_GONE
+          test -e /root/.config/swamp-worker/figy.env && echo FIGY_ENV_PRESENT || echo FIGY_ENV_GONE
         expect:
-          stdoutContains: ["GONE", "UNIT_FILE_REMOVED"]
-          stdoutNotContains: ["STILL_ACTIVE", "UNIT_FILE_PRESENT"]
-      - name: cache-and-token-files-are-gone
+          stdoutContains: ["FIGY_GONE", "FIGY_UNIT_REMOVED", "FIGY_CACHE_GONE", "FIGY_TOKEN_GONE", "FIGY_ENV_GONE"]
+          stdoutNotContains: ["FIGY_ACTIVE", "FIGY_UNIT_PRESENT", "FIGY_CACHE_PRESENT", "FIGY_TOKEN_PRESENT", "FIGY_ENV_PRESENT"]
+      - name: the-other-worker-still-runs-and-is-enrolled
         run: |
-          test -e /root/.local/share/swamp-worker/figy && echo CACHE_PRESENT || echo CACHE_GONE
-          test -e /root/.config/swamp-worker/figy.token && echo TOKEN_PRESENT || echo TOKEN_GONE
-          test -e /root/.config/swamp-worker/figy.env && echo ENV_PRESENT || echo ENV_GONE
-        expect:
-          stdoutContains: ["CACHE_GONE", "TOKEN_GONE", "ENV_GONE"]
-          stdoutNotContains: ["CACHE_PRESENT", "TOKEN_PRESENT", "ENV_PRESENT"]
-      - name: worker-drops-out-of-the-pool
-        run: |
-          for i in $(seq 1 45); do
-            idle=$(swamp worker list --json 2>/dev/null \
-              | jq '[.workers[] | select(.labels.serve=="figy" and .status=="idle")] | length')
-            [ "$idle" = "0" ] && { echo DROPPED; break; }
+          systemctl --user is-active swamp-worker-rc
+          test -e /root/.local/share/swamp-worker/rc && echo RC_CACHE_INTACT || echo RC_CACHE_GONE
+          grep -q 'identity: rc' /root/.config/systemd/user/swamp-worker-rc.service && echo RC_UNIT_INTACT
+          for i in $(seq 1 30); do
+            swamp worker list --json 2>/dev/null \
+              | jq -e '.workers[] | select(.labels.serve=="rc" and .status=="idle")' >/dev/null 2>&1 \
+              && { echo RC_STILL_ENROLLED; break; }
             sleep 2
           done
-          swamp worker list
         expect:
           exitCode: 0
-          outputContains: ["DROPPED"]
-          outputNotContains: ["error"]
-        timeoutSeconds: 150
-      - name: foreign-unit-survives-teardown
+          stdoutContains: ["active", "RC_CACHE_INTACT", "RC_UNIT_INTACT", "RC_STILL_ENROLLED"]
+          stdoutNotContains: ["inactive", "failed", "RC_CACHE_GONE"]
+      - name: non-owned-foreign-unit-still-survives
         run: test -f "$FOREIGN" && echo FOREIGN_SURVIVES
         expect:
           stdoutContains: ["FOREIGN_SURVIVES"]
           stdoutNotContains: ["missing"]
+      - name: remove-the-second-worker-too
+        run: swamp model method run worker-rc remove
+        expect:
+          exitCode: 0
+          outputContains: ["Removed worker swamp-worker-rc"]
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: foreign-unit-survives-after-both-workers-are-gone
+        run: |
+          if systemctl --user is-active swamp-worker-rc >/dev/null 2>&1; then echo RC_ACTIVE; else echo RC_GONE; fi
+          test -f "$FOREIGN" && echo FOREIGN_SURVIVES
+        expect:
+          stdoutContains: ["RC_GONE", "FOREIGN_SURVIVES"]
+          stdoutNotContains: ["RC_ACTIVE", "missing"]

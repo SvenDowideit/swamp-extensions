@@ -26,6 +26,16 @@ p="$(fleet_ledger_path "$item")"
 [ -n "$candidate" ] || { echo "fleet: a candidate manifest is required" >&2; exit 2; }
 [ -n "$scenario" ] || scenario="ubuntu-systemd-standalone"
 
+# A relative candidate path must resolve inside THIS item's worktree. swamp
+# resolves a relative --input manifest against its own repo dir, which is the
+# primary checkout (other agents' worktree) — so make it absolute here.
+wt="$(fleet_worktree_path "$item")"
+case "$candidate" in
+  /*) ;;
+  *) [ -d "$wt" ] || { echo "fleet: worktree $wt not found — run 'fleet start $item'" >&2; exit 2; }
+     candidate="$wt/$candidate" ;;
+esac
+
 fleet_ledger_set "$item" phase testing
 set +e
 # shellcheck disable=SC2086

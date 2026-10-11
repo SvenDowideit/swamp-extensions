@@ -101,6 +101,22 @@ const GlobalArgsSchema = z.object({
   feedbackServerScriptPath: z.string().optional().describe(
     "Override the path to the bundled feedback-server.ts script. Defaults to the script bundled with this extension.",
   ),
+  /**
+   * The @svendowideit/caddy model whose base domain and host record supply the
+   * news page hostname. Empty (default) auto-discovers the caddy model that
+   * owns this machine. Only read by ensureCaddyProxy; caddy itself merges the
+   * news route with the models it already runs.
+   */
+  caddyModelName: z.string().default("").describe(
+    "Name of the @svendowideit/caddy model to read the news host's base domain and host record from. Empty (default) auto-discovers the caddy model that owns this machine. Only used when @svendowideit/caddy is installed.",
+  ),
+  /**
+   * Override the full hostname the news pages are proxied under. Empty derives
+   * `news.<host>.<domain>` from the caddy model above.
+   */
+  caddyRouteHostname: z.string().default("").describe(
+    "Override the full hostname the news pages are proxied under. Empty (default) derives `news.<host>.<domain>` from the caddy model's base domain and this machine's A record.",
+  ),
 }).strict();
 
 /**
@@ -139,6 +155,10 @@ export type GlobalArgs = {
   feedbackServerServiceName: string;
   /** Override the path to the bundled feedback-server.ts script. */
   feedbackServerScriptPath?: string;
+  /** @svendowideit/caddy model to read the news host/domain from ("" = auto). */
+  caddyModelName: string;
+  /** Override the full news page hostname ("" = news.<host>.<domain>). */
+  caddyRouteHostname: string;
 };
 
 /** Parse a newsAge string (e.g., "3d", "2h", "4w", "1m") into milliseconds. */
@@ -793,6 +813,153 @@ export function resolveFeedbackServerUrl(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Caddy reverse-proxy (optional @svendowideit/caddy integration)
+// ---------------------------------------------------------------------------
+
+/** Default @svendowideit/caddy model the news route is declared on. */
+export const DEFAULT_NEWS_CADDY_MODEL = "news-caddy";
+
+/** Host label the news pages are proxied under (news.<host>.<domain>). */
+export const NEWS_ROUTE_LABEL = "news";
+
+/**
+ * Facts about one @svendowideit/caddy model, read from its persisted
+ * `globalArguments`. The news extension reads these to learn the host and
+ * domain the operator already configured in caddy, so it can declare
+ * `news.<host>.<domain>` without hardcoding either.
+ */
+export type CaddyModelFacts = {
+  /** The caddy model name. */
+  modelName: string;
+  /** Base domain the caddy is authoritative for (e.g. `fi.gy`); "" if unset. */
+  baseDomain: string;
+  /** This host's own FQDN (e.g. `x1yoga.fi.gy`), or the base domain. */
+  hostFqdn: string;
+  /** systemd unit name of the caddy it manages (e.g. `caddy`). */
+  serviceName: string;
+  /** Host the caddy runs on; "" means this machine. */
+  target: string;
+};
+
+/**
+ * Read the facts from a `swamp model get <caddy> --json` payload.
+ *
+ * The host's own FQDN is the A/AAAA record under the base domain whose leftmost
+ * label is this machine's hostname, else the deepest such record, else the base
+ * domain itself — so a model that owns `x1yoga.fi.gy` yields `x1yoga.fi.gy` and
+ * the route becomes `news.x1yoga.fi.gy`. Pure, so the derivation is testable
+ * without a live swamp.
+ */
+export function parseCaddyModelFacts(
+  modelName: string,
+  raw: { globalArguments?: Record<string, unknown> },
+  hostname = "",
+): CaddyModelFacts {
+  const g = (raw.globalArguments ?? {}) as Record<string, unknown>;
+  const baseDomain = typeof g.baseDomain === "string" ? g.baseDomain : "";
+  const serviceName = typeof g.serviceName === "string" && g.serviceName
+    ? g.serviceName
+    : "caddy";
+  const target = typeof g.target === "string" ? g.target : "";
+  const records = Array.isArray(g.dnsRecords)
+    ? (g.dnsRecords as Array<Record<string, unknown>>)
+    : [];
+
+  const base = baseDomain.toLowerCase().replace(/^\.+/, "");
+  const shortHost = hostname.split(".")[0].toLowerCase();
+  const candidates: string[] = [];
+  for (const r of records) {
+    if (typeof r.name !== "string" || typeof r.type !== "string") continue;
+    const type = r.type.toUpperCase();
+    if (type !== "A" && type !== "AAAA") continue;
+    const name = r.name.toLowerCase().replace(/^\.+/, "");
+    if (base && name !== base && !name.endsWith(`.${base}`)) continue;
+    const value = Array.isArray(r.value) ? r.value : [];
+    if (!value.some((v) => typeof v === "string" && !!v)) continue;
+    candidates.push(name);
+  }
+  const named = candidates.find(
+    (n) => shortHost && n.split(".")[0] === shortHost,
+  );
+  const deepest = candidates.slice().sort(
+    (a, b) => b.split(".").length - a.split(".").length,
+  )[0];
+  const hostFqdn = named ?? deepest ?? baseDomain;
+  return { modelName, baseDomain, hostFqdn, serviceName, target };
+}
+
+/** The names of the @svendowideit/caddy models in a `swamp model list --json` payload. */
+export function caddyModelNames(listJson: string): string[] {
+  try {
+    const parsed = JSON.parse(listJson) as {
+      results?: Array<{ name?: unknown; type?: unknown }>;
+    };
+    return (parsed.results ?? [])
+      .filter((r) =>
+        r.type === "@svendowideit/caddy" && typeof r.name === "string"
+      )
+      .map((r) => r.name as string);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Pick the caddy model that owns this host: the one whose host FQDN starts with
+ * this machine's hostname. Falls back to the only model that has a base domain
+ * set. Returns null when the choice is absent or ambiguous, so the caller skips
+ * rather than guessing.
+ */
+export function pickSourceCaddy(
+  facts: CaddyModelFacts[],
+  hostname: string,
+): CaddyModelFacts | null {
+  const shortHost = hostname.split(".")[0].toLowerCase();
+  const matches = facts.filter(
+    (f) => shortHost && f.hostFqdn.split(".")[0] === shortHost,
+  );
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) return null;
+  const withDomain = facts.filter((f) => f.baseDomain);
+  return withDomain.length === 1 ? withDomain[0] : null;
+}
+
+/**
+ * The hostname the news pages are proxied under: `<label>.<hostFqdn>`. The
+ * FQDN already carries the domain caddy owns, so `x1yoga.fi.gy` yields
+ * `news.x1yoga.fi.gy`; a FQDN already under the label is returned unchanged.
+ */
+export function newsRouteHostname(
+  hostFqdn: string,
+  label = NEWS_ROUTE_LABEL,
+): string {
+  const host = hostFqdn.trim().replace(/^\.+/, "");
+  if (!host) return "";
+  const prefix = `${label}.`;
+  return host.startsWith(prefix) ? host : `${prefix}${host}`;
+}
+
+/**
+ * The `host:port` Caddy should dial for the feedback server. A wildcard bind
+ * (`0.0.0.0`/`::`) is not a dialable address, so it maps to loopback.
+ */
+export function feedbackUpstream(host: string, port: number): string {
+  const dial = !host || host === "0.0.0.0" || host === "::"
+    ? "127.0.0.1"
+    : host;
+  return `${dial}:${port}`;
+}
+
+/** This machine's hostname (`Deno.hostname()`, minus any domain part). */
+export function machineHostname(): string {
+  try {
+    return Deno.hostname();
+  } catch {
+    return Deno.env.get("HOSTNAME") ?? "";
+  }
+}
+
 /** Run a `swamp` CLI command and capture stdout/stderr/exit code. */
 export async function runSwampCmd(
   args: string[],
@@ -1437,6 +1604,8 @@ export async function probeLlm(
           feedbackServerPort: 8765,
           feedbackServerHost: "127.0.0.1",
           feedbackServerServiceName: "feedback-server",
+          caddyModelName: "",
+          caddyRouteHostname: "",
         },
         [
           { role: "system", content: "Reply with the single word OK." },
@@ -3976,7 +4145,7 @@ function mobileCard(
 /** Model definition for fetching RSS feeds and generating news summaries. */
 export const model = {
   type: "@svendowideit/news-reader",
-  version: "2026.09.25.2",
+  version: "2026.10.11.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4001,6 +4170,12 @@ export const model = {
       toVersion: "2026.09.25.2",
       description:
         "Feedback server host/port are now configuration, not workflow inputs: the new feedbackServerHost/feedbackServerPort globals drive the systemd unit and gatherFeedback/gatherPages derive their client URL from them. serverUrl method args are now optional (empty falls back to the globals).",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description:
+        "Add caddyModelName/caddyRouteHostname globals and an ensureCaddyProxy method: when @svendowideit/caddy is installed, declare a route proxying the feedback server to news.<host>.<domain> via a dedicated news-caddy model that caddy merges with the others. The host and domain are read from the caddy model that already owns this machine.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -4056,6 +4231,19 @@ export const model = {
       }),
       lifetime: "7d",
       garbageCollection: 20,
+    },
+    caddyProxy: {
+      description: "The Caddy route declaring the news pages hostname",
+      schema: z.object({
+        hostname: z.string(),
+        upstream: z.string(),
+        proxyModel: z.string(),
+        sourceModel: z.string(),
+        baseDomain: z.string(),
+        ensuredAt: z.string(),
+      }),
+      lifetime: "infinite",
+      garbageCollection: 5,
     },
   },
   files: {
@@ -5743,6 +5931,232 @@ export const model = {
           { serviceName, host, port, scriptPath },
         );
         return { dataHandles: [] };
+      },
+    },
+    ensureCaddyProxy: {
+      description:
+        "Idempotently declare a Caddy route that reverse-proxies the feedback server to news.<host>.<domain>, by creating/using a dedicated @svendowideit/caddy model that the caddy extension merges with the models it already runs. The host and domain are read from the installed caddy model that owns this machine. Skips gracefully (with a log) when @svendowideit/caddy is not installed or no single caddy model can be chosen.",
+      arguments: z.object({
+        model: z.string().optional().describe(
+          "Source @svendowideit/caddy model whose base domain and host record supply the news hostname. Defaults to the global caddyModelName, else auto-discovers the caddy model that owns this machine.",
+        ),
+        proxyModel: z.string().optional().describe(
+          `The @svendowideit/caddy model the news route is declared on (default ${DEFAULT_NEWS_CADDY_MODEL}, auto-created when absent).`,
+        ),
+        hostname: z.string().optional().describe(
+          "Full proxied hostname. Defaults to the global caddyRouteHostname, else news.<host>.<domain> from the source caddy model.",
+        ),
+        upstream: z.string().optional().describe(
+          "Backend host:port to proxy to. Defaults to the feedback server's bind host/port (wildcard binds map to loopback).",
+        ),
+        label: z.string().optional().describe(
+          `Host label the pages appear under (default ${NEWS_ROUTE_LABEL}).`,
+        ),
+      }).describe("Arguments for the ensureCaddyProxy method"),
+      execute: async (
+        args: {
+          model?: string;
+          proxyModel?: string;
+          hostname?: string;
+          upstream?: string;
+          label?: string;
+        },
+        context: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        const logger = context.logger;
+        const ga = context.globalArgs as GlobalArgs;
+
+        // Only run when the caddy extension is installed, mirroring
+        // ensureFeedbackServer's handling of its optional systemd-service peer.
+        const probe = await runSwampCmd([
+          "model",
+          "type",
+          "search",
+          "@svendowideit/caddy",
+          "--json",
+        ]);
+        const installed = probe.code === 0 &&
+          probe.stdout.includes("@svendowideit/caddy");
+        if (!installed) {
+          logger?.info(
+            "@svendowideit/caddy not installed — skipping news reverse-proxy setup. Run `swamp extension pull @svendowideit/caddy` to enable it.",
+          );
+          return { dataHandles: [] };
+        }
+
+        // Find the caddy model(s) this repo defines and read their facts.
+        const list = await runSwampCmd(["model", "list", "--json"]);
+        if (list.code !== 0) {
+          logger?.info(
+            "Could not list models ({code}) — skipping news reverse-proxy setup.",
+            { code: list.code },
+          );
+          return { dataHandles: [] };
+        }
+        const names = caddyModelNames(list.stdout);
+        if (names.length === 0) {
+          logger?.info(
+            "No @svendowideit/caddy model found — skipping news reverse-proxy setup. Create one first, e.g. `swamp model create @svendowideit/caddy my-caddy --global-arg baseDomain=example.com`.",
+          );
+          return { dataHandles: [] };
+        }
+        const host = machineHostname();
+        const facts: CaddyModelFacts[] = [];
+        for (const name of names) {
+          const got = await runSwampCmd(["model", "get", name, "--json"]);
+          if (got.code !== 0) continue;
+          try {
+            facts.push(
+              parseCaddyModelFacts(name, JSON.parse(got.stdout), host),
+            );
+          } catch {
+            // Unparseable model JSON: ignore this model.
+          }
+        }
+
+        const explicit = args.model?.trim() || ga.caddyModelName?.trim();
+        let source: CaddyModelFacts | null;
+        if (explicit) {
+          source = facts.find((f) => f.modelName === explicit) ?? null;
+          if (!source) {
+            logger?.info(
+              "caddy model '{model}' not found — skipping news reverse-proxy setup.",
+              { model: explicit },
+            );
+            return { dataHandles: [] };
+          }
+        } else {
+          source = pickSourceCaddy(facts, host);
+          if (!source) {
+            logger?.info(
+              "Could not pick a single caddy model to read the news host/domain from ({models}) — skipping news reverse-proxy setup. Set caddyModelName on this model to choose one.",
+              { models: names.join(", ") },
+            );
+            return { dataHandles: [] };
+          }
+        }
+
+        const hostname = args.hostname?.trim() ||
+          ga.caddyRouteHostname?.trim() ||
+          newsRouteHostname(source.hostFqdn, args.label);
+        if (!hostname) {
+          logger?.info(
+            "caddy model '{model}' has no base domain — skipping news reverse-proxy setup.",
+            { model: source.modelName },
+          );
+          return { dataHandles: [] };
+        }
+        const upstream = args.upstream?.trim() ||
+          feedbackUpstream(ga.feedbackServerHost, ga.feedbackServerPort);
+        const proxyModel = args.proxyModel?.trim() || DEFAULT_NEWS_CADDY_MODEL;
+
+        // Ensure our own caddy model exists. It carries the source model's base
+        // domain and systemd unit so the caddy extension merges its route with
+        // the models already running under that unit — we add a route, not
+        // rewrite theirs.
+        const existing = await runSwampCmd([
+          "model",
+          "get",
+          proxyModel,
+          "--json",
+        ]);
+        if (existing.code !== 0) {
+          const createArgs = [
+            "model",
+            "create",
+            "@svendowideit/caddy",
+            proxyModel,
+            "--global-arg",
+            `baseDomain=${source.baseDomain}`,
+            "--global-arg",
+            `serviceName=${source.serviceName}`,
+          ];
+          if (source.target) {
+            createArgs.push("--global-arg", `target=${source.target}`);
+          }
+          const create = await runSwampCmd(createArgs);
+          if (create.code !== 0) {
+            throw new Error(
+              `Failed to create caddy model ${proxyModel} (${create.code}): ${
+                create.stderr || create.stdout
+              }`,
+            );
+          }
+          logger?.info(
+            "Created caddy model {model} (baseDomain {domain}, unit {unit}) to host the news route",
+            {
+              model: proxyModel,
+              domain: source.baseDomain,
+              unit: source.serviceName,
+            },
+          );
+        } else {
+          try {
+            const cur = parseCaddyModelFacts(
+              proxyModel,
+              JSON.parse(existing.stdout),
+              host,
+            );
+            if (
+              cur.baseDomain && source.baseDomain &&
+              cur.baseDomain !== source.baseDomain
+            ) {
+              logger?.warning(
+                "caddy model {model} baseDomain '{cur}' differs from '{src}'; update it with `swamp model edit {model} --global-arg baseDomain={src}`",
+                {
+                  model: proxyModel,
+                  cur: cur.baseDomain,
+                  src: source.baseDomain,
+                },
+              );
+            }
+          } catch {
+            // Unparseable model JSON: leave the existing model as-is.
+          }
+        }
+
+        // declare the route (and let caddy derive the TLS subject + A record from
+        // the base domain the merged models already own).
+        const run = await runSwampCmd([
+          "model",
+          "method",
+          "run",
+          proxyModel,
+          "ensureDnsProxy",
+          "--input",
+          `hostname=${hostname}`,
+          "--input",
+          `upstream=${upstream}`,
+          "--skip-reports",
+        ]);
+        if (run.code !== 0) {
+          throw new Error(
+            `ensureDnsProxy failed (${run.code}): ${run.stderr || run.stdout}`,
+          );
+        }
+
+        logger?.info(
+          "News pages proxied: {hostname} -> {upstream} via caddy model {model} (domain from {source})",
+          {
+            hostname,
+            upstream,
+            model: proxyModel,
+            source: source.modelName,
+          },
+        );
+        const handle = await context.writeResource(
+          "caddyProxy",
+          "caddy-proxy-current",
+          {
+            hostname,
+            upstream,
+            proxyModel,
+            sourceModel: source.modelName,
+            baseDomain: source.baseDomain,
+            ensuredAt: new Date().toISOString(),
+          },
+        );
+        return { dataHandles: [handle] };
       },
     },
   },

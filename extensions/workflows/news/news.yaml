@@ -5,11 +5,17 @@ description: |
   deduplicates articles, filters by age, and generates the HTML report.
   Runs every 4 hours. No LLM calls, no catalog maintenance, no feed discovery.
 
+  When @svendowideit/systemd-service is installed the feedback server is ensured
+  as a systemd user service; when @svendowideit/caddy is installed a Caddy route
+  is declared proxying it to news.<host>.<domain> (the host and domain come from
+  the caddy model that already owns this machine). Both steps skip with a log
+  when their optional dependency is absent.
+
   Fusion (LLM story clustering) runs separately via the @svendowideit/news-fusion workflow.
   Curation (feed dedupe, discovery, page analysis) runs separately via the
   @svendowideit/news-curation workflow.
 
-  Loop: gather-feedback → fetch → dedupe-articles → filter → generate → generate-feeds-html
+  Loop: gather-feedback → ensure-feedback-server → ensure-caddy-proxy → seed → fetch → dedupe-articles → filter → generate → generate-mobile → generate-feeds-html
 tags: {}
 trigger:
   schedule: 0 */4 * * *
@@ -125,6 +131,26 @@ jobs:
         host: ${{ self.globalArguments.?feedbackServerHost.orValue("127.0.0.1") }}
         port: ${{ self.globalArguments.?feedbackServerPort.orValue(8765) }}
     dependsOn: []
+    weight: 0
+    allowFailure: true
+  - name: ensure-caddy-proxy
+    description: >-
+      When @svendowideit/caddy is installed, declare a Caddy route proxying the
+      feedback server to news.<host>.<domain>, reading the host and domain from
+      the caddy model that already owns this machine. Uses a dedicated
+      news-caddy model that the caddy extension merges with the models it
+      already runs. Skips with a log when caddy is not installed or no single
+      caddy model can be chosen.
+    task:
+      type: model_method
+      modelType: "@svendowideit/news-reader"
+      modelName: local-news
+      methodName: ensureCaddyProxy
+      inputs: {}
+    dependsOn:
+    - step: ensure-feedback-server
+      condition:
+        type: always
     weight: 0
     allowFailure: true
   - name: seed

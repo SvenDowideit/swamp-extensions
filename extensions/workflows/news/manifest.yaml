@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/news"
-version: "2026.09.25.2"
+version: "2026.10.11.1"
 description: >
   The full news stack: feed discovery, catalog management, preference-aware
   fetching, LLM story fusion, and static HTML rendering — plus a decoupled
@@ -28,18 +28,22 @@ description: >
   DEPENDENCIES
 
     None required — the fetch, catalog, and rendering stages use only the swamp
-    CLI and the bundled deno binary. Two optional pieces: set an
+    CLI and the bundled deno binary. Three optional pieces: set an
     `llmModel`/`llmBaseUrl` to enable LLM story fusion (any OpenAI-compatible
-    server), and install `@svendowideit/systemd-service` to run the feedback
-    server as a systemd user service; without it the ensure-feedback-server step
-    is skipped and you run the server yourself.
+    server); install `@svendowideit/systemd-service` to run the feedback
+    server as a systemd user service; and install `@svendowideit/caddy` to
+    reverse-proxy that service to `news.<host>.<domain>`. Without the optional
+    extensions the matching steps (`ensure-feedback-server`,
+    `ensure-caddy-proxy`) are skipped with a log.
 
   RUN
 
       # See every setting, its valid values, its default and its current value.
       swamp model @svendowideit/news-reader method run setup local-news
 
-      # Fast path — feedback, fetch, dedupe, filter, generate HTML.
+      # Fast path — feedback, fetch, dedupe, filter, generate HTML. Also ensures
+      # the feedback server (when systemd-service is installed) and its Caddy
+      # route news.<host>.<domain> (when caddy is installed).
       swamp workflow run @svendowideit/news-fetch
 
       # The full loop — discovery → catalog → fetch → filter → fuse → render.
@@ -66,6 +70,9 @@ description: >
       feedbackServerHost          Interface it binds to          (default 127.0.0.1)
       feedbackServerPort          Feedback server port          (default 8765)
       feedbackServerServiceName   systemd service name          (default feedback-server)
+      caddyModelName              Caddy model to read the news  (default "" = auto)
+                                  host/domain from
+      caddyRouteHostname          Override the proxied hostname (default "" = news.<host>.<domain>)
 
     The feedback server's bind host/port are these model globals — not workflow
     inputs — so a scheduled `news-fetch` run can never rebind an existing
@@ -75,18 +82,37 @@ description: >
     feedbackServerHost/feedbackServerPort too. The discovery and analysis
     models each take their own small global args; see the README.
 
+    When `@svendowideit/caddy` is installed, `ensure-caddy-proxy` reads the host
+    and domain from the caddy model that already owns this machine (its base
+    domain plus the A record matching `hostname`) — nothing is hardcoded. It
+    declares the route on its own `news-caddy` model, which the caddy extension
+    merges with the models it already runs, so the main Caddy is not edited
+    directly. Pin a specific source model with `caddyModelName`, or the whole
+    hostname with `caddyRouteHostname`, on the local-news instance.
+
   WHAT IT INSTALLS
 
-    The feedback server as a systemd *user* service — but only when
-    `@svendowideit/systemd-service` is installed and the ensure-feedback-server
-    step runs; it then enables user lingering so the server starts at boot. It
-    binds the `local-news` feedbackServerHost/feedbackServerPort globals
-    (127.0.0.1:8765 by default, local-only); set them to expose it on the
-    network, which is safe only behind an authenticating proxy. Rewriting the
-    unit does not restart a running process, so after changing the host/port
-    run `stopService` then `startService`. Without that extension nothing is
-    installed on the host. The rendered HTML, stories, and feedback queue are
-    written under `~/.swamp/news-pages/`.
+    Nothing by default. With `@svendowideit/systemd-service` installed it writes
+    the feedback server as a systemd *user* service and enables user lingering so
+    the server starts at boot; it binds the `local-news`
+    feedbackServerHost/feedbackServerPort globals (127.0.0.1:8765 by default,
+    local-only) — set them to expose it on the network, which is safe only
+    behind an authenticating proxy. Rewriting the unit does not restart a
+    running process, so after changing the host/port run `stopService` then
+    `startService`. With `@svendowideit/caddy` installed it additionally creates
+    a `news-caddy` model and declares a reverse-proxy route from
+    `news.<host>.<domain>` to the feedback server, letting Caddy issue the
+    certificate and (when a DNS provider is configured) the A record. Without
+    those extensions nothing is installed on the host. The rendered HTML,
+    stories, and feedback queue are written under `~/.swamp/news-pages/`.
+
+    Verify the route once Caddy is serving it:
+
+      swamp model @svendowideit/caddy method run news-caddy audit caddy-status
+      swamp data get caddy-status audit --json | jq '.content.cadies[] | {target, desiredRoutes, inSync}'
+
+    and open https://news.<host>.<domain>/ (the host printed by the
+    `ensure-caddy-proxy` log line) to read the digest the feedback server serves.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

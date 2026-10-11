@@ -28,6 +28,13 @@ import {
   feedbackServerCommand,
   feedbackServerUrl,
   resolveFeedbackServerUrl,
+  caddyModelNames,
+  DEFAULT_NEWS_CADDY_MODEL,
+  feedbackUpstream,
+  NEWS_ROUTE_LABEL,
+  newsRouteHostname,
+  parseCaddyModelFacts,
+  pickSourceCaddy,
   fetchFeed,
   generateHtml,
   generateMobileHtml,
@@ -851,6 +858,8 @@ Deno.test("formatGlobalArgsYaml emits a copy-paste globalArguments block", () =>
     feedbackServerPort: 8765,
     feedbackServerHost: "127.0.0.1",
     feedbackServerServiceName: "feedback-server",
+    caddyModelName: "",
+    caddyRouteHostname: "",
   });
   assertEquals(yaml.includes("globalArguments:"), true);
   assertEquals(yaml.includes('llmBaseUrl: "http://localhost:11434"'), true);
@@ -876,6 +885,8 @@ Deno.test("formatGlobalArgsYaml omits empty values", () => {
     feedbackServerPort: 8765,
     feedbackServerHost: "127.0.0.1",
     feedbackServerServiceName: "feedback-server",
+    caddyModelName: "",
+    caddyRouteHostname: "",
   });
   assertEquals(yaml.includes("llmModel"), false);
   assertEquals(yaml.includes("llmApiKey"), false);
@@ -2381,6 +2392,8 @@ Deno.test("chatCompletion throws LlmError(server) on fetch failure", async () =>
         feedbackServerPort: 8765,
         feedbackServerHost: "127.0.0.1",
         feedbackServerServiceName: "feedback-server",
+        caddyModelName: "",
+        caddyRouteHostname: "",
       }, [{ role: "user", content: "hi" }]),
       LlmError,
     );
@@ -2462,4 +2475,114 @@ Deno.test("resolveFeedbackServerUrl prefers an explicit URL and falls back to gl
     }),
     "http://localhost:4321",
   );
+});
+
+Deno.test("parseCaddyModelFacts prefers this machine's A record under the base domain", () => {
+  const facts = parseCaddyModelFacts("my-caddy", {
+    globalArguments: {
+      baseDomain: "fi.gy",
+      serviceName: "caddy",
+      dnsRecords: [
+        { name: "fi.gy", type: "A", value: ["10.0.0.1"] },
+        { name: "otel.fi.gy", type: "A", value: ["10.0.0.2"] },
+        { name: "x1yoga.fi.gy", type: "A", value: ["10.10.13.208"] },
+      ],
+    },
+  }, "x1yoga");
+  assertEquals(facts, {
+    modelName: "my-caddy",
+    baseDomain: "fi.gy",
+    hostFqdn: "x1yoga.fi.gy",
+    serviceName: "caddy",
+    target: "",
+  });
+});
+
+Deno.test("parseCaddyModelFacts defaults serviceName and falls back to the base domain", () => {
+  const facts = parseCaddyModelFacts("otel-caddy", {
+    globalArguments: { baseDomain: "otel.fi.gy" },
+  }, "x1yoga");
+  assertEquals(facts.hostFqdn, "otel.fi.gy");
+  assertEquals(facts.serviceName, "caddy");
+});
+
+Deno.test("parseCaddyModelFacts ignores records for other domains and non-A types", () => {
+  const facts = parseCaddyModelFacts("c", {
+    globalArguments: {
+      baseDomain: "fi.gy",
+      dnsRecords: [
+        { name: "other.example.com", type: "A", value: ["1.2.3.4"] },
+        { name: "x1yoga.fi.gy", type: "TXT", value: ["nope"] },
+      ],
+    },
+  }, "x1yoga");
+  assertEquals(facts.hostFqdn, "fi.gy");
+});
+
+Deno.test("caddyModelNames filters by type from a model list payload", () => {
+  const names = caddyModelNames(JSON.stringify({
+    results: [
+      { name: "pulse", type: "@svendowideit/swamp-pulse" },
+      { name: "my-caddy", type: "@svendowideit/caddy" },
+      { name: "otel-caddy", type: "@svendowideit/caddy" },
+    ],
+  }));
+  assertEquals(names, ["my-caddy", "otel-caddy"]);
+  assertEquals(caddyModelNames("not json"), []);
+});
+
+Deno.test("pickSourceCaddy chooses the model that owns this host", () => {
+  const mk = (modelName: string, hostFqdn: string, baseDomain: string) => ({
+    modelName,
+    hostFqdn,
+    baseDomain,
+    serviceName: "caddy",
+    target: "",
+  });
+  assertEquals(
+    pickSourceCaddy(
+      [
+        mk("otel-caddy", "otel.fi.gy", "otel.fi.gy"),
+        mk("my-caddy", "x1yoga.fi.gy", "fi.gy"),
+      ],
+      "x1yoga",
+    )?.modelName,
+    "my-caddy",
+  );
+  // Ambiguous host match: refuse to guess.
+  assertEquals(
+    pickSourceCaddy(
+      [
+        mk("a", "x1yoga.fi.gy", "fi.gy"),
+        mk("b", "x1yoga.other.com", "other.com"),
+      ],
+      "x1yoga",
+    ),
+    null,
+  );
+  // No host match: fall back only when exactly one model has a base domain.
+  assertEquals(
+    pickSourceCaddy(
+      [mk("a", "", ""), mk("b", "otel.fi.gy", "otel.fi.gy")],
+      "x1yoga",
+    )?.modelName,
+    "b",
+  );
+  assertEquals(pickSourceCaddy([mk("a", "", "")], "x1yoga"), null);
+});
+
+Deno.test("newsRouteHostname places news under the caddy host FQDN", () => {
+  assertEquals(newsRouteHostname("x1yoga.fi.gy"), "news.x1yoga.fi.gy");
+  assertEquals(newsRouteHostname("news.x1yoga.fi.gy"), "news.x1yoga.fi.gy");
+  assertEquals(newsRouteHostname("x1yoga.fi.gy", "feed"), "feed.x1yoga.fi.gy");
+  assertEquals(newsRouteHostname("  "), "");
+  assertEquals(NEWS_ROUTE_LABEL, "news");
+});
+
+Deno.test("feedbackUpstream maps a wildcard bind to loopback", () => {
+  assertEquals(feedbackUpstream("127.0.0.1", 8765), "127.0.0.1:8765");
+  assertEquals(feedbackUpstream("0.0.0.0", 8765), "127.0.0.1:8765");
+  assertEquals(feedbackUpstream("::", 8765), "127.0.0.1:8765");
+  assertEquals(feedbackUpstream("192.168.1.5", 9000), "192.168.1.5:9000");
+  assertEquals(DEFAULT_NEWS_CADDY_MODEL, "news-caddy");
 });

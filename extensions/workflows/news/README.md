@@ -22,7 +22,9 @@ without an LLM it still fetches, filters, and renders.
 Side effects: it fetches the feeds in its catalog, writes the rendered pages and
 story/feedback data under `~/.swamp/news-pages/`, and — when
 `@svendowideit/systemd-service` is installed — runs the feedback server as a
-systemd user service. Nothing else is installed on the host.
+systemd user service. When `@svendowideit/caddy` is installed it also declares a
+reverse-proxy route from `news.<host>.<domain>` to that server, so the digest is
+reachable (with TLS) from other devices. Nothing else is installed on the host.
 
 ## Install
 
@@ -78,6 +80,8 @@ config and validates any values you pass:
 | `feedbackServerHost` | `127.0.0.1` | Interface the feedback server binds to. `127.0.0.1` is local-only; set a LAN address (or `0.0.0.0` behind a proxy) to expose it. |
 | `feedbackServerPort` | `8765` | Port the feedback queue server listens on. |
 | `feedbackServerServiceName` | `feedback-server` | systemd user service name for the feedback server. |
+| `caddyModelName` | `""` | `@svendowideit/caddy` model to read the news host/domain from. Empty auto-discovers the caddy model that owns this machine. Only used when caddy is installed. |
+| `caddyRouteHostname` | `""` | Override the full proxied hostname. Empty derives `news.<host>.<domain>` from the caddy model. |
 
 `feedbackServerHost`/`feedbackServerPort` are the **single source of truth** for
 the feedback server's bind address. The `ensure-feedback-server` step reads them
@@ -112,6 +116,11 @@ swamp model @svendowideit/news-reader method run setup local-news --input llmTem
 # this is the supported way to move the server — not a workflow --input).
 swamp model @svendowideit/news-reader method run setup local-news --input feedbackServerHost=192.168.1.10
 
+# Declare the Caddy route by hand (the news-fetch workflow does this for you when
+# @svendowideit/caddy is installed). Reads the host and domain from the caddy
+# model that already owns this machine, creates news-caddy, and reconciles.
+swamp model @svendowideit/news-reader method run ensureCaddyProxy local-news
+
 # Persist your choices in the instance's globalArguments (setup only shows the
 # diff; `swamp model edit` opens the definition to apply it).
 swamp model edit local-news
@@ -122,7 +131,9 @@ Configurable params: `llmBaseUrl`, `llmModel` (empty = fusion off),
 `citationRetentionDays` (int ≥ 0), `llmConcurrency` (1..20),
 `maxFusions` (int ≥ 1, default 25), `llmTimeoutSec` (1..600s, default 120),
 `llmFailureThreshold` (int ≥ 1, default 3), `feedbackServerHost`
-(default `127.0.0.1`), `feedbackServerPort` (default `8765`).
+(default `127.0.0.1`), `feedbackServerPort` (default `8765`), `caddyModelName`
+(default `""` = auto), `caddyRouteHostname` (default `""` =
+`news.<host>.<domain>`).
 
 `llmApiKey` is **sensitive** — swamp rejects it as a literal value in
 `globalArguments` (it would be stored in cleartext in the definition YAML).
@@ -280,6 +291,7 @@ schema defaults. `swamp workflow trigger set` replaces the whole override map
 | `regenStories` | Regenerate stories whose source set changed. |
 | `renderStories` | Render accumulated stories into an inline fragment and a standalone page. |
 | `ensureFeedbackServer` | Ensure the feedback server runs (as a systemd user service when available). |
+| `ensureCaddyProxy` | When caddy is installed, declare a reverse-proxy route for the feedback server at `news.<host>.<domain>` via a dedicated `news-caddy` model. |
 
 `@svendowideit/news-feed-catalog`:
 
@@ -309,6 +321,12 @@ schema defaults. `swamp workflow trigger set` replaces the whole override map
 ### Workflows
 
 #### `news-fetch` (fast path, every 4h)
+
+Before fetching, it ensures the feedback server is running (as a systemd user
+service when `@svendowideit/systemd-service` is installed) and — when
+`@svendowideit/caddy` is installed — declares the Caddy route
+`news.<host>.<domain>` to it (see [Reverse proxy with Caddy](#reverse-proxy-with-caddy)).
+Both setup steps skip with a log when their optional extension is absent.
 
 1. **Gather feedback** — polls the feedback queue server for 👍/👎 clicks from
    the HTML page, imports them into preferences.
@@ -448,6 +466,52 @@ Because `ensure-feedback-server` creates the unit through
 unit's `ExecStart`, and user lingering makes it start at boot. Then open
 `http://192.168.1.10:8765/` from the other device. Put an authenticating proxy
 (e.g. Caddy with basic auth) in front if the network is not trusted.
+
+### Reverse proxy with Caddy
+
+When [`@svendowideit/caddy`](https://github.com/svendowideit/swamp-extensions) is
+installed, the `news-fetch` workflow's `ensure-caddy-proxy` step makes the
+digest reachable at `news.<host>.<domain>` with a real TLS certificate — so you
+can read it (and use the 👍/👎 buttons) from your phone without exposing the
+server's port directly.
+
+It reads the **host** and **domain** from the caddy model that already owns this
+machine: the base domain (e.g. `fi.gy`) plus the A record whose name matches this
+machine's hostname (e.g. `x1yoga.fi.gy`), giving `news.x1yoga.fi.gy`. Nothing is
+hardcoded. The route is declared on a dedicated `news-caddy` model (auto-created
+on first run) that carries the same systemd unit as the main caddy model, so the
+caddy extension **merges** the news route with the routes it already serves
+rather than editing your main model. Adding the route also implies the TLS
+subject and, when a DNS provider is configured, the A record.
+
+```sh
+# Run the fast path: ensures the feedback server, then the Caddy route.
+# Prints a "News pages proxied: news.<host> via caddy model news-caddy" log line.
+swamp workflow run @svendowideit/news-fetch
+```
+
+Pin a specific source caddy model (when more than one exists) instead of
+auto-discovery, or override the whole hostname — both are model globals:
+
+```sh
+swamp model @svendowideit/news-reader method run setup local-news --input caddyModelName=my-caddy
+swamp model @svendowideit/news-reader method run setup local-news --input caddyRouteHostname=feed.x1yoga.fi.gy
+swamp model edit local-news      # apply the printed diff
+```
+
+Confirm the route landed in the running Caddy and is in sync:
+
+```sh
+# Read-only audit of every caddy model's desired routes against the live config.
+swamp model @svendowideit/caddy method run news-caddy audit caddy-status
+swamp data get caddy-status audit --json | jq '.content.cadies[] | {target, desiredRoutes, inSync}'
+```
+
+If `@svendowideit/caddy` is not installed, or no single caddy model can be chosen
+(several models, none matching this host), the step logs why and skips — the
+rest of the workflow still runs. The `news-caddy` model is a normal caddy model,
+so `swamp model get news-caddy --json` shows the base domain and unit it copied,
+and the `@svendowideit/caddy-upgrade` workflow upgrades it with the others.
 
 ### Upgrading from a pre-Sept-25 version
 

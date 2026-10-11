@@ -20,7 +20,7 @@
  *
  * A genuinely legitimate type-version use — e.g. comparing an instance's
  * `typeVersion` against the installed model version for staleness — is exempted
- * with a `// swamp-quality-ignore version-source: <reason>` comment on the line
+ * with a `// meta-factory-ignore version-source: <reason>` comment on the line
  * or on the line directly above it.
  *
  * The lint is pure with respect to its input strings, so it is cheap to unit
@@ -56,8 +56,8 @@ export interface VersionSourceFile {
   source: string;
 }
 
-/** `// swamp-quality-ignore version-source: <reason>` — exempt a line. */
-const IGNORE_RE = /swamp-quality-ignore\s+version-source\s*:/;
+/** `// meta-factory-ignore version-source: <reason>` — exempt a line. */
+const IGNORE_RE = /meta-factory-ignore\s+version-source\s*:/;
 
 /** The model-type / schema version. */
 const MODEL_VERSION_RE = /\bmodel\s*\.\s*version\b/;
@@ -67,7 +67,7 @@ const INSTANCE_VERSION_RE =
   /\bcontext\s*\.\s*definition\s*\??\s*\.\s*version\b/;
 
 /** Drop comments so prose about the rule (line or block comments) is not matched. */
-function stripComments(source: string): string {
+export function stripComments(source: string): string {
   let out = "";
   let inBlock = false;
   let inLine = false;
@@ -164,7 +164,7 @@ export function lintVersionSource(
           "bundled manifest.yaml instead (anchor on a shipped asset with " +
           "`ctx.extensionFile()` and walk up to `manifest.yaml`). For a " +
           "legitimate type-version use (e.g. staleness), add " +
-          "`// swamp-quality-ignore version-source: <reason>`.",
+          "`// meta-factory-ignore version-source: <reason>`.",
       });
     }
     if (INSTANCE_VERSION_RE.test(code)) {

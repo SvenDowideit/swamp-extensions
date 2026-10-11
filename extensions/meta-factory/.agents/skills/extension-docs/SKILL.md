@@ -35,7 +35,7 @@ documentation gap. Apply this to **every** swamp extension you touch.
 
 ## The manifest manual contract
 
-The manifest `description:` must cover all eight elements
+The manifest `description:` must cover every element
 (`MANUAL_ELEMENTS` in `quality-rubric.ts`), and be at least 300 characters.
 **Put the important information first**, in this canonical order
 (`MANUAL_ORDER`) — the method reference goes **last**:
@@ -47,8 +47,9 @@ The manifest `description:` must cover all eight elements
 | 3 | `DEPENDENCIES` | its dependencies, or that it has none / is self-contained |
 | 4 | `RUN` | how to run it (a `swamp workflow run` / `swamp model …` command) |
 | 5 | `CONFIGURE` | how to configure its optional parts (global args, `--input`) |
-| 6 | `UPGRADE` | how to upgrade an existing install — one workflow that automates it |
-| 7 | `WHAT IT INSTALLS` | what it puts on the host — services, triggers, webhooks — or none |
+| 6 | `SETUP` | how the `setup` method detects/reuses config, persists partial values, and enables capabilities progressively — **only when the extension ships a `setup` method** |
+| 7 | `UPGRADE` | how to upgrade an existing install — one workflow that automates it |
+| 8 | `WHAT IT INSTALLS` | what it puts on the host — services, triggers, webhooks — or none |
 
 `WHAT IT DOES` is a 20–140 word pitch so a user can decide it beats a similar
 extension — **not** a dump of every method.
@@ -61,6 +62,60 @@ looks for it.
 
 Never `TODO`, `tbd`, or a one-liner. The description is the strongest discovery
 signal an extension has; treat it as the manual.
+
+## Configuration is precious and cumulative
+
+An extension that manages configuration through a `setup` method is held to the
+**config lifecycle** contract — the `setup` and `config-lifecycle` checks
+(5 points each):
+
+1. **Persist every input** — write supplied values (even incomplete) to a
+   durable resource with `context.writeResource`.
+2. **Read back before asking** — load the persisted config (or a peer's) first.
+3. **Reuse what exists** — prefer `context.readModelData` / `data.latest` over
+   asking again, so another extension's saved config is not re-requested.
+4. **Progressively enhance** — enable each capability automatically as soon as
+   its config is present.
+
+`config-lifecycle-lint.ts` reports `config-not-persisted` and
+`config-not-read-back` as **errors**, and `config-not-reused` /
+`setup-method-missing` / `setup-recommended` as **warnings**. Exempt a
+legitimate case with `// meta-factory-ignore config-lifecycle: <reason>` (add a
+rule name to exempt only that rule). Document the contract in the README
+`## Setup` section and the manifest `SETUP` element. An extension with no
+`setup` method is credited automatically — but shipping one is strongly
+recommended so config is discoverable, persisted, and reused.
+
+## Report reality, not intent
+
+Information an extension gives the user must be **actual, verified state** — not
+unactioned desired state. Encode and document this in the `## Setup` and
+`## Upgrade` sections:
+
+1. **Test, don't presume.** Before reporting an outcome (serving, configured,
+   active, reachable), verify it — probe the port, re-read the resource, hit the
+   endpoint. Never print a success line for something you have not checked.
+2. **Fail fast, then stop.** A failure that prevents continuation must be stated
+   clearly and halt the run. Never swallow it, retry the same action unchanged,
+   or continue and then claim success. In a setup/upgrade workflow, do **not**
+   mark a step `allowFailure: true` when a later step depends on it through
+   `condition: completed` or `always` — that is exactly how a run reports
+   success that is impossible (e.g. URLs on a port the binary never bound).
+3. **Report the wait.** A long-lived change (DNS propagation, certificate
+   issuance) must say how long until it is ready, rather than presenting the
+   desired end state as already true.
+4. **Never instruct the impossible.** If a capability is missing, do not tell
+   the user to use hostnames, URLs, or routes that cannot work until it is
+   fixed.
+
+`report-reality-lint.ts` reports `failure-swallowed` and
+`prerequisite-allow-failure` (an `allowFailure: true` prerequisite a later step
+depends on) plus `claim-without-verification` and `eta-missing` as warnings.
+Exempt a deliberate best-effort case with
+`// meta-factory-ignore report-reality: <reason>` (or name the rule). These are
+reported on the score resource as `reportReality` and never change the score —
+but a `## Setup` section that omits the verified-reality story loses setup
+points.
 
 ## Single-step install — 13% of the score
 
@@ -129,13 +184,16 @@ Every extension README has these `##` sections, in this order:
 | `## What it does` | yes | One short paragraph: problem, audience, side effects. |
 | `## Install` | yes | The exact `swamp extension pull <name>` command. |
 | `## Configuration` | yes | A markdown table of every global argument (name, type, default, meaning). |
+| `## Setup` | yes* | The `setup` method and the config lifecycle: detected/reused config, how to change it, that partial config is persisted, how capabilities enable progressively, and that reported outcomes are verified reality (stop on a blocking failure, report time-to-ready). |
 | `## Examples` | yes* | Fenced commands showing the options in use. |
 | `## Upgrade` | yes | The single upgrade workflow, explained (see below). |
 | `## Details` | yes | Models, methods, resources, prerequisites, caveats — plus how the code is structured and how to extend/test it. |
 
 \* `## Examples` may be omitted only when the extension has **no configurable
 global arguments** — there is nothing to exemplify. If `## Configuration` is
-present, `## Examples` is required.
+present, `## Examples` is required. `## Setup` is required only when the
+extension ships a `setup` method (the config-lifecycle contract); an extension
+with no `setup` method is credited automatically.
 
 ## The upgrade workflow — one command to upgrade
 
@@ -179,9 +237,9 @@ swamp workflow run @mycollective/my-extension-upgrade
    [references/rubric.md](references/rubric.md); ready-to-adapt manifest and
    README skeletons are in [references/templates.md](references/templates.md).
 
-2. **Draft the manifest manual.** Cover all eight elements above. For a new
-   extension, copy the skeleton from
-   [references/templates.md](references/templates.md).
+2. **Draft the manifest manual.** Cover every element above (`SETUP` only when
+   the extension ships a `setup` method). For a new extension, copy the skeleton
+   from [references/templates.md](references/templates.md).
 
 3. **Scaffold the README** (new extension, or one missing sections):
 
@@ -238,31 +296,34 @@ swamp workflow run @mycollective/my-extension-upgrade
 
 ## What the score measures
 
-The 0-100 score is the weighted sum of nineteen deterministic checks. Full
+The 0-100 score is the weighted sum of twenty-three deterministic checks. Full
 detail in [references/rubric.md](references/rubric.md); the weights:
 
 | Check | Points | What it verifies |
 | ----- | ------ | ---------------- |
 | Manifest name + description | 4 | `@collective/name`, non-placeholder description |
 | **`WHAT IT DOES` is a short pitch** | **5** | 20–140 words, not a method dump |
-| Manifest-as-user-manual | 8 | all eight manual elements, 300+ chars |
-| **Manual order (installs last)** | **5** | sections in canonical priority order |
-| **No methods section in the manifest** | **5** | swamp-club generates the method reference at publish |
+| Manifest-as-user-manual | 7 | every required manual element, 300+ chars |
+| **Manual order (installs last)** | **4** | sections in canonical priority order |
+| **No methods section in the manifest** | **4** | swamp-club generates the method reference at publish |
 | **Single-step install** | **13** | one `swamp extension pull`, no extra setup |
 | Manifest formatting | 4 | literal block, blank-line sections, indented commands |
-| Functional examples | 5 | ≥3 distinct runnable `swamp …` commands, no placeholders |
-| **Explained examples** | **5** | every non-install command says why/when to run it |
-| Canonical README sections | 6 | the six visible sections above |
+| Functional examples | 3 | ≥3 distinct runnable `swamp …` commands, no placeholders |
+| **Explained examples** | **3** | every non-install command says why/when to run it |
+| Canonical README sections | 7 | the visible sections above |
+| **Setup + config lifecycle** | **5** | an `## Setup` section documenting persistence, reuse, and progressive enablement (only when a `setup` method is shipped) |
 | README substance | 3 | ≥1200 chars, ≥1 table |
 | **A documented single upgrade workflow** | **5** | an `## Upgrade` section naming one `swamp workflow run <name>-upgrade` entry point, explained; a required `--input model=`/`name=` identity input caps it at ⅖ unless discovery is documented |
-| README + LICENSE packaged | 5 | both listed in `additionalFiles:` |
+| README + LICENSE packaged | 4 | both listed in `additionalFiles:` |
 | Platforms / repository / license | 4 | declared metadata |
 | Artifacts declared | 4 | at least one model/report/etc. |
-| README documents every method | 5 | coverage of model types and method names |
-| **Definitions created by swamp** | **4** | model/workflow/vault configs carry a generated, unique `id` — not hand-written or copied; `lintDefinitions` additionally flags a recent definition the `swamp audit` timeline does not confirm |
-| Source symbols documented | 4 | JSDoc coverage via `deno doc --json` |
-| No slow types | 3 | no slow-type codes in `deno doc --lint` stderr |
-| Dependency trust | 3 | `swamp extension quality` audit (partial when offline) |
+| README documents every method | 4 | coverage of model types and method names |
+| **Definitions created by swamp** | **3** | model/workflow/vault configs carry a generated, unique `id` — not hand-written or copied; `lintDefinitions` additionally flags a recent definition the `swamp audit` timeline does not confirm |
+| Extension version from manifest.yaml | 2 | `version-source`: the extension version is read from `manifest.yaml`, not `model.version`/`context.definition.version` |
+| **Config is persisted/read back/reused** | **5** | `config-lifecycle`: a `setup`-shipping extension persists config (even partial), reads it back, and reuses a peer's saved config |
+| Source symbols documented | 3 | JSDoc coverage via `deno doc --json` |
+| No slow types | 2 | no slow-type codes in `deno doc --lint` stderr |
+| Dependency trust | 2 | `swamp extension quality` audit (partial when offline) |
 
 Maximum 100. `≥90` A, `≥75` B, `≥60` C, `≥40` D, else F. The default
 "well documented" threshold is 75.
@@ -373,3 +434,18 @@ skill is re-scanned.
    `wait_for_signal` payload), and document it in the `## Upgrade` README
    section. An extension that installs nothing on the host may instead document
    `swamp extension update` as the whole upgrade.
+9. **Treat configuration as precious and cumulative.** An extension with a
+   `setup` method must persist every supplied value (even incomplete) to a
+   durable resource, read existing config back before asking again, reuse config
+   another model/extension already saved (`readModelData` / `data.latest`), and
+   enable each capability automatically as soon as its config is present.
+   Document it in `## Setup` and the manifest `SETUP` element; exempt a
+   legitimate case with `// meta-factory-ignore config-lifecycle: <reason>`.
+10. **Report reality, not intent.** Test the actual outcome before reporting it;
+    state a blocking failure clearly and stop the run (never swallow it, retry
+    unchanged, or continue and then claim success); never `allowFailure: true` a
+    prerequisite a later step depends on; report a long-lived change's
+    time-to-ready (DNS/TTL, certificates); and never instruct the user to use
+    hostnames, URLs, or routes that cannot work yet. Document it in `## Setup`
+    and `## Upgrade`; exempt a deliberate best-effort case with
+    `// meta-factory-ignore report-reality: <reason>`.

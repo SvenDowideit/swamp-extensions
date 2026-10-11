@@ -40,10 +40,13 @@ export interface ReadmeLintResult {
  *
  * @param readme README markdown.
  * @param manifest Parsed manifest (used only for messaging).
+ * @param hasSetupMethod Whether the extension ships a `setup` method (the only
+ *   case where the `## Setup` section is required).
  */
 export function lintReadme(
   readme: string,
   manifest: Manifest,
+  hasSetupMethod = false,
 ): ReadmeLintResult {
   const issues: ReadmeIssue[] = [];
   const headings = readmeHeadings(readme);
@@ -90,6 +93,7 @@ export function lintReadme(
   const order: Array<{ id: string; index: number }> = [];
   for (const spec of SECTIONS) {
     if (spec.id === "examples" && !configPresent) continue;
+    if (spec.id === "setup" && !hasSetupMethod) continue;
     const names = new Set([
       spec.heading.toLowerCase(),
       ...(spec.aliases ?? []),

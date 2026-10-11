@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/meta-factory"
-version: "2026.10.10.1"
+version: "2026.10.10.2"
 description: >
   The documentation quality gate for swamp extensions. Enforces one guiding
   principle — the published manifest plus README must be enough for a user or
@@ -26,7 +26,21 @@ description: >
     `model.version` (the model-type / schema version) or
     `context.definition.version` (the model instance's version) — neither is the
     package version, and the model and manifest versions are independent and need
-    not be in lock-step. A second workflow prints a scoreboard — a text
+    not be in lock-step. It also enforces a config-lifecycle contract for
+    extensions that ship a `setup` method — configuration is precious and
+    cumulative: supplied values are persisted even when incomplete, existing or
+    shared config is detected and reused (`readModelData` / `data.latest`) rather
+    than re-asked, and each capability enables progressively; a
+    `// meta-factory-ignore config-lifecycle: <reason>` comment exempts a
+    legitimate case. It also enforces that the information an extension gives
+    the user is verified reality, not intended state: outcomes are tested before
+    being reported, a blocking failure is stated and stops the run (never
+    swallowed, retried unchanged, or continued past), and long-lived changes
+    (DNS/TTL, certificates) report their time-to-ready. `report-reality-lint.ts`
+    reports `failure-swallowed` / `prerequisite-allow-failure` and
+    `claim-without-verification` / `eta-missing`, and the `## Setup` README
+    section must document the verified-reality behaviour. A second workflow
+    prints a scoreboard — a text
     table of every git-tracked extension with the reasons each is not 100/100.
     Each score can also carry test-factory coverage: how many of an extension's
     documented `swamp …` commands, and how many of the methods and workflows it
@@ -155,12 +169,18 @@ additionalFiles:
   - readme-lint.ts
   - manifest-lint.ts
   - definitions-lint.ts
+  - version-source-lint.ts
+  - config-lifecycle-lint.ts
+  - report-reality-lint.ts
   - code-metrics.ts
   - introspect.ts
   - meta_factory_test.ts
   - meta_factory_methods_test.ts
   - quality-rubric_test.ts
   - definitions-lint_test.ts
+  - version-source-lint_test.ts
+  - config-lifecycle-lint_test.ts
+  - report-reality-lint_test.ts
   - code-metrics_test.ts
   - meta_factory_report_test.ts
   - meta_factory_scoreboard_test.ts

@@ -3,8 +3,9 @@
  *
  * @module
  */
-import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
+  checkConfigLifecycle,
   checkDefinitions,
   checkExamples,
   checkExplain,
@@ -18,10 +19,12 @@ import {
   checkPackaging,
   checkPitch,
   checkSections,
+  checkSetup,
   checkSubstance,
   checkSymbols,
   checkUpgrade,
   checkVersionSource,
+  configurableSurface,
   countCodeBlocks,
   declaredArtifactFiles,
   extractExamples,
@@ -66,6 +69,21 @@ Set these global arguments when creating a model:
 | -------- | ---- | ------- | ----------- |
 | \`path\` | string | \`"."\` | Where to work. |
 | \`verbose\` | boolean | \`false\` | Log extra detail. |
+
+## Setup
+
+Configuration is precious and cumulative. Run the setup method to see every
+detected value — including config already saved by this or another extension —
+and how to change it. Passing values persists them, even when incomplete, and
+each capability enables progressively as soon as its config is present.
+
+\`\`\`sh
+# Show detected/persisted config and how to change it.
+swamp model method run t setup
+
+# Persist a partial value so the next capability switches on.
+swamp model method run t setup --input path=/tmp
+\`\`\`
 
 ## Examples
 
@@ -135,6 +153,13 @@ description: >
 
     Set the optional global arguments when creating the model, e.g.
     --global-arg path=/tmp, or override per call with --input.
+
+  SETUP
+
+    Run the setup method to see detected, reused config; it persists partial
+    values and enables each capability progressively once enough is provided:
+
+        swamp model method run my-tool setup
 
   UPGRADE
 
@@ -646,6 +671,106 @@ Deno.test("model and extension versions are not required to be in lock-step", ()
   assertEquals(checkVersionSource([]).status, "pass");
 });
 
+Deno.test("configurableSurface detects a real Configuration table", () => {
+  const withTable =
+    "## Configuration\n\n| Argument | Type | Description |\n| --- | --- | --- |\n| `path` | string | Where. |\n";
+  assertEquals(configurableSurface(withTable), true);
+  const headingOnly =
+    "## Configuration\n\n| Argument | Type | Description |\n| --- | --- | --- |\n";
+  assertEquals(configurableSurface(headingOnly), false);
+  assertEquals(configurableSurface("# x\n\n## Details\n\nnone"), false);
+  const inputMention = "## Configuration\n\nSet `--input foo` to change it.\n";
+  assertEquals(configurableSurface(inputMention), true);
+});
+
+Deno.test("checkSetup credits an extension with no configurable surface", () => {
+  const check = checkSetup("# x\n\n## Details\n\nnothing to configure");
+  assertEquals(check.earned, WEIGHTS.setup);
+  assertEquals(check.status, "pass");
+});
+
+Deno.test("checkSetup fails when the Configuration surface has no Setup section", () => {
+  const md =
+    "## Configuration\n\n| Argument | Type | Description |\n| --- | --- | --- |\n| `path` | string | Where. |\n";
+  const check = checkSetup(md);
+  assertEquals(check.earned, 0);
+  assertEquals(check.status, "fail");
+  assertStringIncludes(check.note ?? "", "## Setup");
+});
+
+Deno.test("checkSetup rewards the full config-lifecycle story", () => {
+  const md = `## Configuration
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| \`path\` | string | Where. |
+
+## Setup
+
+Run the setup method to see config detected from this or another extension and
+already saved; partial values are persisted, and each capability enables
+progressively once enough is provided. It verifies the actual state before
+reporting it, stops on a blocking failure, and says how long until a DNS change
+is ready.
+
+\`\`\`sh
+swamp model method run t setup
+\`\`\`
+`;
+  const check = checkSetup(md);
+  assertEquals(check.earned, WEIGHTS.setup);
+  assertEquals(check.status, "pass");
+});
+
+Deno.test("checkSetup is partial when the section omits the lifecycle story", () => {
+  const md =
+    "## Configuration\n\n| Argument | Type | Description |\n| --- | --- | --- |\n| `path` | string | Where. |\n\n" +
+    "## Setup\n\nRun setup to see the settings.\n\n```sh\nswamp model method run t setup\n```\n";
+  const check = checkSetup(md);
+  assert(check.earned > 0 && check.earned < WEIGHTS.setup);
+  assertEquals(check.status, "partial");
+});
+
+Deno.test("checkSetup flags a section that reports intended state only", () => {
+  const md =
+    "## Configuration\n\n| Argument | Type | Description |\n| --- | --- | --- |\n| `path` | string | Where. |\n\n" +
+    "## Setup\n\nRun the setup method to see detected config; values are persisted " +
+    "and capabilities enable progressively on approval.\n\n```sh\n" +
+    "swamp model method run t setup\n```\n";
+  const check = checkSetup(md);
+  assertStringIncludes(check.note ?? "", "verified");
+});
+
+Deno.test("checkConfigLifecycle passes with no config-lifecycle issues", () => {
+  const check = checkConfigLifecycle([]);
+  assertEquals(check.earned, WEIGHTS.configLifecycle);
+  assertEquals(check.status, "pass");
+});
+
+Deno.test("checkConfigLifecycle reports warnings but keeps full credit", () => {
+  const check = checkConfigLifecycle([
+    { severity: "warning", rule: "config-not-reused", message: "no peer read" },
+  ]);
+  assertEquals(check.earned, WEIGHTS.configLifecycle);
+  assertEquals(check.status, "pass");
+  assertStringIncludes(check.note ?? "", "advisory");
+});
+
+Deno.test("checkConfigLifecycle fails on a structural error", () => {
+  const check = checkConfigLifecycle([
+    {
+      severity: "error",
+      rule: "setup-method-missing",
+      message: "has config args but no setup method",
+      path: "tool.ts",
+      line: 12,
+    },
+  ]);
+  assertEquals(check.earned, 0);
+  assertEquals(check.status, "fail");
+  assertStringIncludes(check.note ?? "", "setup-method-missing");
+});
+
 Deno.test("the weighted maximum stays 100", () => {
   assertEquals(MAX_SCORE, 100);
 });
@@ -773,6 +898,11 @@ description: >
   CONFIGURE
 
     Set --config credstoreDir.
+
+  SETUP
+
+    Run the setup method to see detected/reused config; it persists partial
+    values and enables capabilities progressively.
 
   UPGRADE
 

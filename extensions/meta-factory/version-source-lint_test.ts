@@ -1,8 +1,8 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import {
-  type VersionSourceFile,
   lintVersionSource,
   lintVersionSources,
+  type VersionSourceFile,
 } from "./version-source-lint.ts";
 
 const CLEAN = `
@@ -65,7 +65,7 @@ Deno.test("flags context.definition?.version (optional chaining)", () => {
 
 Deno.test("an ignore comment on the line above exempts the reference", () => {
   const source = [
-    "// swamp-quality-ignore version-source: staleness compares type versions",
+    "// meta-factory-ignore version-source: staleness compares type versions",
     "const staleness = compare(instance.typeVersion, model.version);",
   ].join("\n");
   assertEquals(lintVersionSource(source), []);
@@ -73,7 +73,7 @@ Deno.test("an ignore comment on the line above exempts the reference", () => {
 
 Deno.test("an ignore comment on the same line exempts the reference", () => {
   const source =
-    "const staleness = compare(t, model.version); // swamp-quality-ignore version-source: staleness";
+    "const staleness = compare(t, model.version); // meta-factory-ignore version-source: staleness";
   assertEquals(lintVersionSource(source), []);
 });
 

@@ -58,6 +58,11 @@ import {
   lintVersionSources,
   type VersionSourceFile,
 } from "./version-source-lint.ts";
+import { lintConfigLifecycles } from "./config-lifecycle-lint.ts";
+import {
+  lintReportRealities,
+  type ReportRealityFile,
+} from "./report-reality-lint.ts";
 
 export type { AuditEvidence, CreationCommand };
 
@@ -293,6 +298,21 @@ const ScoreSchema = z.object({
     severity: z.enum(["error", "warning"]),
     rule: z.string(),
     message: z.string(),
+    path: z.string().optional(),
+  })).default([]),
+  configLifecycleIssues: z.array(z.object({
+    severity: z.enum(["error", "warning"]),
+    rule: z.string(),
+    message: z.string(),
+    line: z.number().optional(),
+    path: z.string().optional(),
+  })).default([]),
+  /** Report-reality issues (verified state, fail-fast, ETAs) — reported only. */
+  reportReality: z.array(z.object({
+    severity: z.enum(["error", "warning"]),
+    rule: z.string(),
+    message: z.string(),
+    line: z.number().optional(),
     path: z.string().optional(),
   })).default([]),
   /** Code metrics (complexity, coverage, CRAP) — reported, never scored. */
@@ -749,8 +769,28 @@ async function collectCodeMetrics(
 // Core scoring
 // ---------------------------------------------------------------------------
 
-/** Test-factory coverage for one extension, as written to a `coverage` resource. */
-type TestCoverage = z.infer<typeof TestCoverageSchema>;
+/**
+ * Test-factory coverage for one extension, as written to a `coverage`
+ * resource.
+ *
+ * Declared explicitly (rather than as `z.infer<typeof TestCoverageSchema>`) so
+ * the public type does not leak the schema or zod's internal output type — which
+ * `deno doc --lint` reports as a slow `private-type-ref`.
+ */
+export interface TestCoverage {
+  testCount: number;
+  testCommands: string[];
+  documentedCommands: string[];
+  documentedCovered: string[];
+  uncoveredCommands: string[];
+  surface: {
+    types: number;
+    methods: string[];
+    methodsCovered: string[];
+    workflows: string[];
+    workflowsCovered: string[];
+  };
+}
 
 /** Subprocess dependencies resolved once per `check`/`checkAll` run. */
 interface ScoreDeps {
@@ -848,6 +888,31 @@ async function versionSourceIssuesFor(
   const files: VersionSourceFile[] = [];
   for (const file of declared) {
     if (extname(file) !== ".ts") continue;
+    try {
+      files.push({
+        path: file,
+        source: await Deno.readTextFile(join(manifestDir, file)),
+      });
+    } catch {
+      // Unreadable declaration — the artifacts check reports it separately.
+    }
+  }
+  return files;
+}
+
+/**
+ * Workflow sources declared by one extension, for the report-reality lint.
+ *
+ * Setup/upgrade workflows that continue past a blocking failure (an
+ * `allowFailure: true` step a later step depends on) are the case this catches.
+ */
+async function workflowSourcesFor(
+  manifest: Manifest,
+  manifestDir: string,
+): Promise<ReportRealityFile[]> {
+  const files: ReportRealityFile[] = [];
+  for (const file of manifest.workflows ?? []) {
+    if (!/\.ya?ml$/i.test(file)) continue;
     try {
       files.push({
         path: file,
@@ -1045,7 +1110,7 @@ function scoreInstanceName(repoDir: string, manifestPath: string): string {
  */
 function scoreResource(
   result: ScoreResult & {
-    lint: { manifest: unknown; readme: unknown };
+    lint: { manifest: unknown; readme: unknown; reportReality: unknown };
     codeMetrics: CodeMetrics;
   },
   wellDocumented: boolean,
@@ -1057,6 +1122,7 @@ function scoreResource(
     wellDocumented,
     manifestLint: lint.manifest,
     readmeLint: lint.readme,
+    reportReality: lint.reportReality,
     codeMetrics,
     testCoverage,
     checkedAt: new Date().toISOString(),
@@ -1232,7 +1298,7 @@ async function scoreManifest(
   deps: ScoreDeps,
 ): Promise<
   ScoreResult & {
-    lint: { manifest: unknown; readme: unknown };
+    lint: { manifest: unknown; readme: unknown; reportReality: unknown };
     codeMetrics: CodeMetrics;
   }
 > {
@@ -1253,12 +1319,20 @@ async function scoreManifest(
     manifest,
     manifestDir,
   );
+  const hasSetupMethod = Object.values(methodsByType).some((names) =>
+    names.includes("setup")
+  );
   const { docJson, lintStdout } = await runDenoDoc(deps, manifest, manifestDir);
   const audit = await runQualityAudit(deps, path);
   const definitionIssues = await definitionIssuesFor(deps, manifestDir);
-  const versionSourceIssues = lintVersionSources(
-    await versionSourceIssuesFor(manifest, manifestDir),
-  );
+  const sourceFiles = await versionSourceIssuesFor(manifest, manifestDir);
+  const versionSourceIssues = lintVersionSources(sourceFiles);
+  const configLifecycleIssues = lintConfigLifecycles(sourceFiles);
+  const realityFiles: ReportRealityFile[] = [
+    ...sourceFiles.map((f) => ({ path: f.path, source: f.source })),
+    ...(await workflowSourcesFor(manifest, manifestDir)),
+  ];
+  const reportRealityIssues = lintReportRealities(realityFiles);
   const codeMetrics = await collectCodeMetrics(deps, manifest, manifestDir);
 
   const result = scoreExtension({
@@ -1272,6 +1346,7 @@ async function scoreManifest(
     lintStdout,
     definitionIssues,
     versionSourceIssues,
+    configLifecycleIssues,
     depsAudited: audit.audited,
     depsPassed: audit.passed,
     depsDetail: audit.detail,
@@ -1280,6 +1355,7 @@ async function scoreManifest(
   const manifestLint = lintManifest(manifest, {
     hasReadme,
     source: text,
+    hasSetupMethod,
     fileExists: (rel) => {
       // Declared artifacts resolve relative to the manifest directory.
       // Skills are directories resolved under `.agents/skills/<name>`
@@ -1299,13 +1375,14 @@ async function scoreManifest(
       });
     },
   });
-  const readmeLint = lintReadme(readme, manifest);
+  const readmeLint = lintReadme(readme, manifest, hasSetupMethod);
 
   return {
     ...result,
     lint: {
       manifest: manifestLint.issues,
       readme: readmeLint.issues,
+      reportReality: reportRealityIssues,
     },
     codeMetrics,
   };
@@ -1334,7 +1411,7 @@ type ExecContext = {
 /** Model definition for the extension documentation meta-factory. */
 export const model = {
   type: "@svendowideit/meta-factory",
-  version: "2026.10.10.1",
+  version: "2026.10.10.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1367,7 +1444,41 @@ export const model = {
     {
       toVersion: "2026.10.10.1",
       description:
-        "Adds the upgrade-workflow requirement: every extension must document a single upgrade workflow in a new `## Upgrade` README section (a `swamp workflow run <name>-upgrade` command, or a statement that it installs nothing on the host so `swamp extension update` is the whole upgrade) and an `UPGRADE` section in the manifest manual. The rubric gains an `upgrade` check (5 points); README now requires the `## Upgrade` section, the manifest manual now requires `UPGRADE`. It also gains a `version-source` check (3 points): a method that needs the extension version must read it from the bundled manifest.yaml, not from `model.version` (the model-type/schema version) or `context.definition.version` (the model instance's version) — the two are independent and need not be in lock-step, and a legitimate type-version use is exempted with `// swamp-quality-ignore version-source: <reason>`. Weights of examples/explain/packaging were trimmed by 1 each to keep the maximum at 100. Schema is additive — no global arguments change, existing models upgrade with no action beyond re-running a score.",
+        "Adds the upgrade-workflow requirement: every extension must document a single upgrade workflow in a new `## Upgrade` README section (a `swamp workflow run <name>-upgrade` command, or a statement that it installs nothing on the host so `swamp extension update` is the whole upgrade) and an `UPGRADE` section in the manifest manual. The rubric gains an `upgrade` check (5 points); README now requires the `## Upgrade` section, the manifest manual now requires `UPGRADE`, and the weights of format/examples/explain/packaging/symbols/creation were trimmed to keep the maximum at 100. Schema is additive — no global arguments change, existing models upgrade with no action beyond re-running a score.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.10.2",
+      description:
+        "Adds a `version-source` check (3→2 points after this release's " +
+        "rebalance): a method that needs the extension version must read it " +
+        "from the bundled manifest.yaml, not from the model's own schema " +
+        "`version` (the model-type / schema version) or the model instance's " +
+        "`version` — a legitimate type-version use is exempted " +
+        "with `// meta-factory-ignore version-source: <reason>`. Also adds the " +
+        "config-lifecycle contract: a new `setup` README section and `SETUP` " +
+        "manifest element (5 points, `setup` check) required only when an " +
+        "extension ships a `setup` method, plus a `config-lifecycle` check " +
+        "(5 points) fed by the new `config-lifecycle-lint.ts` — a " +
+        "`setup`-shipping extension must persist partial config, read " +
+        "existing/shared config back before asking, and reuse another model's " +
+        "saved config, exemptible with " +
+        "`// meta-factory-ignore config-lifecycle: <reason>`. Weights were " +
+        "rebalanced (manual 8→7, order 5→4, noMethods 5→4, examples/explain " +
+        "4→3, sections 6→7, coverage 5→4, creation 4→3, versionSource 3→2, " +
+        "symbols 4→3, fasttypes 3→2, deps 3→2) to fund setup+config-lifecycle " +
+        "and keep the maximum at 100. It further adds a report-reality contract " +
+        "(`report-reality-lint.ts`, reported as `reportReality` on the score " +
+        "resource): reported information must be verified actual state, not " +
+        "intended state — a setup/upgrade `catch` that logs but does not fail is " +
+        "`failure-swallowed`, an `allowFailure: true` step a later step depends " +
+        "on with `condition: completed/always` is `prerequisite-allow-failure`, " +
+        "and success claims without verification / long-lived changes without a " +
+        "time-to-ready are warned (`claim-without-verification`, `eta-missing`); " +
+        "the `## Setup` README section must document the verified-reality " +
+        "behaviour. These are reported, not scored, to avoid false positives on " +
+        "legitimate optional-failure handling. Schema is additive — no global " +
+        "arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

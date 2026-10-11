@@ -38,6 +38,17 @@ description: >
     Set the optional global arguments when creating the model, e.g.
     --global-arg exampleArg=value; override per call with --input force=true.
 
+  SETUP
+
+    Configuration is precious and cumulative. Run the setup method to see every
+    detected value — including config this or another extension already saved —
+    and how to change it; supplied values are persisted even when incomplete and
+    each capability enables progressively. It verifies the actual state before
+    reporting it and stops on a blocking failure. Only needed when the extension
+    ships a setup method:
+
+        swamp model method run my-model setup
+
   UPGRADE
 
     Upgrade an existing install with the bundled upgrade workflow; it rebuilds
@@ -67,9 +78,10 @@ platforms: []
 ```
 
 Checklist: `name` is `@collective/name`; the `description` is a literal block
-(`>`) covering all eight manual elements **in order — `WHAT IT DOES` (a short
+(`>`) covering every manual element **in order — `WHAT IT DOES` (a short
 pitch, not a method list), `INSTALL`, `DEPENDENCIES`, `RUN`, `CONFIGURE`,
-`UPGRADE`, and `WHAT IT INSTALLS` last** — 300+ chars, sections blank-line
+`SETUP` (only when the extension ships a `setup` method), `UPGRADE`, and
+`WHAT IT INSTALLS` last** — 300+ chars, sections blank-line
 separated, commands indented; the manifest has **no `METHODS` section**
 (swamp-club generates the method reference at publish — put the method list in
 the README); installing is a **single** `swamp extension pull`;
@@ -108,6 +120,24 @@ Set these global arguments when creating a model
 | -------- | ---- | ------- | ----------- |
 | `exampleArg` | string | `"default"` | What it controls. |
 | `enableThing` | boolean | `false` | Whether to do the thing. |
+
+## Setup
+
+Configuration is precious and cumulative: `setup` reports every detected value
+(including config this or another extension already saved) and how to change
+it. Supplied values are persisted even when incomplete, and each capability
+enables automatically as soon as its config is present. It reports **verified
+reality, not intent** — it tests the actual outcome before reporting it, stops
+on a blocking failure (rather than continuing and claiming success), and says
+how long a long-lived change (DNS/TTL, a certificate) will take to be ready.
+
+```sh
+# Show detected/persisted config and how to change it.
+swamp model method run my-model setup
+
+# Persist a (partial) value so the next capability switches on.
+swamp model method run my-model setup --input exampleArg=value
+```
 
 ## Examples
 
@@ -231,6 +261,11 @@ swamp extension quality extensions/models/my-extension/manifest.yaml --json
 | ------- | ---- | --- |
 | Missing `## Configuration` section | 1 section point + coverage ambiguity | Add the argument table |
 | Configuration present but no `## Examples` | 1 section point | Add a fenced command block |
+| `setup` method shipped but no `## Setup` section | 5 setup + 1 section point | Document the config lifecycle in `## Setup` |
+| `setup` does not persist/read back config | 5 config-lifecycle points | `writeResource` the values (even partial) and read them back before asking; or add a `// meta-factory-ignore config-lifecycle: <reason>` |
+| Setup reports intended state, not verified reality | setup points + a `report-reality` diagnostic | Test the real outcome before reporting it; stop on a blocking failure; report a long change's time-to-ready; or add `// meta-factory-ignore report-reality: <reason>` |
+| Setup/upgrade continues past a failed prerequisite | `prerequisite-allow-failure` diagnostic | Make the blocking step `allowFailure: false` and gate dependents on `condition: succeeded` |
+| Reports "serving on https://…" while a port/capability is missing | `claim-without-verification` diagnostic | Probe the actual port/endpoint before printing the URL; never instruct impossible URLs |
 | No `## Upgrade` section, or no upgrade workflow | up to 5 upgrade points + 1 section point | Ship an idempotent `<name>-upgrade` workflow and document it in `## Upgrade` |
 | One method not named in the README | coverage points | Add it to the `## Details` table |
 | README shorter than 1200 chars | 2 substance points | Expand the sections with real content |

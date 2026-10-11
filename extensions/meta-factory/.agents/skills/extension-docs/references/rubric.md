@@ -18,32 +18,34 @@ The contract splits documentation by audience:
 
 ## Scoring model
 
-The score is `round(earned / 100 * 100)`, where `earned` is the sum of twenty-one
-weighted checks. The maximum is always 100.
+The score is `round(earned / 100 * 100)`, where `earned` is the sum of
+twenty-three weighted checks. The maximum is always 100.
 
 | Check id | Label | Max | Pass condition |
 | -------- | ----- | --- | -------------- |
 | `manifest` | Manifest name and description | 4 | name matches `@collective/name` (2) and description is non-placeholder (2) |
 | `pitch` | `WHAT IT DOES` is a short pitch | 5 | section present (2), 20–140 words (2), not a method dump (2) |
-| `manual` | Manifest description is a complete user manual | 8 | all eight `MANUAL_ELEMENTS` present and description ≥300 chars |
-| `order` | Manual sections are in priority order (installs last) | 5 | headings appear in `MANUAL_ORDER` |
-| `no-methods` | Manifest omits a hand-written methods section | 5 | no `METHODS`/`API`/`WHAT IT SHIPS` heading in the description |
+| `manual` | Manifest description is a complete user manual | 7 | all required `MANUAL_ELEMENTS` present and description ≥300 chars |
+| `order` | Manual sections are in priority order (installs last) | 4 | headings appear in `MANUAL_ORDER` |
+| `no-methods` | Manifest omits a hand-written methods section | 4 | no `METHODS`/`API`/`WHAT IT SHIPS` heading in the description |
 | `install` | Getting it is a single step | 13 | exactly one `swamp extension pull`, no extra setup commands |
 | `format` | Manifest description is well-spaced and readable | 4 | literal block, blank-line sections, indented commands, blank-line keys |
-| `examples` | Manifest/README carry functional examples | 4 | ≥3 distinct runnable `swamp …` commands with no placeholders |
-| `explain` | Example commands say why/when to run them | 4 | every functional non-install command has an adjacent comment or sentence; the one-line `swamp extension pull` is exempt |
-| `sections` | Canonical README sections | 6 | all six sections present and substantive |
+| `examples` | Manifest/README carry functional examples | 3 | ≥3 distinct runnable `swamp …` commands with no placeholders |
+| `explain` | Example commands say why/when to run them | 3 | every functional non-install command has an adjacent comment or sentence; the one-line `swamp extension pull` is exempt |
+| `sections` | Canonical README sections | 7 | all required sections present and substantive |
+| `setup` | README documents setup, the config lifecycle, and reality | 5 | for an extension that ships a `setup` method: an `## Setup` section (40%) that says config is persisted (even partial), existing/shared config is detected and reused, capabilities enable progressively on approval, and reported outcomes are verified reality with a blocking failure stopping the run (60%); an extension with no `setup` method is credited automatically |
 | `substance` | README substance | 3 | ≥1200 chars (2), ≥1 markdown table (1) |
 | `upgrade` | README documents a single upgrade workflow | 5 | an `## Upgrade` section names one `swamp workflow run <name>-upgrade` entry point (or the no-host-artifacts exemption) and explains what is automatic or prompted; entry point present but unexplained (¾), section with no entry point (⅖), no section (0) |
 | `packaging` | README and LICENSE packaged | 4 | `README.md` in `additionalFiles:` (3) and a license file (3) |
 | `metadata` | Platforms, repository, license | 4 | platforms empty-or-≥2 (2), allowlisted HTTPS repo (1), license (1) |
 | `artifacts` | Declares shipped artifacts | 4 | ≥1 model/vault/datastore/report/workflow/skill |
-| `coverage` | README documents every model and method | 5 | 30% for types named, 70% for methods named |
-| `creation` | Definitions created by swamp creation commands | 4 | every model/workflow/vault config has a generated, valid, unique `id` |
-| `version-source` | Extension version read from manifest.yaml | 3 | no model source uses `model.version` or `context.definition.version` (the model-type or instance version) as the extension version; a `// swamp-quality-ignore version-source: <reason>` comment exempts a legitimate type-version use |
-| `symbols` | Source symbols documented (JSDoc) | 4 | scaled by `documented / total` exported declarations |
-| `fasttypes` | No slow types (`deno doc --lint`) | 3 | no slow-type diagnostics on stderr |
-| `deps` | Dependency trust | 3 | full on a passing audit, ~50% when skipped offline |
+| `coverage` | README documents every model and method | 4 | 30% for types named, 70% for methods named |
+| `creation` | Definitions created by swamp creation commands | 3 | every model/workflow/vault config has a generated, valid, unique `id` |
+| `version-source` | Extension version read from manifest.yaml | 2 | no model source uses `model.version` or `context.definition.version` (the model-type or instance version) as the extension version; a `// meta-factory-ignore version-source: <reason>` comment exempts a legitimate type-version use |
+| `config-lifecycle` | Config is persisted, read back, and reused | 5 | a `setup`-shipping extension persists config (even partial), reads existing config back, and does not re-ask; missing-setup and no-reuse are warnings, persistence/read-back failures are errors |
+| `symbols` | Source symbols documented (JSDoc) | 3 | scaled by `documented / total` exported declarations |
+| `fasttypes` | No slow types (`deno doc --lint`) | 2 | no slow-type diagnostics on stderr |
+| `deps` | Dependency trust | 2 | full on a passing audit, ~50% when skipped offline |
 
 ## Definitions are generated, not copied
 
@@ -127,7 +129,7 @@ every declared `.ts` artifact and reports each runtime reference to
 
 A legitimate type-version use — e.g. comparing an instance's `typeVersion` to
 the installed model version for staleness — is exempted with a
-`// swamp-quality-ignore version-source: <reason>` comment on the line or the
+`// meta-factory-ignore version-source: <reason>` comment on the line or the
 line directly above it. Any unexempted reference fails the `version-source`
 check (3 points).
 
@@ -159,11 +161,12 @@ The manual puts the important information first, following this canonical order
 3. **dependencies** — or that it has none
 4. **run** — how to run it
 5. **configure** — how to set its options
-6. **upgrade** — how to upgrade an existing install (one workflow)
-7. **installs** — what it puts on the host
+6. **setup** — the `setup` method and the config lifecycle (only when a `setup` method exists)
+7. **upgrade** — how to upgrade an existing install (one workflow)
+8. **installs** — what it puts on the host
 
 Any section appearing before an earlier one is an inversion
-and costs `5 / 7` points each. A heading is a full-line canonical label (≤45
+and costs `4 / 8` points each. A heading is a full-line canonical label (≤45
 chars), so a method row like `run   Read the path.` is not mistaken for the
 `RUN` heading.
 
@@ -241,8 +244,10 @@ and the report names the offenders.
 
 ## The manifest-as-user-manual elements
 
-`MANUAL_ELEMENTS` in `quality-rubric.ts` defines the eight things the manifest
-`description:` must cover. A detection regex must match each:
+`MANUAL_ELEMENTS` in `quality-rubric.ts` defines the things the manifest
+`description:` must cover. A detection regex must match each. The `setup`
+element is required **only when the extension ships a `setup` method** (the
+config-lifecycle contract); every other element is always required.
 
 | id | Must tell the reader… |
 | -- | --------------------- |
@@ -251,12 +256,64 @@ and the report names the offenders.
 | `dependencies` | its dependencies, or that it has none / is self-contained |
 | `run` | how to run it (a `swamp workflow run` / `swamp model …` command) |
 | `configure` | how to configure its optional parts (global args, `--input`) |
+| `setup` | how the `setup` method detects/reuses config, persists partial values, and enables capabilities progressively |
 | `upgrade` | how to upgrade an existing install — one workflow that automates it |
 | `installs` | what it installs — services, triggers, schedules, webhooks — or none |
 
-Each present element earns `8 / 8` points. A description shorter than 300
-characters cannot earn a full pass even if all keywords appear, because it has
-no room to be a usable manual.
+Each present element earns an equal share of the 7 points; when no `setup`
+method exists the `setup` element is dropped from the denominator. A description
+shorter than 300 characters cannot earn a full pass even if all keywords appear,
+because it has no room to be a usable manual.
+
+## Configuration is precious and cumulative (5 points)
+
+Configuration is the one thing an extension must never lose. An extension that
+manages configuration through a `setup` method is held to the **config
+lifecycle** contract, enforced by `config-lifecycle-lint.ts` and scored by the
+`config-lifecycle` check (5 points):
+
+1. **Persist every input** — a supplied value is written to a durable resource
+   (`context.writeResource`) even when incomplete.
+2. **Ask once** — read the persisted config (or a peer model's data) back before
+   asking the user again.
+3. **Reuse what exists** — prefer `context.readModelData` / `data.latest` over
+   asking, so another extension's saved config is not re-requested.
+4. **Progressively enhance** — enable each capability automatically the moment
+   its config is present.
+
+The lint reports `config-not-persisted` and `config-not-read-back` as **errors**
+(they cost the check), `config-not-reused` as a **warning**, and
+`setup-method-missing` / `setup-recommended` for config-bearing extensions as
+**warnings** (a migration signal, not a gate). A legitimate exemption is a
+`// meta-factory-ignore config-lifecycle: <reason>` comment (add a rule name to
+exempt only that rule), exactly like `version-source`.
+
+Document the contract in the README `## Setup` section (scored by the `setup`
+check) and describe it in the manifest `SETUP` element.
+
+## Report reality, not intent (reported, not scored)
+
+Information an extension gives the user must be **actual, verified state**, not
+unactioned desired state. `report-reality-lint.ts` enforces four heuristics over
+an extension's declared `.ts` sources and `.yaml` workflows:
+
+| rule | severity | catches |
+| ---- | -------- | ------- |
+| `failure-swallowed` | error | a `catch` in a setup/upgrade file that logs but neither throws nor returns a blocked status — the run continues past a failure |
+| `prerequisite-allow-failure` | error | a setup/upgrade step with `allowFailure: true` that a later step depends on via `condition: completed`/`always` — the run continues and can report success that is not real |
+| `claim-without-verification` | warning | a source reporting success/state (serving, configured, active, reachable…) without a probe/read of actual state |
+| `eta-missing` | warning | work on a long-lived change (DNS/TTL/certificate) with no stated time-to-ready |
+
+Exempt a deliberate best-effort case with
+`// meta-factory-ignore report-reality: <reason>` (add a rule name to exempt only
+that rule). Unlike `config-lifecycle`, these are **reported as `reportReality` on
+the score resource and never change the score** — a static rule cannot reliably
+tell a blocking failure from a deliberate optional one (a best-effort
+enrichment fetch is not the same as a swallowed `setcap`). The *scored*
+enforcement is the `## Setup` requirement to document verified-reality
+behaviour (a `## Setup` section that never says outcomes are tested before being
+reported, that a blocking failure stops the run, or that a long change reports
+its time-to-ready loses setup points).
 
 ## Grade bands
 
@@ -272,10 +329,10 @@ The default `wellDocumented` threshold is **75** (grade B).
 
 ## Coverage scoring detail
 
-`coverage` is a strong lever (5 points). It is computed as:
+`coverage` is a strong lever (4 points). It is computed as:
 
 ```
-earned = round(5 * (0.3 * namedTypes/totalTypes + 0.7 * namedMethods/totalMethods))
+earned = round(4 * (0.3 * namedTypes/totalTypes + 0.7 * namedMethods/totalMethods))
 ```
 
 A method counts as named when its exact identifier appears anywhere in the
@@ -299,16 +356,21 @@ issues appear in the report:
   description, every manual element (`manual-*` rules), artifact existence,
   `README.md` packaging.
 - `readme-lint.ts` — canonical sections present and in order (including the
-  required `## Upgrade` section), no skipped heading levels, a configuration
-  table, ≥2 code blocks, no empty fenced blocks.
+  required `## Upgrade` section, and `## Setup` only when the extension ships a
+  `setup` method), no skipped heading levels, a configuration table, ≥2 code
+  blocks, no empty fenced blocks.
 - `definitions-lint.ts` — model/workflow/vault configs carry a generated,
   valid, unique `id` (`id-missing` / `id-format` / `id-duplicate`), plus
   `name`/`typeVersion` warnings.
+- `config-lifecycle-lint.ts` — a `setup`-shipping extension persists config,
+  reads it back, and prefers a peer's saved config (`config-not-persisted` /
+  `config-not-read-back` errors, `config-not-reused` / `setup-method-missing` /
+  `setup-recommended` warnings).
 
 The manifest and README lints are `error`/`warning` rows in the report and are
 not part of the numeric score, so the score stays comparable across versions.
-The definitions lint is different: it also feeds the scored `creation` check
-(any error costs the whole 4 points).
+The definitions lint and the config lifecycle lint are different: their errors
+also feed the scored `creation` and `config-lifecycle` checks.
 
 ## The scoreboard workflow
 

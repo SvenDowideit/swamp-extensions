@@ -50,6 +50,8 @@ export function lintManifest(
     hasReadme?: boolean;
     /** Raw manifest YAML source, for order/install/format structural rules. */
     source?: string;
+    /** Whether the extension ships a `setup` method (enables the SETUP rule). */
+    hasSetupMethod?: boolean;
   } = {},
 ): ManifestLintResult {
   const issues: ManifestIssue[] = [];
@@ -84,7 +86,12 @@ export function lintManifest(
     });
   } else {
     // The description is the user-facing manual. Report every element it omits.
-    for (const el of MANUAL_ELEMENTS) {
+    // The SETUP element is only required when the extension actually manages
+    // configuration through a `setup` method.
+    const requiredElements = opts.hasSetupMethod
+      ? MANUAL_ELEMENTS
+      : MANUAL_ELEMENTS.filter((el) => el.id !== "setup");
+    for (const el of requiredElements) {
       if (!el.pattern.test(desc)) {
         issues.push({
           severity: "error",

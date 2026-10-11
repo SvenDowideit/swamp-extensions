@@ -33,8 +33,34 @@ extension `0–100`).
   saying why/when to run it (`explain` check, 7 pts);
 - the **README is the extender/maintainer doc** — it must carry visible
   `## What it does` / `## Install` / `## Configuration` / `## Examples` /
-  `## Details` sections, name every model and method, and explain how the
-  extension is built and changed;
+  `## Upgrade` / `## Details` sections, name every model and method, and explain
+  how the extension is built and changed. An extension that ships a `setup`
+  method additionally needs a `## Setup` section (see below);
+- **configuration is precious and cumulative** — an extension that ships a
+  `setup` method must persist every supplied value (even incomplete) to a durable
+  resource, read existing config back before asking again, and prefer config
+  another model/extension already saved (`readModelData` / `data.latest`) over
+  asking again, so capabilities enable progressively as soon as their config is
+  present. `config-lifecycle-lint.ts` reports `config-not-persisted` /
+  `config-not-read-back` as errors and `config-not-reused` (plus
+  `setup-method-missing` / `setup-recommended` for config-bearing extensions) as
+  warnings, and the README must document it in a `## Setup` section — each worth
+  5 points (`setup`, `config-lifecycle`). A legitimate case is exempted with
+  `// meta-factory-ignore config-lifecycle: <reason>`;
+- **reported information is verified reality, not intended state** — an
+  extension must test the actual outcome before reporting it, and a failure that
+  prevents continuation must be stated clearly and **stop** the run, never
+  swallowed, retried unchanged, or continued past while success is claimed.
+  Long-lived changes (DNS/TTL, certificates) must report their time-to-ready
+  rather than presenting the desired end state as already true. `report-reality-lint.ts`
+  reports `failure-swallowed` (a setup/upgrade `catch` that logs without
+  failing), `prerequisite-allow-failure` (an `allowFailure: true` step a later
+  step depends on through `completed`/`always`) and, as warnings,
+  `claim-without-verification` and `eta-missing`; the `## Setup` README section
+  must document this verified-reality behaviour. These are reported as
+  `reportReality` on the score resource and **never change the score** (a static
+  rule cannot reliably tell a blocking failure from a deliberate best-effort
+  one), so they surface as diagnostics rather than a gate;
 - **definitions are generated, not copied** — a model, workflow, or vault
   config must be created with the matching swamp command (`swamp model create`,
   `swamp workflow create`, `swamp vault create`), so it carries a fresh,
@@ -301,7 +327,7 @@ They are per-type/per-instance and independent of the manifest version: an
 unchanged model keeps its schema version across extension releases, and the two
 are **not** required to be in lock-step. A legitimate type-version use (e.g.
 comparing an instance's `typeVersion` to the installed model version for
-staleness) is exempted with a `// swamp-quality-ignore version-source: <reason>`
+staleness) is exempted with a `// meta-factory-ignore version-source: <reason>`
 comment on the line or the line directly above it.
 
 ### Code metrics (CRAP)
@@ -425,6 +451,22 @@ push a copy into the project (`.agents/skills/`) and global
 Prerequisites: the swamp CLI on `PATH` (used for `extension quality` and
 `doctor`), and the bundled deno binary at `~/.swamp/deno/deno` (resolved via
 `swamp doctor extensions`). Offline runs skip the network audit.
+
+### Future work — merge `upgrade` and `setup`
+
+`upgrade` and `setup` are the same shape: **detect the current state, report it,
+and progressively reconcile toward the target**. `upgrade` reconciles a host
+install (migrate, rebuild, restart); `setup` reconciles configuration (detect,
+persist, enable). They are documented as two sections today, but the end state
+is **one** entry point per extension — a single `reconcile`/`setup` workflow
+that detects what is already present (including anything a peer saved) and
+enhances the extension as far as the available information allows.
+
+When that lands, the rubric should require a single combined section instead of
+separate `upgrade` + `setup` sections, and the two checks should fold into one.
+This is deferred deliberately: the two contracts are being proven independently
+first, and the config-lifecycle migration (adding `setup` to extensions that
+lack one) is still in progress.
 
 ## License
 

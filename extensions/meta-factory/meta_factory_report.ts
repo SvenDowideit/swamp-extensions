@@ -5,6 +5,9 @@
  * @module
  */
 
+// meta-factory-ignore report-reality: this renderer formats score data the
+// scorer already read and verified; it runs no model operations of its own.
+
 type DataHandle = {
   name: string;
   specName: string;
@@ -131,6 +134,20 @@ export type ScoreData = {
     severity: string;
     rule: string;
     message: string;
+    path?: string;
+  }[];
+  configLifecycleIssues?: {
+    severity: string;
+    rule: string;
+    message: string;
+    line?: number;
+    path?: string;
+  }[];
+  reportReality?: {
+    severity: string;
+    rule: string;
+    message: string;
+    line?: number;
     path?: string;
   }[];
   codeMetrics?: CodeMetricsData;
@@ -328,6 +345,14 @@ export function renderScore(s: ScoreData): string {
     ...(s.definitionIssues ?? []).map((i) =>
       `definition/${i.rule}${i.path ? ` (${i.path})` : ""}: ${i.message}`
     ),
+    ...(s.configLifecycleIssues ?? []).map((i) => {
+      const where = i.path ? ` (${i.path}${i.line ? `:${i.line}` : ""})` : "";
+      return `config-lifecycle/${i.rule}${where}: ${i.message}`;
+    }),
+    ...(s.reportReality ?? []).map((i) => {
+      const where = i.path ? ` (${i.path}${i.line ? `:${i.line}` : ""})` : "";
+      return `report-reality/${i.rule}${where}: ${i.message}`;
+    }),
   ];
   if (issues.length > 0) {
     lines.push("");

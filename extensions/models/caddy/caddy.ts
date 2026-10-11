@@ -5317,7 +5317,7 @@ export const model = {
     {
       toVersion: "2026.10.11.1",
       description:
-        "A root process can bind 80/443 with no capability, so a config is no longer degraded to high ports merely because the binary lacks CAP_NET_BIND_SERVICE: 'can bind privileged ports' is now true when the binary holds the capability OR the process runs as root. This one test drives the degrade decision, upgradeCheck's gap report, staleness, and normalizeServingSettings. Fixes a regression that pushed an intentionally-unprivileged root config from :80 to :8080. No global arguments change.",
+        "A root process can bind 80/443 with no capability, so a config is no longer degraded to high ports merely because the binary lacks CAP_NET_BIND_SERVICE: 'can bind privileged ports' is now true when the binary holds the capability OR the process runs as root. This one test drives the degrade decision, upgradeCheck's gap report, staleness, and normalizeServingSettings. Fixes a regression that pushed an intentionally-unprivileged root config from :80 to :8080. The shipped acceptance suite now also proves end to end that caddy-setup grants CAP_NET_BIND_SERVICE through @svendowideit/sudo over BOTH elevation routes — a passwordless-`sudo` host (`sudo-n`) and a `doas`-only host (`doas-n`) — with the service binding :443 and serving the status page over TLS. No global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

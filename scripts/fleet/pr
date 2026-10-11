@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+# fleet pr <item> [title] [body-file] — push the item's branch and open a PR to main.
+#
+# Pushes over HTTPS (gh's credential helper supplies the token, so it works
+# even where host SSH is misconfigured) and opens the PR against main. Updates
+# the ledger with the PR URL and phase=review.
+#
+#   scripts/fleet/pr f0.6
+#   scripts/fleet/pr f0.6 "test-factory: per-test grants (F0.4)" /tmp/body.md
+set -eu
+here="$(cd "$(dirname "$0")" && pwd)"
+. "$here/lib.sh"
+
+item="${1:-}"; title="${2:-}"; body_file="${3:-}"
+fleet_require_item "$item"
+
+branch="$(fleet_branch "$item")"
+owner_repo="$(fleet_owner_repo)"
+wt="$(fleet_worktree_path "$item")"
+
+echo "fleet: pushing $branch"
+git -C "$wt" push -u "$(fleet_push_url)" "$branch"
+
+if [ -n "$body_file" ] && [ -f "$body_file" ]; then
+  body="$(cat "$body_file")"
+else
+  body="$(jq -r '"Item \(.item) (\(.branch)).\n\nTest-factory: \(.testResult // "n/a")\n\nLedger phase: \(.phase)"' "$(fleet_ledger_path "$item")")"
+fi
+[ -n "$title" ] || title="caddy $item"
+
+url="$(gh pr create --repo "$owner_repo" --base main --head "$branch" \
+  --title "$title" --body "$body")"
+fleet_ledger_set "$item" pr "$url"
+fleet_ledger_set "$item" phase review
+echo "fleet: $item → $url"

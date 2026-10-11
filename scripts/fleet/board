@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# fleet board — print the status of every fleet item from `.worktree-status/`.
+#
+# Read-only. One row per item: item, phase, branch, test result, PR URL.
+#   scripts/fleet/board
+set -eu
+here="$(cd "$(dirname "$0")" && pwd)"
+. "$here/lib.sh"
+
+dir="$(fleet_ledger_dir)"
+if [ ! -d "$dir" ] || [ -z "$(ls -A "$dir" 2>/dev/null)" ]; then
+  echo "fleet: no ledgers yet ($dir)"
+  exit 0
+fi
+
+printf '%-16s %-12s %-30s %-10s %s\n' ITEM PHASE BRANCH TEST PR
+for f in "$dir"/*.json; do
+  [ -e "$f" ] || continue
+  jq -r '[.item, .phase, .branch, (.testResult // "-"), (.pr // "-")] | @tsv' "$f" \
+    | while IFS="$(printf '\t')" read -r item phase branch test url; do
+        printf '%-16s %-12s %-30s %-10s %s\n' "$item" "$phase" "$branch" "$test" "$url"
+      done
+done

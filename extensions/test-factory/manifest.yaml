@@ -228,5 +228,7 @@ additionalFiles:
   - test_factory_report_test.ts
   - test_factory_test.ts
   - acceptance/test-factory.yaml
+  - test/stub/Dockerfile.txt
+  - test/stub/stub.py.txt
 
 platforms: []

@@ -1,4 +1,4 @@
-import { assertEquals } from "jsr:@std/assert@1";
+import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
   isEmptySystem,
   lintTestSystem,
@@ -298,4 +298,19 @@ isolation:
     lintTestSystem(sys).some((i) => i.includes("declared service")),
     true,
   );
+});
+
+Deno.test("the dependency-stub fixture is shipped and self-consistent", async () => {
+  const dir = new URL("./test/stub/", import.meta.url);
+  const dockerfile = await Deno.readTextFile(new URL("Dockerfile.txt", dir));
+  // The Dockerfile must copy the server (which is stored with a `.txt` suffix
+  // because extension additionalFiles only allow certain extensions).
+  assertStringIncludes(dockerfile, "stub.py.txt");
+  assertStringIncludes(dockerfile, "/stub.py");
+  const server = await Deno.readTextFile(new URL("stub.py.txt", dir));
+  // The control route is what a test toggles; the modes drive C2/C3/D6.
+  assertStringIncludes(server, "/ctl");
+  for (const mode of ["accept", "reject", "delay", "down"]) {
+    assert(server.includes(mode), `stub supports mode ${mode}`);
+  }
 });

@@ -1,0 +1,112 @@
+manifestVersion: 1
+name: "@svendowideit/generate-sbom-syft"
+version: "2026.10.11.1"
+description: >
+  Generate Dependency-Track-ready SBOMs with Anchore Syft for a whole host, a
+  container image, a single binary, or a source tree — one method, four kinds
+  of target.
+
+  WHAT IT DOES
+
+    Turns "what is installed here?" into a Bill of Materials you can act on.
+    Syft is the one scanner that covers all four targets this needs to handle:
+    a complete host filesystem (`dir:/`), a container image (`image:` /
+    `registry:`), a single binary (`file:`), and a source repository (`dir:`).
+    `generate` runs it and writes the result as a swamp file resource plus an
+    optional file path, together with a `scan` summary — format, package count,
+    source identity, size, duration and process outcome — so the next step can
+    curl the SBOM straight to Dependency-Track. Prefer it over hand-run `syft`:
+    the binary is downloaded and checksum-verified for you and cached, the
+    output is captured as data instead of a loose file, and the same model
+    serves a nightly host scan and a one-off image scan.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/generate-sbom-syft
+
+  DEPENDENCIES
+
+    @svendowideit/github-release-install (pulled automatically) resolves and
+    verifies the syft release; a `tar` binary extracts it. Set `syftPath` to use
+    a pre-installed syft and skip both. The bundled
+    `@svendowideit/sbom-to-dependencytrack` workflow additionally needs
+    @svendowideit/curl (multipart upload) and a running
+    @svendowideit/dependencytrack — both pulled automatically.
+
+  RUN
+
+      # Scan this whole host: `dir:/` walks the root filesystem. Give the BOM a
+      # name/version so Dependency-Track groups it as the project you expect.
+      swamp model @svendowideit/generate-sbom-syft method run generate host \
+        --input target=/ --input targetType=dir \
+        --input sourceName=my-host --input sourceVersion=1.0.0 \
+        --input outputFile=~/sbom/my-host.cdx.json
+
+      # Scan a container image (uses the local container runtime or registry).
+      swamp model @svendowideit/generate-sbom-syft method run generate image \
+        --input target=alpine:3.19 --input targetType=image
+
+      # Install (or refresh) the checksum-verified syft binary without scanning.
+      swamp model @svendowideit/generate-sbom-syft method run install syft-tool
+
+      # Or generate AND submit in one step: the bundled workflow scans the
+      # target, uploads the BOM to Dependency-Track, and tags the project with
+      # the host it came from.
+      swamp workflow run @svendowideit/sbom-to-dependencytrack \
+        --input target=/home/alice/.local/bin/caddy --input targetType=file \
+        --input projectName=caddy --input projectVersion=2.11.6 --input host=x1yoga
+
+  CONFIGURE
+
+    Optional global arguments (set with `--global-arg key=value`): syftPath,
+    syftVersion, repo, stateDir, githubToken, outputFormat, catalogers, exclude,
+    scope, sourceName, sourceVersion and timeoutMs. Per call: target, targetType,
+    format, catalogers, exclude, scope, platform, sourceName, sourceVersion,
+    label, outputFile and timeoutMs. See the README for the full tables.
+
+  UPGRADE
+
+    This extension installs nothing on the host, so an upgrade has nothing to
+    rebuild or reconcile. Refresh the pulled model type and its bundled files
+    with one idempotent command:
+
+        swamp extension update
+
+    The cached syft binary refreshes itself on the next scan (or immediately
+    with `install --input force=true`); swamp data is never touched.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, cron triggers, daemons or webhooks. It
+    downloads a checksum-verified syft binary and caches it (plus the verified
+    release archive) under `stateDir` (default `~/.swamp/generate-sbom-syft`),
+    and writes swamp resources and files.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - generate_sbom_syft.ts
+
+workflows:
+  - sbom-to-dependencytrack.yaml
+
+dependencies:
+  - "@svendowideit/github-release-install"
+  - "@svendowideit/curl"
+  - "@svendowideit/dependencytrack"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - generate_sbom_syft_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

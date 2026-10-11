@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@figy/sbom-to-dependencytrack"
-version: "2026.10.11.1"
+version: "2026.10.11.2"
 description: >
   fi.gy's site-specific SBOM submission: generate an SBOM for any target and
   upload it to my Dependency-Track, tagging each project with the host it came
@@ -56,8 +56,11 @@ description: >
     Inputs: target, targetType, projectName, projectVersion, host, format,
     label, exclude, catalogers, scanModel, uploadModel, dtModel, vaultName,
     vaultKey, uploadUrl. The locally-defined names default to my repo
-    (dependencytrack, dependencytrack-secrets, DEPENDENCYTRACK_API_KEY, sbom,
-    dt-upload) and can be overridden per run. See the README for the table.
+    (dependencytrack, dependencytrack-secrets, DEPENDENCYTRACK_API_KEY,
+    dt-upload); `label` (the swamp data name for the SBOM) defaults to
+    projectName with `/` replaced by `-`, so it never collides with the `sbom`
+    data spec name that data.latest() otherwise cannot disambiguate. Everything
+    can be overridden per run. See the README for the table.
 
   UPGRADE
 

@@ -54,7 +54,7 @@ Inputs (all optional except `target`, `projectName`, `projectVersion`):
 | `projectVersion` | — | Dependency-Track project version (e.g. `2.11.6`). |
 | `host` | `""` | Host tag; empty detects it from `$HOSTNAME`. |
 | `format` | `cyclonedx-json` | SBOM format (`cyclonedx-json`/`-xml`, `spdx-json`/`-tag-value`, `syft-json`). |
-| `label` | `sbom` | Swamp data name for the produced SBOM file. |
+| `label` | `""` (→ `projectName`) | Swamp data name for the produced SBOM file. Empty derives it from `projectName` with `/` replaced by `-`. It must not equal a data spec name (`sbom`, `scan`, …) — see [Details](#details). |
 | `exclude` | `[]` | Syft glob exclusions (e.g. `**/proc/**`). |
 | `catalogers` | `[]` | Syft catalogers to enable. |
 | `scanModel` | `sbom-tool` | The `generate-sbom-syft` model instance to drive. |
@@ -109,6 +109,14 @@ swamp extension update
 The `upload` step sends `multipart` fields `autoCreate`, `projectName`,
 `projectVersion` and `projectTags` (the host), and attaches the SBOM with
 `files` read from `data.latest(scanModel, label).path`.
+
+The SBOM's swamp data name is the `label`, which defaults to `projectName` with
+`/` replaced by `-`. This matters because `generate-sbom-syft` writes its file
+under a spec also named `sbom`: if the data name equalled that spec name,
+`data.latest(scanModel, "sbom")` would be ambiguous as soon as a second SBOM
+(another project) existed under the same spec — the original cause of
+`Ambiguous data.latest() match: specName "sbom" resolves to N data items`.
+Naming the data after the project keeps every `data.latest()` unambiguous.
 
 ### Why the split
 

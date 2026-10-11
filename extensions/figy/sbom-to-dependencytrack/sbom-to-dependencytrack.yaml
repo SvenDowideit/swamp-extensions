@@ -62,8 +62,12 @@ inputs:
       description: SBOM format. CycloneDX is the safest for Dependency-Track.
     label:
       type: string
-      default: sbom
-      description: Swamp data name for the produced SBOM file (must be a valid swamp name).
+      default: ""
+      description: >-
+        Swamp data name for the produced SBOM file (must be a valid swamp name
+        and must not equal a data spec name such as `sbom` or `scan`, or
+        data.latest() cannot disambiguate it). Empty derives it from projectName
+        with `/` replaced by `-`, which is the recommended default.
     exclude:
       type: array
       items:
@@ -120,7 +124,7 @@ jobs:
             target: ${{ inputs.target }}
             targetType: ${{ inputs.targetType }}
             format: ${{ inputs.format }}
-            label: ${{ inputs.label }}
+            label: '${{ inputs.label != "" ? inputs.label : inputs.projectName.split("/").join("-") }}'
             exclude: ${{ inputs.exclude }}
             catalogers: ${{ inputs.catalogers }}
             scanModel: ${{ inputs.scanModel }}
@@ -143,8 +147,8 @@ jobs:
             multipart: >-
               ${{ {"autoCreate": "true", "projectName": inputs.projectName, "projectVersion": inputs.projectVersion, "projectTags": inputs.host != "" ? inputs.host : (has(env.HOSTNAME) ? env.HOSTNAME : "")} }}
             files: >-
-              ${{ {"bom": data.latest(inputs.scanModel, inputs.label).path} }}
-            label: ${{ "upload-" + inputs.label }}
+              ${{ {"bom": data.latest(inputs.scanModel, inputs.label != "" ? inputs.label : inputs.projectName.split("/").join("-")).path} }}
+            label: '${{ "upload-" + (inputs.label != "" ? inputs.label : inputs.projectName.split("/").join("-")) }}'
             failOnHttpError: true
         dependsOn:
           - step: generate
@@ -158,9 +162,9 @@ jobs:
         task:
           type: assert
           expr: >-
-            data.latest(inputs.uploadModel, "upload-" + inputs.label).attributes.ok == true
+            data.latest(inputs.uploadModel, "upload-" + (inputs.label != "" ? inputs.label : inputs.projectName.split("/").join("-"))).attributes.ok == true
           message: >-
-            Upload to Dependency-Track failed: status=${{ data.latest(inputs.uploadModel, "upload-" + inputs.label).attributes.status }}
+            Upload to Dependency-Track failed: status=${{ data.latest(inputs.uploadModel, "upload-" + (inputs.label != "" ? inputs.label : inputs.projectName.split("/").join("-"))).attributes.status }}
           severity: high
         dependsOn:
           - step: upload

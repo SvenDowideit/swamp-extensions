@@ -67,8 +67,16 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3236"><span class="tier A">A</span>Datastore rework Phase 3: the commits.db commit store, dorma</a><a href="#issue-3237"><span class="tier A">A</span>Datastore rework Phase 3: the chunk store and the storage/1 </a><a href="#issue-3233"><span class="tier A">A</span>Datastore rework Phase 3: the v3 commit and partition domain</a><a href="#issue-3234"><span class="tier A">A</span>Datastore rework Phase 3: Litestream embedding spike (a writ</a><a href="#issue-3201"><span class="tier A">A</span>check_upgrades.ts skips models in nested extensions/models/ </a><a href="#issue-3230"><span class="tier A">A</span>verification: check_upgrades skips models in subdirectories,</a><a href="#issue-3222"><span class="tier A">A</span>repo init writes Amp and Kiro permission settings in formats</a><a href="#issue-2535"><span class="tier A">A</span>serve: server token GC follow-ups (upgrade backlog holds the</a><a href="#issue-3228"><span class="tier A">A</span>swamp issue edit: a dotted code path in the body is redacted</a><a href="#issue-3191"><span class="tier A">A</span>Datastore rework Phase 3: measure and bound the format-guard</a><a href="#issue-2280"><span class="tier A">A</span>issue-lifecycle: swamp-club lifecycle post failures are logg</a><a href="#issue-3224"><span class="tier A">A</span>swamp access check run locally ignores the named resource&#39;s </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-2534"><span class="tier A">A</span>serve: without a remote datastore the token GC is not serial</a><a href="#issue-3236"><span class="tier A">A</span>Datastore rework Phase 3: the commits.db commit store, dorma</a><a href="#issue-3237"><span class="tier A">A</span>Datastore rework Phase 3: the chunk store and the storage/1 </a><a href="#issue-3233"><span class="tier A">A</span>Datastore rework Phase 3: the v3 commit and partition domain</a><a href="#issue-3234"><span class="tier A">A</span>Datastore rework Phase 3: Litestream embedding spike (a writ</a><a href="#issue-3201"><span class="tier A">A</span>check_upgrades.ts skips models in nested extensions/models/ </a><a href="#issue-3230"><span class="tier A">A</span>verification: check_upgrades skips models in subdirectories,</a><a href="#issue-3222"><span class="tier A">A</span>repo init writes Amp and Kiro permission settings in formats</a><a href="#issue-2535"><span class="tier A">A</span>serve: server token GC follow-ups (upgrade backlog holds the</a><a href="#issue-3228"><span class="tier A">A</span>swamp issue edit: a dotted code path in the body is redacted</a><a href="#issue-3191"><span class="tier A">A</span>Datastore rework Phase 3: measure and bound the format-guard</a><a href="#issue-2280"><span class="tier A">A</span>issue-lifecycle: swamp-club lifecycle post failures are logg</a></aside><div>
 
+<article class="item" id="issue-2534">
+<h2><span class="tier A">A</span>serve: without a remote datastore the token GC is not serialized against token rotate/re-mint</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-11T14:00:29.493Z">2026-10-11T14:00:29.493Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2534" rel="noopener">lab#2534</a></div>
+</article>
 <article class="item" id="issue-3236">
 <h2><span class="tier A">A</span>Datastore rework Phase 3: the commits.db commit store, dormant (no behaviour change)</h2>
 <p class="lede">Shipped feature</p>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2280" rel="noopener">lab#2280</a></div>
 </article>
-<article class="item" id="issue-3224">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3224">
 <h2><span class="tier A">A</span>swamp access check run locally ignores the named resource&#39;s stored type and tags</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-09T21:55:58.843Z">2026-10-09T21:55:58.843Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3224" rel="noopener">lab#3224</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3211">
+<article class="item" id="issue-3211">
 <h2><span class="tier A">A</span>Deliver a signal by key through swamp serve</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-09T21:22:37.049Z">2026-10-09T21:22:37.049Z</time></span></div>
@@ -2493,13 +2501,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-2534">
-<h2><span class="tier B">B</span>serve: without a remote datastore the token GC is not serialized against token rotate/re-mint</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-11T01:18:11.588Z">2026-10-11T01:18:11.588Z</time></span></div>
+<article class="item" id="issue-3241">
+<h2><span class="tier B">B</span>Windows: workflow cancel and model cancel do not kill the step process tree</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-11T14:01:13.162Z">2026-10-11T14:01:13.162Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2534" rel="noopener">lab#2534</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3241" rel="noopener">lab#3241</a></div>
+</article>
+<article class="item" id="issue-3240">
+<h2><span class="tier B">B</span>Datastore rework Phase 3: the commit-log unit of work and binding registry (no v2 behaviour change)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-11T13:59:41.161Z">2026-10-11T13:59:41.161Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3240" rel="noopener">lab#3240</a></div>
+</article>
+<article class="item" id="issue-3239">
+<h2><span class="tier B">B</span>Datastore rework Phase 3: the v3 read model, dormant (no behaviour change)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-11T13:58:33.622Z">2026-10-11T13:58:33.622Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3239" rel="noopener">lab#3239</a></div>
 </article>
 <article class="item" id="issue-3227">
 <h2><span class="tier B">B</span>context.runModel does not resolve the target definition&#39;s ${{ }} expressions (vault/CEL), contrary to the design doc</h2>
@@ -2589,7 +2613,15 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3235">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3238">
+<h2><span class="tier C">C</span>datastore setup filesystem back to the default .swamp copies 0 files from the current datastore and exits 0, leaving the repo&#39;s data unreachable</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-11T13:14:01.801Z">2026-10-11T13:14:01.801Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3238" rel="noopener">lab#3238</a></div>
+</article>
+<article class="item" id="issue-3235">
 <h2><span class="tier C">C</span>Docs: update Kiro and Amp how-to pages for the new scaffolding (swamp-club#3222)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-11T00:40:15.182Z">2026-10-11T00:40:15.182Z</time></span></div>
@@ -3470,13 +3502,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>425 items across 1 source(s) in this window:
-0 critical, 303 notable, 12 routine,
-110 minor.</p>
-<ul><li><strong>issues</strong> — 425</li></ul></section>
+<p>429 items across 1 source(s) in this window:
+0 critical, 304 notable, 14 routine,
+111 minor.</p>
+<ul><li><strong>issues</strong> — 429</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-11T13:03:41.640Z">2026-10-11T13:03:41.640Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-11T14:03:40.453Z">2026-10-11T14:03:40.453Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

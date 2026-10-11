@@ -157,6 +157,9 @@ export const model = {
         }
 
         const manifestVersion = parseManifestVersion(manifest);
+        // Demonstration: deliberately print the model's own schema version next
+        // to the manifest version to show the two are independent.
+        // meta-factory-ignore version-source: shows model vs manifest version
         const modelVersion = model.version;
         const versionsMatch = manifestVersion === modelVersion;
 

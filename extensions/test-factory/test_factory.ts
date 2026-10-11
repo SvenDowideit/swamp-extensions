@@ -80,7 +80,12 @@ import {
   type IsolationFacts,
   type IsolationFinding,
 } from "./isolation.ts";
-import { lintTests, mergeTests, parseTests } from "./tests.ts";
+import {
+  groupTestsByGrant,
+  lintTests,
+  mergeTests,
+  parseTests,
+} from "./tests.ts";
 import type { Expectation, TestSpec, TestStep } from "./tests.ts";
 import { computeCoverage, type CoverageReport } from "./coverage.ts";
 
@@ -1450,7 +1455,7 @@ export const model = {
     {
       toVersion: "2026.10.11.1",
       description:
-        "Adds the `docker-rootful` grant (T1): a real `dockerd` runs **inside** the harness container (never the host daemon), so container-runtime elevation routes such as `@svendowideit/sudo`'s `docker-run` are testable; the harness container is run `--privileged` when a `docker-*` grant is present. Fixes the non-root harness (`runAs: tester`), which previously produced no result for every candidate: the read-only bundle at `/tf-scripts` and the result dir `/tf` are now world-traversable (they were 0700 owned by the host uid, unreadable to the container's non-root uid), and the root→user handover preserves `TF_DROPPED` across `su` (which otherwise reset the environment and re-ran the prelude). README documents the single `test` command an agent runs to exercise one scenario in dind. Schema is additive — existing models upgrade with no action.",
+        "Adds the `docker-rootful` grant (T1): a real `dockerd` runs **inside** the harness container (never the host daemon), so container-runtime elevation routes such as `@svendowideit/sudo`'s `docker-run` are testable; the harness container is run `--privileged` when a `docker-*` grant is present. Fixes the non-root harness (`runAs: tester`), which previously produced no result for every candidate: the read-only bundle at `/tf-scripts` and the result dir `/tf` are now world-traversable (they were 0700 owned by the host uid, unreadable to the container's non-root uid), and the root→user handover preserves `TF_DROPPED` across `su` (which otherwise reset the environment and re-ran the prelude). README documents the single `test` command an agent runs to exercise one scenario in dind. A `test-factory.yaml` may now pin a per-test `runAs` and `grants`, so one candidate file can carry tests that need different privilege states (e.g. a `sudo-nopasswd` positive test beside a `sudo-none` degrade test); tests are grouped by their resolved `(runAs, grants)` and each group runs in its own container, since a grant is a root pre-harness script that cannot be swapped in a running container. Schema is additive — existing models upgrade with no action.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1790,36 +1795,77 @@ async function executeScenarios(
         scenarioIntent(scenario, candidate, opts.phases)
       }`,
     );
-    const result = await runScenario(
-      scenario,
-      candidate,
-      opts,
-      deps,
-      context.logger,
+    // Tests may pin their own harness user/grants (e.g. a `sudo-none` degrade
+    // test beside a `sudo-nopasswd` positive test). A grant is a root,
+    // pre-harness script that cannot be swapped in a running container, so each
+    // distinct (runAs, grants) group runs in its own container. The first group
+    // runs the full phase set under the scenario's canonical name; extra groups
+    // run only the `tests` phase and get a suffixed result.
+    const defaultRunAs = candidate.system.harness.runAs || "root";
+    const groups = groupTestsByGrant(
+      candidate.tests,
+      defaultRunAs,
+      candidate.system.grants,
     );
-    const handle = await context.writeResource(
-      "result",
-      resultName(scenario),
-      result,
-    );
-    handles.push(handle);
-    testCount += result.tests.length;
-    testsPassed += result.tests.filter((t) => t.ok).length;
-    summaries.push({
-      scenario: result.scenario,
-      distro: result.distro,
-      topology: result.topology,
-      expected: result.expected,
-      ok: result.ok,
-      status: result.status,
-    });
-    const phaseSummary = result.phases
-      .map((p) => `${p.phase}:${p.ok ? "ok" : "x"}`)
-      .join(" ");
-    const logLine =
-      `${candidate.name} · scenario ${scenario.name}: ${result.status} (${phaseSummary})`;
-    if (result.ok) context.logger?.info(logLine);
-    else (context.logger?.warn ?? context.logger?.info)?.(logLine);
+    const useGroups = groups.length > 1;
+    const runs = useGroups ? groups : [{
+      label: "",
+      runAs: defaultRunAs,
+      grants: candidate.system.grants,
+      tests: candidate.tests,
+    }];
+    for (let gi = 0; gi < runs.length; gi++) {
+      const group = runs[gi];
+      const primary = gi === 0;
+      const grouped = (group.label === "" || (primary && !useGroups))
+        ? candidate
+        : {
+          ...candidate,
+          tests: group.tests,
+          system: {
+            ...candidate.system,
+            harness: { ...candidate.system.harness, runAs: group.runAs },
+            grants: group.grants,
+          },
+        };
+      const groupOpts = (primary || !useGroups)
+        ? opts
+        : { ...opts, phases: ["tests"] };
+      const result = await runScenario(
+        scenario,
+        grouped,
+        groupOpts,
+        deps,
+        context.logger,
+      );
+      const suffixed = useGroups && !primary;
+      if (suffixed) result.scenario = `${scenario.name} [${group.label}]`;
+      const handle = await context.writeResource(
+        "result",
+        suffixed
+          ? `${resultName(scenario)}--${group.label}`
+          : resultName(scenario),
+        result,
+      );
+      handles.push(handle);
+      testCount += result.tests.length;
+      testsPassed += result.tests.filter((t) => t.ok).length;
+      summaries.push({
+        scenario: result.scenario,
+        distro: result.distro,
+        topology: result.topology,
+        expected: result.expected,
+        ok: result.ok,
+        status: result.status,
+      });
+      const phaseSummary = result.phases
+        .map((p) => `${p.phase}:${p.ok ? "ok" : "x"}`)
+        .join(" ");
+      const logLine =
+        `${candidate.name} · scenario ${result.scenario}: ${result.status} (${phaseSummary})`;
+      if (result.ok) context.logger?.info(logLine);
+      else (context.logger?.warn ?? context.logger?.info)?.(logLine);
+    }
   }
 
   const passCount = summaries.filter((s) => s.ok).length;

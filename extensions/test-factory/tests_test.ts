@@ -5,6 +5,7 @@ import {
 } from "jsr:@std/assert@1";
 import {
   buildTestsPhaseScript,
+  groupTestsByGrant,
   type HarnessTest,
   hasNegativeAssertion,
   hasPositiveAssertion,
@@ -244,4 +245,66 @@ Deno.test("mergeTests reports a missing harness result as a failure", () => {
   const merged = mergeTests(specs, []);
   assertEquals(merged[0].ok, false);
   assertEquals(merged[0].steps, []);
+});
+
+Deno.test("parseTests reads per-test runAs and grants", () => {
+  const [t] = parseTests(`
+tests:
+  - name: degrade
+    confirms: it fails closed
+    cannot: must not error
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-none }
+    steps:
+      - { name: s, run: echo hi }
+`);
+  assertEquals(t.runAs, "tester");
+  assertEquals(t.grants, [{ guest: "harness", profile: "sudo-none" }]);
+});
+
+Deno.test("groupTestsByGrant splits tests by (runAs, grants) and keeps order", () => {
+  const base: TestSpec = {
+    name: "x",
+    confirms: "c",
+    cannot: "n",
+    variables: {},
+    steps: [],
+  };
+  const tests: TestSpec[] = [
+    { ...base, name: "a" },
+    {
+      ...base,
+      name: "b",
+      runAs: "tester",
+      grants: [{ guest: "harness", profile: "sudo-none" }],
+    },
+    { ...base, name: "c" },
+  ];
+  const groups = groupTestsByGrant(tests, "tester", [
+    { guest: "harness", profile: "sudo-nopasswd" },
+  ]);
+  assertEquals(groups.length, 2);
+  assertEquals(groups[0].label, "runas-tester+sudo-nopasswd");
+  assertEquals(groups[0].tests.map((t) => t.name), ["a", "c"]);
+  assertEquals(groups[1].label, "runas-tester+sudo-none");
+  assertEquals(groups[1].tests.map((t) => t.name), ["b"]);
+});
+
+Deno.test("groupTestsByGrant is a single group when nothing overrides", () => {
+  const base: TestSpec = {
+    name: "x",
+    confirms: "c",
+    cannot: "n",
+    variables: {},
+    steps: [],
+  };
+  const groups = groupTestsByGrant([{ ...base, name: "a" }]);
+  assertEquals(groups.length, 1);
+  assertEquals(groups[0].label, "default");
+  assertEquals(groups[0].runAs, "root");
+});
+
+Deno.test("groupTestsByGrant returns no groups for no tests", () => {
+  assertEquals(groupTestsByGrant([]), []);
 });

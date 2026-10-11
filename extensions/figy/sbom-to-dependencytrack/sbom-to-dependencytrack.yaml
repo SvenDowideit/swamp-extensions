@@ -1,0 +1,173 @@
+id: abf6cc03-a9b3-4c87-8d5e-7d72bc8da034
+name: '@figy/sbom-to-dependencytrack'
+description: |
+  fi.gy site-specific SBOM submission: generate an SBOM for a target with
+  @svendowideit/generate-sbom, then upload it to the local Dependency-Track with
+  @svendowideit/curl, tagging the project with the host it came from.
+
+  This is the concrete, private half. The generic, portable generation lives in
+  @svendowideit/generate-sbom-syft (its @svendowideit/generate-sbom workflow);
+  this workflow wires that output to a specific Dependency-Track — the endpoint
+  from the local `dependencytrack` model's agentKey data, the API key from the
+  local vault — and fills in the host automatically from $HOSTNAME (override
+  with --input host=…).
+
+  Dependency-Track model: one project per (software, version) — projectName is
+  the software, projectVersion its version — with the host as a project tag, so
+  each machine's version of a piece of software is its own project and "which
+  hosts run which version" is a tag filter.
+
+  Run (a binary on this host):
+    swamp workflow run @figy/sbom-to-dependencytrack \
+      --input target=/home/sven/.local/bin/caddy --input targetType=file \
+      --input projectName=caddy --input projectVersion=2.11.6
+
+  Run (this host's whole filesystem, excluding the virtual filesystems):
+    swamp workflow run @figy/sbom-to-dependencytrack \
+      --input target=/ --input targetType=dir \
+      --input projectName=host-x1yoga --input projectVersion=1.0.0 \
+      --input 'exclude:json=["**/proc/**","**/sys/**","**/dev/**","**/run/**"]'
+
+  Prerequisites: a running @svendowideit/dependencytrack whose agent key can
+  upload and tag (the extension's default permissions include TAG_MANAGEMENT),
+  and @svendowideit/curl.
+tags:
+  collective: figy
+inputs:
+  properties:
+    target:
+      type: string
+      description: What to scan — a path, a binary, or a container image reference.
+    targetType:
+      type: string
+      default: ""
+      enum: ["", dir, file, image, registry, docker, podman, oci-archive, oci-dir, singularity, purl, sbom]
+      description: Syft source scheme to prepend when the target has none.
+    projectName:
+      type: string
+      description: Dependency-Track project name — the software (e.g. caddy).
+    projectVersion:
+      type: string
+      description: Dependency-Track project version — the software version (e.g. 2.11.6).
+    host:
+      type: string
+      default: ""
+      description: >-
+        Host/VM this SBOM came from, applied as a project tag. Empty detects it
+        from the $HOSTNAME environment variable.
+    format:
+      type: string
+      default: cyclonedx-json
+      enum: [cyclonedx-json, cyclonedx-xml, spdx-json, spdx-tag-value, syft-json]
+      description: SBOM format. CycloneDX is the safest for Dependency-Track.
+    label:
+      type: string
+      default: sbom
+      description: Swamp data name for the produced SBOM file (must be a valid swamp name).
+    exclude:
+      type: array
+      items:
+        type: string
+      default: []
+      description: Exclusions in syft glob syntax (each must start with ./, */ or **/).
+    catalogers:
+      type: array
+      items:
+        type: string
+      default: []
+      description: Syft catalogers to enable. Empty uses all.
+    scanModel:
+      type: string
+      default: sbom-tool
+      description: >-
+        Name of the @svendowideit/generate-sbom-syft model instance to drive.
+        Distinct from the `sbom`/`scan` data spec names so data.latest(scanModel,
+        label) is unambiguous.
+    uploadModel:
+      type: string
+      default: dt-upload
+      description: Name of the @svendowideit/curl model instance to drive.
+    dtModel:
+      type: string
+      default: dependencytrack
+      description: Name of the @svendowideit/dependencytrack model instance whose agentKey endpoint is used.
+    vaultName:
+      type: string
+      default: dependencytrack-secrets
+      description: Vault holding the Dependency-Track agent API key.
+    vaultKey:
+      type: string
+      default: DEPENDENCYTRACK_API_KEY
+      description: Vault key holding the agent API key.
+    uploadUrl:
+      type: string
+      default: ""
+      description: Override the BOM endpoint URL. Empty uses the dependencytrack model's agentKey endpoint.
+  required:
+    - target
+    - projectName
+    - projectVersion
+jobs:
+  - name: main
+    description: Generate the SBOM, then upload and tag it in Dependency-Track.
+    steps:
+      - name: generate
+        description: Generate the SBOM via the generic @svendowideit/generate-sbom workflow.
+        task:
+          type: workflow
+          workflowIdOrName: '@svendowideit/generate-sbom'
+          inputs:
+            target: ${{ inputs.target }}
+            targetType: ${{ inputs.targetType }}
+            format: ${{ inputs.format }}
+            label: ${{ inputs.label }}
+            exclude: ${{ inputs.exclude }}
+            catalogers: ${{ inputs.catalogers }}
+            scanModel: ${{ inputs.scanModel }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: upload
+        description: Upload the SBOM to Dependency-Track (multipart), tagging the project with the host.
+        task:
+          type: model_method
+          modelType: "@svendowideit/curl"
+          modelName: ${{ inputs.uploadModel }}
+          methodName: post
+          inputs:
+            url: >-
+              ${{ inputs.uploadUrl != "" ? inputs.uploadUrl : data.latest(inputs.dtModel, "agentKey").attributes.bomEndpoint }}
+            headers: >-
+              ${{ ["X-Api-Key: " + vault.get(inputs.vaultName, inputs.vaultKey)] }}
+            multipart: >-
+              ${{ {"autoCreate": "true", "projectName": inputs.projectName, "projectVersion": inputs.projectVersion, "projectTags": inputs.host != "" ? inputs.host : (has(env.HOSTNAME) ? env.HOSTNAME : "")} }}
+            files: >-
+              ${{ {"bom": data.latest(inputs.scanModel, inputs.label).path} }}
+            label: ${{ "upload-" + inputs.label }}
+            failOnHttpError: true
+        dependsOn:
+          - step: generate
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: verify-upload
+        description: Assert Dependency-Track accepted the BOM.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.uploadModel, "upload-" + inputs.label).attributes.ok == true
+          message: >-
+            Upload to Dependency-Track failed: status=${{ data.latest(inputs.uploadModel, "upload-" + inputs.label).attributes.status }}
+          severity: high
+        dependsOn:
+          - step: upload
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

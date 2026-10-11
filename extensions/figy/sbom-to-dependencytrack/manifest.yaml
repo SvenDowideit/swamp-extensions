@@ -1,0 +1,99 @@
+manifestVersion: 1
+name: "@figy/sbom-to-dependencytrack"
+version: "2026.10.11.1"
+description: >
+  fi.gy's site-specific SBOM submission: generate an SBOM for any target and
+  upload it to my Dependency-Track, tagging each project with the host it came
+  from.
+
+  WHAT IT DOES
+
+    The private, site-specific half of SBOM generation. The portable parts live
+    in @svendowideit: generate-sbom-syft's @svendowideit/generate-sbom workflow,
+    and the @svendowideit/curl upload primitive. This workflow wires them to my
+    infrastructure: it runs the generic generate workflow, then POSTs the result
+    to my Dependency-Track as multipart/form-data, taking the BOM endpoint from
+    my local `dependencytrack` model's `agentKey` data and the API key from my
+    vault. It records the host from `$HOSTNAME` (override with `--input host=…`).
+    Dependency-Track stores one project per (software, version) — `projectName`
+    is the software, `projectVersion` its version — with the host as a project
+    tag, so each machine's version of a piece of software is its own project and
+    "which hosts run which version" is a tag filter.
+
+  INSTALL
+
+      swamp extension pull @figy/sbom-to-dependencytrack
+
+  DEPENDENCIES
+
+    @svendowideit/generate-sbom-syft, @svendowideit/curl and
+    @svendowideit/dependencytrack (all pulled automatically), plus a running
+    Dependency-Track whose agent key can upload and tag (the default agent
+    permissions include TAG_MANAGEMENT) and the key stored in
+    `dependencytrack-secrets`.
+
+  RUN
+
+      # SBOM a binary on this host and upload it, host auto-detected from $HOSTNAME.
+      swamp workflow run @figy/sbom-to-dependencytrack \
+        --input target=/home/sven/.local/bin/caddy --input targetType=file \
+        --input projectName=caddy --input projectVersion=2.11.6
+
+      # SBOM a container image and tag the project with an explicit host.
+      swamp workflow run @figy/sbom-to-dependencytrack \
+        --input target=ghcr.io/dependencytrack/apiserver:5.1.2 --input targetType=image \
+        --input projectName=ghcr.io/dependencytrack/apiserver --input projectVersion=5.1.2 \
+        --input host=x1yoga
+
+      # SBOM this host's whole filesystem (exclude the virtual filesystems).
+      swamp workflow run @figy/sbom-to-dependencytrack \
+        --input target=/ --input targetType=dir \
+        --input projectName=host-x1yoga --input projectVersion=1.0.0 \
+        --input 'exclude:json=["**/proc/**","**/sys/**","**/dev/**","**/run/**"]'
+
+  CONFIGURE
+
+    Inputs: target, targetType, projectName, projectVersion, host, format,
+    label, exclude, catalogers, scanModel, uploadModel, dtModel, vaultName,
+    vaultKey, uploadUrl. The locally-defined names default to my repo
+    (dependencytrack, dependencytrack-secrets, DEPENDENCYTRACK_API_KEY, sbom,
+    dt-upload) and can be overridden per run. See the README for the table.
+
+  UPGRADE
+
+    This extension installs nothing on the host, so an upgrade has nothing to
+    rebuild or reconcile. Refresh the pulled workflow with one idempotent
+    command:
+
+        swamp extension update
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, cron triggers, daemons or webhooks. It
+    runs the generic syft and upload models, writes swamp data, and POSTs to
+    Dependency-Track over the network.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+workflows:
+  - sbom-to-dependencytrack.yaml
+
+dependencies:
+  - "@svendowideit/generate-sbom-syft"
+  - "@svendowideit/curl"
+  - "@svendowideit/dependencytrack"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

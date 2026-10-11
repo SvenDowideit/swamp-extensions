@@ -49,6 +49,11 @@ services:
       intervalSeconds: 1
       retries: 30
 
+# The elevation tests below drive @svendowideit/sudo (caddy's installCaddy calls
+# its model to run setcap), so register that sibling extension in the harness.
+extensions:
+  sudo: extensions/models/sudo
+
 # Boundary negative control (plan §16.1/§16.7). The positive tests below serve
 # Caddy's health contract on :80 *inside* the harness container (proved by
 # `curl` from within); this proves the harness container publishes **no** port
@@ -260,3 +265,88 @@ tests:
           dig +short @$DNS_SERVER delta.example.com CNAME
         expect:
           stdoutContains: ["198.51.100.10", "alpha.example.com"]
+
+  - name: elevation-sudo-grants-capability-and-binds-443
+    confirms: >
+      With a passwordless-`sudo` grant and a non-root harness, installCaddy grants
+      CAP_NET_BIND_SERVICE through @svendowideit/sudo (the `sudo-n` route), the
+      restarted service binds :443, and Caddy serves the status page over TLS on
+      localhost.
+    cannot: >
+      must not leave the service without the capability, must not serve on a high
+      port (:8443), and must not return anything but 200 from the TLS status page.
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-nopasswd }
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-sudo \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: passwordless-sudo-is-available
+        run: sh -c 'if sudo -n true 2>/dev/null; then echo sudo-works; else echo sudo-blocked; fi'
+        expect: { stdoutContains: ["sudo-works"] }
+      - name: install-caddy-binary
+        run: swamp model method run e2e-sudo installCaddy
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+        timeoutSeconds: 300
+      - name: create-and-start-service
+        run: |
+          swamp model method run e2e-sudo createService
+          swamp model method run e2e-sudo startService
+        expect: { exitCode: 0, outputNotContains: ["is not active", "panic"] }
+      - name: binary-has-the-capability
+        run: getcap "$HOME/.local/bin/caddy"
+        expect: { stdoutContains: ["cap_net_bind_service"] }
+      - name: live-config-binds-443
+        run: curl -s http://localhost:2019/config/ | jq -c '[.apps.http.servers[].listen[]]'
+        expect: { stdoutContains: [":443"], stdoutNotContains: [":8443"] }
+      - name: status-page-served-over-tls
+        run: curl -sk -o /dev/null -w '%{http_code}' https://localhost/
+        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
+
+  - name: elevation-doas-grants-capability-and-binds-443
+    confirms: >
+      With a `doas` grant (no passwordless sudo) and a non-root harness, the
+      @svendowideit/sudo ladder selects the `doas` route, grants
+      CAP_NET_BIND_SERVICE to the binary, the restarted service binds :443, and
+      Caddy serves the status page over TLS on localhost.
+    cannot: >
+      must not use the sudo route (sudo has no passwordless rule here), must not
+      leave the service without the capability, must not serve on a high port
+      (:8443), and must not return anything but 200 from the TLS status page.
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: doas-nopasswd }
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-doas \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: passwordless-sudo-is-unavailable
+        run: sh -c 'if sudo -n true 2>/dev/null; then echo sudo-works; else echo sudo-blocked; fi'
+        expect: { stdoutContains: ["sudo-blocked"], stdoutNotContains: ["sudo-works"] }
+      - name: install-caddy-binary
+        run: swamp model method run e2e-doas installCaddy
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+        timeoutSeconds: 300
+      - name: create-and-start-service
+        run: |
+          swamp model method run e2e-doas createService
+          swamp model method run e2e-doas startService
+        expect: { exitCode: 0, outputNotContains: ["is not active", "panic"] }
+      - name: binary-has-the-capability
+        run: getcap "$HOME/.local/bin/caddy"
+        expect: { stdoutContains: ["cap_net_bind_service"] }
+      - name: live-config-binds-443
+        run: curl -s http://localhost:2019/config/ | jq -c '[.apps.http.servers[].listen[]]'
+        expect: { stdoutContains: [":443"], stdoutNotContains: [":8443"] }
+      - name: status-page-served-over-tls
+        run: curl -sk -o /dev/null -w '%{http_code}' https://localhost/
+        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }

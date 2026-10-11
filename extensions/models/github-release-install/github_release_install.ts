@@ -418,13 +418,19 @@ export function formatSummary(
 /** Resolves and downloads GitHub release archives for any repository. */
 export const model = {
   type: "@svendowideit/github-release-install",
-  version: "2026.09.30.2",
+  version: "2026.10.11.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
       toVersion: "2026.09.30.2",
       description:
         "The assetPattern's `version` named group is now optional, so releases whose asset names carry no version (e.g. opencode-linux-x64.tar.gz) can be matched with NO_VERSION_ASSET_PATTERN. When a release publishes no checksums.txt listing the archive, check/download now verify against the per-asset `digest` the GitHub API exposes. No resource schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description:
+        "`download` now reuses an already-verified archive without re-reading and re-hashing it on every call. A sidecar `<archive>.verified.json` marker records the expected digest, algorithm and the file's size+mtime after a successful verification; a later run with the same digest and an unchanged file skips the full-file hash (previously a large archive such as syft's 31 MB tarball was re-hashed on every run). A missing/stale marker falls back to the full re-hash, so the verification guarantee is unchanged. No resource schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -804,7 +810,7 @@ export const model = {
           : outputDir
           ? `${expandHome(outputDir).replace(/\/+$/, "")}/${archiveName}`
           : "";
-        const { bytes, sha256, algorithm, checksumVerified, cached } =
+        const { size, sha256, algorithm, checksumVerified, cached } =
           await downloadWithCache({
             downloadUrl,
             outputPath,
@@ -821,8 +827,8 @@ export const model = {
         const message = cached
           ? `Reused verified archive at ${outputPath}${verifyNote}`
           : outputPath
-          ? `Wrote ${bytes.length} bytes to ${outputPath}${verifyNote}`
-          : `Downloaded ${bytes.length} bytes into memory${verifyNote}`;
+          ? `Wrote ${size} bytes to ${outputPath}${verifyNote}`
+          : `Downloaded ${size} bytes into memory${verifyNote}`;
 
         const handle = await context.writeResource("archive", "archive", {
           downloaded: !cached,
@@ -837,7 +843,7 @@ export const model = {
           checksumVerified,
           format: platform?.format ?? detectArchiveType(archiveName, format),
           path: outputPath || null,
-          bytes: bytes.length,
+          bytes: size,
           platform,
           sourceUrl: downloadUrl,
           downloadedAt: new Date().toISOString(),
@@ -1030,10 +1036,112 @@ function compareInstalled(latest: string, installed: string): boolean {
   return false;
 }
 
+/** Path of the sidecar marker recording a prior successful verification. */
+export function verifiedMarkerPath(outputPath: string): string {
+  return `${outputPath}.verified.json`;
+}
+
+/** A record of a prior successful checksum verification of an archive on disk. */
+export interface VerifiedMarker {
+  /** The expected digest (lowercase hex) that was verified against. */
+  expected: string;
+  /** The digest algorithm used, e.g. `sha256`. */
+  algorithm: string;
+  /** The archive's size in bytes at verification time. */
+  size: number;
+  /** The archive's mtime in milliseconds at verification time. */
+  mtimeMs: number;
+  /** The computed digest (lowercase hex). */
+  sha256: string;
+}
+
 /**
- * Download an archive into memory, or reuse a file already at `outputPath` when
- * it already matches the expected checksum (unless `force`). When `outputPath`
- * is set the verified bytes are written there atomically.
+ * Whether a verified marker lets an on-disk archive be reused without
+ * re-hashing: it must record the same expected digest, and its recorded size
+ * and mtime must still describe the file. Pure, so it is unit-testable.
+ */
+export function verifiedMarkerMatches(
+  marker: VerifiedMarker | null,
+  expected: string,
+  size: number,
+  mtimeMs: number,
+): boolean {
+  const want = expected.trim().toLowerCase();
+  return !!want && !!marker &&
+    marker.expected === want &&
+    marker.size === size &&
+    marker.mtimeMs === mtimeMs;
+}
+
+/** Read a verified marker, or `null` when absent, unreadable or malformed. */
+async function readVerifiedMarker(
+  outputPath: string,
+): Promise<VerifiedMarker | null> {
+  try {
+    const raw = JSON.parse(
+      await Deno.readTextFile(verifiedMarkerPath(outputPath)),
+    ) as Partial<VerifiedMarker> | null;
+    if (
+      raw && typeof raw === "object" &&
+      typeof raw.expected === "string" &&
+      typeof raw.algorithm === "string" &&
+      typeof raw.sha256 === "string" &&
+      typeof raw.size === "number" &&
+      typeof raw.mtimeMs === "number"
+    ) {
+      return raw as VerifiedMarker;
+    }
+  } catch {
+    // absent or unreadable — treated as "no marker".
+  }
+  return null;
+}
+
+/** Write a verified marker, best-effort (a missing marker just re-hashes). */
+async function writeVerifiedMarker(
+  outputPath: string,
+  marker: VerifiedMarker,
+): Promise<void> {
+  try {
+    await Deno.writeTextFile(
+      verifiedMarkerPath(outputPath),
+      JSON.stringify(marker),
+    );
+  } catch {
+    // best-effort; the next run falls back to a full re-hash.
+  }
+}
+
+/** The outcome of {@link downloadWithCache}. */
+interface CachedDownload {
+  /** The archive's size in bytes (the bytes themselves are not returned). */
+  size: number;
+  /** The verified digest, lowercase hex. */
+  sha256: string;
+  /** The digest algorithm used, e.g. `sha256` or `sha512`. */
+  algorithm: string;
+  /** Whether the bytes matched the expected checksum. */
+  checksumVerified: boolean;
+  /** Whether an existing verified file was reused instead of downloaded. */
+  cached: boolean;
+}
+
+/**
+ * Download an archive, or reuse a file already at `outputPath` when it already
+ * matches the expected checksum (unless `force`). When `outputPath` is set the
+ * verified bytes are written there atomically.
+ *
+ * Reuse is made cheap with a sidecar `.verified.json` marker: after a successful
+ * verification the marker records the expected digest, the algorithm, and the
+ * file's size + mtime. A later run with the same expected digest and an
+ * unchanged file (same size and mtime) reuses the archive **without re-reading
+ * and re-hashing it**, so a large archive is not hashed on every run. A marker
+ * that is absent, records a different digest, or no longer matches the file's
+ * size/mtime falls back to a full re-hash — the verification guarantee is
+ * unchanged. The trade-off: a local actor who rewrites an archive while
+ * preserving its exact size and mtime could evade the check; the marker lives in
+ * the per-user state directory and the archive is trusted to the same degree, so
+ * this is accepted.
  */
 async function downloadWithCache(opts: {
   downloadUrl: string;
@@ -1043,16 +1151,42 @@ async function downloadWithCache(opts: {
   token?: string;
   force: boolean;
   log: MethodContext["logger"];
-}): Promise<{
-  bytes: Uint8Array;
-  sha256: string;
-  algorithm: string;
-  checksumVerified: boolean;
-  cached: boolean;
-}> {
+}): Promise<CachedDownload> {
   const { downloadUrl, outputPath, expected, force } = opts;
+  const wantDigest = expected.trim().toLowerCase();
 
   if (outputPath && !force) {
+    // Fast path: a marker that matches the expected digest and whose recorded
+    // size/mtime still describe the file lets us skip reading the archive.
+    try {
+      const stat = await Deno.stat(outputPath);
+      const marker = await readVerifiedMarker(outputPath);
+      if (
+        marker &&
+        verifiedMarkerMatches(
+          marker,
+          expected,
+          stat.size,
+          stat.mtime?.getTime() ?? 0,
+        )
+      ) {
+        opts.log.info(
+          "Reusing cached verified archive at {path} (marker; no re-hash)",
+          { path: outputPath },
+        );
+        return {
+          size: stat.size,
+          sha256: marker.sha256,
+          algorithm: marker.algorithm,
+          checksumVerified: true,
+          cached: true,
+        };
+      }
+    } catch {
+      // No usable existing file; fall through to the hash / download paths.
+    }
+
+    // Slower path: no valid marker, so read and verify the file itself.
     try {
       const existing = await Deno.readFile(outputPath);
       // Verify with the algorithm the expected digest implies.
@@ -1061,8 +1195,16 @@ async function downloadWithCache(opts: {
         opts.log.info("Reusing verified archive at {path}", {
           path: outputPath,
         });
+        const stat = await Deno.stat(outputPath);
+        await writeVerifiedMarker(outputPath, {
+          expected: wantDigest,
+          algorithm: check.algorithm,
+          size: existing.length,
+          mtimeMs: stat.mtime?.getTime() ?? 0,
+          sha256: check.hex,
+        });
         return {
-          bytes: existing,
+          size: existing.length,
           sha256: check.hex,
           algorithm: check.algorithm,
           checksumVerified: true,
@@ -1103,7 +1245,25 @@ async function downloadWithCache(opts: {
         // already renamed, or never created
       }
     }
+    // Only a verified archive is worth a marker; an unverified download must
+    // re-verify (or stay unverified) next run.
+    if (wantDigest) {
+      const stat = await Deno.stat(outputPath);
+      await writeVerifiedMarker(outputPath, {
+        expected: wantDigest,
+        algorithm: result.algorithm,
+        size: result.bytes.length,
+        mtimeMs: stat.mtime?.getTime() ?? 0,
+        sha256: result.sha256,
+      });
+    }
   }
 
-  return { ...result, cached: false };
+  return {
+    size: result.bytes.length,
+    sha256: result.sha256,
+    algorithm: result.algorithm,
+    checksumVerified: result.checksumVerified,
+    cached: false,
+  };
 }

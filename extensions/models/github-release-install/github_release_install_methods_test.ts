@@ -20,7 +20,7 @@ import {
   withMockedCommand,
   withMockedFetch,
 } from "jsr:@swamp-club/swamp-testing@^0.3.0";
-import { model } from "./github_release_install.ts";
+import { model, verifiedMarkerMatches } from "./github_release_install.ts";
 import { resetGhTokenCache } from "./github_release.ts";
 
 const GLOBALS = {
@@ -790,6 +790,84 @@ Deno.test("download fails when no checksum is available", async () => {
       );
     });
   });
+});
+
+Deno.test("verifiedMarkerMatches requires the same digest and unchanged file", () => {
+  const marker = {
+    expected: "ab".repeat(32),
+    algorithm: "sha256",
+    size: 10,
+    mtimeMs: 123,
+    sha256: "cd".repeat(32),
+  };
+  // Same digest (case-insensitively) and same size/mtime → reuse.
+  assertEquals(verifiedMarkerMatches(marker, "AB".repeat(32), 10, 123), true);
+  // Any difference → re-hash.
+  assertEquals(verifiedMarkerMatches(marker, "ab".repeat(32), 11, 123), false);
+  assertEquals(verifiedMarkerMatches(marker, "ab".repeat(32), 10, 124), false);
+  assertEquals(verifiedMarkerMatches(marker, "ef".repeat(32), 10, 123), false);
+  assertEquals(verifiedMarkerMatches(null, "ab".repeat(32), 10, 123), false);
+  assertEquals(verifiedMarkerMatches(marker, "", 10, 123), false);
+});
+
+Deno.test("download reuses a verified archive via its marker without re-hashing or fetching", async () => {
+  const bytes = new TextEncoder().encode("archive-bytes");
+  const sum = await sha256(bytes);
+  const tmpDir = await Deno.makeTempDir();
+  const out = `${tmpDir}/out.tar.gz`;
+  const args = {
+    outputPath: out,
+    assetName: ARCHIVE,
+    downloadUrl: "https://example.test/tuios.tar.gz",
+    releaseVersion: "0.8.0",
+    checksum: sum,
+  };
+  try {
+    // First run downloads and writes the archive plus its verified marker.
+    let fetches = 0;
+    const ctx1 = createModelTestContext({
+      globalArgs: GLOBALS,
+      methodName: "download",
+    });
+    await withMockedCommand(unameHandler(), async () => {
+      await withMockedFetch((req) => {
+        if (req.url.endsWith("tuios.tar.gz")) {
+          fetches++;
+          return new Response(bytes);
+        }
+        return new Response("nope", { status: 404 });
+      }, async () => {
+        await runDownload(ctx1, args);
+      });
+    });
+    assertEquals(fetches, 1);
+    const marker = JSON.parse(
+      await Deno.readTextFile(`${out}.verified.json`),
+    );
+    assertEquals(marker.expected, sum);
+    assertEquals(marker.size, bytes.length);
+
+    // Second run: the marker matches, so neither fetch nor re-hash happens.
+    const ctx2 = createModelTestContext({
+      globalArgs: GLOBALS,
+      methodName: "download",
+    });
+    await withMockedCommand(unameHandler(), async () => {
+      await withMockedFetch((req) => {
+        throw new Error(`no fetch expected, got ${req.url}`);
+      }, async () => {
+        await runDownload(ctx2, args);
+      });
+    });
+    const archive = ctx2.getWrittenResources().find((r) =>
+      r.specName === "archive"
+    );
+    assertEquals(archive?.data.cached, true);
+    assertEquals(archive?.data.checksumVerified, true);
+    assertEquals(archive?.data.bytes, bytes.length);
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
 });
 
 /** SHA-256 of a byte array as lowercase hex. */

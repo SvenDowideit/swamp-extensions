@@ -37,6 +37,14 @@ Facts it handles that a naive downloader does not:
   platform — tuios publishes `tuios` (main), `tuios-ghostty` and `tuios-web` —
   every match is recorded in preference order and the **base build** is chosen.
   Pass `stem` or `assetName` to select another.
+- **Cheap verified reuse.** After `download` verifies an archive it writes a
+  sidecar `<archive>.verified.json` marker (expected digest, algorithm, size and
+  mtime). A later run with the same expected checksum and an unchanged file
+  reuses the archive **without re-reading and re-hashing it** — previously a
+  large archive (e.g. syft's 31 MB tarball) was re-hashed on every run. A
+  missing or stale marker falls back to a full re-hash, so the verification
+  guarantee is unchanged. The marker is a cache in the same directory as the
+  archive; delete it to force a re-hash.
 
 Prefer it over a bare `curl` of a release URL: the download is verified before
 it is written, the platform match is explicit and overridable, and one model

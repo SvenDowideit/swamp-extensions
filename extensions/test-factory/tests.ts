@@ -80,6 +80,17 @@ export interface TestSpec {
   variables: Record<string, string>;
   /** Ordered steps. */
   steps: TestStep[];
+  /**
+   * Per-test override for the harness user. A grant is a root pre-harness
+   * script, so tests that need a different user/privilege state run in their own
+   * container (`groupTestsByGrant`). Defaults to the file-level `harness.runAs`.
+   */
+  runAs?: string;
+  /**
+   * Per-test override for the privilege grants applied before this test's
+   * container run. Defaults to the file-level `grants`.
+   */
+  grants?: Array<{ guest: string; profile: string }>;
 }
 
 /** One step's outcome as recorded by the harness. */
@@ -190,6 +201,16 @@ function normalizeTest(raw: unknown, index: number): TestSpec {
       variables[k] = String(v);
     }
   }
+  const runAs = optionalStr(t.runAs);
+  const grants = Array.isArray(t.grants)
+    ? (t.grants as unknown[])
+      .map((g) => g as Record<string, unknown>)
+      .map((g) => ({
+        guest: str(g?.guest, "harness"),
+        profile: str(g?.profile),
+      }))
+      .filter((g) => g.profile.length > 0)
+    : [];
   return {
     name,
     confirms,
@@ -197,7 +218,59 @@ function normalizeTest(raw: unknown, index: number): TestSpec {
     documents: optionalStr(t.documents),
     variables,
     steps,
+    ...(runAs ? { runAs } : {}),
+    ...(grants.length > 0 ? { grants } : {}),
   };
+}
+
+/** One group of tests that share a harness user + privilege grants. */
+export interface TestGrantGroup {
+  /** Short label used to name the group's result (e.g. `runas-tester+sudo-none`). */
+  label: string;
+  /** The harness user for the group. */
+  runAs: string;
+  /** The privilege grants applied before the group's container run. */
+  grants: Array<{ guest: string; profile: string }>;
+  /** The tests in the group, in declaration order. */
+  tests: TestSpec[];
+}
+
+/**
+ * Group tests by the harness user + grants they need.
+ *
+ * A privilege grant is a root, pre-harness script and cannot be swapped inside a
+ * running container (e.g. `sudo-nopasswd` vs `sudo-none`), so tests that resolve
+ * to different `(runAs, grants)` must run in their own container. Tests with no
+ * per-test override fall into the file-level group. Pure; the first group is the
+ * one tests declare first.
+ */
+export function groupTestsByGrant(
+  tests: TestSpec[],
+  defaultRunAs = "root",
+  defaultGrants: Array<{ guest: string; profile: string }> = [],
+): TestGrantGroup[] {
+  const groups = new Map<string, TestGrantGroup>();
+  const labelOf = (
+    runAs: string,
+    grants: Array<{ guest: string; profile: string }>,
+  ): string => {
+    const parts: string[] = [];
+    if (runAs && runAs !== "root") parts.push(`runas-${runAs}`);
+    for (const g of grants) parts.push(g.profile);
+    return parts.join("+") || "default";
+  };
+  for (const test of tests) {
+    const runAs = test.runAs || defaultRunAs || "root";
+    const grants = test.grants ?? defaultGrants;
+    const key = `${runAs}|${JSON.stringify(grants)}`;
+    let group = groups.get(key);
+    if (!group) {
+      group = { label: labelOf(runAs, grants), runAs, grants, tests: [] };
+      groups.set(key, group);
+    }
+    group.tests.push(test);
+  }
+  return [...groups.values()];
 }
 
 /** Normalize one raw step. */

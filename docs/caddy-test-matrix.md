@@ -56,7 +56,7 @@ done; optional swamp workflow wrapper with `manual_approval` before each PR.
 | F0.1 | dind grants: `docker-rootful` implemented — installs + starts an **in-harness** `dockerd`, waits for `/var/run/docker.sock`, adds the harness user to the `docker` group; harness container is run `--privileged` when a `docker-*` grant is present | `caddy/f0-dind-grants` | review (implemented; dind run pending) | grant renders a real script (unit ✓); `installCaddy` under this grant makes `@svendowideit/sudo probe` find the `docker-run` route |
 | F0.2 | harness runs every phase inside the dind container (own daemon, own ports/systemd) | `caddy/f0-b1-harness` | done | non-root harness **fixed** (B1); `runAs: tester` acceptance test passes end-to-end; docker-rootful in-harness `dockerd` proven |
 | F0.3 | one documented "run one scenario in dind, emit report" command | `caddy/f0-run-command` | done | README: "Running one scenario in dind (the one command agents run)" — the `test` command, its `result`/`rollup` data pointers, `--input phases=tests`, `keepOnFailure`, and the CI workflow; grants section documents `docker-rootful` |
-| F0.4 | per-test `runAs`/`grants` in `test-factory` (group tests by resolved grant; one container per group) | `caddy/f0-per-test-grants` | todo | positive + degrade groups pass in one candidate file |
+| F0.4 | per-test `runAs`/`grants` in `test-factory` (group tests by resolved grant; one container per group) | `caddy/f0-per-test-grants` | done | `TestSpec.runAs`/`grants` parsed; `groupTestsByGrant` splits; the scenario loop runs the first group with the full phase set and extra groups as `tests`-only under suffixed result names; 177 tests pass |
 | F0.5 | ACME/DNS stub service (toggle accept/reject/delay) for cert + DNS timing tests | `caddy/f0-acme-stub` | todo | C2/C3/D6 expressible |
 | F0.6 | fleet scaffolding: `scripts/fleet/{start,test,pr}` + `.worktree-status/` ledger + board view | `caddy/f0-fleet-scaffold` | todo | an agent can start→test→PR on one item via the scripts |
 | F0.7 | conventions doc + PR template + branch/gate checks | `caddy/f0-conventions` | todo | template + gate in place |
@@ -248,7 +248,7 @@ passes **inside dind**, proving the fleet can rely on it.
 
 | Phase | Done / Total | Notes |
 | ----- | ------------ | ----- |
-| F0 | 3 / 7 | F0.1 + F0.2 (dind + non-root harness fixed) + F0.3 (documented dind run command). Next: F0.4 per-test grants, F0.5 ACME stub, F0.6 scaffolding, F0.7 conventions |
+| F0 | 4 / 7 | F0.1–F0.4 done. Next: F0.5 ACME stub, F0.6 scaffolding, F0.7 conventions |
 | Regression | 1 / 16 | A1 fixed (quality gate) |
 | Behavioural | 3 / ~86 | D1/D2/D10 covered by the existing suite |
 

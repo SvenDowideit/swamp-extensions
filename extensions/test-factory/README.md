@@ -264,8 +264,11 @@ isolation:                       # boundary negative controls (§16.1)
   phases drop to it via `su`.
 - **`grants`** — reviewed, idempotent privilege-state scripts applied as root
   before the harness runs. The T0-nr subset is `user-tester`, `sudo-nopasswd`,
-  `sudo-none`, `sudo-interactive-only`, `doas-nopasswd`, `no-grant`; a grant that
-  needs a tier not yet built is reported uncovered, never silently passed.
+  `sudo-none`, `sudo-interactive-only`, `doas-nopasswd`, `no-grant`; the T1
+  `docker-rootful` grant runs a real `dockerd` **inside** the harness (never the
+  host daemon) so container-runtime routes (e.g. `@svendowideit/sudo`'s
+  `docker-run`) are testable; a grant that needs a tier not yet built is reported
+  uncovered, never silently passed.
 - **`isolation`** — one or more boundary negative controls. Each may run a
   `sandbox:` command inside the container (it must exit 0 — the privileged
   operation really happened) and declares **host-side typed probes** the model
@@ -466,6 +469,38 @@ the candidate ships a `test-factory.yaml`, the `tests` phase is auto-enabled:
 swamp model @svendowideit/test-factory method run test tf \
   --input manifest=extensions/models/github-release-install/manifest.yaml \
   --input scenario=debian-standalone
+```
+
+### Running one scenario in dind (the one command agents run)
+
+Every run is already containerised — the harness runs **inside** a container —
+and a scenario that needs a container runtime uses the `docker-rootful` grant,
+which starts a `dockerd` **inside** that container. The host daemon is never
+used, so this is the single command an automated agent should run, and many are
+safe to run in parallel (each run gets its own container and its own daemon):
+
+```sh
+swamp model @svendowideit/test-factory method run test tf \
+  --input manifest=<candidate>/manifest.yaml \
+  --input scenario=ubuntu-systemd-standalone
+```
+
+It writes one `result` resource per scenario plus a `rollup`, and prints the
+pointers to read them back:
+
+```sh
+swamp data query 'modelName == "tf" && name == "<scenario>"' --select content
+swamp data query 'modelName == "tf" && name == "rollup"' --select content
+```
+
+Narrow a run with `--input phases=tests` (only the candidate's documented
+acceptance tests) and keep a failure for inspection with
+`--input keepOnFailure=true`. Gate CI on the same command through the shipped
+workflow:
+
+```sh
+swamp workflow run @svendowideit/test-factory \
+  --input manifest=<candidate>/manifest.yaml --input scenario=ubuntu-systemd-standalone
 ```
 
 Read just the documented-test breakdown from the last run:

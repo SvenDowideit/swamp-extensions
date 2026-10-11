@@ -1392,7 +1392,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.10.1",
+  version: "2026.10.11.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1445,6 +1445,12 @@ export const model = {
       toVersion: "2026.10.10.1",
       description:
         "Milestone 0 of the virtual-environments plan: a non-root harness, isolation evidence, and boundary negative-control checks. `harness.runAs` (default `root`) runs the swamp phases as a non-root user (e.g. `tester`) — a root prelude installs swamp and hands the sandbox dirs to the user, then the phases drop to it, so the local elevation ladder (sudo/doas/polkit/capability) is genuinely exercised on a plain user. `grants:` applies reviewed, idempotent privilege-state scripts (the T0-nr subset: user-tester, sudo-nopasswd, sudo-none, sudo-interactive-only, doas-nopasswd, no-grant) before the harness runs; a grant from a not-yet-built tier is reported uncovered, never silently passed. `result` gains `harnessIsolation` (whoami/uid/sandboxId/dockerHost) as the evidence a reader needs to conclude the boundary held. A candidate may add an `isolation:` block of boundary negative-control checks (§16.1): an optional in-sandbox `sandbox:` command plus **host-side typed probes** — `absentOnHost:` (paths a root-only in-sandbox write must not have created on the host) and `noPublishedPorts:` (containers whose `-p` bindings must be empty) — evaluated by the model after the harness returns, never running candidate shell on the host. `$TF_RUN_ID`, a per-run token, is exported to the steps and substituted into check commands/paths. Each check appears in `tests` as a synthetic test; a failing check fails the scenario. Also fixes the `systemd` input type in the shipped workflows (was boolean, the model expects a string). Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description:
+        "Adds the `docker-rootful` grant (T1): a real `dockerd` runs **inside** the harness container (never the host daemon), so container-runtime elevation routes such as `@svendowideit/sudo`'s `docker-run` are testable; the harness container is run `--privileged` when a `docker-*` grant is present. Fixes the non-root harness (`runAs: tester`), which previously produced no result for every candidate: the read-only bundle at `/tf-scripts` and the result dir `/tf` are now world-traversable (they were 0700 owned by the host uid, unreadable to the container's non-root uid), and the root→user handover preserves `TF_DROPPED` across `su` (which otherwise reset the environment and re-ran the prelude). README documents the single `test` command an agent runs to exercise one scenario in dind. Schema is additive — existing models upgrade with no action.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -22,8 +22,8 @@ import {
   model,
   preflightTests,
   resolveApiKey,
-  stageBundle,
   resolvePhases,
+  stageBundle,
 } from "./test_factory.ts";
 import type { TestSpec } from "./tests.ts";
 

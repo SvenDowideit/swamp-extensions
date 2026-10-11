@@ -67,8 +67,59 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261010-215801-0-sha-53727e85"><span class="tier A">A</span>bound and tighten the server token GC (swamp-club#2535) (#29</a><a href="#release-swamp-club-swamp-v20261010-214627-0-sha-f3938dcd"><span class="tier A">A</span>keep dotted code paths in code spans out of hostname redacti</a><a href="#release-swamp-club-swamp-v20261010-210919-0-sha-cccdef9b"><span class="tier A">A</span>measure and bound the format guard&#39;s marker read (swamp-club</a><a href="#release-swamp-club-swamp-v20261009-215038-0-sha-986f9022"><span class="tier A">A</span>local access check resolves the named resource&#39;s stored type</a><a href="#release-swamp-club-swamp-v20261009-211502-0-sha-dbd7ba9a"><span class="tier A">A</span>deliver a signal by workflow and key through swamp serve (sw</a><a href="#release-swamp-club-swamp-v20261009-202715-0-sha-773f3987"><span class="tier A">A</span>reserve layout directory names as namespaces (swamp-club#247</a><a href="#release-swamp-club-swamp-v20261009-201300-0-sha-683031a6"><span class="tier A">A</span>check-config no longer creates the extension catalog (swamp-</a><a href="#release-swamp-club-swamp-v20261009-193815-0-sha-1d4d4c18"><span class="tier A">A</span>refuse a parent resume by name when a nested run record cann</a><a href="#release-swamp-club-swamp-v20261009-185434-0-sha-a97568d8"><span class="tier A">A</span>stop agent permission settings pre-approving vault read-secr</a><a href="#release-swamp-club-swamp-v20261009-184103-0-sha-371d04c3"><span class="tier A">A</span>cancel, reject and supersede of a parent run settle its susp</a><a href="#release-swamp-club-swamp-v20261009-183646-0-sha-e2247532"><span class="tier A">A</span>judge an unknown step&#39;s guard in its own job and by its forE</a><a href="#release-swamp-club-swamp-v20261009-181711-0-sha-ea3bb166"><span class="tier A">A</span>extension fmt prints deno output as plain lines, closing bra</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261011-004000-0-sha-1b5a2958"><span class="tier A">A</span>the dormant v3 commit and partition domain model (swamp-club</a><a href="#release-swamp-club-swamp-v20261011-001259-0-sha-2ccf305b"><span class="tier A">A</span>write Amp and Kiro agent settings in formats current version</a><a href="#release-swamp-club-swamp-v20261010-215801-0-sha-53727e85"><span class="tier A">A</span>bound and tighten the server token GC (swamp-club#2535) (#29</a><a href="#release-swamp-club-swamp-v20261010-214627-0-sha-f3938dcd"><span class="tier A">A</span>keep dotted code paths in code spans out of hostname redacti</a><a href="#release-swamp-club-swamp-v20261010-210919-0-sha-cccdef9b"><span class="tier A">A</span>measure and bound the format guard&#39;s marker read (swamp-club</a><a href="#release-swamp-club-swamp-v20261009-215038-0-sha-986f9022"><span class="tier A">A</span>local access check resolves the named resource&#39;s stored type</a><a href="#release-swamp-club-swamp-v20261009-211502-0-sha-dbd7ba9a"><span class="tier A">A</span>deliver a signal by workflow and key through swamp serve (sw</a><a href="#release-swamp-club-swamp-v20261009-202715-0-sha-773f3987"><span class="tier A">A</span>reserve layout directory names as namespaces (swamp-club#247</a><a href="#release-swamp-club-swamp-v20261009-201300-0-sha-683031a6"><span class="tier A">A</span>check-config no longer creates the extension catalog (swamp-</a><a href="#release-swamp-club-swamp-v20261009-193815-0-sha-1d4d4c18"><span class="tier A">A</span>refuse a parent resume by name when a nested run record cann</a><a href="#release-swamp-club-swamp-v20261009-185434-0-sha-a97568d8"><span class="tier A">A</span>stop agent permission settings pre-approving vault read-secr</a><a href="#release-swamp-club-swamp-v20261009-184103-0-sha-371d04c3"><span class="tier A">A</span>cancel, reject and supersede of a parent run settle its susp</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261011-004000-0-sha-1b5a2958">
+<h2><span class="tier A">A</span>the dormant v3 commit and partition domain model (swamp-club#3233) (#2977)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-11T00:41:24Z">2026-10-11T00:41:24Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): the dormant v3 commit and partition domain model (swamp-club#3233) (#2977)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Datastore rework Phase 3 starts with the domain model that the commit store, the chunk store and the v3 opt-in build on (swamp-club#3233). It lives in a new bounded context, <code>src/domain/datastore_v3/</code>. It is pure, in-memory domain code that nothing in production imports, so <strong>behaviour does not change</strong>.</p>
+<ul>
+<li><strong><code>PartitionKey</code> / <code>partitionOf()</code>.</strong> A key comes only from aggregate identity: model, run, managed-config definition, the extension lockfile, or an auto-definition. Keys use the normalized model type and lowercase ids, and percent-encode their type and name segments, so they parse back exactly and <code>a-b/c</code> and <code>a/b-c</code> can never share a key.</li>
+<li><strong>Value objects and ops.</strong></li>
+<li><code>RecordKey</code> and <code>BlobRef</code>.</li>
+<li>Typed intents for every aggregate write swamp makes today.</li>
+<li>Ops built by factories and frozen. A put&#39;s inline digest is computed, never trusted from input.</li>
+<li>The <code>Commit</code> envelope.</li>
+<li><strong>The <code>Partition</code> aggregate.</strong> A commit applies whole or not at all, under these rules:</li>
+<li>partition match, then a duplicate <code>txnId</code> is a no-op, then a gapless <code>seq</code>;</li>
+<li>fences never go down, and once a partition has seen a fence it refuses an unfenced commit (solo mode carries a fence too, per swamp-club#3234);</li>
+<li><code>expect</code> preconditions must hold;</li>
+<li>data versions stay above a high-water mark that never decreases, and each name has exactly one latest.</li>
+<li>**Ident</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.004000.0-sha.1b5a2958" rel="noopener">release v20261011.004000.0-sha.1b5a2958</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1b5a2958981372b0d21f5ec88e9ec40efaa02e1d" rel="noopener">1b5a2958</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2977" rel="noopener">#2977</a>𝗔 <a href="https://swamp-club.com/lab/3233" rel="noopener">lab#3233</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261011-001259-0-sha-2ccf305b">
+<h2><span class="tier A">A</span>write Amp and Kiro agent settings in formats current versions read (swamp-club#3222) (#2975)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-11T00:14:43Z">2026-10-11T00:14:43Z</time></span><span>repo</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(repo): write Amp and Kiro agent settings in formats current versions read (swamp-club#3222) (#2975)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3222. <code>swamp repo init</code> / <code>repo upgrade</code> wrote agent settings that current Amp and Kiro versions no longer read. Their grants, the read-secret restrictions from swamp-club#3219, and (in Kiro IDE 1.0) the audit hook all silently did nothing.</p>
+<ul>
+<li><strong>kiro-cli:</strong> <code>.kiro/agents/swamp.json</code> is written in kiro-cli&#39;s *universal* format, which both the default 2.x engine and the opt-in 3.0 engine (<code>kiro-cli --v3</code>) load. It has <code>toolsSettings</code> plus mirroring <code>permissions.rules</code> (allow <code>swamp *</code>, deny <code>*read-secret*</code>), array-form hooks, and sorted tools with <code>todo_list</code>. This is exactly what kiro-cli 2.29&#39;s own <code>agent upgrade</code> writes, and it reports the generated profile as &quot;already universal&quot;.</li>
+<li><strong>Kiro IDE 1.0 audit hook:</strong> moves to <code>.kiro/hooks/swamp-audit.json</code> in the v1 hook schema (<code>PostToolUse</code>); the IDE no longer runs <code>.kiro.hook</code> files. Upgrade:</li>
+<li>deletes swamp&#39;s legacy <code>swamp-audit.kiro.hook</code>;</li>
+<li>removes copies of the audit hook that the IDE auto-migrated into other hook files.</li>
+</ul>
+<p>  It matches swamp&#39;s exact command, bare or as an absolute path, so a command the user extended is kept.</p>
+<ul>
+<li><strong>Kiro IDE permissions:</strong> IDE 1.0 reads permission rules only from outside the repo (<code>permissions.yaml</code>), so <code>.vscode/settings.local.json</code> is no longer written. Upgrade removes swamp&#39;s own <code>kiroAgent.*</code> entries and keeps the user&#39;s.</li>
+<li><strong>Amp:</strong> t</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/agent-interface.md" rel="noopener">design/surfaces/agent-interface.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/audit-doctor.md" rel="noopener">design/surfaces/audit-doctor.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/audit.md" rel="noopener">design/surfaces/audit.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.001259.0-sha.2ccf305b" rel="noopener">release v20261011.001259.0-sha.2ccf305b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2ccf305bc73c051164136936fc4f6e4bc804c0d0" rel="noopener">2ccf305b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2975" rel="noopener">#2975</a>𝗔 <a href="https://swamp-club.com/lab/3222" rel="noopener">lab#3222</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261010-215801-0-sha-53727e85">
 <h2><span class="tier A">A</span>bound and tighten the server token GC (swamp-club#2535) (#2974)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -288,7 +339,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.184103.0-sha.371d04c3" rel="noopener">release v20261009.184103.0-sha.371d04c3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/371d04c3c2f2c0b6b01499c4c3e37e1277d8d2a7" rel="noopener">371d04c3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2965" rel="noopener">#2965</a>𝗔 <a href="https://swamp-club.com/lab/2867" rel="noopener">lab#2867</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261009-183646-0-sha-e2247532">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261009-183646-0-sha-e2247532">
 <h2><span class="tier A">A</span>judge an unknown step&#39;s guard in its own job and by its forEach step (swamp-club#3221) (#2964)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-09T18:38:36Z">2026-10-09T18:38:36Z</time></span><span>workflows</span><span>fix</span></div>
@@ -347,7 +398,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.181711.0-sha.ea3bb166" rel="noopener">release v20261009.181711.0-sha.ea3bb166</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ea3bb166706047086c3f2619263ffa57296e9c8c" rel="noopener">ea3bb166</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2963" rel="noopener">#2963</a>𝗔 <a href="https://swamp-club.com/lab/3149" rel="noopener">lab#3149</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261009-181041-0-sha-3a964edd">
+<article class="item" id="release-swamp-club-swamp-v20261009-181041-0-sha-3a964edd">
 <h2><span class="tier A">A</span>signal a wait by workflow and key (swamp-club#3210) (#2962)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-09T18:12:41Z">2026-10-09T18:12:41Z</time></span><span>workflows</span><span>feat</span></div>
@@ -5073,37 +5124,10 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.194016.0-sha.c0c751a1" rel="noopener">release v20261002.194016.0-sha.c0c751a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0c751a17fa31d512cb5ee65da19e47284547cd0" rel="noopener">c0c751a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2808" rel="noopener">#2808</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/2979" rel="noopener">lab#2979</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261011-004000-0-sha-1b5a2958">
-<h2><span class="tier C">C</span>swamp 20261011.004000.0-sha.1b5a2958</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-11T00:41:24Z">2026-10-11T00:41:24Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(datastore): the dormant v3 commit and partition domain model (swamp-club#3233) (#2977)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Datastore rework Phase 3 starts with the domain model that the commit store, the chunk store and the v3 opt-in build on (swamp-club#3233). It lives in a new bounded context, <code>src/domain/datastore_v3/</code>. It is pure, in-memory domain code that nothing in production imports, so <strong>behaviour does not change</strong>.</p>
-<ul>
-<li><strong><code>PartitionKey</code> / <code>partitionOf()</code>.</strong> A key comes only from aggregate identity: model, run, managed-config definition, the extension lockfile, or an auto-definition. Keys use the normalized model type and lowercase ids, and percent-encode their type and name segments, so they parse back exactly and <code>a-b/c</code> and <code>a/b-c</code> can never share a key.</li>
-<li><strong>Value objects and ops.</strong></li>
-<li><code>RecordKey</code> and <code>BlobRef</code>.</li>
-<li>Typed intents for every aggregate write swamp makes today.</li>
-<li>Ops built by factories and frozen. A put&#39;s inline digest is computed, never trusted from input.</li>
-<li>The <code>Commit</code> envelope.</li>
-<li><strong>The <code>Partition</code> aggregate.</strong> A commit applies whole or not at all, under these rules:</li>
-<li>partition match, then a duplicate <code>txnId</code> is a no-op, then a gapless <code>seq</code>;</li>
-<li>fences never go down, and once a partition has seen a fence it refuses an unfenced commit (solo mode carries a fence too, per swamp-club#3234);</li>
-<li><code>expect</code> preconditions must hold;</li>
-<li>data versions stay above a high-water mark that never decreases, and each name has exactly one latest.</li>
-<li>**Ident</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.004000.0-sha.1b5a2958" rel="noopener">release v20261011.004000.0-sha.1b5a2958</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1b5a2958" rel="noopener">1b5a2958</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2977" rel="noopener">#2977</a>𝗔 <a href="https://swamp-club.com/lab/3233" rel="noopener">lab#3233</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261011-002912-0-sha-052485ae">
-<h2><span class="tier C">C</span>swamp 20261011.002912.0-sha.052485ae</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-11T00:30:42Z">2026-10-11T00:30:42Z</time></span></div>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261011-002912-0-sha-052485ae">
+<h2><span class="tier C">C</span>Litestream embedding decision record for the v3 datastore (swamp-club#3234) (#2976)</h2>
+<p class="lede">`docs` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-11T00:30:42Z">2026-10-11T00:30:42Z</time></span><span>design</span><span>docs</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>docs(design): Litestream embedding decision record for the v3 datastore (swamp-club#3234) (#2976)</li>
@@ -5118,32 +5142,8 @@ footer .ver{color:var(--acc)}
 <li><strong>Failover:</strong> one replica path per writer fence. A shared path corrupted the replica in 4 of 4 runs.</li>
 <li><strong>Windows:</strong> needs Litestream 0.5.18, which is unreleased (litestream#1542 / #1548). Deno has no AF_UNIX client on Windows, so swamp uses <code>litestream sync</code> as the client there. If 0.5.18 isn&#39;t out, Windows solo stays on v2</li>
 </ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.002912.0-sha.052485ae" rel="noopener">release v20261011.002912.0-sha.052485ae</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/052485ae" rel="noopener">052485ae</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2976" rel="noopener">#2976</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1548" rel="noopener">#1548</a>𝗔 <a href="https://swamp-club.com/lab/3234" rel="noopener">lab#3234</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261011-001259-0-sha-2ccf305b">
-<h2><span class="tier C">C</span>swamp 20261011.001259.0-sha.2ccf305b</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-11T00:14:43Z">2026-10-11T00:14:43Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(repo): write Amp and Kiro agent settings in formats current versions read (swamp-club#3222) (#2975)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3222. <code>swamp repo init</code> / <code>repo upgrade</code> wrote agent settings that current Amp and Kiro versions no longer read. Their grants, the read-secret restrictions from swamp-club#3219, and (in Kiro IDE 1.0) the audit hook all silently did nothing.</p>
-<ul>
-<li><strong>kiro-cli:</strong> <code>.kiro/agents/swamp.json</code> is written in kiro-cli&#39;s *universal* format, which both the default 2.x engine and the opt-in 3.0 engine (<code>kiro-cli --v3</code>) load. It has <code>toolsSettings</code> plus mirroring <code>permissions.rules</code> (allow <code>swamp *</code>, deny <code>*read-secret*</code>), array-form hooks, and sorted tools with <code>todo_list</code>. This is exactly what kiro-cli 2.29&#39;s own <code>agent upgrade</code> writes, and it reports the generated profile as &quot;already universal&quot;.</li>
-<li><strong>Kiro IDE 1.0 audit hook:</strong> moves to <code>.kiro/hooks/swamp-audit.json</code> in the v1 hook schema (<code>PostToolUse</code>); the IDE no longer runs <code>.kiro.hook</code> files. Upgrade:</li>
-<li>deletes swamp&#39;s legacy <code>swamp-audit.kiro.hook</code>;</li>
-<li>removes copies of the audit hook that the IDE auto-migrated into other hook files.</li>
-</ul>
-<p>  It matches swamp&#39;s exact command, bare or as an absolute path, so a command the user extended is kept.</p>
-<ul>
-<li><strong>Kiro IDE permissions:</strong> IDE 1.0 reads permission rules only from outside the repo (<code>permissions.yaml</code>), so <code>.vscode/settings.local.json</code> is no longer written. Upgrade removes swamp&#39;s own <code>kiroAgent.*</code> entries and keeps the user&#39;s.</li>
-<li><strong>Amp:</strong> t</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.001259.0-sha.2ccf305b" rel="noopener">release v20261011.001259.0-sha.2ccf305b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2ccf305b" rel="noopener">2ccf305b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2975" rel="noopener">#2975</a>𝗔 <a href="https://swamp-club.com/lab/3222" rel="noopener">lab#3222</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.002912.0-sha.052485ae" rel="noopener">release v20261011.002912.0-sha.052485ae</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/052485ae8dc81db61710b84cc86d8da6cc6034c3" rel="noopener">052485ae</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2976" rel="noopener">#2976</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1548" rel="noopener">#1548</a>𝗔 <a href="https://swamp-club.com/lab/3234" rel="noopener">lab#3234</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261008-213342-0-sha-5261ce0a">
 <h2><span class="tier C">C</span>pin the pollers against a real catalog, policy and peer (swamp-club#2863) (#2951)</h2>
@@ -5300,12 +5300,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>214 items across 1 source(s) in this window:
-0 critical, 194 notable, 10 routine,
-10 minor.</p>
-<ul><li><strong>fix</strong> — 142</li><li><strong>feat</strong> — 52</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>changes</strong> — 3</li><li><strong>docs</strong> — 2</li></ul></section>
+0 critical, 196 notable, 10 routine,
+8 minor.</p>
+<ul><li><strong>fix</strong> — 143</li><li><strong>feat</strong> — 53</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-11T05:03:07.395Z">2026-10-11T05:03:07.395Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-11T06:03:15.401Z">2026-10-11T06:03:15.401Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

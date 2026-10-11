@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.10.10.19"
+version: "2026.10.11.1"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 

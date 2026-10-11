@@ -75,6 +75,36 @@ Deno.test("buildHarnessScript omits phases that are not requested", () => {
   assertEquals(script.includes("declarative acceptance"), false);
 });
 
+Deno.test("buildHarnessScript registers the extension even without the smoke phase", () => {
+  // A tests-only group (a per-test `runAs`/`grants` group beyond the first, or a
+  // caller running `--input phases=tests`) still needs its model types to
+  // resolve, so the source registration must not be gated on `smoke`. The
+  // `doctor` check stays part of `smoke`.
+  const script = buildHarnessScript({
+    ...plan,
+    phases: ["tests"],
+    tests: [{
+      name: "t1",
+      confirms: "c",
+      cannot: "n",
+      variables: {},
+      steps: [{
+        name: "s",
+        run: "true",
+        timeoutSeconds: 5,
+        continueOnFailure: false,
+        expect: { exitCode: 0, stdoutNotContains: ["x"] },
+      }],
+    }],
+  });
+  assertStringIncludes(
+    script,
+    'swamp extension source add "$REPO/extensions/$EXT_NAME"',
+  );
+  assertStringIncludes(script, "record sourceAddOk");
+  assertEquals(script.includes("doctor extensions --json"), false);
+});
+
 Deno.test("buildHarnessScript records isolation evidence", () => {
   const script = buildHarnessScript(plan);
   assertStringIncludes(script, "record harnessIsolation");
@@ -176,6 +206,35 @@ Deno.test("evaluateResult passes when all documented tests pass", () => {
   );
   assertEquals(e.ok, true);
   assertEquals(e.errors, []);
+});
+
+Deno.test("evaluateResult does not gate on a phase that was not requested", () => {
+  // A tests-only run never executes `doctor` (a smoke check), so doctorStatus
+  // stays "unknown". The unrun smoke phase is still reported but must not fail
+  // a run whose requested tests all passed.
+  const e = evaluateResult(
+    result({
+      doctorStatus: "unknown",
+      tests: [{
+        name: "t1",
+        ok: true,
+        steps: [{
+          name: "s1",
+          run: "x",
+          ok: true,
+          exitCode: 0,
+          matched: [],
+          stdout: "",
+          stderr: "",
+        }],
+      }],
+    }),
+    ["tests"],
+    "pass",
+  );
+  assertEquals(e.ok, true);
+  assertEquals(e.errors, []);
+  assertEquals(e.phases.some((p) => p.phase === "smoke"), true);
 });
 
 Deno.test("evaluateResult fails when a documented test fails", () => {

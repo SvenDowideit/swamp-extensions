@@ -5009,7 +5009,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.10.19",
+  version: "2026.10.11.1",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -5295,6 +5295,12 @@ export const model = {
       toVersion: "2026.10.10.19",
       description:
         "The status page (the page served on localhost) is now wanted by default for EVERY model, including existing ones: a stored `null`/absent statusPage is treated as 'never chose' and falls back to the enabled default, so an existing model gains the page on its next reconcile (opt out with configureStatusPage disabled=true, which now stores an explicit `{enabled:false}`). The page also re-measures its own 'Installed' facts from the binary at every reconcile — its version, file capability, and compiled-in plugins — instead of replaying the snapshot stored when configureStatusPage last ran, so it can no longer report a setting that is not true of the running host (e.g. 'capability not set' after the capability was actually granted). Its 'Listening on' list is likewise the address set actually being applied. No global arguments change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description:
+        "Testing only: ships the E1 elevation acceptance test (matrix §4.1) in `test-factory.yaml` and registers `@svendowideit/sudo` as a sibling extension the harness copies in, so the passwordless-sudo path — `caddy-setup` grants CAP_NET_BIND_SERVICE through the sudo elevation ladder, the restarted service binds :443, and the status page answers over TLS on https://localhost/ — is proven end to end. No model behaviour, method or global argument changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

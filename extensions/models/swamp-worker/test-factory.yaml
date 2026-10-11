@@ -309,11 +309,14 @@ tests:
 
   - name: teardown
     confirms: >
-      `remove` stops and disables this identity's unit and deletes its namespaced
-      artifacts (unit, token/env files, cache dir) while the foreign
-      `swamp-worker-rc` unit survives untouched.
+      `remove` completely decommissions the worker in one command: it revokes the
+      enrollment token on the orchestrator (so the worker cannot re-enroll and
+      drops out of the pool), stops and disables the systemd user unit, and deletes
+      the unit file, cache dir and token/env files. The foreign
+      `swamp-worker-rc` unit is left untouched.
     cannot: >
-      must not leave the owned unit active, and must not remove the foreign unit.
+      must not leave the owned unit active, must not leave the token valid or the
+      worker in the pool, and must not remove the foreign unit.
     documents: README.md#examples
     variables:
       FOREIGN: /root/.config/systemd/user/swamp-worker-rc.service
@@ -322,7 +325,7 @@ tests:
         run: swamp model method run worker remove
         expect:
           exitCode: 0
-          outputContains: ["Removed worker swamp-worker-figy"]
+          outputContains: ["Removed worker swamp-worker-figy", "revoked token figy-"]
           outputNotContains: ["panic"]
         timeoutSeconds: 120
       - name: owned-unit-is-gone
@@ -332,6 +335,28 @@ tests:
         expect:
           stdoutContains: ["GONE", "UNIT_FILE_REMOVED"]
           stdoutNotContains: ["STILL_ACTIVE", "UNIT_FILE_PRESENT"]
+      - name: cache-and-token-files-are-gone
+        run: |
+          test -e /root/.local/share/swamp-worker/figy && echo CACHE_PRESENT || echo CACHE_GONE
+          test -e /root/.config/swamp-worker/figy.token && echo TOKEN_PRESENT || echo TOKEN_GONE
+          test -e /root/.config/swamp-worker/figy.env && echo ENV_PRESENT || echo ENV_GONE
+        expect:
+          stdoutContains: ["CACHE_GONE", "TOKEN_GONE", "ENV_GONE"]
+          stdoutNotContains: ["CACHE_PRESENT", "TOKEN_PRESENT", "ENV_PRESENT"]
+      - name: worker-drops-out-of-the-pool
+        run: |
+          for i in $(seq 1 45); do
+            idle=$(swamp worker list --json 2>/dev/null \
+              | jq '[.workers[] | select(.labels.serve=="figy" and .status=="idle")] | length')
+            [ "$idle" = "0" ] && { echo DROPPED; break; }
+            sleep 2
+          done
+          swamp worker list
+        expect:
+          exitCode: 0
+          outputContains: ["DROPPED"]
+          outputNotContains: ["error"]
+        timeoutSeconds: 150
       - name: foreign-unit-survives-teardown
         run: test -f "$FOREIGN" && echo FOREIGN_SURVIVES
         expect:

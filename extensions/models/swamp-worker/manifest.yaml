@@ -13,7 +13,9 @@ description: >
     writes it only when it changed, and starts it with `enable --now` plus
     `loginctl enable-linger` so the worker survives logout and reboot. It mints a
     long-duration enrollment token to a `0600` file, reports live unit and
-    enrollment status, and on `remove` deletes only its own namespaced artifacts.
+    enrollment status, and on `remove` **completely decommissions** the worker —
+    revokes the token on the orchestrator (so it can never re-enroll), then stops,
+    disables and deletes only its own namespaced artifacts.
     Prefer it over `swamp worker daemon enable`: the built-in daemon hardcodes
     the unit name `swamp-worker`, so only one worker can exist per host — this
     model namespaces every artifact by `identity` (`swamp-worker-<identity>`,
@@ -48,7 +50,9 @@ description: >
         --input serveUrl=wss://swamp.x1yoga.fi.gy
       swamp model method run worker status
 
-      # Reverse it: stop, disable and delete only this identity's artifacts.
+      # Completely reverse it: `remove` revokes the token (disconnecting the
+      # worker), then stops, disables and deletes its artifacts. Run `revokeToken`
+      # on its own only to rotate/retire a token without removing the worker.
       swamp model method run worker remove
 
   CONFIGURE
@@ -69,15 +73,17 @@ description: >
 
     Per call: `renderUnit`/`ensureService` take `serveUrl`, optional `host`,
     `labels` (KEY=VALUE strings), `concurrency` and `force`; `mintToken` takes
-    `node` and `duration`; `remove` takes `purgeData`.
+    `node` and `duration`; `revokeToken` takes `node` and `purgeFile`; `remove`
+    takes `node`, `revokeToken` (default true) and `purgeData`.
 
   WHAT IT INSTALLS
 
     On the host: a systemd *user* unit `swamp-worker-<identity>.service`, the
     worker's cache dir (holding the enrollment machine-id), and `0600` token and
     env files under `configDir`. It enables user lingering. It installs no cron
-    triggers or webhooks of its own. `remove` deletes those artifacts and
-    nothing else — foreign worker units are never enumerated or touched.
+    triggers or webhooks of its own. `remove` revokes the enrollment token and
+    deletes those artifacts and nothing else — foreign worker units are never
+    enumerated or touched.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

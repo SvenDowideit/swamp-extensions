@@ -16,10 +16,11 @@ bodies ([remote execution](https://swamp-club.com/manual)). This model owns the
 | ------ | ------------ |
 | `renderUnit` | Render the worker's systemd user unit from the desired state and record it (writes nothing on the host unless `write=true`). |
 | `install` | Ensure the swamp binary exists at `swampBinPath` (a no-op when it is already there). |
-| `mintToken` | Mint an enrollment token on the orchestrator and write it to a `0600` file; the plaintext never enters swamp data. |
+| `mintToken` | Mint an enrollment token on the orchestrator and write it to a `0600` file; the plaintext never enters swamp data. Reuses an existing token unless `force` (so re-running is idempotent). |
+| `revokeToken` | Revoke this identity's enrollment token (any worker using it is disconnected) and, by default, delete the local token file. |
 | `ensureService` | Reconcile this host onto the desired worker state — write the unit if it changed, `daemon-reload`, `enable --now` with linger, and restart **only** when the unit changed. |
 | `status` | Report live unit state and whether this identity's workers are enrolled. |
-| `remove` | Stop/disable and delete only this identity's namespaced artifacts. |
+| `remove` | **Completely decommission** the worker: revoke its token (so it can never re-enroll), then stop/disable the unit and delete the unit, cache dir and token/env files. `revokeToken=false` splits the two when the repo isn't reachable from the host. |
 | `guidance` | Print every global option with its value and how to change it. |
 
 **Why not `swamp worker daemon enable`?** The built-in daemon hardcodes the unit
@@ -64,9 +65,10 @@ Per-call arguments:
 | ------ | --------- |
 | `renderUnit` | `serveUrl` (required), `host`, `labels` (KEY=VALUE), `concurrency`, `write` |
 | `install` | `force` |
-| `mintToken` | `node`, `duration` (default `30d`) |
+| `mintToken` | `node`, `duration` (default `30d`), `force` |
+| `revokeToken` | `node`, `purgeFile` (default `true`) |
 | `ensureService` | `serveUrl` (required), `host`, `labels`, `concurrency`, `force` |
-| `remove` | `purgeData` |
+| `remove` | `node`, `revokeToken` (default `true`), `purgeData` (default `true`) |
 
 The `host` label defaults to the machine hostname; every worker advertises
 `serve=<identity>` and `host=<hostname>` plus any `labels` you pass.
@@ -104,12 +106,17 @@ swamp model method run worker ensureService \
   --input serveUrl=wss://swamp.x1yoga.fi.gy --input 'labels:json=["tier=prod"]'
 ```
 
-Reverse it. `remove` stops, disables and deletes only this identity's artifacts;
-a foreign `swamp-worker-rc` unit on the same host is left alone:
+Completely reverse it. `remove` revokes the token, stops and disables the unit
+and deletes only this identity's artifacts; a foreign `swamp-worker-rc` unit on
+the same host is left alone:
 
 ```sh
 swamp model method run worker remove
 ```
+
+Pass `revokeToken=false` when the token is revoked from the orchestrator
+separately (for example when the host cannot reach the repo), and keep
+`revokeToken`/`remove` as the two halves of a cross-host teardown.
 
 Print every option and its current value, so a setting can be changed without
 reading this file:

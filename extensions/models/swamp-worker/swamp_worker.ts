@@ -120,7 +120,17 @@ export function assertOwnedUnit(
   if (unitName !== expected) {
     throw new Error(
       `Refusing to manage '${unitName}': this model owns only '${expected}' ` +
-        `(identity '${identity}'). A foreign worker unit is not ours to touch.`,
+        `(identity '${identity}').`,
+    );
+  }
+  // Even an explicit `unitName` override may not point at another identity's
+  // *standard* worker unit — that is exactly the collision this model exists to
+  // prevent. A custom name that is not `swamp-worker-<slug>` is this model's own.
+  const slug = /^swamp-worker-(.+)$/.exec(unitName)?.[1] ?? null;
+  if (slug !== null && slug !== identity && !slug.startsWith(`${identity}-`)) {
+    throw new Error(
+      `Refusing to manage '${unitName}': it is the standard unit of identity ` +
+        `'${slug}', not '${identity}'. A repo must not manage another repo's worker.`,
     );
   }
 }
@@ -286,9 +296,17 @@ export function renderWorkerUnit(o: WorkerUnitOptions): string {
 // Command + filesystem helpers
 // ---------------------------------------------------------------------------
 
-type CmdResult = { stdout: string; stderr: string; code: number };
+export type CmdResult = { stdout: string; stderr: string; code: number };
 
-async function runCmd(
+/** A subprocess runner: run `binary` with `args`, returning captured output. */
+export type RunFn = (
+  binary: string,
+  args: string[],
+  cwd?: string,
+) => Promise<CmdResult>;
+
+/** The real runner: spawn the process and capture stdout/stderr. */
+export async function defaultRun(
   binary: string,
   args: string[],
   cwd?: string,
@@ -313,6 +331,25 @@ async function runCmd(
       code: 127,
     };
   }
+}
+
+let activeRun: RunFn = defaultRun;
+
+/**
+ * Override the subprocess runner. Tests inject a stub so `install`, `mintToken`,
+ * `ensureService`, `status`, `remove` and `revokeToken` can be exercised without
+ * a real host. Pass `null` to restore the real runner.
+ */
+export function setRunFn(fn: RunFn | null): void {
+  activeRun = fn ?? defaultRun;
+}
+
+async function runCmd(
+  binary: string,
+  args: string[],
+  cwd?: string,
+): Promise<CmdResult> {
+  return await activeRun(binary, args, cwd);
 }
 
 async function systemctl(args: string[]): Promise<CmdResult> {
@@ -380,6 +417,16 @@ const MintTokenArgsSchema = z.object({
   ),
 });
 
+const RevokeTokenArgsSchema = z.object({
+  node: z.string().default("").describe(
+    "Node name; revokes the token named '<identity>-<node>'. Defaults to the " +
+      "hostname.",
+  ),
+  purgeFile: z.boolean().default(true).describe(
+    "Also delete the local token file, so the revoked token cannot be reused.",
+  ),
+});
+
 const EnsureServiceArgsSchema = z.object({
   serveUrl: z.string().min(1).describe("Serve URL the worker dials."),
   host: z.string().default("").describe(
@@ -395,6 +442,15 @@ const EnsureServiceArgsSchema = z.object({
 });
 
 const RemoveArgsSchema = z.object({
+  node: z.string().default("").describe(
+    "Node name; revokes the token named '<identity>-<node>'. Defaults to the " +
+      "hostname.",
+  ),
+  revokeToken: z.boolean().default(true).describe(
+    "Also revoke the enrollment token on the orchestrator (a complete " +
+      "decommission). Set false when revoking separately, e.g. when the repo " +
+      "is not reachable from this host.",
+  ),
   purgeData: z.boolean().default(true).describe(
     "Also delete the identity's cache dir and token/env files.",
   ),
@@ -428,6 +484,8 @@ const TokenOutputSchema = z.object({
   tokenFile: z.string(),
   stored: z.boolean(),
   reused: z.boolean(),
+  /** True when this run revoked the token rather than minting it. */
+  revoked: z.boolean().default(false),
   createdAt: z.string(),
 });
 
@@ -667,6 +725,7 @@ export const model = {
             tokenFile,
             stored: true,
             reused: true,
+            revoked: false,
             createdAt: new Date().toISOString(),
           });
           context.logger?.info(
@@ -710,11 +769,73 @@ export const model = {
           tokenFile,
           stored: true,
           reused: false,
+          revoked: false,
           createdAt: new Date().toISOString(),
         });
         context.logger?.info(
           "Minted enrollment token {name} ({duration}) → {tokenFile} (0600)",
           { name, duration: args.duration, tokenFile },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    revokeToken: {
+      description:
+        "Revoke this identity's enrollment token on the orchestrator (any " +
+        "worker using it is disconnected) and, by default, delete the local " +
+        "token file. The token name is namespaced by identity, so only this " +
+        "repo's token can be revoked.",
+      arguments: RevokeTokenArgsSchema,
+      execute: async (
+        args: z.infer<typeof RevokeTokenArgsSchema>,
+        context: MethodContext,
+      ) => {
+        const g = context.globalArgs;
+        const node = (args.node ?? "").trim() || Deno.hostname();
+        const name = `${g.identity}-${node}`;
+        // The name is built from this identity, so it can only ever target our
+        // own token; assert the invariant anyway (a future caller could pass a
+        // different shape).
+        if (!name.startsWith(`${g.identity}-`)) {
+          throw new Error(
+            `Refusing to revoke '${name}': not an '${g.identity}-' token.`,
+          );
+        }
+        const res = await runCmd(
+          expandHome(g.swampBinPath),
+          [
+            "worker",
+            "token",
+            "revoke",
+            name,
+            "--repo-dir",
+            expandHome(g.repoDir),
+          ],
+          expandHome(g.repoDir),
+        );
+        if (res.code !== 0) {
+          throw new Error(
+            `swamp worker token revoke ${name} failed (${res.code}): ` +
+              `${res.stderr || res.stdout}`,
+          );
+        }
+        const tokenFile = tokenFilePath(g);
+        if (args.purgeFile) {
+          await Deno.remove(tokenFile).catch(() => {});
+        }
+        const handle = await context.writeResource("token", "token", {
+          name,
+          duration: "",
+          tokenFile,
+          stored: false,
+          reused: false,
+          revoked: true,
+          createdAt: new Date().toISOString(),
+        });
+        context.logger?.info(
+          "Revoked enrollment token {name}{purged}",
+          { name, purged: args.purgeFile ? ` and removed ${tokenFile}` : "" },
         );
         return { dataHandles: [handle] };
       },
@@ -891,9 +1012,10 @@ export const model = {
 
     remove: {
       description:
-        "Stop and disable this identity's worker unit and delete only its " +
-        "namespaced artifacts (unit, token/env files, cache dir). Foreign " +
-        "worker units are never touched.",
+        "Completely decommission this identity's worker: revoke its enrollment " +
+        "token on the orchestrator (so it can never re-enroll), then stop and " +
+        "disable its unit and delete its namespaced artifacts (unit, token/env " +
+        "files, cache dir). Foreign worker units are never touched.",
       arguments: RemoveArgsSchema,
       execute: async (
         args: z.infer<typeof RemoveArgsSchema>,
@@ -901,8 +1023,42 @@ export const model = {
       ) => {
         const g = context.globalArgs;
         const unitName = deriveUnitName(g.identity, g.unitName);
+        // Guard first, before any action, so a mis-pointed unit is never touched.
         assertOwnedUnit(unitName, g.identity, g.unitName);
         const unitPath = unitPathFor(g);
+        const node = (args.node ?? "").trim() || Deno.hostname();
+        const tokenName = `${g.identity}-${node}`;
+
+        // Revoke first: once the token is gone the worker cannot re-enroll, so a
+        // restart between here and the unit deletion cannot resurrect it. This is
+        // best-effort because the token may already be revoked or expired, or the
+        // repo may not be reachable from this host (revoke separately then).
+        let revoked = false;
+        if (args.revokeToken) {
+          const rev = await runCmd(
+            expandHome(g.swampBinPath),
+            [
+              "worker",
+              "token",
+              "revoke",
+              tokenName,
+              "--repo-dir",
+              expandHome(g.repoDir),
+            ],
+            expandHome(g.repoDir),
+          );
+          revoked = rev.code === 0;
+          if (!revoked) {
+            context.logger?.warn?.(
+              "could not revoke token {tokenName} ({code}): {detail} — continuing removal",
+              {
+                tokenName,
+                code: rev.code,
+                detail: (rev.stderr || rev.stdout).trim(),
+              },
+            );
+          }
+        }
 
         const stop = await systemctl(["stop", unitName]);
         if (!isAlreadyStopped(stop)) {
@@ -940,10 +1096,15 @@ export const model = {
           checkedAt: new Date().toISOString(),
         });
         context.logger?.info(
-          "Removed worker {unitName} (owned by identity {identity}){purge}",
+          "Removed worker {unitName} (identity {identity}){revoked}{purge}",
           {
             unitName,
             identity: g.identity,
+            revoked: args.revokeToken
+              ? revoked
+                ? `, revoked token ${tokenName}`
+                : `, token ${tokenName} already gone`
+              : "",
             purge: args.purgeData ? " and its cache/token files" : "",
           },
         );

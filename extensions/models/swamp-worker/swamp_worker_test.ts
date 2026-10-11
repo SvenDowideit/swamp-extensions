@@ -12,9 +12,13 @@ import {
   type CmdResult,
   deriveUnitName,
   envFilePath,
+  HOSTNAME_PLACEHOLDER,
   model,
+  renderProvisionScript,
+  renderRemoveScript,
   renderWorkerUnit,
   setRunFn,
+  stagedTokenPath,
   tokenFilePath,
   unitPathFor,
 } from "./swamp_worker.ts";
@@ -179,6 +183,7 @@ function globals(tmp: string): Record<string, unknown> {
     repoDir: `${tmp}/repo`,
     configDir: `${tmp}/config`,
     cacheDirRoot: `${tmp}/cache`,
+    stagingDir: `${tmp}/staging`,
     unitDir: `${tmp}/units`,
     swampHome: `${tmp}/home`,
     swampConfigDir: `${tmp}/cfg`,
@@ -572,5 +577,162 @@ Deno.test("revokeToken fails loudly when swamp cannot revoke", async () => {
       Error,
       "token revoke",
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Provision / remove script renderers, and orchestrator-side token staging.
+// ---------------------------------------------------------------------------
+
+const PROVISION = {
+  unitName: "swamp-worker-figy",
+  unitContent: renderWorkerUnit({
+    unitName: "swamp-worker-figy",
+    identity: "figy",
+    serveUrl: "wss://swamp.x1yoga.fi.gy",
+    swampBinPath: "/usr/local/bin/swamp",
+    tokenFile: "/root/.config/swamp-worker/figy.token",
+    cacheDir: "/root/.local/share/swamp-worker/figy",
+    concurrency: "auto",
+    swampHome: "/root/.swamp",
+    swampConfigDir: "/root/.config/swamp",
+    envFile: "/root/.config/swamp-worker/figy.env",
+    labels: [["serve", "figy"], ["host", HOSTNAME_PLACEHOLDER]],
+  }),
+  swampBinPath: "/usr/local/bin/swamp",
+  configDir: "/root/.config/swamp-worker",
+  cacheDir: "/root/.local/share/swamp-worker/figy",
+  tokenFile: "/root/.config/swamp-worker/figy.token",
+  envFile: "/root/.config/swamp-worker/figy.env",
+  unitDir: "/root/.config/systemd/user",
+  swampHome: "/root/.swamp",
+  swampConfigDir: "/root/.config/swamp",
+  releaseBaseUrl: "https://github.com/swamp-club/swamp/releases",
+  enableLinger: true,
+};
+
+Deno.test("renderProvisionScript installs, locks the token, and starts the unit", () => {
+  const s = renderProvisionScript(PROVISION);
+  assert(s.startsWith("#!/bin/sh"));
+  assert(s.includes("set -eu"));
+  assert(s.includes("latest/download/swamp-linux-$ARCH"));
+  assert(s.includes('chmod 600 "$TOKEN_FILE"'));
+  assert(s.includes("systemctl --user daemon-reload"));
+  assert(s.includes('systemctl --user enable "$UNIT_NAME"'));
+  assert(s.includes('systemctl --user restart "$UNIT_NAME"'));
+  assert(s.includes("loginctl enable-linger"));
+  assert(s.includes("--label serve=figy"));
+  assert(s.includes(HOSTNAME_PLACEHOLDER));
+  assert(s.includes(`sed "s/${HOSTNAME_PLACEHOLDER}/$HOST/g"`));
+  assert(s.includes("HOST=$(hostname"));
+});
+
+Deno.test("renderProvisionScript pins a requested swamp version", () => {
+  const s = renderProvisionScript({ ...PROVISION, version: "1.2.3" });
+  assert(s.includes("download/1.2.3/swamp-linux-$ARCH"));
+});
+
+Deno.test("renderProvisionScript omits linger when disabled", () => {
+  const s = renderProvisionScript({ ...PROVISION, enableLinger: false });
+  assert(!s.includes("loginctl enable-linger"));
+});
+
+Deno.test("renderProvisionScript rejects a unit containing the heredoc terminator", () => {
+  assertThrows(() =>
+    renderProvisionScript({ ...PROVISION, unitContent: "x\nTF_UNIT_EOF\ny" })
+  );
+});
+
+Deno.test("renderRemoveScript stops, disables and deletes the artifacts", () => {
+  const s = renderRemoveScript({
+    unitName: "swamp-worker-figy",
+    unitDir: "/root/.config/systemd/user",
+    configDir: "/root/.config/swamp-worker",
+    cacheDir: "/root/.local/share/swamp-worker/figy",
+    tokenFile: "/root/.config/swamp-worker/figy.token",
+    envFile: "/root/.config/swamp-worker/figy.env",
+  });
+  assert(s.includes('systemctl --user stop "$UNIT_NAME"'));
+  assert(s.includes('systemctl --user disable "$UNIT_NAME"'));
+  assert(s.includes('rm -f "$UNIT_FILE"'));
+  assert(s.includes("/root/.local/share/swamp-worker/figy"));
+  assert(s.includes("/root/.config/swamp-worker/figy.token"));
+});
+
+Deno.test("stagedTokenPath namespaces the staging file per node", () => {
+  const g = {
+    identity: "figy",
+    stagingDir: "~/.local/share/swamp-worker/staging",
+  };
+  assertEquals(
+    stagedTokenPath(g as never, "web-1", "/root"),
+    "/root/.local/share/swamp-worker/staging/figy-web-1.token",
+  );
+});
+
+Deno.test("stageTokens mints one token per node into 0600 staging files", async () => {
+  await withTmp(async (tmp) => {
+    const g = globals(tmp);
+    const rec = recorder((_bin, args) => {
+      const name = args[args.indexOf("create") + 1];
+      return {
+        stdout: JSON.stringify({ token: `${name}.secret` }),
+        stderr: "",
+        code: 0,
+      };
+    });
+    setRunFn(rec.fn);
+    const { ctx, writes } = fakeContext(g);
+    await methods.stageTokens.execute(
+      { nodes: ["web-1", "web-2"], duration: "1h" },
+      ctx,
+    );
+    const a = `${tmp}/staging/figy-web-1.token`;
+    const b = `${tmp}/staging/figy-web-2.token`;
+    assertEquals((await Deno.readTextFile(a)).trim(), "figy-web-1.secret");
+    assertEquals((await Deno.readTextFile(b)).trim(), "figy-web-2.secret");
+    assertEquals((await Deno.stat(a)).mode! & 0o777, 0o600);
+    const data = writes[0].data as {
+      tokens: Array<{ node: string; path: string }>;
+    };
+    assertEquals(data.tokens.map((t) => t.node), ["web-1", "web-2"]);
+    assert(!JSON.stringify(data).includes("secret"));
+  });
+});
+
+Deno.test("stageTokens requires at least one node", async () => {
+  await withTmp(async (tmp) => {
+    await assertRejects(
+      () =>
+        methods.stageTokens.execute(
+          { nodes: [], duration: "1h" },
+          fakeContext(globals(tmp)).ctx,
+        ),
+      Error,
+      "at least one node",
+    );
+  });
+});
+
+Deno.test("renderProvision records a script with the per-node hostname placeholder", async () => {
+  await withTmp(async (tmp) => {
+    const { ctx, writes } = fakeContext(globals(tmp));
+    await methods.renderProvision.execute(
+      {
+        serveUrl: "wss://swamp.example.com",
+        host: "",
+        labels: ["tier=prod"],
+        concurrency: "",
+        version: "1.2.3",
+      },
+      ctx,
+    );
+    const data = writes[0].data as { script: string; unitContent: string };
+    assert(data.script.includes("download/1.2.3/swamp-linux-$ARCH"));
+    assert(data.script.includes(HOSTNAME_PLACEHOLDER));
+    assert(data.unitContent.includes(HOSTNAME_PLACEHOLDER));
+    assert(data.unitContent.includes("--label serve=figy"));
+    assert(data.unitContent.includes("tier=prod"));
+    assert(data.script.includes(data.unitContent));
   });
 });

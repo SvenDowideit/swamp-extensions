@@ -20,8 +20,11 @@ description: >
     the unit name `swamp-worker`, so only one worker can exist per host — this
     model namespaces every artifact by `identity` (`swamp-worker-<identity>`,
     cache dir, token/env files), so a worker this repo manages coexists with
-    workers other swamps install on the same host and never touches them. It is
-    portable: it knows no domain, no serve hostname and no node set of its own.
+    workers other swamps install on the same host and never touches them. For a
+    *set* of hosts it also renders the per-node provisioning and removal scripts
+    and stages one enrollment token per node, so a site workflow can ship them
+    over SSH with @swamp/ssh. It is portable: it knows no domain, no serve
+    hostname and no node set of its own.
 
   INSTALL
 
@@ -72,9 +75,13 @@ description: >
         enableLinger    run `loginctl enable-linger`                 (true)
 
     Per call: `renderUnit`/`ensureService` take `serveUrl`, optional `host`,
-    `labels` (KEY=VALUE strings), `concurrency` and `force`; `mintToken` takes
-    `node` and `duration`; `revokeToken` takes `node` and `purgeFile`; `remove`
-    takes `node`, `revokeToken` (default true) and `purgeData`.
+    `labels` (KEY=VALUE strings), `concurrency` and `force`; `renderProvision`
+    takes `serveUrl`, `host`, `labels`, `concurrency` and `version`;
+    `renderRemoval` takes nothing; `stageTokens` takes `nodes` and `duration`;
+    `mintToken` takes `node`, `duration` and `force`; `revokeToken` takes `node`
+    and `purgeFile`; `remove` takes `node`, `revokeToken` (default true) and
+    `purgeData`. For a fan-out deploy the model renders the scripts and stages
+    the tokens; a site workflow ships them over SSH.
 
   WHAT IT INSTALLS
 

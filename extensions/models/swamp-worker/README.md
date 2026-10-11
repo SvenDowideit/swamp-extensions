@@ -15,8 +15,11 @@ bodies ([remote execution](https://swamp-club.com/manual)). This model owns the
 | Method | What it does |
 | ------ | ------------ |
 | `renderUnit` | Render the worker's systemd user unit from the desired state and record it (writes nothing on the host unless `write=true`). |
+| `renderProvision` | Render the per-node **provisioning script** (install binary, lock token, write unit, start it) for a fan-out deploy, with the host label filled from each node's own hostname, so one script serves every node. |
+| `renderRemoval` | Render the per-node **removal script** (stop, disable and delete the unit and its artifacts) for a fan-out teardown. |
+| `stageTokens` | Mint one enrollment token **per node** on the orchestrator and stage each plaintext in a `0600` file, for a site workflow to `copy` to that node. |
 | `install` | Ensure the swamp binary exists at `swampBinPath` (a no-op when it is already there). |
-| `mintToken` | Mint an enrollment token on the orchestrator and write it to a `0600` file; the plaintext never enters swamp data. Reuses an existing token unless `force` (so re-running is idempotent). |
+| `mintToken` | Mint a single enrollment token on the orchestrator and write it to a `0600` file; the plaintext never enters swamp data. Reuses an existing token unless `force` (so re-running is idempotent). |
 | `revokeToken` | Revoke this identity's enrollment token (any worker using it is disconnected) and, by default, delete the local token file. |
 | `ensureService` | Reconcile this host onto the desired worker state — write the unit if it changed, `daemon-reload`, `enable --now` with linger, and restart **only** when the unit changed. |
 | `status` | Report live unit state and whether this identity's workers are enrolled. |
@@ -64,6 +67,9 @@ Per-call arguments:
 | Method | Arguments |
 | ------ | --------- |
 | `renderUnit` | `serveUrl` (required), `host`, `labels` (KEY=VALUE), `concurrency`, `write` |
+| `renderProvision` | `serveUrl` (required), `host`, `labels`, `concurrency`, `version` |
+| `renderRemoval` | *(none)* |
+| `stageTokens` | `nodes` (list), `duration` (default `30d`) |
 | `install` | `force` |
 | `mintToken` | `node`, `duration` (default `30d`), `force` |
 | `revokeToken` | `node`, `purgeFile` (default `true`) |
@@ -117,6 +123,23 @@ swamp model method run worker remove
 Pass `revokeToken=false` when the token is revoked from the orchestrator
 separately (for example when the host cannot reach the repo), and keep
 `revokeToken`/`remove` as the two halves of a cross-host teardown.
+
+For a **fan-out** deploy (many hosts, over SSH), the model renders the scripts
+and token staging; the [`@figy/swamp-worker`](../figy/swamp-worker) site workflow
+(or your own) ships them with `@swamp/ssh`. The primitives:
+
+```sh
+# Render the provisioning script (host label filled from each node's hostname)
+# and stage one 0600 token per node under stagingDir (/tmp/swamp-worker-staging):
+swamp model method run worker renderProvision --input serveUrl=wss://swamp.x1yoga.fi.gy
+swamp model method run worker stageTokens --input 'nodes:json=["host1","host2"]'
+
+# Then, from a workflow, feed them to @swamp/ssh:
+#   copy   src=/tmp/swamp-worker-staging/figy-<node>.token
+#          dst=<remoteHome>/.config/swamp-worker/figy.token   (direction: to)
+#   script script=<data.latest("worker","provision").attributes.script
+# The removal script is data.latest("worker","removal").attributes.script.
+```
 
 Print every option and its current value, so a setting can be changed without
 reading this file:

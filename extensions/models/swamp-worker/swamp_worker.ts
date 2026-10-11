@@ -61,6 +61,13 @@ const GlobalArgsSchema = z.object({
     "Root for per-identity worker cache dirs (each holds the machine-id the " +
       "enrollment token binds to).",
   ),
+  stagingDir: z.string().default("/tmp/swamp-worker-staging")
+    .describe(
+      "Orchestrator-side dir where `stageTokens` writes each node's token plaintext " +
+        "(0600) for a site workflow to copy to that node. Absolute by default so a " +
+        "workflow can compute the path (a step's globalArgs do not merge with the " +
+        "instance's, so set this at model creation, not per step).",
+    ),
   unitDir: z.string().default("~/.config/systemd/user").describe(
     "Directory where systemd user unit files are written.",
   ),
@@ -177,6 +184,20 @@ export function cacheDirFor(g: GlobalArgs, home?: string): string {
   return `${expandHome(g.cacheDirRoot, home)}/${g.identity}`;
 }
 
+/**
+ * Absolute path of the orchestrator-side staging file for one node's token.
+ * `stageTokens` writes `<stagingDir>/<identity>-<node>.token` (0600) so a site
+ * workflow can `@swamp/ssh copy` it to the node without the secret ever entering
+ * swamp data or a command line.
+ */
+export function stagedTokenPath(
+  g: GlobalArgs,
+  node: string,
+  home?: string,
+): string {
+  return `${expandHome(g.stagingDir, home)}/${g.identity}-${node}.token`;
+}
+
 /** The stable scheduling labels every worker of this identity advertises. */
 export function baseLabels(identity: string, host: string): [string, string][] {
   return [["serve", identity], ["host", host]];
@@ -184,8 +205,38 @@ export function baseLabels(identity: string, host: string): [string, string][] {
 
 /** Quote one systemd `ExecStart` argument. */
 function unitArg(value: string): string {
-  if (/^[A-Za-z0-9_./:=+-]+$/.test(value)) return value;
+  // `%h` (home) and `@@TF_HOSTNAME@@` (host placeholder) are left unquoted so
+  // systemd/the provisioning script see them as-is.
+  if (/^[A-Za-z0-9_./:=+%@-]+$/.test(value)) return value;
   return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * Replace a leading `home` prefix with `marker`, so a rendered unit/script is
+ * portable to a node whose home dir differs from the orchestrator's: `%h` for a
+ * systemd unit, `$HOME` for a shell script.
+ */
+export function portabilize(
+  value: string,
+  home: string,
+  marker: string,
+): string {
+  if (!home) return value;
+  if (value === home) return marker;
+  if (value.startsWith(`${home}/`)) {
+    return `${marker}${value.slice(home.length)}`;
+  }
+  return value;
+}
+
+/** Double-quote a shell value, letting `$HOME` expand (but escaping the rest). */
+function shVal(value: string): string {
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/** Assign a shell variable with {@link shVal}. */
+function shVar(name: string, value: string): string {
+  return `${name}=${shVal(value)}`;
 }
 
 function assertNoNewlines(field: string, value: string): void {
@@ -290,6 +341,206 @@ export function renderWorkerUnit(o: WorkerUnitOptions): string {
     ``,
   );
   return lines.join("\n");
+}
+
+/**
+ * The token `renderWorkerUnit` puts in place of a host label when the unit is
+ * rendered once for a *set* of nodes. The provisioning script substitutes each
+ * node's own hostname at install time, so one script serves every node but each
+ * worker still advertises its real host.
+ */
+export const HOSTNAME_PLACEHOLDER = "@@TF_HOSTNAME@@";
+
+/** Everything a provisioning script needs, rendered by the model. */
+export interface ProvisionScriptOptions {
+  /** systemd user unit name (without `.service`). */
+  unitName: string;
+  /** The rendered unit file content (may contain {@link HOSTNAME_PLACEHOLDER}). */
+  unitContent: string;
+  /** Absolute path to the swamp binary the worker runs. */
+  swampBinPath: string;
+  /** Absolute dir holding the token/env files (on the node). */
+  configDir: string;
+  /** Absolute worker cache dir (on the node). */
+  cacheDir: string;
+  /** Absolute token file path (on the node); delivered over SSH beforehand. */
+  tokenFile: string;
+  /** Absolute optional env file path (on the node). */
+  envFile: string;
+  /** Absolute systemd user unit dir (on the node). */
+  unitDir: string;
+  /** Absolute SWAMP_HOME. */
+  swampHome: string;
+  /** Absolute SWAMP_CONFIG_DIR. */
+  swampConfigDir: string;
+  /** Base URL for the swamp release download. */
+  releaseBaseUrl: string;
+  /** swamp release tag to install, empty/`latest` for the latest. */
+  version?: string;
+  /** Run `loginctl enable-linger` so the worker survives logout/reboot. */
+  enableLinger: boolean;
+}
+
+/** POSIX shell single-quote a value. */
+function shq(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * Render the POSIX shell script that installs and starts one worker on a host.
+ *
+ * Pure: the same text is what `ensureService` runs locally and what a site
+ * workflow ships to a remote host over SSH (`@swamp/ssh script`). It does *not*
+ * contain the enrollment token — the token file is delivered separately (a
+ * `copy`) and the script only enforces its `0600` mode. The unit content is
+ * embedded verbatim; when it contains {@link HOSTNAME_PLACEHOLDER} the script
+ * substitutes the node's own hostname, so one script serves every node.
+ */
+export function renderProvisionScript(o: ProvisionScriptOptions): string {
+  assertValidUnitName(o.unitName);
+  for (
+    const [field, value] of [
+      ["swampBinPath", o.swampBinPath],
+      ["configDir", o.configDir],
+      ["cacheDir", o.cacheDir],
+      ["tokenFile", o.tokenFile],
+      ["envFile", o.envFile],
+      ["unitDir", o.unitDir],
+      ["swampHome", o.swampHome],
+      ["swampConfigDir", o.swampConfigDir],
+      ["releaseBaseUrl", o.releaseBaseUrl],
+      ["version", o.version ?? ""],
+    ] as [string, string][]
+  ) {
+    assertNoNewlines(field, value);
+  }
+  // The unit content legitimately spans lines; only the heredoc terminator must
+  // not appear inside it.
+  if (o.unitContent.split("\n").some((l) => l.trim() === "TF_UNIT_EOF")) {
+    throw new Error(
+      "unit content must not contain a 'TF_UNIT_EOF' line (heredoc terminator)",
+    );
+  }
+  const version = o.version && o.version !== "latest" ? o.version : "latest";
+  const releasePath = version === "latest"
+    ? "latest/download"
+    : `download/${version}`;
+  const url = `${o.releaseBaseUrl}/${releasePath}/swamp-linux-$ARCH`;
+
+  const linger = o.enableLinger
+    ? `  command -v loginctl >/dev/null 2>&1 && loginctl enable-linger >/dev/null 2>&1 || true`
+    : `  :`;
+
+  return `#!/bin/sh
+# Generated by @svendowideit/swamp-worker — installs and starts one worker.
+set -eu
+
+${shVar("SWAMP_BIN", o.swampBinPath)}
+${shVar("SWAMP_HOME", o.swampHome)}
+${shVar("SWAMP_CONFIG_DIR", o.swampConfigDir)}
+${shVar("CONFIG_DIR", o.configDir)}
+${shVar("CACHE_DIR", o.cacheDir)}
+${shVar("TOKEN_FILE", o.tokenFile)}
+${shVar("ENV_FILE", o.envFile)}
+${shVar("UNIT_DIR", o.unitDir)}
+UNIT_NAME=${shq(o.unitName)}
+UNIT_FILE="$UNIT_DIR/$UNIT_NAME.service"
+
+# A user service needs the caller's runtime dir (set by PAM on a login shell).
+[ -d "/run/user/$(id -u)" ] && export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+export SWAMP_HOME SWAMP_CONFIG_DIR
+
+# 1. the swamp binary (install only when absent)
+if [ ! -x "$SWAMP_BIN" ]; then
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    x86_64|amd64) ARCH=x86_64 ;;
+    aarch64|arm64) ARCH=aarch64 ;;
+  esac
+  mkdir -p "$(dirname "$SWAMP_BIN")"
+  echo "installing swamp → $SWAMP_BIN"
+  curl -fsSL -o "$SWAMP_BIN" "${url}"
+  chmod +x "$SWAMP_BIN"
+fi
+
+# 2. the token file must already be present (delivered over SSH); lock it down.
+if [ ! -s "$TOKEN_FILE" ]; then
+  echo "token file $TOKEN_FILE is missing — deliver it before provisioning" >&2
+  exit 1
+fi
+chmod 600 "$TOKEN_FILE"
+
+# 3. the optional env file (0600)
+[ -e "$ENV_FILE" ] || : > "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+
+# 4. write the unit only when it changed
+mkdir -p "$CONFIG_DIR" "$UNIT_DIR"
+UNIT_TMP=$(mktemp)
+HOST=$(hostname 2>/dev/null || cat /etc/hostname 2>/dev/null || echo unknown)
+cat > "$UNIT_TMP" <<'TF_UNIT_EOF'
+${o.unitContent}
+TF_UNIT_EOF
+sed "s/${HOSTNAME_PLACEHOLDER}/$HOST/g" "$UNIT_TMP" > "$UNIT_TMP.2" && mv "$UNIT_TMP.2" "$UNIT_TMP"
+CHANGED=0
+if [ ! -f "$UNIT_FILE" ] || ! cmp -s "$UNIT_TMP" "$UNIT_FILE"; then
+  mv "$UNIT_TMP" "$UNIT_FILE"
+  CHANGED=1
+else
+  rm -f "$UNIT_TMP"
+fi
+
+# 5. reconcile systemd
+systemctl --user daemon-reload
+${linger}
+systemctl --user enable "$UNIT_NAME"
+if [ "$CHANGED" = "1" ]; then
+  systemctl --user restart "$UNIT_NAME" 2>/dev/null || systemctl --user start "$UNIT_NAME"
+else
+  systemctl --user start "$UNIT_NAME" 2>/dev/null || true
+fi
+echo "worker $UNIT_NAME: $(systemctl --user is-active "$UNIT_NAME" 2>/dev/null || echo unknown)"
+`;
+}
+
+/** Everything a remote teardown script needs. */
+export interface RemoveScriptOptions {
+  unitName: string;
+  unitDir: string;
+  configDir: string;
+  cacheDir: string;
+  tokenFile: string;
+  envFile: string;
+}
+
+/**
+ * Render the POSIX shell script that removes one worker's local artifacts on a
+ * host (stop/disable/delete the unit, cache dir, token/env files). Pure; the
+ * orchestrator-side token revocation is separate (`revokeToken`).
+ */
+export function renderRemoveScript(o: RemoveScriptOptions): string {
+  assertValidUnitName(o.unitName);
+  return `#!/bin/sh
+# Generated by @svendowideit/swamp-worker — removes one worker's host artifacts.
+set -eu
+UNIT_NAME=${shq(o.unitName)}
+${shVar("UNIT_DIR", o.unitDir)}
+UNIT_FILE="$UNIT_DIR/$UNIT_NAME.service"
+[ -d "/run/user/$(id -u)" ] && export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl --user stop "$UNIT_NAME" 2>/dev/null || true
+  systemctl --user disable "$UNIT_NAME" 2>/dev/null || true
+fi
+rm -f "$UNIT_FILE"
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl --user daemon-reload 2>/dev/null || true
+fi
+rm -rf ${shVal(o.cacheDir)} ${shVal(o.tokenFile)} ${shVal(o.envFile)}
+if [ -d ${shVal(o.configDir)} ]; then
+  rmdir ${shVal(o.configDir)} 2>/dev/null || true
+fi
+echo "removed worker $UNIT_NAME"
+`;
 }
 
 // ---------------------------------------------------------------------------
@@ -397,6 +648,21 @@ const RenderUnitArgsSchema = z.object({
   ),
 });
 
+const RenderProvisionArgsSchema = z.object({
+  serveUrl: z.string().min(1).describe("Serve URL the worker dials."),
+  host: z.string().default("").describe(
+    "Host label value. Empty fills each node's own hostname at install time, so " +
+      "one script serves every node.",
+  ),
+  labels: z.array(z.string()).default([]).describe(
+    "Extra scheduling labels as KEY=VALUE strings.",
+  ),
+  concurrency: z.string().default("").describe("Override concurrency."),
+  version: z.string().default("").describe(
+    "swamp release tag to install on the node; empty = latest.",
+  ),
+});
+
 const InstallArgsSchema = z.object({
   force: z.boolean().default(false).describe(
     "Reinstall even when the binary is already present.",
@@ -414,6 +680,15 @@ const MintTokenArgsSchema = z.object({
   force: z.boolean().default(false).describe(
     "Mint a new token even when a token file already exists (rotation). " +
       "Without it, an existing token is reused so re-running is idempotent.",
+  ),
+});
+
+const StageTokensArgsSchema = z.object({
+  nodes: z.array(z.string()).default([]).describe(
+    "Node names to mint one token each ('<identity>-<node>').",
+  ),
+  duration: z.string().default("30d").describe(
+    "Token lifetime per node (hard deadline).",
   ),
 });
 
@@ -487,6 +762,37 @@ const TokenOutputSchema = z.object({
   /** True when this run revoked the token rather than minting it. */
   revoked: z.boolean().default(false),
   createdAt: z.string(),
+});
+
+/** One node's staged enrollment token (metadata only — never the secret). */
+const StagedTokenSchema = z.object({
+  node: z.string(),
+  name: z.string(),
+  path: z.string(),
+});
+
+/** The set of tokens staged on the orchestrator for a fan-out deploy. */
+const StagedTokensSchema = z.object({
+  identity: z.string(),
+  duration: z.string(),
+  tokens: z.array(StagedTokenSchema),
+  stagedAt: z.string(),
+});
+
+/** A rendered per-node provisioning script, for a site workflow to ship. */
+const ProvisionOutputSchema = z.object({
+  unitName: z.string(),
+  serveUrl: z.string(),
+  script: z.string(),
+  unitContent: z.string(),
+  renderedAt: z.string(),
+});
+
+/** A rendered per-node removal script, for a site teardown to ship. */
+const RemovalOutputSchema = z.object({
+  unitName: z.string(),
+  script: z.string(),
+  renderedAt: z.string(),
 });
 
 const WorkerOutputSchema = z.object({
@@ -607,6 +913,30 @@ export const model = {
       lifetime: "infinite" as const,
       garbageCollection: 10,
     },
+    stagedTokens: {
+      description:
+        "Per-node enrollment tokens staged on the orchestrator for a fan-out " +
+        "deploy (metadata + 0600 file paths; never the secret plaintext).",
+      schema: StagedTokensSchema,
+      lifetime: "infinite" as const,
+      garbageCollection: 10,
+    },
+    provision: {
+      description:
+        "The rendered per-node provisioning script a site workflow ships to each " +
+        "node over SSH.",
+      schema: ProvisionOutputSchema,
+      lifetime: "infinite" as const,
+      garbageCollection: 10,
+    },
+    removal: {
+      description:
+        "The rendered per-node removal script a site teardown ships to each node " +
+        "over SSH.",
+      schema: RemovalOutputSchema,
+      lifetime: "infinite" as const,
+      garbageCollection: 10,
+    },
     worker: {
       description: "Result of reconciling the worker unit on this host.",
       schema: WorkerOutputSchema,
@@ -660,6 +990,106 @@ export const model = {
             written: written ? ` (written to ${unitPath})` : "",
           },
         );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    renderProvision: {
+      description:
+        "Render the per-node provisioning script (install the binary, lock the " +
+        "token, write the unit, start it) for a fan-out deploy, and record it in " +
+        "a `provision` resource a site workflow ships over SSH. With no `host`, " +
+        "the host label is filled from each node's own hostname at install time, " +
+        "so one script serves every node.",
+      arguments: RenderProvisionArgsSchema,
+      execute: async (
+        args: z.infer<typeof RenderProvisionArgsSchema>,
+        context: MethodContext,
+      ) => {
+        const g = context.globalArgs;
+        const home = expandHome("~");
+        const host = (args.host ?? "").trim();
+        const input = workerRenderInput(g, {
+          serveUrl: args.serveUrl,
+          host: host || HOSTNAME_PLACEHOLDER,
+          labels: args.labels,
+          concurrency: args.concurrency,
+        });
+        // The node's home dir may differ from the orchestrator's, so rewrite the
+        // orchestrator-home prefix to `%h` in the unit (systemd expands it) and
+        // `$HOME` in the script (the shell expands it at install time).
+        const unitInput: WorkerUnitOptions = {
+          ...input,
+          swampBinPath: portabilize(input.swampBinPath, home, "%h"),
+          tokenFile: portabilize(input.tokenFile, home, "%h"),
+          cacheDir: portabilize(input.cacheDir, home, "%h"),
+          swampHome: portabilize(input.swampHome, home, "%h"),
+          swampConfigDir: portabilize(input.swampConfigDir, home, "%h"),
+          envFile: input.envFile
+            ? portabilize(input.envFile, home, "%h")
+            : input.envFile,
+        };
+        const unitContent = renderWorkerUnit(unitInput);
+        const script = renderProvisionScript({
+          unitName: input.unitName,
+          unitContent,
+          swampBinPath: portabilize(input.swampBinPath, home, "$HOME"),
+          configDir: portabilize(expandHome(g.configDir), home, "$HOME"),
+          cacheDir: portabilize(input.cacheDir, home, "$HOME"),
+          tokenFile: portabilize(input.tokenFile, home, "$HOME"),
+          envFile: portabilize(input.envFile ?? envFilePath(g), home, "$HOME"),
+          unitDir: portabilize(expandHome(g.unitDir), home, "$HOME"),
+          swampHome: portabilize(input.swampHome, home, "$HOME"),
+          swampConfigDir: portabilize(input.swampConfigDir, home, "$HOME"),
+          releaseBaseUrl: g.releaseBaseUrl,
+          version: args.version,
+          enableLinger: g.enableLinger,
+        });
+        const handle = await context.writeResource("provision", "provision", {
+          unitName: input.unitName,
+          serveUrl: args.serveUrl,
+          script,
+          unitContent,
+          renderedAt: new Date().toISOString(),
+        });
+        context.logger?.info(
+          "Rendered provision script for {unitName} → {serveUrl}",
+          { unitName: input.unitName, serveUrl: args.serveUrl },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    renderRemoval: {
+      description:
+        "Render the per-node removal script (stop, disable and delete the unit " +
+        "and its artifacts) for a site teardown to ship over SSH, and record it " +
+        "in a `removal` resource. Paths are made portable with `$HOME`.",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ) => {
+        const g = context.globalArgs;
+        const home = expandHome("~");
+        const unitName = deriveUnitName(g.identity, g.unitName);
+        const p = (v: string) => portabilize(v, home, "$HOME");
+        const script = renderRemoveScript({
+          unitName,
+          unitDir: p(expandHome(g.unitDir)),
+          configDir: p(expandHome(g.configDir)),
+          cacheDir: p(cacheDirFor(g)),
+          tokenFile: p(tokenFilePath(g)),
+          envFile: p(envFilePath(g)),
+        });
+        const handle = await context.writeResource("removal", "removal", {
+          unitName,
+          script,
+          renderedAt: new Date().toISOString(),
+        });
+        context.logger?.info("Rendered removal script for {unitName}", {
+          unitName,
+        });
         return { dataHandles: [handle] };
       },
     },
@@ -780,6 +1210,73 @@ export const model = {
       },
     },
 
+    stageTokens: {
+      description:
+        "Mint one enrollment token per node on the orchestrator and stage each " +
+        "node's plaintext in a `0600` file under `stagingDir`, for a site " +
+        "workflow to copy to that node. The secret never enters swamp data.",
+      arguments: StageTokensArgsSchema,
+      execute: async (
+        args: z.infer<typeof StageTokensArgsSchema>,
+        context: MethodContext,
+      ) => {
+        const g = context.globalArgs;
+        const nodes = args.nodes.map((n) => n.trim()).filter((n) => n !== "");
+        if (nodes.length === 0) {
+          throw new Error("stageTokens: provide at least one node in `nodes`.");
+        }
+        const tokens: Array<{ node: string; name: string; path: string }> = [];
+        for (const node of nodes) {
+          const name = `${g.identity}-${node}`;
+          const res = await runCmd(
+            expandHome(g.swampBinPath),
+            [
+              "worker",
+              "token",
+              "create",
+              name,
+              "--duration",
+              args.duration,
+              "--repo-dir",
+              expandHome(g.repoDir),
+              "--json",
+            ],
+            expandHome(g.repoDir),
+          );
+          let token = "";
+          try {
+            token = String(JSON.parse(res.stdout).token ?? "");
+          } catch {
+            token = "";
+          }
+          if (res.code !== 0 || token === "") {
+            throw new Error(
+              `swamp worker token create ${name} failed (${res.code}): ` +
+                `${res.stderr || res.stdout}`,
+            );
+          }
+          const path = stagedTokenPath(g, node);
+          await writeMode600(path, token + "\n");
+          tokens.push({ node, name, path });
+        }
+        const handle = await context.writeResource("stagedTokens", "staged", {
+          identity: g.identity,
+          duration: args.duration,
+          tokens,
+          stagedAt: new Date().toISOString(),
+        });
+        context.logger?.info(
+          "Staged {count} enrollment token(s) for identity {identity} under {dir}",
+          {
+            count: tokens.length,
+            identity: g.identity,
+            dir: expandHome(g.stagingDir),
+          },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
     revokeToken: {
       description:
         "Revoke this identity's enrollment token on the orchestrator (any " +
@@ -823,6 +1320,8 @@ export const model = {
         const tokenFile = tokenFilePath(g);
         if (args.purgeFile) {
           await Deno.remove(tokenFile).catch(() => {});
+          // Also drop the orchestrator-side staging copy stageTokens wrote.
+          await Deno.remove(stagedTokenPath(g, node)).catch(() => {});
         }
         const handle = await context.writeResource("token", "token", {
           name,

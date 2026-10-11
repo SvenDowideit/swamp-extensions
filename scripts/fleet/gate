@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# fleet gate [base] — fail when behaviour changed without a test change.
+#
+# Runs the pure gate in scripts/fleet/gate.ts over `git diff --name-only
+# <base>...HEAD`. Default base is origin/main. Intended for CI and for a
+# pre-PR check; see docs/fleet-conventions.md.
+#
+#   scripts/fleet/gate
+#   scripts/fleet/gate main
+set -eu
+here="$(cd "$(dirname "$0")" && pwd)"
+deno="${SWAMP_DENO:-$HOME/.swamp/deno/deno}"
+exec "$deno" run --allow-run "$here/gate.ts" "${1:-origin/main}"

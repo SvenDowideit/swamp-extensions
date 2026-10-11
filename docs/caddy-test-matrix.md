@@ -59,7 +59,7 @@ done; optional swamp workflow wrapper with `manual_approval` before each PR.
 | F0.4 | per-test `runAs`/`grants` in `test-factory` (group tests by resolved grant; one container per group) | `caddy/f0-per-test-grants` | done | `TestSpec.runAs`/`grants` parsed; `groupTestsByGrant` splits; the scenario loop runs the first group with the full phase set and extra groups as `tests`-only under suffixed result names; 177 tests pass |
 | F0.5 | ACME/DNS stub service (toggle accept/reject/delay) for cert + DNS timing tests | `caddy/f0-acme-stub` | done | `test/stub/` fixture (Python HTTP stub: accept/reject/delay/down via `/ctl?mode=`), built + validated container-to-container; documented for `acme_ca` (C2) + `issuer=internal` (issued); services test guards it |
 | F0.6 | fleet scaffolding: `scripts/fleet/{start,test,pr,board}` + `.worktree-status/` ledger + board view | `caddy/f0-fleet-scaffold` | done | scripts + `scripts/fleet/README.md`; `start`/`board` verified (worktrees under `FLEET_WORKTREE_DIR`, ledger written, board renders); `pr` pushes over HTTPS and targets `main` |
-| F0.7 | conventions doc + PR template + branch/gate checks | `caddy/f0-conventions` | todo | template + gate in place |
+| F0.7 | conventions doc + PR template + branch/gate checks | `caddy/f0-conventions` | done | `docs/fleet-conventions.md` (stresses one-worktree-per-agent + PRs-to-main), `.github/pull_request_template.md`, and `scripts/fleet/gate` (+ tests) — fails a behaviour change with no test change |
 
 F0 gate: a trivial candidate (e.g. `@svendowideit/disk-auditor`) boots, runs and
 passes **inside dind**, proving the fleet can rely on it.
@@ -248,7 +248,7 @@ passes **inside dind**, proving the fleet can rely on it.
 
 | Phase | Done / Total | Notes |
 | ----- | ------------ | ----- |
-| F0 | 6 / 7 | F0.1–F0.6 done. Next: F0.7 conventions + PR template + gate |
+| F0 | 7 / 7 | **F0 complete** — test-factory infra ready for the fleet. Next: F1..Fn (caddy behavioural matrix) |
 | Regression | 1 / 16 | A1 fixed (quality gate) |
 | Behavioural | 3 / ~86 | D1/D2/D10 covered by the existing suite |
 

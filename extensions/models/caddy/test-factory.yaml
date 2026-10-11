@@ -49,6 +49,14 @@ services:
       intervalSeconds: 1
       retries: 30
 
+# Sibling local extensions the candidate calls at runtime. @svendowideit/caddy
+# delegates every privileged operation (the setcap that grants
+# CAP_NET_BIND_SERVICE) to @svendowideit/sudo via context.runModel, so the sudo
+# model type must resolve in the harness. The factory copies this working copy
+# in and registers it as an extension source.
+extensions:
+  sudo: extensions/models/sudo
+
 # Boundary negative control (plan §16.1/§16.7). The positive tests below serve
 # Caddy's health contract on :80 *inside* the harness container (proved by
 # `curl` from within); this proves the harness container publishes **no** port
@@ -260,3 +268,70 @@ tests:
           dig +short @$DNS_SERVER delta.example.com CNAME
         expect:
           stdoutContains: ["198.51.100.10", "alpha.example.com"]
+
+  # Scenario E2 of the caddy scenario test matrix (§1): the elevation ladder
+  # selects the `doas` route. Its own privilege group — a non-root `tester` user
+  # whose only grant is a NOPASSWD `doas` rule — so it runs in a separate
+  # container from the root harness above (groupTestsByGrant).
+  - name: doas-route-grants-capability-and-binds-443
+    confirms: >
+      On a host whose only elevation grant is a NOPASSWD `doas` rule for the
+      non-root `tester` user, a fresh @svendowideit/caddy model (autoHttps=on,
+      default listenAddrs of :443,:80) set up via `swamp workflow run
+      @svendowideit/caddy-setup` grants CAP_NET_BIND_SERVICE to the Caddy binary
+      through @svendowideit/sudo's `doas` route: `getcap` on the installed
+      binary shows cap_net_bind_service, the sudo probe names the doas route,
+      the *running* admin config listens on :443, and Caddy serves its status
+      page over TLS on https://localhost/ with 200 and an HTML body.
+    cannot: >
+      must not leave the binary without the capability, must not resolve the
+      elevation ladder to the sudo route (doas is the only grant), must not fall
+      back to the unprivileged :8443 fallback, and must not answer
+      https://localhost/ with a non-200.
+    documents: README.md#examples
+    runAs: tester
+    grants:
+      - { guest: harness, profile: doas-nopasswd }
+    steps:
+      - name: create-fresh-caddy-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-doas \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: setup-grants-the-capability-through-sudo
+        run: swamp workflow run @svendowideit/caddy-setup
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic", "Could not grant CAP_NET_BIND_SERVICE"]
+        timeoutSeconds: 600
+      - name: binary-carries-cap-net-bind-service
+        run: getcap "$HOME/.local/bin/caddy"
+        expect:
+          stdoutContains: ["cap_net_bind_service"]
+          stdoutNotContains: ["No such file or directory"]
+      - name: ladder-selects-the-doas-route
+        run: swamp model @svendowideit/sudo method run probe sudo-default --json 2>&1
+        expect:
+          exitCode: 0
+          outputContains: ["root-via-doas-n"]
+          outputNotContains: ["root-via-sudo-n"]
+      - name: running-config-listens-on-443
+        run: >
+          curl -s http://localhost:2019/config/
+          | jq -r '[.apps.http.servers[].listen[]] | unique | join(",")'
+        expect:
+          stdoutContains: [":443"]
+          stdoutNotContains: [":8443"]
+      - name: status-page-served-over-tls
+        run: curl -sk -o /dev/null -w '%{http_code}' https://localhost/
+        expect:
+          stdoutContains: ["200"]
+          stdoutNotContains: ["000"]
+      - name: status-page-body-is-html
+        run: curl -sk https://localhost/ | grep -qi '<html' && echo HTML_OK
+        expect:
+          stdoutContains: ["HTML_OK"]
+          stdoutNotContains: ["HTML_MISSING"]

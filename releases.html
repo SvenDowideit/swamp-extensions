@@ -85,7 +85,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Legacy (pre-swamp-club#1511) secrets:</strong> the GC deletes a legacy secret from the vault the record names only when that vault&#39;s listing holds the key, so a tampered <code>vaultName</code> can&#39;t reach an unrelated vault. Each vault is listed at most once per sweep. If the listing fails, the GC leaves that vault alone, warns with the vault and key, and still collects the token. The leftover secret can&#39;t authenticate once the records and the <code>_token-secrets</code> copy are gone.</li>
 <li><strong>Owner lookup:</strong> owners are resolved through the shared definition repository, the one authentication uses. A server-token definition left in <code>models/</code> is now collected instead of being treated as an orphan every sweep. The auto</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261010.215801.0-sha.53727e85" rel="noopener">release v20261010.215801.0-sha.53727e85</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/53727e85bf5752078f530fcac8932ee0910afc85" rel="noopener">53727e85</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2974" rel="noopener">#2974</a>𝗔 <a href="https://swamp-club.com/lab/2535" rel="noopener">lab#2535</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261010-214627-0-sha-f3938dcd">
@@ -129,7 +129,7 @@ footer .ver{color:var(--acc)}
 <li>Only a missing record counts as &quot;no marker&quot;. Access denied and other failures reject.</li>
 <li><strong>The fallback is unchanged.</strong> A provider without the new method, which today means the released S3 and GCS extensions, is read through a fresh sync service as before, shared-instance check included. That is why the fallback still builds <strong>two</strong> sync services: the second is the safety check that the provider does not hand out one shared instance, whose namespace the marker read would bind. This cost goes away for any provider that implements <code>datastoreControlPlaneStore()</code>. Reusing the command&#39;s own client was not an option, because the guard runs in `r</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/testing.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/testing.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261010.210919.0-sha.cccdef9b" rel="noopener">release v20261010.210919.0-sha.cccdef9b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cccdef9bce093d6a62ac4b31f020f539361e2c20" rel="noopener">cccdef9b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2972" rel="noopener">#2972</a>𝗔 <a href="https://swamp-club.com/lab/3191" rel="noopener">lab#3191</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261009-215038-0-sha-986f9022">
@@ -145,7 +145,7 @@ footer .ver{color:var(--acc)}
 <p>Run locally (no <code>--server</code>), <code>swamp access check</code> judged a resource only by the <code>--on</code> string and any <code>--field</code> flags. It never looked up the named model or workflow, so a grant matching its stored type or tags was ignored. With <code>deny write --on model:command/shell</code>, a write to a <code>command/shell</code> model named <code>team-x-probe</code> was reported as <strong>ALLOW</strong> locally, while serve and <code>access check --server</code> correctly <strong>DENY</strong> it. Serve enforcement was never affected. Only the local, advisory check gave the wrong answer.</p>
 <p><strong>One resolver for both checks.</strong> Serve&#39;s private <code>explainedResource</code> moved into a libswamp helper, <code>explainedAccessResource</code> (<code>src/libswamp/access/explained_resource.ts</code>). Both the local command and serve&#39;s <code>access.check</code> and <code>access.can-i</code> call it, so the two checks give the same answer for the same repo. Serve responses are unchanged.</p>
 <p><strong>Builders moved to the domain.</strong> <code>modelAccessResource</code>, <code>workflowAccessResource</code>, <code>unresolvedAccessResource</code>, <code>vaultKindResource</code> and <code>modelTypeFields</code> moved from <code>src/serve/handlers</code> to <code>src/domain/access/access_resources.ts</code>, so the CLI no longer depends on serve for them. <code>resource_resolution.ts</code> and <code>shared.ts</code> re-export them, so no serve call site chang</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.215038.0-sha.986f9022" rel="noopener">release v20261009.215038.0-sha.986f9022</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/986f9022aa3dd9cd6fe01963b00f2bd0b140ca25" rel="noopener">986f9022</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/3224" rel="noopener">lab#3224</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261009-211502-0-sha-dbd7ba9a">
@@ -168,7 +168,7 @@ footer .ver{color:var(--acc)}
 <li>The <code>no_open_wait</code> message gives the time the last wait was settled instead of telling every caller their retry landed. <code>swamp workflow signal --json</code> carries <code>refusal</code> and <code>lastWait</code> in its error, locally and with <code>--server</code>.</li>
 <li>The shared-ID check asks the repository for the workflows with that ID (new optional <code>WorkflowRepository.findAllById</code>). The YAML repository reads every file but parses only those that can declare the ID: about 18 ms against 110 ms at 2000 files. Extension workflows are</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.211502.0-sha.dbd7ba9a" rel="noopener">release v20261009.211502.0-sha.dbd7ba9a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/dbd7ba9aa1249c110432cfae9520bfa07171a3ed" rel="noopener">dbd7ba9a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2970" rel="noopener">#2970</a>𝗔 <a href="https://swamp-club.com/lab/3211" rel="noopener">lab#3211</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261009-202715-0-sha-773f3987">
@@ -190,7 +190,7 @@ footer .ver{color:var(--acc)}
 <li><strong>The destructive paths refuse for those repos</strong>, before touching anything: <code>namespace migrate</code> in both directions, <code>namespace unset --migrate</code>, a re-run of <code>datastore setup extension</code>, and the doctor un-migrated data repair. The error carries the steps to move the namespace by hand.</li>
 <li><strong>Doctor.</strong> <code>swamp doctor datastores</code> r</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/references/namespaces.md" rel="noopener">.claude/skills/swamp/references/repo/references/namespaces.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/references/namespaces.md" rel="noopener">.claude/skills/swamp/references/repo/references/namespaces.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261009.202715.0-sha.773f3987" rel="noopener">release v20261009.202715.0-sha.773f3987</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/773f39877159a496cd62fd7a2146d236618a4917" rel="noopener">773f3987</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2969" rel="noopener">#2969</a>𝗔 <a href="https://swamp-club.com/lab/2478" rel="noopener">lab#2478</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261009-201300-0-sha-683031a6">
@@ -1489,7 +1489,7 @@ footer .ver{color:var(--acc)}
 </ul>
 <p>  <code>fetch-content-error</code> and <code>fetch-content-namespace</code>, each with a broken</p>
 <p>  implementation that fails it. All three</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/api.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261007.221135.0-sha.0f586ec3" rel="noopener">release v20261007.221135.0-sha.0f586ec3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0f586ec3da78ff7af405aa2110bb580fe763fdd7" rel="noopener">0f586ec3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2916" rel="noopener">#2916</a>𝗔 <a href="https://swamp-club.com/lab/3159" rel="noopener">lab#3159</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261007-214606-0-sha-b352b2cf">
@@ -4007,7 +4007,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Already-doubled files are repaired.</strong> When a user&#39;s variant covers the event, swamp&#39;s own entry is removed. Only entries whose serialised JSON equals swamp&#39;s are ever removed. Every other entry keeps its content and order. Malformed, repo-controlled entries pass through and never throw.</li>
 <li><strong><code>agent-config-loadable</code> fails on duplicates.</strong> For Claude, Cursor and Copilot, the doctor check now fai</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/audit-doctor.md" rel="noopener">design/surfaces/audit-doctor.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/audit.md" rel="noopener">design/surfaces/audit.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.174639.0-sha.06412dc5" rel="noopener">release v20261002.174639.0-sha.06412dc5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/06412dc5571f298f13e798d6fa3d87fdaeb6125a" rel="noopener">06412dc5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2799" rel="noopener">#2799</a>𝗔 <a href="https://swamp-club.com/lab/2881" rel="noopener">lab#2881</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261002-174114-0-sha-5bbe1e79">
@@ -4471,7 +4471,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Exempt:</strong> bare <code>swamp</code>, <code>--help</code>/<code>--version</code> (decided against the real Cliffy command tree), <code>auth login/logout/whoami</code>, <code>help</code>, <code>completions</code>, <code>version</code>, <code>update</code>.</li>
 <li><strong>Blocks:</strong> <code>AuthGateBlockedError</code> (<code>auth_gate_blocked</code>). JSON includes <code>reason</code> and <code>temporary</code>. Temporary blocks exit 75, a missing or revo</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp-getting-started/SKILL.md" rel="noopener">.claude/skills/swamp-getting-started/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp-getting-started/SKILL.md" rel="noopener">.claude/skills/swamp-getting-started/SKILL.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.191636.0-sha.71c25269" rel="noopener">release v20261001.191636.0-sha.71c25269</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/71c252697760cd7920810f76f0eccfe1feecb416" rel="noopener">71c25269</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2777" rel="noopener">#2777</a>𝗔 <a href="https://swamp-club.com/lab/2231" rel="noopener">lab#2231</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261001-190402-0-sha-543aad7e">
@@ -5189,7 +5189,7 @@ footer .ver{color:var(--acc)}
 <li><strong><code>pendingPush</code>.</strong> It leaves out copies the push will remove before it walks.</li>
 <li><strong><code>ops()</code>.</strong> Records gain an optional `rem</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/testing.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/testing.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.182818.0-sha.73f1374f" rel="noopener">release v20261008.182818.0-sha.73f1374f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/73f1374f81bb455bf229bf61a40d8b5f3e883735" rel="noopener">73f1374f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2941" rel="noopener">#2941</a>𝗔 <a href="https://swamp-club.com/lab/2906" rel="noopener">lab#2906</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261008-182207-0-sha-282268b7">
@@ -5305,7 +5305,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 142</li><li><strong>feat</strong> — 52</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>changes</strong> — 3</li><li><strong>docs</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-11T01:03:15.024Z">2026-10-11T01:03:15.024Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-11T02:05:28.295Z">2026-10-11T02:05:28.295Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

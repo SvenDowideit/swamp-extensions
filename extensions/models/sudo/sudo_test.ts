@@ -17,6 +17,7 @@ import {
 /** Whether this process may spawn commands (plain `deno test` denies `run`). */
 function hasRunPermission(): boolean {
   try {
+    // swamp-quality-ignore deno-command: probing whether this test process may spawn any subprocess at all; the binary and argv are hard-coded, never caller-supplied.
     const status = new Deno.Command("true").outputSync();
     return status.code === 0;
   } catch {

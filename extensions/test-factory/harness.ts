@@ -498,18 +498,25 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     'cp -r "$EXT_MOUNT" "$REPO/extensions/$EXT_NAME"',
     "",
   );
+  // Register the candidate and its sibling extensions as sources **whenever**
+  // the harness runs, not only in the `smoke` phase. A tests-only group (a
+  // per-test `runAs`/`grants` group beyond the first, or a caller running just
+  // `--input phases=tests`) still needs its model types to resolve, and a source
+  // cannot be added from inside a running phase. The doctor check stays in
+  // `smoke`.
+  push("SOURCE_ADD_OK=0");
+  for (const s of sources) {
+    push(
+      `swamp extension source add "$REPO/extensions/${s.name}" >/tmp/source-${s.name}.log 2>&1 || SOURCE_ADD_OK=$?`,
+    );
+  }
+  push(
+    'swamp extension source add "$REPO/extensions/$EXT_NAME" >/tmp/source-add.log 2>&1 || SOURCE_ADD_OK=$?',
+    'if [ "$SOURCE_ADD_OK" -eq 0 ]; then record sourceAddOk true; else record sourceAddOk false; fi',
+    "",
+  );
   if (want("smoke")) {
     push(
-      "SOURCE_ADD_OK=0",
-    );
-    for (const s of sources) {
-      push(
-        `swamp extension source add "$REPO/extensions/${s.name}" >/tmp/source-${s.name}.log 2>&1 || SOURCE_ADD_OK=$?`,
-      );
-    }
-    push(
-      'swamp extension source add "$REPO/extensions/$EXT_NAME" >/tmp/source-add.log 2>&1 || SOURCE_ADD_OK=$?',
-      'if [ "$SOURCE_ADD_OK" -eq 0 ]; then record sourceAddOk true; else record sourceAddOk false; fi',
       "swamp doctor extensions --json >/tmp/doctor.json 2>/tmp/doctor.err",
       "DOCTOR_STATUS=$(jq -r '.overallStatus // \"unknown\"' /tmp/doctor.json 2>/dev/null || echo 'unparseable')",
       "DOCTOR_STATES=$(jq -c '[.aggregateState.aggregates[].stateDistribution] | add // {}' /tmp/doctor.json 2>/dev/null || echo '{}')",
@@ -980,7 +987,14 @@ export function evaluateResult(
     if (!fixOk && expectPass) errors.push(`fixtures: ${detail}`);
   }
 
-  const ran = out.every((p) => p.ok);
+  // Only the phases this run actually asked for decide the verdict. A phase
+  // that was not requested is still reported (for the audit record) but must
+  // not fail the run — e.g. a tests-only run never executes `doctor` (a `smoke`
+  // check), so `smoke` must not drag an otherwise-green run to fail.
+  const gated = out.filter((p) =>
+    p.phase === "systemd" ? expectSystemd : want(p.phase as HarnessPhase)
+  );
+  const ran = gated.every((p) => p.ok);
   const ok = expectPass ? ran : !ran;
   return { phases: out, ok, errors };
 }

@@ -9,16 +9,15 @@ description: >
   WHAT IT DOES
 
     Turns "what is installed here?" into a Bill of Materials you can act on.
-    Syft is the one scanner that covers all four targets this needs to handle:
-    a complete host filesystem (`dir:/`), a container image (`image:` /
-    `registry:`), a single binary (`file:`), and a source repository (`dir:`).
-    `generate` runs it and writes the result as a swamp file resource plus an
-    optional file path, together with a `scan` summary — format, package count,
-    source identity, size, duration and process outcome — so the next step can
-    curl the SBOM straight to Dependency-Track. Prefer it over hand-run `syft`:
-    the binary is downloaded and checksum-verified for you and cached, the
-    output is captured as data instead of a loose file, and the same model
-    serves a nightly host scan and a one-off image scan.
+    Syft covers all four targets this needs: a host filesystem (`dir:/`), a
+    container image (`image:`/`registry:`), a single binary (`file:`), and a
+    source repository (`dir:`). `generate` writes the result as a swamp file
+    resource plus an optional path, with a `scan` summary — format, package
+    count, source, size and duration. Prefer it over hand-run `syft`: the
+    binary is downloaded and checksum-verified for you, the output is captured
+    as data, and one model serves a nightly host scan and a one-off image scan.
+    A generic `@svendowideit/generate-sbom` workflow produces the SBOM and
+    exposes its path; a site-specific workflow submits it wherever you need.
 
   INSTALL
 
@@ -28,10 +27,9 @@ description: >
 
     @svendowideit/github-release-install (pulled automatically) resolves and
     verifies the syft release; a `tar` binary extracts it. Set `syftPath` to use
-    a pre-installed syft and skip both. The bundled
-    `@svendowideit/sbom-to-dependencytrack` workflow additionally needs
-    @svendowideit/curl (multipart upload) and a running
-    @svendowideit/dependencytrack — both pulled automatically.
+    a pre-installed syft and skip both. Nothing here references a dependency
+    tracker: the SBOM is generic, and a site-specific workflow composes the
+    upload.
 
   RUN
 
@@ -49,12 +47,11 @@ description: >
       # Install (or refresh) the checksum-verified syft binary without scanning.
       swamp model @svendowideit/generate-sbom-syft method run install syft-tool
 
-      # Or generate AND submit in one step: the bundled workflow scans the
-      # target, uploads the BOM to Dependency-Track, and tags the project with
-      # the host it came from.
-      swamp workflow run @svendowideit/sbom-to-dependencytrack \
+      # Or run the bundled generic workflow, which scans the target and makes
+      # the SBOM available as data for any caller to submit wherever.
+      swamp workflow run @svendowideit/generate-sbom \
         --input target=/home/alice/.local/bin/caddy --input targetType=file \
-        --input projectName=caddy --input projectVersion=2.11.6 --input host=x1yoga
+        --input label=caddy
 
   CONFIGURE
 
@@ -93,12 +90,10 @@ models:
   - generate_sbom_syft.ts
 
 workflows:
-  - sbom-to-dependencytrack.yaml
+  - generate-sbom.yaml
 
 dependencies:
   - "@svendowideit/github-release-install"
-  - "@svendowideit/curl"
-  - "@svendowideit/dependencytrack"
 
 additionalFiles:
   - README.md

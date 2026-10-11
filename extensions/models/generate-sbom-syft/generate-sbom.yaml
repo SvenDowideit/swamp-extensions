@@ -1,0 +1,103 @@
+id: 6c661c28-5341-4431-bc38-fcee062f8b5c
+name: '@svendowideit/generate-sbom'
+description: |
+  Generate a Software Bill of Materials for one target with Anchore Syft — a
+  whole host filesystem, a container image, a binary, or a source tree — and
+  make it available as swamp data.
+
+  This workflow is deliberately generic: it only *produces* an SBOM. It says
+  nothing about where the SBOM goes. A caller (a site-specific workflow in your
+  own collective) composes it and reads the produced file via
+  `data.latest(scanModel, label).path` to feed whatever needs it — a
+  dependency tracker, a store, an S3 bucket.
+
+  The SBOM is written as a `sbom` file resource named `label` (default `sbom`);
+  the `scan` resource (named `scan-<label>`) summarises it — package count,
+  format, source, size and duration.
+
+  Run (a binary):
+    swamp workflow run @svendowideit/generate-sbom \
+      --input target=/usr/bin/curl --input targetType=file
+
+  Run (a container image, SPDX output):
+    swamp workflow run @svendowideit/generate-sbom \
+      --input target=alpine:3.19 --input targetType=registry \
+      --input format=spdx-json --input label=alpine
+tags: {}
+inputs:
+  properties:
+    target:
+      type: string
+      description: What to scan — a path, a binary, or a container image reference.
+    targetType:
+      type: string
+      default: ""
+      enum: ["", dir, file, image, registry, docker, podman, oci-archive, oci-dir, singularity, purl, sbom]
+      description: Syft source scheme to prepend when the target has none.
+    format:
+      type: string
+      default: cyclonedx-json
+      enum: [cyclonedx-json, cyclonedx-xml, spdx-json, spdx-tag-value, syft-json]
+      description: SBOM format.
+    label:
+      type: string
+      default: sbom
+      description: >-
+        Name for the produced `sbom` file resource (and `scan-<label>`). Must be
+        a valid swamp data name (letters, digits, `.`, `_`, `-`). Read the SBOM
+        via data.latest(scanModel, label).path.
+    exclude:
+      type: array
+      items:
+        type: string
+      default: []
+      description: Exclusions in syft glob syntax (each must start with ./, */ or **/).
+    catalogers:
+      type: array
+      items:
+        type: string
+      default: []
+      description: Syft catalogers to enable. Empty uses all.
+    sourceName:
+      type: string
+      default: ""
+      description: SBOM source name. Empty lets syft derive it from the target.
+    sourceVersion:
+      type: string
+      default: ""
+      description: SBOM source version.
+    scanModel:
+      type: string
+      default: sbom-tool
+      description: >-
+        Name of the @svendowideit/generate-sbom-syft model instance to drive.
+        Keep it distinct from the `sbom`/`scan` data spec names so a consumer's
+        data.latest(scanModel, label) is unambiguous.
+  required:
+    - target
+jobs:
+  - name: main
+    description: Generate the SBOM and expose it as data.
+    steps:
+      - name: generate
+        description: Scan the target with syft and write the SBOM as a file resource.
+        task:
+          type: model_method
+          modelType: "@svendowideit/generate-sbom-syft"
+          modelName: ${{ inputs.scanModel }}
+          methodName: generate
+          inputs:
+            target: ${{ inputs.target }}
+            targetType: ${{ inputs.targetType }}
+            format: ${{ inputs.format }}
+            exclude: ${{ inputs.exclude }}
+            catalogers: ${{ inputs.catalogers }}
+            sourceName: ${{ inputs.sourceName }}
+            sourceVersion: ${{ inputs.sourceVersion }}
+            label: ${{ inputs.label }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

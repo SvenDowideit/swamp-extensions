@@ -26,10 +26,10 @@ it to Dependency-Track.
 - **Tunable scans** — `catalogers`, `exclude` (syft glob syntax, e.g.
   `**/proc/**`), image `scope`/`platform`, and `sourceName`/`sourceVersion` to
   control how Dependency-Track names the project.
-- **Submit to Dependency-Track** — the bundled
-  `@svendowideit/sbom-to-dependencytrack` workflow chains `generate` into an
-  `@svendowideit/curl` multipart upload, creating one project per
-  (software, version) and tagging it with the host it came from.
+- **Generic, composable** — the bundled `@svendowideit/generate-sbom` workflow
+  produces an SBOM and exposes its path; it names no consumer. A site-specific
+  workflow (e.g. in your own collective) reads that path and submits the SBOM
+  wherever you need — a Dependency-Track, a store, an S3 bucket.
 
 Side effects: outbound HTTPS to GitHub (to fetch the verified syft release) and
 to the target image's registry; it writes the cached binary and archive under
@@ -106,21 +106,17 @@ swamp model @svendowideit/generate-sbom-syft method run generate bin \
 # Install (or refresh) the checksum-verified syft binary without scanning.
 swamp model @svendowideit/generate-sbom-syft method run install syft --input force=true
 
-# Generate and submit in one step: the bundled workflow scans the target, then
-# uploads the BOM to Dependency-Track and tags the project with the host, so
-# this machine's version of caddy is tracked and filterable.
-swamp workflow run @svendowideit/sbom-to-dependencytrack \
+# Or run the generic workflow, which scans the target and exposes the SBOM path
+# for any caller to consume.
+swamp workflow run @svendowideit/generate-sbom \
   --input target=/home/alice/.local/bin/caddy --input targetType=file \
-  --input projectName=caddy --input projectVersion=2.11.6 --input host=x1yoga
+  --input label=caddy
 ```
 
-Dependency-Track's BOM API is a `multipart/form-data` POST; the workflow's upload
-step carries the project fields in `multipart` and attaches the SBOM with
-`files`, tagging the project with `host`. The Dependency-Track model is one
-project per (software, version) with the host as a tag — so many machines running
-different versions of the same software each get their own project, filterable
-by host. CycloneDX (`cyclonedx-json`, the default) and SPDX are accepted;
-CycloneDX is the safest across Dependency-Track versions.
+The produced file is at `data.latest("sbom", "caddy").path`. A site-specific
+workflow composes this with whatever submits the SBOM (e.g. a Dependency-Track
+via `@svendowideit/curl`) — see `@figy/sbom-to-dependencytrack` for a worked
+example in the figy collective.
 
 ## Upgrade
 
@@ -160,31 +156,21 @@ The cached syft binary refreshes itself on the next scan (or immediately with
 - **`status`** — `ready`, `stateDir`, `repo`, `syftVersion`, `outputFormat`,
   `syftPath`, `toolPath`, `installedVersions`.
 
-### Workflow — `@svendowideit/sbom-to-dependencytrack`
+### Workflow — `@svendowideit/generate-sbom`
 
-Steps: `generate` → `upload` → `verify-upload`.
+A deliberately generic one-step workflow: `generate` (`@svendowideit/generate-sbom-syft`)
+scans `target`/`targetType` and writes the SBOM file (named `label`, default
+`sbom`) and a `scan` resource.
 
-- `generate` (`@svendowideit/generate-sbom-syft`) scans `target`/`targetType` and
-  writes the SBOM file (named `projectName`) and a `scan` resource.
-- `upload` (`@svendowideit/curl`, method `post`) sends the BOM to
-  Dependency-Track as a `multipart/form-data` POST: `multipart` carries
-  `autoCreate`, `projectName`, `projectVersion` and `projectTags` (= `host`),
-  and `files` attaches the `bom` read from the generate step's data
-  (`data.latest(scanModel, projectName).path`). The endpoint comes from the
-  `@svendowideit/dependencytrack` model's `agentKey` data (override with
-  `uploadUrl`), and the API key from `vaultName`/`vaultKey`.
-- `verify-upload` asserts the request record is `ok`.
+Inputs: `target`, `targetType`, `format`, `label`, `exclude`, `catalogers`,
+`sourceName`, `sourceVersion`, `scanModel`.
 
-Inputs: `target`, `targetType`, `projectName`, `projectVersion`, `host`,
-`format`, `exclude`, `catalogers`, `scanModel`, `uploadModel`, `dtModel`,
-`vaultName`, `vaultKey`, `uploadUrl`.
-
-The Dependency-Track model is one project per (software, version) with the host
-as a tag: uploading the same software on many machines creates a distinct
-project per version, each tagged with its host, so "which hosts run which
-version" is a tag filter. A tag that does not exist yet is created on upload
-(requires the agent key to hold `TAG_MANAGEMENT`, which
-`@svendowideit/dependencytrack` grants by default).
+It names no consumer. A caller reads the produced SBOM via
+`data.latest(scanModel, label).path` and submits it wherever it needs — e.g.
+`@figy/sbom-to-dependencytrack` uploads it to a Dependency-Track (multipart POST
+via `@svendowideit/curl`, one project per software+version, tagged with the
+host). Keeping generation and submission separate means this extension carries
+no dependency-tracker coupling.
 
 ### Tool resolution
 

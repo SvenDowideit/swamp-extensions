@@ -1,0 +1,14 @@
+# A tiny, toggleable dependency stub for test-factory scenarios.
+#
+# It stands in for an external dependency a candidate talks to (an ACME
+# directory, a DNS API, a package index …) and can be told, at runtime, to
+# accept, reject, or delay — so a candidate can prove how it behaves when the
+# dependency is healthy, slow, or refusing, without any real external service.
+#
+# `/ctl?mode=accept|reject|delay` sets the mode; `/ctl?mode=down` makes every
+# subsequent request hang (never answering), modelling an unreachable service.
+# `/health` is a liveness probe for the `healthcheck:` block.
+FROM python:3.12-alpine
+COPY stub.py.txt /stub.py
+EXPOSE 8080
+CMD ["python3", "/stub.py"]

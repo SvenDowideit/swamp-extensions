@@ -237,6 +237,45 @@ the harness enables linger (`loginctl enable-linger root`) and waits for
 A scenario is a known-good/known-bad expectation: `expected: fail` scenarios
 (such as Alpine) pass when the run indeed fails, so the harness is validated too.
 
+### A toggleable dependency stub (ACME/DNS timing)
+
+Some outcomes depend on how a candidate behaves when an external service is
+healthy, slow, refusing, or unreachable — DNS propagation and certificate
+issuance being the common cases. Ship a tiny stub as a service and drive it from
+the test steps. This extension ships one as a **template** at
+`test/stub/` (`Dockerfile.txt` + `stub.py.txt`); copy it into your own `test/`
+directory (a service `build:` context is relative to *your* manifest) and
+declare it:
+
+```yaml
+services:
+  dep:
+    build: ./test/stub            # your copy of the stub
+    networks: { net1: { ipv4_address: 192.0.2.12 } }
+    healthcheck:
+      command: ["wget", "-qO-", "http://dep:8080/health"]
+      in: harness
+      intervalSeconds: 1
+      retries: 30
+```
+
+The stub answers `200` while **accepting**, `503` while **rejecting**, and hangs
+while **delaying**/**down** (unreachable). A step flips it — `/ctl` always
+answers, so it works even from `reject`:
+
+```sh
+curl -s "http://dep:8080/ctl?mode=reject"   # then assert the candidate degrades
+curl -s "http://dep:8080/ctl?mode=accept"   # then assert it recovers
+```
+
+Point Caddy at it with `acme_ca http://dep:8080/acme/directory`: with the stub
+`reject`/`down`/`delay`, Caddy cannot obtain a certificate, so the extension's
+report must say **configured, not issued** (never a fabricated success); once it
+`accept`s and the challenge is met, the certificate is issued. For the
+synchronous "issued" path with no external ACME at all, use Caddy's
+`issuer=internal` (its local CA). `X-Stub-Mode` on every response tells a step
+which mode the stub is in.
+
 ### Privilege and isolation: `harness.runAs`, `grants:`, `isolation:`
 
 By default the harness runs as `root` inside the container. A candidate that

@@ -77,7 +77,6 @@ tests:
           swamp workflow run @figy/swamp-worker-bootstrap
           --input serveUrl=$SERVE_URL
           --input 'hosts=[{"name":"node1","address":"127.0.0.1"}]'
-          --input remoteHome=/root
           --input sshUser=$TF_SSH_USER --input sshPort=$TF_SSH_PORT
           --input sshKey=$TF_SSH_KEY
         expect:

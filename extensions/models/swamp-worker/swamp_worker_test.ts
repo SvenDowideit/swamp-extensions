@@ -244,14 +244,49 @@ Deno.test("install reports kept when the binary is present", async () => {
   });
 });
 
-Deno.test("install reports installed when the binary is absent", async () => {
+Deno.test("install downloads the binary when absent", async () => {
   await withTmp(async (tmp) => {
+    // The runner stands in for `curl`: it creates the file named by `-o`.
+    const rec = recorder((_bin, args) => {
+      const i = args.indexOf("-o");
+      if (i >= 0) Deno.writeTextFileSync(args[i + 1], "#!/bin/sh\n");
+      return { stdout: "", stderr: "", code: 0 };
+    });
+    setRunFn(rec.fn);
     const { ctx, writes } = fakeContext(globals(tmp));
-    await methods.install.execute({ force: false }, ctx);
+    await methods.install.execute({ version: "", force: false }, ctx);
+    const data = writes[0].data as Record<string, unknown>;
+    assertEquals(data.action, "installed");
+    assertEquals(data.present, true);
+    assert(rec.calls.some((c) => c.bin === "curl"));
+  });
+});
+
+Deno.test("install reports failed when the download fails", async () => {
+  await withTmp(async (tmp) => {
+    const rec = recorder(() => ({ stdout: "", stderr: "boom", code: 1 }));
+    setRunFn(rec.fn);
+    const { ctx, writes } = fakeContext(globals(tmp));
+    await methods.install.execute({ version: "", force: false }, ctx);
     assertEquals(
       (writes[0].data as Record<string, unknown>).action,
-      "installed",
+      "failed",
     );
+  });
+});
+
+Deno.test("clearStagedTokens removes the staging files", async () => {
+  await withTmp(async (tmp) => {
+    const g = globals(tmp);
+    await Deno.mkdir(`${tmp}/staging`, { recursive: true });
+    await Deno.writeTextFile(`${tmp}/staging/figy-node1.token`, "x\n");
+    await Deno.writeTextFile(`${tmp}/staging/figy-node2.token`, "y\n");
+    await methods.clearStagedTokens.execute(
+      { nodes: ["node1", "node2"] },
+      fakeContext(g).ctx,
+    );
+    assertEquals(await exists(`${tmp}/staging/figy-node1.token`), false);
+    assertEquals(await exists(`${tmp}/staging/figy-node2.token`), false);
   });
 });
 
@@ -735,4 +770,46 @@ Deno.test("renderProvision records a script with the per-node hostname placehold
     assert(data.unitContent.includes("tier=prod"));
     assert(data.script.includes(data.unitContent));
   });
+});
+
+Deno.test("stageTokens reuses a staged token unless force", async () => {
+  await withTmp(async (tmp) => {
+    const g = globals(tmp);
+    const rec = recorder((_b, args) =>
+      args.includes("create")
+        ? {
+          stdout: JSON.stringify({ token: "prov-node1.secret" }),
+          stderr: "",
+          code: 0,
+        }
+        : undefined
+    );
+    setRunFn(rec.fn);
+    await methods.stageTokens.execute(
+      { nodes: ["node1"], duration: "1h", force: false },
+      fakeContext(g).ctx,
+    );
+    const creates1 = rec.calls.filter((c) => c.args.includes("create")).length;
+    const second = fakeContext(g);
+    await methods.stageTokens.execute(
+      { nodes: ["node1"], duration: "1h", force: false },
+      second.ctx,
+    );
+    assertEquals(
+      rec.calls.filter((c) => c.args.includes("create")).length,
+      creates1,
+    );
+    const data = second.writes[0].data as {
+      tokens: Array<{ reused: boolean }>;
+    };
+    assertEquals(data.tokens[0].reused, true);
+  });
+});
+
+Deno.test("renderProvisionScript restarts on a token change and gates on active", () => {
+  const s = renderProvisionScript(PROVISION);
+  assert(s.includes("TOKEN_STAMP"));
+  assert(s.includes("sha256sum"));
+  assert(s.includes("is not active on this host"));
+  assert(s.includes("exit 1"));
 });

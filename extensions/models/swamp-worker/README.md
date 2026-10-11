@@ -18,7 +18,8 @@ bodies ([remote execution](https://swamp-club.com/manual)). This model owns the
 | `renderProvision` | Render the per-node **provisioning script** (install binary, lock token, write unit, start it) for a fan-out deploy, with the host label filled from each node's own hostname, so one script serves every node. |
 | `renderRemoval` | Render the per-node **removal script** (stop, disable and delete the unit and its artifacts) for a fan-out teardown. |
 | `stageTokens` | Mint one enrollment token **per node** on the orchestrator and stage each plaintext in a `0600` file, for a site workflow to `copy` to that node. |
-| `install` | Ensure the swamp binary exists at `swampBinPath` (a no-op when it is already there). |
+| `install` | Ensure the swamp binary is installed at `swampBinPath`, downloading the release (or a requested `version`) when it is absent or `force`; otherwise a no-op. |
+| `clearStagedTokens` | Delete the orchestrator-side staged token files for the given nodes, after they have been delivered. |
 | `mintToken` | Mint a single enrollment token on the orchestrator and write it to a `0600` file; the plaintext never enters swamp data. Reuses an existing token unless `force` (so re-running is idempotent). |
 | `revokeToken` | Revoke this identity's enrollment token (any worker using it is disconnected) and, by default, delete the local token file. |
 | `ensureService` | Reconcile this host onto the desired worker state — write the unit if it changed, `daemon-reload`, `enable --now` with linger, and restart **only** when the unit changed. |
@@ -70,7 +71,8 @@ Per-call arguments:
 | `renderProvision` | `serveUrl` (required), `host`, `labels`, `concurrency`, `version` |
 | `renderRemoval` | *(none)* |
 | `stageTokens` | `nodes` (list), `duration` (default `30d`) |
-| `install` | `force` |
+| `install` | `version`, `force` |
+| `clearStagedTokens` | `nodes` (list) |
 | `mintToken` | `node`, `duration` (default `30d`), `force` |
 | `revokeToken` | `node`, `purgeFile` (default `true`) |
 | `ensureService` | `serveUrl` (required), `host`, `labels`, `concurrency`, `force` |
@@ -136,7 +138,7 @@ swamp model method run worker stageTokens --input 'nodes:json=["host1","host2"]'
 
 # Then, from a workflow, feed them to @swamp/ssh:
 #   copy   src=/tmp/swamp-worker-staging/figy-<node>.token
-#          dst=<remoteHome>/.config/swamp-worker/figy.token   (direction: to)
+#          dst=/tmp/swamp-worker-token   (direction: to) — the script installs it
 #   script script=<data.latest("worker","provision").attributes.script
 # The removal script is data.latest("worker","removal").attributes.script.
 ```

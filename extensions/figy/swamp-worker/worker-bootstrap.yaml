@@ -37,12 +37,6 @@ inputs:
       type: string
       default: "30d"
       description: Enrollment token lifetime (a hard deadline).
-    remoteHome:
-      type: string
-      default: /home/sven
-      description: >
-        Absolute home dir of the SSH user on the nodes — the token is copied to
-        <remoteHome>/.config/swamp-worker/figy.token (scp/SFTP does not expand `~`).
     sshUser:
       type: string
       default: sven
@@ -99,39 +93,11 @@ jobs:
         weight: 0
         allowFailure: false
 
-      - name: prepare-nodes
-        description: >
-          Create the token dir on every node (scp/SFTP will not create parents),
-          mode 700.
-        task:
-          type: model_method
-          modelType: "@swamp/ssh"
-          modelName: figy-workers
-          methodName: exec
-          globalArgs:
-            name: figy-workers
-            transport:
-              kind: ssh
-              user: ${{ inputs.sshUser }}
-              port: ${{ inputs.sshPort }}
-              identityFile: ${{ inputs.sshKey }}
-              strictHostKeyChecking: ${{ inputs.strictHostKeyChecking }}
-            hosts: ${{ inputs.hosts }}
-          inputs:
-            hosts: all
-            command: mkdir -p ${{ inputs.remoteHome }}/.config/swamp-worker && chmod 700 ${{ inputs.remoteHome }}/.config/swamp-worker
-        dependsOn:
-          - step: stage-tokens
-            condition:
-              type: succeeded
-        weight: 0
-        allowFailure: false
-
       - name: deliver-tokens
         description: >
-          Copy each node its own token over SSH (scp), so the secret never
-          appears in a command line or swamp data. The staging path is
-          deterministic: <stagingDir>/figy-<node>.token.
+          Copy each node its own token over SSH (scp) to a fixed staging path on
+          the node, so the secret never appears in a command line or swamp data.
+          The provisioning script then installs it to its final 0600 location.
         forEach:
           item: h
           in: ${{ inputs.hosts }}
@@ -152,10 +118,10 @@ jobs:
           inputs:
             hosts: ${{ self.h.name }}
             src: ${{ "/tmp/swamp-worker-staging/figy-" + self.h.name + ".token" }}
-            dst: ${{ inputs.remoteHome + "/.config/swamp-worker/figy.token" }}
+            dst: /tmp/swamp-worker-token
             direction: to
         dependsOn:
-          - step: prepare-nodes
+          - step: stage-tokens
             condition:
               type: succeeded
         weight: 0
@@ -189,28 +155,18 @@ jobs:
         weight: 0
         allowFailure: false
 
-      - name: verify
-        description: Confirm each node's worker unit is active.
+      - name: clear-staging
+        description: >
+          Delete the orchestrator-side staged token files now that every node has
+          its token; the provisioning script already gates on the unit being
+          active, so no separate SSH check is needed.
         task:
           type: model_method
-          modelType: "@swamp/ssh"
-          modelName: figy-workers
-          methodName: exec
-          globalArgs:
-            name: figy-workers
-            transport:
-              kind: ssh
-              user: ${{ inputs.sshUser }}
-              port: ${{ inputs.sshPort }}
-              identityFile: ${{ inputs.sshKey }}
-              strictHostKeyChecking: ${{ inputs.strictHostKeyChecking }}
-            hosts: ${{ inputs.hosts }}
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          methodName: clearStagedTokens
           inputs:
-            hosts: all
-            command: >-
-              sh -c '[ -d "/run/user/$(id -u)" ] &&
-              export XDG_RUNTIME_DIR="/run/user/$(id -u)";
-              systemctl --user is-active swamp-worker-figy'
+            nodes: ${{ inputs.hosts.map(h, h.name) }}
         dependsOn:
           - step: provision
             condition:

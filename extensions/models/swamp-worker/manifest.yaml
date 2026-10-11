@@ -77,10 +77,11 @@ description: >
     Per call: `renderUnit`/`ensureService` take `serveUrl`, optional `host`,
     `labels` (KEY=VALUE strings), `concurrency` and `force`; `renderProvision`
     takes `serveUrl`, `host`, `labels`, `concurrency` and `version`;
-    `renderRemoval` takes nothing; `stageTokens` takes `nodes` and `duration`;
-    `mintToken` takes `node`, `duration` and `force`; `revokeToken` takes `node`
-    and `purgeFile`; `remove` takes `node`, `revokeToken` (default true) and
-    `purgeData`. For a fan-out deploy the model renders the scripts and stages
+    `renderRemoval` takes nothing; `stageTokens` takes `nodes`, `duration` and
+    `force`; `clearStagedTokens` takes `nodes`; `install` takes `version` and
+    `force`; `mintToken` takes `node`, `duration` and `force`; `revokeToken` takes
+    `node` and `purgeFile`; `remove` takes `node`, `revokeToken` (default true)
+    and `purgeData`. For a fan-out deploy the model renders the scripts and stages
     the tokens; a site workflow ships them over SSH.
 
   WHAT IT INSTALLS

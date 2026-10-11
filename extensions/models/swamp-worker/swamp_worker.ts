@@ -463,7 +463,16 @@ if [ ! -x "$SWAMP_BIN" ]; then
   chmod +x "$SWAMP_BIN"
 fi
 
-# 2. the token file must already be present (delivered over SSH); lock it down.
+# 1b. a token delivered to the staging path (by the site workflow's @swamp/ssh
+# copy) is installed to its final 0600 location here, then the staging copy is
+# removed. This avoids needing to know the node user's home at copy time.
+STAGED_TOKEN=/tmp/swamp-worker-token
+if [ -f "$STAGED_TOKEN" ]; then
+  install -D -m600 "$STAGED_TOKEN" "$TOKEN_FILE"
+  rm -f "$STAGED_TOKEN"
+fi
+
+# 2. the token file must be present; lock it down.
 if [ ! -s "$TOKEN_FILE" ]; then
   echo "token file $TOKEN_FILE is missing — deliver it before provisioning" >&2
   exit 1
@@ -490,6 +499,14 @@ else
   rm -f "$UNIT_TMP"
 fi
 
+# 4b. a changed *token* (a re-deploy or a rotation) must restart the worker onto
+# it — comparing the unit alone would leave the running process on the old token.
+TOKEN_STAMP="$CONFIG_DIR/.$UNIT_NAME.token.sha"
+TOKEN_HASH=$(sha256sum "$TOKEN_FILE" | awk '{print $1}')
+if [ "$TOKEN_HASH" != "$(cat "$TOKEN_STAMP" 2>/dev/null || echo '')" ]; then
+  CHANGED=1
+fi
+
 # 5. reconcile systemd
 systemctl --user daemon-reload
 ${linger}
@@ -499,7 +516,21 @@ if [ "$CHANGED" = "1" ]; then
 else
   systemctl --user start "$UNIT_NAME" 2>/dev/null || true
 fi
-echo "worker $UNIT_NAME: $(systemctl --user is-active "$UNIT_NAME" 2>/dev/null || echo unknown)"
+printf '%s' "$TOKEN_HASH" > "$TOKEN_STAMP"
+chmod 600 "$TOKEN_STAMP" 2>/dev/null || true
+
+# 6. confirm it is actually running (a real gate, so the caller fails loudly)
+i=0
+while [ "$i" -lt 15 ]; do
+  [ "$(systemctl --user is-active "$UNIT_NAME" 2>/dev/null || true)" = "active" ] && break
+  i=$((i+1)); sleep 1
+done
+STATUS=$(systemctl --user is-active "$UNIT_NAME" 2>/dev/null || echo unknown)
+echo "worker $UNIT_NAME: $STATUS"
+if [ "$STATUS" != "active" ]; then
+  echo "worker $UNIT_NAME is not active on this host" >&2
+  exit 1
+fi
 `;
 }
 
@@ -664,8 +695,17 @@ const RenderProvisionArgsSchema = z.object({
 });
 
 const InstallArgsSchema = z.object({
+  version: z.string().default("").describe(
+    "swamp release tag to install (empty = latest).",
+  ),
   force: z.boolean().default(false).describe(
     "Reinstall even when the binary is already present.",
+  ),
+});
+
+const ClearStagedArgsSchema = z.object({
+  nodes: z.array(z.string()).default([]).describe(
+    "Node names whose staged token files to delete from `stagingDir`.",
   ),
 });
 
@@ -689,6 +729,12 @@ const StageTokensArgsSchema = z.object({
   ),
   duration: z.string().default("30d").describe(
     "Token lifetime per node (hard deadline).",
+  ),
+  force: z.boolean().default(false).describe(
+    "Mint a fresh token even when one is already staged for that node. Without " +
+      "it, an existing staged token is reused, so re-running a deploy is " +
+      "idempotent. (Note: 'swamp worker token create' rejects a name that already " +
+      "exists, so a real rotation mints under a new name.)",
   ),
 });
 
@@ -769,6 +815,8 @@ const StagedTokenSchema = z.object({
   node: z.string(),
   name: z.string(),
   path: z.string(),
+  /** True when an already-staged token was reused rather than freshly minted. */
+  reused: z.boolean().default(false),
 });
 
 /** The set of tokens staged on the orchestrator for a fan-out deploy. */
@@ -1096,8 +1144,9 @@ export const model = {
 
     install: {
       description:
-        "Ensure the swamp binary exists at swampBinPath. Installs from the " +
-        "release URL when absent (or force=true); otherwise a no-op.",
+        "Ensure the swamp binary is installed at swampBinPath, downloading the " +
+        "release (or the requested `version`) when it is absent or force=true; " +
+        "otherwise a no-op.",
       arguments: InstallArgsSchema,
       execute: async (
         args: z.infer<typeof InstallArgsSchema>,
@@ -1105,28 +1154,69 @@ export const model = {
       ) => {
         const g = context.globalArgs;
         const bin = expandHome(g.swampBinPath);
-        const present = (await readTextSafe(bin)).length > 0 ||
-          await fileIsExecutable(bin);
-
+        const present = await fileIsExecutable(bin);
         let action: "kept" | "installed" | "failed" = "kept";
         let detail = "binary already present";
         if (!present || args.force) {
-          detail = `${present ? "reinstall" : "install"} via release download`;
-          action = "installed";
+          const ver = args.version && args.version !== "latest"
+            ? args.version
+            : "latest";
+          const path = ver === "latest" ? "latest/download" : `download/${ver}`;
+          const url = `${g.releaseBaseUrl}/${path}/swamp-linux-${swampArch()}`;
+          const dir = bin.slice(0, bin.lastIndexOf("/"));
+          if (dir) await Deno.mkdir(dir, { recursive: true });
+          const res = await runCmd("curl", ["-fsSL", "-o", bin, url]);
+          if (res.code !== 0) {
+            action = "failed";
+            detail = `download failed (${res.code}): ${
+              res.stderr || res.stdout
+            }`;
+          } else {
+            await Deno.chmod(bin, 0o755).catch(() => {});
+            if (await fileIsExecutable(bin)) {
+              action = "installed";
+              detail = `installed from ${url}`;
+            } else {
+              action = "failed";
+              detail = "downloaded but not an executable file";
+            }
+          }
         }
-
         const handle = await context.writeResource("install", "install", {
           swampBinPath: bin,
-          present: present && !args.force,
+          present: await fileIsExecutable(bin),
           action,
           detail,
           checkedAt: new Date().toISOString(),
         });
-        context.logger?.info("swamp binary {bin}: {detail}", {
-          bin,
-          detail,
-        });
+        context.logger?.info("swamp binary {bin}: {detail}", { bin, detail });
         return { dataHandles: [handle] };
+      },
+    },
+
+    clearStagedTokens: {
+      description:
+        "Delete the orchestrator-side staged token files for the given nodes " +
+        "(typically after they have been delivered to their hosts).",
+      arguments: ClearStagedArgsSchema,
+      execute: async (
+        args: z.infer<typeof ClearStagedArgsSchema>,
+        context: MethodContext,
+      ) => {
+        const g = context.globalArgs;
+        let removed = 0;
+        for (
+          const node of args.nodes.map((n) => n.trim()).filter((n) => n !== "")
+        ) {
+          if (await fileExists(stagedTokenPath(g, node))) {
+            await Deno.remove(stagedTokenPath(g, node)).catch(() => {});
+            removed++;
+          }
+        }
+        context.logger?.info("Cleared {removed} staged token file(s)", {
+          removed,
+        });
+        return { dataHandles: [] };
       },
     },
 
@@ -1225,9 +1315,23 @@ export const model = {
         if (nodes.length === 0) {
           throw new Error("stageTokens: provide at least one node in `nodes`.");
         }
-        const tokens: Array<{ node: string; name: string; path: string }> = [];
+        const tokens: Array<{
+          node: string;
+          name: string;
+          path: string;
+          reused: boolean;
+        }> = [];
         for (const node of nodes) {
           const name = `${g.identity}-${node}`;
+          const path = stagedTokenPath(g, node);
+          // Idempotent by default: reuse an already-staged token so re-running a
+          // deploy does not fail ('token create' rejects an existing name) or
+          // strand the old token. `force` mints a fresh one instead.
+          const existing = (await readTextSafe(path)).trim();
+          if (existing !== "" && !args.force) {
+            tokens.push({ node, name, path, reused: true });
+            continue;
+          }
           const res = await runCmd(
             expandHome(g.swampBinPath),
             [
@@ -1255,9 +1359,8 @@ export const model = {
                 `${res.stderr || res.stdout}`,
             );
           }
-          const path = stagedTokenPath(g, node);
           await writeMode600(path, token + "\n");
-          tokens.push({ node, name, path });
+          tokens.push({ node, name, path, reused: false });
         }
         const handle = await context.writeResource("stagedTokens", "staged", {
           identity: g.identity,
@@ -1265,11 +1368,13 @@ export const model = {
           tokens,
           stagedAt: new Date().toISOString(),
         });
+        const reused = tokens.filter((t) => t.reused).length;
         context.logger?.info(
-          "Staged {count} enrollment token(s) for identity {identity} under {dir}",
+          "Staged {count} enrollment token(s) for identity {identity}{reused} under {dir}",
           {
             count: tokens.length,
             identity: g.identity,
+            reused: reused > 0 ? ` (${reused} reused)` : "",
             dir: expandHome(g.stagingDir),
           },
         );
@@ -1657,4 +1762,19 @@ async function fileIsExecutable(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Whether a path exists (any kind). */
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The release asset arch for this machine (`swamp-linux-<arch>`). */
+function swampArch(): string {
+  return Deno.build.arch === "aarch64" ? "aarch64" : "x86_64";
 }

@@ -13,7 +13,7 @@ workflows:
 
 | Workflow | Steps | What it does |
 | -------- | ----- | ------------ |
-| `@figy/swamp-worker-bootstrap` | `render` → `stage-tokens` → `prepare-nodes` → `deliver-tokens` → `provision` → `verify` | Renders the per-node provisioning script, mints one token per node (staged `0600`), creates the token dir on each node, copies each node its own token over SSH, runs the provisioning script on every node (installing the swamp binary, writing the `swamp-worker-figy` systemd user unit and starting it), and verifies the unit is active. |
+| `@figy/swamp-worker-bootstrap` | `render` → `stage-tokens` → `deliver-tokens` → `provision` → `clear-staging` | Renders the per-node provisioning script, mints one token per node (staged `0600`, reused unless `force`), copies each node its own token over SSH to a staging path, runs the provisioning script on every node (which installs the token to its final `0600` location, installs/updates the swamp binary, writes the `swamp-worker-figy` systemd user unit, restarts it if the unit **or the token** changed, and fails unless the unit is active), then deletes the orchestrator's staged token files. |
 | `@figy/swamp-worker-teardown` | `render-removal` → `remove-on-nodes` → `revoke-tokens` | Runs the removal script on every node over SSH (stop, disable and delete the unit, cache dir, token and env files), then revokes each node's token on the orchestrator, so a worker can never re-enrol. |
 
 Both are re-runnable: `stage-tokens` re-mints (overwriting the same `0600` file
@@ -41,7 +41,7 @@ Workflow inputs (identical on both workflows unless noted):
 | `serveUrl` | string | — | The serve URL the workers dial (`wss://` for a TLS front). **Required** (bootstrap only). |
 | `hosts` | array | `[]` | The node set, each `{name, address, [user], [port]}`. `name` is the worker's node/token name. |
 | `duration` | string | `30d` | Enrollment token lifetime (a hard deadline). Bootstrap only. |
-| `remoteHome` | string | `/home/sven` | Absolute home of the SSH user on the nodes; the token lands at `<remoteHome>/.config/swamp-worker/figy.token`. |
+
 | `sshUser` | string | `sven` | Fleet-default SSH user. |
 | `sshPort` | integer | `22` | Fleet-default SSH port. |
 | `sshKey` | string | `~/.ssh/id_ed25519` | Fleet-default SSH private key path. |
@@ -97,8 +97,11 @@ How the fan-out fits together:
   `/tmp/swamp-worker-staging/figy-<node>.token` (`0600`); the secret never enters
   swamp data or a command line.
 - `@swamp/ssh copy` moves each node its own token (the deterministic staging path
-  is computed from the node name); `@swamp/ssh script` runs the provisioning
-  script on every node; `@swamp/ssh exec` verifies `systemctl --user is-active`.
+  is computed from the node name) to a fixed path on the node; the provisioning
+  script installs it to `$HOME/.config/swamp-worker/figy.token` (`0600`), so the
+  copy never needs to know the node user's home. `@swamp/ssh script` runs the
+  provisioning script on every node, and it exits non-zero unless the unit is
+  active (so there is no separate SSH "verify" step).
 - `renderRemoval` (generic) renders the removal script with `$HOME`-portable
   paths; `@swamp/ssh script` runs it on every node; `revokeToken` revokes each
   node's token and drops its staging file.

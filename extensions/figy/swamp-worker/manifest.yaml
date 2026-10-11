@@ -54,10 +54,9 @@ description: >
 
     Both workflows take `hosts` (the node set, each {name, address}), `sshUser`,
     `sshPort`, `sshKey` and `strictHostKeyChecking`; bootstrap also takes
-    `serveUrl` (required), `duration` (token lifetime, default `30d`) and
-    `remoteHome` (the SSH user's absolute home on the nodes). The generic model's
-    globals (binary path, dirs, concurrency) are set on the `worker` model
-    instance as usual.
+    `serveUrl` (required) and `duration` (token lifetime, default `30d`). The
+    generic model's globals (binary path, dirs, concurrency) are set on the
+    `worker` model instance as usual.
 
   WHAT IT INSTALLS
 

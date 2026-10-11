@@ -13,7 +13,7 @@
 #     --input scenario=ubuntu-systemd-standalone
 #
 # Network access: the swamp release download only. `swamp serve` runs on
-# loopback with `--auth-mode none`, so no swamp-club account is needed.
+# loopback with `--auth-mode none`, so no collective token is needed.
 
 tests:
   - name: enrol
@@ -408,3 +408,128 @@ tests:
         expect:
           stdoutContains: ["RC_GONE", "FOREIGN_SURVIVES"]
           stdoutNotContains: ["RC_ACTIVE", "missing"]
+
+  - name: stage-tokens-are-idempotent
+    confirms: >
+      `stageTokens` is idempotent: staging a node again reuses the token already
+      staged for it (the 0600 staging file is unchanged), so re-running a deploy
+      does not mint a fresh token and strand the old one. Pass `force` to mint a
+      new one deliberately (rotation).
+    cannot: >
+      must not mint a different token for a node that already has one staged.
+    documents: README.md#examples
+    variables:
+      REPO: /work/repo
+      BIN: /usr/local/bin/swamp
+    steps:
+      - name: create-model
+        run: >
+          swamp model create @svendowideit/swamp-worker worker-prov
+          --global-arg identity=prov --global-arg swampBinPath=$BIN
+          --global-arg repoDir=$REPO --json >/dev/null 2>&1 || true
+        expect:
+          exitCode: 0
+      - name: stage-first
+        run: swamp model method run worker-prov stageTokens --input 'nodes:json=["node1"]'
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: remember-the-token
+        run: |
+          sha256sum /tmp/swamp-worker-staging/prov-node1.token | awk '{print $1}' > /tmp/prov.before
+          cat /tmp/prov.before
+        expect:
+          exitCode: 0
+      - name: stage-second
+        run: swamp model method run worker-prov stageTokens --input 'nodes:json=["node1"]'
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: staging-token-is-reused
+        run: |
+          after=$(sha256sum /tmp/swamp-worker-staging/prov-node1.token | awk '{print $1}')
+          before=$(cat /tmp/prov.before)
+          if [ "$after" = "$before" ]; then echo TOKEN_REUSED; else echo TOKEN_REMINTED; fi
+        expect:
+          stdoutContains: ["TOKEN_REUSED"]
+          stdoutNotContains: ["TOKEN_REMINTED"]
+
+  - name: provision-restarts-when-the-token-changes
+    confirms: >
+      The rendered provisioning script reconciles the **token** as well as the
+      unit: when the node's token file changes (a re-deploy with a new token, or a
+      rotation), re-running the script restarts the worker onto the new token, and
+      re-running it with an unchanged token restarts nothing.
+    cannot: >
+      must not leave the running worker on the old token after the token file
+      changed.
+    documents: README.md#examples
+    variables:
+      IDENTITY: prov
+      SERVE_URL: ws://127.0.0.1:9090
+      REPO: /work/repo
+      BIN: /usr/local/bin/swamp
+    steps:
+      - name: ensure-serve
+        run: |
+          if ! curl -fsS http://127.0.0.1:9090/ready >/dev/null 2>&1; then
+            cd "$REPO"
+            nohup swamp serve --host 127.0.0.1 --port 9090 --auth-mode none >/tmp/serve.log 2>&1 &
+            for i in $(seq 1 60); do curl -fsS http://127.0.0.1:9090/ready >/dev/null 2>&1 && break; sleep 1; done
+          fi
+          curl -fsS http://127.0.0.1:9090/ready >/dev/null && echo SERVE_READY
+        expect:
+          exitCode: 0
+          outputContains: ["SERVE_READY"]
+          outputNotContains: ["SERVE_TIMEOUT"]
+        timeoutSeconds: 120
+      - name: stage-two-tokens
+        run: swamp model method run worker-prov stageTokens --input 'nodes:json=["nodea","nodeb"]'
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: render-provision
+        run: swamp model method run worker-prov renderProvision --input serveUrl=$SERVE_URL
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: deploy-with-token-one
+        run: |
+          mkdir -p /root/.config/swamp-worker
+          install -m600 /tmp/swamp-worker-staging/prov-nodea.token /root/.config/swamp-worker/prov.token
+          swamp data query 'modelName=="worker-prov" && name=="provision"' --select content --json \
+            | jq -r '.results[0].script' > /tmp/provision.sh
+          sh /tmp/provision.sh
+        expect:
+          exitCode: 0
+          outputContains: ["swamp-worker-prov"]
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: capture-active-enter
+        run: |
+          systemctl --user show swamp-worker-prov -p ActiveEnterTimestampMonotonic --value > /tmp/prov.ts
+          cat /tmp/prov.ts
+        expect:
+          exitCode: 0
+      - name: deploy-with-token-two
+        run: |
+          install -m600 /tmp/swamp-worker-staging/prov-nodeb.token /root/.config/swamp-worker/prov.token
+          sh /tmp/provision.sh
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: restarted-onto-the-new-token
+        run: |
+          now=$(systemctl --user show swamp-worker-prov -p ActiveEnterTimestampMonotonic --value)
+          before=$(cat /tmp/prov.ts)
+          echo "before=$before now=$now"
+          echo "stamp=$(cat /root/.config/swamp-worker/.swamp-worker-prov.token.sha 2>/dev/null || echo none)"
+          echo "currenthash=$(sha256sum /root/.config/swamp-worker/prov.token 2>/dev/null | awk '{print $1}')"
+          if [ -n "$now" ] && [ "$now" != "$before" ]; then echo RESTARTED; else echo NOT_RESTARTED; fi
+        expect:
+          stdoutContains: ["RESTARTED"]
+          stdoutNotContains: ["NOT_RESTARTED"]

@@ -67,8 +67,16 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3241"><span class="tier A">A</span>Windows: workflow cancel and model cancel do not kill the st</a><a href="#issue-3244"><span class="tier A">A</span>swamp model cancel &lt;model&gt; cancels a run of a different mode</a><a href="#issue-3239"><span class="tier A">A</span>Datastore rework Phase 3: the v3 read model, dormant (no beh</a><a href="#issue-3243"><span class="tier A">A</span>Extension auto-resolution reports a registry timeout as &quot;no </a><a href="#issue-3240"><span class="tier A">A</span>Datastore rework Phase 3: the commit-log unit of work and bi</a><a href="#issue-3242"><span class="tier A">A</span>Windows: workflow history outputs stdout has trailing CRLF t</a><a href="#issue-3074"><span class="tier A">A</span>serve HA: worker enrollment on a replica that lacks the enro</a><a href="#issue-3227"><span class="tier A">A</span>context.runModel does not resolve the target definition&#39;s ${</a><a href="#issue-2534"><span class="tier A">A</span>serve: without a remote datastore the token GC is not serial</a><a href="#issue-3236"><span class="tier A">A</span>Datastore rework Phase 3: the commits.db commit store, dorma</a><a href="#issue-3237"><span class="tier A">A</span>Datastore rework Phase 3: the chunk store and the storage/1 </a><a href="#issue-3233"><span class="tier A">A</span>Datastore rework Phase 3: the v3 commit and partition domain</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3245"><span class="tier A">A</span>Windows: check-config grant error messages use backslash pat</a><a href="#issue-3241"><span class="tier A">A</span>Windows: workflow cancel and model cancel do not kill the st</a><a href="#issue-3244"><span class="tier A">A</span>swamp model cancel &lt;model&gt; cancels a run of a different mode</a><a href="#issue-3239"><span class="tier A">A</span>Datastore rework Phase 3: the v3 read model, dormant (no beh</a><a href="#issue-3243"><span class="tier A">A</span>Extension auto-resolution reports a registry timeout as &quot;no </a><a href="#issue-3240"><span class="tier A">A</span>Datastore rework Phase 3: the commit-log unit of work and bi</a><a href="#issue-3242"><span class="tier A">A</span>Windows: workflow history outputs stdout has trailing CRLF t</a><a href="#issue-3074"><span class="tier A">A</span>serve HA: worker enrollment on a replica that lacks the enro</a><a href="#issue-3227"><span class="tier A">A</span>context.runModel does not resolve the target definition&#39;s ${</a><a href="#issue-2534"><span class="tier A">A</span>serve: without a remote datastore the token GC is not serial</a><a href="#issue-3236"><span class="tier A">A</span>Datastore rework Phase 3: the commits.db commit store, dorma</a><a href="#issue-3237"><span class="tier A">A</span>Datastore rework Phase 3: the chunk store and the storage/1 </a></aside><div>
 
+<article class="item" id="issue-3245">
+<h2><span class="tier A">A</span>Windows: check-config grant error messages use backslash paths</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-11T16:21:16.289Z">2026-10-11T16:21:16.289Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3245" rel="noopener">lab#3245</a></div>
+</article>
 <article class="item" id="issue-3241">
 <h2><span class="tier A">A</span>Windows: workflow cancel and model cancel do not kill the step process tree</h2>
 <p class="lede">Shipped bug fix</p>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3237" rel="noopener">lab#3237</a></div>
 </article>
-<article class="item" id="issue-3233">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3233">
 <h2><span class="tier A">A</span>Datastore rework Phase 3: the v3 commit and partition domain model, dormant (no behaviour change)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-11T00:41:54.411Z">2026-10-11T00:41:54.411Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3233" rel="noopener">lab#3233</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3234">
+<article class="item" id="issue-3234">
 <h2><span class="tier A">A</span>Datastore rework Phase 3: Litestream embedding spike (a written decision, no production code)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-11T00:32:13.159Z">2026-10-11T00:32:13.159Z</time></span></div>
@@ -2565,53 +2573,61 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3250">
-<h2><span class="tier B">B</span>Datastore rework Phase 3: shared typed staging route, and data and output repositories stage typed changes on v3 (no v2 behaviour change)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-11T15:59:07.561Z">2026-10-11T15:59:07.561Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3250" rel="noopener">lab#3250</a></div>
-</article>
-<article class="item" id="issue-3246">
-<h2><span class="tier B">B</span>Extension auto-resolution installs an unrelated extension when a registry search guess does not provide the type</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-11T15:57:15.555Z">2026-10-11T15:57:15.555Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3246" rel="noopener">lab#3246</a></div>
-</article>
-<article class="item" id="issue-3247">
-<h2><span class="tier B">B</span>Windows: model run with vault secret containing $ exits 1 silently</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-11T15:54:17.090Z">2026-10-11T15:54:17.090Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3247" rel="noopener">lab#3247</a></div>
-</article>
 <article class="item" id="issue-3249">
 <h2><span class="tier B">B</span>Datastore rework Phase 3: chunk garbage collection for unreferenced chunks, dormant (no behaviour change)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-11T15:51:46.882Z">2026-10-11T15:51:46.882Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-11T17:06:54.961Z">2026-10-11T17:06:54.961Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3249" rel="noopener">lab#3249</a></div>
 </article>
+<article class="item" id="issue-3250">
+<h2><span class="tier B">B</span>Datastore rework Phase 3: shared typed staging route, and data and output repositories stage typed changes on v3 (no v2 behaviour change)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-11T16:57:24.419Z">2026-10-11T16:57:24.419Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3250" rel="noopener">lab#3250</a></div>
+</article>
+<article class="item" id="issue-3251">
+<h2><span class="tier B">B</span>autoGc does not enforce version caps for scheduled workflow steps</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-11T16:49:57.609Z">2026-10-11T16:49:57.609Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3251" rel="noopener">lab#3251</a></div>
+</article>
 <article class="item" id="issue-3248">
 <h2><span class="tier B">B</span>Windows: workflow run --input does not honour \@ escape in k=v value</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-11T15:44:13.596Z">2026-10-11T15:44:13.596Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-11T16:32:01.520Z">2026-10-11T16:32:01.520Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3248" rel="noopener">lab#3248</a></div>
 </article>
-<article class="item" id="issue-3245">
-<h2><span class="tier B">B</span>Windows: check-config grant error messages use backslash paths</h2>
+<article class="item" id="issue-3252">
+<h2><span class="tier B">B</span>S3-backed serve: graceful shutdown saves interrupted workflow status without a remote flush</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-11T16:31:20.884Z">2026-10-11T16:31:20.884Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3252" rel="noopener">lab#3252</a></div>
+</article>
+<article class="item" id="issue-3247">
+<h2><span class="tier B">B</span>Windows: model run with vault secret containing $ exits 1 silently</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-11T15:42:39.434Z">2026-10-11T15:42:39.434Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-11T16:31:10.324Z">2026-10-11T16:31:10.324Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3245" rel="noopener">lab#3245</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3247" rel="noopener">lab#3247</a></div>
+</article>
+<article class="item" id="issue-3246">
+<h2><span class="tier B">B</span>Extension auto-resolution installs an unrelated extension when a registry search guess does not provide the type</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-11T16:29:49.107Z">2026-10-11T16:29:49.107Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3246" rel="noopener">lab#3246</a></div>
 </article>
 <article class="item" id="issue-3190">
 <h2><span class="tier B">B</span>stagecraft: let a method or workflow stage&#39;s target use {{name}} placeholders from run data</h2>
@@ -2693,7 +2709,31 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3238">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3255">
+<h2><span class="tier C">C</span>rollbackOnFailure methods fail when run as a workflow step</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-11T16:35:46.307Z">2026-10-11T16:35:46.307Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3255" rel="noopener">lab#3255</a></div>
+</article>
+<article class="item" id="issue-3254">
+<h2><span class="tier C">C</span>workflow validate fails a templated methodName that workflow run executes fine</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-11T16:31:25.738Z">2026-10-11T16:31:25.738Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3254" rel="noopener">lab#3254</a></div>
+</article>
+<article class="item" id="issue-3253">
+<h2><span class="tier C">C</span>data query --select content crashes with &#39;Maximum call stack size exceeded&#39; in the terminal markdown renderer for large file data (~10 MB), even when stdout is redirected</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-11T16:22:03.621Z">2026-10-11T16:22:03.621Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3253" rel="noopener">lab#3253</a></div>
+</article>
+<article class="item" id="issue-3238">
 <h2><span class="tier C">C</span>datastore setup filesystem back to the default .swamp copies 0 files from the current datastore and exits 0, leaving the repo&#39;s data unreachable</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-11T13:14:01.801Z">2026-10-11T13:14:01.801Z</time></span></div>
@@ -3574,13 +3614,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>438 items across 1 source(s) in this window:
-0 critical, 312 notable, 16 routine,
-110 minor.</p>
-<ul><li><strong>issues</strong> — 438</li></ul></section>
+<p>443 items across 1 source(s) in this window:
+0 critical, 313 notable, 17 routine,
+113 minor.</p>
+<ul><li><strong>issues</strong> — 443</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-11T16:03:44.976Z">2026-10-11T16:03:44.976Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-11T17:11:11.030Z">2026-10-11T17:11:11.030Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -478,3 +478,116 @@ tests:
           outputContains: ["cannot bind ports 80/443"]
           outputNotContains:
             ["ready — nothing blocks", "Password:", "AUTHENTICATING FOR", "https://localhost", "https://e2e-no-sudo.example.com"]
+
+  - name: partial-config-only-base-domain-still-serves-and-reports-the-gap
+    confirms: >
+      A model with only baseDomain (and no ACME email) still serves the default
+      status page on localhost and its gap report names the missing TLS/ACME
+      email — it never claims a certificate or that nothing blocks.
+    cannot: >
+      must not claim "ready — nothing blocks", must not claim a certificate was
+      obtained, and must not fail to serve the status page.
+    documents: README.md#configuration
+    runAs: tester
+    grants:
+      - { guest: harness, profile: user-tester }
+    steps:
+      - name: create-model
+        run: >
+          swamp model create @svendowideit/caddy e2e-p1
+          --global-arg baseDomain=example.com
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: install-caddy-binary
+        run: >
+          swamp model method run e2e-p1 installCaddy
+          --input setCapabilities=false --input configureStatusPage=false
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+        timeoutSeconds: 300
+      - name: create-start-and-publish-status-page
+        run: |
+          swamp model method run e2e-p1 createService
+          swamp model method run e2e-p1 startService
+          swamp model method run e2e-p1 configureStatusPage
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: status-page-still-served
+        run: curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/
+        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
+      - name: gap-report-names-the-missing-tls
+        run: swamp model method run e2e-p1 upgradeCheck
+        expect:
+          outputContains: ["No TLS is configured"]
+          outputNotContains: ["ready — nothing blocks", "No baseDomain is set"]
+
+  - name: partial-config-only-email-reports-the-missing-domain
+    confirms: >
+      A model with only an ACME email (and no baseDomain) still serves the status
+      page on localhost and its gap report names the missing baseDomain first.
+    cannot: >
+      must not claim "ready — nothing blocks" and must not fail to serve the
+      status page.
+    documents: README.md#configuration
+    runAs: tester
+    grants:
+      - { guest: harness, profile: user-tester }
+    steps:
+      - name: create-model
+        run: >
+          swamp model create @svendowideit/caddy e2e-p2
+          --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: install-caddy-binary
+        run: >
+          swamp model method run e2e-p2 installCaddy
+          --input setCapabilities=false --input configureStatusPage=false
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+        timeoutSeconds: 300
+      - name: create-start-and-publish-status-page
+        run: |
+          swamp model method run e2e-p2 createService
+          swamp model method run e2e-p2 startService
+          swamp model method run e2e-p2 configureStatusPage
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: status-page-still-served
+        run: curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/
+        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
+      - name: gap-report-names-the-missing-domain
+        run: swamp model method run e2e-p2 upgradeCheck
+        expect:
+          outputContains: ["No baseDomain is set"]
+          outputNotContains: ["ready — nothing blocks"]
+
+  - name: partial-config-no-domain-or-email-reports-the-missing-domain
+    confirms: >
+      A model with neither a baseDomain nor an ACME email still serves the status
+      page on localhost and its gap report names the missing baseDomain.
+    cannot: >
+      must not claim "ready — nothing blocks" and must not fail to serve the
+      status page.
+    documents: README.md#configuration
+    runAs: tester
+    grants:
+      - { guest: harness, profile: user-tester }
+    steps:
+      - name: create-model
+        run: swamp model create @svendowideit/caddy e2e-p3
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: install-caddy-binary
+        run: >
+          swamp model method run e2e-p3 installCaddy
+          --input setCapabilities=false --input configureStatusPage=false
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+        timeoutSeconds: 300
+      - name: create-start-and-publish-status-page
+        run: |
+          swamp model method run e2e-p3 createService
+          swamp model method run e2e-p3 startService
+          swamp model method run e2e-p3 configureStatusPage
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: status-page-still-served
+        run: curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/
+        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
+      - name: gap-report-names-the-missing-domain
+        run: swamp model method run e2e-p3 upgradeCheck
+        expect:
+          outputContains: ["No baseDomain is set"]
+          outputNotContains: ["ready — nothing blocks"]

@@ -3,8 +3,41 @@ import {
   isEmptySystem,
   lintTestSystem,
   parseTestSystem,
+  resolveSystemSubnets,
   systemVariables,
 } from "./services.ts";
+import { parseCidrs } from "./networks.ts";
+
+const SUBNET_YAML = `
+networks:
+  net1: { subnet: 192.0.2.0/24 }
+harness:
+  networks:
+    net1: { ipv4_address: 192.0.2.10 }
+services:
+  bind:
+    image: busybox
+    networks: { net1: { ipv4_address: 192.0.2.11 } }
+`;
+
+Deno.test("resolveSystemSubnets keeps declared subnets when they are free", () => {
+  const r = resolveSystemSubnets(parseTestSystem(SUBNET_YAML), []);
+  assertEquals(r.networks[0].subnet, "192.0.2.0/24");
+  assertEquals(r.harness.networks[0].ipv4Address, "192.0.2.10");
+  assertEquals(r.services[0].networks[0].ipv4Address, "192.0.2.11");
+});
+
+Deno.test("resolveSystemSubnets allocates a free subnet and remaps static IPs", () => {
+  const r = resolveSystemSubnets(
+    parseTestSystem(SUBNET_YAML),
+    parseCidrs(["192.0.2.0/24"]),
+  );
+  // The declared subnet is taken, so it moves to the pool and the static IPs
+  // move with it (host offset preserved).
+  assertEquals(r.networks[0].subnet, "10.213.0.0/24");
+  assertEquals(r.harness.networks[0].ipv4Address, "10.213.0.10");
+  assertEquals(r.services[0].networks[0].ipv4Address, "10.213.0.11");
+});
 
 const YAML = `
 tests:

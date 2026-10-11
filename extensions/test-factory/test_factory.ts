@@ -44,6 +44,7 @@ import {
   exec,
   execDetached,
   listContainers,
+  listContainersByNamePrefix,
   logs,
   removeContainer,
   removeNetwork,
@@ -51,6 +52,7 @@ import {
   run as defaultRun,
   runDetached,
   type RunFn,
+  usedSubnets,
   waitHostFile,
 } from "./docker.ts";
 import {
@@ -58,9 +60,11 @@ import {
   isEmptySystem,
   lintTestSystem,
   parseTestSystem,
+  resolveSystemSubnets,
   systemVariables,
   type TestSystem,
 } from "./services.ts";
+import { type Cidr, parseCidr, parseCidrs } from "./networks.ts";
 import {
   buildHarnessScript,
   DEFAULT_RELEASE_BASE,
@@ -656,6 +660,51 @@ function captureLogs(
  * reported as an `error` result rather than thrown, so one bad distro does not
  * abort a whole fan-out.
  */
+/**
+ * Create the candidate's declared networks on free subnets, retrying around a
+ * race: docker is the arbiter per host, so if another run grabbed a subnet
+ * between inspection and `network create`, the create fails with "Pool overlaps";
+ * we mark that subnet used, re-resolve onto the next free one, and try again.
+ *
+ * Returns the resolved system (allocated subnets + remapped static IPs) actually
+ * created, or an `error`.
+ */
+async function createDeclaredNetworks(
+  runFn: Deps["runFn"],
+  declared: TestSystem,
+  suffix: string,
+  used: Cidr[],
+): Promise<{ system: TestSystem; error: string }> {
+  if (declared.networks.length === 0) return { system: declared, error: "" };
+  let resolved = resolveSystemSubnets(declared, used);
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const created: string[] = [];
+    let taken: string | null = null;
+    for (const net of resolved.networks) {
+      const name = `tf-net-${slugify(net.name)}-${suffix}`;
+      try {
+        await ensureNetwork(runFn, name, net.subnet);
+        created.push(name);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!/overlap/i.test(msg)) return { system: resolved, error: msg };
+        taken = net.subnet;
+        break;
+      }
+    }
+    if (taken === null) return { system: resolved, error: "" };
+    // Someone else holds this subnet; drop what we made this attempt and retry.
+    for (const n of created) await removeNetwork(runFn, n).catch(() => {});
+    used.push(parseCidr(taken));
+    resolved = resolveSystemSubnets(declared, used);
+  }
+  return {
+    system: resolved,
+    error:
+      `could not allocate a free subnet after retries — too many parallel runs?`,
+  };
+}
+
 async function runScenario(
   scenario: Scenario,
   candidate: Candidate,
@@ -678,6 +727,14 @@ async function runScenario(
     ? [`tf-${slug}-${suffix}`]
     : [orchestrator, ...workerNames];
 
+  // Allocate free subnets for the candidate's declared networks (dodging
+  // leftover/parallel-run networks). The declared subnets+IPs are rewritten to
+  // the chosen ones, so `plan.variables` (the exported `TF_*_IP`s) match what is
+  // actually created. `system` is reassigned below if a create race forces a
+  // different allocation.
+  const usedCidrs = parseCidrs(await usedSubnets(deps.runFn));
+  let system = resolveSystemSubnets(candidate.system, usedCidrs);
+
   const plan: HarnessPlan = {
     swampVersion: scenario.swampVersion ?? deps.swampVersion,
     repoDir: "/work/repo",
@@ -690,9 +747,9 @@ async function runScenario(
     tests: candidate.tests,
     releaseBaseUrl: deps.releaseBaseUrl,
     expectSystemd: scenario.systemd,
-    runAs: candidate.system.harness.runAs,
-    variables: { ...systemVariables(candidate.system), TF_RUN_ID: suffix },
-    dnsTools: candidate.system.harness.dig,
+    runAs: system.harness.runAs,
+    variables: { ...systemVariables(system), TF_RUN_ID: suffix },
+    dnsTools: system.harness.dig,
     extensionSources: candidate.extensionDirs.map((e, i) => ({
       name: e.name,
       mount: `/opt/ext-${i + 1}`,
@@ -730,7 +787,7 @@ async function runScenario(
   };
   // Grants are applied as root before the harness runs (§6). A grant that
   // belongs to a not-yet-built tier is reported, never silently dropped.
-  const grantPlan = planGrants(candidate.system.grants);
+  const grantPlan = planGrants(system.grants);
   grantPlan.scripts.forEach((g, i) => {
     files[`grant-${i + 1}.sh`] = applyGrantScript(g.script);
   });
@@ -778,6 +835,24 @@ async function runScenario(
       result.errors.push(`image build failed: ${tail(img.buildOutput, 1500)}`);
       return finished();
     }
+    // Create the declared networks now — before the bundle is staged, so a
+    // create race that forces a different allocation can update the harness's
+    // exported `TF_*_IP` variables to match what was actually created.
+    const prepared = await createDeclaredNetworks(
+      deps.runFn,
+      candidate.system,
+      suffix,
+      usedCidrs,
+    );
+    if (prepared.error) {
+      result.errors.push(prepared.error);
+      return finished();
+    }
+    if (prepared.system.networks.length > 0) {
+      system = prepared.system;
+      plan.variables = { ...systemVariables(system), TF_RUN_ID: suffix };
+      files["harness.sh"] = buildHarnessScript(plan);
+    }
     bundle = await stageBundle("bundle", files);
 
     // Containers are started long-lived (systemd as PID 1 on a systemd host,
@@ -804,15 +879,8 @@ async function runScenario(
       await ensureVolume(deps.runFn, sharedVolume);
       await ensureNetwork(deps.runFn, network);
     }
-    // The candidate's declared networks must exist before the harness joins
-    // them, so create them first (with their subnets, so static IPs are valid).
-    for (const net of candidate.system.networks) {
-      await ensureNetwork(
-        deps.runFn,
-        `tf-net-${slugify(net.name)}-${suffix}`,
-        net.subnet,
-      );
-    }
+    // The candidate's declared networks were created above (on allocated
+    // subnets); `system` carries their chosen subnets and remapped static IPs.
     // Networks the harness joins: the serve/fleet network plus any declared by
     // the candidate's test system (with their static IPs, so a name can resolve
     // to several harness endpoints).
@@ -820,7 +888,7 @@ async function runScenario(
       ...(scenario.topology === "standalone"
         ? []
         : [{ network, aliases: [] as string[] }]),
-      ...candidate.system.harness.networks.map((a) => ({
+      ...system.harness.networks.map((a) => ({
         network: `tf-net-${slugify(a.network)}-${suffix}`,
         ip: a.ipv4Address || undefined,
         aliases: ["harness"],
@@ -834,7 +902,7 @@ async function runScenario(
       // the container privileged even when systemd is off (a systemd harness is
       // already privileged via the systemd flag).
       privileged: !scenario.systemd &&
-        candidate.system.grants.some((g) => g.profile.startsWith("docker-")),
+        system.grants.some((g) => g.profile.startsWith("docker-")),
       networks: harnessNetworks.length > 0 ? harnessNetworks : undefined,
       mounts,
       env: containerEnv(deps.swampApiKey),
@@ -851,10 +919,10 @@ async function runScenario(
     // Bring up the candidate's auxiliary containers (BIND, tools, ...) and wait
     // for their health before the harness runs. Failures are recorded but do
     // not abort: the report shows the service error alongside the tests.
-    if (!isEmptySystem(candidate.system)) {
+    if (!isEmptySystem(system)) {
       const prov = await provisionTestSystem(
         deps,
-        candidate,
+        { ...candidate, system },
         suffix,
         target,
         contextLogger,
@@ -896,7 +964,7 @@ async function runScenario(
 
     // Boundary negative-control checks (§16.1): the containers are still up, so
     // the sandbox side runs now and the host probes are evaluated on the host.
-    const isolation = candidate.system.isolation.length > 0
+    const isolation = system.isolation.length > 0
       ? await runIsolationChecks(deps, candidate, target, suffix)
       : [];
 
@@ -970,7 +1038,7 @@ async function runScenario(
         await removeNetwork(deps.runFn, network).catch(() => {});
         await removeVolume(deps.runFn, sharedVolume).catch(() => {});
       }
-      for (const net of candidate.system.networks) {
+      for (const net of system.networks) {
         await removeNetwork(
           deps.runFn,
           `tf-net-${slugify(net.name)}-${suffix}`,
@@ -1443,7 +1511,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.11.2",
+  version: "2026.10.11.3",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1508,6 +1576,12 @@ export const model = {
       toVersion: "2026.10.11.2",
       description:
         "Adds a self-contained HTML report of each run, and captures real per-command evidence to back it. `test`/`testAll` now render the scenario results and rollup to a single `.html` file (inline CSS, no external assets; per-test <details> sections showing the exact commands and their stdout/stderr, plus coverage and a source-data sha256) and record where it landed in a new `htmlReport` resource, so the run's console output ends by naming the file. Output dir is `$SWAMP_TEST_FACTORY_HTML_DIR` (else `~/.local/share/test-factory-report/`). The new `@svendowideit/test-factory-report-html` report returns a pointer to that file (and still generates one when no `htmlReport` record exists). The harness now also records the commands it actually ran — `swamp init`, `swamp extension source add`, `swamp doctor extensions`, `swamp model type search`, `swamp model create`, `swamp workflow validate`, and the swamp install — with their real exit codes and captured stdout/stderr, as an `evidence` array on each result; the HTML report shows this as an 'Evidence — commands actually run' section (each command expanding to its exit code and output, with the pass/fail rule stated per phase) instead of presenting the planned command list as if it were the run. Schema is additive — existing models upgrade with no changes; `test`/`testAll` return one extra data handle.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.3",
+      description:
+        "Fixes subnet collisions between runs. A candidate's declared test-system subnets (`networks:`) are now a *preference*: if a leftover network from a crashed/kept run already holds one, or a parallel run wants the same one, the factory draws a free /24 from a private pool (`10.213.0.0/16`) and remaps the declared static IPs onto it (host offset preserved), updating the exported `TF_*_IP` variables to match. Docker is the arbiter per host, so a create race is retried around the 'Pool overlaps' error. Cleanup is hardened: `removeNetwork` now disconnects any remaining endpoints before removing a network, and the `cleanup` method force-removes stray `tf-` containers by name prefix as well as by label. `keepOnFailure` still leaves a kept run's containers and networks in place for debugging. Schema is unchanged; existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1770,7 +1844,16 @@ export const model = {
         context: ExecContext,
       ): Promise<{ dataHandles: [] }> => {
         const runFn = defaultRun;
-        const containers = await listContainers(runFn, "tf.scenario");
+        // Containers by label (the normal case) and by name prefix (strays with
+        // no label), force-removed; then networks — `removeNetwork` disconnects
+        // any remaining endpoints, so a network left attached to a kept/crashed
+        // run is still cleared.
+        const byLabel = await listContainers(runFn, "tf.scenario");
+        const byName = await listContainersByNamePrefix(
+          runFn,
+          args.prefix || "tf-",
+        );
+        const containers = [...new Set([...byLabel, ...byName])];
         for (const id of containers) {
           await removeContainer(runFn, id);
         }

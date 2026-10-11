@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/test-factory"
-version: "2026.10.11.2"
+version: "2026.10.11.3"
 description: >
   Run a swamp extension inside containers on different Linux distributions and
   swamp deployment topologies, and report exactly where it breaks. Prefer it
@@ -213,6 +213,8 @@ additionalFiles:
   - coverage.ts
   - services.ts
   - services_test.ts
+  - networks.ts
+  - networks_test.ts
   - grants.ts
   - grants_test.ts
   - host_capabilities.ts

@@ -20,6 +20,7 @@
  */
 import { parse as parseYaml } from "jsr:@std/yaml@1";
 import { grantProfileById } from "./grants.ts";
+import { allocateSubnet, type Cidr, parseCidr, remapIp } from "./networks.ts";
 
 /** A docker network the test system puts containers on. */
 export interface NetworkSpec {
@@ -419,6 +420,57 @@ export function systemVariables(system: TestSystem): Record<string, string> {
     });
   }
   return vars;
+}
+
+/**
+ * Resolve a test system's declared subnets onto subnets that are free on this
+ * host, remapping any static IPs onto the chosen subnet (host offset
+ * preserved — `192.0.2.10` in `192.0.2.0/24` becomes `10.213.7.10` in
+ * `10.213.7.0/24`). A declared subnet is used as-is when free; otherwise a free
+ * /24 is drawn from the pool in `networks.ts`.
+ *
+ * Docker is the arbiter per host, so a caller that races another run should add
+ * the allocated subnet to `used` and call again (the retry lives in the caller).
+ */
+export function resolveSystemSubnets(
+  system: TestSystem,
+  used: Cidr[],
+): TestSystem {
+  const reserved: Cidr[] = [];
+  const chosen = new Map<string, string>(); // network name -> allocated subnet
+  const networks = system.networks.map((n) => {
+    if (!n.subnet) {
+      chosen.set(n.name, "");
+      return { ...n };
+    }
+    const got = allocateSubnet(n.subnet, used, reserved);
+    chosen.set(n.name, got);
+    reserved.push(parseCidr(got));
+    return { ...n, subnet: got };
+  });
+  const declared = new Map(system.networks.map((n) => [n.name, n.subnet]));
+  const remap = (a: AttachSpec): AttachSpec => {
+    if (!a.ipv4Address) return a;
+    const from = declared.get(a.network) ?? "";
+    const to = chosen.get(a.network) ?? "";
+    if (!from || !to || from === to) return a;
+    return {
+      ...a,
+      ipv4Address: remapIp(a.ipv4Address, parseCidr(from), parseCidr(to)),
+    };
+  };
+  return {
+    ...system,
+    networks,
+    harness: {
+      ...system.harness,
+      networks: system.harness.networks.map(remap),
+    },
+    services: system.services.map((s) => ({
+      ...s,
+      networks: s.networks.map(remap),
+    })),
+  };
 }
 
 /** Validate a test system, returning human-readable issues (empty = sound). */

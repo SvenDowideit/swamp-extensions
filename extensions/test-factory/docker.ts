@@ -299,9 +299,64 @@ export async function buildImage(
   return { ok: res.code === 0, output: `${res.stdout}\n${res.stderr}`.trim() };
 }
 
-/** Remove a docker network, ignoring "not found" and "has active endpoints". */
+/**
+ * Remove a docker network. If it has active endpoints, disconnect every
+ * attached container first, then retry — so a network left attached to a
+ * crashed/kept run can still be cleared. Failures are swallowed (best-effort).
+ */
 export async function removeNetwork(runFn: RunFn, name: string): Promise<void> {
+  const res = await runFn("docker", ["network", "rm", name], {
+    timeoutMs: 30_000,
+  });
+  if (res.code === 0) return;
+  const endpoints = await networkEndpoints(runFn, name);
+  if (endpoints.length === 0) return;
+  for (const container of endpoints) {
+    await runFn("docker", ["network", "disconnect", "-f", name, container], {
+      timeoutMs: 30_000,
+    });
+  }
   await runFn("docker", ["network", "rm", name], { timeoutMs: 30_000 });
+}
+
+/** Every IPv4 subnet currently in use by a docker network on this host. */
+export async function usedSubnets(runFn: RunFn): Promise<string[]> {
+  const ls = await runFn("docker", ["network", "ls", "-q"], {
+    timeoutMs: 30_000,
+  });
+  const ids = ls.stdout.split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  for (const id of ids) {
+    const ins = await runFn("docker", [
+      "network",
+      "inspect",
+      "-f",
+      "{{range .IPAM.Config}}{{.Subnet}} {{end}}",
+      id,
+    ], { timeoutMs: 30_000 });
+    if (ins.code === 0) {
+      for (const s of ins.stdout.split(/\s+/)) if (s) out.push(s);
+    }
+  }
+  return out;
+}
+
+/**
+ * The containers attached to a network (used to clear a stuck network before
+ * removing it). Empty on any error.
+ */
+export async function networkEndpoints(
+  runFn: RunFn,
+  network: string,
+): Promise<string[]> {
+  const res = await runFn("docker", [
+    "network",
+    "inspect",
+    "-f",
+    "{{range .Containers}}{{.Name}} {{end}}",
+    network,
+  ], { timeoutMs: 30_000 });
+  return res.code === 0 ? res.stdout.split(/\s+/).filter(Boolean) : [];
 }
 
 /** One network attachment for a container: a name, optional static IP, and aliases. */
@@ -510,6 +565,23 @@ export async function listContainers(
     "-aq",
     "--filter",
     `label=${labelFilter}`,
+  ], { timeoutMs: 30_000 });
+  if (res.code !== 0) return [];
+  return res.stdout.split("\n").map((s) => s.trim()).filter((s) =>
+    s.length > 0
+  );
+}
+
+/** List container ids whose name contains a prefix (catches strays with no label). */
+export async function listContainersByNamePrefix(
+  runFn: RunFn,
+  prefix: string,
+): Promise<string[]> {
+  const res = await runFn("docker", [
+    "ps",
+    "-aq",
+    "--filter",
+    `name=${prefix}`,
   ], { timeoutMs: 30_000 });
   if (res.code !== 0) return [];
   return res.stdout.split("\n").map((s) => s.trim()).filter((s) =>

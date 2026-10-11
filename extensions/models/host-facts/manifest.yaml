@@ -1,0 +1,100 @@
+manifestVersion: 1
+name: "@svendowideit/host-facts"
+version: "2026.10.11.1"
+description: >
+  This host's own identity as swamp data — the FQDN, hostname, stable machine
+  id, OS, architecture and local addresses, read straight off the machine with
+  no network and no SSH.
+
+  WHAT IT DOES
+
+    Gives every workflow a reliable answer to "which host am I on?" — the FQDN
+    first, because that is what a dependency tracker, a telemetry tag or a
+    registry wants. One `collect` reads the machine (via `hostname -f`/`-s`,
+    `uname`, `/etc/os-release`, `/etc/machine-id`; IOPlatformUUID on macOS) and
+    writes a single `host` resource. Prefer it over reading `$HOSTNAME`: that is
+    a bash convenience variable, only set when exported, and it names the login
+    host, not the host the process runs on — so it is wrong or empty under
+    `swamp serve`, on a swamp worker, or in a container. This reads the
+    kernel/FQDN truth, so it is correct wherever it runs.
+
+    Its field names are deliberately aligned with
+    @svendowideit/fleet-inventory's host record (`name`, `machineId`,
+    `hostnames`, `addresses`, `os`, `source`, `tier`, `probed`, `lastSeen`, and
+    the empty-by-design `mac`/`macs`/`deviceClass`/`vendor`), so a consumer can
+    read the same field from either source, and a machine's local view lines up
+    with its fleet record. It adds `fqdn`, `hostname` and `arch`, which
+    fleet-inventory folds into `name`/`hostnames` and does not expose.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/host-facts
+
+  DEPENDENCIES
+
+    None. It reads local files and runs `hostname`/`uname` (and `ioreg` on
+    macOS) — the binaries every host already has. No network, no credentials, no
+    other extension.
+
+  RUN
+
+      # Read this host's facts and record them (auto-creates the model
+      # instance `my-host` on first use). Run this once per host; the `host`
+      # resource is what every other step reads. Pass `domain` to turn a bare
+      # hostname into an FQDN when the host has no FQDN of its own.
+      swamp model @svendowideit/host-facts method run collect my-host \
+        --input domain=fi.gy
+
+      # Read the FQDN back — the field a dependency tracker or telemetry tag
+      # wants. Also has hostname, machineId, os, arch and addresses.
+      swamp data query 'model("my-host") && name == "host"' --select content
+
+      # Gate before collecting: report whether a host record already exists.
+      # Useful in a workflow to skip a redundant read.
+      swamp model @svendowideit/host-facts method run status my-host
+
+      # Force a specific identity (a worker, a container, or a host whose FQDN
+      # does not resolve) without changing the machine.
+      swamp model @svendowideit/host-facts method run collect worker-host \
+        --input fqdnOverride=worker-1.svc --input hostnameOverride=worker-1
+
+  CONFIGURE
+
+    Global arguments (set at creation with `--global-arg`, or per call with
+    `--input`):
+
+      fqdnOverride      Override the detected FQDN            (default: detect)
+      hostnameOverride  Override the detected short hostname  (default: detect)
+      domain            Site domain to append to a short       (default: none)
+                        hostname (e.g. fi.gy → x1yoga.fi.gy)
+
+    Method arguments: `collect` and `status` take none.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, cron triggers or webhooks. It
+    reads local files/commands and writes swamp resources (`facts` → the `host`
+    record, `status`).
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - host_facts.ts
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - host_facts_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

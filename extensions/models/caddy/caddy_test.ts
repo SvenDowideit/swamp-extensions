@@ -15,6 +15,7 @@ import {
   caddyArch,
   caddyDownloadUrl,
   caddyTargetKey,
+  canBindPrivilegedPortsNow,
   computeHealth,
   configuredListens,
   DEFAULT_CADDY_PLUGINS,
@@ -2881,4 +2882,16 @@ Deno.test("localhostUrl uses the measured scheme and listen addresses", () => {
     localhostUrl("http", [":8443", ":8080"]),
     "http://localhost:8443/",
   );
+});
+
+Deno.test("canBindPrivilegedPortsNow is true with the capability or as root", () => {
+  assertEquals(canBindPrivilegedPortsNow(["cap_net_bind_service=+ep"]), true);
+  // A root process can bind 80/443 with no capability; a non-root process cannot.
+  let root = false;
+  try {
+    root = Deno.uid() === 0;
+  } catch {
+    root = false;
+  }
+  assertEquals(canBindPrivilegedPortsNow([]), root);
 });

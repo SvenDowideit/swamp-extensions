@@ -1140,6 +1140,23 @@ export function hasNetBindService(caps: string[]): boolean {
 }
 
 /**
+ * Whether this Caddy can bind privileged ports (80/443) *right now*.
+ *
+ * True when the binary holds CAP_NET_BIND_SERVICE, **or** the process already
+ * runs as root — root needs no capability. A root harness (or a root system
+ * service) can therefore bind 80/443 with no cap, so a config must not be
+ * degraded to high ports merely because the binary lacks the capability.
+ */
+export function canBindPrivilegedPortsNow(capabilities: string[]): boolean {
+  if (hasNetBindService(capabilities)) return true;
+  try {
+    return Deno.uid() === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Render the systemd *user* service unit file content for Caddy.
  *
  * The admin endpoint is configured via the Caddyfile's `admin` global option,
@@ -4551,7 +4568,7 @@ async function assessUpToDate(
     configInSync = false;
   }
   const binPath = expandHome(own.caddyBinPath || "~/.local/bin/caddy");
-  const canBind = hasNetBindService(await readCapabilities(binPath));
+  const canBind = canBindPrivilegedPortsNow(await readCapabilities(binPath));
   const serviceActive = await isServiceActive(own.serviceName);
   const missingModules = missingPlugins(
     withDefaultPlugins(own.plugins ?? []),
@@ -4739,7 +4756,7 @@ async function applyReconcile(
   // unprivileged ports (plain HTTP) so Caddy still loads the config and serves
   // the status page + health contract. The desired settings are kept and applied
   // again once the capability is granted.
-  const canBind = hasNetBindService(
+  const canBind = canBindPrivilegedPortsNow(
     await readCapabilities(expandHome(g.caddyBinPath)),
   );
   const serve = effectiveServeSettings({
@@ -5009,7 +5026,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.10.19",
+  version: "2026.10.11.1",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -5295,6 +5312,12 @@ export const model = {
       toVersion: "2026.10.10.19",
       description:
         "The status page (the page served on localhost) is now wanted by default for EVERY model, including existing ones: a stored `null`/absent statusPage is treated as 'never chose' and falls back to the enabled default, so an existing model gains the page on its next reconcile (opt out with configureStatusPage disabled=true, which now stores an explicit `{enabled:false}`). The page also re-measures its own 'Installed' facts from the binary at every reconcile — its version, file capability, and compiled-in plugins — instead of replaying the snapshot stored when configureStatusPage last ran, so it can no longer report a setting that is not true of the running host (e.g. 'capability not set' after the capability was actually granted). Its 'Listening on' list is likewise the address set actually being applied. No global arguments change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description:
+        "A root process can bind 80/443 with no capability, so a config is no longer degraded to high ports merely because the binary lacks CAP_NET_BIND_SERVICE: 'can bind privileged ports' is now true when the binary holds the capability OR the process runs as root. This one test drives the degrade decision, upgradeCheck's gap report, staleness, and normalizeServingSettings. Fixes a regression that pushed an intentionally-unprivileged root config from :80 to :8080. No global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -6573,7 +6596,7 @@ export const model = {
 
         const serviceActive = await isServiceActive(serviceName);
         const caps = await readCapabilities(binPath);
-        const canBind = hasNetBindService(caps);
+        const canBind = canBindPrivilegedPortsNow(caps);
         const wanted = withDefaultPlugins(g.plugins ?? []);
         const compiled = await compiledPluginPaths(binPath);
         const missingModules = missingPlugins(wanted, compiled);
@@ -6960,7 +6983,9 @@ export const model = {
         const g = context.globalArgs;
         const name = context.definition?.name ?? "";
         const binPath = expandHome(g.caddyBinPath);
-        const canBind = hasNetBindService(await readCapabilities(binPath));
+        const canBind = canBindPrivilegedPortsNow(
+          await readCapabilities(binPath),
+        );
         const own = await loadOwnDesired(context, g);
         const acmeEmail = g.letsEncryptEmail || own.tls?.email || "";
         const want = desiredServingSettings({

@@ -1,0 +1,109 @@
+id: 4f8ec40a-e7d9-437a-8ad3-110e79bc3f7f
+name: "@figy/swamp-worker-teardown"
+description: |
+  Completely remove the workers @figy/swamp-worker-bootstrap deployed to a set of
+  hosts, over SSH.
+
+  Renders the per-node removal script with @svendowideit/swamp-worker, runs it on
+  every node with @swamp/ssh (stop, disable and delete the unit, cache dir,
+  token/env files), then revokes each node's enrollment token on the orchestrator
+  so a worker can never re-enrol.
+
+  The same `hosts` input as the bootstrap:
+
+      swamp workflow run @figy/swamp-worker-teardown \
+        --input 'hosts=[{"name":"host1","address":"host1.lan"}]'
+inputs:
+  properties:
+    hosts:
+      type: array
+      items:
+        type: object
+      default: []
+      description: The node set, each {name, address} — the same names as bootstrap.
+    sshUser:
+      type: string
+      default: sven
+      description: Fleet-default SSH user.
+    sshPort:
+      type: integer
+      default: 22
+      description: Fleet-default SSH port.
+    sshKey:
+      type: string
+      default: ~/.ssh/id_ed25519
+      description: Fleet-default SSH private key path.
+    strictHostKeyChecking:
+      type: string
+      default: accept-new
+      description: SSH StrictHostKeyChecking mode.
+  required: []
+jobs:
+  - name: teardown
+    description: Render removal, run it on the nodes, revoke the tokens, verify.
+    steps:
+      - name: render-removal
+        description: >
+          Render the per-node removal script (paths portable with $HOME) into a
+          `removal` resource.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          methodName: renderRemoval
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: remove-on-nodes
+        description: >
+          Run the removal script on every node over SSH: stop, disable and delete
+          the unit and its artifacts.
+        task:
+          type: model_method
+          modelType: "@swamp/ssh"
+          modelName: figy-workers
+          methodName: script
+          globalArgs:
+            name: figy-workers
+            transport:
+              kind: ssh
+              user: ${{ inputs.sshUser }}
+              port: ${{ inputs.sshPort }}
+              identityFile: ${{ inputs.sshKey }}
+              strictHostKeyChecking: ${{ inputs.strictHostKeyChecking }}
+            hosts: ${{ inputs.hosts }}
+          inputs:
+            hosts: all
+            script: ${{ data.latest("worker", "removal").attributes.script }}
+        dependsOn:
+          - step: render-removal
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: revoke-tokens
+        description: >
+          Revoke each node's enrollment token on the orchestrator, so a worker can
+          never re-enrol. Only this identity's tokens (one per node) are revoked.
+        forEach:
+          item: h
+          in: ${{ inputs.hosts }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          methodName: revokeToken
+          inputs:
+            node: ${{ self.h.name }}
+            purgeFile: true
+        dependsOn:
+          - step: remove-on-nodes
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

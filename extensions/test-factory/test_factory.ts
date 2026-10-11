@@ -77,7 +77,7 @@ import {
   parseHarnessResult,
   phaseClaims,
 } from "./harness.ts";
-import { inspectExtension } from "./introspect.ts";
+import { inspectExtension, parseExtensionManifest } from "./introspect.ts";
 import { applyGrantScript, planGrants } from "./grants.ts";
 import {
   applyRunToken,
@@ -552,6 +552,12 @@ interface Candidate {
   system: TestSystem;
   /** Sibling extensions to register, with repo-relative paths resolved. */
   extensionDirs: Array<{ name: string; abs: string }>;
+  /**
+   * Registry extensions the manifest declares and that are NOT already provided
+   * by a local sibling — the harness pulls these before the phases run, so a
+   * workflow that references them validates and runs.
+   */
+  dependencies: string[];
   /** How much of the documented/shipped surface the tests exercise. */
   coverage: CoverageReport;
 }
@@ -764,6 +770,7 @@ async function runScenario(
       name: e.name,
       mount: `/opt/ext-${i + 1}`,
     })),
+    dependencies: candidate.dependencies,
   };
 
   const result = blankResult(
@@ -1544,7 +1551,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.11.4",
+  version: "2026.10.11.5",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1621,6 +1628,12 @@ export const model = {
       toVersion: "2026.10.11.4",
       description:
         "Adds an in-harness SSH server so a candidate can exercise the real `@swamp/ssh` deploy path against a 'remote host' in dind. `test-factory.yaml` gains `harness.sshd` (true, or `{ port: N }`): the harness installs openssh-server/client, generates a client keypair, authorizes it for the phase user, starts sshd on loopback, and exports `TF_SSH_HOST`/`TF_SSH_PORT`/`TF_SSH_USER`/`TF_SSH_KEY`/`TF_SSH_KEY_PUB`/`TF_SSH_KNOWN_HOSTS` to every test step. The `result` gains an `sshd` boolean and a `sshd` phase: a run that requested `harness.sshd` but could not bring it up fails with a clear error. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.5",
+      description:
+        "The harness now installs a candidate's declared `dependencies:` (registry extensions) before the phases run — skipping any already provided by a local sibling — so a workflow that references another extension validates and runs. The in-harness `harness.sshd` server gains a `Subsystem sftp internal-sftp`, so `scp` (which uses the SFTP protocol on OpenSSH 9+) works against it — needed by an `@swamp/ssh copy`. Schema is additive; existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2240,6 +2253,21 @@ async function resolveCandidate(
     typeMethods: info.typeMethods,
     workflows: info.workflowNames,
   });
+  // A declared dependency already provided by a local sibling working copy needs
+  // no pull; anything else must come from the registry.
+  const siblingNames = new Set<string>();
+  for (const e of system.extensions) {
+    const siblingManifest = await Deno.readTextFile(
+      resolve(repoDir, e.path, "manifest.yaml"),
+    ).catch(() => "");
+    if (siblingManifest) {
+      const nm = parseExtensionManifest(siblingManifest).name;
+      if (nm) siblingNames.add(nm);
+    }
+  }
+  const dependencies = (info.manifest.dependencies ?? []).filter((d) =>
+    !siblingNames.has(d)
+  );
   return {
     manifestAbs,
     dir: dirname(manifestAbs),
@@ -2253,6 +2281,7 @@ async function resolveCandidate(
       name: e.name,
       abs: resolve(repoDir, e.path),
     })),
+    dependencies,
     coverage,
   };
 }

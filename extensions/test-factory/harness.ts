@@ -96,6 +96,12 @@ export interface HarnessPlan {
    * the source is bind-mounted at.
    */
   extensionSources?: Array<{ name: string; mount: string }>;
+  /**
+   * Registry extensions the candidate declares (`dependencies:`) that no local
+   * sibling provides. The harness pulls each before the phases run, so workflows
+   * referencing them validate and run.
+   */
+  dependencies?: string[];
 }
 
 /** A named phase of the in-container test. */
@@ -443,6 +449,7 @@ export function buildHarnessScript(plan: HarnessPlan): string {
       "PasswordAuthentication no",
       "ChallengeResponseAuthentication no",
       "UsePAM no",
+      "Subsystem sftp internal-sftp",
       "CONF",
       "  if command -v systemctl >/dev/null 2>&1 && systemctl is-system-running >/dev/null 2>&1; then",
       "    systemctl stop ssh >/dev/null 2>&1 || systemctl stop sshd >/dev/null 2>&1 || true",
@@ -617,6 +624,28 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     'if [ "$SOURCE_ADD_OK" -eq 0 ]; then record sourceAddOk true; else record sourceAddOk false; fi',
     "",
   );
+  // Registry extensions the candidate declares and no local sibling provides.
+  // Pull them so a workflow referencing them validates and runs. Best-effort: a
+  // failure is recorded (the affected workflow/type then fails its own phase with
+  // a clear 'unknown type' error rather than aborting the harness).
+  const deps = plan.dependencies ?? [];
+  if (deps.length > 0) {
+    push(
+      "# --- declared dependencies (registry extensions) -----------------------",
+    );
+    deps.forEach((dep, i) => {
+      const log = `/tmp/dep-${i + 1}.log`;
+      push(
+        `DEP_PULL_OK=0`,
+        `cd "$REPO" || exit 1`,
+        `swamp extension pull ${
+          shellQuote(dep)
+        } >${log} 2>&1 || DEP_PULL_OK=$?`,
+        `record_ev smoke "swamp extension pull ${dep}" "$DEP_PULL_OK" ${log} /dev/null`,
+      );
+    });
+    push("");
+  }
   if (want("smoke")) {
     push(
       "swamp doctor extensions --json >/tmp/doctor.json 2>/tmp/doctor.err",

@@ -23,6 +23,8 @@ export interface ExtensionManifest {
   vaults: string[];
   datastores: string[];
   webhooks: string[];
+  /** Registry extensions the candidate depends on, e.g. `@swamp/ssh`. */
+  dependencies: string[];
   /** Extra files the extension ships, e.g. README and its test-factory.yaml. */
   additionalFiles: string[];
 }
@@ -39,6 +41,7 @@ export function parseExtensionManifest(text: string): ExtensionManifest {
     vaults: [],
     datastores: [],
     webhooks: [],
+    dependencies: [],
     additionalFiles: [],
   };
   const lines = text.split("\n");
@@ -82,6 +85,7 @@ export function parseExtensionManifest(text: string): ExtensionManifest {
         case "vaults":
         case "datastores":
         case "webhooks":
+        case "dependencies":
         case "additionalFiles": {
           const listKey = key as
             | "models"
@@ -90,6 +94,7 @@ export function parseExtensionManifest(text: string): ExtensionManifest {
             | "vaults"
             | "datastores"
             | "webhooks"
+            | "dependencies"
             | "additionalFiles";
           currentList = listKey;
           // Inline list form: `models: [a.ts, b.ts]`

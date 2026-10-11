@@ -24,6 +24,10 @@ how uncommitted work is lost. Full conventions:
 
 Everything bases on and merges to **`main`** (no stacked PRs).
 
+`fleet test` resolves a **relative** candidate path inside the item's own
+worktree (swamp resolves a relative `--input manifest` against its own repo dir —
+the primary checkout — which would test the wrong tree).
+
 ## The gate
 
 `scripts/fleet/gate` fails a PR that changes what a model type *does* — its

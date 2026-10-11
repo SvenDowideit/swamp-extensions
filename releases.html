@@ -912,7 +912,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Gate timing.</strong> <code>worker connect</code> gets a new gate timing, <code>enrollment</code>. A <code>no_credential</code> block waits for enrollment instead of ending the run. Every other block still ends the run before the command starts, including a rejected key and a day of failing open. A worker with its own credential behaves exactly as before.</li>
 <li><strong>Protocol.</strong> A keyless worker sends <code>needsGatePass</code>. The serve replies with <code>gatePass</code>: the swamp-club-signed proof its own pass rests on, encoded as <code>&lt;proof&gt;.&lt;signature&gt;</code> with no pid. Both fields are optional, so the protocol version is unchanged. A serve with no pass to give refuses with <code>gate_pass_unavailable</code> before it redeems the token, so no enro</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/auth-gate.md" rel="noopener">design/surfaces/auth-gate.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/auth-gate.md" rel="noopener">design/surfaces/auth-gate.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261008.183339.0-sha.231eda34" rel="noopener">release v20261008.183339.0-sha.231eda34</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/231eda3435c41f9db556fff3645a0bbaa02280b2" rel="noopener">231eda34</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2942" rel="noopener">#2942</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2781" rel="noopener">#2781</a>𝗔 <a href="https://swamp-club.com/lab/2231" rel="noopener">lab#2231</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261008-181122-0-sha-25d6c2db">
@@ -2695,7 +2695,7 @@ footer .ver{color:var(--acc)}
 <li>Delete, GC and the write-time cap count, keep, prune and pick the new latest from promoted versions only. When only in-flight writes remain, the latest marker points at a never-allocated version (0), so reads find nothing until promotion.</li>
 <li>Deferred writes are registered as pending as soon as the version is allocated, before any file lands (<code>allocateVersion</code> gains an optional `{ def</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/models.md" rel="noopener">design/primitives/models.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261006.152703.0-sha.5ba0b8fc" rel="noopener">release v20261006.152703.0-sha.5ba0b8fc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5ba0b8fc821b3a6c5aab24acf9cc26719b9096e4" rel="noopener">5ba0b8fc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2864" rel="noopener">#2864</a>𝗔 <a href="https://swamp-club.com/lab/2975" rel="noopener">lab#2975</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261006-151224-0-sha-4c64b68c">
@@ -3497,7 +3497,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Indexed identity read.</strong> <code>modelType == &quot;&lt;literal&gt;&quot;</code> and <code>modelId == &quot;&lt;literal&gt;&quot;</code> top-level equalities now push down to SQL (<code>type_normalized</code> and <code>model_id</code> are exactly what those fields map to).</li>
 <li><strong>Docs.</strong> <code>design/primitives/data.md</code>, the <code>design/enablers/data-query.md</code> pushdown table and flow, and the swamp skill&#39;</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/api.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261005.152146.0-sha.f4a79f8d" rel="noopener">release v20261005.152146.0-sha.f4a79f8d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f4a79f8d0893f9f94e2752c6aa25c8ee2287d1a6" rel="noopener">f4a79f8d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2826" rel="noopener">#2826</a>𝗔 <a href="https://swamp-club.com/lab/3011" rel="noopener">lab#3011</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261005-144604-0-sha-bf3c1a45">
@@ -5305,7 +5305,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 143</li><li><strong>feat</strong> — 53</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-11T14:03:40.453Z">2026-10-11T14:03:40.453Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-11T15:04:27.704Z">2026-10-11T15:04:27.704Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

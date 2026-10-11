@@ -7,6 +7,11 @@
 #
 # Each test uses its own model instance name so the tests are independent when
 # they share one container.
+#
+# `harness.sshd` starts an SSH server in the harness, so the last test can prove
+# the "remote host" a candidate's @swamp/ssh deploy path needs is reachable.
+harness:
+  sshd: true
 tests:
   - name: list-scenarios-prints-the-catalog
     confirms: >
@@ -78,3 +83,32 @@ tests:
             - cleanup
           outputNotContains:
             - panic
+
+  - name: sshd-remote-host-is-reachable
+    confirms: >
+      With `harness.sshd: true`, the harness starts an SSH server on loopback and
+      exports TF_SSH_* (host, port, user, key), so a candidate can SSH into a
+      real "remote host" — the transport an @swamp/ssh deploy path uses. The key
+      file is present (0600) and a key-only login as the phase user succeeds.
+    cannot: >
+      must not leave the SSH key missing, and must not reject the key login.
+    documents: README.md#container-test-systems-networks-harness-services
+    steps:
+      - name: ssh-key-is-present-and-private
+        run: |
+          printf 'mode=%s\n' "$(stat -c '%a' "$TF_SSH_KEY")"
+          test -f "$TF_SSH_KEY" && echo KEY_PRESENT
+        expect:
+          exitCode: 0
+          stdoutContains: ["KEY_PRESENT", "mode=600"]
+          stdoutNotContains: ["mode=644"]
+      - name: key-login-succeeds
+        run: >
+          ssh -i "$TF_SSH_KEY" -o StrictHostKeyChecking=no
+          -o UserKnownHostsFile="$TF_SSH_KNOWN_HOSTS" -o BatchMode=yes
+          -p "$TF_SSH_PORT" "$TF_SSH_USER@$TF_SSH_HOST"
+          'echo REMOTE_HOST_OK; whoami'
+        expect:
+          exitCode: 0
+          stdoutContains: ["REMOTE_HOST_OK"]
+          stdoutNotContains: ["Permission denied", "Connection refused"]

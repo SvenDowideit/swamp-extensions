@@ -80,6 +80,15 @@ export interface HarnessPlan {
   /** Install `dig`/`nslookup` in the container before the tests run. */
   dnsTools?: boolean;
   /**
+   * Run an SSH server inside the harness so a candidate can exercise the
+   * `@swamp/ssh` path against a real "remote host" (loopback). The harness
+   * installs `openssh-server`, keys, and starts `sshd`; the `TF_SSH_*` vars are
+   * exported to every test step via `variables`.
+   */
+  sshd?: boolean;
+  /** Port `sshd` listens on inside the harness (default 22). */
+  sshdPort?: number;
+  /**
    * Sibling local extensions the candidate calls at runtime, copied into the
    * harness repo and registered as extension sources before the candidate, so
    * model types from other working copies (`@svendowideit/caddy`,
@@ -383,6 +392,83 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     "",
   );
 
+  // --- sshd: a real "remote host" on loopback (for @swamp/ssh candidates) ---
+  // A shell function shared by the root prelude and the default root path, so
+  // the SSH server is set up once, before any phase runs. It authorizes a
+  // generated key for the phase user, starts sshd, and records `sshd` (true/false)
+  // plus evidence; the TF_SSH_* vars are exported to test steps via `variables`.
+  if (plan.sshd) {
+    const sshdPort = plan.sshdPort && plan.sshdPort > 0 ? plan.sshdPort : 22;
+    push(
+      "# --- SSH server (function): a real remote host on loopback ------------",
+      "tf_setup_sshd() {",
+      `  SSH_USER=${shellQuote(runAs)}`,
+      `  SSH_PORT=${sshdPort}`,
+      "  TF_SSH_DIR=/tf/ssh",
+      '  TF_SSH_KEY="$TF_SSH_DIR/id_ed25519"',
+      '  TF_SSH_PUB="$TF_SSH_DIR/id_ed25519.pub"',
+      '  TF_SSH_KNOWN_HOSTS="$TF_SSH_DIR/known_hosts"',
+      '  mkdir -p "$TF_SSH_DIR" /run/sshd 2>/dev/null || true',
+      "  # openssh server + client (ssh, ssh-keygen, ssh-keyscan)",
+      "  if ! command -v sshd >/dev/null 2>&1 || ! command -v ssh >/dev/null 2>&1; then",
+      "    if command -v apt-get >/dev/null 2>&1; then",
+      "      apt-get update -qq >/dev/null 2>&1; DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server openssh-client >/dev/null 2>&1",
+      "    elif command -v dnf >/dev/null 2>&1; then",
+      "      dnf install -y -q openssh-server openssh-clients >/dev/null 2>&1",
+      "    elif command -v apk >/dev/null 2>&1; then",
+      "      apk add --no-cache openssh openssh-client >/dev/null 2>&1",
+      "    fi",
+      "  fi",
+      "  SSHD_BIN=$(command -v sshd || echo /usr/sbin/sshd)",
+      "  ssh-keygen -A >/dev/null 2>&1 || true",
+      '  [ -f "$TF_SSH_KEY" ] || ssh-keygen -t ed25519 -N \'\' -f "$TF_SSH_KEY" >/dev/null 2>&1',
+      "  # authorize the client key for the phase user (and root)",
+      '  SSH_HOME=$(getent passwd "$SSH_USER" 2>/dev/null | cut -d: -f6)',
+      '  [ -n "$SSH_HOME" ] || SSH_HOME="/home/$SSH_USER"',
+      '  [ "$SSH_USER" = "root" ] && SSH_HOME=/root',
+      '  mkdir -p "$SSH_HOME/.ssh" /root/.ssh',
+      '  cat "$TF_SSH_PUB" >> "$SSH_HOME/.ssh/authorized_keys"',
+      '  [ "$SSH_USER" = "root" ] || cat "$TF_SSH_PUB" >> /root/.ssh/authorized_keys',
+      '  chmod 700 "$SSH_HOME/.ssh" /root/.ssh 2>/dev/null || true',
+      '  chmod 600 "$SSH_HOME/.ssh/authorized_keys" /root/.ssh/authorized_keys 2>/dev/null || true',
+      '  chown -R "$SSH_USER" "$SSH_HOME/.ssh" 2>/dev/null || true',
+      "  # a standalone config so we control the port and avoid distro service quirks",
+      "  cat > /etc/ssh/tf_sshd_config <<CONF",
+      "Port $SSH_PORT",
+      "HostKey /etc/ssh/ssh_host_ed25519_key",
+      "HostKey /etc/ssh/ssh_host_rsa_key",
+      "PidFile /run/sshd-tf.pid",
+      "PermitRootLogin prohibit-password",
+      "PubkeyAuthentication yes",
+      "PasswordAuthentication no",
+      "ChallengeResponseAuthentication no",
+      "UsePAM no",
+      "CONF",
+      "  if command -v systemctl >/dev/null 2>&1 && systemctl is-system-running >/dev/null 2>&1; then",
+      "    systemctl stop ssh >/dev/null 2>&1 || systemctl stop sshd >/dev/null 2>&1 || true",
+      "  fi",
+      '  nohup "$SSHD_BIN" -f /etc/ssh/tf_sshd_config -E /tf/sshd.log >/dev/null 2>&1 &',
+      '  SSH_OPTS="-i $TF_SSH_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=$TF_SSH_KNOWN_HOSTS -o BatchMode=yes -o ConnectTimeout=3"',
+      "  i=0; SSH_OK=false",
+      '  while [ "$i" -lt 30 ]; do',
+      '    if ssh $SSH_OPTS -p "$SSH_PORT" "$SSH_USER@127.0.0.1" \'echo TF_SSH_OK\' 2>/dev/null | grep -q TF_SSH_OK; then SSH_OK=true; break; fi',
+      "    i=$((i+1)); sleep 1",
+      "  done",
+      '  ssh-keyscan -p "$SSH_PORT" -H 127.0.0.1 >> "$TF_SSH_KNOWN_HOSTS" 2>/dev/null || true',
+      '  if [ "$SSH_OK" = "true" ]; then',
+      "    record sshd true",
+      '    log "sshd ready on 127.0.0.1:$SSH_PORT as $SSH_USER"',
+      '    record_ev sshd "sshd on 127.0.0.1:$SSH_PORT + successful ssh login as $SSH_USER" 0 /tf/sshd.log /dev/null',
+      "  else",
+      "    record sshd false",
+      '    log "sshd did NOT come up; see /tf/sshd.log"',
+      '    record_ev sshd "sshd login failed" 1 /tf/sshd.log /dev/null',
+      "  fi",
+      "}",
+      "",
+    );
+  }
+
   if (nonRoot) {
     // Root prelude: install swamp, prepare the sandbox dirs and the user, then
     // drop to `runAs` for every phase. The user needs to own the repo and /tf;
@@ -401,6 +487,7 @@ export function buildHarnessScript(plan: HarnessPlan): string {
         " 2>/dev/null || true",
       "  if command -v loginctl >/dev/null 2>&1; then loginctl enable-linger " +
         runAs + " >/dev/null 2>&1 || true; fi",
+      ...(plan.sshd ? ["  tf_setup_sshd"] : []),
       ...(plan.dnsTools
         ? [
           "  # dns tooling needs root; the tests phase skips it once present.",
@@ -434,6 +521,7 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     push(
       "# --- 1. install swamp ---------------------------------------------------",
       "tf_install_swamp",
+      ...(plan.sshd ? ["tf_setup_sshd"] : []),
       "",
     );
   }
@@ -740,6 +828,8 @@ export interface HarnessResult {
   doctorStates: Record<string, number>;
   /** `systemctl is-system-running` output when systemd was expected. */
   systemd?: string;
+  /** Whether the requested in-harness SSH "remote host" came up. */
+  sshd?: boolean;
   /** Pre-elevation identity + daemon endpoint (isolation evidence, §16.1). */
   harnessIsolation?: HarnessIsolation;
   /** Whether the extension source was added successfully. */
@@ -809,6 +899,7 @@ export function parseHarnessResult(text: string): HarnessResult {
     doctorStatus: parsed.doctorStatus ?? "unknown",
     doctorStates: parsed.doctorStates ?? {},
     systemd: parsed.systemd,
+    sshd: parsed.sshd,
     harnessIsolation: parsed.harnessIsolation,
     sourceAddOk: parsed.sourceAddOk ?? false,
     registeredTypes: parsed.registeredTypes ?? [],
@@ -940,6 +1031,7 @@ export function evaluateResult(
   phases: HarnessPhase[],
   expected: "pass" | "fail",
   expectSystemd = false,
+  expectSshd = false,
 ): {
   phases: Array<{ phase: string; ok: boolean; detail: string }>;
   ok: boolean;
@@ -956,6 +1048,20 @@ export function evaluateResult(
     systemdOk = state === "running" || state === "degraded";
     out.push({ phase: "systemd", ok: systemdOk, detail: `systemd: ${state}` });
     if (!systemdOk && expectPass) errors.push(`systemd not running: ${state}`);
+  }
+
+  if (expectSshd && result.installOk) {
+    const sshdOk = result.sshd === true;
+    out.push({
+      phase: "sshd",
+      ok: sshdOk,
+      detail: sshdOk
+        ? "sshd: ready (loopback remote host)"
+        : "sshd: requested but not running",
+    });
+    if (!sshdOk && expectPass) {
+      errors.push("sshd: requested (harness.sshd) but did not come up");
+    }
   }
 
   if (!result.installOk) {
@@ -1044,7 +1150,11 @@ export function evaluateResult(
   // not fail the run — e.g. a tests-only run never executes `doctor` (a `smoke`
   // check), so `smoke` must not drag an otherwise-green run to fail.
   const gated = out.filter((p) =>
-    p.phase === "systemd" ? expectSystemd : want(p.phase as HarnessPhase)
+    p.phase === "systemd"
+      ? expectSystemd
+      : p.phase === "sshd"
+      ? expectSshd
+      : want(p.phase as HarnessPhase)
   );
   const ran = gated.every((p) => p.ok);
   const ok = expectPass ? ran : !ran;

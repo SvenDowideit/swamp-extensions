@@ -1,0 +1,96 @@
+id: ee24e09a-b60f-4b71-a4ef-06b2b463099d
+name: "@figy/swamp-worker-bootstrap"
+description: |
+  Enlist this host as a swamp worker for an fi.gy `swamp serve`, in order.
+
+  Mints a long-duration enrollment token, renders and reconciles the
+  `swamp-worker-<identity>` systemd user unit (enable + linger, restarting only
+  when the unit changed), and reports the live unit and enrollment status.
+
+  Re-run it to reconcile: nothing is re-installed, only what drifted is applied.
+
+  Create the generic model first (identity namespaces the worker):
+    swamp model create @svendowideit/swamp-worker worker \
+      --global-arg identity=figy
+
+  Run:
+    swamp workflow run @figy/swamp-worker-bootstrap \
+      --input serveUrl=wss://swamp.x1yoga.fi.gy
+inputs:
+  properties:
+    serveUrl:
+      type: string
+      default: ""
+      description: >-
+        The serve URL the worker dials (wss:// for a TLS front). Required.
+    identity:
+      type: string
+      default: "figy"
+      description: Worker identity slug; namespaces the unit and artifacts.
+    duration:
+      type: string
+      default: "30d"
+      description: Enrollment token lifetime (a hard deadline).
+  required:
+    - serveUrl
+jobs:
+  - name: provision
+    description: Mint the token, reconcile the unit, report status.
+    steps:
+      - name: mint
+        description: >-
+          Mint a fresh enrollment token for this identity and write it to the
+          0600 token file the unit reads. The plaintext never enters swamp data.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          methodName: mintToken
+          globalArgs:
+            identity: ${{ inputs.identity }}
+          inputs:
+            duration: ${{ inputs.duration }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: service
+        description: >-
+          Render the unit, write it only if it changed, daemon-reload, enable it
+          with linger and start it (restarting only when the unit changed).
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          methodName: ensureService
+          globalArgs:
+            identity: ${{ inputs.identity }}
+          inputs:
+            serveUrl: ${{ inputs.serveUrl }}
+        dependsOn:
+          - step: mint
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: status
+        description: >-
+          Report the live unit state and whether this identity's workers are
+          enrolled on the orchestrator.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          methodName: status
+          globalArgs:
+            identity: ${{ inputs.identity }}
+        dependsOn:
+          - step: service
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

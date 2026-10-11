@@ -1,0 +1,102 @@
+manifestVersion: 1
+name: "@svendowideit/swamp-worker"
+version: "2026.10.11.1"
+description: >
+  Enlist a host as a swamp worker for one `swamp serve` orchestrator: render and
+  reconcile its systemd user unit, ensure the swamp binary, mint its enrollment
+  token, and report or remove exactly the worker this repo owns.
+
+  WHAT IT DOES
+
+    Turns "make this host a worker for my serve" into repeatable swamp methods.
+    The model renders the worker's systemd *user* unit from the desired state,
+    writes it only when it changed, and starts it with `enable --now` plus
+    `loginctl enable-linger` so the worker survives logout and reboot. It mints a
+    long-duration enrollment token to a `0600` file, reports live unit and
+    enrollment status, and on `remove` deletes only its own namespaced artifacts.
+    Prefer it over `swamp worker daemon enable`: the built-in daemon hardcodes
+    the unit name `swamp-worker`, so only one worker can exist per host — this
+    model namespaces every artifact by `identity` (`swamp-worker-<identity>`,
+    cache dir, token/env files), so a worker this repo manages coexists with
+    workers other swamps install on the same host and never touches them. It is
+    portable: it knows no domain, no serve hostname and no node set of its own.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/swamp-worker
+
+  DEPENDENCIES
+
+    None installed on the host beyond the swamp binary itself and the host's own
+    systemd (`systemctl --user`, `loginctl`). A site extension
+    (`@figy/swamp-worker`) supplies the serve URL, node set and secret handling
+    and drives this model over SSH. Linux only.
+
+  RUN
+
+      # Create the worker instance, then mint a token and bring the unit up on
+      # THIS host. Set identity so the worker is namespaced and unique per repo.
+      swamp model create @svendowideit/swamp-worker worker \
+        --global-arg identity=figy
+      swamp model method run worker mintToken \
+        --input duration=30d
+      swamp model method run worker ensureService \
+        --input serveUrl=wss://swamp.x1yoga.fi.gy
+
+      # Inspect the desired unit without changing the host, then read its state.
+      swamp model method run worker renderUnit \
+        --input serveUrl=wss://swamp.x1yoga.fi.gy
+      swamp model method run worker status
+
+      # Reverse it: stop, disable and delete only this identity's artifacts.
+      swamp model method run worker remove
+
+  CONFIGURE
+
+    Global arguments (set at model creation with `--global-arg key=value`, or
+    edited later with `swamp model edit`):
+
+        identity        worker slug that namespaces every artifact   (worker)
+        swampBinPath    absolute path to the swamp binary            (/usr/local/bin/swamp)
+        repoDir         repo dir for local `swamp worker token`      (.)
+        configDir       token/env file dir (0600)                    (~/.config/swamp-worker)
+        cacheDirRoot    per-identity cache dir root                  (~/.local/share/swamp-worker)
+        unitDir         systemd user unit dir                        (~/.config/systemd/user)
+        swampHome       SWAMP_HOME in the unit                       (~/.swamp)
+        swampConfigDir  SWAMP_CONFIG_DIR in the unit                 (~/.config/swamp)
+        concurrency     worker --concurrency                         (auto)
+        enableLinger    run `loginctl enable-linger`                 (true)
+
+    Per call: `renderUnit`/`ensureService` take `serveUrl`, optional `host`,
+    `labels` (KEY=VALUE strings), `concurrency` and `force`; `mintToken` takes
+    `node` and `duration`; `remove` takes `purgeData`.
+
+  WHAT IT INSTALLS
+
+    On the host: a systemd *user* unit `swamp-worker-<identity>.service`, the
+    worker's cache dir (holding the enrollment machine-id), and `0600` token and
+    env files under `configDir`. It enables user lingering. It installs no cron
+    triggers or webhooks of its own. `remove` deletes those artifacts and
+    nothing else — foreign worker units are never enumerated or touched.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - swamp_worker.ts
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - swamp_worker_test.ts
+  - test-factory.yaml
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64

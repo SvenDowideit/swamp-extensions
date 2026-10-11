@@ -4,9 +4,54 @@ import {
   lintTestSystem,
   parseTestSystem,
   resolveSystemSubnets,
+  sshdVariables,
   systemVariables,
 } from "./services.ts";
 import { parseCidrs } from "./networks.ts";
+
+const SSH_YAML = `
+harness:
+  sshd: true
+  runAs: tester
+  sshdPort: 2222
+`;
+
+Deno.test("parseTestSystem reads harness.sshd and sshdPort", () => {
+  const s = parseTestSystem(SSH_YAML);
+  assertEquals(s.harness.sshd, true);
+  assertEquals(s.harness.sshdPort, 2222);
+  assertEquals(s.harness.runAs, "tester");
+});
+
+Deno.test("harness.sshd: true uses the default port 22", () => {
+  const s = parseTestSystem("harness:\n  sshd: true\n");
+  assertEquals(s.harness.sshd, true);
+  assertEquals(s.harness.sshdPort, 22);
+});
+
+Deno.test("harness.sshd defaults off", () => {
+  const s = parseTestSystem("harness: { dig: true }");
+  assertEquals(s.harness.sshd, false);
+});
+
+Deno.test("sshdVariables exposes the loopback remote host", () => {
+  assertEquals(sshdVariables(parseTestSystem(SSH_YAML)), {
+    TF_SSH_HOST: "127.0.0.1",
+    TF_SSH_PORT: "2222",
+    TF_SSH_USER: "tester",
+    TF_SSH_KEY: "/tf/ssh/id_ed25519",
+    TF_SSH_KEY_PUB: "/tf/ssh/id_ed25519.pub",
+    TF_SSH_KNOWN_HOSTS: "/tf/ssh/known_hosts",
+  });
+  assertEquals(sshdVariables(parseTestSystem("harness: { dig: true }")), {});
+});
+
+Deno.test("lintTestSystem rejects an invalid sshdPort", () => {
+  const issues = lintTestSystem(
+    parseTestSystem("harness:\n  sshd: true\n  sshdPort: 0\n"),
+  );
+  assert(issues.some((i) => i.includes("sshdPort")));
+});
 
 const SUBNET_YAML = `
 networks:

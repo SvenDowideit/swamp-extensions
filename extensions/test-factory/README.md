@@ -118,8 +118,39 @@ services:
 - **`networks`** — `name: { subnet }`. Pin the subnet so a static `ipv4_address`
   is valid (docker refuses an out-of-subnet address).
 - **`harness`** — the swamp container's own `networks` (with optional static
-  IPs; two networks give it two endpoints) and `dig: true` to install `dig` into
-  the harness image before the tests.
+  IPs; two networks give it two endpoints), `dig: true` to install `dig` into
+  the harness image before the tests, and `sshd: true` (or `sshd: { port: 2222 }`)
+  to run an SSH server *inside* the harness — a real "remote host" on loopback
+  for a candidate whose deploy path is `@swamp/ssh`. The harness installs
+  openssh-server/client, generates a client keypair, authorizes it for the phase
+  user, starts `sshd`, and exports `TF_SSH_HOST` (`127.0.0.1`), `TF_SSH_PORT`,
+  `TF_SSH_USER` (the phase user), `TF_SSH_KEY`, `TF_SSH_KEY_PUB` and
+  `TF_SSH_KNOWN_HOSTS` to every test step. A run that requests `sshd` but cannot
+  bring it up fails with a clear `sshd` phase error rather than a confusing
+  later failure:
+
+  ```yaml
+  harness:
+    sshd: true              # or: sshd: { port: 2222 }
+
+  tests:
+    - name: worker-deploys-over-ssh
+      confirms: a candidate can provision the "remote host" over SSH
+      cannot: must not fail to reach it
+      documents: README.md#examples
+      steps:
+        # The topology's SSH host is addressable purely from the TF_SSH_* vars.
+        - name: ssh-login
+          run: >
+            ssh -i "$TF_SSH_KEY" -o StrictHostKeyChecking=no
+            -o UserKnownHostsFile="$TF_SSH_KNOWN_HOSTS" -p "$TF_SSH_PORT"
+            "$TF_SSH_USER@$TF_SSH_HOST" 'echo REMOTE_OK'
+          expect: { stdoutContains: ["REMOTE_OK"] }
+  ```
+
+  The host is loopback, so a candidate that SSHes in and starts a systemd user
+  service lands it on the same systemd host — the single-container counterpart of
+  a remote worker node.
 - **`services`** — `name: { image | build, networks, healthcheck | waitForSeconds, environment, mounts, command, privileged, dockerfile }`.
   Each is reachable by name (a docker network alias), so a test can `dig @bind`
   without knowing its address. `build` is a context directory relative to the

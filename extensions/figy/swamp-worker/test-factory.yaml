@@ -1,0 +1,120 @@
+# Acceptance tests for @figy/swamp-worker — the site deploy workflow that drives
+# the generic @svendowideit/swamp-worker model.
+#
+# Run it on a systemd host:
+#   swamp model @svendowideit/test-factory method run test tf \
+#     --input manifest=extensions/figy/swamp-worker/manifest.yaml \
+#     --input scenario=ubuntu-systemd-standalone
+#
+# Network access: the swamp release download only. `swamp serve` runs on
+# loopback with `--auth-mode none`, so no swamp-club account is needed.
+
+extensions:
+  swamp-worker: extensions/models/swamp-worker
+
+tests:
+  - name: bootstrap-deploys-worker
+    confirms: >
+      `@figy/swamp-worker-bootstrap` mints an enrollment token, renders and
+      reconciles the `swamp-worker-figy` systemd user unit on this host, and the
+      worker enrolls on a real `swamp serve` — the whole site deploy in one run.
+    cannot: >
+      must not leave the unit inactive, and must not fail to enroll.
+    documents: README.md#examples
+    variables:
+      IDENTITY: figy
+      SERVE_URL: ws://127.0.0.1:9090
+      BIN: /usr/local/bin/swamp
+      REPO: /work/repo
+    steps:
+      - name: systemd-user-manager-is-running
+        run: systemctl --user is-system-running
+        expect:
+          stdoutContains: ["running"]
+      - name: start-serve
+        run: |
+          cd "$REPO"
+          nohup swamp serve --host 127.0.0.1 --port 9090 --auth-mode none >/tmp/serve.log 2>&1 &
+          echo $! > /tmp/serve.pid
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:9090/ready >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:9090/ready >/dev/null && echo SERVE_READY
+        expect:
+          exitCode: 0
+          outputContains: ["SERVE_READY"]
+          outputNotContains: ["SERVE_TIMEOUT"]
+        timeoutSeconds: 120
+      - name: create-worker-model
+        run: |
+          swamp model create @svendowideit/swamp-worker worker \
+            --global-arg identity=$IDENTITY \
+            --global-arg swampBinPath=$BIN \
+            --global-arg repoDir=$REPO
+        expect:
+          exitCode: 0
+          outputNotContains: ["error"]
+      - name: run-site-workflow
+        run: swamp workflow run @figy/swamp-worker-bootstrap --input serveUrl=$SERVE_URL
+        expect:
+          exitCode: 0
+          outputContains: ["succeeded"]
+          outputNotContains: ["panic", "failed"]
+        timeoutSeconds: 180
+      - name: token-file-is-0600
+        run: stat -c '%a' /root/.config/swamp-worker/figy.token
+        expect:
+          stdoutContains: ["600"]
+          stdoutNotContains: ["644"]
+      - name: unit-is-active
+        run: systemctl --user is-active swamp-worker-figy
+        expect:
+          stdoutContains: ["active"]
+          stdoutNotContains: ["failed", "inactive"]
+      - name: worker-enrolled-with-labels
+        run: |
+          for i in $(seq 1 30); do
+            swamp worker list --json 2>/dev/null \
+              | jq -e '.workers[] | select(.labels.serve == "figy")' >/dev/null 2>&1 \
+              && { echo ENROLLED; break; }
+            sleep 2
+          done
+          swamp worker list
+        expect:
+          exitCode: 0
+          outputContains: ["ENROLLED", "figy"]
+          outputNotContains: ["error"]
+        timeoutSeconds: 120
+
+  - name: bootstrap-reconciles-idempotent
+    confirms: >
+      Re-running `@figy/swamp-worker-bootstrap` mints a fresh token and
+      reconciles the unit without restarting the worker — the deploy is
+      idempotent.
+    cannot: >
+      must not restart the already-active worker.
+    documents: README.md#examples
+    variables:
+      SERVE_URL: ws://127.0.0.1:9090
+    steps:
+      - name: capture-active-enter
+        run: |
+          systemctl --user show swamp-worker-figy -p ActiveEnterTimestamp --value > /tmp/before.ts
+          cat /tmp/before.ts
+        expect:
+          exitCode: 0
+      - name: rerun-site-workflow
+        run: swamp workflow run @figy/swamp-worker-bootstrap --input serveUrl=$SERVE_URL
+        expect:
+          exitCode: 0
+          outputContains: ["ensureService"]
+          outputNotContains: ["panic"]
+        timeoutSeconds: 180
+      - name: not-restarted
+        run: |
+          now=$(systemctl --user show swamp-worker-figy -p ActiveEnterTimestamp --value)
+          if [ -n "$now" ] && [ "$now" = "$(cat /tmp/before.ts)" ]; then echo SAME; else echo CHANGED; fi
+        expect:
+          stdoutContains: ["SAME"]
+          stdoutNotContains: ["CHANGED"]

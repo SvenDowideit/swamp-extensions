@@ -92,6 +92,18 @@ export interface HarnessSpec {
    * dirs to the user, then runs the phases as that user.
    */
   runAs: string;
+  /**
+   * Run an SSH server *inside* the harness, exposing a real "remote host" the
+   * candidate can reach over SSH (the `@swamp/ssh` deploy path). The harness
+   * installs `openssh-server`, generates a client keypair and authorizes it for
+   * the phase user, starts `sshd` on `sshdPort`, and exports `TF_SSH_*` (host,
+   * port, user, key, known_hosts) to every test step. The host is loopback, so
+   * a candidate that SSHs in and provisions a service lands it on the same
+   * systemd host — the single-container counterpart of a remote worker node.
+   */
+  sshd: boolean;
+  /** Port `sshd` listens on inside the harness (default 22). */
+  sshdPort: number;
 }
 
 /**
@@ -268,10 +280,22 @@ function parseHarness(v: unknown): HarnessSpec {
     ? v as Record<string, unknown>
     : {};
   const runAs = str(o.runAs ?? o.run_as).trim();
+  // `sshd: true` or `sshd: { port: 2222 }` both enable it.
+  const sshdVal = o.sshd;
+  const sshd = sshdVal === true ||
+    (sshdVal !== null && typeof sshdVal === "object" &&
+      !Array.isArray(sshdVal));
+  const sshdObj = (sshdVal && typeof sshdVal === "object" &&
+      !Array.isArray(sshdVal))
+    ? sshdVal as Record<string, unknown>
+    : {};
+  const sshdPort = num(o.sshdPort ?? o.sshd_port ?? sshdObj.port, 22);
   return {
     networks: parseAttachments(o.networks),
     dig: o.dig === true,
     runAs: runAs.length > 0 ? runAs : "root",
+    sshd,
+    sshdPort,
   };
 }
 
@@ -378,7 +402,13 @@ export function parseTestSystem(text: string): TestSystem {
 export function emptyTestSystem(): TestSystem {
   return {
     networks: [],
-    harness: { networks: [], dig: false, runAs: "root" },
+    harness: {
+      networks: [],
+      dig: false,
+      runAs: "root",
+      sshd: false,
+      sshdPort: 22,
+    },
     services: [],
     extensions: [],
     grants: [],
@@ -420,6 +450,27 @@ export function systemVariables(system: TestSystem): Record<string, string> {
     });
   }
   return vars;
+}
+
+/**
+ * Derive the `TF_SSH_*` shell variables for a candidate that requests an
+ * in-harness SSH "remote host" (`harness.sshd: true`).
+ *
+ * The harness starts `sshd` on loopback, authorizes a generated key for the
+ * phase user, and writes the key under `/tf/ssh`; these vars let a test (or an
+ * `@swamp/ssh` fleet) address that host without hard-coding anything. Returns an
+ * empty record when sshd is not requested.
+ */
+export function sshdVariables(system: TestSystem): Record<string, string> {
+  if (!system.harness.sshd) return {};
+  return {
+    TF_SSH_HOST: "127.0.0.1",
+    TF_SSH_PORT: String(system.harness.sshdPort || 22),
+    TF_SSH_USER: system.harness.runAs,
+    TF_SSH_KEY: "/tf/ssh/id_ed25519",
+    TF_SSH_KEY_PUB: "/tf/ssh/id_ed25519.pub",
+    TF_SSH_KNOWN_HOSTS: "/tf/ssh/known_hosts",
+  };
 }
 
 /**
@@ -491,6 +542,15 @@ export function lintTestSystem(system: TestSystem): string[] {
   if (!/^[a-z_][a-z0-9_-]*$/.test(system.harness.runAs)) {
     issues.push(
       `harness.runAs "${system.harness.runAs}" is not a valid user name`,
+    );
+  }
+  if (
+    system.harness.sshd &&
+    (!Number.isInteger(system.harness.sshdPort) ||
+      system.harness.sshdPort < 1 || system.harness.sshdPort > 65535)
+  ) {
+    issues.push(
+      `harness.sshdPort "${system.harness.sshdPort}" is not a valid TCP port`,
     );
   }
   for (const s of system.services) {

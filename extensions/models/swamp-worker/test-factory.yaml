@@ -1,0 +1,339 @@
+# Acceptance tests for @svendowideit/swamp-worker.
+#
+# These prove the generic worker model end to end on a systemd host: it mints an
+# enrollment token to a 0600 file, renders and reconciles a systemd user unit for
+# one identity, the worker enrolls on a real `swamp serve` (loopback), a placed
+# workflow step dispatches to it, re-running the model is a no-op, a change is
+# reconciled, a foreign worker unit is never touched, and teardown removes only
+# our own namespaced artifacts.
+#
+# Run it on a systemd host:
+#   swamp model @svendowideit/test-factory method run test tf \
+#     --input manifest=extensions/models/swamp-worker/manifest.yaml \
+#     --input scenario=ubuntu-systemd-standalone
+#
+# Network access: the swamp release download only. `swamp serve` runs on
+# loopback with `--auth-mode none`, so no swamp-club account is needed.
+
+tests:
+  - name: enrol
+    confirms: >
+      `mintToken` writes a 0600 enrollment token and `ensureService` renders a
+      systemd user unit, enables it (with linger) and starts it, so the worker
+      enrolls on a real `swamp serve` and advertises its serve/host labels; the
+      token plaintext is written only to the 0600 file, never into swamp data.
+    cannot: >
+      must not leave the unit inactive, and must not fail to enroll.
+    documents: README.md#examples
+    variables:
+      IDENTITY: figy
+      SERVE_URL: ws://127.0.0.1:9090
+      BIN: /usr/local/bin/swamp
+      REPO: /work/repo
+    steps:
+      - name: systemd-user-manager-is-running
+        run: systemctl --user is-system-running
+        expect:
+          stdoutContains: ["running"]
+      - name: start-serve
+        run: |
+          cd "$REPO"
+          nohup swamp serve --host 127.0.0.1 --port 9090 --auth-mode none >/tmp/serve.log 2>&1 &
+          echo $! > /tmp/serve.pid
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:9090/ready >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:9090/ready >/dev/null && echo SERVE_READY
+        expect:
+          exitCode: 0
+          outputContains: ["SERVE_READY"]
+          outputNotContains: ["SERVE_TIMEOUT"]
+        timeoutSeconds: 120
+      - name: create-worker-model
+        run: |
+          swamp model create @svendowideit/swamp-worker worker \
+            --global-arg identity=$IDENTITY \
+            --global-arg swampBinPath=$BIN \
+            --global-arg repoDir=$REPO
+        expect:
+          exitCode: 0
+          outputNotContains: ["error"]
+      - name: mint-token
+        run: swamp model method run worker mintToken --input duration=1h
+        expect:
+          exitCode: 0
+          outputContains: ["figy-"]
+          outputNotContains: ["panic", "failed"]
+        timeoutSeconds: 120
+      - name: token-file-is-0600
+        run: stat -c '%a' /root/.config/swamp-worker/figy.token
+        expect:
+          stdoutContains: ["600"]
+          stdoutNotContains: ["644"]
+      - name: token-plaintext-not-in-swamp-data
+        run: |
+          secret=$(cat /root/.config/swamp-worker/figy.token)
+          swamp data query 'modelName == "worker" && name == "token"' --select content \
+            | grep -q -- "$secret" && echo PRESENT || echo ABSENT
+        expect:
+          stdoutContains: ["ABSENT"]
+          stdoutNotContains: ["PRESENT"]
+      - name: ensure-service
+        run: swamp model method run worker ensureService --input serveUrl=$SERVE_URL
+        expect:
+          exitCode: 0
+          outputContains: ["unit changed"]
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: unit-is-active
+        run: systemctl --user is-active swamp-worker-figy
+        expect:
+          stdoutContains: ["active"]
+          stdoutNotContains: ["failed", "inactive"]
+      - name: worker-enrolled-with-labels
+        run: |
+          for i in $(seq 1 30); do
+            swamp worker list --json 2>/dev/null \
+              | jq -e '.workers[] | select(.labels.serve == "figy")' >/dev/null 2>&1 \
+              && { echo ENROLLED; break; }
+            sleep 2
+          done
+          swamp worker list
+        expect:
+          exitCode: 0
+          outputContains: ["ENROLLED", "figy"]
+          outputNotContains: ["error"]
+        timeoutSeconds: 120
+      - name: status-reports-live-state
+        run: swamp model method run worker status
+        expect:
+          exitCode: 0
+          outputContains: ["swamp-worker-figy"]
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+
+  - name: dispatch
+    confirms: >
+      A workflow step placed with `labels: {serve: figy}` and run through the
+      `swamp serve` orchestrator is dispatched to the enrolled worker and returns
+      the worker's output — proving end-to-end remote execution against a real
+      serve.
+    cannot: >
+      must not run the step locally, and must not fail with 'no eligible worker'.
+    documents: README.md#examples
+    variables:
+      REPO: /work/repo
+    steps:
+      - name: write-and-validate-probe
+        run: |
+          cd "$REPO"
+          mkdir -p workflows
+          cat > workflows/workflow-worker-probe.yaml <<'YAML'
+          id: 00000000-0000-4000-8000-0000000000a1
+          name: worker-probe
+          tags: {}
+          labels:
+            serve: figy
+          jobs:
+            - name: main
+              steps:
+                - name: remote-echo
+                  task:
+                    type: model_method
+                    modelType: command/shell
+                    modelName: worker-probe-shell
+                    methodName: execute
+                    inputs:
+                      run: "echo WORKER_DISPATCH_OK"
+                  dependsOn: []
+                  weight: 0
+                  allowFailure: false
+              dependsOn: []
+              weight: 0
+          version: 1
+          YAML
+          swamp model create command/shell worker-probe-shell --json >/dev/null 2>&1 || true
+          swamp workflow validate worker-probe
+        expect:
+          exitCode: 0
+          outputNotContains: ["invalid", "error"]
+      - name: run-through-serve
+        run: swamp workflow run worker-probe --server ws://127.0.0.1:9090
+        expect:
+          exitCode: 0
+          outputContains: ["WORKER_DISPATCH_OK"]
+          outputNotContains: ["no eligible worker", "queued"]
+        timeoutSeconds: 180
+
+  - name: reconcile-idempotent
+    confirms: >
+      Re-running `ensureService` with the same desired state changes nothing: the
+      unit is not rewritten and the worker process is not restarted
+      (ActiveEnterTimestamp is unchanged).
+    cannot: >
+      must not rewrite the unit and must not restart the worker.
+    documents: README.md#examples
+    variables:
+      SERVE_URL: ws://127.0.0.1:9090
+    steps:
+      - name: render-unit-is-pure
+        run: swamp model method run worker renderUnit --input serveUrl=$SERVE_URL
+        expect:
+          exitCode: 0
+          outputContains: ["Rendered unit swamp-worker-figy"]
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: capture-active-enter
+        run: |
+          systemctl --user show swamp-worker-figy -p ActiveEnterTimestamp --value > /tmp/before.ts
+          cat /tmp/before.ts
+        expect:
+          exitCode: 0
+      - name: rerun-ensure-service
+        run: swamp model method run worker ensureService --input serveUrl=$SERVE_URL
+        expect:
+          exitCode: 0
+          outputContains: ["already converged"]
+          outputNotContains: ["unit changed", "panic"]
+        timeoutSeconds: 120
+      - name: not-restarted
+        run: |
+          now=$(systemctl --user show swamp-worker-figy -p ActiveEnterTimestamp --value)
+          if [ -n "$now" ] && [ "$now" = "$(cat /tmp/before.ts)" ]; then
+            echo SAME
+          else
+            echo CHANGED
+          fi
+        expect:
+          stdoutContains: ["SAME"]
+          stdoutNotContains: ["CHANGED"]
+
+  - name: reconcile-change
+    confirms: >
+      Changing a label and re-running `ensureService` rewrites the unit, restarts
+      the worker, and the new label appears on the enrolled worker.
+    cannot: >
+      must not leave the old label in place, and must not skip the restart.
+    documents: README.md#examples
+    variables:
+      SERVE_URL: ws://127.0.0.1:9090
+    steps:
+      - name: capture-active-enter
+        run: |
+          systemctl --user show swamp-worker-figy -p ActiveEnterTimestamp --value > /tmp/change-before.ts
+          cat /tmp/change-before.ts
+        expect:
+          exitCode: 0
+      - name: change-label
+        run: >
+          swamp model method run worker ensureService --input serveUrl=$SERVE_URL
+          --input 'labels:json=["tier=prod"]'
+        expect:
+          exitCode: 0
+          outputContains: ["unit changed"]
+          outputNotContains: ["already converged", "panic"]
+        timeoutSeconds: 120
+      - name: unit-has-new-label
+        run: grep -q 'tier=prod' /root/.config/systemd/user/swamp-worker-figy.service && echo LABEL_WRITTEN
+        expect:
+          stdoutContains: ["LABEL_WRITTEN"]
+          stdoutNotContains: ["missing"]
+      - name: restarted
+        run: |
+          now=$(systemctl --user show swamp-worker-figy -p ActiveEnterTimestamp --value)
+          if [ -n "$now" ] && [ "$now" != "$(cat /tmp/change-before.ts)" ]; then
+            echo CHANGED
+          else
+            echo SAME
+          fi
+        expect:
+          stdoutContains: ["CHANGED"]
+          stdoutNotContains: ["SAME"]
+      - name: new-label-visible-in-pool
+        run: |
+          for i in $(seq 1 30); do
+            swamp worker list --json 2>/dev/null \
+              | jq -e '.workers[] | select(.labels.serve=="figy" and .labels.tier=="prod")' >/dev/null 2>&1 \
+              && { echo TIER_VISIBLE; break; }
+            sleep 2
+          done
+          swamp worker list
+        expect:
+          exitCode: 0
+          outputContains: ["TIER_VISIBLE", "tier=prod"]
+          outputNotContains: ["error"]
+        timeoutSeconds: 120
+
+  - name: coexistence
+    confirms: >
+      A foreign worker unit (`swamp-worker-rc.service`, another identity) on the
+      same host is left completely alone by `ensureService` — the model only ever
+      manages `swamp-worker-figy`.
+    cannot: >
+      must not delete, stop or rewrite the foreign unit.
+    documents: README.md#examples
+    variables:
+      SERVE_URL: ws://127.0.0.1:9090
+      FOREIGN: /root/.config/systemd/user/swamp-worker-rc.service
+    steps:
+      - name: install-foreign-unit
+        run: |
+          mkdir -p /root/.config/systemd/user
+          cat > "$FOREIGN" <<'UNIT'
+          [Unit]
+          Description=foreign worker (rc)
+          [Service]
+          Type=simple
+          ExecStart=/bin/sleep infinity
+          [Install]
+          WantedBy=default.target
+          UNIT
+          systemctl --user daemon-reload
+          systemctl --user enable swamp-worker-rc.service
+          echo FOREIGN_INSTALLED
+        expect:
+          exitCode: 0
+          outputContains: ["FOREIGN_INSTALLED"]
+      - name: reconcile-again
+        run: swamp model method run worker ensureService --input serveUrl=$SERVE_URL
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: foreign-unit-survives
+        run: test -f "$FOREIGN" && grep -q 'foreign worker (rc)' "$FOREIGN" && echo FOREIGN_INTACT
+        expect:
+          stdoutContains: ["FOREIGN_INTACT"]
+          stdoutNotContains: ["missing"]
+
+  - name: teardown
+    confirms: >
+      `remove` stops and disables this identity's unit and deletes its namespaced
+      artifacts (unit, token/env files, cache dir) while the foreign
+      `swamp-worker-rc` unit survives untouched.
+    cannot: >
+      must not leave the owned unit active, and must not remove the foreign unit.
+    documents: README.md#examples
+    variables:
+      FOREIGN: /root/.config/systemd/user/swamp-worker-rc.service
+    steps:
+      - name: remove-owned-worker
+        run: swamp model method run worker remove
+        expect:
+          exitCode: 0
+          outputContains: ["Removed worker swamp-worker-figy"]
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: owned-unit-is-gone
+        run: |
+          if systemctl --user is-active swamp-worker-figy >/dev/null 2>&1; then echo STILL_ACTIVE; else echo GONE; fi
+          test -f /root/.config/systemd/user/swamp-worker-figy.service && echo UNIT_FILE_PRESENT || echo UNIT_FILE_REMOVED
+        expect:
+          stdoutContains: ["GONE", "UNIT_FILE_REMOVED"]
+          stdoutNotContains: ["STILL_ACTIVE", "UNIT_FILE_PRESENT"]
+      - name: foreign-unit-survives-teardown
+        run: test -f "$FOREIGN" && echo FOREIGN_SURVIVES
+        expect:
+          stdoutContains: ["FOREIGN_SURVIVES"]
+          stdoutNotContains: ["missing"]

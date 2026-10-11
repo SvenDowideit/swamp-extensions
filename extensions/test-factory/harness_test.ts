@@ -494,3 +494,72 @@ Deno.test("buildHarnessScript runs as root without a su drop by default", () => 
   const script = buildHarnessScript(plan);
   assertEquals(script.includes("exec su -s /bin/sh"), false);
 });
+
+Deno.test("buildHarnessScript sets up sshd when requested", () => {
+  const script = buildHarnessScript({ ...plan, sshd: true, sshdPort: 2222 });
+  assertStringIncludes(script, "tf_setup_sshd() {");
+  assertStringIncludes(script, "tf_setup_sshd\n"); // invoked, not just defined
+  assertStringIncludes(script, "SSH_PORT=2222");
+  assertStringIncludes(script, "Port $SSH_PORT");
+  assertStringIncludes(script, "PermitRootLogin prohibit-password");
+  assertStringIncludes(script, "record sshd true");
+});
+
+Deno.test("buildHarnessScript omits sshd when not requested", () => {
+  const script = buildHarnessScript(plan);
+  assertEquals(script.includes("tf_setup_sshd"), false);
+});
+
+Deno.test("buildHarnessScript still sets up sshd on a non-root harness", () => {
+  const script = buildHarnessScript({
+    ...plan,
+    runAs: "tester",
+    sshd: true,
+  });
+  assertStringIncludes(script, "  tf_setup_sshd");
+});
+
+const emptyResult = {
+  installOk: true,
+  swampVersion: "",
+  doctorStatus: "pass",
+  doctorStates: {},
+  sourceAddOk: true,
+  registeredTypes: [],
+  modelTypes: [],
+  missingTypes: [],
+  definitions: [],
+  workflows: [],
+  fixtures: [],
+  tests: [],
+  evidence: [],
+} as unknown as HarnessResult;
+
+Deno.test("evaluateResult reports sshd and fails when it did not come up", () => {
+  const up = evaluateResult(
+    { ...emptyResult, sshd: true },
+    [],
+    "pass",
+    false,
+    true,
+  );
+  assertEquals(up.phases.find((p) => p.phase === "sshd")?.ok, true);
+  assertEquals(up.ok, true);
+
+  const down = evaluateResult(
+    { ...emptyResult, sshd: false },
+    [],
+    "pass",
+    false,
+    true,
+  );
+  assertEquals(down.phases.find((p) => p.phase === "sshd")?.ok, false);
+  assertEquals(down.ok, false);
+  assertStringIncludes(down.errors.join(" "), "sshd");
+});
+
+Deno.test("evaluateResult ignores sshd when not requested", () => {
+  const r = evaluateResult({ ...emptyResult, sshd: false }, [], "pass");
+  assertEquals(r.phases.some((p) => p.phase === "sshd"), false);
+  assertEquals(r.ok, true);
+});

@@ -61,6 +61,7 @@ import {
   lintTestSystem,
   parseTestSystem,
   resolveSystemSubnets,
+  sshdVariables,
   systemVariables,
   type TestSystem,
 } from "./services.ts";
@@ -367,6 +368,8 @@ const ResultSchema = z.object({
   distro: z.string(),
   distroImage: z.string(),
   systemd: z.boolean(),
+  /** Whether an in-harness SSH "remote host" was requested and came up. */
+  sshd: z.boolean().default(false),
   topology: z.string(),
   workers: z.number(),
   expected: z.string(),
@@ -611,6 +614,7 @@ function blankResult(
     distro: scenario.distro,
     distroImage: distroByName(scenario.distro)?.image ?? "",
     systemd: scenario.systemd,
+    sshd: false,
     topology: scenario.topology,
     workers: scenario.workers,
     expected: scenario.expected,
@@ -747,8 +751,14 @@ async function runScenario(
     tests: candidate.tests,
     releaseBaseUrl: deps.releaseBaseUrl,
     expectSystemd: scenario.systemd,
+    sshd: system.harness.sshd,
+    sshdPort: system.harness.sshdPort,
     runAs: system.harness.runAs,
-    variables: { ...systemVariables(system), TF_RUN_ID: suffix },
+    variables: {
+      ...systemVariables(system),
+      ...sshdVariables(system),
+      TF_RUN_ID: suffix,
+    },
     dnsTools: system.harness.dig,
     extensionSources: candidate.extensionDirs.map((e, i) => ({
       name: e.name,
@@ -850,7 +860,11 @@ async function runScenario(
     }
     if (prepared.system.networks.length > 0) {
       system = prepared.system;
-      plan.variables = { ...systemVariables(system), TF_RUN_ID: suffix };
+      plan.variables = {
+        ...systemVariables(system),
+        ...sshdVariables(system),
+        TF_RUN_ID: suffix,
+      };
       files["harness.sh"] = buildHarnessScript(plan);
     }
     bundle = await stageBundle("bundle", files);
@@ -972,7 +986,15 @@ async function runScenario(
       const cap = captureLogs(await logs(deps.runFn, target));
       result.logs = cap.logs;
       result.logsTruncated = cap.truncated;
-      finalize(result, raw, scenario, opts, candidate.tests);
+      finalize(
+        result,
+        raw,
+        scenario,
+        opts,
+        candidate.tests,
+        null,
+        system.harness.sshd,
+      );
       applyIsolation(result, isolation);
       return finished();
     }
@@ -983,7 +1005,15 @@ async function runScenario(
     } catch {
       harnessResult = null;
     }
-    finalize(result, raw, scenario, opts, candidate.tests, harnessResult);
+    finalize(
+      result,
+      raw,
+      scenario,
+      opts,
+      candidate.tests,
+      harnessResult,
+      system.harness.sshd,
+    );
     applyIsolation(result, isolation);
 
     const topology = await runTopology(
@@ -1068,6 +1098,7 @@ function finalize(
   opts: RunOptions,
   tests: TestSpec[],
   preParsed?: HarnessResult | null,
+  expectSshd = false,
 ): Result {
   let harness: HarnessResult | null = preParsed ?? null;
   if (!harness) {
@@ -1092,6 +1123,7 @@ function finalize(
     opts.phases as HarnessPlan["phases"],
     scenario.expected,
     scenario.systemd,
+    expectSshd,
   );
   result.ok = evaluation.ok;
   result.status = evaluation.ok ? "pass" : "fail";
@@ -1102,6 +1134,7 @@ function finalize(
   result.sourceAddOk = harness.sourceAddOk;
   result.doctorStatus = harness.doctorStatus;
   result.systemdRunning = harness.systemd;
+  result.sshd = harness.sshd === true;
   result.harnessIsolation = harness.harnessIsolation;
   result.missingTypes = harness.missingTypes;
   result.phases = evaluation.phases;
@@ -1511,7 +1544,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.11.3",
+  version: "2026.10.11.4",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1582,6 +1615,12 @@ export const model = {
       toVersion: "2026.10.11.3",
       description:
         "Fixes subnet collisions between runs. A candidate's declared test-system subnets (`networks:`) are now a *preference*: if a leftover network from a crashed/kept run already holds one, or a parallel run wants the same one, the factory draws a free /24 from a private pool (`10.213.0.0/16`) and remaps the declared static IPs onto it (host offset preserved), updating the exported `TF_*_IP` variables to match. Docker is the arbiter per host, so a create race is retried around the 'Pool overlaps' error. Cleanup is hardened: `removeNetwork` now disconnects any remaining endpoints before removing a network, and the `cleanup` method force-removes stray `tf-` containers by name prefix as well as by label. `keepOnFailure` still leaves a kept run's containers and networks in place for debugging. Schema is unchanged; existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.4",
+      description:
+        "Adds an in-harness SSH server so a candidate can exercise the real `@swamp/ssh` deploy path against a 'remote host' in dind. `test-factory.yaml` gains `harness.sshd` (true, or `{ port: N }`): the harness installs openssh-server/client, generates a client keypair, authorizes it for the phase user, starts sshd on loopback, and exports `TF_SSH_HOST`/`TF_SSH_PORT`/`TF_SSH_USER`/`TF_SSH_KEY`/`TF_SSH_KEY_PUB`/`TF_SSH_KNOWN_HOSTS` to every test step. The `result` gains an `sshd` boolean and a `sshd` phase: a run that requested `harness.sshd` but could not bring it up fails with a clear error. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

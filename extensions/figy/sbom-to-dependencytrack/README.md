@@ -7,18 +7,21 @@ project with the host it came from.
 
 ## What it does
 
-One workflow, `@figy/sbom-to-dependencytrack`, that wires two portable pieces to
-my infrastructure:
+One workflow, `@figy/sbom-to-dependencytrack`, that wires three portable pieces
+to my infrastructure:
 
+- **host-facts** — reads this host's own identity (FQDN) with
+  [`@svendowideit/host-facts`](../models/host-facts), so the project is tagged
+  with the machine the SBOM came from. It reads the kernel/FQDN truth rather than
+  `$HOSTNAME`, so it is correct under `swamp serve` and on a swamp worker.
 - **generate** — runs the generic `@svendowideit/generate-sbom` workflow (a
   syft scan of a host, image, binary or source tree), producing an `sbom` file
   as swamp data. This step is entirely portable; the workflow names no consumer.
 - **upload** — POSTs the SBOM to my Dependency-Track as
   `multipart/form-data` via `@svendowideit/curl`. The BOM endpoint comes from my
   local `dependencytrack` model's `agentKey` data and the API key from my local
-  vault.
-- **host tag** — the project is tagged with the host it came from, detected from
-  `$HOSTNAME` (override with `--input host=…`).
+  vault. The project is tagged with the host-facts FQDN (override with
+  `--input host=…`).
 
 Dependency-Track is modelled as **one project per (software, version)** —
 `projectName` is the software, `projectVersion` its version — with the host as a
@@ -36,11 +39,11 @@ Nothing is installed on the host.
 swamp extension pull @figy/sbom-to-dependencytrack
 ```
 
-`@svendowideit/generate-sbom-syft`, `@svendowideit/curl` and
-`@svendowideit/dependencytrack` are pulled automatically. A running
-Dependency-Track whose agent key can upload **and tag** is required (the
-`dependencytrack` extension grants `TAG_MANAGEMENT` by default), with the key in
-the `dependencytrack-secrets` vault.
+`@svendowideit/generate-sbom-syft`, `@svendowideit/host-facts`,
+`@svendowideit/curl` and `@svendowideit/dependencytrack` are pulled
+automatically. A running Dependency-Track whose agent key can upload **and tag**
+is required (the `dependencytrack` extension grants `TAG_MANAGEMENT` by
+default), with the key in the `dependencytrack-secrets` vault.
 
 ## Configuration
 
@@ -52,7 +55,9 @@ Inputs (all optional except `target`, `projectName`, `projectVersion`):
 | `targetType` | `""` | Syft source scheme: `dir`, `file`, `image`, `registry`, `docker`, `podman`, `oci-archive`, `oci-dir`, `singularity`, `purl`, `sbom`. |
 | `projectName` | — | Dependency-Track project name — the software (e.g. `caddy`). |
 | `projectVersion` | — | Dependency-Track project version (e.g. `2.11.6`). |
-| `host` | `""` | Host tag; empty detects it from `$HOSTNAME`. |
+| `host` | `""` | Host tag override; empty uses the FQDN read by the `host-facts` step. |
+| `hostModel` | `host-facts` | The `host-facts` model instance whose `host` record supplies the tag. |
+| `hostDomain` | `fi.gy` | Domain the `host-facts` step appends to a bare hostname (`x1yoga` → `x1yoga.fi.gy`). |
 | `format` | `cyclonedx-json` | SBOM format (`cyclonedx-json`/`-xml`, `spdx-json`/`-tag-value`, `syft-json`). |
 | `label` | `""` (→ `projectName`) | Swamp data name for the produced SBOM file. Empty derives it from `projectName` with `/` replaced by `-`. It must not equal a data spec name (`sbom`, `scan`, …) — see [Details](#details). |
 | `exclude` | `[]` | Syft glob exclusions (e.g. `**/proc/**`). |
@@ -67,13 +72,13 @@ Inputs (all optional except `target`, `projectName`, `projectVersion`):
 ## Examples
 
 ```sh
-# SBOM a binary on this machine and upload it; the host tag is detected from
-# $HOSTNAME (run `export HOSTNAME=$(hostname)` if your shell does not export it).
+# SBOM a binary on this machine and upload it. The project is tagged with this
+# host's FQDN (x1yoga.fi.gy), read by the host-facts step — no env var needed.
 swamp workflow run @figy/sbom-to-dependencytrack \
   --input target=/home/sven/.local/bin/caddy --input targetType=file \
   --input projectName=caddy --input projectVersion=2.11.6
 
-# SBOM a container image and tag the project with an explicit host.
+# A container image is not this host, so name the tag explicitly.
 swamp workflow run @figy/sbom-to-dependencytrack \
   --input target=ghcr.io/dependencytrack/apiserver:5.1.2 --input targetType=image \
   --input projectName=ghcr.io/dependencytrack/apiserver --input projectVersion=5.1.2 \
@@ -102,13 +107,17 @@ swamp extension update
 
 | Step | Task | Produces |
 | ---- | ---- | -------- |
+| `host-facts` | model_method `@svendowideit/host-facts` `collect` | a `host` record on `hostModel` |
 | `generate` | workflow `@svendowideit/generate-sbom` | an `sbom` file on `scanModel` |
 | `upload` | model_method `@svendowideit/curl` `post` | a `request` resource `upload-<label>` |
 | `verify-upload` | assert `...attributes.ok == true` | — |
 
-The `upload` step sends `multipart` fields `autoCreate`, `projectName`,
-`projectVersion` and `projectTags` (the host), and attaches the SBOM with
-`files` read from `data.latest(scanModel, label).path`.
+The `host-facts` step reads the host (FQDN, qualified by `hostDomain`) and
+`upload` reads it back with `data.latest(hostModel, "host").attributes.fqdn` for
+`projectTags`; `--input host=…` overrides it. `upload` sends `multipart` fields
+`autoCreate`, `projectName`, `projectVersion` and `projectTags` (the host FQDN),
+and attaches the SBOM with `files` read from
+`data.latest(scanModel, label).path`.
 
 The SBOM's swamp data name is the `label`, which defaults to `projectName` with
 `/` replaced by `-`. This matters because `generate-sbom-syft` writes its file
@@ -120,11 +129,12 @@ Naming the data after the project keeps every `data.latest()` unambiguous.
 
 ### Why the split
 
-Generation is portable and lives in `@svendowideit/generate-sbom-syft`; the
-upload primitive lives in `@svendowideit/curl`. This extension is deliberately
-site-specific: it encodes the fi.gy Dependency-Track instance, its vault and the
-host naming convention, so it is useless without them. The portable halves carry
-no dependency-tracker coupling and can feed any number of systems.
+Host identity is portable and lives in `@svendowideit/host-facts`; generation in
+`@svendowideit/generate-sbom-syft`; the upload primitive in
+`@svendowideit/curl`. This extension is deliberately site-specific: it encodes
+the fi.gy Dependency-Track instance, its vault, and the site domain used to form
+the host FQDN, so it is useless without them. The portable halves carry no
+dependency-tracker coupling and can feed any number of systems.
 
 ## License
 

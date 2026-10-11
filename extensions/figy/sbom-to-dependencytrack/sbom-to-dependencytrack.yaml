@@ -53,8 +53,21 @@ inputs:
       type: string
       default: ""
       description: >-
-        Host/VM this SBOM came from, applied as a project tag. Empty detects it
-        from the $HOSTNAME environment variable.
+        Host/VM this SBOM came from, applied as a project tag. Empty uses the
+        FQDN read by the host-facts step (this host's own identity); set it
+        explicitly only to override that (a container, or a different name).
+    hostModel:
+      type: string
+      default: host-facts
+      description: >-
+        Name of the @svendowideit/host-facts model instance whose `host` record
+        supplies the host tag. The workflow collects it before uploading.
+    hostDomain:
+      type: string
+      default: fi.gy
+      description: >-
+        Site domain the host-facts step appends to a bare hostname (x1yoga ->
+        x1yoga.fi.gy). A host that already reports a dotted FQDN is left alone.
     format:
       type: string
       default: cyclonedx-json
@@ -115,6 +128,22 @@ jobs:
   - name: main
     description: Generate the SBOM, then upload and tag it in Dependency-Track.
     steps:
+      - name: host-facts
+        description: >-
+          Read this host's own identity with @svendowideit/host-facts so the
+          project is tagged with the FQDN of the machine the SBOM came from. The
+          `domain` qualifies a bare hostname (x1yoga -> x1yoga.fi.gy).
+        task:
+          type: model_method
+          modelType: "@svendowideit/host-facts"
+          modelName: ${{ inputs.hostModel }}
+          methodName: collect
+          globalArgs:
+            domain: ${{ inputs.hostDomain }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
       - name: generate
         description: Generate the SBOM via the generic @svendowideit/generate-sbom workflow.
         task:
@@ -145,13 +174,16 @@ jobs:
             headers: >-
               ${{ ["X-Api-Key: " + vault.get(inputs.vaultName, inputs.vaultKey)] }}
             multipart: >-
-              ${{ {"autoCreate": "true", "projectName": inputs.projectName, "projectVersion": inputs.projectVersion, "projectTags": inputs.host != "" ? inputs.host : (has(env.HOSTNAME) ? env.HOSTNAME : "")} }}
+              ${{ {"autoCreate": "true", "projectName": inputs.projectName, "projectVersion": inputs.projectVersion, "projectTags": inputs.host != "" ? inputs.host : data.latest(inputs.hostModel, "host").?attributes.?fqdn.orValue("")} }}
             files: >-
               ${{ {"bom": data.latest(inputs.scanModel, inputs.label != "" ? inputs.label : inputs.projectName.split("/").join("-")).path} }}
             label: '${{ "upload-" + (inputs.label != "" ? inputs.label : inputs.projectName.split("/").join("-")) }}'
             failOnHttpError: true
         dependsOn:
           - step: generate
+            condition:
+              type: succeeded
+          - step: host-facts
             condition:
               type: succeeded
         weight: 0

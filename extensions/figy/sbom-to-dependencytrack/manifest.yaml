@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@figy/sbom-to-dependencytrack"
-version: "2026.10.11.2"
+version: "2026.10.11.3"
 description: >
   fi.gy's site-specific SBOM submission: generate an SBOM for any target and
   upload it to my Dependency-Track, tagging each project with the host it came
@@ -10,15 +10,17 @@ description: >
 
     The private, site-specific half of SBOM generation. The portable parts live
     in @svendowideit: generate-sbom-syft's @svendowideit/generate-sbom workflow,
-    and the @svendowideit/curl upload primitive. This workflow wires them to my
-    infrastructure: it runs the generic generate workflow, then POSTs the result
-    to my Dependency-Track as multipart/form-data, taking the BOM endpoint from
-    my local `dependencytrack` model's `agentKey` data and the API key from my
-    vault. It records the host from `$HOSTNAME` (override with `--input host=…`).
-    Dependency-Track stores one project per (software, version) — `projectName`
-    is the software, `projectVersion` its version — with the host as a project
-    tag, so each machine's version of a piece of software is its own project and
-    "which hosts run which version" is a tag filter.
+    the @svendowideit/host-facts identity reader, and the @svendowideit/curl
+    upload primitive. This workflow wires them to my infrastructure: it reads
+    this host's own FQDN with host-facts, runs the generic generate workflow,
+    then POSTs the result to my Dependency-Track as multipart/form-data, taking
+    the BOM endpoint from my local `dependencytrack` model's `agentKey` data and
+    the API key from my vault. The project is tagged with the host-FQDN the SBOM
+    came from (override with `--input host=…`). Dependency-Track stores one
+    project per (software, version) — `projectName` is the software,
+    `projectVersion` its version — with the host as a project tag, so each
+    machine's version of a piece of software is its own project and "which hosts
+    run which version" is a tag filter.
 
   INSTALL
 
@@ -26,20 +28,21 @@ description: >
 
   DEPENDENCIES
 
-    @svendowideit/generate-sbom-syft, @svendowideit/curl and
-    @svendowideit/dependencytrack (all pulled automatically), plus a running
-    Dependency-Track whose agent key can upload and tag (the default agent
-    permissions include TAG_MANAGEMENT) and the key stored in
-    `dependencytrack-secrets`.
+    @svendowideit/generate-sbom-syft, @svendowideit/host-facts,
+    @svendowideit/curl and @svendowideit/dependencytrack (all pulled
+    automatically), plus a running Dependency-Track whose agent key can upload
+    and tag (the default agent permissions include TAG_MANAGEMENT) and the key
+    stored in `dependencytrack-secrets`.
 
   RUN
 
-      # SBOM a binary on this host and upload it, host auto-detected from $HOSTNAME.
+      # SBOM a binary on this host and upload it. The project is tagged with the
+      # host's FQDN, read by the host-facts step (no env var, no --input host).
       swamp workflow run @figy/sbom-to-dependencytrack \
         --input target=/home/sven/.local/bin/caddy --input targetType=file \
         --input projectName=caddy --input projectVersion=2.11.6
 
-      # SBOM a container image and tag the project with an explicit host.
+      # A container image is not this host, so name the tag explicitly.
       swamp workflow run @figy/sbom-to-dependencytrack \
         --input target=ghcr.io/dependencytrack/apiserver:5.1.2 --input targetType=image \
         --input projectName=ghcr.io/dependencytrack/apiserver --input projectVersion=5.1.2 \
@@ -53,14 +56,16 @@ description: >
 
   CONFIGURE
 
-    Inputs: target, targetType, projectName, projectVersion, host, format,
-    label, exclude, catalogers, scanModel, uploadModel, dtModel, vaultName,
-    vaultKey, uploadUrl. The locally-defined names default to my repo
-    (dependencytrack, dependencytrack-secrets, DEPENDENCYTRACK_API_KEY,
-    dt-upload); `label` (the swamp data name for the SBOM) defaults to
-    projectName with `/` replaced by `-`, so it never collides with the `sbom`
-    data spec name that data.latest() otherwise cannot disambiguate. Everything
-    can be overridden per run. See the README for the table.
+    Inputs: target, targetType, projectName, projectVersion, host, hostModel,
+    hostDomain, format, label, exclude, catalogers, scanModel, uploadModel,
+    dtModel, vaultName, vaultKey, uploadUrl. The locally-defined names default to
+    my repo (dependencytrack, dependencytrack-secrets,
+    DEPENDENCYTRACK_API_KEY, dt-upload); the host-FQDN comes from the host-facts
+    model `hostModel` (default host-facts), qualified with `hostDomain` (default
+    fi.gy); `label` (the swamp data name for the SBOM) defaults to projectName
+    with `/` replaced by `-`, so it never collides with the `sbom` data spec name
+    that data.latest() otherwise cannot disambiguate. Everything can be
+    overridden per run. See the README for the table.
 
   UPGRADE
 
@@ -88,6 +93,7 @@ workflows:
 
 dependencies:
   - "@svendowideit/generate-sbom-syft"
+  - "@svendowideit/host-facts"
   - "@svendowideit/curl"
   - "@svendowideit/dependencytrack"
 

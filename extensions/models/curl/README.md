@@ -23,9 +23,10 @@ session across requests.
   request, so a login followed by authenticated calls is just two method runs.
   `cookie-jar` inspects or clears it.
 - **Any HTTP shape** — arbitrary method, query parameters, raw/JSON/file/form
-  bodies, extra headers, basic auth (`user`) and bearer tokens. Choose to fail
-  the run on a non-2xx (`failOnHttpError`) or a curl transport error
-  (`failOnCurlError`) while still writing the record first.
+  bodies, `multipart`/`files` uploads (e.g. the Dependency-Track BOM API), extra
+  headers, basic auth (`user`) and bearer tokens. Choose to fail the run on a
+  non-2xx (`failOnHttpError`) or a curl transport error (`failOnCurlError`)
+  while still writing the record first.
 
 Side effects: it runs the `curl` binary, reads and writes the cookie jar under
 `stateDir`, optionally writes a response body to an `outputFile` path, and
@@ -74,6 +75,8 @@ Per-call arguments for `request` / `get` / `post`:
 | `dataJson` | any | — | Body serialized as JSON; sets `Content-Type: application/json`. |
 | `dataFile` | string | — | File sent as the body; its content is not read into the record. |
 | `form` | record | — | Form fields as `application/x-www-form-urlencoded`. |
+| `multipart` | record | — | Multipart form fields (`--form name=value`). |
+| `files` | record | — | Files attached as multipart fields (`--form name=@path`). |
 | `cookies` | string[] | `[]` | Cookies to send for this request (`"name=value"`). |
 | `user` | string | — | `user:password` for basic auth (sensitive). |
 | `bearerToken` | string | — | Bearer token added as `Authorization` (sensitive). |
@@ -121,6 +124,16 @@ swamp model @svendowideit/curl method run get http \
 # Inspect the jar (which cookies are stored, and from where), then clear it.
 swamp model @svendowideit/curl method run cookie-jar http --input raw=true
 swamp model @svendowideit/curl method run cookie-jar http --input clear=true
+
+# Upload an SBOM to Dependency-Track: its BOM API is a multipart/form-data POST,
+# so attach the file with `files` and the project fields with `multipart`. The
+# API key travels in a (masked) header, read from the vault by a CEL expression.
+swamp model @svendowideit/curl method run post dt-upload \
+  --input url="https://backend.dependencytrack.fi.gy/api/v1/bom" \
+  --input "headers=[\"X-Api-Key: \${{ vault.get('dependencytrack-secrets','DEPENDENCYTRACK_API_KEY') }}\"]" \
+  --input 'multipart:json={"autoCreate":"true","projectName":"my-host","projectVersion":"1.0.0"}' \
+  --input 'files:json={"bom":"/path/to/host.cdx.json"}' \
+  --input failOnHttpError=true
 ```
 
 ## Upgrade

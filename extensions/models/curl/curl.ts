@@ -114,6 +114,10 @@ export interface CurlInvocation {
   explicitCookies: string;
   /** Body file to send (`--data-binary @file`), if any. */
   dataFile?: string;
+  /** Multipart form fields (`--form name=value`). */
+  multipart: [string, string][];
+  /** Multipart file fields (`--form name=@path`). */
+  files: [string, string][];
   /** `user:password` for basic auth, if any. */
   user?: string;
   /** Whether to follow redirects. */
@@ -223,6 +227,15 @@ const RequestArgsSchema = z.object({
   form: z.record(z.string(), z.string()).optional().describe(
     "Form fields sent as application/x-www-form-urlencoded.",
   ),
+  multipart: z.record(z.string(), z.string()).optional().describe(
+    "Multipart form fields (curl --form name=value). Use for APIs that take " +
+      "multipart/form-data (e.g. the Dependency-Track BOM upload). Values are " +
+      "recorded in the request record.",
+  ),
+  files: z.record(z.string(), z.string()).optional().describe(
+    "Files attached as multipart fields (curl --form name=@path). Combine with " +
+      "`multipart`; the file content is not read into the record.",
+  ),
   cookies: z.array(z.string()).default([]).describe(
     'Cookies to send for this request, each as "name=value".',
   ),
@@ -317,6 +330,12 @@ const RequestRecordSchema = z.object({
   requestBody: z.string(),
   requestBodyBytes: z.number().int().nonnegative(),
   requestBodyTruncated: z.boolean(),
+  multipartFields: z.array(z.object({ name: z.string(), value: z.string() })),
+  uploadFiles: z.array(z.object({
+    name: z.string(),
+    path: z.string(),
+    bytes: z.number().int().nonnegative(),
+  })),
   cookiesSent: z.array(SentCookieSchema),
   cookiesReceived: z.array(CookieSchema),
   responseHeaders: z.record(z.string(), z.string()),
@@ -637,6 +656,12 @@ export function buildCurlArgs(inv: CurlInvocation): string[] {
   if (inv.explicitCookies) args.push("--cookie", inv.explicitCookies);
   if (inv.cookieJar) args.push("--cookie-jar", inv.cookieJar);
   if (inv.dataFile) args.push("--data-binary", `@${inv.dataFile}`);
+  for (const [name, value] of inv.multipart) {
+    args.push("--form", `${name}=${value}`);
+  }
+  for (const [name, path] of inv.files) {
+    args.push("--form", `${name}=@${path}`);
+  }
   for (const extra of inv.extraArgs) args.push(extra);
   args.push(inv.url);
   return args;
@@ -673,6 +698,20 @@ export function redactArgv(argv: string[], set: Set<string>): string[] {
           ? `${parsed[0]}: ${redactValue(parsed[0], parsed[1], set)}`
           : "***",
       );
+      i++;
+      continue;
+    }
+    if (arg === "--form" && i + 1 < argv.length) {
+      // `--form name=value` records `name=***` when the field name is a
+      // redacted one; a file field `name=@path` keeps its (non-secret) path.
+      const value = argv[i + 1];
+      const eq = value.indexOf("=");
+      if (eq > 0 && !value.slice(eq + 1).startsWith("@")) {
+        const name = value.slice(0, eq);
+        out.push(arg, `${name}=${redactValue(name, value.slice(eq + 1), set)}`);
+      } else {
+        out.push(arg, value);
+      }
       i++;
       continue;
     }
@@ -824,23 +863,51 @@ interface ResolvedBody {
   dataFile?: string;
   recorded: string;
   bytes: number;
+  multipart: [string, string][];
+  files: [string, string][];
 }
 
-/** Resolve the request body into a temp file plus its recorded description. */
+/** Resolve the request body into a temp file (or multipart fields) + metadata. */
 async function resolveBody(
   args: RequestArgs,
   tmpDir: string,
 ): Promise<ResolvedBody> {
-  const sources = [
+  const scalarSources = [
     args.data !== undefined,
     args.dataJson !== undefined,
     args.dataFile !== undefined,
     args.form !== undefined,
   ].filter(Boolean).length;
-  if (sources > 1) {
+  const multipartPresent = args.multipart !== undefined ||
+    args.files !== undefined;
+  if (scalarSources > 1) {
     throw new Error(
-      "Provide only one request body source: data, dataJson, dataFile or form.",
+      "Provide only one request body source: data, dataJson, dataFile, form, " +
+        "multipart or files.",
     );
+  }
+  if (scalarSources > 0 && multipartPresent) {
+    throw new Error(
+      "Do not combine a raw/urlencoded body (data, dataJson, dataFile, form) " +
+        "with multipart/form-data (multipart, files).",
+    );
+  }
+  if (multipartPresent) {
+    const multipart: [string, string][] = Object.entries(args.multipart ?? {});
+    const files: [string, string][] = Object.entries(args.files ?? {}).map(
+      ([name, path]): [string, string] => [name, expandHome(path)],
+    );
+    let bytes = 0;
+    const enc = new TextEncoder();
+    for (const [, value] of multipart) bytes += enc.encode(value).byteLength;
+    for (const [, path] of files) {
+      try {
+        bytes += (await Deno.stat(path)).size;
+      } catch {
+        // missing file — curl will report the error
+      }
+    }
+    return { recorded: "", bytes, multipart, files };
   }
   const writeTemp = async (text: string): Promise<string> => {
     const file = `${tmpDir}/request-body`;
@@ -853,6 +920,8 @@ async function resolveBody(
       dataFile: await writeTemp(json),
       recorded: json,
       bytes: new TextEncoder().encode(json).byteLength,
+      multipart: [],
+      files: [],
     };
   }
   if (args.data !== undefined) {
@@ -860,6 +929,8 @@ async function resolveBody(
       dataFile: await writeTemp(args.data),
       recorded: args.data,
       bytes: new TextEncoder().encode(args.data).byteLength,
+      multipart: [],
+      files: [],
     };
   }
   if (args.form !== undefined) {
@@ -868,6 +939,8 @@ async function resolveBody(
       dataFile: await writeTemp(encoded),
       recorded: encoded,
       bytes: new TextEncoder().encode(encoded).byteLength,
+      multipart: [],
+      files: [],
     };
   }
   if (args.dataFile !== undefined) {
@@ -878,9 +951,9 @@ async function resolveBody(
     } catch {
       bytes = 0;
     }
-    return { dataFile: path, recorded: "", bytes };
+    return { dataFile: path, recorded: "", bytes, multipart: [], files: [] };
   }
-  return { recorded: "", bytes: 0 };
+  return { recorded: "", bytes: 0, multipart: [], files: [] };
 }
 
 /** Cap a recorded request body for the resource. */
@@ -998,7 +1071,8 @@ async function runRequest(
   const t0 = performance.now();
 
   const hasBody = args.data !== undefined || args.dataJson !== undefined ||
-    args.dataFile !== undefined || args.form !== undefined;
+    args.dataFile !== undefined || args.form !== undefined ||
+    args.multipart !== undefined || args.files !== undefined;
   const method = resolveMethod(args.method, hasBody);
   const url = buildUrl(args.url, args.query);
   const cookieJar = resolveCookieJar(g, modelName);
@@ -1041,6 +1115,8 @@ async function runRequest(
       reuseCookies,
       explicitCookies: explicit,
       dataFile: body.dataFile,
+      multipart: body.multipart,
+      files: body.files,
       user: args.user,
       followRedirects,
       maxRedirects: g.maxRedirects,
@@ -1067,6 +1143,21 @@ async function runRequest(
     const status = statusFrom(meta, last);
     const decoded = decodeCapped(bodyBytesRaw, cap);
     const reqBody = capRequestBody(body.recorded, cap);
+    const multipartFields = body.multipart.map(([name, value]) => ({
+      name,
+      value: redactValue(name, value, redact),
+    }));
+    const uploadFiles: Array<{ name: string; path: string; bytes: number }> =
+      [];
+    for (const [name, path] of body.files) {
+      let fileBytes = 0;
+      try {
+        fileBytes = (await Deno.stat(path)).size;
+      } catch {
+        fileBytes = 0;
+      }
+      uploadFiles.push({ name, path, bytes: fileBytes });
+    }
 
     if (args.outputFile) {
       try {
@@ -1091,6 +1182,8 @@ async function runRequest(
       requestBody: reqBody.text,
       requestBodyBytes: body.bytes,
       requestBodyTruncated: reqBody.truncated,
+      multipartFields,
+      uploadFiles,
       cookiesSent: sentCookies,
       cookiesReceived: blocks.length > 0 ? collectSetCookies(blocks, host) : [],
       responseHeaders: last ? redactHeaders(last.headers, redact) : {},
@@ -1152,7 +1245,7 @@ async function runRequest(
 /** A tracked curl wrapper: every request's in/out evidence, with a cookie jar. */
 export const model = {
   type: "@svendowideit/curl",
-  version: "2026.10.11.1",
+  version: "2026.10.11.2",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -1166,6 +1259,16 @@ export const model = {
         "persistent per-instance cookie jar (reuseCookies) carries a session " +
         "across requests; `get`/`post` are thin wrappers and `cookie-jar` " +
         "inspects or clears the jar.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.2",
+      description:
+        "Add multipart/form-data requests: the `multipart` arg sends `--form " +
+        "name=value` fields and `files` attaches `--form name=@path` uploads " +
+        "(needed for the Dependency-Track BOM upload). Both are recorded " +
+        "(multipartFields, uploadFiles) with field values redactable; no " +
+        "existing argument changed.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1224,9 +1327,10 @@ export const model = {
     request: {
       description:
         "Perform an HTTP request with curl and record everything that went out " +
-        "and came back. Any method; body via data/dataJson/dataFile/form; " +
-        "headers, query, cookies and basic/bearer auth. Secrets are masked. " +
-        "Cookies persist in a per-instance jar unless reuseCookies is false.",
+        "and came back. Any method; body via data/dataJson/dataFile/form, or a " +
+        "multipart/form-data upload via multipart/files; headers, query, cookies " +
+        "and basic/bearer auth. Secrets are masked. Cookies persist in a " +
+        "per-instance jar unless reuseCookies is false.",
       arguments: RequestArgsSchema,
       execute: (args: RequestArgs, ctx: MethodContext) => runRequest(args, ctx),
     },

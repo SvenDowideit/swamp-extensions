@@ -234,6 +234,8 @@ Deno.test("buildCurlArgs assembles the tracked invocation", () => {
     reuseCookies: true,
     explicitCookies: "a=b",
     dataFile: "/tmp/body",
+    multipart: [],
+    files: [],
     user: "u:p",
     followRedirects: true,
     maxRedirects: 5,
@@ -263,6 +265,8 @@ Deno.test("buildCurlArgs omits the jar and follows the no-redirect path", () => 
     cookieJar: "",
     reuseCookies: false,
     explicitCookies: "",
+    multipart: [],
+    files: [],
     followRedirects: false,
     maxRedirects: 10,
     insecure: true,
@@ -648,6 +652,114 @@ Deno.test("request records a non-2xx response without failing by default", async
     const rec = written.find((w) => w.name === "404")!.data;
     assertEquals(rec.status, 404);
     assertEquals(rec.ok, false);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Multipart (form-data) requests
+// ---------------------------------------------------------------------------
+
+Deno.test("buildCurlArgs emits multipart fields and file uploads", () => {
+  const argv = buildCurlArgs({
+    url: "https://dt.example/api/v1/bom",
+    method: "POST",
+    headers: [],
+    headerFile: "/tmp/h",
+    bodyFile: "/tmp/b",
+    cookieJar: "",
+    reuseCookies: false,
+    explicitCookies: "",
+    multipart: [["autoCreate", "true"], ["projectName", "host"]],
+    files: [["bom", "/tmp/sbom.json"]],
+    followRedirects: true,
+    maxRedirects: 10,
+    insecure: false,
+    timeoutMs: 0,
+    connectTimeoutMs: 0,
+    extraArgs: [],
+  });
+  assertEquals(argv.filter((a) => a === "--form").length, 3);
+  assertEquals(argv.includes("autoCreate=true"), true);
+  assertEquals(argv.includes("projectName=host"), true);
+  assertEquals(argv.includes("bom=@/tmp/sbom.json"), true);
+});
+
+Deno.test("redactArgv masks redacted --form values but keeps file paths", () => {
+  const set = new Set(["authorization"]);
+  const out = redactArgv(
+    ["curl", "--form", "authorization=secret", "--form", "bom=@/tmp/x"],
+    set,
+  );
+  assertEquals(out.includes("authorization=***"), true);
+  assertEquals(out.includes("authorization=secret"), false);
+  assertEquals(out.includes("bom=@/tmp/x"), true);
+});
+
+Deno.test("request sends a multipart/form-data upload and records it", async () => {
+  const dir = await newStateDir();
+  try {
+    const { context, written } = makeContext(fastGlobals(dir));
+    const file = `${dir}/sbom.json`;
+    await Deno.writeTextFile(file, '{"x":1}');
+    await withServer(async (req) => {
+      const form = await req.formData();
+      const bom = form.get("bom");
+      const size = bom instanceof File ? bom.size : 0;
+      return new Response(
+        JSON.stringify({ autoCreate: form.get("autoCreate"), bomBytes: size }),
+        { headers: { "content-type": "application/json" } },
+      );
+    }, async (base) => {
+      await model.methods.post.execute(
+        reqArgs({
+          url: `${base}/api/v1/bom`,
+          label: "upload",
+          multipart: { autoCreate: "true", projectName: "host" },
+          files: { bom: file },
+        }),
+        context,
+      );
+    });
+    const rec = written.find((w) => w.name === "upload")!.data;
+    assertEquals(rec.status, 200);
+    const body = JSON.parse(rec.body as string);
+    assertEquals(body.autoCreate, "true");
+    assertEquals(body.bomBytes, 7);
+    const fields = rec.multipartFields as Record<string, unknown>[];
+    assertEquals(
+      fields.some((f) => f.name === "projectName" && f.value === "host"),
+      true,
+    );
+    const uploads = rec.uploadFiles as Record<string, unknown>[];
+    assertEquals(uploads.some((f) => f.name === "bom" && f.bytes === 7), true);
+    assertEquals((rec.command as string[]).includes(`bom=@${file}`), true);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("request records a redacted multipart field value", async () => {
+  const dir = await newStateDir();
+  try {
+    const { context, written } = makeContext(fastGlobals(dir));
+    await withServer(() => new Response("ok"), async (base) => {
+      await model.methods.post.execute(
+        reqArgs({
+          url: `${base}/x`,
+          label: "masked",
+          multipart: { authorization: "supersecret" },
+        }),
+        context,
+      );
+    });
+    const rec = written.find((w) => w.name === "masked")!.data;
+    const fields = rec.multipartFields as Record<string, unknown>[];
+    assertEquals(fields[0].value, "***");
+    const command = rec.command as string[];
+    assertEquals(command.includes("authorization=***"), true);
+    assertEquals(command.includes("authorization=supersecret"), false);
   } finally {
     await Deno.remove(dir, { recursive: true });
   }

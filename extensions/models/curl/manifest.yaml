@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/curl"
-version: "2026.10.11.1"
+version: "2026.10.11.2"
 description: >
   A tracked curl wrapper: every HTTP request records exactly what went out and
   what came back — headers, cookies, body, redirects and timing — with secrets
@@ -54,9 +54,9 @@ description: >
     defaultHeaders, followRedirects, maxRedirects, insecure, timeoutMs,
     connectTimeoutMs, maxBodyBytes, redactHeaders, redactCookieValues, stateDir
     and curlPath. Per call: url, method, headers, query, data, dataJson,
-    dataFile, form, cookies, user, bearerToken, label, saveBody, outputFile and
-    the reuseCookies/followRedirects/insecure/timeoutMs/failOn* overrides. See
-    the README for the full tables.
+    dataFile, form, multipart, files, cookies, user, bearerToken, label,
+    saveBody, outputFile and the reuseCookies/followRedirects/insecure/timeoutMs/
+    failOn* overrides. See the README for the full tables.
 
   UPGRADE
 

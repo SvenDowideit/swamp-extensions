@@ -576,3 +576,12 @@ Deno.test(
     assertEquals(result.truncated, false);
   },
 );
+
+Deno.test("runCmd does not inherit stdin, so a password prompt cannot block it", async () => {
+  // `cat` reads stdin. With stdin at EOF it exits at once with empty output; if
+  // stdin were inherited from a terminal it would block until the timeout. This
+  // is what stops a route (or a polkit agent) prompting during an automated run.
+  const result = await runCmd("cat", [], 2000);
+  assertEquals(result.timedOut, false);
+  assertEquals(result.stdout, "");
+});

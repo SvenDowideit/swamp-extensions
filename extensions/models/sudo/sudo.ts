@@ -311,6 +311,10 @@ export async function runCmd(
   try {
     const proc = new Deno.Command(binary, {
       args,
+      // Never inherit the terminal: an elevation tool (or a polkit agent it
+      // spawns) must not be able to prompt for a password and block an
+      // automated run. With stdin at EOF a prompt fails fast instead of hanging.
+      stdin: "null",
       stdout: "piped",
       stderr: "piped",
       signal: AbortSignal.timeout(timeoutMs),
@@ -792,7 +796,7 @@ function ladderReport(ladder: z.infer<typeof LadderEntrySchema>[]): string {
  */
 export const model = {
   type: "@svendowideit/sudo",
-  version: "2026.10.10.2",
+  version: "2026.10.11.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -827,6 +831,12 @@ export const model = {
         "e.g. `cap_net_bind_service=+ep` so an unprivileged systemd user " +
         "service can bind 80/443. localOnly; must be added to " +
         "allowedOperations.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description:
+        "Never prompt for a password. The `run` probe and every elevation route now run with stdin at EOF (`Deno.Command` stdin `null`) so no tool — or a polkit agent it spawns — can read a password from the terminal and block an automated run; and the `systemd-run` route now passes `--no-ask-password` (matching `run0`) so polkit's text agent is never invoked. A required interactive credential now fails fast as `unavailable`, never a hung or prompting run. No global-argument change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

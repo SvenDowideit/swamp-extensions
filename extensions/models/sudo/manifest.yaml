@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/sudo"
-version: "2026.10.10.2"
+version: "2026.10.11.1"
 description: >
   Run one privileged operation on the host — install a package, restart a
   system service, set a sysctl — from any workflow, without writing sudo logic

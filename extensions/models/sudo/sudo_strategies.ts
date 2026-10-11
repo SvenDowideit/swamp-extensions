@@ -259,6 +259,7 @@ export const STRATEGIES: Record<string, Strategy> = {
     precondition: () => null,
     probeArgv: () => [
       "systemd-run",
+      "--no-ask-password",
       "--system",
       "--uid=0",
       "--pipe",
@@ -271,6 +272,7 @@ export const STRATEGIES: Record<string, Strategy> = {
       argv,
     ) => [
       "systemd-run",
+      "--no-ask-password",
       "--system",
       "--uid=0",
       "--pipe",

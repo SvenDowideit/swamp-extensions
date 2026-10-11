@@ -191,3 +191,21 @@ Deno.test("parseGroupList splits identity group output", () => {
 Deno.test("safeEnv returns empty rather than throwing without env access", () => {
   assertEquals(typeof safeEnv("__SWAMP_SUDO_MISSING__"), "string");
 });
+
+Deno.test("polkit/systemd routes never ask for a password", () => {
+  // run0 and systemd-run go through polkit, whose text agent otherwise prompts
+  // on the operator's terminal and blocks an automated run (B2). Both the probe
+  // and the real invocation must pass --no-ask-password.
+  for (const id of ["run0", "systemd-run"]) {
+    const s = getStrategy(id);
+    assert(s, `${id} exists`);
+    assert(
+      s.probeArgv(g).includes("--no-ask-password"),
+      `${id} probe must not ask for a password`,
+    );
+    assert(
+      s.build(["true"], g).includes("--no-ask-password"),
+      `${id} build must not ask for a password`,
+    );
+  }
+});

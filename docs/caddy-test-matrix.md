@@ -69,7 +69,7 @@ passes **inside dind**, proving the fleet can rely on it.
 | ID | Blocker | Evidence | Owner |
 | -- | ------- | -------- | ----- |
 | ~~**B1**~~ | **Resolved.** The non-root harness (`runAs: tester`) produced no result. Two permission bugs plus an env bug: (a) the read-only bundle at `/tf-scripts` was a 0700 temp dir owned by the host uid, unreadable by the container's non-root uid → `chmod 0o755`; (b) the result dir `/tf` was chowned by the harness to the non-root uid, leaving the host unable to read `result.json` → `chmod 0o755`; (c) `su` reset the environment, dropping `TF_DROPPED` → `su -p … -c "TF_DROPPED=1 /bin/sh $0"`. Unit-tested + proven by a `runAs: tester` acceptance run. | `runAs: tester` test passes; 173 test-factory tests pass | done |
-| B2 | `@svendowideit/sudo` route probing can prompt for a password from an automated run (polkit/run0). | t440s transcript (systemd `AUTHENTICATING FOR … manage-units`). | `@svendowideit/sudo` |
+| ~~**B2**~~ | **Resolved.** `@svendowideit/sudo` could prompt for a password from an automated run: `runCmd` inherited the terminal (stdin), and the `systemd-run` route lacked `--no-ask-password`, so polkit's text agent prompted. Fix: `Deno.Command` stdin `null` for every probe/route (EOF, never the TTY) and `--no-ask-password` on `systemd-run` (matching `run0`); a required credential now fails fast as `unavailable`. Unit-tested. | `@svendowideit/sudo` 2026.10.11.1 | done |
 
 ---
 
@@ -252,6 +252,6 @@ passes **inside dind**, proving the fleet can rely on it.
 | Regression | 1 / 16 | A1 fixed (quality gate) |
 | Behavioural | 3 / ~86 | D1/D2/D10 covered by the existing suite |
 
-**Blockers:** B2 (`@svendowideit/sudo` interactive prompt) remains; B1 resolved.
+**Blockers:** none open (B1 and B2 resolved).
 
 _(Update this board as items land; keep it the at-a-glance summary.)_

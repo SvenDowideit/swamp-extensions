@@ -100,6 +100,14 @@ import {
   REMOTE_MARKER,
   type TopologyResult,
 } from "./topology.ts";
+import {
+  fileStamp,
+  htmlDir,
+  renderHtmlReport,
+  sha256Hex,
+  slugify as htmlSlugify,
+  writeHtmlFile,
+} from "./test_factory_report_html.ts";
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -257,6 +265,15 @@ const WorkflowResultSchema = z.object({
   error: z.string().optional(),
 });
 
+/** One command the harness actually ran, with its exit code and output. */
+const EvidenceSchema = z.object({
+  phase: z.string(),
+  cmd: z.string(),
+  exitCode: z.number(),
+  stdout: z.string(),
+  stderr: z.string(),
+});
+
 const FixtureResultSchema = z.object({
   type: z.string(),
   method: z.string(),
@@ -374,6 +391,12 @@ const ResultSchema = z.object({
   definitions: z.array(DefinitionResultSchema),
   workflows: z.array(WorkflowResultSchema),
   fixtures: z.array(FixtureResultSchema),
+  /**
+   * The commands the harness actually ran, with exit codes and output — the
+   * evidence behind each phase's pass/fail (distinct from `claims`, which is the
+   * planned command list).
+   */
+  evidence: z.array(EvidenceSchema).default([]),
   /** Documented acceptance tests (from the candidate's test-factory.yaml). */
   tests: z.array(TestResultSchema),
   /** Documented/shipped-surface coverage of those tests. */
@@ -417,6 +440,27 @@ const SummarySchema = z.object({
     status: z.string(),
   })),
   checkedAt: z.string(),
+});
+
+/**
+ * Where the run's self-contained HTML report was written, plus the rollup the
+ * page was rendered from. Recorded by `test`/`testAll` so the run output points
+ * straight at the file; the `@svendowideit/test-factory-report-html` report
+ * reads this and returns a pointer rather than writing a second copy.
+ */
+const HtmlReportSchema = z.object({
+  extension: z.string(),
+  /** Absolute path to the written `.html` file. */
+  path: z.string(),
+  /** SHA-256 of the result/summary JSON the page was rendered from. */
+  sourceHash: z.string(),
+  generatedAt: z.string(),
+  count: z.number(),
+  passCount: z.number(),
+  failCount: z.number(),
+  errorCount: z.number(),
+  testCount: z.number(),
+  testsPassed: z.number(),
 });
 
 // ---------------------------------------------------------------------------
@@ -580,6 +624,7 @@ function blankResult(
     definitions: [],
     workflows: [],
     fixtures: [],
+    evidence: [],
     tests: mergeTests(candidate.tests, []),
     // Coverage describes what the tests exercise, so it is only meaningful (and
     // only recorded) when the `tests` phase actually runs.
@@ -995,6 +1040,7 @@ function finalize(
   result.definitions = harness.definitions;
   result.workflows = harness.workflows;
   result.fixtures = harness.fixtures;
+  result.evidence = harness.evidence;
   result.tests = mergeTests(tests, harness.tests);
   result.errors.push(...evaluation.errors);
   return result;
@@ -1397,7 +1443,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.11.1",
+  version: "2026.10.11.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1458,6 +1504,12 @@ export const model = {
         "Adds the `docker-rootful` grant (T1): a real `dockerd` runs **inside** the harness container (never the host daemon), so container-runtime elevation routes such as `@svendowideit/sudo`'s `docker-run` are testable; the harness container is run `--privileged` when a `docker-*` grant is present. Fixes the non-root harness (`runAs: tester`), which previously produced no result for every candidate: the read-only bundle at `/tf-scripts` and the result dir `/tf` are now world-traversable (they were 0700 owned by the host uid, unreadable to the container's non-root uid), and the root→user handover preserves `TF_DROPPED` across `su` (which otherwise reset the environment and re-ran the prelude). README documents the single `test` command an agent runs to exercise one scenario in dind. A `test-factory.yaml` may now pin a per-test `runAs` and `grants`, so one candidate file can carry tests that need different privilege states (e.g. a `sudo-nopasswd` positive test beside a `sudo-none` degrade test); tests are grouped by their resolved `(runAs, grants)` and each group runs in its own container, since a grant is a root pre-harness script that cannot be swapped in a running container. Ships a toggleable dependency-stub fixture (`test/stub/`: a tiny HTTP server that can accept/reject/delay/hang on command) for the DNS/certificate timing tests — a candidate copies it into its own `test/` and drives it via `/ctl?mode=`; Caddy's `acme_ca` points at it so 'configured, not issued' can be asserted against a real ACME-ca failure, while `issuer=internal` covers the synchronous issued path. Also makes the documented `--input phases=tests` path actually work end to end: the candidate and its sibling extensions are now registered as extension sources whenever the harness runs (only the `doctor` check stays gated on `smoke`), so a tests-only run — including every per-test `runAs`/`grants` group beyond the first — no longer fails with 'Unknown model type'; and `evaluateResult` only requires the phases a run actually requested to pass, so an unrun `smoke` (whose `doctor` is 'unknown') no longer drags an otherwise-green tests-only run to fail. Schema is additive — existing models upgrade with no action.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.11.2",
+      description:
+        "Adds a self-contained HTML report of each run, and captures real per-command evidence to back it. `test`/`testAll` now render the scenario results and rollup to a single `.html` file (inline CSS, no external assets; per-test <details> sections showing the exact commands and their stdout/stderr, plus coverage and a source-data sha256) and record where it landed in a new `htmlReport` resource, so the run's console output ends by naming the file. Output dir is `$SWAMP_TEST_FACTORY_HTML_DIR` (else `~/.local/share/test-factory-report/`). The new `@svendowideit/test-factory-report-html` report returns a pointer to that file (and still generates one when no `htmlReport` record exists). The harness now also records the commands it actually ran — `swamp init`, `swamp extension source add`, `swamp doctor extensions`, `swamp model type search`, `swamp model create`, `swamp workflow validate`, and the swamp install — with their real exit codes and captured stdout/stderr, as an `evidence` array on each result; the HTML report shows this as an 'Evidence — commands actually run' section (each command expanding to its exit code and output, with the pass/fail rule stated per phase) instead of presenting the planned command list as if it were the run. Schema is additive — existing models upgrade with no changes; `test`/`testAll` return one extra data handle.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     result: {
@@ -1476,6 +1528,13 @@ export const model = {
       description:
         "How much of a candidate's documented and shipped surface its test-factory.yaml exercises",
       schema: CoverageResourceSchema,
+      lifetime: "30d",
+      garbageCollection: 10,
+    },
+    htmlReport: {
+      description:
+        "Where the run's self-contained HTML report was written, and the rollup it renders",
+      schema: HtmlReportSchema,
       lifetime: "30d",
       garbageCollection: 10,
     },
@@ -1725,7 +1784,10 @@ export const model = {
       },
     },
   },
-  reports: ["@svendowideit/test-factory-report"],
+  reports: [
+    "@svendowideit/test-factory-report",
+    "@svendowideit/test-factory-report-html",
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -1747,6 +1809,9 @@ async function executeScenarios(
 ): Promise<{ handles: Array<{ name: string }> }> {
   const handles: Array<{ name: string }> = [];
   const summaries: z.infer<typeof SummarySchema>["results"] = [];
+  // Kept so the HTML report can render the full result cards, not just the
+  // rollup rows — the same objects that back the `result` resources.
+  const resultBodies: Result[] = [];
   // Documented tests run once per scenario; count both the total and passes so
   // the summary can report `tests N/M passed` alongside the scenario counts.
   let testCount = 0;
@@ -1759,35 +1824,13 @@ async function executeScenarios(
   const resultName = (s: Scenario) =>
     scoped ? `${extSlug}-${scenarioSlug(s)}` : scenarioSlug(s);
 
-  // Announce what the run is about to prove before it does it, so the console
-  // log is self-describing rather than just a stream of pass/fail lines. The
-  // same claims are written to every result and the summary.
-  const plannedClaims = phaseClaims({
-    swampVersion: deps.swampVersion,
-    repoDir: "/work/repo",
-    extensionMount: "/opt/ext",
-    extensionName: "under-test",
-    modelTypes: candidate.modelTypes,
-    workflows: candidate.workflowNames,
-    phases: opts.phases as HarnessPlan["phases"],
-    fixtures: opts.fixtures,
-    tests: candidate.tests,
-    releaseBaseUrl: deps.releaseBaseUrl,
-    expectSystemd: false,
-    variables: systemVariables(candidate.system),
-  });
+  // Console output is kept to a few lines: the run's full detail (contracts,
+  // commands, outputs) belongs in the HTML report, not the terminal.
   context.logger?.info(
-    `${candidate.name}@${
-      candidate.version || "?"
-    }: about to prove ${plannedClaims.length} phase(s) — ${
-      plannedClaims
-        .map((c) => c.phase)
-        .join(", ")
-    }`,
+    `${candidate.name}@${candidate.version || "?"} · phases ${
+      opts.phases.join(", ")
+    } · ${scenarios.length} scenario(s)`,
   );
-  for (const claim of plannedClaims) {
-    context.logger?.info(`  ${claim.phase}: ${claim.claim}`);
-  }
 
   for (const scenario of scenarios) {
     context.logger?.info(
@@ -1848,6 +1891,7 @@ async function executeScenarios(
         result,
       );
       handles.push(handle);
+      resultBodies.push(result);
       testCount += result.tests.length;
       testsPassed += result.tests.filter((t) => t.ok).length;
       summaries.push({
@@ -1887,26 +1931,27 @@ async function executeScenarios(
     expectSystemd: false,
     variables: systemVariables(candidate.system),
   };
+  const summaryBody: z.infer<typeof SummarySchema> = {
+    manifest: candidate.manifestAbs,
+    extension: candidate.name,
+    version: candidate.version,
+    count: summaries.length,
+    passCount,
+    failCount: summaries.filter((s) => s.status === "fail").length,
+    errorCount: summaries.filter((s) => s.status === "error").length,
+    testCount,
+    testsPassed,
+    // Coverage is a property of the candidate's test suite, not of any one
+    // scenario, so it is reported once on the rollup (and on each result).
+    coverage: opts.phases.includes("tests") ? candidate.coverage : undefined,
+    claims: phaseClaims(summaryPlan),
+    results: summaries,
+    checkedAt: new Date().toISOString(),
+  };
   const summaryHandle = await context.writeResource(
     "summary",
     scoped ? extSlug : "rollup",
-    {
-      manifest: candidate.manifestAbs,
-      extension: candidate.name,
-      version: candidate.version,
-      count: summaries.length,
-      passCount,
-      failCount: summaries.filter((s) => s.status === "fail").length,
-      errorCount: summaries.filter((s) => s.status === "error").length,
-      testCount,
-      testsPassed,
-      // Coverage is a property of the candidate's test suite, not of any one
-      // scenario, so it is reported once on the rollup (and on each result).
-      coverage: opts.phases.includes("tests") ? candidate.coverage : undefined,
-      claims: phaseClaims(summaryPlan),
-      results: summaries,
-      checkedAt: new Date().toISOString(),
-    },
+    summaryBody,
   );
   handles.push(summaryHandle);
 
@@ -1928,6 +1973,57 @@ async function executeScenarios(
       summaries.length - passCount
     } failed`,
   );
+
+  // Write the self-contained HTML report and record where it landed, so the
+  // run's own output tells the reader where to look — swamp does not echo report
+  // artifacts to the console, so a report alone would leave them guessing. The
+  // `@svendowideit/test-factory-report-html` report reads this record and
+  // returns a pointer instead of writing a second copy.
+  try {
+    const generatedAt = new Date().toISOString();
+    const sourceHash = await sha256Hex(
+      JSON.stringify({ summary: summaryBody, results: resultBodies }),
+    );
+    const html = renderHtmlReport({
+      results: resultBodies as unknown as Record<string, unknown>[],
+      summary: summaryBody as unknown as Record<string, unknown>,
+      generatedAt,
+      sourceHash,
+    });
+    const path = await writeHtmlFile(
+      htmlDir((k) => Deno.env.get(k)),
+      htmlSlugify(candidate.name),
+      fileStamp(new Date()),
+      html,
+    );
+    handles.push(
+      await context.writeResource(
+        "htmlReport",
+        // Must be unique per method run and distinct from the summary's
+        // `rollup`/`<extSlug>` instance names.
+        scoped ? `${extSlug}-html` : "html-report",
+        {
+          extension: candidate.name,
+          path,
+          sourceHash,
+          generatedAt,
+          count: summaryBody.count,
+          passCount: summaryBody.passCount,
+          failCount: summaryBody.failCount,
+          errorCount: summaryBody.errorCount,
+          testCount: summaryBody.testCount,
+          testsPassed: summaryBody.testsPassed,
+        },
+      ),
+    );
+    context.logger?.info(`${candidate.name}: HTML report → ${path}`);
+  } catch (err) {
+    context.logger?.info(
+      `${candidate.name}: HTML report could not be written (${
+        err instanceof Error ? err.message : String(err)
+      })`,
+    );
+  }
   return { handles };
 }
 

@@ -68,6 +68,14 @@ Deno.test("buildHarnessScript emits fixtures with inputs and expectations", () =
   assertStringIncludes(script, "grep -qF -- 'ok'");
 });
 
+Deno.test("buildHarnessScript records real command evidence", () => {
+  const script = buildHarnessScript(plan);
+  assertStringIncludes(script, "record_ev smoke 'swamp init --tool none'");
+  assertStringIncludes(script, "record_ev smoke 'swamp doctor extensions");
+  assertStringIncludes(script, "record_ev load 'swamp model type search");
+  assertStringIncludes(script, "append evidence");
+});
+
 Deno.test("buildHarnessScript omits phases that are not requested", () => {
   const script = buildHarnessScript({ ...plan, phases: ["smoke"] });
   assertEquals(script.includes("swamp model create"), false);
@@ -180,6 +188,7 @@ function result(overrides: Partial<HarnessResult> = {}): HarnessResult {
     workflows: [{ name: "acme-flow", ok: true, status: "valid" }],
     fixtures: [],
     tests: [],
+    evidence: [],
     ...overrides,
   };
 }

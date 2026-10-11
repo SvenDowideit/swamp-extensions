@@ -309,6 +309,15 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     '  jq -c --arg k "$1" --argjson v "$2" \'.[$k] = ((.[$k] // []) + [$v])\' "$RESULT" > /tf/r.tmp && mv /tf/r.tmp "$RESULT"',
     "}",
     "",
+    "# record_ev <phase> <cmd> <exitcode> <stdoutfile> <stderrfile>",
+    "# Appends the command's real exit code and captured output to `evidence`, so",
+    "# the report can show what actually ran (not just the planned command list).",
+    "record_ev() {",
+    '  [ -f "$4" ] || : > "$4"',
+    '  [ -f "$5" ] || : > "$5"',
+    '  append evidence "$(jq -cn --arg p "$1" --arg c "$2" --argjson e "$3" --rawfile o "$4" --rawfile r "$5" \'{phase:$p,cmd:$c,exitCode:$e,stdout:($o|.[0:4000]),stderr:($r|.[0:4000])}\')"',
+    "}",
+    "",
     "# --- isolation evidence (recorded as the effective phase user) -----------",
     "# `harnessUser`/`harnessUid` are the pre-elevation identity a reader needs to",
     "# conclude 'non-root elevated to root inside the sandbox, and did not reach",
@@ -355,6 +364,7 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     "    echo 'download failed' >/tmp/swamp-version.err",
     "  fi",
     "  SWAMP_VERSION_OUT=$(cat /tmp/swamp-version.txt 2>/dev/null || echo '')",
+    `  record_ev smoke "curl -fsSL -o /usr/local/bin/swamp $SWAMP_URL" "$INSTALL_CODE" /tmp/swamp-version.txt /tmp/swamp-version.err`,
     '  if [ "$INSTALL_CODE" -ne 0 ]; then',
     "    ERR=$(cat /tmp/swamp-version.err 2>/dev/null)",
     "    if [ -f /usr/local/bin/swamp ]; then",
@@ -482,6 +492,8 @@ export function buildHarnessScript(plan: HarnessPlan): string {
     'mkdir -p "$REPO/extensions"',
     'cd "$REPO" || exit 1',
     "swamp init --tool none >/tmp/init.log 2>&1",
+    "INIT_EXIT=$?",
+    "record_ev smoke 'swamp init --tool none' \"$INIT_EXIT\" /tmp/init.log /dev/null",
   );
   // Register sibling local extensions the candidate calls, so their model types
   // resolve. They are copied in (not symlinked) exactly like the candidate.
@@ -508,27 +520,34 @@ export function buildHarnessScript(plan: HarnessPlan): string {
   for (const s of sources) {
     push(
       `swamp extension source add "$REPO/extensions/${s.name}" >/tmp/source-${s.name}.log 2>&1 || SOURCE_ADD_OK=$?`,
+      `record_ev smoke "swamp extension source add <repo>/extensions/${s.name}" "$SOURCE_ADD_OK" /tmp/source-${s.name}.log /dev/null`,
     );
   }
   push(
     'swamp extension source add "$REPO/extensions/$EXT_NAME" >/tmp/source-add.log 2>&1 || SOURCE_ADD_OK=$?',
+    `record_ev smoke "swamp extension source add <repo>/extensions/$EXT_NAME" "$SOURCE_ADD_OK" /tmp/source-add.log /dev/null`,
     'if [ "$SOURCE_ADD_OK" -eq 0 ]; then record sourceAddOk true; else record sourceAddOk false; fi',
     "",
   );
   if (want("smoke")) {
     push(
       "swamp doctor extensions --json >/tmp/doctor.json 2>/tmp/doctor.err",
+      "DOCTOR_EXIT=$?",
       "DOCTOR_STATUS=$(jq -r '.overallStatus // \"unknown\"' /tmp/doctor.json 2>/dev/null || echo 'unparseable')",
       "DOCTOR_STATES=$(jq -c '[.aggregateState.aggregates[].stateDistribution] | add // {}' /tmp/doctor.json 2>/dev/null || echo '{}')",
       'record doctorStatus "$(jq -Rn --arg v "$DOCTOR_STATUS" \'$v\')"',
       'record doctorStates "$DOCTOR_STATES"',
+      "record_ev smoke 'swamp doctor extensions --json' \"$DOCTOR_EXIT\" /tmp/doctor.json /tmp/doctor.err",
       'log "doctor=$DOCTOR_STATUS"',
       "",
     );
   }
   if (want("load")) {
     push(
-      "swamp model type search --json >/tmp/types.json 2>/dev/null || echo '{\"results\":[]}' >/tmp/types.json",
+      "swamp model type search --json >/tmp/types.json 2>/tmp/types.err",
+      "TYPES_EXIT=$?",
+      '[ "$TYPES_EXIT" -eq 0 ] || echo \'{"results":[]}\' >/tmp/types.json',
+      "record_ev load 'swamp model type search --json' \"$TYPES_EXIT\" /tmp/types.json /tmp/types.err",
       "REGISTERED=$(jq -c '[.results[].normalized]' /tmp/types.json 2>/dev/null || echo '[]')",
       'record registeredTypes "$REGISTERED"',
       "",
@@ -567,7 +586,11 @@ export function buildHarnessScript(plan: HarnessPlan): string {
         `swamp model create ${shellQuote(type)} ${
           shellQuote(name)
         } >/tmp/def-${idx}.log 2>&1`,
-        `if [ $? -eq 0 ]; then`,
+        `DEF_CODE=$?`,
+        `record_ev definitions ${
+          shellQuote(`swamp model create ${type} ${name}`)
+        } "$DEF_CODE" /tmp/def-${idx}.log /dev/null`,
+        `if [ "$DEF_CODE" -eq 0 ]; then`,
         `  append definitions "$(jq -cn --arg t ${shellQuote(type)} --arg n ${
           shellQuote(name)
         } '{type:$t,name:$n,ok:true}')"`,
@@ -582,7 +605,11 @@ export function buildHarnessScript(plan: HarnessPlan): string {
       const slug = wf.replace(/[^a-zA-Z0-9]+/g, "_");
       push(
         `swamp workflow validate ${shellQuote(wf)} >/tmp/wf-${slug}.log 2>&1`,
-        `if [ $? -eq 0 ]; then`,
+        `WF_CODE=$?`,
+        `record_ev definitions ${
+          shellQuote(`swamp workflow validate ${wf}`)
+        } "$WF_CODE" /tmp/wf-${slug}.log /dev/null`,
+        `if [ "$WF_CODE" -eq 0 ]; then`,
         `  append workflows "$(jq -cn --arg w ${
           shellQuote(wf)
         } '{name:$w,ok:true,status:"valid"}')"`,
@@ -681,6 +708,24 @@ export interface HarnessIsolation {
   dockerHost: string;
 }
 
+/**
+ * One command the harness actually ran, with its exit code and captured output.
+ * This is the run's real evidence — as opposed to {@link PhaseClaim.commands},
+ * which is only the *planned* command list from the harness script.
+ */
+export interface EvidenceStep {
+  /** Phase the command belongs to (`smoke`, `load`, `definitions`, …). */
+  phase: string;
+  /** The command line as executed. */
+  cmd: string;
+  /** Process exit code. */
+  exitCode: number;
+  /** Captured stdout (tail-capped). */
+  stdout: string;
+  /** Captured stderr (tail-capped). */
+  stderr: string;
+}
+
 /** Parsed outcome of a harness run. */
 export interface HarnessResult {
   /** Whether swamp downloaded and ran. */
@@ -746,6 +791,12 @@ export interface HarnessResult {
   }>;
   /** Declarative acceptance test outcomes (no prose — merged later). */
   tests: HarnessTest[];
+  /**
+   * The commands the harness actually ran, with exit codes and output — the
+   * evidence behind each phase's pass/fail. (The `phaseClaims` command lists are
+   * the plan; this is what really executed.)
+   */
+  evidence: EvidenceStep[];
 }
 
 /** Parse the JSON result the harness script wrote. */
@@ -767,6 +818,7 @@ export function parseHarnessResult(text: string): HarnessResult {
     workflows: parsed.workflows ?? [],
     fixtures: parsed.fixtures ?? [],
     tests: parsed.tests ?? [],
+    evidence: parsed.evidence ?? [],
   };
 }
 

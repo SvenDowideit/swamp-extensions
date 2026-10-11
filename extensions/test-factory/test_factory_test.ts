@@ -27,6 +27,13 @@ import {
 } from "./test_factory.ts";
 import type { TestSpec } from "./tests.ts";
 
+// The `test`/`testAll` methods write a self-contained HTML report; keep that
+// output out of the developer's home directory during tests.
+Deno.env.set(
+  "SWAMP_TEST_FACTORY_HTML_DIR",
+  await Deno.makeTempDir({ prefix: "tf-html-test-" }),
+);
+
 type Call = [string, ...string[]];
 
 /** A canned harness result the stubbed container would have written. */
@@ -205,10 +212,22 @@ Deno.test("test writes a result and a summary", async () => {
       { repoDir: dir },
     );
     const result = await promise;
-    assertEquals(result.dataHandles.length, 2);
+    // One result + one summary + one htmlReport.
+    assertEquals(result.dataHandles.length, 3);
     const written = ctx.getWrittenResources();
     const results = written.filter((r) => r.specName === "result");
     assertEquals(results.length, 1);
+    // The run records where its HTML report landed, so the console can point
+    // the reader straight at the file.
+    const html = written.filter((r) => r.specName === "htmlReport");
+    assertEquals(html.length, 1);
+    assertStringIncludes(html[0].data.path as string, ".html");
+    assertEquals(html[0].data.extension, "@acme/thing");
+    // Data instance names must be unique within a method run; the htmlReport
+    // must not reuse the summary's `rollup` name (swamp rejects the duplicate).
+    const summary = written.find((r) => r.specName === "summary");
+    assertEquals(summary !== undefined, true);
+    assertEquals(html[0].name === summary!.name, false);
     assertEquals(results[0].name, "debian-standalone");
     assertEquals(results[0].data.ok, true);
     assertEquals(results[0].data.doctorStatus, "pass");
@@ -521,8 +540,8 @@ Deno.test("testAll sweeps every git-tracked manifest", async () => {
       { repoDir: dir },
     );
     const result = await promise;
-    // Two extensions x (one result + one summary).
-    assertEquals(result.dataHandles.length, 4);
+    // Two extensions x (one result + one summary + one htmlReport).
+    assertEquals(result.dataHandles.length, 6);
     assertEquals(
       calls.some((c) => c[0] === "git" && c[1] === "ls-files"),
       true,

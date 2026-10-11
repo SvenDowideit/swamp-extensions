@@ -1,0 +1,41 @@
+#!/usr/bin/env sh
+# fleet test <item> [candidate] [scenario] [extra test inputs…]
+#
+# Runs the item's test-factory dind gate. Everything runs through
+# @svendowideit/test-factory (a container harness; the docker-rootful grant
+# gives it an in-container dockerd) — NEVER the host. See the test-factory
+# README, "Running one scenario in dind".
+#
+#   scripts/fleet/test f0.6
+#   scripts/fleet/test caddy-elevation extensions/models/caddy/manifest.yaml \
+#     ubuntu-systemd-standalone --input phases=tests
+set -eu
+here="$(cd "$(dirname "$0")" && pwd)"
+. "$here/lib.sh"
+
+item="${1:-}"; shift || true
+fleet_require_item "$item"
+candidate="${1:-}"; [ -n "$candidate" ] && shift || true
+scenario="${1:-}"; [ -n "$scenario" ] && shift || true
+extra="$*"
+
+p="$(fleet_ledger_path "$item")"
+[ -f "$p" ] || { echo "fleet: no ledger for $item — run 'fleet start $item' first" >&2; exit 2; }
+[ -n "$candidate" ] || candidate="$(jq -r '.candidate // ""' "$p")"
+[ -n "$scenario" ] || scenario="$(jq -r '.scenario // ""' "$p")"
+[ -n "$candidate" ] || { echo "fleet: a candidate manifest is required" >&2; exit 2; }
+[ -n "$scenario" ] || scenario="ubuntu-systemd-standalone"
+
+fleet_ledger_set "$item" phase testing
+set +e
+# shellcheck disable=SC2086
+swamp model @svendowideit/test-factory method run test tf \
+  --input manifest="$candidate" --input scenario="$scenario" $extra
+rc=$?
+set -e
+
+fleet_ledger_set "$item" testResult "$([ "$rc" -eq 0 ] && echo pass || echo fail)"
+fleet_ledger_set "$item" testRunId "$(date -u +%Y%m%dT%H%M%SZ)"
+echo "fleet: $item test $([ "$rc" -eq 0 ] && echo PASS || echo FAIL) ($candidate · $scenario)"
+echo "       read: swamp data query 'modelName == \"tf\" && name == \"$scenario\"' --select content"
+exit "$rc"

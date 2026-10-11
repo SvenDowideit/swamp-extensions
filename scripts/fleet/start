@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+# fleet start <item> [base] — create an isolated worktree + branch for one item.
+#
+# Branch is `caddy/<slug>` based on origin/main (or <base>), so every PR opens
+# against main. Records the item in the status ledger.
+#
+#   FLEET_WORKTREE_DIR=/tmp/opencode scripts/fleet/start f0.6
+#   scripts/fleet/start f0.6 extensions/models/caddy/manifest.yaml ubuntu-systemd-standalone
+set -eu
+here="$(cd "$(dirname "$0")" && pwd)"
+. "$here/lib.sh"
+
+item="${1:-}"; base="${2:-origin/main}"
+candidate="${3:-}"; scenario="${4:-}"
+fleet_require_item "$item"
+
+branch="$(fleet_branch "$item")"
+wt="$(fleet_worktree_path "$item")"
+
+# Keep the base fresh over HTTPS (host SSH may be misconfigured).
+if [ "$base" = "origin/main" ]; then
+  git fetch "$(fleet_push_url)" main 2>/dev/null || true
+  base="FETCH_HEAD"
+fi
+
+git worktree add "$wt" -b "$branch" "$base"
+fleet_ledger_init "$item" "$branch" "$candidate" "$scenario"
+
+echo "fleet: $item → $wt"
+echo "       branch $branch (base $base)"
+echo "       ledger $(fleet_ledger_path "$item")"

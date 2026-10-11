@@ -84,10 +84,15 @@ export const GlobalArgsSchema = z.object({
     "BOM_UPLOAD",
     "PROJECT_CREATION_UPLOAD",
     "VIEW_PORTFOLIO",
+    "PORTFOLIO_MANAGEMENT",
+    "TAG_MANAGEMENT",
   ]).describe(
-    "Permissions granted to the agent team so the key can upload SBOMs and " +
-      "read the portfolio. BOM_UPLOAD and PROJECT_CREATION_UPLOAD are the " +
-      "minimum for CI SBOM ingestion.",
+    "Permissions granted to the agent team so the key can upload SBOMs, read " +
+      "the portfolio, and manage projects/tags. BOM_UPLOAD and " +
+      "PROJECT_CREATION_UPLOAD are the minimum for CI SBOM ingestion; " +
+      "PORTFOLIO_MANAGEMENT + TAG_MANAGEMENT let an upload tag a project " +
+      "(e.g. with the host it came from, via the BOM upload's projectTags " +
+      "field).",
   ),
   serviceBackend: z.enum(["direct", "systemd"]).default("direct").describe(
     "Passed through to container-service.",
@@ -615,7 +620,7 @@ export async function apiKeyWorks(
 
 export const model = {
   type: "@svendowideit/dependencytrack",
-  version: "2026.10.09.1",
+  version: "2026.10.11.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -639,6 +644,17 @@ export const model = {
         "asserts), the dependencytrack-postgres wrapper, and the reusable " +
         "postgres-provision workflow now ship in this extension alongside the " +
         "model, so a single pull installs the whole stack. No model API change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.11.1",
+      description:
+        "Grant the agent team TAG_MANAGEMENT and PORTFOLIO_MANAGEMENT by " +
+        "default, so an SBOM upload can tag its project (e.g. with the host it " +
+        "came from, via the BOM upload's projectTags field). Existing installs " +
+        "gain the permissions on the team, and the existing key inherits them, " +
+        "by re-running `bootstrapAgentKey` (with force to also mint a fresh " +
+        "key). The key value stored in the vault is unchanged when reused.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

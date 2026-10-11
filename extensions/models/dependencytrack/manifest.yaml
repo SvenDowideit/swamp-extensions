@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/dependencytrack"
-version: "2026.10.09.1"
+version: "2026.10.11.1"
 description: >
   Deploy and configure OWASP Dependency-Track v5 end to end — PostgreSQL, the
   API server and frontend, an agent API key — and hand a later model the key it
@@ -87,6 +87,10 @@ description: >
       adminSecretKey     Admin password vault key (default DEPENDENCYTRACK_ADMIN_PASSWORD)
       apiKeySecretKey    Agent key vault key (default DEPENDENCYTRACK_API_KEY)
       agentTeamName      Team owning the key (default automation)
+      agentTeamPermissions  Permissions granted to the team (default
+                          BOM_UPLOAD, PROJECT_CREATION_UPLOAD, VIEW_PORTFOLIO,
+                          PORTFOLIO_MANAGEMENT, TAG_MANAGEMENT — the latter two
+                          let an upload tag its project with its host)
       serviceBackend     direct | systemd   (default direct)
       healthTimeoutMs    Readiness wait      (default 180000)
 

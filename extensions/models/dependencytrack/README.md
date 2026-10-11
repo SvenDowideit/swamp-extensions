@@ -27,8 +27,10 @@ end to end:
 2. **Dependency-Track** — `install` deploys the API server and frontend against
    that database.
 3. **Agent API key** — `bootstrapAgentKey` rotates the forced first-login admin
-   password, creates the `automation` team, grants it `BOM_UPLOAD`, and mints an
-   API key stored in a swamp vault.
+   password, creates the `automation` team, grants it `BOM_UPLOAD`,
+   `PROJECT_CREATION_UPLOAD`, `VIEW_PORTFOLIO`, `PORTFOLIO_MANAGEMENT` and
+   `TAG_MANAGEMENT` (the last two let an upload tag a project — e.g. with the
+   host it came from), and mints an API key stored in a swamp vault.
 4. **Caddy (optional)** — when you name a Caddy model, two reverse-proxy routes:
    `dependencytrack.<domain>` → frontend and
    `backend.dependencytrack.<domain>` → API server, over TLS.

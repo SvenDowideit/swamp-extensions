@@ -350,3 +350,131 @@ tests:
       - name: status-page-served-over-tls
         run: curl -sk -o /dev/null -w '%{http_code}' https://localhost/
         expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
+
+  - name: no-elevation-route-interactive-sudo-fails-closed-and-degrades
+    confirms: >
+      On a host where `sudo` exists but requires a password (a
+      `sudo-interactive-only` grant: no NOPASSWD rule), installCaddy's attempt to
+      grant CAP_NET_BIND_SERVICE finds no granted route in @svendowideit/sudo, so
+      it fails closed without prompting for a password and without hanging;
+      reconcile never rejects the config but degrades to unprivileged ports, so
+      Caddy still serves the status page, and upgradeCheck reports the capability
+      gap honestly instead of claiming nothing blocks.
+    cannot: >
+      must not prompt for a password (no "Password:" or "AUTHENTICATING FOR"),
+      must not leave cap_net_bind_service on the binary, must not bind the
+      privileged port :443, must not print a fabricated "https://localhost" URL,
+      and must not report "ready — nothing blocks".
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-interactive-only }
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-interactive \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: interactive-sudo-has-no-passwordless-rule
+        run: sh -c 'if sudo -n true 2>/dev/null; then echo sudo-works; else echo sudo-blocked; fi'
+        expect: { stdoutContains: ["sudo-blocked"], stdoutNotContains: ["sudo-works"] }
+      - name: install-caddy-binary-fails-closed-without-prompting
+        run: swamp model method run e2e-interactive installCaddy
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic", "Password:", "AUTHENTICATING FOR"]
+        timeoutSeconds: 300
+      - name: create-and-start-service
+        run: |
+          swamp model method run e2e-interactive createService
+          swamp model method run e2e-interactive startService
+        expect:
+          exitCode: 0
+          outputNotContains:
+            ["is not active", "panic", "Password:", "AUTHENTICATING FOR"]
+      - name: binary-lacks-the-capability
+        run: getcap "$HOME/.local/bin/caddy"
+        expect: { stdoutNotContains: ["cap_net_bind_service"] }
+      - name: live-config-is-degraded-not-rejected
+        # :80/:443 -> :8080/:8443 over plain HTTP (the documented degrade); the
+        # privileged :443 must be gone, and :8080 must be served.
+        run: curl -s http://localhost:2019/config/ | jq -c '[.apps.http.servers[].listen[]]'
+        expect:
+          stdoutContains: [":8080", ":8443"]
+          stdoutNotContains: [":443"]
+      - name: status-page-still-served
+        run: curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/
+        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
+      - name: upgrade-check-reports-the-gap-honestly
+        run: |
+          swamp model method run e2e-interactive upgradeCheck 2>&1 | tee /tmp/e3-check.txt
+        expect:
+          exitCode: 0
+          outputContains: ["cannot bind ports 80/443"]
+          outputNotContains:
+            ["ready — nothing blocks", "Password:", "AUTHENTICATING FOR", "https://localhost"]
+
+  - name: no-elevation-route-sudo-none-fails-closed-and-degrades
+    confirms: >
+      On a host with no `sudo` rule at all (a `sudo-none` grant), installCaddy's
+      attempt to grant CAP_NET_BIND_SERVICE finds no granted route in
+      @svendowideit/sudo, so it fails closed without prompting for a password and
+      without hanging; reconcile never rejects the config but degrades to
+      unprivileged ports, so Caddy still serves the status page, and upgradeCheck
+      reports the capability gap honestly instead of claiming nothing blocks or
+      fabricating a public "https://…" URL.
+    cannot: >
+      must not prompt for a password (no "Password:" or "AUTHENTICATING FOR"),
+      must not leave cap_net_bind_service on the binary, must not bind the
+      privileged port :443, must not print a fabricated public "https://" URL,
+      and must not report "ready — nothing blocks".
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-none }
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-no-sudo \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: sudo-is-unavailable
+        run: sh -c 'if sudo -n true 2>/dev/null; then echo sudo-works; else echo sudo-blocked; fi'
+        expect: { stdoutContains: ["sudo-blocked"], stdoutNotContains: ["sudo-works"] }
+      - name: install-caddy-binary-fails-closed-without-prompting
+        run: swamp model method run e2e-no-sudo installCaddy
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic", "Password:", "AUTHENTICATING FOR"]
+        timeoutSeconds: 300
+      - name: create-and-start-service
+        run: |
+          swamp model method run e2e-no-sudo createService
+          swamp model method run e2e-no-sudo startService
+        expect:
+          exitCode: 0
+          outputNotContains:
+            ["is not active", "panic", "Password:", "AUTHENTICATING FOR"]
+      - name: binary-lacks-the-capability
+        run: getcap "$HOME/.local/bin/caddy"
+        expect: { stdoutNotContains: ["cap_net_bind_service"] }
+      - name: live-config-is-degraded-not-rejected
+        # :80/:443 -> :8080/:8443 over plain HTTP (the documented degrade); the
+        # privileged :443 must be gone, and :8080 must be served.
+        run: curl -s http://localhost:2019/config/ | jq -c '[.apps.http.servers[].listen[]]'
+        expect:
+          stdoutContains: [":8080", ":8443"]
+          stdoutNotContains: [":443"]
+      - name: status-page-still-served
+        run: curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/
+        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
+      - name: upgrade-check-reports-the-gap-honestly
+        run: |
+          swamp model method run e2e-no-sudo upgradeCheck 2>&1 | tee /tmp/e4-check.txt
+        expect:
+          exitCode: 0
+          outputContains: ["cannot bind ports 80/443"]
+          outputNotContains:
+            ["ready — nothing blocks", "Password:", "AUTHENTICATING FOR", "https://localhost", "https://e2e-no-sudo.example.com"]

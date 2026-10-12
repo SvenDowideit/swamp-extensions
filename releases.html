@@ -67,8 +67,55 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261012-021522-0-sha-a7855165"><span class="tier A">A</span>dormant history compaction so superseded chunks can be recla</a><a href="#release-swamp-club-swamp-v20261012-015337-0-sha-ba9a5e42"><span class="tier A">A</span>stop the managed agent instructions charging a session-start</a><a href="#release-swamp-club-swamp-v20261012-014932-0-sha-6c64c988"><span class="tier A">A</span>classify Windows lockfile paths by segment, not separator (s</a><a href="#release-swamp-club-swamp-v20261012-013951-0-sha-8001a923"><span class="tier A">A</span>report the worker daemon as not configured on platforms with</a><a href="#release-swamp-club-swamp-v20261012-005015-0-sha-fec4b9a5"><span class="tier A">A</span>workflow run and vault config repositories stage typed chang</a><a href="#release-swamp-club-swamp-v20261012-004319-0-sha-cfac523b"><span class="tier A">A</span>let workflow and model cancel stop a Windows owner gracefull</a><a href="#release-swamp-club-swamp-v20261012-003850-0-sha-0c854c81"><span class="tier A">A</span>remove run logs where runs write them in run gc and workflow</a><a href="#release-swamp-club-swamp-v20261011-232410-0-sha-6dd28a50"><span class="tier A">A</span>definition, workflow and evaluated repositories stage typed </a><a href="#release-swamp-club-swamp-v20261011-225450-0-sha-1a51af52"><span class="tier A">A</span>move the data from the current datastore when setup leaves a</a><a href="#release-swamp-club-swamp-v20261011-222452-0-sha-574e1c2e"><span class="tier A">A</span>create a default local_encryption vault at repo init, and st</a><a href="#release-swamp-club-swamp-v20261011-212318-0-sha-72ec0142"><span class="tier A">A</span>write --select scalar results verbatim instead of through ma</a><a href="#release-swamp-club-swamp-v20261011-175539-0-sha-897b64a0"><span class="tier A">A</span>data and output repositories stage typed changes on v3 (swam</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261012-111134-0-sha-8a1aa395"><span class="tier A">A</span>keep the stream directories repo-local on v3 (swamp-club#327</a><a href="#release-swamp-club-swamp-v20261012-102846-0-sha-ff65f873"><span class="tier A">A</span>create the namespace cache dir before writing the catalog ex</a><a href="#release-swamp-club-swamp-v20261012-021522-0-sha-a7855165"><span class="tier A">A</span>dormant history compaction so superseded chunks can be recla</a><a href="#release-swamp-club-swamp-v20261012-015337-0-sha-ba9a5e42"><span class="tier A">A</span>stop the managed agent instructions charging a session-start</a><a href="#release-swamp-club-swamp-v20261012-014932-0-sha-6c64c988"><span class="tier A">A</span>classify Windows lockfile paths by segment, not separator (s</a><a href="#release-swamp-club-swamp-v20261012-013951-0-sha-8001a923"><span class="tier A">A</span>report the worker daemon as not configured on platforms with</a><a href="#release-swamp-club-swamp-v20261012-005015-0-sha-fec4b9a5"><span class="tier A">A</span>workflow run and vault config repositories stage typed chang</a><a href="#release-swamp-club-swamp-v20261012-004319-0-sha-cfac523b"><span class="tier A">A</span>let workflow and model cancel stop a Windows owner gracefull</a><a href="#release-swamp-club-swamp-v20261012-003850-0-sha-0c854c81"><span class="tier A">A</span>remove run logs where runs write them in run gc and workflow</a><a href="#release-swamp-club-swamp-v20261011-232410-0-sha-6dd28a50"><span class="tier A">A</span>definition, workflow and evaluated repositories stage typed </a><a href="#release-swamp-club-swamp-v20261011-225450-0-sha-1a51af52"><span class="tier A">A</span>move the data from the current datastore when setup leaves a</a><a href="#release-swamp-club-swamp-v20261011-222452-0-sha-574e1c2e"><span class="tier A">A</span>create a default local_encryption vault at repo init, and st</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261012-111134-0-sha-8a1aa395">
+<h2><span class="tier A">A</span>keep the stream directories repo-local on v3 (swamp-club#3278) (#3008)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-12T11:12:57Z">2026-10-12T11:12:57Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): keep the stream directories repo-local on v3 (swamp-club#3278) (#3008)</li>
+</ul>
+<p>Fixes swamp-club#3278.</p>
+<h4 class="body-h">The finding</h4>
+<p>swamp-club#3233 recorded <code>audit/</code>, <code>telemetry/</code>, <code>logs/</code> and <code>files/</code> as synced, append-only streams that the v3 opt-in had to give a home, or v3 would stop syncing them. A trace of every writer and reader in <code>src/</code> shows that <strong>none of them is written through the datastore, on any backend</strong>. #3233&#39;s &quot;synced today&quot; note was wrong, and this PR corrects it.</p>
+<p>| Directory | Writers | Readers |</p>
+<p>|---|---|---|</p>
+<p>| <code>audit/</code> | Command audit (<code>JsonlAuditRepository</code>) and vault audit (<code>JsonlVaultAuditRepository</code>), both at <code>swampPath(repoDir, &quot;audit&quot;)</code>, the checkout&#39;s own <code>.swamp</code> | <code>swamp audit</code>, <code>doctor audit</code>, <code>vault audit-trail</code>, serve&#39;s <code>audit.timeline</code> / <code>vault.audit-trail</code>, all on the node&#39;s own disk |</p>
+<p>| <code>telemetry/</code> | None in the repository: the spool is user-global (<code>globalTelemetryDir()</code>); <code>telemetry_spool_migration.ts</code> drains the legacy repo-local spool | <code>swamp telemetry stats</code>, over the user-global spool |</p>
+<p>| <code>logs/</code> | None | None |</p>
+<p>| <code>files/</code> | None (<code>repo init</code> dropped it as unused in <code>b703d746</code>) | None |</p>
+<p>Run logs are <code>.log</code> files beside run and output records, written repo-local (already decided by swamp-club#3257 and #3266). Method file outputs are data records under <code>data/</code>, which v3 already commits. Serve&#39;s tamper-evident audit log goes to a control-plane store, which is already outside the commit log. The S3 and GCS extensi</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.111134.0-sha.8a1aa395" rel="noopener">release v20261012.111134.0-sha.8a1aa395</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8a1aa395a5944c83e0159f034cff70ae6879529f" rel="noopener">8a1aa395</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3008" rel="noopener">#3008</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3266" rel="noopener">#3266</a>𝗔 <a href="https://swamp-club.com/lab/3278" rel="noopener">lab#3278</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261012-102846-0-sha-ff65f873">
+<h2><span class="tier A">A</span>create the namespace cache dir before writing the catalog export (swamp-club#3277) (#3007)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-12T10:30:36Z">2026-10-12T10:30:36Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): create the namespace cache dir before writing the catalog export (swamp-club#3277) (#3007)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp datastore sync --push</code> in a fresh checkout of a namespaced datastore logged:</p>
+<p>```</p>
+<p>[WRN] datastore·sync: Catalog export failed (data push succeeded): &quot;No such file or directory (os error 2): open &#39;~/.swamp/repos/&lt;repoId&gt;/images/.&lt;uuid&gt;.tmp&#39;&quot;</p>
+<p>```</p>
+<p><code>writeCatalogExport</code> opened its temp file inside <code>&lt;cachePath&gt;/&lt;namespace&gt;</code> without creating that directory, and a checkout with no local data has not created it yet. It now creates the directory with <code>ensureDir</code> before opening the temp file. Both callers go through this function (the <code>datastore sync</code> push branch and <code>writeCatalogExportIfNeeded</code>), so both are fixed. An empty catalog still exports as <code>[]</code>.</p>
+<p>This is not a regression: the export has never created the directory. The existing tests missed it because their fixture created the namespace directory in advance.</p>
+<p>Fixes swamp-club#3277.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Two new unit tests in <code>repository_factory_test.ts</code>: missing namespace dir (one row), and missing cache dir (empty catalog). Both failed with ENOENT before the fix and pass with it; all 22 tests in the file pass.</li>
+<li>End-to-end against a ministack S3 bucket, fresh namespaced checkout (local cache deleted), <code>migrate-index</code> then <code>sync --push</code>:</li>
+<li>released <code>20261011.154850.0-sha.d650cb70</code>: the reported <code>Catalog export failed</code> warning, no export in the cache</li>
+<li>this branch: `Exported catalog</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.102846.0-sha.ff65f873" rel="noopener">release v20261012.102846.0-sha.ff65f873</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ff65f8731ff06ce78d3aaeb77913f74aa28174dd" rel="noopener">ff65f873</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3007" rel="noopener">#3007</a>𝗔 <a href="https://swamp-club.com/lab/3280" rel="noopener">lab#3280</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261012-021522-0-sha-a7855165">
 <h2><span class="tier A">A</span>dormant history compaction so superseded chunks can be reclaimed (swamp-club#3258) (#3005)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
@@ -324,7 +371,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp-getting-started/references/tracks.md" rel="noopener">.claude/skills/swamp-getting-started/references/tracks.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/guide.md" rel="noopener">.claude/skills/swamp/references/repo/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/share/guide.md" rel="noopener">.claude/skills/swamp/references/share/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/share/references/joiner-instructions.md" rel="noopener">.claude/skills/swamp/references/share/references/joiner-instructions.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/vault/guide.md" rel="noopener">.claude/skills/swamp/references/vault/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/vault/reference.md" rel="noopener">.claude/skills/swamp/references/vault/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/vault/references/providers.md" rel="noopener">.claude/skills/swamp/references/vault/references/providers.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/vault/references/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/vault/references/troubleshooting.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/vaults.md" rel="noopener">design/primitives/vaults.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/repo.md" rel="noopener">design/surfaces/repo.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.222452.0-sha.574e1c2e" rel="noopener">release v20261011.222452.0-sha.574e1c2e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/574e1c2e99c5266abd1e8cffae412aab2963709f" rel="noopener">574e1c2e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2996" rel="noopener">#2996</a>𝗔 <a href="https://swamp-club.com/lab/3259" rel="noopener">lab#3259</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261011-212318-0-sha-72ec0142">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261011-212318-0-sha-72ec0142">
 <h2><span class="tier A">A</span>write --select scalar results verbatim instead of through marked (swamp-club#3253) (#2995)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-11T21:24:58Z">2026-10-11T21:24:58Z</time></span><span>data</span><span>fix</span></div>
@@ -374,7 +421,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.175539.0-sha.897b64a0" rel="noopener">release v20261011.175539.0-sha.897b64a0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/897b64a0da386ac0f56bff70936add38d72c410f" rel="noopener">897b64a0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2994" rel="noopener">#2994</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3240" rel="noopener">#3240</a>𝗔 <a href="https://swamp-club.com/lab/3250" rel="noopener">lab#3250</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261011-174943-0-sha-c611f681">
+<article class="item" id="release-swamp-club-swamp-v20261011-174943-0-sha-c611f681">
 <h2><span class="tier A">A</span>push the interrupted workflow runs at shutdown (swamp-club#3252) (#2993)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-11T17:51:26Z">2026-10-11T17:51:26Z</time></span><span>serve</span><span>fix</span></div>
@@ -5782,54 +5829,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.194016.0-sha.c0c751a1" rel="noopener">release v20261002.194016.0-sha.c0c751a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0c751a17fa31d512cb5ee65da19e47284547cd0" rel="noopener">c0c751a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2808" rel="noopener">#2808</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/2979" rel="noopener">lab#2979</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261012-111134-0-sha-8a1aa395">
-<h2><span class="tier C">C</span>swamp 20261012.111134.0-sha.8a1aa395</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-12T11:12:57Z">2026-10-12T11:12:57Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(datastore): keep the stream directories repo-local on v3 (swamp-club#3278) (#3008)</li>
-</ul>
-<p>Fixes swamp-club#3278.</p>
-<h4 class="body-h">The finding</h4>
-<p>swamp-club#3233 recorded <code>audit/</code>, <code>telemetry/</code>, <code>logs/</code> and <code>files/</code> as synced, append-only streams that the v3 opt-in had to give a home, or v3 would stop syncing them. A trace of every writer and reader in <code>src/</code> shows that <strong>none of them is written through the datastore, on any backend</strong>. #3233&#39;s &quot;synced today&quot; note was wrong, and this PR corrects it.</p>
-<p>| Directory | Writers | Readers |</p>
-<p>|---|---|---|</p>
-<p>| <code>audit/</code> | Command audit (<code>JsonlAuditRepository</code>) and vault audit (<code>JsonlVaultAuditRepository</code>), both at <code>swampPath(repoDir, &quot;audit&quot;)</code>, the checkout&#39;s own <code>.swamp</code> | <code>swamp audit</code>, <code>doctor audit</code>, <code>vault audit-trail</code>, serve&#39;s <code>audit.timeline</code> / <code>vault.audit-trail</code>, all on the node&#39;s own disk |</p>
-<p>| <code>telemetry/</code> | None in the repository: the spool is user-global (<code>globalTelemetryDir()</code>); <code>telemetry_spool_migration.ts</code> drains the legacy repo-local spool | <code>swamp telemetry stats</code>, over the user-global spool |</p>
-<p>| <code>logs/</code> | None | None |</p>
-<p>| <code>files/</code> | None (<code>repo init</code> dropped it as unused in <code>b703d746</code>) | None |</p>
-<p>Run logs are <code>.log</code> files beside run and output records, written repo-local (already decided by swamp-club#3257 and #3266). Method file outputs are data records under <code>data/</code>, which v3 already commits. Serve&#39;s tamper-evident audit log goes to a control-plane store, which is already outside the commit log. The S3 and GCS extensi</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.111134.0-sha.8a1aa395" rel="noopener">release v20261012.111134.0-sha.8a1aa395</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8a1aa395" rel="noopener">8a1aa395</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3008" rel="noopener">#3008</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3266" rel="noopener">#3266</a>𝗔 <a href="https://swamp-club.com/lab/3278" rel="noopener">lab#3278</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261012-102846-0-sha-ff65f873">
-<h2><span class="tier C">C</span>swamp 20261012.102846.0-sha.ff65f873</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-12T10:30:36Z">2026-10-12T10:30:36Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(datastore): create the namespace cache dir before writing the catalog export (swamp-club#3277) (#3007)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>swamp datastore sync --push</code> in a fresh checkout of a namespaced datastore logged:</p>
-<p>```</p>
-<p>[WRN] datastore·sync: Catalog export failed (data push succeeded): &quot;No such file or directory (os error 2): open &#39;~/.swamp/repos/&lt;repoId&gt;/images/.&lt;uuid&gt;.tmp&#39;&quot;</p>
-<p>```</p>
-<p><code>writeCatalogExport</code> opened its temp file inside <code>&lt;cachePath&gt;/&lt;namespace&gt;</code> without creating that directory, and a checkout with no local data has not created it yet. It now creates the directory with <code>ensureDir</code> before opening the temp file. Both callers go through this function (the <code>datastore sync</code> push branch and <code>writeCatalogExportIfNeeded</code>), so both are fixed. An empty catalog still exports as <code>[]</code>.</p>
-<p>This is not a regression: the export has never created the directory. The existing tests missed it because their fixture created the namespace directory in advance.</p>
-<p>Fixes swamp-club#3277.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>Two new unit tests in <code>repository_factory_test.ts</code>: missing namespace dir (one row), and missing cache dir (empty catalog). Both failed with ENOENT before the fix and pass with it; all 22 tests in the file pass.</li>
-<li>End-to-end against a ministack S3 bucket, fresh namespaced checkout (local cache deleted), <code>migrate-index</code> then <code>sync --push</code>:</li>
-<li>released <code>20261011.154850.0-sha.d650cb70</code>: the reported <code>Catalog export failed</code> warning, no export in the cache</li>
-<li>this branch: `Exported catalog</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.102846.0-sha.ff65f873" rel="noopener">release v20261012.102846.0-sha.ff65f873</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ff65f873" rel="noopener">ff65f873</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3007" rel="noopener">#3007</a>𝗔 <a href="https://swamp-club.com/lab/3280" rel="noopener">lab#3280</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261011-002912-0-sha-052485ae">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261011-002912-0-sha-052485ae">
 <h2><span class="tier C">C</span>Litestream embedding decision record for the v3 datastore (swamp-club#3234) (#2976)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-11T00:30:42Z">2026-10-11T00:30:42Z</time></span><span>design</span><span>docs</span></div>
@@ -6005,12 +6005,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>244 items across 1 source(s) in this window:
-0 critical, 224 notable, 10 routine,
-10 minor.</p>
-<ul><li><strong>fix</strong> — 161</li><li><strong>feat</strong> — 63</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 3</li><li><strong>changes</strong> — 2</li></ul></section>
+0 critical, 226 notable, 10 routine,
+8 minor.</p>
+<ul><li><strong>fix</strong> — 162</li><li><strong>feat</strong> — 64</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-12T13:02:55.837Z">2026-10-12T13:02:55.837Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-12T14:02:59.105Z">2026-10-12T14:02:59.105Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

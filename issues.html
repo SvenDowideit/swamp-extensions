@@ -67,8 +67,40 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3302"><span class="tier A">A</span>swamp model edit silently renames the target when the piped </a><a href="#issue-3265"><span class="tier A">A</span>Add swamp behaviour run as the preferred model-method comman</a><a href="#issue-3299"><span class="tier A">A</span>Datastore rework: on v3, an interrupted method run&#39;s outputs</a><a href="#issue-3300"><span class="tier A">A</span>Datastore rework: on v3, turning managedConfig on hides exis</a><a href="#issue-3306"><span class="tier A">A</span>Cross-namespace data.* reads return empty attributes in mode</a><a href="#issue-3301"><span class="tier A">A</span>Datastore rework: on v3, namespace set before setup --format</a><a href="#issue-3212"><span class="tier A">A</span>Hold a signal that arrives before its wait opens</a><a href="#issue-3293"><span class="tier A">A</span>A running dispatch counts twice against worker capacity, so </a><a href="#issue-3295"><span class="tier A">A</span>data.latest(&quot;otherns:model&quot;, name) returns the caller&#39;s own </a><a href="#issue-3196"><span class="tier A">A</span>swamp model validate checks globalArguments without applying</a><a href="#issue-3286"><span class="tier A">A</span>Record-typed arguments are not JSON-parsed from plain key=va</a><a href="#issue-3281"><span class="tier A">A</span>datastore setup strands repo-local audit history and run log</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3316"><span class="tier A">A</span>datastore namespace migrate treats the repo-local catalog as</a><a href="#issue-3307"><span class="tier A">A</span>A signal by key can be answered pending or taken when that i</a><a href="#issue-3308"><span class="tier A">A</span>swamp serve lists every wait-key record on each continuation</a><a href="#issue-3317"><span class="tier A">A</span>model method run --timeout exits 0 and prints nothing when t</a><a href="#issue-3302"><span class="tier A">A</span>swamp model edit silently renames the target when the piped </a><a href="#issue-3265"><span class="tier A">A</span>Add swamp behaviour run as the preferred model-method comman</a><a href="#issue-3299"><span class="tier A">A</span>Datastore rework: on v3, an interrupted method run&#39;s outputs</a><a href="#issue-3300"><span class="tier A">A</span>Datastore rework: on v3, turning managedConfig on hides exis</a><a href="#issue-3306"><span class="tier A">A</span>Cross-namespace data.* reads return empty attributes in mode</a><a href="#issue-3301"><span class="tier A">A</span>Datastore rework: on v3, namespace set before setup --format</a><a href="#issue-3212"><span class="tier A">A</span>Hold a signal that arrives before its wait opens</a><a href="#issue-3293"><span class="tier A">A</span>A running dispatch counts twice against worker capacity, so </a></aside><div>
 
+<article class="item" id="issue-3316">
+<h2><span class="tier A">A</span>datastore namespace migrate treats the repo-local catalog as user data: it cannot be re-run, resumed, or reversed after a read</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-12T21:30:46.596Z">2026-10-12T21:30:46.596Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3316" rel="noopener">lab#3316</a></div>
+</article>
+<article class="item" id="issue-3307">
+<h2><span class="tier A">A</span>A signal by key can be answered pending or taken when that is not what happened to it</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-12T21:30:27.146Z">2026-10-12T21:30:27.146Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3307" rel="noopener">lab#3307</a></div>
+</article>
+<article class="item" id="issue-3308">
+<h2><span class="tier A">A</span>swamp serve lists every wait-key record on each continuation pass once any pending signal has lapsed</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-12T21:30:20.264Z">2026-10-12T21:30:20.264Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3308" rel="noopener">lab#3308</a></div>
+</article>
+<article class="item" id="issue-3317">
+<h2><span class="tier A">A</span>model method run --timeout exits 0 and prints nothing when the timeout cancels the run</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-12T21:28:04.627Z">2026-10-12T21:28:04.627Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3317" rel="noopener">lab#3317</a></div>
+</article>
 <article class="item" id="issue-3302">
 <h2><span class="tier A">A</span>swamp model edit silently renames the target when the piped body&#39;s name differs</h2>
 <p class="lede">Shipped bug fix</p>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3293" rel="noopener">lab#3293</a></div>
 </article>
-<article class="item" id="issue-3295">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3295">
 <h2><span class="tier A">A</span>data.latest(&quot;otherns:model&quot;, name) returns the caller&#39;s own record when a local model has that name</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-12T16:10:01.709Z">2026-10-12T16:10:01.709Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3281" rel="noopener">lab#3281</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3288">
+<article class="item" id="issue-3288">
 <h2><span class="tier A">A</span>swamp repo upgrade does not remove the superseded skills it warns about</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-12T14:41:28.035Z">2026-10-12T14:41:28.035Z</time></span></div>
@@ -2869,45 +2901,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3307">
-<h2><span class="tier B">B</span>A signal by key can be answered pending or taken when that is not what happened to it</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-12T21:01:48.156Z">2026-10-12T21:01:48.156Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3307" rel="noopener">lab#3307</a></div>
-</article>
-<article class="item" id="issue-3317">
-<h2><span class="tier B">B</span>model method run --timeout exits 0 and prints nothing when the timeout cancels the run</h2>
+<article class="item" id="issue-3320">
+<h2><span class="tier B">B</span>signal_test fails on main: a signal by key handed over by the sweep is not answered taken</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-12T21:01:32.778Z">2026-10-12T21:01:32.778Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-12T22:02:01.371Z">2026-10-12T22:02:01.371Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3317" rel="noopener">lab#3317</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3320" rel="noopener">lab#3320</a></div>
+</article>
+<article class="item" id="issue-3315">
+<h2><span class="tier B">B</span>DispatchService two-slot worker test assigns disabled Object.prototype.__proto__</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-12T21:53:43.295Z">2026-10-12T21:53:43.295Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3315" rel="noopener">lab#3315</a></div>
 </article>
 <article class="item" id="issue-3274">
 <h2><span class="tier B">B</span>stagecraft: let users build their own tracker as a separate extension (open tracker kinds, published adapter contract and conformance suite)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-12T21:00:37.042Z">2026-10-12T21:00:37.042Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-12T21:15:47.428Z">2026-10-12T21:15:47.428Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3274" rel="noopener">lab#3274</a></div>
-</article>
-<article class="item" id="issue-3308">
-<h2><span class="tier B">B</span>swamp serve lists every wait-key record on each continuation pass once any pending signal has lapsed</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-12T21:00:02.397Z">2026-10-12T21:00:02.397Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3308" rel="noopener">lab#3308</a></div>
-</article>
-<article class="item" id="issue-3316">
-<h2><span class="tier B">B</span>datastore namespace migrate treats the repo-local catalog as user data: it cannot be re-run, resumed, or reversed after a read</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-12T20:53:30.432Z">2026-10-12T20:53:30.432Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3316" rel="noopener">lab#3316</a></div>
 </article>
 <article class="item" id="issue-2892">
 <h2><span class="tier B">B</span>Extension datastore: query still returns an item after its delete is pulled</h2>
@@ -2949,21 +2965,101 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3311">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3322">
+<h2><span class="tier C">C</span>repo init --help omits pi and antigravity from the built-in --tool list</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T22:02:03.402Z">2026-10-12T22:02:03.402Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3322" rel="noopener">lab#3322</a></div>
+</article>
+<article class="item" id="issue-3321">
+<h2><span class="tier C">C</span>model method run --literal-inputs: the warning&#39;s Raw: text drops a brace from the expression</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T22:01:56.042Z">2026-10-12T22:01:56.042Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3321" rel="noopener">lab#3321</a></div>
+</article>
+<article class="item" id="issue-3199">
+<h2><span class="tier C">C</span>Docs: concurrent scheduled runs and queue delay in swamp serve</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T21:41:12.767Z">2026-10-12T21:41:12.767Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3199" rel="noopener">lab#3199</a></div>
+</article>
+<article class="item" id="issue-3203">
+<h2><span class="tier C">C</span>Docs: datastore-provider reference for datastoreControlPlaneStore and control-plane read options</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T21:41:10.358Z">2026-10-12T21:41:10.358Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3203" rel="noopener">lab#3203</a></div>
+</article>
+<article class="item" id="issue-3232">
+<h2><span class="tier C">C</span>Docs: serve token GC per-sweep limit and quoting 0 in serve.yaml</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T21:41:07.926Z">2026-10-12T21:41:07.926Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3232" rel="noopener">lab#3232</a></div>
+</article>
+<article class="item" id="issue-3235">
+<h2><span class="tier C">C</span>Docs: update Kiro and Amp how-to pages for the new scaffolding (swamp-club#3222)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T21:41:05.520Z">2026-10-12T21:41:05.520Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3235" rel="noopener">lab#3235</a></div>
+</article>
+<article class="item" id="issue-3260">
+<h2><span class="tier C">C</span>Docs: default vault at repo init, --no-vault, and base_dir no longer persisted (swamp-club#3259)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T21:41:03.128Z">2026-10-12T21:41:03.128Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3260" rel="noopener">lab#3260</a></div>
+</article>
+<article class="item" id="issue-3296">
+<h2><span class="tier C">C</span>Docs: say that validation applies the upgrade chain before checking global arguments</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T21:41:00.737Z">2026-10-12T21:41:00.737Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3296" rel="noopener">lab#3296</a></div>
+</article>
+<article class="item" id="issue-3304">
+<h2><span class="tier C">C</span>Docs: --literal-inputs and data that never evaluates as authored (swamp-club#3205)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T21:40:52.692Z">2026-10-12T21:40:52.692Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3304" rel="noopener">lab#3304</a></div>
+</article>
+<article class="item" id="issue-3319">
+<h2><span class="tier C">C</span>datastore namespace list --json reports a corrupt .namespace.json as an unexpected exception with a stack trace</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T21:17:20.584Z">2026-10-12T21:17:20.584Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3319" rel="noopener">lab#3319</a></div>
+</article>
+<article class="item" id="issue-3318">
+<h2><span class="tier C">C</span>A forEach&#39;s iterations run in name order, not list order (operate-10 before operate-2)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T21:15:56.617Z">2026-10-12T21:15:56.617Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3318" rel="noopener">lab#3318</a></div>
+</article>
+<article class="item" id="issue-3311">
 <h2><span class="tier C">C</span>extension push --private: trust the registry&#39;s privateExtensions verdict instead of deciding from plan/trial</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-12T20:50:56.083Z">2026-10-12T20:50:56.083Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3311" rel="noopener">lab#3311</a></div>
-</article>
-<article class="item" id="issue-3304">
-<h2><span class="tier C">C</span>Docs: --literal-inputs and data that never evaluates as authored (swamp-club#3205)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-12T20:31:32.683Z">2026-10-12T20:31:32.683Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3304" rel="noopener">lab#3304</a></div>
 </article>
 <article class="item" id="issue-3312">
 <h2><span class="tier C">C</span>Docs: extension pull before/after summary, published vs followed channel, and publishedChannel in the lockfile and list</h2>
@@ -2972,14 +3068,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3312" rel="noopener">lab#3312</a></div>
-</article>
-<article class="item" id="issue-3315">
-<h2><span class="tier C">C</span>DispatchService two-slot worker test assigns disabled Object.prototype.__proto__</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-12T20:30:40.282Z">2026-10-12T20:30:40.282Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3315" rel="noopener">lab#3315</a></div>
 </article>
 <article class="item" id="issue-3314">
 <h2><span class="tier C">C</span>Windows-built extension tarballs have 0666 directories; registry scorer can&#39;t find manifest.yaml</h2>
@@ -3052,14 +3140,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3292" rel="noopener">lab#3292</a></div>
-</article>
-<article class="item" id="issue-3296">
-<h2><span class="tier C">C</span>Docs: say that validation applies the upgrade chain before checking global arguments</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-12T15:33:04.208Z">2026-10-12T15:33:04.208Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3296" rel="noopener">lab#3296</a></div>
 </article>
 <article class="item" id="issue-3294">
 <h2><span class="tier C">C</span>WorkerGateway.dispatch leaks a capacity slot when recording the busy status fails</h2>
@@ -3149,14 +3229,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3273" rel="noopener">lab#3273</a></div>
 </article>
-<article class="item" id="issue-3260">
-<h2><span class="tier C">C</span>Docs: default vault at repo init, --no-vault, and base_dir no longer persisted (swamp-club#3259)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-12T01:31:21.182Z">2026-10-12T01:31:21.182Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3260" rel="noopener">lab#3260</a></div>
-</article>
 <article class="item" id="issue-3272">
 <h2><span class="tier C">C</span>swamp-extensions: use explicit npm:/jsr: specifiers in root extensions/models</h2>
 <p class="lede">Open issue</p>
@@ -3204,22 +3276,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3248" rel="noopener">lab#3248</a></div>
-</article>
-<article class="item" id="issue-3235">
-<h2><span class="tier C">C</span>Docs: update Kiro and Amp how-to pages for the new scaffolding (swamp-club#3222)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-11T00:40:15.182Z">2026-10-11T00:40:15.182Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3235" rel="noopener">lab#3235</a></div>
-</article>
-<article class="item" id="issue-3232">
-<h2><span class="tier C">C</span>Docs: serve token GC per-sweep limit and quoting 0 in serve.yaml</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-10T21:27:46.040Z">2026-10-10T21:27:46.040Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3232" rel="noopener">lab#3232</a></div>
 </article>
 <article class="item" id="issue-3229">
 <h2><span class="tier C">C</span>stagecraft: studio state_test &#39;after its event stream reconnects&#39; is timing-flaky under load</h2>
@@ -3276,22 +3332,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3204" rel="noopener">lab#3204</a></div>
-</article>
-<article class="item" id="issue-3199">
-<h2><span class="tier C">C</span>Docs: concurrent scheduled runs and queue delay in swamp serve</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-08T21:55:01.543Z">2026-10-08T21:55:01.543Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3199" rel="noopener">lab#3199</a></div>
-</article>
-<article class="item" id="issue-3203">
-<h2><span class="tier C">C</span>Docs: datastore-provider reference for datastoreControlPlaneStore and control-plane read options</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-08T21:54:52.580Z">2026-10-08T21:54:52.580Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3203" rel="noopener">lab#3203</a></div>
 </article>
 <article class="item" id="issue-3198">
 <h2><span class="tier C">C</span>s3-datastore: model-scoped pullChanged lists and walks the whole namespace</h2>
@@ -4054,13 +4094,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>498 items across 1 source(s) in this window:
-0 critical, 350 notable, 10 routine,
-138 minor.</p>
-<ul><li><strong>issues</strong> — 498</li></ul></section>
+<p>503 items across 1 source(s) in this window:
+0 critical, 354 notable, 8 routine,
+141 minor.</p>
+<ul><li><strong>issues</strong> — 503</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-12T21:03:59.994Z">2026-10-12T21:03:59.994Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-12T22:03:04.855Z">2026-10-12T22:03:04.855Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

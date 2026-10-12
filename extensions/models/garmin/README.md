@@ -119,6 +119,28 @@ with `--input key=value` where a method exposes it.
 | `metrics` | string[] | trainingStatus, trainingReadiness, vo2max, racePredictions, ftp, personalRecords | Metrics to fetch. Also: `enduranceScore`, `hillScore`, `fitnessAge`. |
 | `respectCapabilities` | boolean | `true` | Drop device-gated metrics the account's devices do not support. |
 
+## Setup
+
+Every model ships a read-only `setup` method: run it to see exactly what is
+configured, what was detected or reused, and what is still missing before a sync
+runs. It prints no secret.
+
+```sh
+# See the detected/reused config and the exact commands to fix any gap.
+swamp model @svendowideit/garmin-connect method run setup garmin-connect
+swamp model @svendowideit/garmin-body method run setup garmin-body
+```
+
+Configuration is persisted on the model and read back on every run: global
+arguments are stored in the model definition, so a scheduled run needs no
+`--input`, and credentials plus the rotating session live in the vault. `setup`
+detects what already exists — an existing session, cached responses, a
+resolvable window — and reuses it rather than asking again, and it verifies the
+**real** state, stopping with a clear message on a blocking failure. Capabilities
+enable progressively: a model fetches only the domains its config and the
+account's device capability map support, so partial config still yields useful
+data.
+
 ## Examples
 
 ```sh
@@ -232,6 +254,21 @@ swamp model @svendowideit/garmin-devices method run sync garmin-devices \
 swamp model @svendowideit/garmin-activities method run detail-paths garmin-activities \
   --input 'kinds=["detail","hrTimeInZones","powerTimeInZones"]'
 ```
+
+## Upgrade
+
+Nothing is installed on the host — no services or daemons — so there is no
+in-place rebuild to run. Upgrade by updating the extension:
+
+```sh
+# Apply the new garmin version; each model migrates on its next run.
+swamp extension update @svendowideit/garmin
+```
+
+Each model carries its own `upgrades` entry, so an updated version migrates its
+stored configuration automatically the next time it runs. The vault session and
+the shared response cache are reused as-is, so an upgrade never re-prompts for
+credentials or re-fetches data it already holds.
 
 ## Details
 

@@ -23,7 +23,10 @@ description: |
   morning run picks up a weigh-in recorded today — which the diary needs to show
   today's weight. Widen it with startDate/endDate for a backfill.
 
-  Runs daily at 05:40, last of the daily syncs.
+  Runs daily at 05:40 standalone, and also on every hourly
+  `@svendowideit/fitness-refresh` pass so a weigh-in recorded during the day is
+  picked up the same day. Each run re-reads Garmin (the weigh-in URL is the same
+  all day), so a later weigh-in is never masked by the morning's cached response.
 
   Manual run:
     swamp workflow run @svendowideit/garmin-body-sync
@@ -69,6 +72,14 @@ inputs:
       type: string
       default: range
       description: "range = one request for the whole window; daily = one per day."
+    forceRefresh:
+      type: boolean
+      default: true
+      description: >
+        Re-fetch from Garmin even when a cached response exists. A weigh-in URL
+        is the same all day, so a cache-first run re-serves the morning's
+        (possibly empty) response and misses a weigh-in recorded later. Required
+        for an hourly schedule; default true.
   required: []
 jobs:
   - name: body
@@ -112,6 +123,7 @@ jobs:
           methodName: fetch-many
           inputs:
             paths: ${{ data.latest(inputs.bodyName, "body-paths").attributes.paths }}
+            forceRefresh: ${{ inputs.forceRefresh }}
         dependsOn:
           - step: body-paths
             condition:

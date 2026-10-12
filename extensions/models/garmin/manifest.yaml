@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/garmin"
-version: "2026.10.09.1"
+version: "2026.10.12.1"
 description: |
   Sync a Garmin Connect account into swamp: one authenticated transport, plus
   domain models that read its cached responses — devices with a capability map
@@ -110,6 +110,26 @@ description: |
       swamp model @svendowideit/garmin-health method run setup garmin-health
       swamp model @svendowideit/garmin-body method run setup garmin-body
       swamp model @svendowideit/garmin-performance method run setup garmin-performance
+
+  SETUP
+
+    Every model ships a read-only `setup` method: run it to see the config that
+    was detected or reused and exactly what is missing before a sync runs (it
+    prints no secret). Global arguments are persisted on the model and read back
+    on every run, credentials and session live in the vault, and each model
+    verifies the real state — a valid session, cached responses, a resolvable
+    window — stopping with a clear message on a blocking failure. Capabilities
+    enable progressively: a model fetches only the domains its config and the
+    account's device capability map support.
+
+  UPGRADE
+
+    Nothing is installed on the host, so there is no in-place rebuild to run.
+    Upgrade by updating the extension; each model carries its own `upgrades`
+    entry and migrates its stored configuration on the next run, reusing the
+    existing vault session and cache.
+
+      swamp extension update @svendowideit/garmin
 
   WHAT IT INSTALLS
 

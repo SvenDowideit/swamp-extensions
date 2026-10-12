@@ -20,6 +20,12 @@
  *
  * @module
  */
+
+// meta-factory-ignore config-lifecycle: the diary owns no configuration — every
+// option is a per-call method argument, and the only persisted config
+// (`vaultRoot`) belongs to the `@magistr/obsidian/vault` model this extension
+// attaches to. The `options:` the linter matches is a `runModel` parameter in a
+// type annotation, not a config resource, so no `setup` method applies.
 import { z } from "npm:zod@4";
 
 /** Default timezone used to decide what "today" means. */
@@ -47,6 +53,11 @@ const CollectArgsSchema = z.object({
   timezone: TimezoneArg,
   date: z.string().optional().describe(
     "Calendar day to collect, YYYY-MM-DD (default: today in `timezone`)",
+  ),
+  days: z.number().int().positive().max(7).default(1).describe(
+    "Number of days to collect ending on `date`/today, most recent first " +
+      "(default 1). Set 2 to also refresh yesterday, so a weigh-in recorded " +
+      "late in the day updates the previous page on the next run.",
   ),
   activitiesModel: z.string().default("garmin-activities").describe(
     "Model instance holding the Garmin activity list",
@@ -92,6 +103,11 @@ const PublishArgsSchema = z.object({
   timezone: TimezoneArg,
   date: z.string().optional().describe(
     "Calendar day to publish, YYYY-MM-DD (default: today in `timezone`)",
+  ),
+  days: z.number().int().positive().max(7).default(1).describe(
+    "Number of days to publish ending on `date`/today, most recent first " +
+      "(default 1). Set 2 to also refresh yesterday's page, matching a " +
+      "multi-day collect.",
   ),
   collectName: z.string().optional().describe(
     "Name of the collect resource to publish (default: daily-<date>)",
@@ -337,6 +353,29 @@ export function resolveDate(
 ): string {
   const trimmed = (date ?? "").trim();
   return trimmed.length > 0 ? trimmed : calendarDate(timezone, now);
+}
+
+/** Shift a `YYYY-MM-DD` calendar date by whole days (negative = earlier). */
+export function shiftDate(date: string, delta: number): string {
+  const t = Date.parse(`${date}T00:00:00Z`) + Math.trunc(delta) * 86_400_000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+/**
+ * The inclusive list of days a method acts on: `days` days ending on `date`
+ * (or today in `timezone`), most recent first. `days=2` yields `[D, D-1]`, so a
+ * weigh-in that arrives after the day was first written still updates the
+ * previous page on the next pass. Clamped to 1..7.
+ */
+export function resolveDates(
+  date: string | undefined,
+  timezone: string,
+  days: number,
+  now: Date = new Date(),
+): string[] {
+  const end = resolveDate(date, timezone, now);
+  const span = Math.min(7, Math.max(1, Math.floor(Number(days) || 1)));
+  return Array.from({ length: span }, (_, i) => shiftDate(end, -i));
 }
 
 /** Keep activities whose Garmin-local start falls on `date`. */
@@ -765,7 +804,7 @@ async function executeCollect(
   context: DiaryContext,
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   args = CollectArgsSchema.parse(args);
-  const date = resolveDate(args.date, args.timezone);
+  const dates = resolveDates(args.date, args.timezone, args.days);
   const missing: string[] = [];
 
   const read = async (
@@ -778,6 +817,7 @@ async function executeCollect(
     return records.map((r) => r.attributes);
   };
 
+  // Read every source once, then build one payload per day in the window.
   const activityLists = await read(args.activitiesModel, "list");
   const allRides: CollectedRide[] = [];
   for (const list of activityLists) {
@@ -786,29 +826,10 @@ async function executeCollect(
       : [];
     for (const a of acts) allRides.push(toRide(a));
   }
-  const rides = filterActivities(allRides, date);
 
   const dailyHealth = await read(args.healthModel, "daily");
-  const dayHealth = dailyHealth.find((h) => h.date === date) ?? null;
-  const wellness: CollectedWellness | null = dayHealth
-    ? {
-      steps: numOrNull(dayHealth.steps),
-      stepGoal: numOrNull(dayHealth.stepGoal),
-      sleepSeconds: numOrNull(dayHealth.sleepSeconds),
-      sleepScore: numOrNull(dayHealth.sleepScore),
-      restingHeartRate: numOrNull(dayHealth.restingHeartRate),
-      avgStress: numOrNull(dayHealth.avgStress),
-      bodyBatteryHighest: numOrNull(dayHealth.bodyBatteryHighest),
-      bodyBatteryLowest: numOrNull(dayHealth.bodyBatteryLowest),
-    }
-    : null;
-
   const bomRecords = await read(args.bomModel, "forecast");
-  const weather = selectWeather(bomRecords[0] ?? null, date);
-
   const bodyRecords = await read(args.bodyModel, "range");
-  const weight = selectWeight(bodyRecords[0] ?? null, date);
-
   const recRecords = await read(args.recommenderModel, "recommendations");
   const recommendations = recRecords[0]?.recommendations as
     | Array<Record<string, unknown>>
@@ -818,47 +839,72 @@ async function executeCollect(
     Record<string, unknown>
   >;
   const schedule = indexSchedule(scheduleEvents);
-  const suggested = selectSuggestions(
-    recommendations ?? [],
-    date,
-    args.topN,
-    schedule,
-  );
-  const picksForDate =
-    (recommendations ?? []).filter((r) => r.localDate === date).length;
 
-  const payload: CollectedDay = {
-    date,
-    generatedAt: new Date().toISOString(),
-    timezone: args.timezone,
-    rides,
-    totals: summariseRides(rides),
-    wellness,
-    weight,
-    weather,
-    suggested,
-    truncated: picksForDate > suggested.length,
-    missing,
-  };
+  const handles: Array<{ name: string }> = [];
+  for (const date of dates) {
+    const rides = filterActivities(allRides, date);
+    const dayHealth = dailyHealth.find((h) => h.date === date) ?? null;
+    const wellness: CollectedWellness | null = dayHealth
+      ? {
+        steps: numOrNull(dayHealth.steps),
+        stepGoal: numOrNull(dayHealth.stepGoal),
+        sleepSeconds: numOrNull(dayHealth.sleepSeconds),
+        sleepScore: numOrNull(dayHealth.sleepScore),
+        restingHeartRate: numOrNull(dayHealth.restingHeartRate),
+        avgStress: numOrNull(dayHealth.avgStress),
+        bodyBatteryHighest: numOrNull(dayHealth.bodyBatteryHighest),
+        bodyBatteryLowest: numOrNull(dayHealth.bodyBatteryLowest),
+      }
+      : null;
 
-  context.logger.info(
-    "Collected {date}: {rides} ride(s), {suggested} suggestion(s), " +
-      "forecast {forecast}, weight {weight}",
-    {
+    const weather = selectWeather(bomRecords[0] ?? null, date);
+    const weight = selectWeight(bodyRecords[0] ?? null, date);
+    const suggested = selectSuggestions(
+      recommendations ?? [],
       date,
-      rides: rides.length,
-      suggested: suggested.length,
-      forecast: weather ? "yes" : "no",
-      weight: weight ? `${weight.weight} ${weight.unit}` : "no",
-    },
-  );
+      args.topN,
+      schedule,
+    );
+    const picksForDate = (recommendations ?? []).filter((r) =>
+      r.localDate === date
+    ).length;
 
-  const handle = await context.writeResource(
-    "collect",
-    `daily-${date}`,
-    payload as unknown as Record<string, unknown>,
-  );
-  return { dataHandles: [handle] };
+    const payload: CollectedDay = {
+      date,
+      generatedAt: new Date().toISOString(),
+      timezone: args.timezone,
+      rides,
+      totals: summariseRides(rides),
+      wellness,
+      weight,
+      weather,
+      suggested,
+      truncated: picksForDate > suggested.length,
+      missing,
+    };
+
+    context.logger.info(
+      "Collected {date}: {rides} ride(s), {suggested} suggestion(s), " +
+        "forecast {forecast}, weight {weight}",
+      {
+        date,
+        rides: rides.length,
+        suggested: suggested.length,
+        forecast: weather ? "yes" : "no",
+        weight: weight ? `${weight.weight} ${weight.unit}` : "no",
+      },
+    );
+
+    handles.push(
+      await context.writeResource(
+        "collect",
+        `daily-${date}`,
+        payload as unknown as Record<string, unknown>,
+      ),
+    );
+  }
+
+  return { dataHandles: handles };
 }
 
 /** Render the markdown page from a collect resource. */
@@ -889,52 +935,57 @@ async function executePublish(
   context: DiaryContext,
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   args = PublishArgsSchema.parse(args);
-  const date = resolveDate(args.date, args.timezone);
-  const name = args.collectName ?? `daily-${date}`;
-  const day = await readCollect(context, name);
-  const managed = renderManagedSection(day);
-  const file = `${args.folder.replace(/\/+$/, "")}/${
-    args.noteName ?? `${date}.md`
-  }`;
-  const timestamp = new Date().toISOString();
-
   if (!context.runModel) {
     throw new Error(
       "context.runModel is unavailable; publish needs it to call the vault model",
     );
   }
+  const dates = resolveDates(args.date, args.timezone, args.days);
+  const folder = args.folder.replace(/\/+$/, "");
+  const handles: Array<{ name: string }> = [];
 
-  const existing = await readNoteContent(
-    context,
-    args.vaultModel,
-    file,
-    args.allowDotObsidian,
-  );
+  for (const date of dates) {
+    const name = args.collectName ?? `daily-${date}`;
+    const day = await readCollect(context, name);
+    const managed = renderManagedSection(day);
+    const file = `${folder}/${args.noteName ?? `${date}.md`}`;
+    const timestamp = new Date().toISOString();
 
-  const merged = mergeManagedSection(existing, managed);
-  const write = await context.runModel({
-    definition: args.vaultModel,
-    method: "create",
-    arguments: {
-      name: file,
-      content: merged,
-      overwrite: true,
-      allowDotObsidian: args.allowDotObsidian,
-    },
-  });
-  if (!write.ok) {
-    throw new Error(`vault write failed: ${write.error.message}`);
+    const existing = await readNoteContent(
+      context,
+      args.vaultModel,
+      file,
+      args.allowDotObsidian,
+    );
+
+    const merged = mergeManagedSection(existing, managed);
+    const write = await context.runModel({
+      definition: args.vaultModel,
+      method: "create",
+      arguments: {
+        name: file,
+        content: merged,
+        overwrite: true,
+        allowDotObsidian: args.allowDotObsidian,
+      },
+    });
+    if (!write.ok) {
+      throw new Error(`vault write failed: ${write.error.message}`);
+    }
+
+    context.logger.info("Published {file}", { file });
+    handles.push(
+      await context.writeResource("publish", `publish-${date}`, {
+        date,
+        file,
+        action: existing.length ? "merged" : "created",
+        merged: existing.includes(BEGIN_MARKER),
+        timestamp,
+      }),
+    );
   }
 
-  context.logger.info("Published {file}", { file });
-  const handle = await context.writeResource("publish", `publish-${date}`, {
-    date,
-    file,
-    action: existing.length ? "merged" : "created",
-    merged: existing.includes(BEGIN_MARKER),
-    timestamp,
-  });
-  return { dataHandles: [handle] };
+  return { dataHandles: handles };
 }
 
 /** Read the collect resource for a day; fails clearly when it is absent. */

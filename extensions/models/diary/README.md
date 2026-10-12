@@ -43,8 +43,10 @@ matching the date, the line is simply omitted and `bom/forecast` is listed in
 
 The bundled `@svendowideit/diary-daily` workflow chains these — assert sources,
 `collect`, `publish` — and is scheduled hourly at :45 local under `swamp serve`,
-a quarter-hour after the `@svendowideit/fitness-refresh` run it consumes, so the
-day stays current as new activities land.
+a quarter-hour after the `@svendowideit/fitness-refresh` run it consumes. Each
+pass rebuilds the last four days (today and the three before), so the pages stay
+current as new activities
+and weigh-ins land, including one recorded after a page was first written.
 
 Because `collect` only reads stored data, a diary run is cheap and safe: it
 cannot rate-limit Garmin or duplicate a Zwift fetch. If a source has not synced,
@@ -82,6 +84,7 @@ the `@magistr/obsidian/vault` model it extends:
 | --- | --- | --- | --- | --- |
 | `collect` | `timezone` | string | `Australia/Brisbane` | IANA zone that defines "today" and buckets picks |
 | `collect` | `date` | string? | today | Calendar day `YYYY-MM-DD` to collect |
+| `collect` | `days` | integer | `1` | Days to collect ending on `date`/today, most recent first (the bundled workflow passes `4`) |
 | `collect` | `activitiesModel` | string | `garmin-activities` | Instance holding the Garmin activity list |
 | `collect` | `healthModel` | string | `garmin-health` | Instance holding Garmin daily wellness |
 | `collect` | `bodyModel` | string | `garmin-body` | Optional `@svendowideit/garmin-body` instance for the weight line |
@@ -91,7 +94,7 @@ the `@magistr/obsidian/vault` model it extends:
 | `collect` | `topN` | integer | `5` | Maximum suggested rides on the page |
 | `render` | `timezone` / `date` | | | As `collect` |
 | `render` | `collectName` | string? | `daily-<date>` | Collect resource to render |
-| `publish` | `timezone` / `date` | | | As `collect` |
+| `publish` | `timezone` / `date` / `days` | | | As `collect` |
 | `publish` | `collectName` | string? | `daily-<date>` | Collect resource to publish |
 | `publish` | `vaultModel` | string | `obsidian-vault` | Vault instance to write through |
 | `publish` | `folder` | string | `daily` | Vault folder for the note |
@@ -102,8 +105,10 @@ the `@magistr/obsidian/vault` model it extends:
 
 The bundled `@svendowideit/diary-daily` workflow exposes the same names as
 `--input` (`vaultModel`, `activitiesModel`, `healthModel`, `bodyModel`,
-`recommenderModel`, `eventsModel`, `bomModel`, `timezone`, `date`, `folder`,
-`topN`), and is scheduled hourly at :45 local.
+`recommenderModel`, `eventsModel`, `bomModel`, `timezone`, `date`, `days`,
+`folder`, `topN`), and is scheduled hourly at :45 local. Each run rebuilds the
+last `days` days (default 4 — today and the three before), so a weigh-in or
+activity that arrives after a page was first written still updates that page.
 
 | Input | Type | Default | Meaning |
 | --- | --- | --- | --- |
@@ -116,6 +121,7 @@ The bundled `@svendowideit/diary-daily` workflow exposes the same names as
 | `bomModel` | string | `bom` | Optional BOM instance for the forecast line |
 | `timezone` | string | `Australia/Brisbane` | IANA zone that defines "today" |
 | `date` | string | `""` (today) | Explicit day `YYYY-MM-DD` |
+| `days` | integer | `4` | Days to rebuild, ending on the date (today + the three before) |
 | `folder` | string | `daily` | Vault folder for the note |
 | `topN` | integer | `5` | Maximum suggested rides |
 
@@ -182,8 +188,8 @@ swamp workflow trigger set @svendowideit/bom-weather \
   --schedule "0 3 * * *" \
   --input name=Stafford --input state=QLD
 
-# Inspect built-in vs override vs effective, then restart 'swamp serve' (trigger
-# overrides are read at startup).
+# Inspect built-in vs override vs effective, then apply it with `swamp serve
+# reload` (needs --hot-reload) or a serve restart.
 swamp workflow trigger get @svendowideit/bom-weather
 ```
 
@@ -228,7 +234,27 @@ swamp workflow history get @svendowideit/diary-daily --json
 # Backfill a past day, or read a different set of fitness models.
 swamp workflow run @svendowideit/diary-daily \
   --input date=2026-09-30 --input topN=8 --input folder=diary
+
+# Rebuild a wider trailing window — useful after a late weigh-in or a missed
+# run, since the default only refreshes the last four days (capped at 7).
+swamp workflow run @svendowideit/diary-daily --input days=5
 ```
+
+## Upgrade
+
+The diary installs nothing on the host — no services or daemons — and ships no
+model of its own; it adds methods to the `@magistr/obsidian/vault` model you
+already use. There is therefore no in-place rebuild to run: upgrade by updating
+the extension.
+
+```sh
+# Apply the new diary version; its methods attach to the existing vault model.
+swamp extension update @svendowideit/diary
+```
+
+The new version takes effect automatically on the next `@svendowideit/diary-daily`
+run. Because `publish` only rewrites the managed region between the markers, an
+upgrade never disturbs your own prose or ticked boxes.
 
 ## Details
 
@@ -248,20 +274,21 @@ swamp model create @magistr/obsidian/vault obsidian-vault \
 - **`collect`** — reads `garmin-activities`/`list`, `garmin-health`/`daily`,
   `garmin-body`/`range`, `zwift-recommender`/`recommendations`,
   `zwift-events`/`schedule` and (optionally) `<bomModel>`/`forecast` via
-  `context.readModelData`, filters to `date`, attaches Zwift event URLs from the
-  schedule, picks the day's weather with `selectWeather`, picks the day's
-  weigh-in with `selectWeight`, and writes a `collect` resource named
-  `daily-<date>`. Arguments: `timezone`, `date`, `activitiesModel`,
-  `healthModel`, `bodyModel`, `recommenderModel`, `eventsModel`, `bomModel`,
-  `topN`.
+  `context.readModelData`, filters to each day in the `days` window, attaches
+  Zwift event URLs from the schedule, picks each day's weather with
+  `selectWeather`, picks each day's weigh-in with `selectWeight`, and writes a
+  `collect` resource named `daily-<date>` per day. Arguments: `timezone`,
+  `date`, `days`, `activitiesModel`, `healthModel`, `bodyModel`,
+  `recommenderModel`, `eventsModel`, `bomModel`, `topN`.
 - **`render`** — reads the collect resource and writes a `page` resource named
   `daily-<date>` with the markdown. Arguments: `timezone`, `date`,
   `collectName`.
-- **`publish`** — reads the collect resource, renders the managed section, reads
-  any existing note through the vault model, merges, and writes it with
-  `overwrite=true`. Arguments: `timezone`, `date`, `collectName`, `vaultModel`,
-  `folder`, `noteName`, `allowDotObsidian`. Writes a `publish` resource
-  recording the file and whether it was created or merged.
+- **`publish`** — for each day in the `days` window, reads the collect resource,
+  renders the managed section, reads any existing note through the vault model,
+  merges, and writes it with `overwrite=true`. Arguments: `timezone`, `date`,
+  `days`, `collectName`, `vaultModel`, `folder`, `noteName`, `allowDotObsidian`.
+  Writes a `publish` resource per day recording the file and whether it was
+  created or merged.
 
 ### Resources
 
@@ -279,11 +306,13 @@ steps:
 1. **assert-sources** — fails fast (severity high) when neither
    `garmin-activities`/`activity-list` nor `zwift-recommender`/`current` exists,
    so there is nothing to build from. Missing wellness or schedule alone is fine.
-2. **collect** — calls the `collect` method with the workflow inputs.
-3. **publish** — calls the `publish` method to merge and write the note.
+2. **collect** — calls the `collect` method with the workflow inputs, writing one
+   `daily-<date>` resource per day in the `days` window (default 4).
+3. **publish** — calls the `publish` method to merge and write each day's note.
 
 It registers one cron trigger (`45 * * * *`, host-local) while `swamp serve`
-runs. Override any input with `--input` for a manual or backfill run.
+runs. Override any input with `--input` for a manual or backfill run; set
+`--input days=3` (or more, up to 7) to rebuild a wider trailing window.
 
 ### The managed region
 

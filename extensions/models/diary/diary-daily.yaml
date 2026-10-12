@@ -1,10 +1,14 @@
 id: b4205663-edfe-488d-9d0d-dd4230943be1
 name: '@svendowideit/diary-daily'
 description: |
-  Build today's Obsidian diary page from already-synced data.
+  Build today's (and the last few days') Obsidian diary page from already-synced
+  data.
 
   Runs hourly at :45, a quarter-hour after the @svendowideit/fitness-refresh
-  pass, and joins what the Garmin and Zwift syncs produced into one note:
+  pass, and joins what the Garmin and Zwift syncs produced into one note. Each
+  run rebuilds the last `days` local days (default 4: today and the three
+  before), so a weigh-in or activity that lands after a page was first written
+  still updates that page:
 
     1. assert   today's source data is fresh enough to bother (Garmin activity
                 list cached, Zwift picks generated today). Nothing is fetched —
@@ -22,6 +26,7 @@ description: |
   Manual run:
     swamp workflow run @svendowideit/diary-daily
     swamp workflow run @svendowideit/diary-daily --input date=2026-09-30
+    swamp workflow run @svendowideit/diary-daily --input days=3
     swamp workflow run @svendowideit/diary-daily --input folder=diary --input topN=8
 tags:
   domain: fitness
@@ -70,6 +75,13 @@ inputs:
       type: string
       default: ""
       description: Explicit day to build, YYYY-MM-DD (empty = today in timezone).
+    days:
+      type: integer
+      default: 4
+      description: >
+        Days to build, ending on `date`/today, most recent first (default 4).
+        The trailing days refresh their pages, so a weigh-in or activity that
+        arrived after a page's last run still lands on it.
     folder:
       type: string
       default: daily
@@ -113,6 +125,7 @@ jobs:
           inputs:
             timezone: ${{ inputs.timezone }}
             date: ${{ inputs.date }}
+            days: ${{ inputs.days }}
             activitiesModel: ${{ inputs.activitiesModel }}
             healthModel: ${{ inputs.healthModel }}
             bodyModel: ${{ inputs.bodyModel }}
@@ -138,6 +151,7 @@ jobs:
           inputs:
             timezone: ${{ inputs.timezone }}
             date: ${{ inputs.date }}
+            days: ${{ inputs.days }}
             folder: ${{ inputs.folder }}
         dependsOn:
           - step: collect

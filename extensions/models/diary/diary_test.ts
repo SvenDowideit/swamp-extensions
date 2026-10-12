@@ -27,9 +27,11 @@ import {
   renderManagedSection,
   renderPage,
   resolveDate,
+  resolveDates,
   selectSuggestions,
   selectWeather,
   selectWeight,
+  shiftDate,
   summariseRides,
   zwiftEventUrl,
 } from "./diary.ts";
@@ -117,6 +119,28 @@ Deno.test("resolveDate treats blank as today and passes explicit dates through",
     "2026-09-30",
   );
   assertEquals(resolveDate(" 2026-09-30 ", "UTC", now), "2026-09-30");
+});
+
+Deno.test("shiftDate and resolveDates walk the day window", () => {
+  assertEquals(shiftDate("2026-10-05", -1), "2026-10-04");
+  assertEquals(shiftDate("2026-11-01", -1), "2026-10-31");
+  assertEquals(shiftDate("2026-10-05", 0), "2026-10-05");
+
+  const now = new Date("2026-10-04T20:00:00Z"); // 2026-10-05 in Brisbane
+  assertEquals(resolveDates(undefined, "Australia/Brisbane", 1, now), [
+    "2026-10-05",
+  ]);
+  assertEquals(resolveDates(undefined, "Australia/Brisbane", 2, now), [
+    "2026-10-05",
+    "2026-10-04",
+  ]);
+  assertEquals(
+    resolveDates("2026-01-01", "UTC", 3, now),
+    ["2026-01-01", "2025-12-31", "2025-12-30"],
+  );
+  // Clamped to 1..7 and never zero-length on a bad value.
+  assertEquals(resolveDates(undefined, "UTC", 0, now).length, 1);
+  assertEquals(resolveDates(undefined, "UTC", 99, now).length, 7);
 });
 
 Deno.test("filterActivities keeps only the requested day", () => {
@@ -978,4 +1002,98 @@ Deno.test("publish creates a fresh note when none exists", async () => {
   assertEquals(written[0].data.action, "created");
   assertEquals(written[0].data.merged, false);
   assertStringIncludes(calls[1].arguments!.content as string, "## Activities");
+});
+
+Deno.test("collect with days>1 writes one resource per day", async () => {
+  const { context, written } = fakeContext({
+    modelData: {
+      "garmin-activities/list": [{
+        activities: [
+          {
+            id: "1",
+            name: "Today",
+            typeKey: "virtual_ride",
+            startTimeLocal: "2026-10-04 06:00:00",
+          },
+          {
+            id: "2",
+            name: "Yesterday",
+            typeKey: "virtual_ride",
+            startTimeLocal: "2026-10-03 06:00:00",
+          },
+        ],
+      }],
+      "garmin-body/range": [{
+        unit: "kg",
+        weighIns: [
+          { date: "2026-10-04", weight: 80.5, hasBodyComposition: false },
+          { date: "2026-10-03", weight: 81, hasBodyComposition: false },
+        ],
+      }],
+    },
+  });
+
+  await collect.execute(
+    { timezone: "UTC", date: "2026-10-04", topN: 5, days: 2 },
+    context,
+  );
+
+  assertEquals(
+    written.map((w) => w.name),
+    ["daily-2026-10-04", "daily-2026-10-03"],
+  );
+  assertEquals((written[0].data.rides as unknown[]).length, 1);
+  assertEquals((written[1].data.rides as unknown[]).length, 1);
+  assertEquals(
+    (written[0].data.weight as Record<string, unknown>).weight,
+    80.5,
+  );
+  assertEquals((written[1].data.weight as Record<string, unknown>).weight, 81);
+});
+
+Deno.test("publish with days>1 writes one note per day", async () => {
+  const calls: Array<{ method: string; arguments?: Record<string, unknown> }> =
+    [];
+  const { context, written } = fakeContext({
+    stored: {
+      "daily-2026-10-04": day({ date: "2026-10-04" }) as unknown as Record<
+        string,
+        unknown
+      >,
+      "daily-2026-10-03": day({ date: "2026-10-03" }) as unknown as Record<
+        string,
+        unknown
+      >,
+    },
+    runModel: (o) => {
+      calls.push({ method: o.method, arguments: o.arguments });
+      if (o.method === "read") {
+        return Promise.resolve({
+          ok: false,
+          error: { message: "missing" },
+        });
+      }
+      return Promise.resolve({ ok: true, resources: [{ name: "result" }] });
+    },
+  });
+
+  await publish.execute(
+    {
+      timezone: "UTC",
+      date: "2026-10-04",
+      days: 2,
+      vaultModel: "obsidian-vault",
+      folder: "daily",
+    },
+    context,
+  );
+
+  assertEquals(
+    written.map((w) => w.name),
+    ["publish-2026-10-04", "publish-2026-10-03"],
+  );
+  const created = calls
+    .filter((c) => c.method === "create")
+    .map((c) => c.arguments!.name);
+  assertEquals(created, ["daily/2026-10-04.md", "daily/2026-10-03.md"]);
 });

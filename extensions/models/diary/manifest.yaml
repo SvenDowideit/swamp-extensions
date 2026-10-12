@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/diary"
-version: "2026.10.09.1"
+version: "2026.10.12.1"
 description: >
   Turn a day of synced Garmin and Zwift data into one Obsidian daily note,
   merging into any note you have already edited.
@@ -73,7 +73,9 @@ description: >
       swamp model method run obsidian-vault publish
 
       # Or run the bundled workflow, which does collect + publish in one go and
-      # is scheduled hourly at :45 local under 'swamp serve'.
+      # is scheduled hourly at :45 local under 'swamp serve'. It rebuilds today
+      # and yesterday, so a weigh-in recorded after today's page was first
+      # written is picked up on the next pass.
       swamp workflow run @svendowideit/diary-daily
 
       # Backfill a specific past day instead of today (note it will not fetch data, just use what is in swamp already).
@@ -81,8 +83,10 @@ description: >
 
   CONFIGURE
 
-    Every method takes `timezone` (default `Australia/Brisbane`) and an
-    optional `date` (default: today in that timezone). `collect` maps data
+    Every method takes `timezone` (default `Australia/Brisbane`), an optional
+    `date` (default: today in that timezone), and `days` (default 1; the
+    workflow sets 4 to rebuild the last four days so a late-arriving weigh-in
+    still lands). `collect` maps data
     sources by instance name: `activitiesModel` (garmin-activities),
     `healthModel` (garmin-health), `bodyModel` (garmin-body, optional),
     `recommenderModel` (zwift-recommender), `eventsModel` (zwift-events),
@@ -94,7 +98,17 @@ description: >
     Weight line is added, otherwise it is omitted and listed in `missing`.
     `publish` takes `vaultModel` (obsidian-vault), `folder` (daily), `noteName`
     and `allowDotObsidian`. The workflow takes the same names as `--input` (plus
-    `date`, `folder`, `topN`). See the README for the full argument table.
+    `date`, `days`, `folder`, `topN`). See the README for the full argument table.
+
+  UPGRADE
+
+    The diary installs nothing on the host and owns no model of its own, so
+    there is no in-place rebuild to run. Upgrade by updating the extension; its
+    methods attach to the `@magistr/obsidian/vault` instance you already use, so
+    the new version applies automatically on the next `collect`/`publish` run
+    and existing notes are only rewritten inside the managed markers.
+
+      swamp extension update @svendowideit/diary
 
   WHAT IT INSTALLS
 

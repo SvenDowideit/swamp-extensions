@@ -67,8 +67,101 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261012-005015-0-sha-fec4b9a5"><span class="tier A">A</span>workflow run and vault config repositories stage typed chang</a><a href="#release-swamp-club-swamp-v20261012-004319-0-sha-cfac523b"><span class="tier A">A</span>let workflow and model cancel stop a Windows owner gracefull</a><a href="#release-swamp-club-swamp-v20261012-003850-0-sha-0c854c81"><span class="tier A">A</span>remove run logs where runs write them in run gc and workflow</a><a href="#release-swamp-club-swamp-v20261011-232410-0-sha-6dd28a50"><span class="tier A">A</span>definition, workflow and evaluated repositories stage typed </a><a href="#release-swamp-club-swamp-v20261011-225450-0-sha-1a51af52"><span class="tier A">A</span>move the data from the current datastore when setup leaves a</a><a href="#release-swamp-club-swamp-v20261011-222452-0-sha-574e1c2e"><span class="tier A">A</span>create a default local_encryption vault at repo init, and st</a><a href="#release-swamp-club-swamp-v20261011-212318-0-sha-72ec0142"><span class="tier A">A</span>write --select scalar results verbatim instead of through ma</a><a href="#release-swamp-club-swamp-v20261011-175539-0-sha-897b64a0"><span class="tier A">A</span>data and output repositories stage typed changes on v3 (swam</a><a href="#release-swamp-club-swamp-v20261011-174943-0-sha-c611f681"><span class="tier A">A</span>push the interrupted workflow runs at shutdown (swamp-club#3</a><a href="#release-swamp-club-swamp-v20261011-173920-0-sha-047eb54f"><span class="tier A">A</span>install a search-found extension only when it provides the t</a><a href="#release-swamp-club-swamp-v20261011-172010-0-sha-fa5caa5c"><span class="tier A">A</span>workflow steps keep autoGc version caps (swamp-club#3251) (#</a><a href="#release-swamp-club-swamp-v20261011-171210-0-sha-c292e128"><span class="tier A">A</span>dormant v3 chunk garbage collection (swamp-club#3249) (#2990</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261012-021522-0-sha-a7855165"><span class="tier A">A</span>dormant history compaction so superseded chunks can be recla</a><a href="#release-swamp-club-swamp-v20261012-015337-0-sha-ba9a5e42"><span class="tier A">A</span>stop the managed agent instructions charging a session-start</a><a href="#release-swamp-club-swamp-v20261012-014932-0-sha-6c64c988"><span class="tier A">A</span>classify Windows lockfile paths by segment, not separator (s</a><a href="#release-swamp-club-swamp-v20261012-013951-0-sha-8001a923"><span class="tier A">A</span>report the worker daemon as not configured on platforms with</a><a href="#release-swamp-club-swamp-v20261012-005015-0-sha-fec4b9a5"><span class="tier A">A</span>workflow run and vault config repositories stage typed chang</a><a href="#release-swamp-club-swamp-v20261012-004319-0-sha-cfac523b"><span class="tier A">A</span>let workflow and model cancel stop a Windows owner gracefull</a><a href="#release-swamp-club-swamp-v20261012-003850-0-sha-0c854c81"><span class="tier A">A</span>remove run logs where runs write them in run gc and workflow</a><a href="#release-swamp-club-swamp-v20261011-232410-0-sha-6dd28a50"><span class="tier A">A</span>definition, workflow and evaluated repositories stage typed </a><a href="#release-swamp-club-swamp-v20261011-225450-0-sha-1a51af52"><span class="tier A">A</span>move the data from the current datastore when setup leaves a</a><a href="#release-swamp-club-swamp-v20261011-222452-0-sha-574e1c2e"><span class="tier A">A</span>create a default local_encryption vault at repo init, and st</a><a href="#release-swamp-club-swamp-v20261011-212318-0-sha-72ec0142"><span class="tier A">A</span>write --select scalar results verbatim instead of through ma</a><a href="#release-swamp-club-swamp-v20261011-175539-0-sha-897b64a0"><span class="tier A">A</span>data and output repositories stage typed changes on v3 (swam</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261012-021522-0-sha-a7855165">
+<h2><span class="tier A">A</span>dormant history compaction so superseded chunks can be reclaimed (swamp-club#3258) (#3005)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-12T02:17:01Z">2026-10-12T02:17:01Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): dormant history compaction so superseded chunks can be reclaimed (swamp-club#3258) (#3005)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Datastore rework Phase 3: dormant history compaction (swamp-club#3258). Superseded content can now be reclaimed without a checkout ever needing a chunk that GC deleted.</p>
+<ul>
+<li><strong>Compaction point (store-wide).</strong> <code>compactHistory(through)</code> folds every commit at or below the point into a compacted base in <code>commits.db</code>, then deletes those commits. The base holds present records, live versions, catalog rows and forwards, file ownership and compacted seqs. It runs in batches of 250, one transaction each. A crash leaves each batch either whole or absent.</li>
+<li><strong>Retries.</strong> A compacted commit&#39;s txnId moves to <code>compacted_txns</code>, so a retry still returns <code>duplicate</code>. Each compacted partition gets a snapshot at its compacted seq.</li>
+<li><strong>Catch-up.</strong> A checkout behind the point gets <code>CommitsCompactedError</code>. It then loads the base, reconciling its files, <code>_catalog_v3.db</code> and state, and replays only the commits after the point. A load that fails part-way converges, even against a newer base.</li>
+<li><strong>GC reference rule.</strong> <code>chunk_refs</code> becomes a count of the surviving commits and base records that name each chunk. A chunk whose last reference is compacted away counts as released and stays referenced for the sweep&#39;s grace period.</li>
+<li><strong>One copy of the rules.</strong> The read model&#39;s materialisation rules move to the domain (<code>materialisation.ts</code>, <code>catalog_state.ts</code>), so the fold a</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.021522.0-sha.a7855165" rel="noopener">release v20261012.021522.0-sha.a7855165</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a7855165194d849aae196e7407fa169ddf94ba28" rel="noopener">a7855165</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3005" rel="noopener">#3005</a>𝗔 <a href="https://swamp-club.com/lab/3258" rel="noopener">lab#3258</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261012-015337-0-sha-ba9a5e42">
+<h2><span class="tier A">A</span>stop the managed agent instructions charging a session-start model search (swamp-club#3206) (#3004)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-12T01:55:19Z">2026-10-12T01:55:19Z</time></span><span>repo</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(repo): stop the managed agent instructions charging a session-start model search (swamp-club#3206) (#3004)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3206, reported by @maphew.</p>
+<p>Until now, the managed <code>## Getting Started</code> section told every agent to run <code>swamp model search --json</code> at the start of every conversation, and to invoke <code>swamp-getting-started</code> when the result came back empty. On any repo that has models, that check never trips, yet every session still pays for it. <code>swamp repo upgrade</code> also restores the section if someone deletes it locally.</p>
+<p>With this change, the section points agents at <code>swamp-getting-started</code> only in three cases: the user is new, the user asks to get started, or a swamp command the agent already runs shows the repo has no models. Otherwise it points at the <code>swamp</code> skill. The getting-started skill already runs its own model check before onboarding, so an empty repo is still caught. Both versions of the template change: the one that names skills and the one that gives their file paths (custom tools). <code>repo upgrade</code> brings existing repos up to date.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Three new tests in <code>src/domain/repo/repo_service_test.ts</code>:</li>
+<li>claude init (skills named) has no session-start check and still points at both skills.</li>
+<li>A custom tool that refers to skills by path gets the same, with correct <code>SKILL.md</code> paths.</li>
+<li>Upgrading a repo that has the old wording rewrites the section to match a fresh init.</li>
+<li>Red-check: all three tests fail against the</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.015337.0-sha.ba9a5e42" rel="noopener">release v20261012.015337.0-sha.ba9a5e42</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ba9a5e423511ffc2694cd88297301fa0c73a1d0f" rel="noopener">ba9a5e42</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3004" rel="noopener">#3004</a>𝗔 <a href="https://swamp-club.com/lab/3206" rel="noopener">lab#3206</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261012-014932-0-sha-6c64c988">
+<h2><span class="tier A">A</span>classify Windows lockfile paths by segment, not separator (swamp-club#3271) (#3003)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-12T01:51:17Z">2026-10-12T01:51:17Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): classify Windows lockfile paths by segment, not separator (swamp-club#3271) (#3003)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3271. Found by the Windows UAT runner (swamp-uat#363).</p>
+<p>A lockfile written on Windows stores backslash-separated paths, because <code>relative()</code> returns native separators. <code>classifyExtensionFile</code> matched the gen-1 (<code>extensions/&lt;type&gt;/</code>) and gen-2 (<code>.swamp/pulled-extensions/&lt;type&gt;/</code>) prefixes with forward slashes only. Those entries came back as <code>current</code>, so <code>extension install</code>, and <code>repo upgrade</code> which runs it, never migrated a legacy layout on Windows.</p>
+<p>The classifier now converts the path to forward slashes before matching, as <code>isSkillDirEntry</code> in the same file already does. Callers still use the native string for containment checks and file operations. The lockfile format is unchanged: storing forward slashes everywhere is a separate concern and deliberately out of scope.</p>
+<p>Sibling swamp-club#3270 was a test-only bug (closed as test infra). Its fix, together with the test side of this issue, is in a companion swamp-uat PR.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>layout_test.ts</code>: backslash and mixed-separator forms of gen-1, gen-2 (pulled and managed-config) and current, plus <code>detectLegacyExtensionLayout</code> over a backslash lockfile, checking the native string is kept.</li>
+<li><code>install_test.ts</code>:</li>
+<li><code>needsInstallOrMigration</code> and <code>sweepLegacyPaths</code> with backslash entries.</li>
+<li>A backslash <code>..</code> entry never reaches a sentinel file outside the repo. On Windows it</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.014932.0-sha.6c64c988" rel="noopener">release v20261012.014932.0-sha.6c64c988</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6c64c988ec473e47b8fba8ba85b2ac37334058d1" rel="noopener">6c64c988</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3003" rel="noopener">#3003</a>𝗔 <a href="https://swamp-club.com/lab/3271" rel="noopener">lab#3271</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261012-013951-0-sha-8001a923">
+<h2><span class="tier A">A</span>report the worker daemon as not configured on platforms without a service manager (swamp-club#3269) (#3002)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-12T01:41:41Z">2026-10-12T01:41:41Z</time></span><span>worker</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(worker): report the worker daemon as not configured on platforms without a service manager (swamp-club#3269) (#3002)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp worker daemon status</code> failed on Windows with <code>swamp worker daemon is not yet supported on windows</code>. The scheduler factory only handles launchd (macOS) and systemd (Linux), and its fallback branch threw before <code>status()</code> ran. This made the Windows UAT test <code>swamp worker daemon status reports not installed</code> fail (swamp-uat#363).</p>
+<ul>
+<li><strong>New scheduler:</strong> the fallback branch now returns an <code>UnsupportedPlatformWorkerScheduler</code>.</li>
+<li><code>status()</code> reports <code>enabled: false</code> and <code>running: false</code>, plus an <code>unsupportedReason</code>.</li>
+<li><code>enable()</code> and <code>disable()</code> still refuse with the same <code>UserError</code> message as before.</li>
+<li><strong>Status output:</strong> on these platforms the normal output prints <code>not configured</code> followed by the reason. It drops the &quot;Run swamp worker daemon enable&quot; hint, because that command would fail there. <code>--json</code> gains the optional <code>unsupportedReason</code> field.</li>
+<li><strong>Testable factory:</strong> <code>createWorkerDaemonScheduler</code> takes an optional <code>os</code>, so the Windows branch can be unit-tested on any host.</li>
+<li><strong>Unchanged:</strong> the macOS and Linux paths, including Linux without systemctl.</li>
+</ul>
+<p>Fixes swamp-club#3269.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><strong>New unit tests:</strong> cover the new scheduler, the factory on windows and darwin, and the status output with a reason in log and JSON modes. The factory tests failed against the old code (red-checked).</li>
+<li><strong>Verification workflows:</strong></li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.013951.0-sha.8001a923" rel="noopener">release v20261012.013951.0-sha.8001a923</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8001a923c23e34ae547f47e1ef1cef2eacaf0685" rel="noopener">8001a923</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3002" rel="noopener">#3002</a>𝗔 <a href="https://swamp-club.com/lab/3269" rel="noopener">lab#3269</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261012-005015-0-sha-fec4b9a5">
 <h2><span class="tier A">A</span>workflow run and vault config repositories stage typed changes on v3 (swamp-club#3257) (#3001)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
@@ -281,7 +374,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.175539.0-sha.897b64a0" rel="noopener">release v20261011.175539.0-sha.897b64a0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/897b64a0da386ac0f56bff70936add38d72c410f" rel="noopener">897b64a0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2994" rel="noopener">#2994</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3240" rel="noopener">#3240</a>𝗔 <a href="https://swamp-club.com/lab/3250" rel="noopener">lab#3250</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261011-174943-0-sha-c611f681">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261011-174943-0-sha-c611f681">
 <h2><span class="tier A">A</span>push the interrupted workflow runs at shutdown (swamp-club#3252) (#2993)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-11T17:51:26Z">2026-10-11T17:51:26Z</time></span><span>serve</span><span>fix</span></div>
@@ -367,7 +460,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.171210.0-sha.c292e128" rel="noopener">release v20261011.171210.0-sha.c292e128</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c292e1287a0221c4a238926bf22ac933ee88a5b9" rel="noopener">c292e128</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2990" rel="noopener">#2990</a>𝗔 <a href="https://swamp-club.com/lab/3249" rel="noopener">lab#3249</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261011-161824-0-sha-ceb62d1d">
+<article class="item" id="release-swamp-club-swamp-v20261011-161824-0-sha-ceb62d1d">
 <h2><span class="tier A">A</span>name repository grant files grants/&lt;name&gt; on Windows (swamp-club#3245) (#2989)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-11T16:20:14Z">2026-10-11T16:20:14Z</time></span><span>serve</span><span>fix</span></div>
@@ -5864,13 +5957,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>238 items across 1 source(s) in this window:
-0 critical, 220 notable, 10 routine,
+<p>242 items across 1 source(s) in this window:
+0 critical, 224 notable, 10 routine,
 8 minor.</p>
-<ul><li><strong>fix</strong> — 158</li><li><strong>feat</strong> — 62</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 3</li></ul></section>
+<ul><li><strong>fix</strong> — 161</li><li><strong>feat</strong> — 63</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-12T05:05:25.717Z">2026-10-12T05:05:25.717Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-12T06:03:24.507Z">2026-10-12T06:03:24.507Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

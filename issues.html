@@ -67,8 +67,16 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3212"><span class="tier A">A</span>Hold a signal that arrives before its wait opens</a><a href="#issue-3293"><span class="tier A">A</span>A running dispatch counts twice against worker capacity, so </a><a href="#issue-3295"><span class="tier A">A</span>data.latest(&quot;otherns:model&quot;, name) returns the caller&#39;s own </a><a href="#issue-3196"><span class="tier A">A</span>swamp model validate checks globalArguments without applying</a><a href="#issue-3286"><span class="tier A">A</span>Record-typed arguments are not JSON-parsed from plain key=va</a><a href="#issue-3281"><span class="tier A">A</span>datastore setup strands repo-local audit history and run log</a><a href="#issue-3288"><span class="tier A">A</span>swamp repo upgrade does not remove the superseded skills it </a><a href="#issue-3279"><span class="tier A">A</span>Datastore rework Phase 3: opt in to v3 for new filesystem da</a><a href="#issue-3276"><span class="tier A">A</span>classifyConnectionError mislabels non-auth connection failur</a><a href="#issue-3030"><span class="tier A">A</span>digitalocean codegen: app-platform and database spec secret </a><a href="#issue-3254"><span class="tier A">A</span>workflow validate fails a templated methodName that workflow</a><a href="#issue-3278"><span class="tier A">A</span>Datastore rework Phase 3: a v3 home for audit, telemetry, lo</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3301"><span class="tier A">A</span>Datastore rework: on v3, namespace set before setup --format</a><a href="#issue-3212"><span class="tier A">A</span>Hold a signal that arrives before its wait opens</a><a href="#issue-3293"><span class="tier A">A</span>A running dispatch counts twice against worker capacity, so </a><a href="#issue-3295"><span class="tier A">A</span>data.latest(&quot;otherns:model&quot;, name) returns the caller&#39;s own </a><a href="#issue-3196"><span class="tier A">A</span>swamp model validate checks globalArguments without applying</a><a href="#issue-3286"><span class="tier A">A</span>Record-typed arguments are not JSON-parsed from plain key=va</a><a href="#issue-3281"><span class="tier A">A</span>datastore setup strands repo-local audit history and run log</a><a href="#issue-3288"><span class="tier A">A</span>swamp repo upgrade does not remove the superseded skills it </a><a href="#issue-3279"><span class="tier A">A</span>Datastore rework Phase 3: opt in to v3 for new filesystem da</a><a href="#issue-3276"><span class="tier A">A</span>classifyConnectionError mislabels non-auth connection failur</a><a href="#issue-3030"><span class="tier A">A</span>digitalocean codegen: app-platform and database spec secret </a><a href="#issue-3254"><span class="tier A">A</span>workflow validate fails a templated methodName that workflow</a></aside><div>
 
+<article class="item" id="issue-3301">
+<h2><span class="tier A">A</span>Datastore rework: on v3, namespace set before setup --format 3 fails without --skip-migration, and namespace list shows no namespaces</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-12T18:20:21.257Z">2026-10-12T18:20:21.257Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3301" rel="noopener">lab#3301</a></div>
+</article>
 <article class="item" id="issue-3212">
 <h2><span class="tier A">A</span>Hold a signal that arrives before its wait opens</h2>
 <p class="lede">Shipped feature</p>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3254" rel="noopener">lab#3254</a></div>
 </article>
-<article class="item" id="issue-3278">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3278">
 <h2><span class="tier A">A</span>Datastore rework Phase 3: a v3 home for audit, telemetry, logs and files, dormant (no behaviour change)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-12T11:19:51.583Z">2026-10-12T11:19:51.583Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3278" rel="noopener">lab#3278</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3114">
+<article class="item" id="issue-3114">
 <h2><span class="tier A">A</span>swamp-extensions: replace bare import specifiers with npm:/jsr: specifiers in first-party extensions</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-12T02:50:55.878Z">2026-10-12T02:50:55.878Z</time></span></div>
@@ -2821,45 +2829,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3301">
-<h2><span class="tier B">B</span>Datastore rework: on v3, namespace set before setup --format 3 fails without --skip-migration, and namespace list shows no namespaces</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-12T18:06:27.508Z">2026-10-12T18:06:27.508Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3301" rel="noopener">lab#3301</a></div>
-</article>
-<article class="item" id="issue-3306">
-<h2><span class="tier B">B</span>Cross-namespace data.* reads return empty attributes in model method run and workflow run</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-12T18:00:29.645Z">2026-10-12T18:00:29.645Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3306" rel="noopener">lab#3306</a></div>
-</article>
 <article class="item" id="issue-3300">
 <h2><span class="tier B">B</span>Datastore rework: on v3, turning managedConfig on hides existing config (the default vault); give v3 its own config migrate</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-12T17:58:45.781Z">2026-10-12T17:58:45.781Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-12T19:01:47.803Z">2026-10-12T19:01:47.803Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3300" rel="noopener">lab#3300</a></div>
 </article>
-<article class="item" id="issue-3265">
-<h2><span class="tier B">B</span>Add swamp behaviour run as the preferred model-method command</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-12T17:44:24.043Z">2026-10-12T17:44:24.043Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3265" rel="noopener">lab#3265</a></div>
-</article>
 <article class="item" id="issue-3299">
 <h2><span class="tier B">B</span>Datastore rework: on v3, an interrupted method run&#39;s outputs never reach other clones (SIGTERM should commit; SIGKILL must be visible)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-12T17:38:44.954Z">2026-10-12T17:38:44.954Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-12T19:00:48.945Z">2026-10-12T19:00:48.945Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3299" rel="noopener">lab#3299</a></div>
+</article>
+<article class="item" id="issue-3306">
+<h2><span class="tier B">B</span>Cross-namespace data.* reads return empty attributes in model method run and workflow run</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-12T18:57:36.553Z">2026-10-12T18:57:36.553Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3306" rel="noopener">lab#3306</a></div>
+</article>
+<article class="item" id="issue-3265">
+<h2><span class="tier B">B</span>Add swamp behaviour run as the preferred model-method command</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-12T18:54:15.025Z">2026-10-12T18:54:15.025Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3265" rel="noopener">lab#3265</a></div>
 </article>
 <article class="item" id="issue-3274">
 <h2><span class="tier B">B</span>stagecraft: let users build their own tracker as a separate extension (open tracker kinds, published adapter contract and conformance suite)</h2>
@@ -2909,7 +2909,31 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3305">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3309">
+<h2><span class="tier C">C</span>workflow resume refuses a wait that has an applicable pending signal</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T18:33:17.046Z">2026-10-12T18:33:17.046Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3309" rel="noopener">lab#3309</a></div>
+</article>
+<article class="item" id="issue-3308">
+<h2><span class="tier C">C</span>swamp serve lists every wait-key record on each continuation pass once any pending signal has lapsed</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T18:33:15.499Z">2026-10-12T18:33:15.499Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3308" rel="noopener">lab#3308</a></div>
+</article>
+<article class="item" id="issue-3307">
+<h2><span class="tier C">C</span>A signal by key can be answered pending or taken when that is not what happened to it</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-12T18:33:13.968Z">2026-10-12T18:33:13.968Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3307" rel="noopener">lab#3307</a></div>
+</article>
+<article class="item" id="issue-3305">
 <h2><span class="tier C">C</span>S3/GCS datastore sync: shared sync service lets one sync clear another&#39;s dirty marks and pull over unpushed files</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-12T17:36:48.138Z">2026-10-12T17:36:48.138Z</time></span></div>
@@ -3966,13 +3990,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>487 items across 1 source(s) in this window:
-0 critical, 344 notable, 11 routine,
-132 minor.</p>
-<ul><li><strong>issues</strong> — 487</li></ul></section>
+<p>490 items across 1 source(s) in this window:
+0 critical, 345 notable, 10 routine,
+135 minor.</p>
+<ul><li><strong>issues</strong> — 490</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-12T18:10:59.682Z">2026-10-12T18:10:59.682Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-12T19:04:00.282Z">2026-10-12T19:04:00.282Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

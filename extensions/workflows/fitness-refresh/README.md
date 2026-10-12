@@ -12,7 +12,7 @@ all, in the order that matters, for your local calendar day.
 
 ## What it does
 
-`@svendowideit/fitness-refresh` runs five child workflows in sequence:
+`@svendowideit/fitness-refresh` runs six child workflows in sequence:
 
 1. **`@svendowideit/garmin-devices-sync`** — derive the Garmin device capability
    map. This must run first: the health sync *gates* sleep, stress and body
@@ -23,8 +23,13 @@ all, in the order that matters, for your local calendar day.
    the configured timezone, not UTC.
 3. **`@svendowideit/garmin-activities-sync`** — the activity history, with the
    window ending on today-local so the current day is included.
-4. **`@svendowideit/zwift-sync`** — ride history and the upcoming event calendar.
-5. **`@svendowideit/zwift-recommend`** — rank the freshly synced calendar against
+4. **`@svendowideit/garmin-body-sync`** — weight and body composition for the
+   last few local days. Running this on every hourly pass is what makes a
+   weigh-in recorded during the day appear on today's diary page, instead of
+   only being picked up at the next morning's sync — by which time the day's page
+   was already written.
+5. **`@svendowideit/zwift-sync`** — ride history and the upcoming event calendar.
+6. **`@svendowideit/zwift-recommend`** — rank the freshly synced calendar against
    the rider profile.
 
 Every step re-establishes the auth session it needs, so the workflow is
@@ -46,11 +51,13 @@ pulled by the same command.
 | --- | --- | --- | --- |
 | `timezone` | string | `Australia/Brisbane` | IANA zone that defines "today" and buckets ride/event times. |
 | `healthDays` | integer | `3` | Local wellness days through today (capped at 14). |
+| `bodyDays` | integer | `3` | Local weight/body-composition days through today (capped at 14). |
 | `forceRefresh` | boolean | `true` | Re-fetch from Garmin even when a cached response exists. A "refresh" must actually re-read Garmin: the activity-list URL is the same all day, so a cache-first run re-serves the morning's list and misses a ride finished since. |
 | `sessionName` | string | `garmin-connect` | Garmin transport instance. |
 | `devicesName` | string | `garmin-devices` | Devices/capability instance. |
 | `healthName` | string | `garmin-health` | Wellness instance. |
 | `activitiesName` | string | `garmin-activities` | Activity-history instance. |
+| `bodyName` | string | `garmin-body` | Weight/body-composition instance. |
 | `riderName` | string | `zwift-rider` | Zwift rider-profile instance. |
 | `eventsName` | string | `zwift-events` | Zwift event-calendar instance. |
 | `recommenderName` | string | `zwift-recommender` | Zwift recommender instance. |
@@ -74,20 +81,42 @@ swamp workflow run @svendowideit/fitness-refresh --input timezone=Europe/London
 # (the run is idempotent; already-seen days are simply re-parsed).
 swamp workflow run @svendowideit/fitness-refresh --input healthDays=7
 
+# Backfill the weight/body-composition window too — useful after a scale was
+# offline for a while and missed days need re-reading.
+swamp workflow run @svendowideit/fitness-refresh --input bodyDays=7
+
 # Check what the refresh produced before running a consumer.
 swamp data get garmin-health health-range --json | jq '.content.summaries[-1]'
+swamp data get garmin-body body-range --json | jq '.content.weighIns[-1]'
 swamp data get zwift-recommender current --json | jq '.content.recommendations[0]'
 ```
+
+## Upgrade
+
+fitness-refresh installs nothing on the host — it is only a workflow that calls
+the Garmin and Zwift extensions' own workflows. There is no in-place rebuild to
+run: upgrade by updating the extension, and the new workflow steps take effect on
+the next scheduled pass.
+
+```sh
+# Apply the new fitness-refresh version.
+swamp extension update @svendowideit/fitness-refresh
+```
+
+Because every step is idempotent, an updated version simply re-runs each source
+on the next hourly pass — no reconfiguration or cleanup is needed.
 
 ## Details
 
 ### Workflow
 
 `fitness-refresh.yaml` (name `@svendowideit/fitness-refresh`) is a single job
-whose five steps are nested `workflow` tasks (`garmin-devices` → `garmin-health`
-→ `garmin-activities` → `zwift-sync` → `zwift-recommend`). `garmin-devices` and
-`garmin-activities` run before the others; `garmin-health` waits on
-`garmin-devices` so the capability map is present when it builds its paths.
+whose six steps are nested `workflow` tasks (`garmin-devices` → `garmin-health`
+→ `garmin-activities` → `garmin-body` → `zwift-sync` → `zwift-recommend`).
+`garmin-devices` runs first; `garmin-health` and `garmin-activities` wait on it,
+`garmin-body` waits on `garmin-activities`, and the Zwift steps chain onward.
+`garmin-health` waits on `garmin-devices` so the capability map is present when
+it builds its paths.
 
 There are no models, reports, vaults, or datastores in this extension — it is a
 thin orchestrator over the Garmin and Zwift extensions' own workflows. This is

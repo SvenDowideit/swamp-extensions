@@ -15,8 +15,12 @@ description: |
     2. garmin-health-sync     wellness for the last few local days through today
                              (last night's sleep, today's running steps).
     3. garmin-activities-sync today's activities, so the current day is included.
-    4. zwift-sync             ride history and the upcoming event calendar.
-    5. zwift-recommend        rank the calendar against the rider profile.
+    4. garmin-body-sync       weight and body composition for the last few local
+                             days. Running hourly means a weigh-in recorded
+                             during the day lands the same day instead of only
+                             at the next morning's sync.
+    5. zwift-sync             ride history and the upcoming event calendar.
+    6. zwift-recommend        rank the calendar against the rider profile.
 
   Every step re-runs the auth session it needs, so this is safe to invoke
   repeatedly. It does not touch the diary — run the diary afterward, as often as
@@ -57,6 +61,17 @@ inputs:
       description: >
         Local days of wellness to fetch through today when no explicit range is
         given (a small overlap self-heals a missed run; capped at 14).
+    bodyName:
+      type: string
+      default: garmin-body
+      description: The @svendowideit/garmin-body instance (weight/body composition).
+    bodyDays:
+      type: integer
+      default: 3
+      description: >
+        Local days of weight/body composition to fetch through today when no
+        explicit range is given (a small overlap self-heals a missed run;
+        capped at 14).
     forceRefresh:
       type: boolean
       default: true
@@ -135,6 +150,26 @@ jobs:
             forceRefresh: ${{ inputs.forceRefresh }}
         dependsOn:
           - step: garmin-devices
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: garmin-body
+        description: >
+          Sync weight and body composition for the last few local days. Runs on
+          every hourly pass so a weigh-in recorded during the day reaches the
+          diary the same day, rather than waiting for the next morning.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/garmin-body-sync"
+          inputs:
+            sessionName: ${{ inputs.sessionName }}
+            bodyName: ${{ inputs.bodyName }}
+            timezone: ${{ inputs.timezone }}
+            days: ${{ inputs.bodyDays }}
+            forceRefresh: ${{ inputs.forceRefresh }}
+        dependsOn:
+          - step: garmin-activities
             condition:
               type: succeeded
         weight: 0

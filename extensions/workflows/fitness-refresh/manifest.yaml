@@ -1,23 +1,23 @@
 manifestVersion: 1
 name: "@svendowideit/fitness-refresh"
-version: "2026.10.09.1"
+version: "2026.10.12.1"
 description: |
   Refresh every Garmin and Zwift data source in one ordered run, so a
   downstream consumer always reads a complete, current local day.
 
   WHAT IT DOES
 
-    Garmin and Zwift each publish their data through several workflows on their
-    own schedules, and a consumer that runs in between sees a half-populated
-    day. This extension is the single ordered entry point that runs them all for
-    your local calendar day, in the one order that matters: it derives the
-    Garmin device capability map *first*, because a health sync run without it
-    silently drops the device-gated metrics — sleep, stress, body battery and
-    the sleep score — then syncs wellness for the last few local days through
-    today, the day's activities, your Zwift ride history, and the ranked event
-    calendar. Every step is idempotent, so it is safe to run repeatedly. It is
-    read-only with respect to your diary: it only writes data, and anything you
-    run afterwards reads it.
+    Garmin and Zwift each publish on their own schedules, so a consumer that
+    runs in between sees a half-populated day. This extension is the single
+    ordered entry point that runs them all, in the one order that matters: it
+    derives the Garmin device capability map *first*, because a health sync run
+    without it silently drops the device-gated metrics — sleep, stress, body
+    battery and the sleep score — then syncs wellness and weight/body
+    composition for the last few local days through today, the day's activities,
+    your Zwift ride history, and the ranked event calendar. Running hourly, a
+    weigh-in recorded during the day reaches the diary the same day. Every step
+    is idempotent, so it is safe to re-run. It is read-only with respect to your
+    diary: it only writes data, and anything you run afterwards reads it.
 
   INSTALL
 
@@ -49,13 +49,24 @@ description: |
 
     `timezone` (default `Australia/Brisbane`) defines "today" for the syncs and
     buckets ride and event times; set your own. `healthDays` (default 3) is the
-    local wellness window through today (capped at 14). `forceRefresh` (default
-    true) makes the Garmin syncs re-read Garmin rather than serve the day's first
-    cached list — without it a repeat run misses a ride finished since the
-    morning. The remaining inputs are instance names — `sessionName`,
-    `devicesName`, `healthName`, `activitiesName`, `riderName`, `eventsName`,
-    `recommenderName` — for when you renamed a model. Schedule a custom time with
-    the trigger: it fires hourly at :30 while `swamp serve` runs.
+    local wellness window through today (capped at 14). `bodyDays` (default 3)
+    is the local weight/body-composition window through today (capped at 14).
+    `forceRefresh` (default true) makes the Garmin syncs re-read Garmin rather
+    than serve the day's first cached list — without it a repeat run misses a
+    ride finished since the morning. The remaining inputs are instance names —
+    `sessionName`, `devicesName`, `healthName`, `activitiesName`, `bodyName`,
+    `riderName`, `eventsName`, `recommenderName` — for when you renamed a model.
+    Schedule a custom time with the trigger: it fires hourly at :30 while
+    `swamp serve` runs.
+
+  UPGRADE
+
+    fitness-refresh installs nothing on the host, so there is no in-place
+    rebuild to run. Upgrade by updating the extension; the new workflow simply
+    takes effect on the next scheduled pass, and because every step is
+    idempotent it re-runs each source cleanly.
+
+      swamp extension update @svendowideit/fitness-refresh
 
   WHAT IT INSTALLS
 

@@ -1,0 +1,141 @@
+id: 6eb4e1d4-aae1-4e96-ae75-0cacd69aa2fb
+name: '@svendowideit/obsidian-headless-upgrade'
+description: |
+  Keep the Obsidian Sync headless client current on the machine this workflow
+  runs on, and restart its systemd service so it runs the new build.
+
+  Steps (upgrade):
+    install-node → install-package → restart-service → verify
+
+  install-node re-resolves the Node.js 22+ runtime (installing a newer verified
+  build only when needed), install-package upgrades the obsidian-headless npm
+  package to the wanted version, and restart-service restarts the systemd user
+  service so `ob sync --continuous` picks up the new code — `enable --now` does
+  not restart an already-active unit. verify prints the end state.
+
+  This is the scheduled maintenance entry point and never touches the desktop
+  app or the vault configuration. Run it by hand after changing the package
+  version:
+
+      swamp workflow run @svendowideit/obsidian-headless-upgrade
+
+  Pin a version or leave the service running (binary-only update):
+
+      swamp workflow run @svendowideit/obsidian-headless-upgrade \
+        --input packageVersion=0.0.14 --input manageService=false
+
+  The daily trigger upgrades Node and the package and restarts the service as
+  new releases appear; remove `trigger:` to upgrade by hand.
+tags: {}
+trigger:
+  schedule: "0 4 * * *"
+  inputs:
+    manageService: true
+inputs:
+  properties:
+    nodeDir:
+      type: string
+      default: ""
+      description: Directory the managed Node.js runtime is installed under.
+    nodeVersion:
+      type: string
+      default: ""
+      description: Node.js version to install when none is present (default 22).
+    packagePrefix:
+      type: string
+      default: ""
+      description: npm global prefix the obsidian-headless package is installed into.
+    packageVersion:
+      type: string
+      default: ""
+      description: obsidian-headless version to install (empty = the latest).
+    serviceName:
+      type: string
+      default: obsidian-headless
+      description: systemd user service name (without the .service suffix).
+    manageService:
+      type: boolean
+      default: true
+      description: Restart the systemd user service after the upgrade.
+    force:
+      type: boolean
+      default: false
+      description: Reinstall even when the target version already matches.
+  required: []
+jobs:
+  - name: main
+    description: Upgrade the managed Node runtime and headless package, then restart the sync service.
+    steps:
+      - name: install-node
+        description: >-
+          Re-resolve the Node.js 22+ runtime, downloading and checksum-verifying a
+          newer official build only when required. Idempotent.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-headless"
+          modelName: obsidian-headless
+          methodName: installNode
+          inputs:
+            force: ${{ inputs.force }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: install-package
+        description: >-
+          Install or upgrade the obsidian-headless npm package into the managed
+          prefix. Skips when the wanted version is already present unless force is
+          set.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-headless"
+          modelName: obsidian-headless
+          methodName: install
+          inputs:
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: install-node
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: restart-service
+        description: >-
+          Restart the systemd user service so `ob sync --continuous` runs the
+          upgraded package. Skipped when manageService=false.
+        guard: ${{ inputs.manageService == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/systemd-service"
+          modelName: obsidian-headless-sync
+          methodName: restartService
+          inputs:
+            serviceName: ${{ inputs.serviceName }}
+        dependsOn:
+          - step: install-package
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: verify
+        description: >-
+          Print the end state and how to inspect the sync service.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-headless"
+          modelName: obsidian-headless
+          methodName: print
+        dependsOn:
+          - step: install-package
+            condition:
+              type: always
+          - step: restart-service
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

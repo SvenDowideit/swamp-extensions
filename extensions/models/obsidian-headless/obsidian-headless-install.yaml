@@ -1,0 +1,389 @@
+id: 71836877-c4bb-4b4c-acca-7913e3079917
+name: '@svendowideit/obsidian-headless-install'
+description: |
+  Install and set up the Obsidian Sync headless client on the machine this
+  workflow runs on, then hand the long-lived sync to systemd — pausing once so
+  the operator can log in and approve retiring the desktop app's in-app sync.
+
+  Steps (install):
+    detect → install-node → install-package → approve-setup
+    → [disable-in-app-sync] → recheck → configure-sync
+    → create-service → start-service → verify
+
+  detect calls the @svendowideit/obsidian-headless `setup` method, which reads
+  the host: whether the Obsidian desktop app has this vault registered and
+  whether its in-app `sync` core plugin is on, the resolved Node runtime, the
+  installed obsidian-headless package, the account login state, and the remote
+  vault. install-node and install-package then put the `ob` client on the host
+  (a managed Node.js 22+ runtime and the obsidian-headless npm package). Only
+  then does the run pause at a single manual approval step. Its prompt lists the
+  exact commands to run while it waits, each on its own line: `ob login` (email,
+  password, 2FA; needed only when not logged in) and `ob sync-setup` for this
+  vault with the resolved `--vault`/`--path`/`--device-name`/`--config-dir`, so
+  the end-to-end encryption password is entered now and the right vault
+  directory is used — the workflow then reuses that local configuration. It also
+  says to close the desktop app when in-app sync is configured, so approving can
+  safely disable the vault's `sync` core plugin (core-plugins.json is backed up
+  first). On approval, disable-in-app-sync retires the in-app plugin, recheck
+  re-reads the host (so the login just performed is seen), configure-sync
+  resolves the remote vault by name and runs `ob sync-setup` (non-interactively
+  when `e2ePassword` is supplied, ideally from a swamp vault; otherwise it
+  reuses the interactive setup just performed), and create-service /
+  start-service run, via @svendowideit/systemd-service, a systemd *user* unit
+  that keeps `ob sync --continuous` alive across logout and reboot. verify
+  prints the end state and how to inspect the service.
+
+  Run it on a machine to make headless sync present and always-on:
+
+      swamp workflow run @svendowideit/obsidian-headless-install \
+        --input vaultName="My Vault" --input vaultPath=/home/me/vault
+
+  The run suspends at the approval step; do what its prompt says, then resume:
+
+      swamp workflow approve @svendowideit/obsidian-headless-install approve-setup
+      swamp workflow resume @svendowideit/obsidian-headless-install
+
+  Leave the desktop app's in-app sync alone (install only):
+
+      swamp workflow run @svendowideit/obsidian-headless-install \
+        --input vaultName="My Vault" --input vaultPath=/home/me/vault \
+        --input disableInAppSync=false
+
+  The workflow auto-registers the `obsidian-headless` and
+  `obsidian-headless-sync` model instances on first run; nothing needs creating
+  by hand. It is idempotent, so re-running it is the upgrade path — or run the
+  scheduled @svendowideit/obsidian-headless-upgrade workflow, which does the
+  binary/package part without the pause.
+tags: {}
+inputs:
+  properties:
+    vaultName:
+      type: string
+      default: ""
+      description: >-
+        Obsidian Sync remote vault name (or id) to attach to. Required for a
+        real setup; pass with --input vaultName="My Vault".
+    vaultPath:
+      type: string
+      default: ""
+      description: >-
+        Absolute path of the local vault directory on this host. Required for a
+        real setup.
+    deviceName:
+      type: string
+      default: ""
+      description: >-
+        Device name for the sync version history. Empty derives
+        <hostname>-headless.
+    configDir:
+      type: string
+      default: ".obsidian"
+      description: Vault config directory name (a dotfolder).
+    syncMode:
+      type: string
+      enum:
+        - bidirectional
+        - pull-only
+        - mirror-remote
+      default: bidirectional
+      description: Sync mode to enforce for the vault.
+    nodeDir:
+      type: string
+      default: ""
+      description: Directory the managed Node.js runtime is installed under.
+    nodeVersion:
+      type: string
+      default: ""
+      description: Node.js version to install when none is present (default 22).
+    packagePrefix:
+      type: string
+      default: ""
+      description: npm global prefix the obsidian-headless package is installed into.
+    packageVersion:
+      type: string
+      default: ""
+      description: obsidian-headless version to install (empty = the latest).
+    e2ePassword:
+      type: string
+      default: ""
+      description: >-
+        End-to-end encryption password, when the remote vault uses it. Prefer
+        wiring this from a swamp vault via a CEL expression.
+    serviceName:
+      type: string
+      default: obsidian-headless
+      description: systemd user service name (without the .service suffix).
+    disableInAppSync:
+      type: boolean
+      default: true
+      description: >-
+        When the desktop app's in-app sync is configured for the vault, pause for
+        approval and, on approval, disable it so headless sync can take over.
+    manageService:
+      type: boolean
+      default: true
+      description: >-
+        Create and start the systemd user service that keeps `ob sync
+        --continuous` running.
+    force:
+      type: boolean
+      default: false
+      description: Reinstall/rewrite even when the target state already exists.
+  required:
+    - vaultName
+    - vaultPath
+jobs:
+  - name: main
+    description: >-
+      Detect the host, install the client, pause once so the operator can log in
+      and approve retiring in-app sync, then configure the vault and run sync
+      under systemd.
+    steps:
+      - name: detect
+        description: >-
+          Read the host: desktop vault registration, in-app sync core plugin,
+          Node runtime, installed package, account login, and the remote vault.
+          Persists the resolved configuration so later runs reuse it. This is the
+          only writer of the `config` and `status` resources before the pause.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-headless"
+          modelName: obsidian-headless
+          methodName: setup
+          inputs:
+            vaultName: ${{ inputs.vaultName }}
+            vaultPath: ${{ inputs.vaultPath }}
+            deviceName: ${{ inputs.deviceName }}
+            configDir: ${{ inputs.configDir }}
+            syncMode: ${{ inputs.syncMode }}
+            nodeDir: ${{ inputs.nodeDir }}
+            nodeVersion: ${{ inputs.nodeVersion }}
+            packagePrefix: ${{ inputs.packagePrefix }}
+            packageVersion: ${{ inputs.packageVersion }}
+            e2ePassword: ${{ inputs.e2ePassword }}
+            serviceName: ${{ inputs.serviceName }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: install-node
+        description: >-
+          Ensure a Node.js 22+ runtime: reuse an override, a managed runtime or a
+          PATH node; otherwise download and checksum-verify the official Node.js
+          distribution into the managed directory. Idempotent. Runs before the
+          pause so the host is ready to log in while the workflow waits.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-headless"
+          modelName: obsidian-headless
+          methodName: installNode
+          inputs:
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: detect
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+
+      - name: install-package
+        description: >-
+          Install or upgrade the obsidian-headless npm package into the managed
+          prefix, using the resolved Node's bundled npm. Runs before the pause so
+          the printed `ob login` command exists while the workflow waits.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-headless"
+          modelName: obsidian-headless
+          methodName: install
+          inputs:
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: install-node
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: approve-setup
+        description: >-
+          The one pause. Its prompt prints, from the freshly detected state,
+          exactly what to do before continuing, as separate commands: the `ob
+          login` command (needed only when not logged in) and the exact `ob
+          sync-setup` command for this vault — with --path so sync attaches to
+          the right directory, and so the end-to-end encryption password is
+          entered now and the workflow reuses this configuration. It also says
+          to close the Obsidian desktop app when in-app sync is configured
+          (approving disables that vault's sync core plugin, backing up
+          core-plugins.json). Skipped entirely only when the host is already
+          logged in, the vault is already configured for sync, and there is
+          nothing to disable.
+        guard: >-
+          ${{ data.latest("obsidian-headless", "status").attributes.loggedIn == true && data.latest("obsidian-headless", "status").attributes.localConfigured == true && (data.latest("obsidian-headless", "status").attributes.inAppSyncConfigured == false || inputs.disableInAppSync == false) }}
+        task:
+          type: manual_approval
+          prompt: |
+            Setup is paused so you can get this host ready, then continue. Run these on the host now, in order:
+
+              Step 1 — log in to Obsidian (email, password, 2FA):
+                ${{ data.latest("obsidian-headless", "package").attributes.obPath }} login
+
+              Step 2 — configure this vault for headless sync. Use --path so sync attaches to the vault directory (not the current one), and enter the end-to-end encryption password when prompted:
+                ${{ data.latest("obsidian-headless", "package").attributes.obPath }} sync-setup --vault "${{ data.latest("obsidian-headless", "config").attributes.vaultName }}" --path "${{ data.latest("obsidian-headless", "config").attributes.vaultPath }}" --device-name "${{ data.latest("obsidian-headless", "config").attributes.deviceName }}" --config-dir "${{ data.latest("obsidian-headless", "config").attributes.configDir }}"
+
+              Not sure of the vault name? List your remote vaults:
+                ${{ data.latest("obsidian-headless", "package").attributes.obPath }} sync-list-remote
+
+            ${{ data.latest("obsidian-headless", "status").attributes.loggedIn == true ? "This host is already logged in, so Step 1 is optional." : "This host is NOT logged in — Step 1 is required." }}
+            ${{ data.latest("obsidian-headless", "status").attributes.inAppSyncConfigured == true && inputs.disableInAppSync == true ? "Close the Obsidian desktop app before approving: approving disables the \"sync\" core plugin for " + data.latest("obsidian-headless", "status").attributes.vaultPath + " (core-plugins.json is backed up first)." : "There is no in-app sync to disable." }}
+
+            Approve to continue the setup.
+        dependsOn:
+          - step: install-package
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: disable-in-app-sync
+        description: >-
+          Turn the vault's in-app `sync` core plugin off, backing up
+          core-plugins.json first. Idempotent. Only runs after approval, and only
+          when in-app sync was configured and disableInAppSync is true.
+        guard: >-
+          ${{ inputs.disableInAppSync == false ||
+          data.latest("obsidian-headless", "status").attributes.inAppSyncConfigured == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-headless"
+          modelName: obsidian-headless
+          methodName: disableInAppSync
+        dependsOn:
+          - step: approve-setup
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: recheck
+        description: >-
+          Re-read the host after the pause, so the login performed while the
+          workflow waited is picked up (and the in-app sync state now reflects the
+          change). Reuses the persisted configuration; refreshes the `status`
+          resource the final verify reads.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-headless"
+          modelName: obsidian-headless
+          methodName: setup
+        dependsOn:
+          - step: disable-in-app-sync
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+
+      - name: configure-sync
+        description: >-
+          Resolve the remote vault by name on the account and configure the local
+          vault for headless sync (`ob sync-setup`), enforcing syncMode. Reuses an
+          existing local configuration (for example the interactive setup done at
+          the pause, which is how an end-to-end encrypted vault is configured when
+          no e2ePassword is supplied). Checks the login itself and stops with the
+          exact `ob login` command when the host is still not logged in.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-headless"
+          modelName: obsidian-headless
+          methodName: configureSync
+          inputs:
+            force: ${{ inputs.force }}
+            e2ePassword: ${{ inputs.e2ePassword }}
+        dependsOn:
+          - step: recheck
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: create-service
+        description: >-
+          Write (idempotently) a systemd user unit that keeps
+          `ob sync --continuous` running in the vault, via
+          @svendowideit/systemd-service, so sync survives logout and reboot.
+          Only runs when manageService is true.
+        guard: ${{ inputs.manageService == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/systemd-service"
+          modelName: obsidian-headless-sync
+          methodName: createService
+          inputs:
+            serviceName: ${{ inputs.serviceName }}
+            command: ${{ data.latest("obsidian-headless", "node").attributes.binaryPath + " " + data.latest("obsidian-headless", "package").attributes.cliPath + " sync --continuous" }}
+            workingDirectory: ${{ data.latest("obsidian-headless", "vault").attributes.vaultPath }}
+            description: "Obsidian Sync (headless) — keeps the vault synced"
+            restart: always
+            restartSec: "5"
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: configure-sync
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: start-service
+        description: >-
+          Enable user lingering and start/enable the service so sync resumes at
+          boot. Only runs when manageService is true.
+        guard: ${{ inputs.manageService == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/systemd-service"
+          modelName: obsidian-headless-sync
+          methodName: startService
+          inputs:
+            serviceName: ${{ inputs.serviceName }}
+            linger: true
+        dependsOn:
+          - step: create-service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: verify
+        description: >-
+          Print the final end state — vault, Node, package, in-app sync and the
+          systemd service — and the exact `systemctl --user status` command to
+          inspect the service.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-headless"
+          modelName: obsidian-headless
+          methodName: print
+        dependsOn:
+          - step: install-package
+            condition:
+              type: always
+          - step: recheck
+            condition:
+              type: always
+          - step: disable-in-app-sync
+            condition:
+              type: always
+          - step: configure-sync
+            condition:
+              type: always
+          - step: create-service
+            condition:
+              type: always
+          - step: start-service
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

@@ -1,0 +1,137 @@
+manifestVersion: 1
+name: "@svendowideit/obsidian-headless"
+version: "2026.10.12.1"
+description: >
+  Install and run the official Obsidian Sync headless client as a systemd user
+  service — and retire the desktop app's in-app sync for the vault it takes over,
+  behind an approval gate.
+
+  WHAT IT DOES
+
+    Obsidian Sync normally syncs only while the desktop app is open on one
+    machine. This extension closes the gap on an always-on box: it detects
+    whether this host already syncs the vault through the desktop app's in-app
+    sync, installs the official `obsidian-headless` client (`ob`) on a managed
+    Node.js 22 runtime, configures the vault, and keeps it syncing under systemd
+    — keeping it current across logout and reboot. It pauses once, listing the
+    exact commands to run: `ob login` (email, password, 2FA; only when not logged
+    in) and `ob sync-setup --vault … --path …`, so an end-to-end encryption
+    password is entered now — or supplied via `e2ePassword` — and the right vault
+    directory is used; it also warns to close the desktop app before disabling
+    in-app sync. It replaces manual installs, logins and unit files with one
+    idempotent, approval-gated workflow.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/obsidian-headless
+
+  DEPENDENCIES
+
+    `@svendowideit/systemd-service`, declared in `dependencies:` and installed by
+    the single pull above; the bundled workflows call it to create and start the
+    unit. Everything else is self-contained: the official Node.js distribution is
+    downloaded and checksum-verified by the extension itself, and
+    `obsidian-headless` is installed from npm into a managed prefix.
+
+  RUN
+
+      # Install and set up headless sync for a vault. The client is installed
+      # first, then the run pauses once at an approval step whose prompt lists
+      # the exact commands to run before continuing — `ob login` (if not logged
+      # in) and `ob sync-setup --vault … --path …` for this vault (so an E2E
+      # password is entered now), plus closing the desktop app if in-app sync is
+      # configured. Approve, then resume.
+      swamp workflow run @svendowideit/obsidian-headless-install \
+        --input vaultName="My Vault" --input vaultPath=/home/me/vault
+
+      # Inspect the host first: desktop registration, in-app sync, Node, package,
+      # login state and the resolved remote vault — changes nothing.
+      swamp model @svendowideit/obsidian-headless method run setup obsidian-headless \
+        --input vaultName="My Vault" --input vaultPath=/home/me/vault
+
+      # Update Node and the package as releases appear and restart the service.
+      swamp workflow run @svendowideit/obsidian-headless-upgrade
+
+  CONFIGURE
+
+    Workflow inputs for @svendowideit/obsidian-headless-install, all optional
+    except the two identifying values:
+
+      vaultName        Obsidian Sync remote vault name or id   (required for setup)
+      vaultPath        Absolute local vault path               (required for setup)
+      syncMode         bidirectional | pull-only | mirror-remote  (default bidirectional)
+      deviceName       Name in the sync version history        (default <hostname>-headless)
+      configDir        Vault config dotfolder                  (default .obsidian)
+      nodeDir          Managed Node.js install directory       (default ~/.local/share/obsidian-headless/node)
+      nodeVersion      Node.js version to install              (default 22)
+      packagePrefix    npm global prefix                       (default ~/.local/share/obsidian-headless)
+      packageVersion   obsidian-headless version               (default: latest)
+      e2ePassword      End-to-end encryption password          (default empty; wire from a swamp vault, else prompted for at the pause)
+      serviceName      systemd user service name               (default obsidian-headless)
+      disableInAppSync Disable the in-app sync core plugin     (default true)
+      manageService    Create + start the systemd service      (default true)
+      force            Reinstall/rewrite unconditionally       (default false)
+
+    The model's global arguments mirror these; a per-call `--input` wins over a
+    global. See the README for the full argument and method reference.
+
+  SETUP
+
+    The `setup` method is the discovery step and is safe to run at any time. It
+    reads the configuration this model persisted on a previous run and reuses it,
+    so you are never asked twice; anything you pass now is persisted even when
+    the picture is incomplete, and each capability lights up as its input arrives
+    (detection works with nothing installed; the package and service need Node and
+    a login). It reports verified reality, not intent — it checks the actual
+    desktop registration, the real core-plugins.json flag, the resolved node and
+    package, and the live account/vault rather than echoing the requested values,
+    and it says when a step is blocked (for example, not logged in):
+
+        swamp model @svendowideit/obsidian-headless method run setup obsidian-headless \
+          --input vaultName="My Vault" --input vaultPath=/home/me/vault
+
+  UPGRADE
+
+    One workflow upgrades an existing install in place and is idempotent: it
+    re-resolves the Node.js runtime, upgrades the obsidian-headless package, and
+    restarts the systemd service so it runs the new build. A daily trigger keeps
+    it current automatically; remove `trigger:` to upgrade by hand:
+
+      swamp workflow run @svendowideit/obsidian-headless-upgrade
+
+  WHAT IT INSTALLS
+
+    A managed Node.js 22 runtime (checksum-verified official build) under
+    `nodeDir`, the `obsidian-headless` npm package under `packagePrefix`, and one
+    systemd *user* unit named `obsidian-headless.service` (configurable via
+    `serviceName`); `startService` enables user lingering so sync resumes at boot.
+    It also writes the vault's `.obsidian/core-plugins.json` with `sync` set to
+    false when it retires in-app sync, keeping a timestamped `.pre-headless-*`
+    backup beside it. Nothing else is installed.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - obsidian_headless.ts
+  - obsidian_headless_shared.ts
+
+workflows:
+  - obsidian-headless-install.yaml
+  - obsidian-headless-upgrade.yaml
+
+dependencies:
+  - "@svendowideit/systemd-service"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - obsidian_headless_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64

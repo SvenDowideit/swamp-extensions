@@ -1,7 +1,7 @@
 manifestVersion: 1
 name: "@svendowideit/bom-weather"
 
-version: "2026.09.23.2"
+version: "2026.10.12.1"
 
 description: >
   Get the Australian Bureau of Meteorology's 9-day forecast for any suburb or
@@ -61,8 +61,9 @@ description: >
     All selectors are optional and resolved in the order geohash > id >
     postcode > name; `state` narrows a search and disambiguates places that
     share a name. Each selector can be set either as a model global argument
-    (the default every run uses) or as a workflow input (a per-run override).
-    Pass a selector as `--input` on any command to override the global:
+    (the default a direct model call uses) or as a workflow input (a per-run
+    override). Pass a selector as `--input` on any command to override the
+    global:
 
       # Create the model with Penrith, NSW as its default location.
       swamp model create @svendowideit/bom-weather bom \
@@ -77,11 +78,36 @@ description: >
       swamp workflow run @svendowideit/bom-weather \
         --input geohash=r1r0fup
 
+    IMPORTANT — the bundled workflow's cron trigger carries its own location
+    (default Penrith, NSW) and passes it to the model on every run, so a model
+    global does NOT change what the scheduled sync fetches. To point the
+    schedule at your own location, set a trigger override, then apply it with
+    `swamp serve reload` (needs `--hot-reload`) or a serve restart:
+
+      # Poll Bathurst, NSW on the built-in 4x-daily cadence.
+      swamp workflow trigger set @svendowideit/bom-weather \
+        --schedule "30 6,12,18,0 * * *" \
+        --input name=Bathurst --input state=NSW
+
+      # Inspect built-in vs override vs effective.
+      swamp workflow trigger get @svendowideit/bom-weather
+
+  UPGRADE
+
+    bom-weather installs nothing on the host, so there is no in-place rebuild to
+    run. Upgrade by updating the extension; model instances keep their stored
+    configuration and cached snapshots, and the new version applies
+    automatically on the next method run.
+
+      swamp extension update @svendowideit/bom-weather
+
   WHAT IT INSTALLS
 
     Nothing on the host. The bundled workflow declares a cron trigger
     (four times daily) that fires when the workflow is run under
-    `swamp serve`; it writes no services, files, or webhooks.
+    `swamp serve`; it writes no services, files, or webhooks. The trigger
+    carries a default location (Penrith, NSW) — override it for your own
+    location with `swamp workflow trigger set` (see CONFIGURE).
 
 repository: https://github.com/svendowideit/swamp-extensions
 

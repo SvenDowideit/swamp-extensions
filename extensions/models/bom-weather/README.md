@@ -40,9 +40,15 @@ swamp extension pull @svendowideit/bom-weather
 
 Every selector can be set two ways:
 
-- **As a model global argument** — the default the model uses on every run.
-  Set it with `--global-arg` at creation.
+- **As a model global argument** — the default a *direct model call* uses on
+  every run. Set it with `--global-arg` at creation.
 - **As a method input** (`--input`) — overrides the global for that call only.
+
+Note: the bundled **workflow** passes its own `name`/`state` inputs (default
+Penrith, NSW) to the model on every run, so a model global does not affect
+workflow runs. Change the workflow's location with `--input` for a manual run,
+or a trigger override for the scheduled sync — see [Pointing the scheduled sync
+at your location](#pointing-the-scheduled-sync-at-your-location).
 
 Resolution order is `geohash` > `id` > `postcode` > `name`, with `state`
 narrowing a search. A non-empty input always wins over the global default.
@@ -160,6 +166,21 @@ Warnings (this location): none
 Control the last two blocks with `--input hourlyHours=0` (all 72 hours) and
 `--input warningsDetail=true` (log each warning's message text).
 
+## Upgrade
+
+Upgrade in place by updating the extension — it installs nothing on the host (no
+services, daemons, or webhooks), so there is no rebuild, restart, or reconcile
+step:
+
+```sh
+# Apply a new bom-weather version.
+swamp extension update @svendowideit/bom-weather
+```
+
+Model instances keep their stored configuration, cached snapshots and issue
+cadence across the update; a version bump is applied automatically on the next
+method run, and the scheduled workflow keeps its trigger override.
+
 ## Accessing the data
 
 Every method writes a named resource you can read back, query, and reference
@@ -265,17 +286,38 @@ characters (`geohash6`) for those two endpoints.
 `sync` → `observe`, `sync-hourly`, `warnings` (all three `allowFailure: true`) →
 `print`. The workflow's `trigger.schedule` is `30 6,12,18,0 * * *` — four times
 daily, ~30 minutes after each of the Bureau's routine daily issues (~06:30,
-12:30, 18:30, 00:30 local). Trigger inputs hold the default location
-(`name: Penrith`, `state: NSW`); override them with `--input` on a manual run.
-The print step waits for all four sources and logs a consolidated view, so a
-poll that finds no new issue still reports the current forecast. The three
-supplementary steps are non-fatal: a warnings or observations outage must not
-suppress the print.
+12:30, 18:30, 00:30 local). The print step waits for all four sources and logs a
+consolidated view, so a poll that finds no new issue still reports the current
+forecast. The three supplementary steps are non-fatal: a warnings or
+observations outage must not suppress the print.
 
-`issue_time` and `next_issue_time` come straight from the API response metadata
-(`forecast_region`, `forecast_type` are captured too). `sync` marks a result
-`unchanged: true` when the new `issue_time` matches the previously stored one,
-letting callers detect a no-op poll.
+#### Pointing the scheduled sync at your location
+
+The workflow's trigger and inputs carry a **default location of Penrith, NSW**,
+and the workflow passes its own `name`/`state` to the model on every run — so a
+model global argument does **not** change what the scheduled sync fetches (it
+only affects a direct model call). To change the scheduled location, set a
+**trigger override**:
+
+```sh
+# Poll Bathurst, NSW on the built-in 4x-daily cadence.
+swamp workflow trigger set @svendowideit/bom-weather \
+  --schedule "30 6,12,18,0 * * *" \
+  --input name=Bathurst --input state=NSW
+
+# Show built-in vs override vs effective.
+swamp workflow trigger get @svendowideit/bom-weather
+```
+
+Apply the override with `swamp serve reload` (needs `swamp serve --hot-reload`)
+or by restarting serve; or re-run `trigger set` with `--server ws://…` to apply
+it to the running scheduler immediately. For a one-off manual run, pass the
+selectors directly instead:
+
+```sh
+swamp workflow run @svendowideit/bom-weather \
+  --input name=Bathurst --input state=NSW
+```
 
 `issue_time` and `next_issue_time` come straight from the API response metadata
 (`forecast_region`, `forecast_type` are captured too). `sync` marks a result

@@ -1275,7 +1275,7 @@ async function resolvePlace(
 /** Client for BOM's public 9-day location forecast service. */
 export const model = {
   type: "@svendowideit/bom-weather",
-  version: "2026.09.23.2",
+  version: "2026.10.12.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1293,6 +1293,16 @@ export const model = {
         "and warnings; adds print inputs hourlyHours and warningsDetail, and " +
         "summary fields observed/hourly/warnings. No global-argument or other " +
         "resource schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.12.1",
+      description:
+        "Documentation-only release: the manifest and README now explain that " +
+        "the bundled workflow's trigger carries a default location (Penrith, " +
+        "NSW) and that changing the scheduled sync's location requires a " +
+        "`swamp workflow trigger set` override, not a model global. No schema " +
+        "or behaviour change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -67,8 +67,117 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261011-175539-0-sha-897b64a0"><span class="tier A">A</span>data and output repositories stage typed changes on v3 (swam</a><a href="#release-swamp-club-swamp-v20261011-174943-0-sha-c611f681"><span class="tier A">A</span>push the interrupted workflow runs at shutdown (swamp-club#3</a><a href="#release-swamp-club-swamp-v20261011-173920-0-sha-047eb54f"><span class="tier A">A</span>install a search-found extension only when it provides the t</a><a href="#release-swamp-club-swamp-v20261011-172010-0-sha-fa5caa5c"><span class="tier A">A</span>workflow steps keep autoGc version caps (swamp-club#3251) (#</a><a href="#release-swamp-club-swamp-v20261011-171210-0-sha-c292e128"><span class="tier A">A</span>dormant v3 chunk garbage collection (swamp-club#3249) (#2990</a><a href="#release-swamp-club-swamp-v20261011-161824-0-sha-ceb62d1d"><span class="tier A">A</span>name repository grant files grants/&lt;name&gt; on Windows (swamp-</a><a href="#release-swamp-club-swamp-v20261011-154850-0-sha-d650cb70"><span class="tier A">A</span>model cancel selects a model&#39;s runs by definition id, not by</a><a href="#release-swamp-club-swamp-v20261011-153055-0-sha-8453c3cc"><span class="tier A">A</span>end a Windows step&#39;s process tree with the swamp process tha</a><a href="#release-swamp-club-swamp-v20261011-152534-0-sha-a793fcc2"><span class="tier A">A</span>the dormant v3 read model (swamp-club#3239) (#2986)</a><a href="#release-swamp-club-swamp-v20261011-150815-0-sha-3309192f"><span class="tier A">A</span>report a registry outage during auto-resolution as a network</a><a href="#release-swamp-club-swamp-v20261011-150301-0-sha-323c056a"><span class="tier A">A</span>the dormant v3 commit-log unit of work and binding registry </a><a href="#release-swamp-club-swamp-v20261011-145030-0-sha-7f41e277"><span class="tier A">A</span>capture PowerShell output with LF line endings (swamp-club#3</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261011-232410-0-sha-6dd28a50"><span class="tier A">A</span>definition, workflow and evaluated repositories stage typed </a><a href="#release-swamp-club-swamp-v20261011-225450-0-sha-1a51af52"><span class="tier A">A</span>move the data from the current datastore when setup leaves a</a><a href="#release-swamp-club-swamp-v20261011-222452-0-sha-574e1c2e"><span class="tier A">A</span>create a default local_encryption vault at repo init, and st</a><a href="#release-swamp-club-swamp-v20261011-212318-0-sha-72ec0142"><span class="tier A">A</span>write --select scalar results verbatim instead of through ma</a><a href="#release-swamp-club-swamp-v20261011-175539-0-sha-897b64a0"><span class="tier A">A</span>data and output repositories stage typed changes on v3 (swam</a><a href="#release-swamp-club-swamp-v20261011-174943-0-sha-c611f681"><span class="tier A">A</span>push the interrupted workflow runs at shutdown (swamp-club#3</a><a href="#release-swamp-club-swamp-v20261011-173920-0-sha-047eb54f"><span class="tier A">A</span>install a search-found extension only when it provides the t</a><a href="#release-swamp-club-swamp-v20261011-172010-0-sha-fa5caa5c"><span class="tier A">A</span>workflow steps keep autoGc version caps (swamp-club#3251) (#</a><a href="#release-swamp-club-swamp-v20261011-171210-0-sha-c292e128"><span class="tier A">A</span>dormant v3 chunk garbage collection (swamp-club#3249) (#2990</a><a href="#release-swamp-club-swamp-v20261011-161824-0-sha-ceb62d1d"><span class="tier A">A</span>name repository grant files grants/&lt;name&gt; on Windows (swamp-</a><a href="#release-swamp-club-swamp-v20261011-154850-0-sha-d650cb70"><span class="tier A">A</span>model cancel selects a model&#39;s runs by definition id, not by</a><a href="#release-swamp-club-swamp-v20261011-153055-0-sha-8453c3cc"><span class="tier A">A</span>end a Windows step&#39;s process tree with the swamp process tha</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261011-232410-0-sha-6dd28a50">
+<h2><span class="tier A">A</span>definition, workflow and evaluated repositories stage typed changes on v3 (swamp-club#3256) (#2998)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-11T23:25:57Z">2026-10-11T23:25:57Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): definition, workflow and evaluated repositories stage typed changes on v3 (swamp-club#3256) (#2998)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Datastore rework Phase 3 (swamp-club#3256, tracking swamp-club#2865), dormant until the v3 opt-in. This is the second repository staging group. On v3, four repositories now stage typed changes for every write they make:</p>
+<ul>
+<li><code>yaml_definition_repository.ts</code></li>
+<li><code>yaml_workflow_repository.ts</code></li>
+<li><code>yaml_evaluated_definition_repository.ts</code></li>
+<li><code>yaml_evaluated_workflow_repository.ts</code></li>
+</ul>
+<p>They use the route swamp-club#3250 added. <strong>v2 behaviour does not change.</strong></p>
+<h4 class="body-h">1. Repository staging</h4>
+<p><strong>Tier rule.</strong> Each written or removed file is classified by the directory it lives in, not by the repository&#39;s role (<code>src/infrastructure/persistence/config_staging.ts</code>). This matters because direct execution builds a definition repository over the auto-definitions directory.</p>
+<ul>
+<li><strong>Managed config:</strong> <code>config--{model|workflow}--{name}</code>.</li>
+<li><strong>Auto-definitions:</strong> <code>definition--{id}</code>.</li>
+<li><strong>Git-tracked:</strong> stages nothing. Its path change is declared <code>typed</code>, so a v3 unit doesn&#39;t refuse it.</li>
+</ul>
+<p><strong>Keys.</strong> A record key is the file&#39;s real path under the namespace root.</p>
+<p><strong>Preconditions on managed-config definitions and workflows:</strong></p>
+<ul>
+<li>an edit expects the <code>sha256</code> of the file it replaced;</li>
+<li>a create, or a move to a new key, expects the key absent;</li>
+<li>a moved-from tombstone expects the file present.</li>
+</ul>
+<p><strong>Renames</strong> are two batches, committed in order:</p>
+<p>1. <code>definition.rename-to</code> in the n</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.232410.0-sha.6dd28a50" rel="noopener">release v20261011.232410.0-sha.6dd28a50</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6dd28a506bd66792fca841a0b59e81b11363c377" rel="noopener">6dd28a50</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2998" rel="noopener">#2998</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3240" rel="noopener">#3240</a>𝗔 <a href="https://swamp-club.com/lab/3256" rel="noopener">lab#3256</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261011-225450-0-sha-1a51af52">
+<h2><span class="tier A">A</span>move the data from the current datastore when setup leaves an external path (swamp-club#3238) (#2997)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-11T22:56:26Z">2026-10-11T22:56:26Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): move the data from the current datastore when setup leaves an external path (swamp-club#3238) (#2997)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3238. Before this change, <code>swamp datastore setup</code> always migrated from the repo&#39;s own <code>.swamp</code> unless the current datastore was a remote extension. After a repo moved its datastore to an external filesystem path (the reporter used an SMB mount), the next setup did one of two things. Moving back to <code>.swamp</code> copied nothing. Moving to another path or to S3 copied the near-empty <code>.swamp</code>. Both reported success and left the repo&#39;s data unreachable at the old path.</p>
+<p><strong>Setup (<code>src/libswamp/datastores/setup.ts</code>)</strong></p>
+<ul>
+<li><strong>Source.</strong> Migration reads from the current datastore&#39;s root when it is a filesystem path outside the repo (<code>externalFilesystemDatastoreRoot</code>, new in <code>datastore_config.ts</code>). This applies to <code>setup filesystem</code>, <code>setup extension</code>, interactive <code>datastore setup</code> and serve&#39;s admin setup handler.</li>
+<li><strong>Unusable source.</strong> Setup stops before anything moves or <code>.swamp.yaml</code> changes when that root is missing, or when it holds none of the datastore subdirs (an unmounted mount point). <code>--skip-migration</code> still switches.</li>
+<li><strong>Old data is never deleted.</strong> Data on an external filesystem datastore is copied, never cleaned up, whatever the destination. Several repositories can share such a path, and cleanup would delete their data. The result carries <code>sourceKept: true</code>, and log mode prints <code>Copied from: … (left in place)</code>.</li>
+</ul>
+<p>-</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.225450.0-sha.1a51af52" rel="noopener">release v20261011.225450.0-sha.1a51af52</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1a51af52f7593a5cbfecc29271d3c9634289eafd" rel="noopener">1a51af52</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2997" rel="noopener">#2997</a>𝗔 <a href="https://swamp-club.com/lab/3238" rel="noopener">lab#3238</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261011-222452-0-sha-574e1c2e">
+<h2><span class="tier A">A</span>create a default local_encryption vault at repo init, and stop persisting an absolute base_dir (swamp-club#3259) (#2996)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-11T22:26:33Z">2026-10-11T22:26:33Z</time></span><span>vaults</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(vaults): create a default local_encryption vault at repo init, and stop persisting an absolute base_dir (swamp-club#3259) (#2996)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3259. This change does two things.</p>
+<p><strong>1. Every new repository gets a vault.</strong> A new repo already came with a working datastore, but no vault. The first sensitive output failed with &quot;no vault is configured&quot;, and storing a secret meant picking a vault type first. Now <code>swamp repo init</code> creates a <code>local_encryption</code> vault named <code>default</code> and sets <code>defaultVault: default</code> in <code>.swamp.yaml</code>.</p>
+<ul>
+<li><strong>No key at init.</strong> The vault config is only <code>auto_generate: true</code>. No key exists until the first secret is written.</li>
+<li><strong>Nothing leaves the machine.</strong> The key and secrets live under <code>.swamp/secrets/</code> (always local, gitignored).</li>
+<li><strong>Opt-out:</strong> <code>--no-vault</code> skips the vault.</li>
+<li><strong><code>--force</code></strong> keeps an existing <code>default</code> vault (whatever its type) and the <code>defaultVault</code> already recorded.</li>
+<li><strong>Output:</strong> the <code>--json</code> result gains <code>vault: { name, type, created } | null</code>, and log mode prints a line for it.</li>
+<li><strong>Scope:</strong> <code>swamp repo upgrade</code> and existing repos are unchanged.</li>
+<li><strong>New warning:</strong> <code>swamp datastore setup extension</code> now warns (<code>local_default_vault</code>) when the default vault is <code>local_encryption</code>, because other machines sharing the datastore cannot read it.</li>
+</ul>
+<p><strong>2. Vault configs stop storing an absolute <code>base_dir</code>.</strong></p>
+<ul>
+<li><strong>The bug:</strong> <code>vault create</code>, <code>vault migrate</code> and serve&#39;s key-source defaulting all wrote the host&#39;s abs</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.222452.0-sha.574e1c2e" rel="noopener">release v20261011.222452.0-sha.574e1c2e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/574e1c2e99c5266abd1e8cffae412aab2963709f" rel="noopener">574e1c2e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2996" rel="noopener">#2996</a>𝗔 <a href="https://swamp-club.com/lab/3259" rel="noopener">lab#3259</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261011-212318-0-sha-72ec0142">
+<h2><span class="tier A">A</span>write --select scalar results verbatim instead of through marked (swamp-club#3253) (#2995)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-11T21:24:58Z">2026-10-11T21:24:58Z</time></span><span>data</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(data): write --select scalar results verbatim instead of through marked (swamp-club#3253) (#2995)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3253. <code>swamp data query ... --select content</code> crashed on large file data (~10 MB) with <code>RangeError: Maximum call stack size exceeded</code> from <code>marked</code>. It wrote nothing and exited 1, even when stdout was redirected.</p>
+<p>Scalar <code>--select</code> results went through the terminal markdown renderer. On one multi-megabyte line, <code>marked</code>&#39;s <code>lheading</code> tokenizer runs out of stack. Smaller content was written, but any markdown syntax in it was changed (emphasis and backticks stripped, list items reindented).</p>
+<ul>
+<li><code>renderQueryResultsTerminal</code> (<code>src/presentation/renderers/data_query.ts</code>) now writes scalar values exactly as stored, one per line: <code>null</code> as an empty line, objects as indented JSON, and a plain-text &quot;limit reached&quot; line like the default table&#39;s.</li>
+<li>Map and list projections still render as markdown tables, and <code>--json</code> is unchanged.</li>
+<li>The interactive query view calls the same function, so it gets the same fix.</li>
+<li><code>design/enablers/data-query.md</code> is updated to match.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><strong>Unit tests:</strong> four new tests in <code>data_query_test.ts</code>: a 14 MB single line, markdown syntax kept unchanged, null and object values, and the plain &quot;limit reached&quot; line. All four failed on the unfixed code (the first with the exact <code>RangeError</code>) and pass now.</li>
+<li><strong>End to end:</strong> a compiled binary in a scratch repo with 13.6 MB of shell log data:</li>
+<li>The released bina</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/data-query.md" rel="noopener">design/enablers/data-query.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.212318.0-sha.72ec0142" rel="noopener">release v20261011.212318.0-sha.72ec0142</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/72ec01420f00813b482d7e0b670a49cd2330056f" rel="noopener">72ec0142</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2995" rel="noopener">#2995</a>𝗔 <a href="https://swamp-club.com/lab/3253" rel="noopener">lab#3253</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261011-175539-0-sha-897b64a0">
 <h2><span class="tier A">A</span>data and output repositories stage typed changes on v3 (swamp-club#3250) (#2994)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
@@ -242,7 +351,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.153055.0-sha.8453c3cc" rel="noopener">release v20261011.153055.0-sha.8453c3cc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8453c3ccb70b86b49bea74cebc292a8f2ea78bda" rel="noopener">8453c3cc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2987" rel="noopener">#2987</a>𝗔 <a href="https://swamp-club.com/lab/3241" rel="noopener">lab#3241</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261011-152534-0-sha-a793fcc2">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261011-152534-0-sha-a793fcc2">
 <h2><span class="tier A">A</span>the dormant v3 read model (swamp-club#3239) (#2986)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-11T15:27:16Z">2026-10-11T15:27:16Z</time></span><span>datastore</span><span>feat</span></div>
@@ -327,7 +436,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.145030.0-sha.7f41e277" rel="noopener">release v20261011.145030.0-sha.7f41e277</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7f41e2778c06f06abb1e0e30c994a336ac235b91" rel="noopener">7f41e277</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2983" rel="noopener">#2983</a>𝗔 <a href="https://swamp-club.com/lab/3242" rel="noopener">lab#3242</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261011-144510-0-sha-3d077d1e">
+<article class="item" id="release-swamp-club-swamp-v20261011-144510-0-sha-3d077d1e">
 <h2><span class="tier A">A</span>never auto-create an enrollment token definition on worker enroll (swamp-club#3074) (#2982)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-11T14:46:56Z">2026-10-11T14:46:56Z</time></span><span>serve</span><span>fix</span></div>
@@ -5501,7 +5610,86 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.194016.0-sha.c0c751a1" rel="noopener">release v20261002.194016.0-sha.c0c751a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0c751a17fa31d512cb5ee65da19e47284547cd0" rel="noopener">c0c751a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2808" rel="noopener">#2808</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/2979" rel="noopener">lab#2979</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261011-002912-0-sha-052485ae">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261012-005015-0-sha-fec4b9a5">
+<h2><span class="tier C">C</span>swamp 20261012.005015.0-sha.fec4b9a5</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-12T00:51:44Z">2026-10-12T00:51:44Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): workflow run and vault config repositories stage typed changes on v3 (swamp-club#3257) (#3001)</li>
+</ul>
+<p>Fixes swamp-club#3257. Datastore rework Phase 3: the workflow run and vault config repositories stage typed changes on v3. v2 doesn&#39;t change.</p>
+<h4 class="body-h">What changes</h4>
+<ul>
+<li><strong>Workflow runs</strong> (<code>yaml_workflow_run_repository.ts</code>, new <code>RunChanges</code> factory):</li>
+<li><code>save</code> stages <code>run.create</code> for a new record and <code>run.update</code> after that, in <code>run--{workflowId}--{runId}</code>.</li>
+<li><code>deleteAllByWorkflowId</code> and both run-GC branches stage one <code>run.delete</code> tombstone per run.</li>
+<li>A record is staged as a stream of the written file with no precondition, so the unit drops earlier saves of the run and one flush commits only the last.</li>
+<li>Run logs and run indexes are local-only.</li>
+<li><strong>Vault configs</strong> (<code>yaml_vault_config_repository.ts</code>) reuse #3256&#39;s helper, <code>definitionSaveBatches</code> / <code>definitionDeleteBatches</code>, with <code>kind</code> widened to <code>DefinitionKind</code>. There is no rename or edit logic of their own:</li>
+<li>they stage only under managed config, in <code>config--vault--{name}</code>;</li>
+<li>an edit expects the replaced file&#39;s digest, and a rename spans two partitions;</li>
+<li>an unchanged save stages nothing;</li>
+<li>a repo-local vault, including the default vault <code>repo init</code> writes, stages nothing;</li>
+<li>no secret ever reaches a typed change.</li>
+<li><strong>Run outcomes</strong> (decision 5): <code>RUN_COMMIT_STATUSES</code> uses the statuses <code>WorkflowRun</code> actually records. Before, a successful run never matched <code>&quot;completed&quot;</code>. <code>withUnitOfWork</code></li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.005015.0-sha.fec4b9a5" rel="noopener">release v20261012.005015.0-sha.fec4b9a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fec4b9a5" rel="noopener">fec4b9a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3001" rel="noopener">#3001</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3256" rel="noopener">#3256</a>𝗔 <a href="https://swamp-club.com/lab/3257" rel="noopener">lab#3257</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261012-004319-0-sha-cfac523b">
+<h2><span class="tier C">C</span>swamp 20261012.004319.0-sha.cfac523b</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-12T00:45:09Z">2026-10-12T00:45:09Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(process): let workflow and model cancel stop a Windows owner gracefully (swamp-club#3267) (#3000)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3267. On Windows, <code>swamp workflow cancel</code> and <code>swamp model cancel</code> hard-killed the run&#39;s owning swamp process. Deno turns a SIGTERM sent to another process into <code>TerminateProcess</code>, so the owner:</p>
+<ul>
+<li>saved nothing;</li>
+<li>ran none of its always/completed cleanup steps;</li>
+<li>left cancel to settle its in-flight steps with the owner-stopped error (&quot;cancelled: the process running this step stopped before the step finished&quot;) instead of &quot;cancelled&quot;.</li>
+</ul>
+<p>That made two Windows UAT tests fail (<code>workflow cancel</code> live local run, <code>workflow cancel</code> nested child). The broader effect was that rollback steps never ran on a Windows cancel.</p>
+<p>swamp now sends a <strong>stop request</strong> on Windows, the equivalent of SIGTERM from one swamp process to another:</p>
+<ul>
+<li><strong>Listener</strong> (<code>src/infrastructure/process/windows_stop_request.ts</code>): a named auto-reset kernel32 event, <code>Local\swamp-stop-&lt;pid&gt;</code>, polled every 100ms on an unref&#39;d timer.</li>
+<li>Each subscription has its own idempotent end.</li>
+<li>A failed create leaves no state behind.</li>
+<li>The event is drained once at creation, so a stale request aimed at a reused pid is ignored.</li>
+<li>A handler that throws doesn&#39;t keep the request from the other subscribers.</li>
+<li><strong><code>registerShutdownHandler</code></strong>: on Windows, it listens for stop requests where it would register SIGTERM on POSIX. No call sites change.</li>
+<li><strong><code>killProcessTree</code></strong>: sends the stop</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.004319.0-sha.cfac523b" rel="noopener">release v20261012.004319.0-sha.cfac523b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cfac523b" rel="noopener">cfac523b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3000" rel="noopener">#3000</a>𝗔 <a href="https://swamp-club.com/lab/3267" rel="noopener">lab#3267</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261012-003850-0-sha-0c854c81">
+<h2><span class="tier C">C</span>swamp 20261012.003850.0-sha.0c854c81</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-12T00:40:24Z">2026-10-12T00:40:24Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): remove run logs where runs write them in run gc and workflow delete (swamp-club#3266) (#2999)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3266. The executor always writes a workflow run&#39;s log under the repo-local <code>.swamp/workflow-runs/&lt;workflowId&gt;/</code>, but run GC and <code>workflow delete</code> only removed a log beside the run record. With a filesystem or S3 datastore the record lives elsewhere, so every collected run left its log in <code>.swamp</code> forever.</p>
+<ul>
+<li><code>deleteOlderThan</code> removes the repo-local log and any log beside the record (default datastore, logs a datastore migration moved), and counts their bytes. Paths are rebuilt from directory entry names, never the record&#39;s <code>logFile</code>, which a peer on a shared datastore could point anywhere.</li>
+<li><code>deleteOlderThan</code> sweeps repo-local run logs whose record is gone, once they are older than both the cutoff and seven days. This clears the logs earlier GC runs left. A run writes its log before it first saves its record, so the floor keeps a starting run&#39;s log. It mirrors the output repository&#39;s orphan sweep (swamp-club#2475).</li>
+<li><code>deleteAllByWorkflowId</code> removes the workflow&#39;s repo-local logs when its records live in another datastore.</li>
+<li><code>design/primitives/workflows.md</code> now says where run records and logs live and how they are removed.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>12 new unit tests in <code>yaml_workflow_run_repository_test.ts</code> (separate and namespaced datastore dirs, dry run, a hostile <code>logFile</code>, migrated logs, kept runs, orphan age gating, empty-</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.003850.0-sha.0c854c81" rel="noopener">release v20261012.003850.0-sha.0c854c81</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0c854c81" rel="noopener">0c854c81</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2999" rel="noopener">#2999</a>𝗔 <a href="https://swamp-club.com/lab/3266" rel="noopener">lab#3266</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261011-002912-0-sha-052485ae">
 <h2><span class="tier C">C</span>Litestream embedding decision record for the v3 datastore (swamp-club#3234) (#2976)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-11T00:30:42Z">2026-10-11T00:30:42Z</time></span><span>design</span><span>docs</span></div>
@@ -5676,13 +5864,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>231 items across 1 source(s) in this window:
-0 critical, 213 notable, 10 routine,
-8 minor.</p>
-<ul><li><strong>fix</strong> — 154</li><li><strong>feat</strong> — 59</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 3</li></ul></section>
+<p>238 items across 1 source(s) in this window:
+0 critical, 217 notable, 10 routine,
+11 minor.</p>
+<ul><li><strong>fix</strong> — 156</li><li><strong>feat</strong> — 61</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>changes</strong> — 3</li><li><strong>docs</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-12T00:02:41.055Z">2026-10-12T00:02:41.055Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-12T01:02:58.245Z">2026-10-12T01:02:58.245Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

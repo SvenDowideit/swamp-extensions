@@ -67,8 +67,87 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261011-232410-0-sha-6dd28a50"><span class="tier A">A</span>definition, workflow and evaluated repositories stage typed </a><a href="#release-swamp-club-swamp-v20261011-225450-0-sha-1a51af52"><span class="tier A">A</span>move the data from the current datastore when setup leaves a</a><a href="#release-swamp-club-swamp-v20261011-222452-0-sha-574e1c2e"><span class="tier A">A</span>create a default local_encryption vault at repo init, and st</a><a href="#release-swamp-club-swamp-v20261011-212318-0-sha-72ec0142"><span class="tier A">A</span>write --select scalar results verbatim instead of through ma</a><a href="#release-swamp-club-swamp-v20261011-175539-0-sha-897b64a0"><span class="tier A">A</span>data and output repositories stage typed changes on v3 (swam</a><a href="#release-swamp-club-swamp-v20261011-174943-0-sha-c611f681"><span class="tier A">A</span>push the interrupted workflow runs at shutdown (swamp-club#3</a><a href="#release-swamp-club-swamp-v20261011-173920-0-sha-047eb54f"><span class="tier A">A</span>install a search-found extension only when it provides the t</a><a href="#release-swamp-club-swamp-v20261011-172010-0-sha-fa5caa5c"><span class="tier A">A</span>workflow steps keep autoGc version caps (swamp-club#3251) (#</a><a href="#release-swamp-club-swamp-v20261011-171210-0-sha-c292e128"><span class="tier A">A</span>dormant v3 chunk garbage collection (swamp-club#3249) (#2990</a><a href="#release-swamp-club-swamp-v20261011-161824-0-sha-ceb62d1d"><span class="tier A">A</span>name repository grant files grants/&lt;name&gt; on Windows (swamp-</a><a href="#release-swamp-club-swamp-v20261011-154850-0-sha-d650cb70"><span class="tier A">A</span>model cancel selects a model&#39;s runs by definition id, not by</a><a href="#release-swamp-club-swamp-v20261011-153055-0-sha-8453c3cc"><span class="tier A">A</span>end a Windows step&#39;s process tree with the swamp process tha</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261012-005015-0-sha-fec4b9a5"><span class="tier A">A</span>workflow run and vault config repositories stage typed chang</a><a href="#release-swamp-club-swamp-v20261012-004319-0-sha-cfac523b"><span class="tier A">A</span>let workflow and model cancel stop a Windows owner gracefull</a><a href="#release-swamp-club-swamp-v20261012-003850-0-sha-0c854c81"><span class="tier A">A</span>remove run logs where runs write them in run gc and workflow</a><a href="#release-swamp-club-swamp-v20261011-232410-0-sha-6dd28a50"><span class="tier A">A</span>definition, workflow and evaluated repositories stage typed </a><a href="#release-swamp-club-swamp-v20261011-225450-0-sha-1a51af52"><span class="tier A">A</span>move the data from the current datastore when setup leaves a</a><a href="#release-swamp-club-swamp-v20261011-222452-0-sha-574e1c2e"><span class="tier A">A</span>create a default local_encryption vault at repo init, and st</a><a href="#release-swamp-club-swamp-v20261011-212318-0-sha-72ec0142"><span class="tier A">A</span>write --select scalar results verbatim instead of through ma</a><a href="#release-swamp-club-swamp-v20261011-175539-0-sha-897b64a0"><span class="tier A">A</span>data and output repositories stage typed changes on v3 (swam</a><a href="#release-swamp-club-swamp-v20261011-174943-0-sha-c611f681"><span class="tier A">A</span>push the interrupted workflow runs at shutdown (swamp-club#3</a><a href="#release-swamp-club-swamp-v20261011-173920-0-sha-047eb54f"><span class="tier A">A</span>install a search-found extension only when it provides the t</a><a href="#release-swamp-club-swamp-v20261011-172010-0-sha-fa5caa5c"><span class="tier A">A</span>workflow steps keep autoGc version caps (swamp-club#3251) (#</a><a href="#release-swamp-club-swamp-v20261011-171210-0-sha-c292e128"><span class="tier A">A</span>dormant v3 chunk garbage collection (swamp-club#3249) (#2990</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261012-005015-0-sha-fec4b9a5">
+<h2><span class="tier A">A</span>workflow run and vault config repositories stage typed changes on v3 (swamp-club#3257) (#3001)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-12T00:51:44Z">2026-10-12T00:51:44Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): workflow run and vault config repositories stage typed changes on v3 (swamp-club#3257) (#3001)</li>
+</ul>
+<p>Fixes swamp-club#3257. Datastore rework Phase 3: the workflow run and vault config repositories stage typed changes on v3. v2 doesn&#39;t change.</p>
+<h4 class="body-h">What changes</h4>
+<ul>
+<li><strong>Workflow runs</strong> (<code>yaml_workflow_run_repository.ts</code>, new <code>RunChanges</code> factory):</li>
+<li><code>save</code> stages <code>run.create</code> for a new record and <code>run.update</code> after that, in <code>run--{workflowId}--{runId}</code>.</li>
+<li><code>deleteAllByWorkflowId</code> and both run-GC branches stage one <code>run.delete</code> tombstone per run.</li>
+<li>A record is staged as a stream of the written file with no precondition, so the unit drops earlier saves of the run and one flush commits only the last.</li>
+<li>Run logs and run indexes are local-only.</li>
+<li><strong>Vault configs</strong> (<code>yaml_vault_config_repository.ts</code>) reuse #3256&#39;s helper, <code>definitionSaveBatches</code> / <code>definitionDeleteBatches</code>, with <code>kind</code> widened to <code>DefinitionKind</code>. There is no rename or edit logic of their own:</li>
+<li>they stage only under managed config, in <code>config--vault--{name}</code>;</li>
+<li>an edit expects the replaced file&#39;s digest, and a rename spans two partitions;</li>
+<li>an unchanged save stages nothing;</li>
+<li>a repo-local vault, including the default vault <code>repo init</code> writes, stages nothing;</li>
+<li>no secret ever reaches a typed change.</li>
+<li><strong>Run outcomes</strong> (decision 5): <code>RUN_COMMIT_STATUSES</code> uses the statuses <code>WorkflowRun</code> actually records. Before, a successful run never matched <code>&quot;completed&quot;</code>. <code>withUnitOfWork</code></li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.005015.0-sha.fec4b9a5" rel="noopener">release v20261012.005015.0-sha.fec4b9a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fec4b9a5e6f10f56ccbc32f9744f8918fc83e2f6" rel="noopener">fec4b9a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3001" rel="noopener">#3001</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3256" rel="noopener">#3256</a>𝗔 <a href="https://swamp-club.com/lab/3257" rel="noopener">lab#3257</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261012-004319-0-sha-cfac523b">
+<h2><span class="tier A">A</span>let workflow and model cancel stop a Windows owner gracefully (swamp-club#3267) (#3000)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-12T00:45:09Z">2026-10-12T00:45:09Z</time></span><span>process</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(process): let workflow and model cancel stop a Windows owner gracefully (swamp-club#3267) (#3000)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3267. On Windows, <code>swamp workflow cancel</code> and <code>swamp model cancel</code> hard-killed the run&#39;s owning swamp process. Deno turns a SIGTERM sent to another process into <code>TerminateProcess</code>, so the owner:</p>
+<ul>
+<li>saved nothing;</li>
+<li>ran none of its always/completed cleanup steps;</li>
+<li>left cancel to settle its in-flight steps with the owner-stopped error (&quot;cancelled: the process running this step stopped before the step finished&quot;) instead of &quot;cancelled&quot;.</li>
+</ul>
+<p>That made two Windows UAT tests fail (<code>workflow cancel</code> live local run, <code>workflow cancel</code> nested child). The broader effect was that rollback steps never ran on a Windows cancel.</p>
+<p>swamp now sends a <strong>stop request</strong> on Windows, the equivalent of SIGTERM from one swamp process to another:</p>
+<ul>
+<li><strong>Listener</strong> (<code>src/infrastructure/process/windows_stop_request.ts</code>): a named auto-reset kernel32 event, <code>Local\swamp-stop-&lt;pid&gt;</code>, polled every 100ms on an unref&#39;d timer.</li>
+<li>Each subscription has its own idempotent end.</li>
+<li>A failed create leaves no state behind.</li>
+<li>The event is drained once at creation, so a stale request aimed at a reused pid is ignored.</li>
+<li>A handler that throws doesn&#39;t keep the request from the other subscribers.</li>
+<li><strong><code>registerShutdownHandler</code></strong>: on Windows, it listens for stop requests where it would register SIGTERM on POSIX. No call sites change.</li>
+<li><strong><code>killProcessTree</code></strong>: sends the stop</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.004319.0-sha.cfac523b" rel="noopener">release v20261012.004319.0-sha.cfac523b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cfac523bf1a26f7421051a669793f5fc05a48adb" rel="noopener">cfac523b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3000" rel="noopener">#3000</a>𝗔 <a href="https://swamp-club.com/lab/3267" rel="noopener">lab#3267</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261012-003850-0-sha-0c854c81">
+<h2><span class="tier A">A</span>remove run logs where runs write them in run gc and workflow delete (swamp-club#3266) (#2999)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-12T00:40:24Z">2026-10-12T00:40:24Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): remove run logs where runs write them in run gc and workflow delete (swamp-club#3266) (#2999)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3266. The executor always writes a workflow run&#39;s log under the repo-local <code>.swamp/workflow-runs/&lt;workflowId&gt;/</code>, but run GC and <code>workflow delete</code> only removed a log beside the run record. With a filesystem or S3 datastore the record lives elsewhere, so every collected run left its log in <code>.swamp</code> forever.</p>
+<ul>
+<li><code>deleteOlderThan</code> removes the repo-local log and any log beside the record (default datastore, logs a datastore migration moved), and counts their bytes. Paths are rebuilt from directory entry names, never the record&#39;s <code>logFile</code>, which a peer on a shared datastore could point anywhere.</li>
+<li><code>deleteOlderThan</code> sweeps repo-local run logs whose record is gone, once they are older than both the cutoff and seven days. This clears the logs earlier GC runs left. A run writes its log before it first saves its record, so the floor keeps a starting run&#39;s log. It mirrors the output repository&#39;s orphan sweep (swamp-club#2475).</li>
+<li><code>deleteAllByWorkflowId</code> removes the workflow&#39;s repo-local logs when its records live in another datastore.</li>
+<li><code>design/primitives/workflows.md</code> now says where run records and logs live and how they are removed.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>12 new unit tests in <code>yaml_workflow_run_repository_test.ts</code> (separate and namespaced datastore dirs, dry run, a hostile <code>logFile</code>, migrated logs, kept runs, orphan age gating, empty-</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.003850.0-sha.0c854c81" rel="noopener">release v20261012.003850.0-sha.0c854c81</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0c854c81220895b2d176c17eab506421f4b63b0e" rel="noopener">0c854c81</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2999" rel="noopener">#2999</a>𝗔 <a href="https://swamp-club.com/lab/3266" rel="noopener">lab#3266</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261011-232410-0-sha-6dd28a50">
 <h2><span class="tier A">A</span>definition, workflow and evaluated repositories stage typed changes on v3 (swamp-club#3256) (#2998)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
@@ -288,7 +367,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.171210.0-sha.c292e128" rel="noopener">release v20261011.171210.0-sha.c292e128</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c292e1287a0221c4a238926bf22ac933ee88a5b9" rel="noopener">c292e128</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2990" rel="noopener">#2990</a>𝗔 <a href="https://swamp-club.com/lab/3249" rel="noopener">lab#3249</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261011-161824-0-sha-ceb62d1d">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261011-161824-0-sha-ceb62d1d">
 <h2><span class="tier A">A</span>name repository grant files grants/&lt;name&gt; on Windows (swamp-club#3245) (#2989)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-11T16:20:14Z">2026-10-11T16:20:14Z</time></span><span>serve</span><span>fix</span></div>
@@ -351,7 +430,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261011.153055.0-sha.8453c3cc" rel="noopener">release v20261011.153055.0-sha.8453c3cc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8453c3ccb70b86b49bea74cebc292a8f2ea78bda" rel="noopener">8453c3cc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2987" rel="noopener">#2987</a>𝗔 <a href="https://swamp-club.com/lab/3241" rel="noopener">lab#3241</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261011-152534-0-sha-a793fcc2">
+<article class="item" id="release-swamp-club-swamp-v20261011-152534-0-sha-a793fcc2">
 <h2><span class="tier A">A</span>the dormant v3 read model (swamp-club#3239) (#2986)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-11T15:27:16Z">2026-10-11T15:27:16Z</time></span><span>datastore</span><span>feat</span></div>
@@ -5610,86 +5689,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261002.194016.0-sha.c0c751a1" rel="noopener">release v20261002.194016.0-sha.c0c751a1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c0c751a17fa31d512cb5ee65da19e47284547cd0" rel="noopener">c0c751a1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2808" rel="noopener">#2808</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2855" rel="noopener">#2855</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2971" rel="noopener">#2971</a>𝗔 <a href="https://swamp-club.com/lab/2979" rel="noopener">lab#2979</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261012-005015-0-sha-fec4b9a5">
-<h2><span class="tier C">C</span>swamp 20261012.005015.0-sha.fec4b9a5</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-12T00:51:44Z">2026-10-12T00:51:44Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(datastore): workflow run and vault config repositories stage typed changes on v3 (swamp-club#3257) (#3001)</li>
-</ul>
-<p>Fixes swamp-club#3257. Datastore rework Phase 3: the workflow run and vault config repositories stage typed changes on v3. v2 doesn&#39;t change.</p>
-<h4 class="body-h">What changes</h4>
-<ul>
-<li><strong>Workflow runs</strong> (<code>yaml_workflow_run_repository.ts</code>, new <code>RunChanges</code> factory):</li>
-<li><code>save</code> stages <code>run.create</code> for a new record and <code>run.update</code> after that, in <code>run--{workflowId}--{runId}</code>.</li>
-<li><code>deleteAllByWorkflowId</code> and both run-GC branches stage one <code>run.delete</code> tombstone per run.</li>
-<li>A record is staged as a stream of the written file with no precondition, so the unit drops earlier saves of the run and one flush commits only the last.</li>
-<li>Run logs and run indexes are local-only.</li>
-<li><strong>Vault configs</strong> (<code>yaml_vault_config_repository.ts</code>) reuse #3256&#39;s helper, <code>definitionSaveBatches</code> / <code>definitionDeleteBatches</code>, with <code>kind</code> widened to <code>DefinitionKind</code>. There is no rename or edit logic of their own:</li>
-<li>they stage only under managed config, in <code>config--vault--{name}</code>;</li>
-<li>an edit expects the replaced file&#39;s digest, and a rename spans two partitions;</li>
-<li>an unchanged save stages nothing;</li>
-<li>a repo-local vault, including the default vault <code>repo init</code> writes, stages nothing;</li>
-<li>no secret ever reaches a typed change.</li>
-<li><strong>Run outcomes</strong> (decision 5): <code>RUN_COMMIT_STATUSES</code> uses the statuses <code>WorkflowRun</code> actually records. Before, a successful run never matched <code>&quot;completed&quot;</code>. <code>withUnitOfWork</code></li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.005015.0-sha.fec4b9a5" rel="noopener">release v20261012.005015.0-sha.fec4b9a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fec4b9a5" rel="noopener">fec4b9a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3001" rel="noopener">#3001</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3256" rel="noopener">#3256</a>𝗔 <a href="https://swamp-club.com/lab/3257" rel="noopener">lab#3257</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261012-004319-0-sha-cfac523b">
-<h2><span class="tier C">C</span>swamp 20261012.004319.0-sha.cfac523b</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-12T00:45:09Z">2026-10-12T00:45:09Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(process): let workflow and model cancel stop a Windows owner gracefully (swamp-club#3267) (#3000)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3267. On Windows, <code>swamp workflow cancel</code> and <code>swamp model cancel</code> hard-killed the run&#39;s owning swamp process. Deno turns a SIGTERM sent to another process into <code>TerminateProcess</code>, so the owner:</p>
-<ul>
-<li>saved nothing;</li>
-<li>ran none of its always/completed cleanup steps;</li>
-<li>left cancel to settle its in-flight steps with the owner-stopped error (&quot;cancelled: the process running this step stopped before the step finished&quot;) instead of &quot;cancelled&quot;.</li>
-</ul>
-<p>That made two Windows UAT tests fail (<code>workflow cancel</code> live local run, <code>workflow cancel</code> nested child). The broader effect was that rollback steps never ran on a Windows cancel.</p>
-<p>swamp now sends a <strong>stop request</strong> on Windows, the equivalent of SIGTERM from one swamp process to another:</p>
-<ul>
-<li><strong>Listener</strong> (<code>src/infrastructure/process/windows_stop_request.ts</code>): a named auto-reset kernel32 event, <code>Local\swamp-stop-&lt;pid&gt;</code>, polled every 100ms on an unref&#39;d timer.</li>
-<li>Each subscription has its own idempotent end.</li>
-<li>A failed create leaves no state behind.</li>
-<li>The event is drained once at creation, so a stale request aimed at a reused pid is ignored.</li>
-<li>A handler that throws doesn&#39;t keep the request from the other subscribers.</li>
-<li><strong><code>registerShutdownHandler</code></strong>: on Windows, it listens for stop requests where it would register SIGTERM on POSIX. No call sites change.</li>
-<li><strong><code>killProcessTree</code></strong>: sends the stop</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.004319.0-sha.cfac523b" rel="noopener">release v20261012.004319.0-sha.cfac523b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cfac523b" rel="noopener">cfac523b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3000" rel="noopener">#3000</a>𝗔 <a href="https://swamp-club.com/lab/3267" rel="noopener">lab#3267</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261012-003850-0-sha-0c854c81">
-<h2><span class="tier C">C</span>swamp 20261012.003850.0-sha.0c854c81</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-12T00:40:24Z">2026-10-12T00:40:24Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): remove run logs where runs write them in run gc and workflow delete (swamp-club#3266) (#2999)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3266. The executor always writes a workflow run&#39;s log under the repo-local <code>.swamp/workflow-runs/&lt;workflowId&gt;/</code>, but run GC and <code>workflow delete</code> only removed a log beside the run record. With a filesystem or S3 datastore the record lives elsewhere, so every collected run left its log in <code>.swamp</code> forever.</p>
-<ul>
-<li><code>deleteOlderThan</code> removes the repo-local log and any log beside the record (default datastore, logs a datastore migration moved), and counts their bytes. Paths are rebuilt from directory entry names, never the record&#39;s <code>logFile</code>, which a peer on a shared datastore could point anywhere.</li>
-<li><code>deleteOlderThan</code> sweeps repo-local run logs whose record is gone, once they are older than both the cutoff and seven days. This clears the logs earlier GC runs left. A run writes its log before it first saves its record, so the floor keeps a starting run&#39;s log. It mirrors the output repository&#39;s orphan sweep (swamp-club#2475).</li>
-<li><code>deleteAllByWorkflowId</code> removes the workflow&#39;s repo-local logs when its records live in another datastore.</li>
-<li><code>design/primitives/workflows.md</code> now says where run records and logs live and how they are removed.</li>
-</ul>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>12 new unit tests in <code>yaml_workflow_run_repository_test.ts</code> (separate and namespaced datastore dirs, dry run, a hostile <code>logFile</code>, migrated logs, kept runs, orphan age gating, empty-</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.003850.0-sha.0c854c81" rel="noopener">release v20261012.003850.0-sha.0c854c81</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0c854c81" rel="noopener">0c854c81</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2999" rel="noopener">#2999</a>𝗔 <a href="https://swamp-club.com/lab/3266" rel="noopener">lab#3266</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261011-002912-0-sha-052485ae">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261011-002912-0-sha-052485ae">
 <h2><span class="tier C">C</span>Litestream embedding decision record for the v3 datastore (swamp-club#3234) (#2976)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-11T00:30:42Z">2026-10-11T00:30:42Z</time></span><span>design</span><span>docs</span></div>
@@ -5865,12 +5865,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>238 items across 1 source(s) in this window:
-0 critical, 217 notable, 10 routine,
-11 minor.</p>
-<ul><li><strong>fix</strong> — 156</li><li><strong>feat</strong> — 61</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>changes</strong> — 3</li><li><strong>docs</strong> — 3</li></ul></section>
+0 critical, 220 notable, 10 routine,
+8 minor.</p>
+<ul><li><strong>fix</strong> — 158</li><li><strong>feat</strong> — 62</li><li><strong>refactor</strong> — 10</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-12T01:02:58.245Z">2026-10-12T01:02:58.245Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-12T02:07:45.394Z">2026-10-12T02:07:45.394Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

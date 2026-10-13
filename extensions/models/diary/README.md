@@ -1,8 +1,9 @@
 # @svendowideit/diary
 
-Turn a day of synced Garmin, Zwift and (optionally) BOM weather data into one
-Obsidian daily note, and merge it into a note you may already have edited —
-without re-fetching anything or clobbering your own words and ticked boxes.
+Turn a day of synced Garmin, Zwift, (optionally) BOM weather data and
+(optionally) swamp extension releases into one Obsidian daily note, and merge it
+into a note you may already have edited — without re-fetching anything or
+clobbering your own words and ticked boxes.
 
 This is an **extension of `@magistr/obsidian/vault`**: pulling it adds three
 methods and three resources to that model type, plus a daily workflow. It
@@ -41,6 +42,17 @@ optional: if the `bom` instance is absent, has not synced, or holds no day
 matching the date, the line is simply omitted and `bom/forecast` is listed in
 `collect.attributes.missing`.
 
+When an `@svendowideit/extension-releases` instance (`releasesModel`, default
+`extension-releases`) holds a log entry for the day, a `## Extensions published`
+section lists each extension with a link to its swamp-club registry page and a
+sub-list of the versions and channels released or promoted that day, e.g.
+`- **2026.10.11.1** → stable (promoted from beta) · 19:14`. An entry is dated by
+when it actually happened — the registry publish time for a release, the first
+observation for a promotion — so a release only ever appears on its real day,
+never on the day a later poll or a first-run backfill noticed it. Releases are
+optional: if the model is absent or the day has none, the section says so and
+`extension-releases/log` is listed in `collect.attributes.missing`.
+
 The bundled `@svendowideit/diary-daily` workflow chains these — assert sources,
 `collect`, `publish` — and is scheduled hourly at :45 local under `swamp serve`,
 a quarter-hour after the `@svendowideit/fitness-refresh` run it consumes. Each
@@ -59,8 +71,8 @@ the day is still produced and the missing sources are listed in
 swamp extension pull @svendowideit/diary
 ```
 
-`@magistr/obsidian-vault` is declared as a dependency and pulled by the same
-command.
+`@magistr/obsidian-vault` and `@svendowideit/extension-releases` are declared as
+dependencies and pulled by the same command.
 
 ## Configuration
 
@@ -91,6 +103,7 @@ the `@magistr/obsidian/vault` model it extends:
 | `collect` | `recommenderModel` | string | `zwift-recommender` | Instance holding ranked picks |
 | `collect` | `eventsModel` | string | `zwift-events` | Instance holding the schedule (for links) |
 | `collect` | `bomModel` | string | `bom` | Optional `@svendowideit/bom-weather` instance for the forecast line |
+| `collect` | `releasesModel` | string | `extension-releases` | Optional `@svendowideit/extension-releases` instance for the Extensions published section |
 | `collect` | `topN` | integer | `5` | Maximum suggested rides on the page |
 | `render` | `timezone` / `date` | | | As `collect` |
 | `render` | `collectName` | string? | `daily-<date>` | Collect resource to render |
@@ -105,10 +118,11 @@ the `@magistr/obsidian/vault` model it extends:
 
 The bundled `@svendowideit/diary-daily` workflow exposes the same names as
 `--input` (`vaultModel`, `activitiesModel`, `healthModel`, `bodyModel`,
-`recommenderModel`, `eventsModel`, `bomModel`, `timezone`, `date`, `days`,
-`folder`, `topN`), and is scheduled hourly at :45 local. Each run rebuilds the
-last `days` days (default 4 — today and the three before), so a weigh-in or
-activity that arrives after a page was first written still updates that page.
+`recommenderModel`, `eventsModel`, `bomModel`, `releasesModel`, `timezone`,
+`date`, `days`, `folder`, `topN`), and is scheduled hourly at :45 local. Each
+run rebuilds the last `days` days (default 4 — today and the three before), so a
+weigh-in or activity that arrives after a page was first written still updates
+that page.
 
 | Input | Type | Default | Meaning |
 | --- | --- | --- | --- |
@@ -119,6 +133,7 @@ activity that arrives after a page was first written still updates that page.
 | `recommenderModel` | string | `zwift-recommender` | Ranked Zwift picks to read |
 | `eventsModel` | string | `zwift-events` | Zwift schedule, used for links |
 | `bomModel` | string | `bom` | Optional BOM instance for the forecast line |
+| `releasesModel` | string | `extension-releases` | Optional releases instance for the Extensions published section |
 | `timezone` | string | `Australia/Brisbane` | IANA zone that defines "today" |
 | `date` | string | `""` (today) | Explicit day `YYYY-MM-DD` |
 | `days` | integer | `4` | Days to rebuild, ending on the date (today + the three before) |
@@ -273,13 +288,14 @@ swamp model create @magistr/obsidian/vault obsidian-vault \
 
 - **`collect`** — reads `garmin-activities`/`list`, `garmin-health`/`daily`,
   `garmin-body`/`range`, `zwift-recommender`/`recommendations`,
-  `zwift-events`/`schedule` and (optionally) `<bomModel>`/`forecast` via
-  `context.readModelData`, filters to each day in the `days` window, attaches
-  Zwift event URLs from the schedule, picks each day's weather with
-  `selectWeather`, picks each day's weigh-in with `selectWeight`, and writes a
+  `zwift-events`/`schedule`, (optionally) `<bomModel>`/`forecast` and
+  `<releasesModel>`/`log` via `context.readModelData`, filters to each day in
+  the `days` window, attaches Zwift event URLs from the schedule, picks each
+  day's weather with `selectWeather`, picks each day's weigh-in with
+  `selectWeight`, picks the day's releases with `selectReleases`, and writes a
   `collect` resource named `daily-<date>` per day. Arguments: `timezone`,
   `date`, `days`, `activitiesModel`, `healthModel`, `bodyModel`,
-  `recommenderModel`, `eventsModel`, `bomModel`, `topN`.
+  `recommenderModel`, `eventsModel`, `bomModel`, `releasesModel`, `topN`.
 - **`render`** — reads the collect resource and writes a `page` resource named
   `daily-<date>` with the markdown. Arguments: `timezone`, `date`,
   `collectName`.
@@ -294,7 +310,7 @@ swamp model create @magistr/obsidian/vault obsidian-vault \
 
 | Spec | Name | Shape |
 | --- | --- | --- |
-| `collect` | `daily-<date>` | `date`, `generatedAt`, `timezone`, `rides[]`, `totals`, `wellness`, `weight`, `weather`, `suggested[]`, `truncated`, `missing[]` |
+| `collect` | `daily-<date>` | `date`, `generatedAt`, `timezone`, `rides[]`, `totals`, `wellness`, `weight`, `weather`, `suggested[]`, `releases[]`, `truncated`, `missing[]` |
 | `page` | `page-<date>` | `date`, `markdown`, `timestamp` |
 | `publish` | `publish-<date>` | `date`, `file`, `action`, `merged`, `timestamp` |
 
@@ -333,6 +349,10 @@ Stafford Heights: min 16°C max 27°C; Mostly clear.; 5% chance
 
 ## Suggested rides today
 - [ ] ... → [Zwift](https://www.zwift.com/events/view/111)
+
+## Extensions published
+- [@svendowideit/caddy](https://swamp-club.com/extensions/@svendowideit/caddy)
+  - **2026.10.11.1** → stable (promoted from beta) · 19:14
 <!-- swamp:diary:end -->
 ```
 
@@ -356,6 +376,12 @@ the page.
   (`bomModel`, default `bom`) has synced and holds a day matching the date, the
   line is added; otherwise it is omitted and `bom/forecast` is reported in
   `collect.missing`.
+- The Extensions published section is optional. When an
+  `@svendowideit/extension-releases` instance (`releasesModel`, default
+  `extension-releases`) holds a log entry for the day, the section lists them;
+  otherwise it says no releases were logged and `extension-releases/log` is
+  reported in `collect.missing`. That model is pulled with this extension, but
+  its `collect` method must have run to populate the log.
 - The vault model must be able to reach the vault: set `vaultRoot` for the
   headless `fs` backend, or leave `vault` set for the CLI backend with the
   Obsidian desktop app running.

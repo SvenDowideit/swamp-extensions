@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/diary"
-version: "2026.10.12.1"
+version: "2026.10.13.1"
 description: >
   Turn a day of synced Garmin and Zwift data into one Obsidian daily note,
   merging into any note you have already edited.
@@ -19,7 +19,10 @@ description: >
     reads data other models already synced. The write is marker-based, so
     re-running a day rewrites only the machine-managed region and leaves your
     prose and ticked checkboxes untouched — making a phone-editable vault safe
-    to regenerate.
+    to regenerate. When a `@svendowideit/extension-releases` instance holds a log
+    of that day's swamp extension releases, a `## Extensions published` section
+    lists each extension with a registry link and a sub-list of the versions and
+    channels released or promoted that day.
 
   INSTALL
 
@@ -27,13 +30,15 @@ description: >
 
   DEPENDENCIES
 
-    `@magistr/obsidian-vault`, pulled automatically by the single install
-    above; it supplies the `@magistr/obsidian/vault` model this extension
-    extends. The Garmin (`@svendowideit/garmin`), Zwift
-    (`@svendowideit/zwift`) and BOM (`@svendowideit/bom-weather`) syncs that
-    produce the source data are not hard dependencies — the diary reports what
-    is missing when they have not run, and simply omits the weight and forecast
-    lines when no matching data exists.
+    `@magistr/obsidian-vault` and `@svendowideit/extension-releases`, pulled
+    automatically by the single install above. The first supplies the
+    `@magistr/obsidian/vault` model this extension extends; the second supplies
+    the append-only release log the `## Extensions published` section reads. The
+    Garmin (`@svendowideit/garmin`), Zwift (`@svendowideit/zwift`) and BOM
+    (`@svendowideit/bom-weather`) syncs that produce the source data are not hard
+    dependencies — the diary reports what is missing when they have not run, and
+    simply omits the weight, forecast and releases sections when no matching
+    data exists.
 
   RUN
 
@@ -90,7 +95,8 @@ description: >
     sources by instance name: `activitiesModel` (garmin-activities),
     `healthModel` (garmin-health), `bodyModel` (garmin-body, optional),
     `recommenderModel` (zwift-recommender), `eventsModel` (zwift-events),
-    `bomModel` (bom, optional) and `topN` (5). Set `bomModel` to the name of
+    `bomModel` (bom, optional), `releasesModel` (extension-releases, optional)
+    and `topN` (5). Set `bomModel` to the name of
     your `@svendowideit/bom-weather` instance; when it holds a forecast for the
     day, the header line appears, otherwise it is silently omitted and listed in
     `collect`'s `missing` field. Set `bodyModel` to the name of your
@@ -134,6 +140,7 @@ workflows:
 
 dependencies:
   - "@magistr/obsidian-vault"
+  - "@svendowideit/extension-releases"
 
 additionalFiles:
   - README.md

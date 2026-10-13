@@ -10,7 +10,9 @@ import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
   BEGIN_MARKER,
   calendarDate,
+  clockTime,
   type CollectedDay,
+  type CollectedRelease,
   type CollectedRide,
   type CollectedWeather,
   type CollectedWeight,
@@ -21,13 +23,16 @@ import {
   formatDistance,
   formatDuration,
   formatForecastLine,
+  formatReleaseEntry,
   formatWeightLine,
+  groupReleases,
   indexSchedule,
   mergeManagedSection,
   renderManagedSection,
   renderPage,
   resolveDate,
   resolveDates,
+  selectReleases,
   selectSuggestions,
   selectWeather,
   selectWeight,
@@ -70,6 +75,7 @@ const day = (overrides: Partial<CollectedDay> = {}): CollectedDay => ({
   weather: null,
   weight: null,
   suggested: [],
+  releases: [],
   truncated: false,
   missing: [],
   ...overrides,
@@ -730,6 +736,20 @@ Deno.test("collect reads the synced models and writes a filtered day", async () 
           hasBodyComposition: true,
         }],
       }],
+      "extension-releases/log": [{
+        entries: [{
+          extension: "@svendowideit/caddy",
+          namespace: "@svendowideit",
+          version: "2026.10.11.1",
+          channel: "stable",
+          event: "publish",
+          fromChannel: "",
+          publishedAt: "2026-10-04T01:00:00.000Z",
+          observedAt: "2026-10-04T01:30:00.000Z",
+          author: "svendowideit",
+          url: "https://swamp-club.com/extensions/@svendowideit/caddy",
+        }],
+      }],
     },
   });
 
@@ -755,6 +775,10 @@ Deno.test("collect reads the synced models and writes a filtered day", async () 
   const weight = written[0].data.weight as Record<string, unknown>;
   assertEquals(weight.weight, 80.5);
   assertEquals(weight.bodyFatPercent, 21);
+  const releases = written[0].data.releases as Array<Record<string, unknown>>;
+  assertEquals(releases.length, 1);
+  assertEquals(releases[0].version, "2026.10.11.1");
+  assertEquals(releases[0].channel, "stable");
 });
 
 Deno.test("collect omits weight and records it missing when body has none", async () => {
@@ -1097,3 +1121,172 @@ Deno.test("publish with days>1 writes one note per day", async () => {
     .map((c) => c.arguments!.name);
   assertEquals(created, ["daily/2026-10-04.md", "daily/2026-10-03.md"]);
 });
+
+const release = (
+  overrides: Partial<CollectedRelease> = {},
+): CollectedRelease => ({
+  extension: "@svendowideit/caddy",
+  namespace: "@svendowideit",
+  version: "2026.10.11.1",
+  channel: "stable",
+  event: "publish",
+  fromChannel: "",
+  publishedAt: "2026-10-13T06:49:19.409Z",
+  observedAt: "2026-10-13T09:14:25.631Z",
+  author: "svendowideit",
+  url: "https://swamp-club.com/extensions/@svendowideit/caddy",
+  ...overrides,
+});
+
+Deno.test("selectReleases dates a publish by its publish time, not the poll", () => {
+  const raw = [
+    // Published and observed on the 13th -> shown on the 13th.
+    {
+      extension: "@svendowideit/diary",
+      version: "2026.10.13.1",
+      channel: "stable",
+      event: "publish",
+      publishedAt: "2026-10-13T06:49:19.409Z",
+      observedAt: "2026-10-13T09:14:25.631Z",
+      url: "https://swamp-club.com/extensions/@svendowideit/diary",
+    },
+    // Published on the 11th but first observed today (first-run backfill):
+    // must NOT appear on the 13th.
+    {
+      extension: "@svendowideit/sudo",
+      version: "2026.10.11.1",
+      channel: "stable",
+      event: "publish",
+      publishedAt: "2026-10-11T13:18:40.947Z",
+      observedAt: "2026-10-13T09:14:25.631Z",
+    },
+    // Observed on the 12th, not the 13th -> not on the 13th.
+    {
+      extension: "@svendowideit/caddy",
+      version: "2026.10.12.1",
+      channel: "stable",
+      event: "publish",
+      publishedAt: "2026-10-12T06:49:19.409Z",
+      observedAt: "2026-10-12T09:14:25.631Z",
+    },
+    // A promotion is dated by when it was observed (the registry keeps the
+    // version's original publish time), so it lands on the 13th.
+    {
+      extension: "@svendowideit/garmin",
+      version: "2026.10.09.1",
+      channel: "stable",
+      event: "promote",
+      fromChannel: "beta",
+      publishedAt: "2026-10-09T05:23:29.621Z",
+      observedAt: "2026-10-13T09:14:25.631Z",
+    },
+  ];
+
+  const on13 = selectReleases(raw, "2026-10-13", "UTC");
+  assertEquals(on13.map((r) => r.extension), [
+    "@svendowideit/diary",
+    "@svendowideit/garmin",
+  ]);
+  assertEquals(on13[1].event, "promote");
+  assertEquals(on13[1].fromChannel, "beta");
+
+  const on11 = selectReleases(raw, "2026-10-11", "UTC");
+  assertEquals(on11.map((r) => r.extension), ["@svendowideit/sudo"]);
+});
+
+Deno.test("selectReleases drops entries with an invalid timestamp", () => {
+  const selected = selectReleases([
+    {
+      extension: "@a/b",
+      version: "1",
+      channel: "beta",
+      observedAt: "nope",
+      publishedAt: "also-nope",
+    },
+  ], "2026-10-13", "UTC");
+  assertEquals(selected, []);
+});
+
+Deno.test("groupReleases groups by extension, entries oldest first", () => {
+  const groups = groupReleases([
+    release({
+      extension: "@s/b",
+      version: "2",
+      publishedAt: "2026-10-13T10:00:00Z",
+    }),
+    release({ extension: "@s/a", version: "1" }),
+    release({
+      extension: "@s/b",
+      version: "1",
+      publishedAt: "2026-10-13T08:00:00Z",
+    }),
+  ]);
+  assertEquals(groups.map((g) => g.extension), ["@s/a", "@s/b"]);
+  assertEquals(groups[1].entries.map((e) => e.version), ["1", "2"]);
+  assertEquals(
+    groups[0].url,
+    "https://swamp-club.com/extensions/@svendowideit/caddy",
+  );
+});
+
+Deno.test("formatReleaseEntry dates publish by publishedAt and promote by observedAt", () => {
+  // A publish shows the time the registry accepted it (publishedAt).
+  assertEquals(
+    formatReleaseEntry(release(), "UTC"),
+    "**2026.10.11.1** → stable · 06:49",
+  );
+  // A promotion shows the time it was observed on the higher channel.
+  assertEquals(
+    formatReleaseEntry(
+      release({ event: "promote", fromChannel: "beta" }),
+      "UTC",
+    ),
+    "**2026.10.11.1** → stable (promoted from beta) · 09:14",
+  );
+  // No usable timestamp at all -> no time suffix.
+  assertEquals(
+    formatReleaseEntry(
+      release({ event: "promote", observedAt: "", publishedAt: "" }),
+      "UTC",
+    ),
+    "**2026.10.11.1** → stable (promoted)",
+  );
+});
+
+Deno.test("clockTime formats in the requested timezone", () => {
+  assertEquals(clockTime("2026-10-13T09:14:25.631Z", "UTC"), "09:14");
+  assertEquals(clockTime("2026-10-13T09:14:25.631Z", "Australia/Brisbane"), "19:14");
+  assertEquals(clockTime("not-a-date", "UTC"), "");
+});
+
+Deno.test("renderManagedSection lists extensions with linked sub-entries", () => {
+  const md = renderManagedSection(day({
+    date: "2026-10-13",
+    timezone: "UTC",
+    releases: [
+      release(),
+      release({
+        extension: "@svendowideit/garmin",
+        version: "2026.10.12.1",
+        url: "https://swamp-club.com/extensions/@svendowideit/garmin",
+      }),
+    ],
+  }));
+  assertStringIncludes(md, "## Extensions published");
+  assertStringIncludes(
+    md,
+    "- [@svendowideit/caddy](https://swamp-club.com/extensions/@svendowideit/caddy)",
+  );
+  assertStringIncludes(md, "  - **2026.10.11.1** → stable · 06:49");
+  assertStringIncludes(
+    md,
+    "- [@svendowideit/garmin](https://swamp-club.com/extensions/@svendowideit/garmin)",
+  );
+});
+
+Deno.test("renderManagedSection reports no releases for the day", () => {
+  const md = renderManagedSection(day({ date: "2026-10-13", releases: [] }));
+  assertStringIncludes(md, "## Extensions published");
+  assertStringIncludes(md, "- No extension releases logged for this day");
+});
+

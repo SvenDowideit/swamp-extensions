@@ -23,6 +23,13 @@ description: |
   a day with no Zwift picks or no wellness still publishes cleanly. The workflow
   fails only when there is nothing at all to build from.
 
+  When a `@svendowideit/extension-releases` instance (default name
+  `extension-releases`) holds a log of that day's extension releases, an
+  `## Extensions published` section lists each extension with a registry link
+  and a sub-list of the versions and channels released or promoted that day;
+  when none is logged, or the model is absent, the section simply says so or is
+  omitted.
+
   Manual run:
     swamp workflow run @svendowideit/diary-daily
     swamp workflow run @svendowideit/diary-daily --input date=2026-09-30
@@ -67,6 +74,13 @@ inputs:
       description: >
         Optional @svendowideit/bom-weather instance whose stored forecast is
         added as a header line. Absent data simply omits the line.
+    releasesModel:
+      type: string
+      default: extension-releases
+      description: >
+        Optional @svendowideit/extension-releases instance whose additive log
+        is read for the day's published/released extensions. Absent data simply
+        omits the Extensions published section.
     timezone:
       type: string
       default: Australia/Brisbane
@@ -132,6 +146,7 @@ jobs:
             recommenderModel: ${{ inputs.recommenderModel }}
             eventsModel: ${{ inputs.eventsModel }}
             bomModel: ${{ inputs.bomModel }}
+            releasesModel: ${{ inputs.releasesModel }}
             topN: ${{ inputs.topN }}
         dependsOn:
           - step: assert-sources

@@ -11,8 +11,8 @@
  * origin.
  *
  * Methods:
- *   - `collect`  gather a date's activities, wellness, weigh-in and Zwift picks
- *                into one JSON resource (`collect` / `daily-<date>`)
+ *   - `collect`  gather a date's activities, wellness, weigh-in, Zwift picks and
+ *                extension releases into one JSON resource (`collect` / `daily-<date>`)
  *   - `render`   turn that resource into the markdown page (`page` /
  *                `daily-<date>`) without writing to the vault
  *   - `publish`  render, merge into any existing note between managed markers,
@@ -79,6 +79,11 @@ const CollectArgsSchema = z.object({
   bomModel: z.string().default("bom").describe(
     "Optional @svendowideit/bom-weather instance whose stored forecast is " +
       "read for the page header. Absent data simply omits the forecast line.",
+  ),
+  releasesModel: z.string().default("extension-releases").describe(
+    "Optional @svendowideit/extension-releases instance whose additive `log` " +
+      "is read for the day's published/released extensions. Absent data simply " +
+      "omits the Extensions published section.",
   ),
   topN: z.number().int().positive().default(5).describe(
     "Maximum number of suggested rides to include",
@@ -249,6 +254,33 @@ export interface CollectedSuggestion {
   url: string;
 }
 
+/**
+ * One extension release or promotion logged by
+ * `@svendowideit/extension-releases` on the day's page.
+ */
+export interface CollectedRelease {
+  /** Fully-qualified extension name (`@scope/name`). */
+  extension: string;
+  /** Namespace (collective) that owns the extension. */
+  namespace: string;
+  /** Released version. */
+  version: string;
+  /** Channel the version was released/promoted to (`stable` | `rc` | `beta`). */
+  channel: string;
+  /** `publish` for a first sighting, `promote` for a channel move. */
+  event: string;
+  /** Lower channel a promotion came from, or `""`. */
+  fromChannel: string;
+  /** Registry publish timestamp, or the poll timestamp when absent. */
+  publishedAt: string;
+  /** Poll timestamp when the release was first observed. */
+  observedAt: string;
+  /** Publishing username, or `""`. */
+  author: string;
+  /** Registry page for the extension. */
+  url: string;
+}
+
 /** The full per-day payload written by `collect`. */
 export interface CollectedDay {
   /** Calendar day, `YYYY-MM-DD`. */
@@ -280,6 +312,8 @@ export interface CollectedDay {
   weather: CollectedWeather | null;
   /** Ranked Zwift picks for the day. */
   suggested: CollectedSuggestion[];
+  /** Extension releases and promotions logged against the day. */
+  releases: CollectedRelease[];
   /** True when more picks existed for the day than `topN` kept. */
   truncated: boolean;
   /** Source models that had no data, as `model/spec`. */
@@ -615,6 +649,121 @@ export function formatForecastLine(
   return `${weather.placeName}: ${parts.join("; ")}${rain}`;
 }
 
+/**
+ * The timestamp a release entry should be attributed to (and displayed with).
+ *
+ * A `publish` happened when the registry first accepted the version, so its
+ * `publishedAt` is authoritative. A `promote` cannot be dated from the registry
+ * (a promoted version keeps its original publish time), so the poll time it was
+ * first observed on the higher channel — accurate to within one poll interval —
+ * is used instead. Falls back to the other timestamp when one is missing.
+ */
+export function releaseEventAt(r: CollectedRelease): string {
+  if (r.event === "promote") return r.observedAt || r.publishedAt;
+  return r.publishedAt || r.observedAt;
+}
+
+/**
+ * Select the release entries that happened on `date` in `timezone`. Each entry
+ * is dated by {@link releaseEventAt} — the version's publish time for a
+ * release, the observation time for a promotion — so a release is only ever
+ * shown on the day it actually happened, never on the day a later poll noticed
+ * it (or on the day a first-run backfill captured it).
+ */
+export function selectReleases(
+  raw: Array<Record<string, unknown>>,
+  date: string,
+  timezone: string,
+): CollectedRelease[] {
+  const out: CollectedRelease[] = [];
+  for (const r of raw) {
+    const observedAt = String(r.observedAt ?? "");
+    const entry: CollectedRelease = {
+      extension: String(r.extension ?? ""),
+      namespace: String(r.namespace ?? ""),
+      version: String(r.version ?? ""),
+      channel: String(r.channel ?? ""),
+      event: String(r.event ?? "publish"),
+      fromChannel: String(r.fromChannel ?? ""),
+      publishedAt: String(r.publishedAt ?? observedAt),
+      observedAt,
+      author: String(r.author ?? ""),
+      url: String(r.url ?? ""),
+    };
+    const eventAt = releaseEventAt(entry);
+    if (!eventAt) continue;
+    const at = new Date(eventAt);
+    if (!Number.isFinite(at.getTime())) continue;
+    if (calendarDate(timezone, at) !== date) continue;
+    out.push(entry);
+  }
+  return out;
+}
+
+/** Format an ISO timestamp as `HH:MM` in an IANA timezone, or `""`. */
+export function clockTime(iso: string, timezone: string): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(t));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const hour = get("hour");
+  const minute = get("minute");
+  return hour && minute ? `${hour}:${minute}` : "";
+}
+
+/** One extension and its release entries for the day. */
+export interface ReleaseGroup {
+  /** Extension name. */
+  extension: string;
+  /** Registry page URL, or `""`. */
+  url: string;
+  /** The day's entries, oldest first. */
+  entries: CollectedRelease[];
+}
+
+/** Group a day's releases by extension, each group's entries oldest first. */
+export function groupReleases(releases: CollectedRelease[]): ReleaseGroup[] {
+  const map = new Map<string, ReleaseGroup>();
+  for (const r of releases) {
+    const group = map.get(r.extension) ??
+      { extension: r.extension, url: r.url, entries: [] };
+    group.entries.push(r);
+    if (!group.url && r.url) group.url = r.url;
+    map.set(r.extension, group);
+  }
+  const groups = [...map.values()];
+  for (const g of groups) {
+    g.entries.sort((a, b) =>
+      (releaseEventAt(a) || "").localeCompare(releaseEventAt(b) || "") ||
+      a.version.localeCompare(b.version) ||
+      a.channel.localeCompare(b.channel)
+    );
+  }
+  groups.sort((a, b) => a.extension.localeCompare(b.extension));
+  return groups;
+}
+
+/**
+ * One `- **<version>** → <channel>` sub-list line for a release, noting a
+ * promotion's source channel and the local time it actually happened (see
+ * {@link releaseEventAt}).
+ */
+export function formatReleaseEntry(
+  r: CollectedRelease,
+  timezone: string,
+): string {
+  const suffix = r.event === "promote"
+    ? (r.fromChannel ? ` (promoted from ${r.fromChannel})` : " (promoted)")
+    : "";
+  const time = clockTime(releaseEventAt(r), timezone);
+  return `**${r.version}** → ${r.channel}${suffix}${time ? ` · ${time}` : ""}`;
+}
+
 /** Render the markdown body (between the managed markers) for a day. */
 export function renderManagedSection(day: CollectedDay): string {
   const lines: string[] = [];
@@ -687,6 +836,22 @@ export function renderManagedSection(day: CollectedDay): string {
       lines.push(
         `- [ ] ${label} ${s.eventName} — ${meta} — ${s.reason}${link}`,
       );
+    }
+  }
+  lines.push("");
+
+  lines.push("## Extensions published");
+  if (day.releases.length === 0) {
+    lines.push("- No extension releases logged for this day");
+  } else {
+    for (const group of groupReleases(day.releases)) {
+      const link = group.url
+        ? `[${group.extension}](${group.url})`
+        : group.extension;
+      lines.push(`- ${link}`);
+      for (const r of group.entries) {
+        lines.push(`  - ${formatReleaseEntry(r, day.timezone)}`);
+      }
     }
   }
   lines.push("");
@@ -768,6 +933,7 @@ const resources = {
       weight: z.record(z.string(), z.unknown()).nullable().optional(),
       weather: z.record(z.string(), z.unknown()).nullable().optional(),
       suggested: z.array(z.record(z.string(), z.unknown())),
+      releases: z.array(z.record(z.string(), z.unknown())),
       truncated: z.boolean(),
       missing: z.array(z.string()),
     }),
@@ -839,6 +1005,10 @@ async function executeCollect(
     Record<string, unknown>
   >;
   const schedule = indexSchedule(scheduleEvents);
+  const releaseRecords = await read(args.releasesModel, "log");
+  const releaseEntries = Array.isArray(releaseRecords[0]?.entries)
+    ? releaseRecords[0].entries as Array<Record<string, unknown>>
+    : [];
 
   const handles: Array<{ name: string }> = [];
   for (const date of dates) {
@@ -868,6 +1038,7 @@ async function executeCollect(
     const picksForDate = (recommendations ?? []).filter((r) =>
       r.localDate === date
     ).length;
+    const releases = selectReleases(releaseEntries, date, args.timezone);
 
     const payload: CollectedDay = {
       date,
@@ -879,6 +1050,7 @@ async function executeCollect(
       weight,
       weather,
       suggested,
+      releases,
       truncated: picksForDate > suggested.length,
       missing,
     };

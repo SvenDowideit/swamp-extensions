@@ -67,8 +67,24 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3334"><span class="tier A">A</span>Workflow YAML, extension exports and serve grants accept the</a><a href="#issue-3355"><span class="tier A">A</span>serve: a run whose crashed owner was reaped by a peer stays </a><a href="#issue-3323"><span class="tier A">A</span>Registry: hide extensions with no license from browsing (sho</a><a href="#issue-3348"><span class="tier A">A</span>Flaky: start_server_test &#39;two agent opens at once open only </a><a href="#issue-3358"><span class="tier A">A</span>Datastore rework Phase 4: download, verify and cache a pinne</a><a href="#issue-3333"><span class="tier A">A</span>Serve dashboard uses behavior terminology, with old routes k</a><a href="#issue-3309"><span class="tier A">A</span>workflow resume refuses a wait that has an applicable pendin</a><a href="#issue-3346"><span class="tier A">A</span>repo init --tool claude writes a CLAUDE.md that shadows an e</a><a href="#issue-2746"><span class="tier A">A</span>A pulled extension can shadow a built-in type, and removing </a><a href="#issue-3213"><span class="tier A">A</span>Accept early signals through swamp serve</a><a href="#issue-3332"><span class="tier A">A</span>Skills and generated agent guidance use behavior and swamp b</a><a href="#issue-3274"><span class="tier A">A</span>stagecraft: let users build their own tracker as a separate </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3359"><span class="tier A">A</span>Datastore rework Phase 4: a fenced writer lease for v3 datas</a><a href="#issue-3360"><span class="tier A">A</span>model validate: false &quot;Template syntax passed through&quot; warni</a><a href="#issue-3334"><span class="tier A">A</span>Workflow YAML, extension exports and serve grants accept the</a><a href="#issue-3355"><span class="tier A">A</span>serve: a run whose crashed owner was reaped by a peer stays </a><a href="#issue-3323"><span class="tier A">A</span>Registry: hide extensions with no license from browsing (sho</a><a href="#issue-3348"><span class="tier A">A</span>Flaky: start_server_test &#39;two agent opens at once open only </a><a href="#issue-3358"><span class="tier A">A</span>Datastore rework Phase 4: download, verify and cache a pinne</a><a href="#issue-3333"><span class="tier A">A</span>Serve dashboard uses behavior terminology, with old routes k</a><a href="#issue-3309"><span class="tier A">A</span>workflow resume refuses a wait that has an applicable pendin</a><a href="#issue-3346"><span class="tier A">A</span>repo init --tool claude writes a CLAUDE.md that shadows an e</a><a href="#issue-2746"><span class="tier A">A</span>A pulled extension can shadow a built-in type, and removing </a><a href="#issue-3213"><span class="tier A">A</span>Accept early signals through swamp serve</a></aside><div>
 
+<article class="item" id="issue-3359">
+<h2><span class="tier A">A</span>Datastore rework Phase 4: a fenced writer lease for v3 datastores, replacing Phase 3&#39;s writer lock</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-13T18:00:27.759Z">2026-10-13T18:00:27.759Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3359" rel="noopener">lab#3359</a></div>
+</article>
+<article class="item" id="issue-3360">
+<h2><span class="tier A">A</span>model validate: false &quot;Template syntax passed through&quot; warning on vault.get with unquoted arguments</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-13T17:32:08.049Z">2026-10-13T17:32:08.049Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3360" rel="noopener">lab#3360</a></div>
+</article>
 <article class="item" id="issue-3334">
 <h2><span class="tier A">A</span>Workflow YAML, extension exports and serve grants accept the behavior spelling alongside model</h2>
 <p class="lede">Shipped feature</p>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3213" rel="noopener">lab#3213</a></div>
 </article>
-<article class="item" id="issue-3332">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3332">
 <h2><span class="tier A">A</span>Skills and generated agent guidance use behavior and swamp behavior commands</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-13T15:09:04.112Z">2026-10-13T15:09:04.112Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3274" rel="noopener">lab#3274</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3340">
+<article class="item" id="issue-3340">
 <h2><span class="tier A">A</span>repo init/upgrade emits OpenCode V1-API audit plugin that fails to load on OpenCode 2</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-13T03:27:00.836Z">2026-10-13T03:27:00.836Z</time></span></div>
@@ -3109,61 +3125,85 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3359">
-<h2><span class="tier B">B</span>Datastore rework Phase 4: a fenced writer lease for v3 datastores, replacing Phase 3&#39;s writer lock</h2>
+<article class="item" id="issue-2528">
+<h2><span class="tier B">B</span>Workflow evaluation rejects another templating system&#39;s ${{ }} text, so the #2491 pass-through never reaches workflow steps</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-13T17:08:25.494Z">2026-10-13T17:08:25.494Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-13T18:07:50.898Z">2026-10-13T18:07:50.898Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3359" rel="noopener">lab#3359</a></div>
-</article>
-<article class="item" id="issue-3365">
-<h2><span class="tier B">B</span>vault type search shows an extension vault type under its type id with no description, and cannot find it by name or description</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-13T17:04:09.716Z">2026-10-13T17:04:09.716Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3365" rel="noopener">lab#3365</a></div>
-</article>
-<article class="item" id="issue-3370">
-<h2><span class="tier B">B</span>Registry scorer: a deno doc failure discards the whole scorecard, including the LICENSE and README facts (12 public extensions unscored)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-13T17:01:49.146Z">2026-10-13T17:01:49.146Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3370" rel="noopener">lab#3370</a></div>
-</article>
-<article class="item" id="issue-3326">
-<h2><span class="tier B">B</span>Registry: require and record the declared license at confirm and when making an extension public</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-13T16:57:45.675Z">2026-10-13T16:57:45.675Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3326" rel="noopener">lab#3326</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2528" rel="noopener">lab#2528</a></div>
 </article>
 <article class="item" id="issue-3338">
 <h2><span class="tier B">B</span>Extensions accept export const behavior, extensions/behaviors/ and a behaviors: manifest key alongside model</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-13T16:56:56.291Z">2026-10-13T16:56:56.291Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-13T18:07:26.213Z">2026-10-13T18:07:26.213Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3338" rel="noopener">lab#3338</a></div>
 </article>
-<article class="item" id="issue-3360">
-<h2><span class="tier B">B</span>model validate: false &quot;Template syntax passed through&quot; warning on vault.get with unquoted arguments</h2>
+<article class="item" id="issue-3373">
+<h2><span class="tier B">B</span>S3/GCS: a run whose model lock was force-released still pushes, and one run&#39;s write is lost</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-13T16:50:31.889Z">2026-10-13T16:50:31.889Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-13T18:04:33.468Z">2026-10-13T18:04:33.468Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3360" rel="noopener">lab#3360</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3373" rel="noopener">lab#3373</a></div>
 </article>
 <article class="item" id="issue-3325">
 <h2><span class="tier B">B</span>swamp-extensions: declare license: in every @swamp manifest and in codegen output</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-13T16:05:15.087Z">2026-10-13T16:05:15.087Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-13T18:04:08.733Z">2026-10-13T18:04:08.733Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3325" rel="noopener">lab#3325</a></div>
+</article>
+<article class="item" id="issue-3255">
+<h2><span class="tier B">B</span>rollbackOnFailure methods fail when run as a workflow step</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-13T18:02:59.180Z">2026-10-13T18:02:59.180Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3255" rel="noopener">lab#3255</a></div>
+</article>
+<article class="item" id="issue-3370">
+<h2><span class="tier B">B</span>Registry scorer: a deno doc failure discards the whole scorecard, including the LICENSE and README facts (12 public extensions unscored)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-13T18:02:51.724Z">2026-10-13T18:02:51.724Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3370" rel="noopener">lab#3370</a></div>
+</article>
+<article class="item" id="issue-3356">
+<h2><span class="tier B">B</span>Fleet visibility: live worker host map grouped by label, with slot-level lease state</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-13T18:00:17.917Z">2026-10-13T18:00:17.917Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3356" rel="noopener">lab#3356</a></div>
+</article>
+<article class="item" id="issue-3372">
+<h2><span class="tier B">B</span>datastore lock status reports held: false for model locks on S3 and GCS datastores</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-13T17:54:31.384Z">2026-10-13T17:54:31.384Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3372" rel="noopener">lab#3372</a></div>
+</article>
+<article class="item" id="issue-3365">
+<h2><span class="tier B">B</span>vault type search shows an extension vault type under its type id with no description, and cannot find it by name or description</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-13T17:52:23.868Z">2026-10-13T17:52:23.868Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3365" rel="noopener">lab#3365</a></div>
+</article>
+<article class="item" id="issue-3326">
+<h2><span class="tier B">B</span>Registry: require and record the declared license at confirm and when making an extension public</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-13T17:22:48.894Z">2026-10-13T17:22:48.894Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3326" rel="noopener">lab#3326</a></div>
 </article>
 <article class="item" id="issue-3357">
 <h2><span class="tier B">B</span>Datastore rework Phase 4: measure Litestream replication on real S3 and GCS buckets (spike: per-command vs idle sidecar, cost of waiting for replication)</h2>
@@ -3172,14 +3212,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3357" rel="noopener">lab#3357</a></div>
-</article>
-<article class="item" id="issue-3356">
-<h2><span class="tier B">B</span>Fleet visibility: hexagon host-map view for worker fleets in the serve dashboard</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-13T14:45:30.516Z">2026-10-13T14:45:30.516Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3356" rel="noopener">lab#3356</a></div>
 </article>
 <article class="item" id="issue-3324">
 <h2><span class="tier B">B</span>extension manifest: require an SPDX license: field for public pushes (quality, push, rubric, info, search)</h2>
@@ -3229,7 +3261,47 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3341">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3376">
+<h2><span class="tier C">C</span>extension push: archive source copy drops local modules imported from outside the model&#39;s directory</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-13T18:05:28.846Z">2026-10-13T18:05:28.846Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3376" rel="noopener">lab#3376</a></div>
+</article>
+<article class="item" id="issue-3378">
+<h2><span class="tier C">C</span>verification: run the upgrade-path test in parallel, and skip the dynamic test for no-op bumps</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-13T18:05:21.175Z">2026-10-13T18:05:21.175Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3378" rel="noopener">lab#3378</a></div>
+</article>
+<article class="item" id="issue-3377">
+<h2><span class="tier C">C</span>S3/GCS datastores: write data version files create-only so a second writer cannot overwrite an existing version</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-13T18:00:38.184Z">2026-10-13T18:00:38.184Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3377" rel="noopener">lab#3377</a></div>
+</article>
+<article class="item" id="issue-3375">
+<h2><span class="tier C">C</span>v3 writer lease: a stray or unpadded fence key under _control/writer/ wedges the lease</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-13T17:58:12.440Z">2026-10-13T17:58:12.440Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3375" rel="noopener">lab#3375</a></div>
+</article>
+<article class="item" id="issue-3374">
+<h2><span class="tier C">C</span>A new or edited extension source is imported at startup, so one that exits, hangs or prints at import breaks every command</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-13T17:24:46.254Z">2026-10-13T17:24:46.254Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3374" rel="noopener">lab#3374</a></div>
+</article>
+<article class="item" id="issue-3341">
 <h2><span class="tier C">C</span>Registry search: a channel filter and a signed-in member&#39;s visibility overwrite each other&#39;s $or</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-13T16:55:26.046Z">2026-10-13T16:55:26.046Z</time></span></div>
@@ -3564,14 +3636,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3280" rel="noopener">lab#3280</a></div>
-</article>
-<article class="item" id="issue-3255">
-<h2><span class="tier C">C</span>rollbackOnFailure methods fail when run as a workflow step</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-12T01:53:24.129Z">2026-10-12T01:53:24.129Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3255" rel="noopener">lab#3255</a></div>
 </article>
 <article class="item" id="issue-3273">
 <h2><span class="tier C">C</span>Docs: Layout Migration says repo upgrade deletes gen-2 files without re-pulling</h2>
@@ -4438,13 +4502,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>546 items across 1 source(s) in this window:
-0 critical, 380 notable, 15 routine,
-151 minor.</p>
-<ul><li><strong>issues</strong> — 546</li></ul></section>
+<p>554 items across 1 source(s) in this window:
+0 critical, 382 notable, 17 routine,
+155 minor.</p>
+<ul><li><strong>issues</strong> — 554</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-13T17:12:22.393Z">2026-10-13T17:12:22.393Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-13T18:10:09.371Z">2026-10-13T18:10:09.371Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

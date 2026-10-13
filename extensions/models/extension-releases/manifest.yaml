@@ -1,0 +1,96 @@
+manifestVersion: 1
+name: "@svendowideit/extension-releases"
+version: "2026.10.13.1"
+description: >
+  An append-only log of every extension release and channel promotion in the
+  namespaces you track, captured from the swamp-club registry every few hours.
+
+  WHAT IT DOES
+
+    Answers "what did we ship, and when?" without watching the registry. Each
+    run reads the public swamp-club registry for every extension owned by the
+    current swamp user and the collectives they belong to (or an explicit list
+    you set), compares each extension's published stable / rc / beta versions
+    with the last run's snapshot, and appends one immutable entry to a `log`
+    resource for every version newly seen on a channel. A version first seen on
+    beta and later promoted to stable adds a second, `promote` entry naming its
+    source channel — so the whole beta → rc → stable story accumulates and
+    nothing is rewritten. The log feeds the `## Extensions published` section of
+    the `@svendowideit/diary-daily` note. It publishes, promotes, and edits
+    nothing; the registry read needs no credentials.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/extension-releases
+
+  DEPENDENCIES
+
+    None. It uses only the swamp CLI's bundled deno runtime and the public
+    swamp-club registry API. `swamp auth whoami` is consulted once per run only
+    to discover the default tracking scope.
+
+  RUN
+
+      # Poll now and append anything new. The bundled workflow also runs this
+      # every four hours under `swamp serve`.
+      swamp workflow run @svendowideit/extension-releases
+
+      # Run just the model method when you want the timing or arguments under
+      # your own control (the workflow is a one-step wrapper around it).
+      swamp model @svendowideit/extension-releases method run collect extension-releases
+
+      # Read the accumulated log for scripting. Entries are append-only and
+      # oldest first, so a tail of the array is the most recent activity.
+      swamp data query 'modelName == "extension-releases" && name == "log"' --select content
+
+  CONFIGURE
+
+    All settings are optional global arguments, set at model creation or per
+    run with `--input`:
+
+      namespaces       list of collective/user slugs to track (no '@').
+                       Empty (default) discovers the current swamp user and
+                       every collective they belong to. When set, only that
+                       list is tracked — never anything else.
+      host             swamp-club host              (default swamp-club.com)
+      requestTimeoutMs per-request timeout          (default 20000)
+      bootstrapHours   first-run back-fill window   (default 48)
+      maxSearchPages   search pages per namespace   (default 20)
+      versionPages     version pages per extension  (default 2)
+
+  UPGRADE
+
+    This extension installs nothing on the host — no services, daemons, cron
+    triggers, or webhooks — so there is nothing to rebuild in place. Upgrade by
+    updating the extension; the model and its bundled workflow apply on the next
+    run, and the existing `log` and `state` resources are read back unchanged.
+
+      swamp extension update @svendowideit/extension-releases
+
+  WHAT IT INSTALLS
+
+    Nothing on the host. It writes two swamp resources — the append-only `log`
+    and the diff-baseline `state` — and its bundled workflow registers one cron
+    trigger while `swamp serve` runs: `0 */4 * * *` (every four hours,
+    host-local). No files, services, or network listeners.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - extension_releases.ts
+
+workflows:
+  - extension-releases.yaml
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - extension_releases_test.ts
+  - acceptance/test-factory.yaml
+
+platforms: []

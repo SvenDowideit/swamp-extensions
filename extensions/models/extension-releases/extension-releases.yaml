@@ -1,0 +1,52 @@
+id: 97441f8a-2e9d-437c-b132-a7e3d617ae3d
+name: '@svendowideit/extension-releases'
+description: |
+  Poll the swamp-club registry every few hours for every extension published
+  by the tracked namespaces, and append the releases and promotions it finds on
+  the stable / rc / beta channels to an additive log.
+
+  The default tracking scope is the current swamp user and every collective
+  they belong to, resolved with `swamp auth whoami --json`. Set the model's
+  `namespaces` global arg to track an explicit list instead — then only that
+  list is tracked, never anything else.
+
+  Each run:
+    1. collect  read the registry, diff each extension against the saved
+                snapshot, and append one immutable entry per newly-seen
+                version/channel to the `log` resource.
+
+  Append-only: a version first seen on beta and later promoted to stable adds a
+  second (`promote`) entry; no earlier entry is ever rewritten. On the very
+  first run only versions published within `bootstrapHours` (default 48) are
+  logged, so the back-catalogue seeds the snapshot without flooding the log.
+
+  Manual run:
+    swamp workflow run @svendowideit/extension-releases
+tags:
+  domain: extensions
+trigger:
+  schedule: "0 */4 * * *"
+  inputs: {}
+inputs:
+  properties: {}
+  required: []
+jobs:
+  - name: collect
+    description: Poll the registry and append new releases to the additive log.
+    steps:
+      - name: collect
+        description: >
+          Read the registry for every tracked namespace, diff against the saved
+          snapshot, and append new version/channel entries to `log`.
+        task:
+          type: model_method
+          modelType: "@svendowideit/extension-releases"
+          modelName: extension-releases
+          methodName: collect
+          inputs: {}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

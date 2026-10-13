@@ -1,0 +1,122 @@
+# Acceptance tests for @svendowideit/extension-releases — the black-box outcomes
+# its README promises: a `collect` run turns the swamp-club registry into an
+# append-only log of releases and promotions, each entry linked to its registry
+# page, and a second run changes nothing.
+#
+# The registry read is read-only and unauthenticated, so no services or
+# credentials are needed. The scope is pinned to a single namespace
+# (`svendowideit`) and the first-run window widened to a year so the log is
+# certain to contain entries regardless of when the suite runs.
+#
+# Run it:
+#   swamp model @svendowideit/test-factory method run test tf \
+#     --input manifest=extensions/models/extension-releases/manifest.yaml \
+#     --input scenario=debian-standalone
+#
+# Network access: the swamp release download plus https://swamp-club.com (the
+# public extension-registry API).
+
+tests:
+  - name: logs-releases-with-registry-links
+    confirms: >
+      A single `collect` writes an append-only log whose entries each name a
+      version, a channel and an event, and link to the extension's registry
+      page — the log the README's Examples section reads back.
+    cannot: >
+      must not produce an empty log, must not omit the url/version/channel/event
+      fields, and must not exit non-zero.
+    documents: README.md#examples
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/extension-releases er \
+            --global-arg 'namespaces:json=["svendowideit"]' \
+            --global-arg bootstrapHours=8760
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: run-collect
+        run: swamp model method run er collect
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 300
+      - name: log-has-entries-linked-to-the-registry
+        run: |
+          swamp data get er log --json \
+            | jq 'if (.content.count >= 1) and ([.content.entries[] | select(.url | startswith("https://swamp-club.com/extensions/@svendowideit/"))] | length >= 1) then "log-ok" else "log-bad" end'
+        expect:
+          exitCode: 0
+          stdoutContains: ["log-ok"]
+          stdoutNotContains: ["log-bad"]
+      - name: every-entry-names-a-valid-channel-and-event
+        run: |
+          swamp data get er log --json \
+            | jq 'if ([.content.entries[] | select((.channel == "stable" or .channel == "rc" or .channel == "beta") and (.event == "publish" or .event == "promote") and (.version | length > 0))] | length) == .content.count then "fields-ok" else "fields-bad" end'
+        expect:
+          exitCode: 0
+          stdoutContains: ["fields-ok"]
+          stdoutNotContains: ["fields-bad"]
+
+  - name: a-second-run-changes-nothing
+    confirms: >
+      The log is append-only and diff-driven: a second `collect` against an
+      unchanged registry adds no entries and leaves the count where it was.
+    cannot: >
+      must not duplicate entries or grow the log when nothing was published.
+    documents: README.md#details
+    steps:
+      - name: record-count
+        run: |
+          swamp data get er log --json | jq '.content.count' > /tmp/er-before.txt
+          cat /tmp/er-before.txt
+        expect:
+          exitCode: 0
+          stdoutNotContains: ["null"]
+      - name: run-again
+        run: swamp model method run er collect
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 300
+      - name: count-unchanged
+        run: |
+          before=$(cat /tmp/er-before.txt)
+          after=$(swamp data get er log --json | jq '.content.count')
+          [ "$before" = "$after" ] && echo idempotent
+        expect:
+          exitCode: 0
+          stdoutContains: ["idempotent"]
+          stdoutNotContains: ["idempotent-failed"]
+
+  - name: the-workflow-runs-the-collector
+    confirms: >
+      The bundled `@svendowideit/extension-releases` workflow runs `collect`
+      end to end and writes the same log, so the documented workflow entry point
+      works.
+    cannot: >
+      must not fail, and must not leave the log empty.
+    documents: README.md#examples
+    steps:
+      - name: create-default-model
+        run: |
+          swamp model create @svendowideit/extension-releases extension-releases \
+            --global-arg 'namespaces:json=["svendowideit"]' \
+            --global-arg bootstrapHours=8760
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: run-the-workflow
+        run: swamp workflow run @svendowideit/extension-releases
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 300
+      - name: workflow-wrote-the-log
+        run: |
+          swamp data get extension-releases log --json \
+            | jq 'if .content.count >= 1 then "wf-ok" else "wf-bad" end'
+        expect:
+          exitCode: 0
+          stdoutContains: ["wf-ok"]
+          stdoutNotContains: ["wf-bad"]

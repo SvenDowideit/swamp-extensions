@@ -67,8 +67,115 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261013-220613-0-sha-62a0d707"><span class="tier A">A</span>a stray or unpadded key under _control/writer/ no longer wed</a><a href="#release-swamp-club-swamp-v20261013-220021-0-sha-a3fab18f"><span class="tier A">A</span>pass only known foreign roots through step arguments (swamp-</a><a href="#release-swamp-club-swamp-v20261013-215232-0-sha-68e0ed7d"><span class="tier A">A</span>a running serve picks up edits to repo-local models, in its </a><a href="#release-swamp-club-swamp-v20261013-213731-0-sha-894ca3b0"><span class="tier A">A</span>live Workers host map (swamp-club#3356) (#3078)</a><a href="#release-swamp-club-swamp-v20261013-212959-0-sha-cd73d2f2"><span class="tier A">A</span>a worker that fails its enrollment probe stays unverified in</a><a href="#release-swamp-club-swamp-v20261013-205556-0-sha-a1734560"><span class="tier A">A</span>the real-run AccessDataPoller test polls the writing instanc</a><a href="#release-swamp-club-swamp-v20261013-202337-0-sha-09a74070"><span class="tier A">A</span>pass another templating system&#39;s ${{ }} text through step ar</a><a href="#release-swamp-club-swamp-v20261013-200158-0-sha-35be0b9d"><span class="tier A">A</span>swamp start and swamp dashboard show the dashboard for local</a><a href="#release-swamp-club-swamp-v20261013-195800-0-sha-35be0b9d"><span class="tier A">A</span>swamp start and swamp dashboard show the dashboard for local</a><a href="#release-swamp-club-swamp-v20261013-192700-0-sha-91d688f1"><span class="tier A">A</span>a dispatch that fails before reaching the worker releases it</a><a href="#release-swamp-club-swamp-v20261013-191917-0-sha-ca700a6c"><span class="tier A">A</span>type search lists extension vault and datastore types as dec</a><a href="#release-swamp-club-swamp-v20261013-190926-0-sha-befe87d4"><span class="tier A">A</span>lock status reports held model locks on S3 and GCS datastore</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261013-231809-0-sha-a2376f6a"><span class="tier A">A</span>the swamp behavior tree and root help say behavior throughou</a><a href="#release-swamp-club-swamp-v20261013-230646-0-sha-f10ddcb8"><span class="tier A">A</span>the v3 writer lease requires an extension&#39;s datastoreWideLea</a><a href="#release-swamp-club-swamp-v20261013-224724-0-sha-2a15e2e6"><span class="tier A">A</span>index new and edited sources by probing them in a worker (sw</a><a href="#release-swamp-club-swamp-v20261013-224210-0-sha-2d8c2113"><span class="tier A">A</span>check-config warns about bare restricted-model-types entries</a><a href="#release-swamp-club-swamp-v20261013-222245-0-sha-a932122b"><span class="tier A">A</span>a writable datastore-wide control plane, so the v3 writer le</a><a href="#release-swamp-club-swamp-v20261013-220613-0-sha-62a0d707"><span class="tier A">A</span>a stray or unpadded key under _control/writer/ no longer wed</a><a href="#release-swamp-club-swamp-v20261013-220021-0-sha-a3fab18f"><span class="tier A">A</span>pass only known foreign roots through step arguments (swamp-</a><a href="#release-swamp-club-swamp-v20261013-215232-0-sha-68e0ed7d"><span class="tier A">A</span>a running serve picks up edits to repo-local models, in its </a><a href="#release-swamp-club-swamp-v20261013-213731-0-sha-894ca3b0"><span class="tier A">A</span>live Workers host map (swamp-club#3356) (#3078)</a><a href="#release-swamp-club-swamp-v20261013-212959-0-sha-cd73d2f2"><span class="tier A">A</span>a worker that fails its enrollment probe stays unverified in</a><a href="#release-swamp-club-swamp-v20261013-205556-0-sha-a1734560"><span class="tier A">A</span>the real-run AccessDataPoller test polls the writing instanc</a><a href="#release-swamp-club-swamp-v20261013-202337-0-sha-09a74070"><span class="tier A">A</span>pass another templating system&#39;s ${{ }} text through step ar</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261013-231809-0-sha-a2376f6a">
+<h2><span class="tier A">A</span>the swamp behavior tree and root help say behavior throughout (swamp-club#3409) (#3090)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-13T23:19:49Z">2026-10-13T23:19:49Z</time></span><span>cli</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(cli): the swamp behavior tree and root help say behavior throughout (swamp-club#3409) (#3090)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Closes the remaining &quot;model&quot; wording inside the <code>swamp behavior</code> tree and root help, found in the post-series audit. No command behaves differently. Every <code>swamp model …</code> spelling keeps working.</p>
+<ul>
+<li><strong>Argument names follow the spelling.</strong> On behavior commands they are <code>&lt;behavior_id_or_name&gt;</code>, <code>&lt;behavior_or_type&gt;</code> and <code>&lt;output_id_or_behavior_name&gt;</code>, in usage lines, <code>swamp help</code> JSON and Cliffy&#39;s missing-argument errors. Legacy model commands keep their names. Telemetry classifies the new names the same way (<code>SENT_ARGUMENTS</code>).</li>
+<li><strong>Hints</strong> under <code>swamp behavior</code> use a <code>&lt;behavior&gt;</code> placeholder, for example <code>swamp behavior method describe x y</code> suggests <code>swamp behavior describe x y</code>. Hints under <code>swamp model</code> keep <code>&lt;model&gt;</code>.</li>
+<li><strong>The env-var warning</strong> on <code>behavior run</code> and <code>behavior validate</code> now says &quot;this behavior&quot; and &quot;separate behaviors&quot; in log mode. The legacy text, JSON and the libswamp event are unchanged.</li>
+<li><strong><code>behavior history search</code></strong> has its own picker title.</li>
+<li><strong>Root help</strong> lists <code>behavior</code> first and marks <code>model</code> as &quot;Manage models (legacy spelling of &#39;behavior&#39;)&quot;. The global <code>--log</code> option now reads &quot;Show behavior and workflow run logs in terminal output&quot;.</li>
+<li><strong>The legacy <code>model type describe</code> / <code>search</code> examples</strong> now name <code>swamp model type …</code> instead of a <code>swamp type …</code> command that doesn&#39;t exist.</li>
+<li><strong>Generated Claude permissions</strong> approve</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.231809.0-sha.a2376f6a" rel="noopener">release v20261013.231809.0-sha.a2376f6a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a2376f6a3476d8688bf4800179ab3294685efb8d" rel="noopener">a2376f6a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3090" rel="noopener">#3090</a>𝗔 <a href="https://swamp-club.com/lab/3409" rel="noopener">lab#3409</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261013-230646-0-sha-f10ddcb8">
+<h2><span class="tier A">A</span>the v3 writer lease requires an extension&#39;s datastoreWideLease declaration, not just a writable store&#39;s shape (swamp-club#3414) (#3088)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-13T23:08:14Z">2026-10-13T23:08:14Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): the v3 writer lease requires an extension&#39;s datastoreWideLease declaration, not just a writable store&#39;s shape (swamp-club#3414) (#3088)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>datastoreWriterLeaseStore</code> accepted any provider whose datastore-wide control plane had <code>put</code>, <code>putIfAbsent</code>, <code>delete</code> and <code>list</code>. That shape says the lease&#39;s records *can* be written at the root, not that a namespaced push leaves them there. An extension returning its existing store before its <code>migrateRootControlPlaneToNamespace</code> skips <code>_control/writer/</code> would pass, and once the Phase 4 bucket opt-in binds the lease, two writers could commit to one <code>commits.db</code>.</p>
+<ul>
+<li><code>DatastoreProvider</code> gains <code>readonly datastoreWideLease?: boolean</code>. It promises only that no namespaced pull or push moves or copies <code>_control/writer/</code>, and that <code>datastoreControlPlaneStore()</code> returns a writable store.</li>
+<li><code>datastoreWriterLeaseStore</code> binds the lease only when it is the literal <code>true</code>, and otherwise refuses with a <code>UserError</code> naming the declaration. The existing no-store and read-only-store refusals still apply after it.</li>
+<li><code>@swamp-club/swamp-testing</code> mirrors the field; <code>testing_package_compat_test</code> checks it both ways.</li>
+<li><code>registerTestDatastoreType</code> sets the field only when a test asks.</li>
+<li>Design doc (<code>datastores.md</code>, &quot;Declared, not inferred&quot;), extension skill references and the testing README: the S3/GCS extensions declare it in the release carrying swamp-club#3395, with the namespaced-push conformance case asserted t</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/testing.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/testing.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.230646.0-sha.f10ddcb8" rel="noopener">release v20261013.230646.0-sha.f10ddcb8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f10ddcb80b69f3d2378214d0ad0c40539ced1468" rel="noopener">f10ddcb8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3088" rel="noopener">#3088</a>𝗔 <a href="https://swamp-club.com/lab/3414" rel="noopener">lab#3414</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261013-224724-0-sha-2a15e2e6">
+<h2><span class="tier A">A</span>index new and edited sources by probing them in a worker (swamp-club#3374) (#3084)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-13T22:49:22Z">2026-10-13T22:49:22Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): index new and edited sources by probing them in a worker (swamp-club#3374) (#3084)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3374.</p>
+<p>Indexing a new or edited extension source imported its bundle into the command&#39;s own isolate to read and validate the export. Whatever the source did at import therefore happened in every command, including listings that never use the extension:</p>
+<ul>
+<li>a source that called <code>Deno.exit</code> ended the command (exit 3, empty output);</li>
+<li>a source with a never-settling top-level <code>await</code> hung it;</li>
+<li>a source that printed put its output ahead of the JSON document.</li>
+</ul>
+<p>An exit or a hang repeated on every command, because the source never reached an indexed state.</p>
+<p>Index-time imports now <strong>probe</strong> the bundle instead of loading it. A probe imports the bundle in a Deno worker and answers with plain data: the exported type, version and description, or why there is none. The type is registered lazy and is imported into the command&#39;s isolate only when it is used.</p>
+<h4 class="body-h">What changed</h4>
+<ul>
+<li><code>BundleProber</code> port (<code>src/domain/extensions/bundle_prober.ts</code>) and its worker implementation (<code>src/infrastructure/runtime/worker_bundle_prober.ts</code>, <code>bundle_probe_worker.ts</code>). The worker entry point is added to the <code>--include</code> list in <code>scripts/compile.ts</code>.</li>
+<li><code>ExtensionLoader</code> takes an optional prober. With one, <code>bundleAndIndexOne</code>, the warm stale-file path and the typeless-row heal probe instead of importing, nothing is registered in-process, and model add-ons attach on</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.224724.0-sha.2a15e2e6" rel="noopener">release v20261013.224724.0-sha.2a15e2e6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2a15e2e6e5ee5ff8156720fd4a0a2c6ff0186032" rel="noopener">2a15e2e6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3084" rel="noopener">#3084</a>𝗔 <a href="https://swamp-club.com/lab/3374" rel="noopener">lab#3374</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261013-224210-0-sha-2d8c2113">
+<h2><span class="tier A">A</span>check-config warns about bare restricted-model-types entries that are not built-in types (swamp-club#3132) (#3087)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-13T22:44:02Z">2026-10-13T22:44:02Z</time></span><span>serve</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(serve): check-config warns about bare restricted-model-types entries that are not built-in types (swamp-club#3132) (#3087)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp serve check-config</code> now checks <code>restricted-model-types</code> entries that have no leading <code>@</code> against the built-in model types (option 2 in swamp-club#3132). Before this change it skipped them, so a typo such as <code>comand/shell</code> was reported only by serve at startup. Under <code>swamp daemon enable</code>, that warning goes to the daemon log, which few people read.</p>
+<ul>
+<li>Built-in types are registered when swamp&#39;s code loads, and <code>modelRegistry.isBuiltIn</code> checks them without loading anything. The command therefore keeps its promise in the help text: it reads only the repository&#39;s files and contacts nothing.</li>
+<li>A bare entry that is not a built-in type gives a restriction warning: <code>restricted-model-types entry &quot;comand/shell&quot; is not a built-in model type — check the spelling; if it names an extension type, write it as @comand/shell</code>.</li>
+<li>The JSON <code>reason</code> stays <code>unknown-type</code>. The <code>RestrictionWarningSchema</code> in swamp-uat accepts only <code>no-type</code>, <code>unknown-type</code> and <code>unknown-command</code>.</li>
+<li>When serve passes its own registry lookup, that lookup still wins, so serve&#39;s startup check and its message do not change. Neither command checks entries that start with <code>@</code>.</li>
+<li>This is a warning only: exit codes and <code>passed</code>/<code>wouldStart</code> do not change.</li>
+</ul>
+<p><strong>Visible change for existing configs:</strong> an extension type written without its <code>@</code> (e.g. <code>exp/probe</code>) now g</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.224210.0-sha.2d8c2113" rel="noopener">release v20261013.224210.0-sha.2d8c2113</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2d8c2113f125307502eafd05c5589c69a301de34" rel="noopener">2d8c2113</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3087" rel="noopener">#3087</a>𝗔 <a href="https://swamp-club.com/lab/3132" rel="noopener">lab#3132</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261013-222245-0-sha-a932122b">
+<h2><span class="tier A">A</span>a writable datastore-wide control plane, so the v3 writer lease binds at the datastore root on any provider (swamp-club#3364) (#3085)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-13T22:24:42Z">2026-10-13T22:24:42Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): a writable datastore-wide control plane, so the v3 writer lease binds at the datastore root on any provider (swamp-club#3364) (#3085)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Datastore rework Phase 4 E (swamp-club#3364). There is one <code>commits.db</code>, and so one v3 writer lease, per datastore — but the only control plane covering the whole datastore was read-only, and a sync service&#39;s binds a namespace. This gives the lease a datastore-wide home on any provider.</p>
+<ul>
+<li><strong><code>WritableDatastoreControlPlaneStore</code></strong> (<code>src/domain/datastore/control_plane_store.ts</code>): <code>datastoreControlPlaneStore()</code> may return a store with <code>put</code>, create-only <code>putIfAbsent</code>, <code>delete</code> and <code>list</code> at the root <code>_control/</code>, binding no namespace. Additive — a get-only store still serves the format-marker read. Mirrored in <code>@swamp-club/swamp-testing</code> with a two-way compat check.</li>
+<li><strong><code>assertWritableDatastoreControlPlaneStoreConformance</code></strong> in <code>@swamp-club/swamp-testing</code>: the control-plane store contract (create-only races, a refused create leaves the record unchanged), the read-only datastore-wide contract, root scope of writes, and a <code>writer/</code> record surviving a namespaced push into a namespace upgraded from solo — the push that triggers the S3/GCS extensions&#39; <code>migrateRootControlPlaneToNamespace</code>. That case needs a <code>markNamespaceUpgradedFromSolo</code> hook and an empty root, and reports a skip otherwise. The in-memory remote implements the writable store.</li>
+<li><strong>Lease binding:</strong> the lease takes a store (<code>v3WriterLease</code>)</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.222245.0-sha.a932122b" rel="noopener">release v20261013.222245.0-sha.a932122b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a932122b9fc8ee2fb5a6787a552293980c697fbb" rel="noopener">a932122b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3085" rel="noopener">#3085</a>𝗔 <a href="https://swamp-club.com/lab/3364" rel="noopener">lab#3364</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261013-220613-0-sha-62a0d707">
 <h2><span class="tier A">A</span>a stray or unpadded key under _control/writer/ no longer wedges the v3 writer lease (swamp-club#3375) (#3083)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -234,7 +341,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.202337.0-sha.09a74070" rel="noopener">release v20261013.202337.0-sha.09a74070</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/09a74070a5bcddca882ba460ba3795f297b1e410" rel="noopener">09a74070</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3075" rel="noopener">#3075</a>𝗔 <a href="https://swamp-club.com/lab/2528" rel="noopener">lab#2528</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261013-200158-0-sha-35be0b9d">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261013-200158-0-sha-35be0b9d">
 <h2><span class="tier A">A</span>swamp start and swamp dashboard show the dashboard for local repos, with no swamp serve (swamp-club#3379) (#3074)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-13T20:03:56Z">2026-10-13T20:03:56Z</time></span><span>dashboard</span><span>feat</span></div>
@@ -364,7 +471,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.190926.0-sha.befe87d4" rel="noopener">release v20261013.190926.0-sha.befe87d4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/befe87d4e152d134cec05065fe27cac719487db1" rel="noopener">befe87d4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3071" rel="noopener">#3071</a>𝗔 <a href="https://swamp-club.com/lab/3372" rel="noopener">lab#3372</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261013-190356-0-sha-0d272428">
+<article class="item" id="release-swamp-club-swamp-v20261013-190356-0-sha-0d272428">
 <h2><span class="tier A">A</span>grants and revokes on a filesystem datastore reach peer serve instances (swamp-club#3371) (#3070)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-13T19:05:39Z">2026-10-13T19:05:39Z</time></span><span>serve</span><span>fix</span></div>
@@ -7327,99 +7434,10 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261013-231809-0-sha-a2376f6a">
-<h2><span class="tier C">C</span>swamp 20261013.231809.0-sha.a2376f6a</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-13T23:19:49Z">2026-10-13T23:19:49Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(cli): the swamp behavior tree and root help say behavior throughout (swamp-club#3409) (#3090)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Closes the remaining &quot;model&quot; wording inside the <code>swamp behavior</code> tree and root help, found in the post-series audit. No command behaves differently. Every <code>swamp model …</code> spelling keeps working.</p>
-<ul>
-<li><strong>Argument names follow the spelling.</strong> On behavior commands they are <code>&lt;behavior_id_or_name&gt;</code>, <code>&lt;behavior_or_type&gt;</code> and <code>&lt;output_id_or_behavior_name&gt;</code>, in usage lines, <code>swamp help</code> JSON and Cliffy&#39;s missing-argument errors. Legacy model commands keep their names. Telemetry classifies the new names the same way (<code>SENT_ARGUMENTS</code>).</li>
-<li><strong>Hints</strong> under <code>swamp behavior</code> use a <code>&lt;behavior&gt;</code> placeholder, for example <code>swamp behavior method describe x y</code> suggests <code>swamp behavior describe x y</code>. Hints under <code>swamp model</code> keep <code>&lt;model&gt;</code>.</li>
-<li><strong>The env-var warning</strong> on <code>behavior run</code> and <code>behavior validate</code> now says &quot;this behavior&quot; and &quot;separate behaviors&quot; in log mode. The legacy text, JSON and the libswamp event are unchanged.</li>
-<li><strong><code>behavior history search</code></strong> has its own picker title.</li>
-<li><strong>Root help</strong> lists <code>behavior</code> first and marks <code>model</code> as &quot;Manage models (legacy spelling of &#39;behavior&#39;)&quot;. The global <code>--log</code> option now reads &quot;Show behavior and workflow run logs in terminal output&quot;.</li>
-<li><strong>The legacy <code>model type describe</code> / <code>search</code> examples</strong> now name <code>swamp model type …</code> instead of a <code>swamp type …</code> command that doesn&#39;t exist.</li>
-<li><strong>Generated Claude permissions</strong> approve</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.231809.0-sha.a2376f6a" rel="noopener">release v20261013.231809.0-sha.a2376f6a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a2376f6a" rel="noopener">a2376f6a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3090" rel="noopener">#3090</a>𝗔 <a href="https://swamp-club.com/lab/3409" rel="noopener">lab#3409</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261013-230646-0-sha-f10ddcb8">
-<h2><span class="tier C">C</span>swamp 20261013.230646.0-sha.f10ddcb8</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-13T23:08:14Z">2026-10-13T23:08:14Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(datastore): the v3 writer lease requires an extension&#39;s datastoreWideLease declaration, not just a writable store&#39;s shape (swamp-club#3414) (#3088)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>datastoreWriterLeaseStore</code> accepted any provider whose datastore-wide control plane had <code>put</code>, <code>putIfAbsent</code>, <code>delete</code> and <code>list</code>. That shape says the lease&#39;s records *can* be written at the root, not that a namespaced push leaves them there. An extension returning its existing store before its <code>migrateRootControlPlaneToNamespace</code> skips <code>_control/writer/</code> would pass, and once the Phase 4 bucket opt-in binds the lease, two writers could commit to one <code>commits.db</code>.</p>
-<ul>
-<li><code>DatastoreProvider</code> gains <code>readonly datastoreWideLease?: boolean</code>. It promises only that no namespaced pull or push moves or copies <code>_control/writer/</code>, and that <code>datastoreControlPlaneStore()</code> returns a writable store.</li>
-<li><code>datastoreWriterLeaseStore</code> binds the lease only when it is the literal <code>true</code>, and otherwise refuses with a <code>UserError</code> naming the declaration. The existing no-store and read-only-store refusals still apply after it.</li>
-<li><code>@swamp-club/swamp-testing</code> mirrors the field; <code>testing_package_compat_test</code> checks it both ways.</li>
-<li><code>registerTestDatastoreType</code> sets the field only when a test asks.</li>
-<li>Design doc (<code>datastores.md</code>, &quot;Declared, not inferred&quot;), extension skill references and the testing README: the S3/GCS extensions declare it in the release carrying swamp-club#3395, with the namespaced-push conformance case asserted t</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.230646.0-sha.f10ddcb8" rel="noopener">release v20261013.230646.0-sha.f10ddcb8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f10ddcb8" rel="noopener">f10ddcb8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3088" rel="noopener">#3088</a>𝗔 <a href="https://swamp-club.com/lab/3414" rel="noopener">lab#3414</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261013-224724-0-sha-2a15e2e6">
-<h2><span class="tier C">C</span>swamp 20261013.224724.0-sha.2a15e2e6</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-13T22:49:22Z">2026-10-13T22:49:22Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): index new and edited sources by probing them in a worker (swamp-club#3374) (#3084)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3374.</p>
-<p>Indexing a new or edited extension source imported its bundle into the command&#39;s own isolate to read and validate the export. Whatever the source did at import therefore happened in every command, including listings that never use the extension:</p>
-<ul>
-<li>a source that called <code>Deno.exit</code> ended the command (exit 3, empty output);</li>
-<li>a source with a never-settling top-level <code>await</code> hung it;</li>
-<li>a source that printed put its output ahead of the JSON document.</li>
-</ul>
-<p>An exit or a hang repeated on every command, because the source never reached an indexed state.</p>
-<p>Index-time imports now <strong>probe</strong> the bundle instead of loading it. A probe imports the bundle in a Deno worker and answers with plain data: the exported type, version and description, or why there is none. The type is registered lazy and is imported into the command&#39;s isolate only when it is used.</p>
-<h4 class="body-h">What changed</h4>
-<ul>
-<li><code>BundleProber</code> port (<code>src/domain/extensions/bundle_prober.ts</code>) and its worker implementation (<code>src/infrastructure/runtime/worker_bundle_prober.ts</code>, <code>bundle_probe_worker.ts</code>). The worker entry point is added to the <code>--include</code> list in <code>scripts/compile.ts</code>.</li>
-<li><code>ExtensionLoader</code> takes an optional prober. With one, <code>bundleAndIndexOne</code>, the warm stale-file path and the typeless-row heal probe instead of importing, nothing is registered in-process, and model add-ons attach on</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.224724.0-sha.2a15e2e6" rel="noopener">release v20261013.224724.0-sha.2a15e2e6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2a15e2e6" rel="noopener">2a15e2e6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3084" rel="noopener">#3084</a>𝗔 <a href="https://swamp-club.com/lab/3374" rel="noopener">lab#3374</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261013-224210-0-sha-2d8c2113">
-<h2><span class="tier C">C</span>swamp 20261013.224210.0-sha.2d8c2113</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-13T22:44:02Z">2026-10-13T22:44:02Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(serve): check-config warns about bare restricted-model-types entries that are not built-in types (swamp-club#3132) (#3087)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><code>swamp serve check-config</code> now checks <code>restricted-model-types</code> entries that have no leading <code>@</code> against the built-in model types (option 2 in swamp-club#3132). Before this change it skipped them, so a typo such as <code>comand/shell</code> was reported only by serve at startup. Under <code>swamp daemon enable</code>, that warning goes to the daemon log, which few people read.</p>
-<ul>
-<li>Built-in types are registered when swamp&#39;s code loads, and <code>modelRegistry.isBuiltIn</code> checks them without loading anything. The command therefore keeps its promise in the help text: it reads only the repository&#39;s files and contacts nothing.</li>
-<li>A bare entry that is not a built-in type gives a restriction warning: <code>restricted-model-types entry &quot;comand/shell&quot; is not a built-in model type — check the spelling; if it names an extension type, write it as @comand/shell</code>.</li>
-<li>The JSON <code>reason</code> stays <code>unknown-type</code>. The <code>RestrictionWarningSchema</code> in swamp-uat accepts only <code>no-type</code>, <code>unknown-type</code> and <code>unknown-command</code>.</li>
-<li>When serve passes its own registry lookup, that lookup still wins, so serve&#39;s startup check and its message do not change. Neither command checks entries that start with <code>@</code>.</li>
-<li>This is a warning only: exit codes and <code>passed</code>/<code>wouldStart</code> do not change.</li>
-</ul>
-<p><strong>Visible change for existing configs:</strong> an extension type written without its <code>@</code> (e.g. <code>exp/probe</code>) now g</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.224210.0-sha.2d8c2113" rel="noopener">release v20261013.224210.0-sha.2d8c2113</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2d8c2113" rel="noopener">2d8c2113</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3087" rel="noopener">#3087</a>𝗔 <a href="https://swamp-club.com/lab/3132" rel="noopener">lab#3132</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261013-222820-0-sha-3f2b94a0">
-<h2><span class="tier C">C</span>swamp 20261013.222820.0-sha.3f2b94a0</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-13T22:30:23Z">2026-10-13T22:30:23Z</time></span></div>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261013-222820-0-sha-3f2b94a0">
+<h2><span class="tier C">C</span>Phase 4A measures Litestream replication on a bucket model and picks an idle sidecar for solo mode (swamp-club#3357) (#3086)</h2>
+<p class="lede">`docs` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-13T22:30:23Z">2026-10-13T22:30:23Z</time></span><span>design</span><span>docs</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>docs(design): Phase 4A measures Litestream replication on a bucket model and picks an idle sidecar for solo mode (swamp-club#3357) (#3086)</li>
@@ -7435,26 +7453,8 @@ footer .ver{color:var(--acc)}
 <li><strong>Waiting for replication is acceptable.</strong> With an idle sidecar, a small v3 write that waits is 2–11 times faster than the v2 push it replaces. Every write measured is faster: 1.9–14 times.</li>
 <li><strong>Teardown order, traced and fixed.</strong> Th</li>
 </ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.222820.0-sha.3f2b94a0" rel="noopener">release v20261013.222820.0-sha.3f2b94a0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3f2b94a0" rel="noopener">3f2b94a0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3086" rel="noopener">#3086</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2865" rel="noopener">#2865</a>𝗔 <a href="https://swamp-club.com/lab/3357" rel="noopener">lab#3357</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261013-222245-0-sha-a932122b">
-<h2><span class="tier C">C</span>swamp 20261013.222245.0-sha.a932122b</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-13T22:24:42Z">2026-10-13T22:24:42Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(datastore): a writable datastore-wide control plane, so the v3 writer lease binds at the datastore root on any provider (swamp-club#3364) (#3085)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Datastore rework Phase 4 E (swamp-club#3364). There is one <code>commits.db</code>, and so one v3 writer lease, per datastore — but the only control plane covering the whole datastore was read-only, and a sync service&#39;s binds a namespace. This gives the lease a datastore-wide home on any provider.</p>
-<ul>
-<li><strong><code>WritableDatastoreControlPlaneStore</code></strong> (<code>src/domain/datastore/control_plane_store.ts</code>): <code>datastoreControlPlaneStore()</code> may return a store with <code>put</code>, create-only <code>putIfAbsent</code>, <code>delete</code> and <code>list</code> at the root <code>_control/</code>, binding no namespace. Additive — a get-only store still serves the format-marker read. Mirrored in <code>@swamp-club/swamp-testing</code> with a two-way compat check.</li>
-<li><strong><code>assertWritableDatastoreControlPlaneStoreConformance</code></strong> in <code>@swamp-club/swamp-testing</code>: the control-plane store contract (create-only races, a refused create leaves the record unchanged), the read-only datastore-wide contract, root scope of writes, and a <code>writer/</code> record surviving a namespaced push into a namespace upgraded from solo — the push that triggers the S3/GCS extensions&#39; <code>migrateRootControlPlaneToNamespace</code>. That case needs a <code>markNamespaceUpgradedFromSolo</code> hook and an empty root, and reports a skip otherwise. The in-memory remote implements the writable store.</li>
-<li><strong>Lease binding:</strong> the lease takes a store (<code>v3WriterLease</code>)</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.222245.0-sha.a932122b" rel="noopener">release v20261013.222245.0-sha.a932122b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a932122b" rel="noopener">a932122b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3085" rel="noopener">#3085</a>𝗔 <a href="https://swamp-club.com/lab/3364" rel="noopener">lab#3364</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.222820.0-sha.3f2b94a0" rel="noopener">release v20261013.222820.0-sha.3f2b94a0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3f2b94a0261d0399ff1a8f804fbf5121c2e73068" rel="noopener">3f2b94a0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3086" rel="noopener">#3086</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2865" rel="noopener">#2865</a>𝗔 <a href="https://swamp-club.com/lab/3357" rel="noopener">lab#3357</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261013-155418-0-sha-00bdb496">
 <h2><span class="tier C">C</span>start server race tests wait for the server to read the racing requests (swamp-club#3348) (#3061)</h2>
@@ -7732,12 +7732,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>318 items across 1 source(s) in this window:
-0 critical, 288 notable, 12 routine,
-18 minor.</p>
-<ul><li><strong>fix</strong> — 207</li><li><strong>feat</strong> — 81</li><li><strong>refactor</strong> — 11</li><li><strong>test</strong> — 7</li><li><strong>changes</strong> — 6</li><li><strong>docs</strong> — 5</li></ul></section>
+0 critical, 293 notable, 12 routine,
+13 minor.</p>
+<ul><li><strong>fix</strong> — 208</li><li><strong>feat</strong> — 85</li><li><strong>refactor</strong> — 11</li><li><strong>test</strong> — 7</li><li><strong>docs</strong> — 6</li><li><strong>perf</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-14T01:04:33.207Z">2026-10-14T01:04:33.207Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-14T02:03:29.433Z">2026-10-14T02:03:29.433Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -67,8 +67,16 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3350"><span class="tier A">A</span>extension push: report dependencies whose lookup failed as n</a><a href="#issue-3431"><span class="tier A">A</span>CLI output still says model under swamp behavior commands</a><a href="#issue-3429"><span class="tier A">A</span>Manual: make behavior the primary term and command spelling</a><a href="#issue-3273"><span class="tier A">A</span>Docs: Layout Migration says repo upgrade deletes gen-2 files</a><a href="#issue-3426"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3416"><span class="tier A">A</span>Datastore rework Phase 4 D1: Litestream sidecar for v3 write</a><a href="#issue-3412"><span class="tier A">A</span>README, design docs and agent-constraints examples still tea</a><a href="#issue-3123"><span class="tier A">A</span>Accept usernames for user subjects in grant files</a><a href="#issue-3410"><span class="tier A">A</span>Decide and add behavior spellings for --model flags, enum va</a><a href="#issue-3411"><span class="tier A">A</span>Telemetry records swamp behavior and swamp model invocations</a><a href="#issue-3326"><span class="tier A">A</span>Registry: validate, record and score the declared license (o</a><a href="#issue-3409"><span class="tier A">A</span>swamp behavior help, hints and root help still say model in </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3437"><span class="tier A">A</span>Error and help messages still say model under swamp behavior</a><a href="#issue-3350"><span class="tier A">A</span>extension push: report dependencies whose lookup failed as n</a><a href="#issue-3431"><span class="tier A">A</span>CLI output still says model under swamp behavior commands</a><a href="#issue-3429"><span class="tier A">A</span>Manual: make behavior the primary term and command spelling</a><a href="#issue-3273"><span class="tier A">A</span>Docs: Layout Migration says repo upgrade deletes gen-2 files</a><a href="#issue-3426"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3416"><span class="tier A">A</span>Datastore rework Phase 4 D1: Litestream sidecar for v3 write</a><a href="#issue-3412"><span class="tier A">A</span>README, design docs and agent-constraints examples still tea</a><a href="#issue-3123"><span class="tier A">A</span>Accept usernames for user subjects in grant files</a><a href="#issue-3410"><span class="tier A">A</span>Decide and add behavior spellings for --model flags, enum va</a><a href="#issue-3411"><span class="tier A">A</span>Telemetry records swamp behavior and swamp model invocations</a><a href="#issue-3326"><span class="tier A">A</span>Registry: validate, record and score the declared license (o</a></aside><div>
 
+<article class="item" id="issue-3437">
+<h2><span class="tier A">A</span>Error and help messages still say model under swamp behavior commands (follow-up to #3431)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-14T13:49:34.575Z">2026-10-14T13:49:34.575Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3437" rel="noopener">lab#3437</a></div>
+</article>
 <article class="item" id="issue-3350">
 <h2><span class="tier A">A</span>extension push: report dependencies whose lookup failed as not audited</h2>
 <p class="lede">Shipped feature</p>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3326" rel="noopener">lab#3326</a></div>
 </article>
-<article class="item" id="issue-3409">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3409">
 <h2><span class="tier A">A</span>swamp behavior help, hints and root help still say model in places</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-13T23:31:01.708Z">2026-10-13T23:31:01.708Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3409" rel="noopener">lab#3409</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3414">
+<article class="item" id="issue-3414">
 <h2><span class="tier A">A</span>Datastore rework Phase 4: the v3 writer lease requires an extension&#39;s explicit declaration that it keeps _control/writer/ at the root, not just a writable store&#39;s shape</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-13T23:10:51.322Z">2026-10-13T23:10:51.322Z</time></span></div>
@@ -3405,18 +3413,42 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3437">
-<h2><span class="tier B">B</span>Error and help messages still say model under swamp behavior commands (follow-up to #3431)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-14T13:01:23.790Z">2026-10-14T13:01:23.790Z</time></span></div>
+<article class="item" id="issue-3428">
+<h2><span class="tier B">B</span>swamp update --check fails with a raw [FTL] TimeoutError when the artifacts host takes over 5s</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-14T14:03:04.995Z">2026-10-14T14:03:04.995Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3437" rel="noopener">lab#3437</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3428" rel="noopener">lab#3428</a></div>
+</article>
+<article class="item" id="issue-3433">
+<h2><span class="tier B">B</span>Manual: broken anchor and tutorials teach deprecated swamp data get</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-14T14:01:16.631Z">2026-10-14T14:01:16.631Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3433" rel="noopener">lab#3433</a></div>
+</article>
+<article class="item" id="issue-3441">
+<h2><span class="tier B">B</span>swamp start / swamp workspace create: let me choose where a new workspace is created</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-14T13:56:16.033Z">2026-10-14T13:56:16.033Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3441" rel="noopener">lab#3441</a></div>
+</article>
+<article class="item" id="issue-3440">
+<h2><span class="tier B">B</span>whoami reports each collective&#39;s private source hosting and namespace privacy, so the CLI quality rubric can match the registry&#39;s repository-verified verdict</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-14T13:43:09.085Z">2026-10-14T13:43:09.085Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3440" rel="noopener">lab#3440</a></div>
 </article>
 <article class="item" id="issue-3351">
 <h2><span class="tier B">B</span>Registry scorecard: dependency lookups that failed are not audited</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-14T12:49:59.811Z">2026-10-14T12:49:59.811Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-14T13:15:00.265Z">2026-10-14T13:15:00.265Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3351" rel="noopener">lab#3351</a></div>
@@ -3501,7 +3533,31 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3439">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3443">
+<h2><span class="tier C">C</span>Dashboard Workflows, workflow and run pages are slow with large history: workflow.run.summary and workflow.run.search read every run index of every workflow on each request</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-14T14:03:46.176Z">2026-10-14T14:03:46.176Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3443" rel="noopener">lab#3443</a></div>
+</article>
+<article class="item" id="issue-3444">
+<h2><span class="tier C">C</span>Dashboard: a live run page polls a full workflow.run.search every 2.5 s, and time-range presets refetch the run summary every minute</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-14T14:00:27.418Z">2026-10-14T14:00:27.418Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3444" rel="noopener">lab#3444</a></div>
+</article>
+<article class="item" id="issue-3442">
+<h2><span class="tier C">C</span>swamp start: start a task from an existing issue (GitHub, Linear, Jira, swamp.club Lab)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-14T13:54:43.320Z">2026-10-14T13:54:43.320Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3442" rel="noopener">lab#3442</a></div>
+</article>
+<article class="item" id="issue-3439">
 <h2><span class="tier C">C</span>Extension push: a range dependency is sent to OSV as the range, not a version</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-14T12:49:02.005Z">2026-10-14T12:49:02.005Z</time></span></div>
@@ -3524,14 +3580,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3399" rel="noopener">lab#3399</a></div>
-</article>
-<article class="item" id="issue-3433">
-<h2><span class="tier C">C</span>Manual: broken anchor and tutorials teach deprecated swamp data get</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-14T04:26:13.471Z">2026-10-14T04:26:13.471Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3433" rel="noopener">lab#3433</a></div>
 </article>
 <article class="item" id="issue-3432">
 <h2><span class="tier C">C</span>Activity scoring aliases only behavior run, not other swamp behavior subcommands</h2>
@@ -3580,14 +3628,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3413" rel="noopener">lab#3413</a></div>
-</article>
-<article class="item" id="issue-3428">
-<h2><span class="tier C">C</span>swamp update --check fails with a raw [FTL] TimeoutError when the artifacts host takes over 5s</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-14T02:58:45.242Z">2026-10-14T02:58:45.242Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3428" rel="noopener">lab#3428</a></div>
 </article>
 <article class="item" id="issue-3328">
 <h2><span class="tier C">C</span>Docs: declaring an extension license, and why unlicensed extensions are hidden</h2>
@@ -4910,13 +4950,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>605 items across 1 source(s) in this window:
-0 critical, 417 notable, 12 routine,
-176 minor.</p>
-<ul><li><strong>issues</strong> — 605</li></ul></section>
+<p>610 items across 1 source(s) in this window:
+0 critical, 418 notable, 15 routine,
+177 minor.</p>
+<ul><li><strong>issues</strong> — 610</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-14T13:03:23.877Z">2026-10-14T13:03:23.877Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-14T14:05:56.533Z">2026-10-14T14:05:56.533Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

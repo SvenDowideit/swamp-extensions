@@ -1551,7 +1551,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.11.5",
+  version: "2026.10.13.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1634,6 +1634,12 @@ export const model = {
       toVersion: "2026.10.11.5",
       description:
         "The harness now installs a candidate's declared `dependencies:` (registry extensions) before the phases run — skipping any already provided by a local sibling — so a workflow that references another extension validates and runs. The in-harness `harness.sshd` server gains a `Subsystem sftp internal-sftp`, so `scp` (which uses the SFTP protocol on OpenSSH 9+) works against it — needed by an `@swamp/ssh copy`. Schema is additive; existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.13.1",
+      description:
+        "Documentation only: the README now documents the second report, `@svendowideit/test-factory-report-html` — the self-contained HTML render emitted on every `test`/`testAll` run (opt out with `--skip-report @svendowideit/test-factory-report-html`) — so its behaviour, output location and per-test evidence/independent-verification structure are discoverable without reading the source. No model, schema or resource change; existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

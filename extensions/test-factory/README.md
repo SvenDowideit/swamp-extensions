@@ -623,9 +623,10 @@ swamp report get @svendowideit/test-factory-report --model tf --markdown
 ## Details
 
 `@svendowideit/test-factory` ships one model type
-(`@svendowideit/test-factory`), one report
-(`@svendowideit/test-factory-report`), and two workflows
-(`@svendowideit/test-factory`, `@svendowideit/test-factory-sweep`).
+(`@svendowideit/test-factory`), two reports
+(`@svendowideit/test-factory-report`, `@svendowideit/test-factory-report-html`),
+and two workflows (`@svendowideit/test-factory`,
+`@svendowideit/test-factory-sweep`).
 
 | Method | Arguments | Produces |
 | ------ | --------- | -------- |
@@ -659,6 +660,21 @@ Reports and workflows:
   "What this run proves", "How it was proved", phase table, definitions,
   workflows, documented tests, fixtures, errors, logs), or the fan-out summary.
   Scope: method.
+- `@svendowideit/test-factory-report-html` — renders a **self-contained HTML
+  page** (inline CSS, no external assets or CDN) so a human can scan a run and
+  drill into the evidence. It shows a summary header (candidate, scenario,
+  distro, topology, swamp version, verdict, pass/fail/skip counts), a
+  scenario × phase/test results matrix, a collapsible card per test with its
+  contract ("Should / Should NOT happen"), the **independent verification** steps
+  (non-`swamp` checks like `stat`/`find`) foregrounded and the `swamp …` action
+  under test marked *not independent proof*, the "Evidence — commands actually
+  run" section (each command's real exit code and captured output), and a
+  source-hash footer. `test`/`testAll` render it on every run and log
+  `<ext>: HTML report → <path>`, and it is written next to the markdown/JSON at
+  `$SWAMP_TEST_FACTORY_HTML_DIR` (default
+  `~/.local/share/test-factory-report/<slug>-<timestamp>.html`, plus a
+  `<slug>-latest.html` alias). Opt out per run with
+  `--skip-report @svendowideit/test-factory-report-html`. Scope: method.
 - `@svendowideit/test-factory` workflow — runs `test` then asserts
   `failCount == 0 && errorCount == 0`; use it as a CI gate.
 - `@svendowideit/test-factory-sweep` workflow — runs `testAll` over git-tracked
@@ -681,6 +697,7 @@ orchestration:
 | `docker.ts` | The Docker backend: image builds, networks, volumes, container lifecycle, `exec`, `exec -d`, log/result reads. Every call goes through an injectable runner. |
 | `test_factory.ts` | Orchestration only: catalog → per-scenario container work → typed `result`/`summary` resources. |
 | `test_factory_report.ts` | Markdown/JSON rendering of a result or the rollup. |
+| `test_factory_report_html.ts` | Self-contained HTML rendering of a result or the rollup (inline CSS, no external assets); emitted by `test`/`testAll`. |
 
 Design decisions worth knowing:
 

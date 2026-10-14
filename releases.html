@@ -67,8 +67,76 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261014-134502-0-sha-3999f85e"><span class="tier A">A</span>messages use the spelling the user typed — behavior, or mode</a><a href="#release-swamp-club-swamp-v20261014-121640-0-sha-c5d1db96"><span class="tier A">A</span>report dependencies whose lookup failed as not audited (swam</a><a href="#release-swamp-club-swamp-v20261014-115338-0-sha-0de5ab49"><span class="tier A">A</span>log output and help text say behavior instead of model (swam</a><a href="#release-swamp-club-swamp-v20261014-023540-0-sha-7b10a478"><span class="tier A">A</span>push from Windows packs the extension&#39;s sources again, and W</a><a href="#release-swamp-club-swamp-v20261014-015425-0-sha-fd84c826"><span class="tier A">A</span>a dormant Litestream sidecar for v3 writers, and a write com</a><a href="#release-swamp-club-swamp-v20261014-011920-0-sha-d0e69f96"><span class="tier A">A</span>grant files name OAuth users by username, pinned to their su</a><a href="#release-swamp-club-swamp-v20261014-011035-0-sha-840fa01a"><span class="tier A">A</span>behavior spellings for --model flags, enum values, SWAMP_MOD</a><a href="#release-swamp-club-swamp-v20261014-010649-0-sha-f95a4299"><span class="tier A">A</span>swamp workspace create, import, list, get and remove (swamp-</a><a href="#release-swamp-club-swamp-v20261014-004145-0-sha-4bee4a71"><span class="tier A">A</span>swamp behavior invocations are recorded in their swamp model</a><a href="#release-swamp-club-swamp-v20261014-001450-0-sha-267c9cdf"><span class="tier A">A</span>push refuses a symlink in the module graph again, quoting no</a><a href="#release-swamp-club-swamp-v20261013-231809-0-sha-a2376f6a"><span class="tier A">A</span>the swamp behavior tree and root help say behavior throughou</a><a href="#release-swamp-club-swamp-v20261013-230646-0-sha-f10ddcb8"><span class="tier A">A</span>the v3 writer lease requires an extension&#39;s datastoreWideLea</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261014-152750-0-sha-9660b51f"><span class="tier A">A</span>OAuth startup looks up only added admin names, names the oau</a><a href="#release-swamp-club-swamp-v20261014-152311-0-sha-c9a86d41"><span class="tier A">A</span>choose where a new workspace is created — --path, a Location</a><a href="#release-swamp-club-swamp-v20261014-145417-0-sha-9ad95bb6"><span class="tier A">A</span>swamp update retries a slow update check and reports a clear</a><a href="#release-swamp-club-swamp-v20261014-134502-0-sha-3999f85e"><span class="tier A">A</span>messages use the spelling the user typed — behavior, or mode</a><a href="#release-swamp-club-swamp-v20261014-121640-0-sha-c5d1db96"><span class="tier A">A</span>report dependencies whose lookup failed as not audited (swam</a><a href="#release-swamp-club-swamp-v20261014-115338-0-sha-0de5ab49"><span class="tier A">A</span>log output and help text say behavior instead of model (swam</a><a href="#release-swamp-club-swamp-v20261014-023540-0-sha-7b10a478"><span class="tier A">A</span>push from Windows packs the extension&#39;s sources again, and W</a><a href="#release-swamp-club-swamp-v20261014-015425-0-sha-fd84c826"><span class="tier A">A</span>a dormant Litestream sidecar for v3 writers, and a write com</a><a href="#release-swamp-club-swamp-v20261014-011920-0-sha-d0e69f96"><span class="tier A">A</span>grant files name OAuth users by username, pinned to their su</a><a href="#release-swamp-club-swamp-v20261014-011035-0-sha-840fa01a"><span class="tier A">A</span>behavior spellings for --model flags, enum values, SWAMP_MOD</a><a href="#release-swamp-club-swamp-v20261014-010649-0-sha-f95a4299"><span class="tier A">A</span>swamp workspace create, import, list, get and remove (swamp-</a><a href="#release-swamp-club-swamp-v20261014-004145-0-sha-4bee4a71"><span class="tier A">A</span>swamp behavior invocations are recorded in their swamp model</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261014-152750-0-sha-9660b51f">
+<h2><span class="tier A">A</span>OAuth startup looks up only added admin names, names the oauth:manage scope on a refused lookup, and skips entries that are not plain usernames (swamp-club#3435) (#3104)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T15:29:35Z">2026-10-14T15:29:35Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): OAuth startup looks up only added admin names, names the oauth:manage scope on a refused lookup, and skips entries that are not plain usernames (swamp-club#3435) (#3104)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3435. <code>swamp serve --auth-mode=oauth</code> crash-looped with <code>403 Forbidden</code> when <code>--admins</code> changed, blaming a user who was already cached.</p>
+<p><strong>Cause.</strong> Adding any name switched startup to a full resolution that looked every cached admin and allowed-user up again. With a collective API token lacking <code>oauth:manage</code>, swamp-club&#39;s <code>/api/auth/resolve-user</code> refused the first cached name (<code>alice</code>), and startup aborted naming her with a &quot;check that swamp-club is reachable&quot; hint.</p>
+<p><strong>Changes</strong></p>
+<ul>
+<li><strong>Resolved names are pinned</strong> (<code>src/serve/oauth_access_list_resolution.ts</code>), as grant-file usernames already are. Startup looks up only names with no record and keeps cached subs. A list edit can no longer re-point a name to whoever registers it after a rename or deletion.</li>
+<li><strong>A refused lookup names the scope.</strong> <code>resolveUsername</code> throws <code>UsernameLookupRefusedError</code> on 401/403. Its message says a collective API token needs <code>oauth:manage</code>, without claiming which credential was used, since startup may use a device-grant login token. Startup uses it in place of the reachability hint; grant-file lookups and <code>check-config</code> show it unchanged.</li>
+<li><strong>Security: cache-key collision closed.</strong> Admins, allowed-users and not-found records share one cache map, and OAuth mode accepted any</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.152750.0-sha.9660b51f" rel="noopener">release v20261014.152750.0-sha.9660b51f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9660b51f6315d47e1f1aafc0b915151b85eec122" rel="noopener">9660b51f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3104" rel="noopener">#3104</a>𝗔 <a href="https://swamp-club.com/lab/3446" rel="noopener">lab#3446</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-152311-0-sha-c9a86d41">
+<h2><span class="tier A">A</span>choose where a new workspace is created — --path, a Location field on the start page, and workspaces.dir (swamp-club#3441) (#3103)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T15:25:14Z">2026-10-14T15:25:14Z</time></span><span>workspace</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(workspace): choose where a new workspace is created — --path, a Location field on the start page, and workspaces.dir (swamp-club#3441) (#3103)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3441. New workspaces were always created under <code>&lt;data dir&gt;/workspaces/&lt;name&gt;</code>. Now the folder can be chosen:</p>
+<ul>
+<li><strong>CLI:</strong> <code>swamp workspace create &lt;name&gt; --path &lt;dir&gt;</code> and <code>swamp start --workspace &lt;name&gt; --path &lt;dir&gt;</code> create the workspace in <code>&lt;dir&gt;/&lt;name&gt;</code>. <code>&lt;dir&gt;</code> must already exist; <code>~</code> and relative paths work from the CLI. With <code>swamp start</code>, <code>--path</code> needs <code>--workspace</code> and is refused with <code>--json</code>.</li>
+<li><strong>Start page:</strong> the new-workspace form has a <strong>Location</strong> field (with Browse) under <strong>Name</strong>. Both show their default as a placeholder, and a live line shows the folder that will be created (&quot;Creates /Users/alice/dev/web&quot;) as either field changes. The server works the path out (<code>start.workspace.location.check</code>, read-only) and re-checks it on create; the page only sends absolute or <code>~</code> folders.</li>
+<li><strong>Default:</strong> <code>swamp config set workspaces.dir &lt;dir&gt;</code> sets where new workspaces go; <code>default</code> clears it.</li>
+</ul>
+<h4 class="body-h">Created vs imported</h4>
+<p>The registry now records each workspace&#39;s <code>origin</code> (<code>created</code> / <code>imported</code>), so a workspace created outside the data dir is not reported as imported in <code>workspace list</code>/<code>get</code>, on the start page, or in the agent&#39;s brief. Entries without it keep the old location rule. The field was added without a schema bump, so older versions still read <code>workspaces.json</code> (an older</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.152311.0-sha.c9a86d41" rel="noopener">release v20261014.152311.0-sha.c9a86d41</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c9a86d416e6f0f3b750c7d77c31084410c67d4da" rel="noopener">c9a86d41</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3103" rel="noopener">#3103</a>𝗔 <a href="https://swamp-club.com/lab/3441" rel="noopener">lab#3441</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-145417-0-sha-9ad95bb6">
+<h2><span class="tier A">A</span>swamp update retries a slow update check and reports a clear error (swamp-club#3428) (#3102)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T14:56:19Z">2026-10-14T14:56:19Z</time></span><span>update</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(update): swamp update retries a slow update check and reports a clear error (swamp-club#3428) (#3102)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3428. <code>swamp update --check</code> sent one <code>HEAD</code> to the artifacts host with a 5s timeout and no retry. Nothing caught the <code>TimeoutError</code>, so a slow host produced a fatal <code>[FTL]</code> stack trace and swamp never reported whether an update was available.</p>
+<ul>
+<li><code>HttpUpdateChecker.checkForUpdate</code> can now retry. It retries timeouts, connection errors and HTTP 5xx, waiting 1s and then 2s. It does not retry a 404 or any other 4xx.</li>
+<li>When every attempt fails, it raises a <code>UserError</code> that names only the last attempt&#39;s failure. Example: <code>Failed to check for updates after 3 attempts. Last attempt: the update server did not respond within 5s</code>. A single attempt keeps the old form, <code>Failed to check for updates: &lt;reason&gt;</code>.</li>
+<li><code>swamp update</code>, <code>swamp update --check</code> and the scheduled autoupdate make 3 attempts (<code>UPDATE_CHECK_MAX_ATTEMPTS</code>, set in <code>createUpdateCheckDeps</code>). The update check that runs after every other command keeps a single attempt, so it never slows those commands down.</li>
+<li>Download retries (swamp-uat#674) are a separate problem and not part of this PR.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>New unit tests in <code>http_update_checker_test.ts</code>, using <code>withMockedFetch</code> and an injected <code>sleep</code>:</li>
+<li>a timeout, then a retry that succeeds</li>
+<li>a 503, then a retry that succeeds</li>
+<li>every attempt times out</li>
+<li>every attempt gets a 5xx</li>
+<li>a mix of failures (503, then a co</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.145417.0-sha.9ad95bb6" rel="noopener">release v20261014.145417.0-sha.9ad95bb6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9ad95bb64f52f0d86051334f9344f8fe51aa9aa9" rel="noopener">9ad95bb6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3102" rel="noopener">#3102</a>𝗔 <a href="https://swamp-club.com/lab/3428" rel="noopener">lab#3428</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261014-134502-0-sha-3999f85e">
 <h2><span class="tier A">A</span>messages use the spelling the user typed — behavior, or model under swamp model (swamp-club#3437) (#3101)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -288,7 +356,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/operations.md" rel="noopener">design/operations.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.004145.0-sha.4bee4a71" rel="noopener">release v20261014.004145.0-sha.4bee4a71</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4bee4a718c5311c7cfbe6d016e37fb171fa2c294" rel="noopener">4bee4a71</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3092" rel="noopener">#3092</a>𝗔 <a href="https://swamp-club.com/lab/3411" rel="noopener">lab#3411</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261014-001450-0-sha-267c9cdf">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261014-001450-0-sha-267c9cdf">
 <h2><span class="tier A">A</span>push refuses a symlink in the module graph again, quoting none of its target (swamp-club#3420) (#3091)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T00:16:45Z">2026-10-14T00:16:45Z</time></span><span>extensions</span><span>fix</span></div>
@@ -351,7 +419,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/testing.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/testing.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261013.230646.0-sha.f10ddcb8" rel="noopener">release v20261013.230646.0-sha.f10ddcb8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f10ddcb80b69f3d2378214d0ad0c40539ced1468" rel="noopener">f10ddcb8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3088" rel="noopener">#3088</a>𝗔 <a href="https://swamp-club.com/lab/3414" rel="noopener">lab#3414</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261013-224724-0-sha-2a15e2e6">
+<article class="item" id="release-swamp-club-swamp-v20261013-224724-0-sha-2a15e2e6">
 <h2><span class="tier A">A</span>index new and edited sources by probing them in a worker (swamp-club#3374) (#3084)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-13T22:49:22Z">2026-10-13T22:49:22Z</time></span><span>extensions</span><span>fix</span></div>
@@ -7674,75 +7742,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261014-152750-0-sha-9660b51f">
-<h2><span class="tier C">C</span>swamp 20261014.152750.0-sha.9660b51f</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-14T15:29:35Z">2026-10-14T15:29:35Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): OAuth startup looks up only added admin names, names the oauth:manage scope on a refused lookup, and skips entries that are not plain usernames (swamp-club#3435) (#3104)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3435. <code>swamp serve --auth-mode=oauth</code> crash-looped with <code>403 Forbidden</code> when <code>--admins</code> changed, blaming a user who was already cached.</p>
-<p><strong>Cause.</strong> Adding any name switched startup to a full resolution that looked every cached admin and allowed-user up again. With a collective API token lacking <code>oauth:manage</code>, swamp-club&#39;s <code>/api/auth/resolve-user</code> refused the first cached name (<code>alice</code>), and startup aborted naming her with a &quot;check that swamp-club is reachable&quot; hint.</p>
-<p><strong>Changes</strong></p>
-<ul>
-<li><strong>Resolved names are pinned</strong> (<code>src/serve/oauth_access_list_resolution.ts</code>), as grant-file usernames already are. Startup looks up only names with no record and keeps cached subs. A list edit can no longer re-point a name to whoever registers it after a rename or deletion.</li>
-<li><strong>A refused lookup names the scope.</strong> <code>resolveUsername</code> throws <code>UsernameLookupRefusedError</code> on 401/403. Its message says a collective API token needs <code>oauth:manage</code>, without claiming which credential was used, since startup may use a device-grant login token. Startup uses it in place of the reachability hint; grant-file lookups and <code>check-config</code> show it unchanged.</li>
-<li><strong>Security: cache-key collision closed.</strong> Admins, allowed-users and not-found records share one cache map, and OAuth mode accepted any</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.152750.0-sha.9660b51f" rel="noopener">release v20261014.152750.0-sha.9660b51f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9660b51f" rel="noopener">9660b51f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3104" rel="noopener">#3104</a>𝗔 <a href="https://swamp-club.com/lab/3446" rel="noopener">lab#3446</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261014-152311-0-sha-c9a86d41">
-<h2><span class="tier C">C</span>swamp 20261014.152311.0-sha.c9a86d41</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-14T15:25:14Z">2026-10-14T15:25:14Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(workspace): choose where a new workspace is created — --path, a Location field on the start page, and workspaces.dir (swamp-club#3441) (#3103)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3441. New workspaces were always created under <code>&lt;data dir&gt;/workspaces/&lt;name&gt;</code>. Now the folder can be chosen:</p>
-<ul>
-<li><strong>CLI:</strong> <code>swamp workspace create &lt;name&gt; --path &lt;dir&gt;</code> and <code>swamp start --workspace &lt;name&gt; --path &lt;dir&gt;</code> create the workspace in <code>&lt;dir&gt;/&lt;name&gt;</code>. <code>&lt;dir&gt;</code> must already exist; <code>~</code> and relative paths work from the CLI. With <code>swamp start</code>, <code>--path</code> needs <code>--workspace</code> and is refused with <code>--json</code>.</li>
-<li><strong>Start page:</strong> the new-workspace form has a <strong>Location</strong> field (with Browse) under <strong>Name</strong>. Both show their default as a placeholder, and a live line shows the folder that will be created (&quot;Creates /Users/alice/dev/web&quot;) as either field changes. The server works the path out (<code>start.workspace.location.check</code>, read-only) and re-checks it on create; the page only sends absolute or <code>~</code> folders.</li>
-<li><strong>Default:</strong> <code>swamp config set workspaces.dir &lt;dir&gt;</code> sets where new workspaces go; <code>default</code> clears it.</li>
-</ul>
-<h4 class="body-h">Created vs imported</h4>
-<p>The registry now records each workspace&#39;s <code>origin</code> (<code>created</code> / <code>imported</code>), so a workspace created outside the data dir is not reported as imported in <code>workspace list</code>/<code>get</code>, on the start page, or in the agent&#39;s brief. Entries without it keep the old location rule. The field was added without a schema bump, so older versions still read <code>workspaces.json</code> (an older</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.152311.0-sha.c9a86d41" rel="noopener">release v20261014.152311.0-sha.c9a86d41</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c9a86d41" rel="noopener">c9a86d41</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3103" rel="noopener">#3103</a>𝗔 <a href="https://swamp-club.com/lab/3441" rel="noopener">lab#3441</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261014-145417-0-sha-9ad95bb6">
-<h2><span class="tier C">C</span>swamp 20261014.145417.0-sha.9ad95bb6</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-14T14:56:19Z">2026-10-14T14:56:19Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(update): swamp update retries a slow update check and reports a clear error (swamp-club#3428) (#3102)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3428. <code>swamp update --check</code> sent one <code>HEAD</code> to the artifacts host with a 5s timeout and no retry. Nothing caught the <code>TimeoutError</code>, so a slow host produced a fatal <code>[FTL]</code> stack trace and swamp never reported whether an update was available.</p>
-<ul>
-<li><code>HttpUpdateChecker.checkForUpdate</code> can now retry. It retries timeouts, connection errors and HTTP 5xx, waiting 1s and then 2s. It does not retry a 404 or any other 4xx.</li>
-<li>When every attempt fails, it raises a <code>UserError</code> that names only the last attempt&#39;s failure. Example: <code>Failed to check for updates after 3 attempts. Last attempt: the update server did not respond within 5s</code>. A single attempt keeps the old form, <code>Failed to check for updates: &lt;reason&gt;</code>.</li>
-<li><code>swamp update</code>, <code>swamp update --check</code> and the scheduled autoupdate make 3 attempts (<code>UPDATE_CHECK_MAX_ATTEMPTS</code>, set in <code>createUpdateCheckDeps</code>). The update check that runs after every other command keeps a single attempt, so it never slows those commands down.</li>
-<li>Download retries (swamp-uat#674) are a separate problem and not part of this PR.</li>
-</ul>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>New unit tests in <code>http_update_checker_test.ts</code>, using <code>withMockedFetch</code> and an injected <code>sleep</code>:</li>
-<li>a timeout, then a retry that succeeds</li>
-<li>a 503, then a retry that succeeds</li>
-<li>every attempt times out</li>
-<li>every attempt gets a 5xx</li>
-<li>a mix of failures (503, then a co</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.145417.0-sha.9ad95bb6" rel="noopener">release v20261014.145417.0-sha.9ad95bb6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9ad95bb6" rel="noopener">9ad95bb6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3102" rel="noopener">#3102</a>𝗔 <a href="https://swamp-club.com/lab/3428" rel="noopener">lab#3428</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261014-034854-0-sha-110977e9">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261014-034854-0-sha-110977e9">
 <h2><span class="tier C">C</span>Layout Migration describes the re-pull and sweep that repo upgrade runs for gen-1 and gen-2 extensions (swamp-club#3273) (#3098)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T03:50:25Z">2026-10-14T03:50:25Z</time></span><span>extensions</span><span>docs</span></div>
@@ -8082,12 +8082,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>333 items across 1 source(s) in this window:
-0 critical, 303 notable, 12 routine,
-18 minor.</p>
-<ul><li><strong>fix</strong> — 213</li><li><strong>feat</strong> — 90</li><li><strong>refactor</strong> — 11</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 7</li><li><strong>changes</strong> — 3</li></ul></section>
+0 critical, 306 notable, 12 routine,
+15 minor.</p>
+<ul><li><strong>fix</strong> — 215</li><li><strong>feat</strong> — 91</li><li><strong>refactor</strong> — 11</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 7</li><li><strong>perf</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-14T16:11:04.376Z">2026-10-14T16:11:04.376Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-14T17:11:56.430Z">2026-10-14T17:11:56.430Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

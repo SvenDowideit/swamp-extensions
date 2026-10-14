@@ -13,15 +13,16 @@ description: |
     1. assert   today's source data is fresh enough to bother (Garmin activity
                 list cached, Zwift picks generated today). Nothing is fetched —
                 this workflow only reads what the fitness workflows already wrote.
-    2. collect  read a day's activities, wellness, weigh-in and Zwift picks into
-                one `collect` resource (never touches the network).
-    3. publish  render the page and merge it into daily/<date>.md between the
-                managed markers, preserving any prose or ticked boxes already
-                there.
+    2. build    collect a day's activities, wellness, weigh-in and Zwift picks
+                into one `collect` resource, then render the page and merge it
+                into daily/<date>.md between the managed markers (preserving any
+                prose or ticked boxes already there) — in one method call, so a
+                run never reads the collect it just wrote (a same-run read
+                resolves against a run-start snapshot and would lag a run).
 
-  `collect` records absent sources in its `missing` field instead of failing, so
-  a day with no Zwift picks or no wellness still publishes cleanly. The workflow
-  fails only when there is nothing at all to build from.
+  `build` records absent sources in the `collect` resource's `missing` field
+  instead of failing, so a day with no Zwift picks or no wellness still publishes
+  cleanly. The workflow fails only when there is nothing at all to build from.
 
   When a `@svendowideit/extension-releases` instance (default name
   `extension-releases`) holds a log of that day's extension releases, an
@@ -127,15 +128,18 @@ jobs:
         dependsOn: []
         weight: 0
         allowFailure: false
-      - name: collect
+      - name: build
         description: >
-          Read the day's activities, wellness, weigh-in and picks into one
-          collect resource. Reads stored data only; never calls Garmin or Zwift.
+          Collect each day in the window and publish its note in one call. A
+          single step is deliberate: a workflow run reads a run-start data
+          snapshot, so a later `publish` step reading this run's collect would
+          render the previous run's data. Reads stored data only; never calls
+          Garmin or Zwift.
         task:
           type: model_method
           modelType: "@magistr/obsidian/vault"
           modelName: ${{ inputs.vaultModel }}
-          methodName: collect
+          methodName: build
           inputs:
             timezone: ${{ inputs.timezone }}
             date: ${{ inputs.date }}
@@ -148,28 +152,9 @@ jobs:
             bomModel: ${{ inputs.bomModel }}
             releasesModel: ${{ inputs.releasesModel }}
             topN: ${{ inputs.topN }}
-        dependsOn:
-          - step: assert-sources
-            condition:
-              type: succeeded
-        weight: 0
-        allowFailure: false
-      - name: publish
-        description: >
-          Render the page and merge it into daily/<date>.md through the vault
-          model, preserving everything outside the managed markers.
-        task:
-          type: model_method
-          modelType: "@magistr/obsidian/vault"
-          modelName: ${{ inputs.vaultModel }}
-          methodName: publish
-          inputs:
-            timezone: ${{ inputs.timezone }}
-            date: ${{ inputs.date }}
-            days: ${{ inputs.days }}
             folder: ${{ inputs.folder }}
         dependsOn:
-          - step: collect
+          - step: assert-sources
             condition:
               type: succeeded
         weight: 0

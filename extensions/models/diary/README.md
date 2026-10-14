@@ -54,10 +54,10 @@ optional: if the model is absent or the day has none, the section says so and
 `extension-releases/log` is listed in `collect.attributes.missing`.
 
 The bundled `@svendowideit/diary-daily` workflow chains these — assert sources,
-`collect`, `publish` — and is scheduled hourly at :45 local under `swamp serve`,
-a quarter-hour after the `@svendowideit/fitness-refresh` run it consumes. Each
-pass rebuilds the last four days (today and the three before), so the pages stay
-current as new activities
+then `build` (collect + publish in one call) — and is scheduled hourly at :45
+local under `swamp serve`, a quarter-hour after the
+`@svendowideit/fitness-refresh` run it consumes. Each pass rebuilds the last four
+days (today and the three before), so the pages stay current as new activities
 and weigh-ins land, including one recorded after a page was first written.
 
 Because `collect` only reads stored data, a diary run is cheap and safe: it
@@ -113,6 +113,7 @@ the `@magistr/obsidian/vault` model it extends:
 | `publish` | `folder` | string | `daily` | Vault folder for the note |
 | `publish` | `noteName` | string? | `<date>.md` | File name override |
 | `publish` | `allowDotObsidian` | boolean? | — | Passed through to the vault model |
+| `build` | — | | | `collect`'s arguments plus the `publish` fields (`vaultModel`, `folder`, `noteName`, `allowDotObsidian`); collects and publishes in one call |
 
 ### Workflow arguments
 
@@ -302,29 +303,36 @@ swamp model create @magistr/obsidian/vault obsidian-vault \
 - **`publish`** — for each day in the `days` window, reads the collect resource,
   renders the managed section, reads any existing note through the vault model,
   merges, and writes it with `overwrite=true`. Arguments: `timezone`, `date`,
-  `days`, `collectName`, `vaultModel`, `folder`, `noteName`, `allowDotObsidian`.
-  Writes a `publish` resource per day recording the file and whether it was
-  created or merged.
+  `days`, `batch`, `collectName`, `vaultModel`, `folder`, `noteName`,
+  `allowDotObsidian`. Writes a `publish` resource per day recording the file and
+  whether it was created or merged.
+- **`build`** — `collect` + `publish` in one call: it writes each day's
+  `collect` (and the `daily-batch`) then renders and merges each note from the
+  payloads it just built in memory. The bundled workflow uses this because a
+  workflow run reads a run-start data snapshot, so a separate later `publish`
+  step reading this run's collect would render an earlier run's data. Arguments:
+  the `collect` arguments plus `vaultModel`, `folder`, `noteName`,
+  `allowDotObsidian`.
 
 ### Resources
 
 | Spec | Name | Shape |
 | --- | --- | --- |
 | `collect` | `daily-<date>` | `date`, `generatedAt`, `timezone`, `rides[]`, `totals`, `wellness`, `weight`, `weather`, `suggested[]`, `releases[]`, `truncated`, `missing[]` |
+| `batch` | `daily-batch` | `generatedAt`, `timezone`, `dates[]`, `days[]` — the whole window in one resource |
 | `page` | `page-<date>` | `date`, `markdown`, `timestamp` |
 | `publish` | `publish-<date>` | `date`, `file`, `action`, `merged`, `timestamp` |
 
 ### Workflow
 
-`diary-daily.yaml` (name `@svendowideit/diary-daily`) is a single job with three
+`diary-daily.yaml` (name `@svendowideit/diary-daily`) is a single job with two
 steps:
 
 1. **assert-sources** — fails fast (severity high) when neither
    `garmin-activities`/`activity-list` nor `zwift-recommender`/`current` exists,
    so there is nothing to build from. Missing wellness or schedule alone is fine.
-2. **collect** — calls the `collect` method with the workflow inputs, writing one
-   `daily-<date>` resource per day in the `days` window (default 4).
-3. **publish** — calls the `publish` method to merge and write each day's note.
+2. **build** — calls the `build` method, which collects every day in the `days`
+   window and publishes each note in one execution (see `build` above).
 
 It registers one cron trigger (`45 * * * *`, host-local) while `swamp serve`
 runs. Override any input with `--input` for a manual or backfill run; set

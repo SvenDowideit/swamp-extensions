@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/diary"
-version: "2026.10.13.1"
+version: "2026.10.15.1"
 description: >
   Turn a day of synced Garmin and Zwift data into one Obsidian daily note,
   merging into any note you have already edited.
@@ -11,18 +11,15 @@ description: >
     weigh-ins, plus ranked Zwift event picks — but reading it means knowing four
     models by name. This extension joins them into one per-day diary note:
     activities with durations and totals, sleep and steps, weight plus whatever
-    body composition your scale measured (fat %, muscle, BMI, metabolic age),
-    the top suggested Zwift rides with reasons and links, and, when a
-    `@svendowideit/bom-weather` instance holds a forecast, a weather line. It
+    body composition your scale measured, the suggested Zwift rides with reasons
+    and links, a weather line from `@svendowideit/bom-weather`, and a
+    `## Extensions published` list from `@svendowideit/extension-releases`. It
     extends `@magistr/obsidian/vault`, composing that model's `read`/`create`
-    rather than writing files itself, and never touches the network: `collect`
+    instead of writing files itself, and never touches the network: `collect`
     reads data other models already synced. The write is marker-based, so
     re-running a day rewrites only the machine-managed region and leaves your
-    prose and ticked checkboxes untouched — making a phone-editable vault safe
-    to regenerate. When a `@svendowideit/extension-releases` instance holds a log
-    of that day's swamp extension releases, a `## Extensions published` section
-    lists each extension with a registry link and a sub-list of the versions and
-    channels released or promoted that day.
+    prose and ticked checkboxes untouched — making a phone-editable vault safe to
+    regenerate.
 
   INSTALL
 

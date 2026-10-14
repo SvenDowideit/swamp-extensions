@@ -114,8 +114,17 @@ const PublishArgsSchema = z.object({
       "(default 1). Set 2 to also refresh yesterday's page, matching a " +
       "multi-day collect.",
   ),
+  batch: z.array(z.record(z.string(), z.unknown())).optional().describe(
+    "The collected day payloads for the window, as produced by this run's " +
+      "`collect` (the workflow passes `steps.collect.outputs.days`). When " +
+      "given, publish renders these directly instead of reading each day's " +
+      "collect resource — a same-run `readResource` resolves against a " +
+      "run-start snapshot and would otherwise publish the previous run's " +
+      "collect.",
+  ),
   collectName: z.string().optional().describe(
-    "Name of the collect resource to publish (default: daily-<date>)",
+    "Name of the collect resource to publish when `batch` is not given " +
+      "(default: daily-<date>)",
   ),
   vaultModel: z.string().default("obsidian-vault").describe(
     "Model instance name of the @magistr/obsidian/vault to write into",
@@ -131,6 +140,28 @@ const PublishArgsSchema = z.object({
   ),
 });
 type PublishArgs = z.infer<typeof PublishArgsSchema>;
+
+/**
+ * Arguments for `build` — collect and publish in one call. The two parts must
+ * run in the same method execution because a workflow run reads a run-start
+ * data snapshot, so a separate later `publish` step would render the previous
+ * run's collect.
+ */
+const BuildArgsSchema = CollectArgsSchema.extend({
+  vaultModel: z.string().default("obsidian-vault").describe(
+    "Model instance name of the @magistr/obsidian/vault to write into",
+  ),
+  folder: z.string().default("daily").describe(
+    "Vault folder for the diary note",
+  ),
+  noteName: z.string().optional().describe(
+    "File name for the note (default: <date>.md)",
+  ),
+  allowDotObsidian: z.boolean().optional().describe(
+    "Allow writing inside .obsidian (passed through to the vault model)",
+  ),
+});
+type BuildArgs = z.infer<typeof BuildArgsSchema>;
 
 /** A single ride as collected for the diary page. */
 export interface CollectedRide {
@@ -940,6 +971,20 @@ const resources = {
     lifetime: "infinite" as const,
     garbageCollection: 30,
   },
+  batch: {
+    description:
+      "The whole collected window in one resource. The bundled workflow passes " +
+      "its `days` to `publish`, so a run publishes the collects it just wrote " +
+      "rather than a stale same-run read of each day's `collect`.",
+    schema: z.object({
+      generatedAt: z.string(),
+      timezone: z.string(),
+      dates: z.array(z.string()),
+      days: z.array(z.record(z.string(), z.unknown())),
+    }),
+    lifetime: "infinite" as const,
+    garbageCollection: 5,
+  },
   page: {
     description: "A rendered diary note (markdown body, not yet written)",
     schema: z.object({
@@ -964,12 +1009,19 @@ const resources = {
   },
 };
 
-/** Collect a day's data from the synced fitness models. */
-async function executeCollect(
+/**
+ * Build one payload per day in the window and persist it (a `daily-<date>`
+ * resource each, plus one `daily-batch`). Returns the payloads so `build` can
+ * publish them without re-reading — a same-run `readResource` resolves against
+ * a run-start snapshot and would otherwise be stale.
+ */
+async function collectWindow(
   args: CollectArgs,
   context: DiaryContext,
-): Promise<{ dataHandles: Array<{ name: string }> }> {
-  args = CollectArgsSchema.parse(args);
+): Promise<{
+  payloads: CollectedDay[];
+  dataHandles: Array<{ name: string }>;
+}> {
   const dates = resolveDates(args.date, args.timezone, args.days);
   const missing: string[] = [];
 
@@ -1011,6 +1063,7 @@ async function executeCollect(
     : [];
 
   const handles: Array<{ name: string }> = [];
+  const payloads: CollectedDay[] = [];
   for (const date of dates) {
     const rides = filterActivities(allRides, date);
     const dayHealth = dailyHealth.find((h) => h.date === date) ?? null;
@@ -1074,9 +1127,33 @@ async function executeCollect(
         payload as unknown as Record<string, unknown>,
       ),
     );
+    payloads.push(payload);
   }
 
-  return { dataHandles: handles };
+  // One resource carrying every day's payload. A later step in the same
+  // workflow run reads this via `steps.collect.outputs` (a run-time value),
+  // because a step's own `readResource` resolves against a run-start snapshot
+  // and would otherwise republish the previous run's collects.
+  handles.push(
+    await context.writeResource("batch", "daily-batch", {
+      generatedAt: new Date().toISOString(),
+      timezone: args.timezone,
+      dates,
+      days: payloads,
+    } as unknown as Record<string, unknown>),
+  );
+
+  return { payloads, dataHandles: handles };
+}
+
+/** Collect a day's data from the synced fitness models. */
+async function executeCollect(
+  args: CollectArgs,
+  context: DiaryContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  args = CollectArgsSchema.parse(args);
+  const { dataHandles } = await collectWindow(args, context);
+  return { dataHandles };
 }
 
 /** Render the markdown page from a collect resource. */
@@ -1112,13 +1189,37 @@ async function executePublish(
       "context.runModel is unavailable; publish needs it to call the vault model",
     );
   }
+  const payloads = (args.batch ?? []) as unknown as CollectedDay[];
+  return { dataHandles: await publishWindow(payloads, args, context) };
+}
+
+/**
+ * Render, merge and write one note per day. A day is rendered from its payload
+ * in `payloads` when present (this run's collects); otherwise the stored
+ * `collect` resource is read — which is what a standalone/manual publish needs.
+ */
+async function publishWindow(
+  payloads: CollectedDay[],
+  args: PublishArgs,
+  context: DiaryContext,
+): Promise<Array<{ name: string }>> {
+  if (!context.runModel) {
+    throw new Error(
+      "context.runModel is unavailable; publish needs it to call the vault model",
+    );
+  }
   const dates = resolveDates(args.date, args.timezone, args.days);
   const folder = args.folder.replace(/\/+$/, "");
   const handles: Array<{ name: string }> = [];
 
+  const batched = new Map<string, CollectedDay>();
+  for (const day of payloads) {
+    if (day?.date) batched.set(String(day.date), day);
+  }
+
   for (const date of dates) {
     const name = args.collectName ?? `daily-${date}`;
-    const day = await readCollect(context, name);
+    const day = batched.get(date) ?? await readCollect(context, name);
     const managed = renderManagedSection(day);
     const file = `${folder}/${args.noteName ?? `${date}.md`}`;
     const timestamp = new Date().toISOString();
@@ -1157,7 +1258,27 @@ async function executePublish(
     );
   }
 
-  return { dataHandles: handles };
+  return handles;
+}
+
+/**
+ * Collect every day in the window and publish each note in one execution, so a
+ * workflow run never reads its own just-written collect (a same-run
+ * `readResource` resolves against a run-start snapshot).
+ */
+async function executeBuild(
+  args: BuildArgs,
+  context: DiaryContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  args = BuildArgsSchema.parse(args);
+  if (!context.runModel) {
+    throw new Error(
+      "context.runModel is unavailable; build needs it to call the vault model",
+    );
+  }
+  const { payloads, dataHandles } = await collectWindow(args, context);
+  const published = await publishWindow(payloads, args, context);
+  return { dataHandles: [...dataHandles, ...published] };
 }
 
 /** Read the collect resource for a day; fails clearly when it is absent. */
@@ -1174,6 +1295,18 @@ async function readCollect(
   return raw as unknown as CollectedDay;
 }
 
+/**
+ * Whether a failed vault `read` means the note simply does not exist yet. The
+ * vault `read` reports `ok:false` both when the note is absent and when it is
+ * genuinely unreadable (permissions, path errors), so the two must be told
+ * apart: a read failure treated as "absent" would make `publish` overwrite an
+ * existing note with `daily-merge`, destroying the user's prose.
+ */
+function noteAbsentFromReadError(message: string): boolean {
+  return /not ?found|no such file|does not exist|os error 2|enoent|\bmissing\b/i
+    .test(message);
+}
+
 /** Read a note's markdown via the vault model's `read` method. */
 async function readNoteContent(
   context: DiaryContext,
@@ -1187,7 +1320,16 @@ async function readNoteContent(
     method: "read",
     arguments: { file, allowDotObsidian },
   });
-  if (!result.ok) return "";
+  if (!result.ok) {
+    // A missing note is the normal first-publish case and yields no content.
+    // Any other read failure must abort rather than fall through as empty:
+    // `publish` writes with overwrite=true, so overwriting from a failed read
+    // would replace an existing note and lose the prose outside the markers.
+    if (noteAbsentFromReadError(result.error.message)) return "";
+    throw new Error(
+      `vault read failed for '${file}': ${result.error.message}`,
+    );
+  }
   const noteName = (result.resources[0] as { name?: string })?.name;
   if (!noteName || !context.readResource) return "";
   const note = await context.readResource(noteName);
@@ -1201,8 +1343,8 @@ function numOrNull(value: unknown): number | null {
 }
 
 /**
- * Diary extension: three methods and three resources added to the Obsidian
- * vault model.
+ * Diary extension: four methods and four resources added to the Obsidian vault
+ * model.
  */
 export const extension = {
   type: "@magistr/obsidian/vault",
@@ -1233,6 +1375,16 @@ export const extension = {
           "managed markers, and write it into the vault via the vault model.",
         arguments: PublishArgsSchema,
         execute: executePublish,
+      },
+    },
+    {
+      build: {
+        description:
+          "Collect and publish in one call. The bundled workflow uses this so " +
+          "a run renders the collects it just wrote; a separate publish step " +
+          "would read a run-start snapshot and lag a run behind.",
+        arguments: BuildArgsSchema,
+        execute: executeBuild,
       },
     },
   ],

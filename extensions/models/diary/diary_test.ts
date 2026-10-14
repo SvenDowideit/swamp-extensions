@@ -5,7 +5,11 @@
  *
  * @module
  */
-import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import {
+  assertEquals,
+  assertRejects,
+  assertStringIncludes,
+} from "jsr:@std/assert@1";
 
 import {
   BEGIN_MARKER,
@@ -337,7 +341,12 @@ Deno.test("formatForecastLine leads with the place and both temperatures", () =>
   );
   // A day with neither temperature nor précis cannot render a line.
   assertEquals(
-    formatForecastLine({ ...weather, tempMax: null, tempMin: null, shortText: null }),
+    formatForecastLine({
+      ...weather,
+      tempMax: null,
+      tempMin: null,
+      shortText: null,
+    }),
     null,
   );
 });
@@ -475,7 +484,10 @@ Deno.test("renderManagedSection puts the forecast at the top of the block", () =
     "Stafford Heights: min 16°C max 27°C; Mostly clear.; 5% chance",
   );
   // The line sits directly under the begin marker, above "## Health".
-  assertEquals(md.indexOf(BEGIN_MARKER) < md.indexOf("Stafford Heights:"), true);
+  assertEquals(
+    md.indexOf(BEGIN_MARKER) < md.indexOf("Stafford Heights:"),
+    true,
+  );
   assertEquals(md.indexOf("Stafford Heights:") < md.indexOf("## Health"), true);
 });
 
@@ -606,6 +618,7 @@ const methods = extension.methods as unknown as Array<
 const collect = methods[0].collect;
 const render = methods[1].render;
 const publish = methods[2].publish;
+const build = methods[3].build;
 
 interface Written {
   specName: string;
@@ -758,7 +771,7 @@ Deno.test("collect reads the synced models and writes a filtered day", async () 
     context,
   );
 
-  assertEquals(written.length, 1);
+  assertEquals(written.filter((w) => w.specName === "collect").length, 1);
   assertEquals(written[0].specName, "collect");
   assertEquals(written[0].name, "daily-2026-10-04");
   const rides = written[0].data.rides as Array<Record<string, unknown>>;
@@ -821,7 +834,10 @@ Deno.test("collect ignores body data for a different day", async () => {
   );
   assertEquals(written[0].data.weight, null);
   // The resource existed, so it is not reported missing.
-  assertEquals((written[0].data.missing as string[]).includes("garmin-body/range"), false);
+  assertEquals(
+    (written[0].data.missing as string[]).includes("garmin-body/range"),
+    false,
+  );
 });
 
 Deno.test("collect omits weather and records it missing when BOM has none", async () => {
@@ -866,7 +882,10 @@ Deno.test("collect ignores BOM data for a different day", async () => {
   );
   assertEquals(written[0].data.weather, null);
   // The resource existed, so it is not reported missing.
-  assertEquals((written[0].data.missing as string[]).includes("bom/forecast"), false);
+  assertEquals(
+    (written[0].data.missing as string[]).includes("bom/forecast"),
+    false,
+  );
 });
 
 Deno.test("collect records missing sources instead of failing", async () => {
@@ -1028,6 +1047,45 @@ Deno.test("publish creates a fresh note when none exists", async () => {
   assertStringIncludes(calls[1].arguments!.content as string, "## Activities");
 });
 
+Deno.test("publish refuses to overwrite when the vault read of a note fails", async () => {
+  // A non-NotFound read error (permissions, path error) must abort the publish.
+  // Swallowing it as "no existing note" would make `create` overwrite the file
+  // with only the managed section and destroy the user's prose.
+  const calls: Array<{ method: string; arguments?: Record<string, unknown> }> =
+    [];
+  const { context, written } = fakeContext({
+    stored: { "daily-2026-10-04": day() as unknown as Record<string, unknown> },
+    runModel: (o) => {
+      calls.push({ method: o.method, arguments: o.arguments });
+      if (o.method === "read") {
+        return Promise.resolve({
+          ok: false,
+          error: { message: "Permission denied (os error 13): readfile" },
+        });
+      }
+      return Promise.resolve({ ok: true, resources: [{ name: "result" }] });
+    },
+  });
+
+  await assertRejects(
+    () =>
+      publish.execute(
+        {
+          timezone: "UTC",
+          date: "2026-10-04",
+          vaultModel: "obsidian-vault",
+          folder: "daily",
+        },
+        context,
+      ),
+    Error,
+    "vault read failed",
+  );
+
+  assertEquals(calls.some((c) => c.method === "create"), false);
+  assertEquals(written.some((w) => w.specName === "publish"), false);
+});
+
 Deno.test("collect with days>1 writes one resource per day", async () => {
   const { context, written } = fakeContext({
     modelData: {
@@ -1063,7 +1121,7 @@ Deno.test("collect with days>1 writes one resource per day", async () => {
   );
 
   assertEquals(
-    written.map((w) => w.name),
+    written.filter((w) => w.specName === "collect").map((w) => w.name),
     ["daily-2026-10-04", "daily-2026-10-03"],
   );
   assertEquals((written[0].data.rides as unknown[]).length, 1);
@@ -1073,6 +1131,13 @@ Deno.test("collect with days>1 writes one resource per day", async () => {
     80.5,
   );
   assertEquals((written[1].data.weight as Record<string, unknown>).weight, 81);
+
+  // The whole window is also written as one `batch` resource, carrying the
+  // day payloads the workflow hands to `publish`.
+  const batch = written.find((w) => w.specName === "batch");
+  assertEquals(batch?.name, "daily-batch");
+  assertEquals(batch?.data.dates, ["2026-10-04", "2026-10-03"]);
+  assertEquals((batch?.data.days as unknown[]).length, 2);
 });
 
 Deno.test("publish with days>1 writes one note per day", async () => {
@@ -1120,6 +1185,83 @@ Deno.test("publish with days>1 writes one note per day", async () => {
     .filter((c) => c.method === "create")
     .map((c) => c.arguments!.name);
   assertEquals(created, ["daily/2026-10-04.md", "daily/2026-10-03.md"]);
+});
+
+Deno.test("publish renders the passed batch without reading the collect resources", async () => {
+  // No stored collect resources at all: publish must work entirely from the
+  // `batch` this run's collect produced (the fix for the same-run read lag).
+  const { context, written } = fakeContext({
+    runModel: (o) =>
+      Promise.resolve(
+        o.method === "read"
+          ? { ok: false, error: { message: "missing" } }
+          : { ok: true, resources: [{ name: "result" }] },
+      ),
+  });
+
+  await publish.execute(
+    {
+      timezone: "UTC",
+      date: "2026-10-04",
+      days: 2,
+      batch: [
+        day({ date: "2026-10-04" }) as unknown as Record<string, unknown>,
+        day({ date: "2026-10-03" }) as unknown as Record<string, unknown>,
+      ],
+      vaultModel: "obsidian-vault",
+      folder: "daily",
+    },
+    context,
+  );
+
+  assertEquals(
+    written.map((w) => w.name),
+    ["publish-2026-10-04", "publish-2026-10-03"],
+  );
+});
+
+Deno.test("build collects and publishes in one call", async () => {
+  // build must render from its own collects, so it never has to read a
+  // same-run resource (which a workflow run snapshots at run start).
+  const modelData = {
+    "garmin-activities/list": [{
+      activities: [{
+        id: "1",
+        name: "Ride",
+        typeKey: "virtual_ride",
+        startTimeLocal: "2026-10-04 06:00:00",
+      }],
+    }],
+  };
+  const runModel = (
+    o: { method: string; arguments?: Record<string, unknown> },
+  ): Promise<
+    | { ok: true; resources: Array<{ name: string }> }
+    | { ok: false; error: { message: string } }
+  > =>
+    Promise.resolve(
+      o.method === "read"
+        ? { ok: false, error: { message: "missing" } }
+        : { ok: true, resources: [{ name: "result" }] },
+    );
+  const { context, written } = fakeContext({ modelData, runModel });
+
+  await build.execute({
+    timezone: "UTC",
+    date: "2026-10-04",
+    days: 1,
+    vaultModel: "obsidian-vault",
+    folder: "daily",
+  }, context);
+
+  const specs = written.map((w) => w.specName);
+  assertEquals(specs.includes("collect"), true);
+  assertEquals(specs.includes("batch"), true);
+  assertEquals(specs.includes("publish"), true);
+  assertEquals(
+    written.find((w) => w.specName === "publish")?.name,
+    "publish-2026-10-04",
+  );
 });
 
 const release = (
@@ -1195,15 +1337,19 @@ Deno.test("selectReleases dates a publish by its publish time, not the poll", ()
 });
 
 Deno.test("selectReleases drops entries with an invalid timestamp", () => {
-  const selected = selectReleases([
-    {
-      extension: "@a/b",
-      version: "1",
-      channel: "beta",
-      observedAt: "nope",
-      publishedAt: "also-nope",
-    },
-  ], "2026-10-13", "UTC");
+  const selected = selectReleases(
+    [
+      {
+        extension: "@a/b",
+        version: "1",
+        channel: "beta",
+        observedAt: "nope",
+        publishedAt: "also-nope",
+      },
+    ],
+    "2026-10-13",
+    "UTC",
+  );
   assertEquals(selected, []);
 });
 
@@ -1255,7 +1401,10 @@ Deno.test("formatReleaseEntry dates publish by publishedAt and promote by observ
 
 Deno.test("clockTime formats in the requested timezone", () => {
   assertEquals(clockTime("2026-10-13T09:14:25.631Z", "UTC"), "09:14");
-  assertEquals(clockTime("2026-10-13T09:14:25.631Z", "Australia/Brisbane"), "19:14");
+  assertEquals(
+    clockTime("2026-10-13T09:14:25.631Z", "Australia/Brisbane"),
+    "19:14",
+  );
   assertEquals(clockTime("not-a-date", "UTC"), "");
 });
 
@@ -1289,4 +1438,3 @@ Deno.test("renderManagedSection reports no releases for the day", () => {
   assertStringIncludes(md, "## Extensions published");
   assertStringIncludes(md, "- No extension releases logged for this day");
 });
-

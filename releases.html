@@ -67,8 +67,122 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261014-152750-0-sha-9660b51f"><span class="tier A">A</span>OAuth startup looks up only added admin names, names the oau</a><a href="#release-swamp-club-swamp-v20261014-152311-0-sha-c9a86d41"><span class="tier A">A</span>choose where a new workspace is created — --path, a Location</a><a href="#release-swamp-club-swamp-v20261014-145417-0-sha-9ad95bb6"><span class="tier A">A</span>swamp update retries a slow update check and reports a clear</a><a href="#release-swamp-club-swamp-v20261014-134502-0-sha-3999f85e"><span class="tier A">A</span>messages use the spelling the user typed — behavior, or mode</a><a href="#release-swamp-club-swamp-v20261014-121640-0-sha-c5d1db96"><span class="tier A">A</span>report dependencies whose lookup failed as not audited (swam</a><a href="#release-swamp-club-swamp-v20261014-115338-0-sha-0de5ab49"><span class="tier A">A</span>log output and help text say behavior instead of model (swam</a><a href="#release-swamp-club-swamp-v20261014-023540-0-sha-7b10a478"><span class="tier A">A</span>push from Windows packs the extension&#39;s sources again, and W</a><a href="#release-swamp-club-swamp-v20261014-015425-0-sha-fd84c826"><span class="tier A">A</span>a dormant Litestream sidecar for v3 writers, and a write com</a><a href="#release-swamp-club-swamp-v20261014-011920-0-sha-d0e69f96"><span class="tier A">A</span>grant files name OAuth users by username, pinned to their su</a><a href="#release-swamp-club-swamp-v20261014-011035-0-sha-840fa01a"><span class="tier A">A</span>behavior spellings for --model flags, enum values, SWAMP_MOD</a><a href="#release-swamp-club-swamp-v20261014-010649-0-sha-f95a4299"><span class="tier A">A</span>swamp workspace create, import, list, get and remove (swamp-</a><a href="#release-swamp-club-swamp-v20261014-004145-0-sha-4bee4a71"><span class="tier A">A</span>swamp behavior invocations are recorded in their swamp model</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261014-180011-0-sha-c07ea507"><span class="tier A">A</span>suggest swamp start as the next step instead of running it o</a><a href="#release-swamp-club-swamp-v20261014-175140-0-sha-47a5e0c5"><span class="tier A">A</span>swamp update shows download progress, resumes a stalled or d</a><a href="#release-swamp-club-swamp-v20261014-173633-0-sha-1103beef"><span class="tier A">A</span>review gates read the verdict for the head commit and fail c</a><a href="#release-swamp-club-swamp-v20261014-173153-0-sha-5f17e5c0"><span class="tier A">A</span>extension quality scores repository-verified as the registry</a><a href="#release-swamp-club-swamp-v20261014-165834-0-sha-ab6f92a2"><span class="tier A">A</span>an open tab&#39;s run queries follow run activity, not the clock</a><a href="#release-swamp-club-swamp-v20261014-152750-0-sha-9660b51f"><span class="tier A">A</span>OAuth startup looks up only added admin names, names the oau</a><a href="#release-swamp-club-swamp-v20261014-152311-0-sha-c9a86d41"><span class="tier A">A</span>choose where a new workspace is created — --path, a Location</a><a href="#release-swamp-club-swamp-v20261014-145417-0-sha-9ad95bb6"><span class="tier A">A</span>swamp update retries a slow update check and reports a clear</a><a href="#release-swamp-club-swamp-v20261014-134502-0-sha-3999f85e"><span class="tier A">A</span>messages use the spelling the user typed — behavior, or mode</a><a href="#release-swamp-club-swamp-v20261014-121640-0-sha-c5d1db96"><span class="tier A">A</span>report dependencies whose lookup failed as not audited (swam</a><a href="#release-swamp-club-swamp-v20261014-115338-0-sha-0de5ab49"><span class="tier A">A</span>log output and help text say behavior instead of model (swam</a><a href="#release-swamp-club-swamp-v20261014-023540-0-sha-7b10a478"><span class="tier A">A</span>push from Windows packs the extension&#39;s sources again, and W</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261014-180011-0-sha-c07ea507">
+<h2><span class="tier A">A</span>suggest swamp start as the next step instead of running it or prompting for sign-in (swamp-club#3454) (#3111)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T18:02:30Z">2026-10-14T18:02:30Z</time></span><span>install</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(install): suggest swamp start as the next step instead of running it or prompting for sign-in (swamp-club#3454) (#3111)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp start</code> is the new onboarding flow, and it signs the user in itself. The installers now point to it as the next step instead of running it or asking for a separate sign-in (swamp-club#3454).</p>
+<ul>
+<li><strong><code>scripts/install.sh</code></strong>: the installer no longer launches <code>swamp start</code> after a first desktop install, and no longer asks &quot;Sign in now? [Y/n]&quot;. It always prints the same &quot;Next steps&quot;:</li>
+</ul>
+<p>  1. <code>swamp start</code> (signs you in to swamp-club.com and opens your browser). The CI/daemon <code>SWAMP_API_KEY</code> / <code>SWAMP_SIGNIN_TOKEN</code> note stays under this step, and root installs are told to run it as their own user.</p>
+<p>  2. Shell completions.</p>
+<p>  3. Discord.</p>
+<ul>
+<li><strong><code>scripts/install.ps1</code></strong>: the same change. This also removes the old &quot;Swamp is better with SWAMP CLUB&quot; prompt, which described an account as optional, along with its unguarded <code>[Console]::KeyAvailable</code> check.</li>
+<li><strong><code>README.md</code></strong>: Quick Start now starts with <code>swamp start</code>. The <code>swamp auth login</code> step and the CI/daemon link move to the existing-project (<code>swamp repo init</code>) path, which doesn&#39;t go through <code>swamp start</code>.</li>
+</ul>
+<p>The installers no longer read <code>SWAMP_NONINTERACTIVE</code>, and nothing documents it. This change reaches users when the published installer is next uploaded, which happens separately from the merge.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Ran the branch <code>install.sh</code> end to end into a scratch directory as a first</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.180011.0-sha.c07ea507" rel="noopener">release v20261014.180011.0-sha.c07ea507</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c07ea5073dd88a52c7d968c6354e5c9c3b9f66ed" rel="noopener">c07ea507</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3111" rel="noopener">#3111</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-175140-0-sha-47a5e0c5">
+<h2><span class="tier A">A</span>swamp update shows download progress, resumes a stalled or dropped download, and cleans up on Ctrl+C (swamp-club#3447) (#3110)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T17:53:39Z">2026-10-14T17:53:39Z</time></span><span>update</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(update): swamp update shows download progress, resumes a stalled or dropped download, and cleans up on Ctrl+C (swamp-club#3447) (#3110)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3447. <code>swamp update</code> streamed the archive straight to a file with no timeout and printed nothing. On a slow link it ran for over 20 minutes with no output and looked hung. Ctrl+C left the partial archive (53 MB in the report) in a <code>swamp-update-*</code> temp directory.</p>
+<ul>
+<li><strong>Progress.</strong> On a terminal the spinner shows bytes, total, percent and a 5s rolling speed, e.g. <code>Downloading update 10.5 MB / 118.6 MB (8%) · 2.0 MB/s</code>. It is cut to the terminal width so it never wraps. When stderr is not a terminal (agents, CI, pipes), a progress line goes to stderr at most every 10s. <code>-q</code> hides those lines. <code>--json</code> stdout is still one document.</li>
+<li><strong>Stalls and failures.</strong> An attempt that receives no data for 30s is abandoned. Stalls, dropped connections and 5xx responses are retried with backoff (2s, 4s, 8s, 16s), resuming from the bytes already written with <code>Range</code> plus <code>If-Range</code>. A server that ignores the range restarts the file from zero. Each attempt uses a new HTTP client: fetch&#39;s shared pool multiplexes HTTP/2, so a retry through it waited on the very connection that had stalled. After 5 failed attempts in a row it stops with an error that names what was received, e.g. <code>received 19.0 MB of 118.6 MB</code>. Any attempt that receives bytes resets that count.</li>
+<li><strong>Ctrl+C</strong> cancels the check, the checksum fet</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.175140.0-sha.47a5e0c5" rel="noopener">release v20261014.175140.0-sha.47a5e0c5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/47a5e0c5aad7e4624155ab8ec922b9d30777a8cc" rel="noopener">47a5e0c5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3110" rel="noopener">#3110</a>𝗔 <a href="https://swamp-club.com/lab/3447" rel="noopener">lab#3447</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-173633-0-sha-1103beef">
+<h2><span class="tier A">A</span>review gates read the verdict for the head commit and fail closed; reviewers post their body through a heredoc (swamp-club#3425, swamp-club#3422) (#3109)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T17:39:06Z">2026-10-14T17:39:06Z</time></span><span>ci</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(ci): review gates read the verdict for the head commit and fail closed; reviewers post their body through a heredoc (swamp-club#3425, swamp-club#3422) (#3109)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The Adversarial Review, CI Security Review and Review Integrity gates read the last <code>github-actions</code> review whose body started with <code>## &lt;Heading&gt;</code>, on any commit. Claude Code refuses a quoted Bash argument containing a line that starts with <code>#</code>, so reviewers retried until a bold-heading variant got through. The gates skipped the bold review and read an older one. On #3091 a passing review was blocked by a stale CHANGES_REQUESTED on an older commit. The same flaw could also let an older pass stand in for a newer bold failure.</p>
+<p>Fixes swamp-club#3425 (cause) and swamp-club#3422 (symptom).</p>
+<ul>
+<li><strong>Fail steps</strong> keep only the review whose <code>.commit.oid</code> is the PR head commit (<code>HEAD_SHA</code> set through <code>env</code>). They pass on APPROVED or COMMENTED, fail on CHANGES_REQUESTED, and fail when no review was posted for the head commit.</li>
+<li><strong>Heading match</strong> is <code>^(#+ |\*\*)?&lt;Heading&gt;</code>, so <code>#</code>, <code>##</code>, bold and plain headings are all recognised.</li>
+<li><strong>Skip checks</strong> read state and commit from one selection instead of two calls.</li>
+<li><strong>Prompts</strong> post the body with <code>gh pr review N … --body-file - &lt;&lt;&#39;EOF&#39;</code>, which the permission check allows.</li>
+<li><strong><code>.github/actions/</strong></code>** now triggers the CI Security Review. The path filter, the skip-check diff and the reviewer prompt all include it.</li>
+<li>**`integration/ci_review_gate_rules_te</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.173633.0-sha.1103beef" rel="noopener">release v20261014.173633.0-sha.1103beef</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1103beefbdcd07ac3ba0a04afdc100fe3857f342" rel="noopener">1103beef</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3109" rel="noopener">#3109</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3091" rel="noopener">#3091</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3096" rel="noopener">#3096</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2906" rel="noopener">#2906</a>𝗔 <a href="https://swamp-club.com/lab/3425" rel="noopener">lab#3425</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-173153-0-sha-5f17e5c0">
+<h2><span class="tier A">A</span>extension quality scores repository-verified as the registry does for private source hosting (swamp-club#3406) (#3107)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T17:34:15Z">2026-10-14T17:34:15Z</time></span><span>extensions</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(extensions): extension quality scores repository-verified as the registry does for private source hosting (swamp-club#3406) (#3107)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The registry awards <code>repository-verified</code> to a private extension whose collective has private source hosting, whatever its repository URL (swamp-club#3396). The local rubric only knew the four public forges, so <code>swamp extension quality</code> failed a full-score gate for a self-hosted or private repository that the registry credits.</p>
+<p><code>quality</code> now reaches the registry&#39;s verdict:</p>
+<ul>
+<li>It reads the collective&#39;s private source hosting and namespace privacy from whoami&#39;s new <code>collectiveSourceHosting</code> field (swamp-club#3440, live). The field is its own top-level list joined on <code>slug</code>; <code>organizations</code> is untouched.</li>
+<li>It predicts the extension&#39;s visibility the way <code>confirm-push</code> sets it. A republish keeps the published visibility (read from the registry, only when the collective has private source hosting). A first publish is private when the manifest asks for it or the namespace is private.</li>
+<li>When both hold, <code>repository-verified</code> is <code>provisional</code>, labelled &quot;Private repository (collective attested)&quot;. Otherwise the URL is scored exactly as before, and the <code>missing</code> remediation says which half of the rule is missing.</li>
+<li>One 5-second timeout bounds both reads. No credentials, a rejected key, an older server, an answer without visibility, or any error scores the URL alone, as released.</li>
+</ul>
+<p>The bundled swamp skill&#39;s quality referen</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.173153.0-sha.5f17e5c0" rel="noopener">release v20261014.173153.0-sha.5f17e5c0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5f17e5c051f03c07e7ca604efb7e1d6f94fbb0d3" rel="noopener">5f17e5c0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3107" rel="noopener">#3107</a>𝗔 <a href="https://swamp-club.com/lab/3406" rel="noopener">lab#3406</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-165834-0-sha-ab6f92a2">
+<h2><span class="tier A">A</span>an open tab&#39;s run queries follow run activity, not the clock (swamp-club#3444) (#3106)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T17:00:25Z">2026-10-14T17:00:25Z</time></span><span>dashboard</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(dashboard): an open tab&#39;s run queries follow run activity, not the clock (swamp-club#3444) (#3106)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3444. Two dashboard request patterns kept sending serve&#39;s run queries for as long as a tab stayed open:</p>
+<ul>
+<li><strong>Live run page:</strong> polled <code>workflow.run.search</code> every 2.5 s, only to read one row (the trigger and awaiting-resume state).</li>
+<li><strong>Preset time ranges:</strong> re-keyed the run summary once a minute. <code>useTimeBounds</code> rounds <code>Date.now()</code> to the minute during render, and the health stream re-renders every 5 s, so the request&#39;s <code>since</code> changed at each minute rollover.</li>
+</ul>
+<p>swamp-club#3443 (#3105) made each of these requests cheap on the server. This PR stops them being sent when nothing has changed.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong>Presets go to serve as relative durations</strong> (<code>client/time_range.ts</code>). <code>requestTimeBounds</code> / <code>useRequestTimeBounds</code> send <code>since: &quot;7d&quot;</code>, which serve already reads through <code>parseRunTimeBound</code>. The run summary and trigger run-search requests now change only when the range does. <code>useTimeBounds</code> keeps the moving ISO bounds for calendars, chart buckets and client-side filters.</li>
+<li><strong>Summaries refresh on run activity</strong> (<code>client/run_activity.ts</code>, new).</li>
+<li><code>RunActivityProvider</code> shares the health snapshot&#39;s active-runs key and the tab&#39;s visibility.</li>
+<li><code>useRefetchOnRunActivity</code>, called by <code>useRunSummary</code>, refetches when a run starts or finishes, or when the tab comes back into view. It refetches at most once per 30 s, with a trailing edg</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.165834.0-sha.ab6f92a2" rel="noopener">release v20261014.165834.0-sha.ab6f92a2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ab6f92a25f027f7bda763206d8c21d9e357c2106" rel="noopener">ab6f92a2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3106" rel="noopener">#3106</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3105" rel="noopener">#3105</a>𝗔 <a href="https://swamp-club.com/lab/3444" rel="noopener">lab#3444</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261014-152750-0-sha-9660b51f">
 <h2><span class="tier A">A</span>OAuth startup looks up only added admin names, names the oauth:manage scope on a refused lookup, and skips entries that are not plain usernames (swamp-club#3435) (#3104)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -233,7 +347,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.023540.0-sha.7b10a478" rel="noopener">release v20261014.023540.0-sha.7b10a478</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7b10a47868b5452c3d5109cccb49ed3d74107d82" rel="noopener">7b10a478</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3097" rel="noopener">#3097</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3094" rel="noopener">#3094</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3081" rel="noopener">#3081</a>𝗔 <a href="https://swamp-club.com/lab/3426" rel="noopener">lab#3426</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261014-015425-0-sha-fd84c826">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261014-015425-0-sha-fd84c826">
 <h2><span class="tier A">A</span>a dormant Litestream sidecar for v3 writers, and a write command confirms its commits are replicated before it succeeds (swamp-club#3416) (#3096)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T01:56:25Z">2026-10-14T01:56:25Z</time></span><span>datastore</span><span>feat</span></div>
@@ -356,7 +470,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/operations.md" rel="noopener">design/operations.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.004145.0-sha.4bee4a71" rel="noopener">release v20261014.004145.0-sha.4bee4a71</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4bee4a718c5311c7cfbe6d016e37fb171fa2c294" rel="noopener">4bee4a71</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3092" rel="noopener">#3092</a>𝗔 <a href="https://swamp-club.com/lab/3411" rel="noopener">lab#3411</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261014-001450-0-sha-267c9cdf">
+<article class="item" id="release-swamp-club-swamp-v20261014-001450-0-sha-267c9cdf">
 <h2><span class="tier A">A</span>push refuses a symlink in the module graph again, quoting none of its target (swamp-club#3420) (#3091)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T00:16:45Z">2026-10-14T00:16:45Z</time></span><span>extensions</span><span>fix</span></div>
@@ -7435,6 +7549,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.060930.0-sha.ccae15a5" rel="noopener">release v20261001.060930.0-sha.ccae15a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ccae15a547ef51d5186e3d21f5492683bea56882" rel="noopener">ccae15a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2758" rel="noopener">#2758</a>𝗔 <a href="https://swamp-club.com/lab/2866" rel="noopener">lab#2866</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261014-161041-0-sha-c5038e5b">
+<h2><span class="tier B">B</span>cached run index snapshots, query pushdown and a warm-up for the dashboard&#39;s run queries (swamp-club#3443, swamp-club#3407) (#3105)</h2>
+<p class="lede">`perf` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T16:12:50Z">2026-10-14T16:12:50Z</time></span><span>serve</span><span>perf</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>perf(serve): cached run index snapshots, query pushdown and a warm-up for the dashboard&#39;s run queries (swamp-club#3443, swamp-club#3407) (#3105)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The dashboard&#39;s Workflows page, a workflow&#39;s page and a run&#39;s page were slow on repos with a long run history. <code>workflow.run.summary</code> and <code>workflow.run.search</code> read every run index of every workflow and built a row for every run ever kept. Only then did they apply the time window, the workflow filters, authorization and the page. Each request also re-parsed every workflow YAML file. A live run page polled this every 2.5 s to read one row.</p>
+<p>Fixes swamp-club#3443 and swamp-club#3407. Four commits, each revertable on its own:</p>
+<p>1. <strong>Run index snapshots and query pushdown</strong> (<code>a933f210</code>)</p>
+<ul>
+<li><code>RunIndexSnapshot</code> (domain value object) is an immutable, newest-first view of one workflow&#39;s run index. It answers time windows by binary search, looks runs up by id, and lists the names and statuses its runs recorded.</li>
+<li><code>RunIndexCache</code> in <code>YamlWorkflowRunRepository.runIndexSnapshot</code> reuses a snapshot while a stat of the index file and the records directory&#39;s mtime are unchanged. Writers in other processes, datastore pulls and this process&#39;s own saves are all seen on the next read, with no hook. Safeguards:</li>
+<li>a 2 s racy window, which also covers a clock running ahead;</li>
+<li>nothing is cached on a platform without mtimes;</li>
+<li>snapshots built from the records (no usable index) are not cached;</li>
+<li>an LRU</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.161041.0-sha.c5038e5b" rel="noopener">release v20261014.161041.0-sha.c5038e5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c5038e5bcf2389040a16c4718491dc30e7726f70" rel="noopener">c5038e5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3105" rel="noopener">#3105</a>𝗔 <a href="https://swamp-club.com/lab/3443" rel="noopener">lab#3443</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261013-013317-0-sha-fd19b7dc">
 <h2><span class="tier B">B</span>a fresh v3 checkout catches up without an fsync per file (swamp-club#3337) (#3048)</h2>
 <p class="lede">`perf` change · swamp-club/swamp</p>
@@ -7742,7 +7879,150 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261014-034854-0-sha-110977e9">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261014-185949-0-sha-42a6beb5">
+<h2><span class="tier C">C</span>swamp 20261014.185949.0-sha.42a6beb5</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T19:01:50Z">2026-10-14T19:01:50Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(dashboard): an idle tab&#39;s preset range ages out runs that leave the window (swamp-club#3450) (#3115)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3450, a follow-up to swamp-club#3444 (#3106). Since #3444, a preset range is sent as a duration and summaries are re-read only on run activity or when the tab comes back into view. As a result, a visible tab with no run activity kept counting runs that had left a preset window. On <strong>Last 1h</strong>, a run started 61 minutes ago stayed counted until a run started or finished, the tab was hidden and shown again, or the page was reloaded.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong>Serve, run summary</strong> (<code>src/libswamp/workflows/run_summary.ts</code>): <code>summarizeWorkflowRuns</code> reports an optional <code>oldestStartedAt</code>, the start of the oldest counted run.</li>
+<li><strong>Serve, run search</strong> (<code>run_search.ts</code>, <code>workflow_handlers.ts</code>):</li>
+<li>With a <code>since</code> bound, the completed event and the <code>workflow.run.search</code> payload carry the resolved <code>since</code> and <code>oldestStartedAt</code> beside <code>total</code>.</li>
+<li><code>oldestStartedAt</code> covers every match, not just the returned page.</li>
+<li>An all-time search and the CLI output are unchanged.</li>
+<li><strong>Protocol types</strong>: optional fields added in <code>src/serve/protocol.ts</code> and <code>packages/client/protocol.ts</code>.</li>
+<li><strong>Dashboard, new pure functions</strong> (<code>client/run_activity.ts</code>):</li>
+<li><code>ageOutDelayMs</code> returns <code>oldestStartedAt − since</code>. Both times come from serve&#39;s clock, so a skewed browser clock doesn&#39;t matter.</li>
+<li><code>ageOutTimerStep</code> caps each wait below <code>setTimeout</code>&#39;s 2³¹−1 ms limit. Without</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.185949.0-sha.42a6beb5" rel="noopener">release v20261014.185949.0-sha.42a6beb5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/42a6beb5" rel="noopener">42a6beb5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3115" rel="noopener">#3115</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3106" rel="noopener">#3106</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3112" rel="noopener">#3112</a>𝗔 <a href="https://swamp-club.com/lab/3450" rel="noopener">lab#3450</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-184806-0-sha-878203fb">
+<h2><span class="tier C">C</span>swamp 20261014.184806.0-sha.878203fb</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T18:50:48Z">2026-10-14T18:50:48Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a worker whose enrollment finishes after its socket closed is not kept as live, and enrollment no longer slows with repo size (swamp-club#3405) (#3116)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3405. After a serve restart, a worker&#39;s enroll call timed out while serve was still recording the enrollment. The socket&#39;s close handler found no worker to disconnect, so the enrollment then admitted the closed socket as a live worker. As a result:</p>
+<ul>
+<li>the real worker was refused as <code>already connected</code> on every reconnect;</li>
+<li>the scheduler kept re-dispatching steps into the dead session;</li>
+<li>only a serve restart cleared it.</li>
+</ul>
+<p><strong>The dead session</strong> (<code>src/serve/worker_gateway.ts</code>)</p>
+<ul>
+<li>An enrollment that finishes on a closed socket goes through the normal close path: it is recorded as disconnected and gets the reconnection grace window.</li>
+<li>An enrollment whose socket closed while it waited for its turn is skipped before anything is recorded.</li>
+<li>The <code>already_connected</code> refusal ignores a closed socket.</li>
+</ul>
+<p><strong>Why enrollment was slow</strong></p>
+<ul>
+<li>Every write serve makes about workers looked its definition up by name across the whole repo, parsing every file under <code>models/</code>. This covers token redeem, worker enroll and status, and dispatch leases. A new fleet member costs about four of these full passes, and enrollments run one at a time.</li>
+<li>Serve&#39;s own runs now look definitions up by type: <code>models/&lt;type&gt;</code> first, then auto-definitions (<code>createWorkerModelRunDeps</code> gets a <code>definitionType</code> option; the</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.184806.0-sha.878203fb" rel="noopener">release v20261014.184806.0-sha.878203fb</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/878203fb" rel="noopener">878203fb</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3116" rel="noopener">#3116</a>𝗔 <a href="https://swamp-club.com/lab/3405" rel="noopener">lab#3405</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-183355-0-sha-efe6798a">
+<h2><span class="tier C">C</span>swamp 20261014.183355.0-sha.efe6798a</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T18:35:31Z">2026-10-14T18:35:31Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(runs): a run index repair checks fingerprints even when the count agrees again in the queue (swamp-club#3452) (#3113)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3452. Since #3105, <code>repairIndex</code> recounted run records</p>
+<p>inside the index queue and returned the index untouched when the count</p>
+<p>agreed again. That is the usual case, because a save writes its record</p>
+<p>before its index entry. The stat-based fingerprint check was skipped,</p>
+<p>so an entry that a save in another process had overwritten was not</p>
+<p>corrected on that read. The entry kept the status and fingerprint of an</p>
+<p>earlier write of its record, for example <code>running</code> for a run that had</p>
+<p>succeeded.</p>
+<p><code>repairIndex</code> now always runs <code>findSuspectRecords</code> and</p>
+<p><code>reconcileSuspects</code> once a reader has seen a count mismatch. That costs</p>
+<p>one stat per record, and nothing is read or written when every</p>
+<p>fingerprint still matches.</p>
+<h4 class="body-h">Scope</h4>
+<p>This change makes more reads heal, but it does not stop the entries</p>
+<p>going stale. The lost updates come from the older cross-process race:</p>
+<p>index read-modify-write is serialized only within one process. That</p>
+<p>race is filed as swamp-club#3455.</p>
+<p>The reproduction ran 4 writer processes for 150 s, sampling the index</p>
+<p>each second. Before #3105, on #3105 and with this change, entries all</p>
+<p>go stale and are healed the same way, in sweeps whenever some reader</p>
+<p>catches a mismatch. How many stay stale at the end of a burst depends</p>
+<p>on when the last sweep ran.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>New unit test: a reader counts a mismatch tha</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.183355.0-sha.efe6798a" rel="noopener">release v20261014.183355.0-sha.efe6798a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/efe6798a" rel="noopener">efe6798a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3113" rel="noopener">#3113</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3105" rel="noopener">#3105</a>𝗔 <a href="https://swamp-club.com/lab/3452" rel="noopener">lab#3452</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-182448-0-sha-0f66cede">
+<h2><span class="tier C">C</span>swamp 20261014.182448.0-sha.0f66cede</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T18:26:46Z">2026-10-14T18:26:46Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>test(extensions): push_behavior_test expects forward-slash content file names on Windows (swamp-club#3462) (#3114)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3462, a follow-up to swamp-club#3451 (#3108).</p>
+<p>#3108 made extension push send content metadata file names with forward slashes on every OS. <code>src/libswamp/extensions/push_behavior_test.ts</code> built its expectation with <code>join(&quot;aws&quot;, &quot;ec2.ts&quot;)</code>, so on Windows it still expected <code>aws\ec2.ts</code>. It was the only failure in the Windows Compatibility run for the #3108 merge commit (25339 passed, 1 failed): <a href="https://github.com/swamp-club/swamp/actions/runs/38607757906" rel="noopener">https://github.com/swamp-club/swamp/actions/runs/38607757906</a></p>
+<p>The test now expects <code>&quot;aws/ec2.ts&quot;</code> on every OS. Test-only change.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>The test passes locally. verify-build ran the full suite: 25627 passed, 0 failed.</li>
+<li>I swept the tests for other <code>fileName</code> expectations built with <code>join</code>, looking across lines. The remaining ones are resolved display paths, which #3108 did not change.</li>
+<li>The Windows Compatibility workflow runs only on pushes to main. The run after this merges is the confirmation.</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20261014.182448.0-sha.0f66cede/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20261014.182448.0-sha.0f66cede/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20261014.182448.0-sha.0f66cede/swam" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20261014.182448.0-sha.0f66cede/swam</a></p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.182448.0-sha.0f66cede" rel="noopener">release v20261014.182448.0-sha.0f66cede</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0f66cede" rel="noopener">0f66cede</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3114" rel="noopener">#3114</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3108" rel="noopener">#3108</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-181941-0-sha-e99b04d4">
+<h2><span class="tier C">C</span>swamp 20261014.181941.0-sha.e99b04d4</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T18:22:50Z">2026-10-14T18:22:50Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(dashboard): the Models page and a model&#39;s page stop re-sending their output search every minute (swamp-club#3449) (#3112)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3449, split out of swamp-club#3444.</p>
+<p>The Models page (usage column) and a model&#39;s page (<code>ModelExecutions</code>) keyed <code>model.output.search</code> on <code>useTimeBounds()</code>, which rounds <code>Date.now()</code> to the minute during render. The health stream re-renders every 5 s, so on a preset range the request&#39;s <code>since</code> changed at every minute rollover: an open tab re-sent the search once a minute, and <code>useRequest</code> dropped the view back to loading each time. #3444 fixed the same pattern for the run queries by sending a preset as a duration, but serve&#39;s <code>model.output.search</code> only accepted ISO times.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong>Serve accepts durations</strong> (<code>src/libswamp/models/output_search.ts</code>). <code>since</code> and <code>until</code> may be a duration such as <code>7d</code>, counted back from serve&#39;s clock through the run queries&#39; own <code>parseRunTimeBound</code>, so both read durations the same way. Every value accepted before is still accepted (<code>new Date</code> fallback). Anything else, including a duration too large to resolve to a date, is <code>validation_failed</code>. <code>until</code> accepting a duration comes free from the shared parser; the dashboard doesn&#39;t send one.</li>
+<li><strong>Dashboard sends a preset as a duration</strong> (<code>client/model_outputs.ts</code>, <code>lib/model_outputs.ts</code>). <code>useModelOutputSearch</code> sends <code>since: &quot;7d&quot;</code>, so the request changes only with the range. If serve refuses the duration with `validati</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.181941.0-sha.e99b04d4" rel="noopener">release v20261014.181941.0-sha.e99b04d4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e99b04d4" rel="noopener">e99b04d4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3112" rel="noopener">#3112</a>𝗔 <a href="https://swamp-club.com/lab/3449" rel="noopener">lab#3449</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-034854-0-sha-110977e9">
 <h2><span class="tier C">C</span>Layout Migration describes the re-pull and sweep that repo upgrade runs for gen-1 and gen-2 extensions (swamp-club#3273) (#3098)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T03:50:25Z">2026-10-14T03:50:25Z</time></span><span>extensions</span><span>docs</span></div>
@@ -8081,13 +8361,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>333 items across 1 source(s) in this window:
-0 critical, 306 notable, 12 routine,
-15 minor.</p>
-<ul><li><strong>fix</strong> — 215</li><li><strong>feat</strong> — 91</li><li><strong>refactor</strong> — 11</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 7</li><li><strong>perf</strong> — 1</li></ul></section>
+<p>344 items across 1 source(s) in this window:
+0 critical, 311 notable, 13 routine,
+20 minor.</p>
+<ul><li><strong>fix</strong> — 218</li><li><strong>feat</strong> — 93</li><li><strong>refactor</strong> — 11</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 7</li><li><strong>changes</strong> — 5</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-14T18:02:55.506Z">2026-10-14T18:02:55.506Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-14T19:03:34.793Z">2026-10-14T19:03:34.793Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

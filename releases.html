@@ -7879,7 +7879,137 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261014-200600-0-sha-7e026830">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261014-205128-0-sha-17edd435">
+<h2><span class="tier C">C</span>swamp 20261014.205128.0-sha.17edd435</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T20:53:30Z">2026-10-14T20:53:30Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(expressions): literal() output and foreign text in step inputs no longer log refusal warnings, and a step reports each refusal once (swamp-club#3402) (#3125)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3402. A workflow step that passed <code>literal()</code> output through its <code>inputs</code> ran correctly but logged a <code>Refusing to evaluate expression</code> warning for each later pass over the text. Two <code>literal()</code> calls in one step input produced six warnings.</p>
+<ul>
+<li><strong>Constant output is refused silently.</strong> The output of an authored constant, meaning an expression with no free roots such as <code>literal(&#39;...&#39;)</code>, is the author&#39;s own text. <code>partitionAuthored</code> and <code>partitionAuthoredAt</code> still refuse it but no longer warn. The set of such output is derived lazily from the authored set, which data cannot extend, and memoised per set.</li>
+<li><strong>Foreign text is refused silently.</strong> Text that no swamp evaluation could own (<code>isForeignExpression</code>), such as <code>github.sha</code>, reads no swamp root and no vault, so the refusal has nothing to report.</li>
+<li><strong>Each step reports a refusal once.</strong> The new <code>src/domain/expressions/expression_rejection_report.ts</code> holds a per-step report on an <code>AsyncLocalStorage</code>:</li>
+<li><code>executeMethod</code> enters it around the step executor.</li>
+<li><code>runWorkflowStep</code> enters one report around each evaluation call, because its body yields between them.</li>
+</ul>
+<p>  Injected text is still named once for every step and <code>forEach</code> iteration it reaches, so attribution is kept. This is once per step, not once per run as the iss</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.205128.0-sha.17edd435" rel="noopener">release v20261014.205128.0-sha.17edd435</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/17edd435" rel="noopener">17edd435</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3125" rel="noopener">#3125</a>𝗔 <a href="https://swamp-club.com/lab/3402" rel="noopener">lab#3402</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-204224-0-sha-8d6dfb6c">
+<h2><span class="tier C">C</span>swamp 20261014.204224.0-sha.8d6dfb6c</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T20:44:38Z">2026-10-14T20:44:38Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(install): install.ps1 leaves the user&#39;s PowerShell session open when an irm | iex install fails (swamp-club#3474) (#3124)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes <a href="https://swamp-club.com/lab/3474" rel="noopener">swamp-club#3474</a> and <a href="https://swamp-club.com/lab/3475" rel="noopener">swamp-club#3475</a>.</p>
+<p>The documented Windows install, <code>irm <a href="https://swamp-club.com/install.ps1" rel="noopener">https://swamp-club.com/install.ps1</a> | iex</code>, runs the installer inside the caller&#39;s own PowerShell session. Before this change:</p>
+<ul>
+<li>a failed install hit <code>exit 1</code>, which closed the user&#39;s window along with the error and the Discord help line;</li>
+<li><code>$ErrorActionPreference = &quot;Stop&quot;</code> and the installer&#39;s helper functions and variables leaked into the user&#39;s session;</li>
+<li><code>-Help</code> called <code>Get-Help $PSCommandPath</code>, which is empty when the script is not run from a file.</li>
+</ul>
+<p>Changes:</p>
+<ul>
+<li><strong><code>scripts/install.ps1</code></strong>: the <code>param</code> block stays at the top level, unchanged. Everything else runs in a child scope (<code>&amp; { ... }</code>) that takes no arguments, so a caller&#39;s own <code>$args</code> never reach the installer. Both <code>exit 1</code> calls now <code>throw &quot;swamp installation failed&quot;</code> after the existing error and Discord lines; <code>pwsh -Command</code> and <code>pwsh -File</code> still exit 1. <code>-Help</code> prints usage inline when the script is not run from a file.</li>
+<li><strong><code>integration/install_ps1_rules_test.ts</code></strong> (new): a static rule over the script text (no <code>exit</code>; only the <code>param</code> block and the <code>&amp; {</code> wrapper at the top level; <code>$ErrorActionPreference</code> inside the wrapper). Both tests fail against the previous script.</li>
+<li><strong><code>README.md</code></strong> (#3475): lists the</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.204224.0-sha.8d6dfb6c" rel="noopener">release v20261014.204224.0-sha.8d6dfb6c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8d6dfb6c" rel="noopener">8d6dfb6c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3124" rel="noopener">#3124</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3475" rel="noopener">#3475</a>𝗔 <a href="https://swamp-club.com/lab/3474" rel="noopener">lab#3474</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-203658-0-sha-4b09c8eb">
+<h2><span class="tier C">C</span>swamp 20261014.203658.0-sha.4b09c8eb</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T20:38:37Z">2026-10-14T20:38:37Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): the Linux binary names its boot, so a v3 catch-up stops syncing every file (swamp-club#3418) (#3123)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3418. It&#39;s a <strong>bug fix in swamp-club#3337&#39;s shipped behaviour, not a regression.</strong> The Linux binary has been slow since swamp-club#3337 shipped; data was always safe, and only speed was lost.</p>
+<p>The released binary is compiled with granular <code>--allow-*</code> flags (<code>scripts/compile.ts</code>, since <code>035478788</code>), and Deno refuses any read under <code>/proc</code> without <code>--allow-all</code>, however narrow the read grant:</p>
+<p>```</p>
+<p>NotCapable: Requires all access to &quot;/proc/sys/kernel/random/boot_id&quot;, run again with the --allow-all flag</p>
+<p>```</p>
+<p><code>readBootIdentity</code> caught that refusal and named no boot. On Linux, the v3 read model then took swamp-club#3337&#39;s safe path and synced every file and directory it caught up. Tests, benches and source runs use <code>-A</code>, where the read works, so only the compiled Linux binary was affected. macOS was fine all along: it reads its boot by running <code>/usr/sbin/sysctl</code>, which <code>--allow-run</code> permits.</p>
+<p><strong>The fix (<code>src/infrastructure/datastore_v3/boot_identity.ts</code>):</strong></p>
+<ul>
+<li>It still tries <code>Deno.readTextFile</code> first. Only when that read is refused with <code>Deno.errors.NotCapable</code> does it run <code>/bin/cat</code>, or <code>/usr/bin/cat</code> when <code>/bin/cat</code> doesn&#39;t exist.</li>
+<li><code>cat</code> runs only from those absolute paths, never through <code>PATH</code>, with a 2 s <code>AbortSignal</code> timeout.</li>
+<li>Only a lowercase UUID is accepted as output.</li>
+<li>Any failure (no <code>cat</code>, a non-zero exit</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.203658.0-sha.4b09c8eb" rel="noopener">release v20261014.203658.0-sha.4b09c8eb</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4b09c8eb" rel="noopener">4b09c8eb</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3123" rel="noopener">#3123</a>𝗔 <a href="https://swamp-club.com/lab/3418" rel="noopener">lab#3418</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-201457-0-sha-24ef57e3">
+<h2><span class="tier C">C</span>swamp 20261014.201457.0-sha.24ef57e3</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T20:16:58Z">2026-10-14T20:16:58Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(cli): swamp completions powershell gives PowerShell users tab completion (swamp-club#3459) (#3122)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3459. <code>swamp completions</code> only supported bash, fish and zsh, so PowerShell users (most Windows users) had no tab completion. No Cliffy release has a PowerShell generator, so swamp now owns one.</p>
+<p><strong><code>swamp completions powershell</code></strong> (<code>src/cli/commands/completion_powershell.ts</code>)</p>
+<ul>
+<li>Prints a script that registers a native argument completer for <code>swamp</code> and <code>swamp.exe</code>. Load it from the PowerShell profile:</li>
+</ul>
+<p>  ```powershell</p>
+<p>  swamp completions powershell | Out-String | Invoke-Expression</p>
+<p>  ```</p>
+<ul>
+<li>Completes subcommands, command aliases (including <code>behaviour</code>, like zsh), options and option values from the command tree. It handles <code>--opt=value</code> and <code>--</code>.</li>
+<li>Model, behavior and workflow names come from the existing hidden <code>completions complete</code> subcommand, as in bash and fish. A plain <code>string</code> argument doesn&#39;t start swamp on TAB.</li>
+<li>Names from the repo are only ever inserted as completion text, never evaluated. Values containing whitespace, PowerShell metacharacters or the curly quotes (U+2018–U+201E, which PowerShell also treats as quotes) are single-quoted with PowerShell&#39;s own <code>CodeGeneration.EscapeSingleQuotedStringContent</code>.</li>
+<li>Commands and flags match case-sensitively, as Cliffy parses them.</li>
+<li>Only Windows PowerShell 5.1 syntax is used, so it loads in 5.1 and in 7.</li>
+</ul>
+<p><strong>Tests and fitness rules</strong></p>
+<ul>
+<li>Unit tests for the generator on a hand-bu</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.201457.0-sha.24ef57e3" rel="noopener">release v20261014.201457.0-sha.24ef57e3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/24ef57e3" rel="noopener">24ef57e3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3122" rel="noopener">#3122</a>𝗔 <a href="https://swamp-club.com/lab/3459" rel="noopener">lab#3459</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-201010-0-sha-7211db16">
+<h2><span class="tier C">C</span>swamp 20261014.201010.0-sha.7211db16</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T20:11:48Z">2026-10-14T20:11:48Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): serve and dashboard shutdown no longer waits for the run index warm-up&#39;s load in flight, and the warm-up skips workflows too large to cache (swamp-club#3468) (#3121)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3468, a regression from #3105. Shutdown of <code>swamp serve</code> and the <code>swamp dashboard</code> child waited for the run index warm-up&#39;s load in flight. The warm-up&#39;s abort signal is only checked between records during a rebuild or repair. So shutdown waited out any load that does not watch it:</p>
+<ul>
+<li>a plain read and parse of an intact index;</li>
+<li>a load a request started, which the warm-up joined;</li>
+<li>a warm-up repair queued in <code>withIndexQueue</code> behind a request&#39;s rebuild.</li>
+</ul>
+<p>On a 300k-run workflow that added 1.5–2 s to every SIGTERM.</p>
+<p><strong>The warm-up</strong> (<code>src/serve/run_index_warmup.ts</code>)</p>
+<ul>
+<li>Each run count and snapshot load is raced against the warm-up&#39;s own abort signal. <code>finished()</code> therefore resolves as soon as the warm-up is stopped, and the load it let go of is left to finish in the background. Nothing is lost:</li>
+<li>the warm-up&#39;s own rebuild or repair still stops between records and writes no index;</li>
+<li>a plain read writes nothing;</li>
+<li>a joined load belongs to the request that started it.</li>
+<li>A workflow with more run records than <code>RUN_INDEX_CACHE_MAX_RUNS</code> is skipped, because the cache would drop its snapshot anyway. Its record files are counted first with <code>YamlWorkflowRunRepository.countRunRecords</code>, a listing that stops on the signal.</li>
+</ul>
+<p><code>serve.ts</code> and <code>dashboard.ts</code> pass the n</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.201010.0-sha.7211db16" rel="noopener">release v20261014.201010.0-sha.7211db16</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7211db16" rel="noopener">7211db16</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3121" rel="noopener">#3121</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3105" rel="noopener">#3105</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3118" rel="noopener">#3118</a>𝗔 <a href="https://swamp-club.com/lab/3468" rel="noopener">lab#3468</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-200600-0-sha-7e026830">
 <h2><span class="tier C">C</span>swamp 20261014.200600.0-sha.7e026830</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T20:08:03Z">2026-10-14T20:08:03Z</time></span></div>
@@ -8458,13 +8588,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>348 items across 1 source(s) in this window:
+<p>353 items across 1 source(s) in this window:
 0 critical, 311 notable, 13 routine,
-24 minor.</p>
-<ul><li><strong>fix</strong> — 218</li><li><strong>feat</strong> — 93</li><li><strong>refactor</strong> — 11</li><li><strong>changes</strong> — 9</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 7</li></ul></section>
+29 minor.</p>
+<ul><li><strong>fix</strong> — 218</li><li><strong>feat</strong> — 93</li><li><strong>changes</strong> — 14</li><li><strong>refactor</strong> — 11</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 7</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-14T20:10:41.714Z">2026-10-14T20:10:41.714Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-14T21:02:59.667Z">2026-10-14T21:02:59.667Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -7674,7 +7674,47 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261014-145417-0-sha-9ad95bb6">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261014-152750-0-sha-9660b51f">
+<h2><span class="tier C">C</span>swamp 20261014.152750.0-sha.9660b51f</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T15:29:35Z">2026-10-14T15:29:35Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): OAuth startup looks up only added admin names, names the oauth:manage scope on a refused lookup, and skips entries that are not plain usernames (swamp-club#3435) (#3104)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3435. <code>swamp serve --auth-mode=oauth</code> crash-looped with <code>403 Forbidden</code> when <code>--admins</code> changed, blaming a user who was already cached.</p>
+<p><strong>Cause.</strong> Adding any name switched startup to a full resolution that looked every cached admin and allowed-user up again. With a collective API token lacking <code>oauth:manage</code>, swamp-club&#39;s <code>/api/auth/resolve-user</code> refused the first cached name (<code>alice</code>), and startup aborted naming her with a &quot;check that swamp-club is reachable&quot; hint.</p>
+<p><strong>Changes</strong></p>
+<ul>
+<li><strong>Resolved names are pinned</strong> (<code>src/serve/oauth_access_list_resolution.ts</code>), as grant-file usernames already are. Startup looks up only names with no record and keeps cached subs. A list edit can no longer re-point a name to whoever registers it after a rename or deletion.</li>
+<li><strong>A refused lookup names the scope.</strong> <code>resolveUsername</code> throws <code>UsernameLookupRefusedError</code> on 401/403. Its message says a collective API token needs <code>oauth:manage</code>, without claiming which credential was used, since startup may use a device-grant login token. Startup uses it in place of the reachability hint; grant-file lookups and <code>check-config</code> show it unchanged.</li>
+<li><strong>Security: cache-key collision closed.</strong> Admins, allowed-users and not-found records share one cache map, and OAuth mode accepted any</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.152750.0-sha.9660b51f" rel="noopener">release v20261014.152750.0-sha.9660b51f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9660b51f" rel="noopener">9660b51f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3104" rel="noopener">#3104</a>𝗔 <a href="https://swamp-club.com/lab/3446" rel="noopener">lab#3446</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-152311-0-sha-c9a86d41">
+<h2><span class="tier C">C</span>swamp 20261014.152311.0-sha.c9a86d41</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T15:25:14Z">2026-10-14T15:25:14Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(workspace): choose where a new workspace is created — --path, a Location field on the start page, and workspaces.dir (swamp-club#3441) (#3103)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3441. New workspaces were always created under <code>&lt;data dir&gt;/workspaces/&lt;name&gt;</code>. Now the folder can be chosen:</p>
+<ul>
+<li><strong>CLI:</strong> <code>swamp workspace create &lt;name&gt; --path &lt;dir&gt;</code> and <code>swamp start --workspace &lt;name&gt; --path &lt;dir&gt;</code> create the workspace in <code>&lt;dir&gt;/&lt;name&gt;</code>. <code>&lt;dir&gt;</code> must already exist; <code>~</code> and relative paths work from the CLI. With <code>swamp start</code>, <code>--path</code> needs <code>--workspace</code> and is refused with <code>--json</code>.</li>
+<li><strong>Start page:</strong> the new-workspace form has a <strong>Location</strong> field (with Browse) under <strong>Name</strong>. Both show their default as a placeholder, and a live line shows the folder that will be created (&quot;Creates /Users/alice/dev/web&quot;) as either field changes. The server works the path out (<code>start.workspace.location.check</code>, read-only) and re-checks it on create; the page only sends absolute or <code>~</code> folders.</li>
+<li><strong>Default:</strong> <code>swamp config set workspaces.dir &lt;dir&gt;</code> sets where new workspaces go; <code>default</code> clears it.</li>
+</ul>
+<h4 class="body-h">Created vs imported</h4>
+<p>The registry now records each workspace&#39;s <code>origin</code> (<code>created</code> / <code>imported</code>), so a workspace created outside the data dir is not reported as imported in <code>workspace list</code>/<code>get</code>, on the start page, or in the agent&#39;s brief. Entries without it keep the old location rule. The field was added without a schema bump, so older versions still read <code>workspaces.json</code> (an older</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.152311.0-sha.c9a86d41" rel="noopener">release v20261014.152311.0-sha.c9a86d41</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c9a86d41" rel="noopener">c9a86d41</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3103" rel="noopener">#3103</a>𝗔 <a href="https://swamp-club.com/lab/3441" rel="noopener">lab#3441</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-145417-0-sha-9ad95bb6">
 <h2><span class="tier C">C</span>swamp 20261014.145417.0-sha.9ad95bb6</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T14:56:19Z">2026-10-14T14:56:19Z</time></span></div>
@@ -8041,13 +8081,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>331 items across 1 source(s) in this window:
+<p>333 items across 1 source(s) in this window:
 0 critical, 303 notable, 12 routine,
-16 minor.</p>
-<ul><li><strong>fix</strong> — 213</li><li><strong>feat</strong> — 90</li><li><strong>refactor</strong> — 11</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 7</li><li><strong>perf</strong> — 1</li></ul></section>
+18 minor.</p>
+<ul><li><strong>fix</strong> — 213</li><li><strong>feat</strong> — 90</li><li><strong>refactor</strong> — 11</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 7</li><li><strong>changes</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-14T15:03:08.476Z">2026-10-14T15:03:08.476Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-14T16:11:04.376Z">2026-10-14T16:11:04.376Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

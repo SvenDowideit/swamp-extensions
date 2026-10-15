@@ -67,8 +67,32 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3484"><span class="tier A">A</span>Windows: extension archives still pack directories as 0666, </a><a href="#issue-3472"><span class="tier A">A</span>serve shutdown waits for an unsignalled run index rebuild: t</a><a href="#issue-3385"><span class="tier A">A</span>bundle freshness ignores local modules outside the kind dire</a><a href="#issue-3342"><span class="tier A">A</span>Rescore scores the newest version, but the scorecard reads t</a><a href="#issue-3439"><span class="tier A">A</span>Extension push: a range dependency is sent to OSV as the ran</a><a href="#issue-3465"><span class="tier A">A</span>serve: handlers that sanitize an error for the client never </a><a href="#issue-3402"><span class="tier A">A</span>literal() output in a step&#39;s inputs logs repeated Refusing t</a><a href="#issue-3471"><span class="tier A">A</span>Add Windows installer to the homepage and manual</a><a href="#issue-3476"><span class="tier A">A</span>CopyCommand&#39;s clipboard fallback selects the wrong command o</a><a href="#issue-3475"><span class="tier A">A</span>README: add Windows to the supported platforms and its insta</a><a href="#issue-3474"><span class="tier A">A</span>install.ps1 closes the user&#39;s PowerShell window on failure w</a><a href="#issue-3418"><span class="tier A">A</span>v3 first clone on Linux is 2.6x slower than v2: batch the ca</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3482"><span class="tier A">A</span>Datastore rework Phase 4 D2: restore, refresh and takeover f</a><a href="#issue-3485"><span class="tier A">A</span>S3/GCS: a run refused for losing its model lock keeps its wr</a><a href="#issue-3469"><span class="tier A">A</span>Docs: add PowerShell to Set Up Shell Completions</a><a href="#issue-3484"><span class="tier A">A</span>Windows: extension archives still pack directories as 0666, </a><a href="#issue-3472"><span class="tier A">A</span>serve shutdown waits for an unsignalled run index rebuild: t</a><a href="#issue-3385"><span class="tier A">A</span>bundle freshness ignores local modules outside the kind dire</a><a href="#issue-3342"><span class="tier A">A</span>Rescore scores the newest version, but the scorecard reads t</a><a href="#issue-3439"><span class="tier A">A</span>Extension push: a range dependency is sent to OSV as the ran</a><a href="#issue-3465"><span class="tier A">A</span>serve: handlers that sanitize an error for the client never </a><a href="#issue-3402"><span class="tier A">A</span>literal() output in a step&#39;s inputs logs repeated Refusing t</a><a href="#issue-3471"><span class="tier A">A</span>Add Windows installer to the homepage and manual</a><a href="#issue-3476"><span class="tier A">A</span>CopyCommand&#39;s clipboard fallback selects the wrong command o</a></aside><div>
 
+<article class="item" id="issue-3482">
+<h2><span class="tier A">A</span>Datastore rework Phase 4 D2: restore, refresh and takeover from the v3 replica, with a checkout-local commits.db (dormant)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-15T00:22:39.431Z">2026-10-15T00:22:39.431Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3482" rel="noopener">lab#3482</a></div>
+</article>
+<article class="item" id="issue-3485">
+<h2><span class="tier A">A</span>S3/GCS: a run refused for losing its model lock keeps its write dirty when the refresh can&#39;t reach the datastore, so a later sync pushes it</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-15T00:22:32.155Z">2026-10-15T00:22:32.155Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3485" rel="noopener">lab#3485</a></div>
+</article>
+<article class="item" id="issue-3469">
+<h2><span class="tier A">A</span>Docs: add PowerShell to Set Up Shell Completions</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-15T00:19:40.774Z">2026-10-15T00:19:40.774Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3469" rel="noopener">lab#3469</a></div>
+</article>
 <article class="item" id="issue-3484">
 <h2><span class="tier A">A</span>Windows: extension archives still pack directories as 0666, so registry scoring fails (No manifest.yaml found)</h2>
 <p class="lede">Shipped bug fix</p>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3476" rel="noopener">lab#3476</a></div>
 </article>
-<article class="item" id="issue-3475">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3475">
 <h2><span class="tier A">A</span>README: add Windows to the supported platforms and its installer</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-14T20:48:14.113Z">2026-10-14T20:48:14.113Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3418" rel="noopener">lab#3418</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3468">
+<article class="item" id="issue-3468">
 <h2><span class="tier A">A</span>serve and swamp dashboard shutdown waits seconds for the run index warm-up: the plain index parse is not abortable, and the warm-up waits on request-led loads it joined (regression from #3105)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-14T20:20:26.087Z">2026-10-14T20:20:26.087Z</time></span></div>
@@ -3693,37 +3717,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3469">
-<h2><span class="tier B">B</span>Docs: add PowerShell to Set Up Shell Completions</h2>
+<article class="item" id="issue-3491">
+<h2><span class="tier B">B</span>Datastore rework Phase 4: close D2 follow-ups before v3 replication is switched on (lineage, messages, migration, chunk GC)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-15T00:03:26.955Z">2026-10-15T00:03:26.955Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-15T01:01:12.744Z">2026-10-15T01:01:12.744Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3469" rel="noopener">lab#3469</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3491" rel="noopener">lab#3491</a></div>
 </article>
 <article class="item" id="issue-3456">
 <h2><span class="tier B">B</span>Windows: extension push type field shows file path instead of exported type name</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-14T23:59:33.184Z">2026-10-14T23:59:33.184Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-15T00:44:35.908Z">2026-10-15T00:44:35.908Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3456" rel="noopener">lab#3456</a></div>
 </article>
-<article class="item" id="issue-3485">
-<h2><span class="tier B">B</span>S3/GCS: a run refused for losing its model lock keeps its write dirty when the refresh can&#39;t reach the datastore, so a later sync pushes it</h2>
+<article class="item" id="issue-3489">
+<h2><span class="tier B">B</span>Datastore rework Phase 4: serve confirms each v3 write request is replicated before it answers (group commit)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-14T23:57:22.185Z">2026-10-14T23:57:22.185Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-15T00:41:27.133Z">2026-10-15T00:41:27.133Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3485" rel="noopener">lab#3485</a></div>
-</article>
-<article class="item" id="issue-3482">
-<h2><span class="tier B">B</span>Datastore rework Phase 4 D2: restore, refresh and takeover from the v3 replica, with a checkout-local commits.db (dormant)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-14T23:52:32.044Z">2026-10-14T23:52:32.044Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3482" rel="noopener">lab#3482</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3489" rel="noopener">lab#3489</a></div>
 </article>
 <article class="item" id="issue-3487">
 <h2><span class="tier B">B</span>bundle freshness: a one-off deno info failure leaves a source on the in-directory fallback for good</h2>
@@ -3813,7 +3829,39 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3486">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3395">
+<h2><span class="tier C">C</span>Datastore rework Phase 4 G: S3 and GCS implement the writable datastore-wide control plane and keep _control/writer/ at the bucket root</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-15T00:27:12.710Z">2026-10-15T00:27:12.710Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3395" rel="noopener">lab#3395</a></div>
+</article>
+<article class="item" id="issue-3493">
+<h2><span class="tier C">C</span>@swamp/gcs-datastore: GcsLock.inspect() reports a failed read as no lock, so a GCS outage looks like a lost model lock</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-15T00:26:48.695Z">2026-10-15T00:26:48.695Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3493" rel="noopener">lab#3493</a></div>
+</article>
+<article class="item" id="issue-3492">
+<h2><span class="tier C">C</span>Datastore rework Phase 4 G: S3 and GCS extensions implement storage/1 chunk storage for v3</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-15T00:26:45.838Z">2026-10-15T00:26:45.838Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3492" rel="noopener">lab#3492</a></div>
+</article>
+<article class="item" id="issue-3490">
+<h2><span class="tier C">C</span>Datastore rework Phase 4 F: a durable outbox for v3 commits, the post-commit chunk check on recovery, and pruning compacted_txns</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-15T00:26:37.013Z">2026-10-15T00:26:37.013Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3490" rel="noopener">lab#3490</a></div>
+</article>
+<article class="item" id="issue-3486">
 <h2><span class="tier C">C</span>Docs: extension trust manual should describe OSV version resolution and the no-matching-version not-audited case</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-14T22:29:44.324Z">2026-10-14T22:29:44.324Z</time></span></div>
@@ -4076,14 +4124,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3336" rel="noopener">lab#3336</a></div>
-</article>
-<article class="item" id="issue-3395">
-<h2><span class="tier C">C</span>Datastore rework Phase 4 G: S3 and GCS implement the writable datastore-wide control plane and keep _control/writer/ at the bucket root</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-13T23:04:45.812Z">2026-10-13T23:04:45.812Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3395" rel="noopener">lab#3395</a></div>
 </article>
 <article class="item" id="issue-3391">
 <h2><span class="tier C">C</span>extension push: read dependency licenses with the shared SPDX parser (OR, AND, WITH)</h2>
@@ -5238,13 +5278,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>646 items across 1 source(s) in this window:
-0 critical, 453 notable, 15 routine,
-178 minor.</p>
-<ul><li><strong>issues</strong> — 646</li></ul></section>
+<p>651 items across 1 source(s) in this window:
+0 critical, 456 notable, 14 routine,
+181 minor.</p>
+<ul><li><strong>issues</strong> — 651</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-15T00:10:29.364Z">2026-10-15T00:10:29.364Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-15T01:03:10.866Z">2026-10-15T01:03:10.866Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

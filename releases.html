@@ -67,8 +67,32 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261014-222707-0-sha-ff6c1f45"><span class="tier A">A</span>serve shutdown no longer waits for the continuation sweep&#39;s </a><a href="#release-swamp-club-swamp-v20261014-222313-0-sha-d3487b15"><span class="tier A">A</span>editing any local module a bundle includes rebuilds it, not </a><a href="#release-swamp-club-swamp-v20261014-220449-0-sha-79e0800b"><span class="tier A">A</span>push resolves a range dependency to a published version befo</a><a href="#release-swamp-club-swamp-v20261014-213732-0-sha-06ef8b24"><span class="tier A">A</span>swamp dashboard serves no start page, so its token can&#39;t add</a><a href="#release-swamp-club-swamp-v20261014-205128-0-sha-17edd435"><span class="tier A">A</span>literal() output and foreign text in step inputs no longer l</a><a href="#release-swamp-club-swamp-v20261014-204224-0-sha-8d6dfb6c"><span class="tier A">A</span>install.ps1 leaves the user&#39;s PowerShell session open when a</a><a href="#release-swamp-club-swamp-v20261014-203658-0-sha-4b09c8eb"><span class="tier A">A</span>the Linux binary names its boot, so a v3 catch-up stops sync</a><a href="#release-swamp-club-swamp-v20261014-201457-0-sha-24ef57e3"><span class="tier A">A</span>swamp completions powershell gives PowerShell users tab comp</a><a href="#release-swamp-club-swamp-v20261014-201010-0-sha-7211db16"><span class="tier A">A</span>serve and dashboard shutdown no longer waits for the run ind</a><a href="#release-swamp-club-swamp-v20261014-200600-0-sha-7e026830"><span class="tier A">A</span>pull installs the shared sources push places at the archive </a><a href="#release-swamp-club-swamp-v20261014-194222-0-sha-0bcd937b"><span class="tier A">A</span>run index snapshot cache stops serving a stale run status af</a><a href="#release-swamp-club-swamp-v20261014-192611-0-sha-13e3af37"><span class="tier A">A</span>extension pull fixtures bundle from the shared Deno cache, n</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261014-233851-0-sha-0b740599"><span class="tier A">A</span>extensions pushed from Windows pack folders as 0755 and file</a><a href="#release-swamp-club-swamp-v20261014-222707-0-sha-ff6c1f45"><span class="tier A">A</span>serve shutdown no longer waits for the continuation sweep&#39;s </a><a href="#release-swamp-club-swamp-v20261014-222313-0-sha-d3487b15"><span class="tier A">A</span>editing any local module a bundle includes rebuilds it, not </a><a href="#release-swamp-club-swamp-v20261014-220449-0-sha-79e0800b"><span class="tier A">A</span>push resolves a range dependency to a published version befo</a><a href="#release-swamp-club-swamp-v20261014-213732-0-sha-06ef8b24"><span class="tier A">A</span>swamp dashboard serves no start page, so its token can&#39;t add</a><a href="#release-swamp-club-swamp-v20261014-205128-0-sha-17edd435"><span class="tier A">A</span>literal() output and foreign text in step inputs no longer l</a><a href="#release-swamp-club-swamp-v20261014-204224-0-sha-8d6dfb6c"><span class="tier A">A</span>install.ps1 leaves the user&#39;s PowerShell session open when a</a><a href="#release-swamp-club-swamp-v20261014-203658-0-sha-4b09c8eb"><span class="tier A">A</span>the Linux binary names its boot, so a v3 catch-up stops sync</a><a href="#release-swamp-club-swamp-v20261014-201457-0-sha-24ef57e3"><span class="tier A">A</span>swamp completions powershell gives PowerShell users tab comp</a><a href="#release-swamp-club-swamp-v20261014-201010-0-sha-7211db16"><span class="tier A">A</span>serve and dashboard shutdown no longer waits for the run ind</a><a href="#release-swamp-club-swamp-v20261014-200600-0-sha-7e026830"><span class="tier A">A</span>pull installs the shared sources push places at the archive </a><a href="#release-swamp-club-swamp-v20261014-194222-0-sha-0bcd937b"><span class="tier A">A</span>run index snapshot cache stops serving a stale run status af</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261014-233851-0-sha-0b740599">
+<h2><span class="tier A">A</span>extensions pushed from Windows pack folders as 0755 and files as 0644, so registry scoring can read them (swamp-club#3484) (#3130)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-14T23:40:50Z">2026-10-14T23:40:50Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): extensions pushed from Windows pack folders as 0755 and files as 0644, so registry scoring can read them (swamp-club#3484) (#3130)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3484, reported by @mtaylor (swamp-club) with a precise repro. Thank you!</p>
+<p>When <code>swamp extension push</code> ran on Windows, every folder in the archive was packed as <code>drw-rw-rw-</code> (0666) and every file as <code>-rw-rw-rw-</code>. Windows has no POSIX modes, so Deno reports 0o666 for every file and folder, and <code>createTarGz</code> copied that value into each tar header. The registry scorer runs <code>tar -xzf</code> on Linux, which applies the archive&#39;s modes. It can&#39;t enter a folder without the execute bit, so every extension published from Windows failed scoring with <code>No manifest.yaml found in tarball</code>.</p>
+<ul>
+<li>On Windows, <code>createTarGz</code> now records folders as 0755 and files as 0644. These are the modes a Unix push records with the usual umask.</li>
+<li>On Linux and macOS it still records the real modes, including executable bits, so pushes from those systems are unchanged.</li>
+<li><code>createTarGz</code> takes an optional <code>os</code> parameter (default <code>Deno.build.os</code>) so the Windows path is tested on every OS.</li>
+</ul>
+<p><strong>Extensions already published from Windows</strong> stay unscored until their author pushes a new version. Their stored archives keep 0666 folders, and rescoring reuses the same archive. Fixing modes during extraction is a scorer change and belongs in swamp-club.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>New test `createTarGz: packs folders 0o755 and files 0o644 on Window</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.233851.0-sha.0b740599" rel="noopener">release v20261014.233851.0-sha.0b740599</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0b74059941df4b249b48717160a6cc694820cb06" rel="noopener">0b740599</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3130" rel="noopener">#3130</a>𝗔 <a href="https://swamp-club.com/lab/3484" rel="noopener">lab#3484</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261014-222707-0-sha-ff6c1f45">
 <h2><span class="tier A">A</span>serve shutdown no longer waits for the continuation sweep&#39;s run index rebuild (swamp-club#3472) (#3129)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -348,7 +372,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.194222.0-sha.0bcd937b" rel="noopener">release v20261014.194222.0-sha.0bcd937b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0bcd937b7b47beb09b904db5ab358634edaba116" rel="noopener">0bcd937b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3118" rel="noopener">#3118</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3105" rel="noopener">#3105</a>𝗔 <a href="https://swamp-club.com/lab/3467" rel="noopener">lab#3467</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261014-192611-0-sha-13e3af37">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261014-192611-0-sha-13e3af37">
 <h2><span class="tier A">A</span>extension pull fixtures bundle from the shared Deno cache, not npm (swamp-club#3461) (#3119)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T19:28:47Z">2026-10-14T19:28:47Z</time></span><span>test</span><span>fix</span></div>
@@ -375,7 +399,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.192611.0-sha.13e3af37" rel="noopener">release v20261014.192611.0-sha.13e3af37</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/13e3af37ca085368cc4094d659b97bcd493ff0ae" rel="noopener">13e3af37</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3119" rel="noopener">#3119</a>𝗔 <a href="https://swamp-club.com/lab/3461" rel="noopener">lab#3461</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261014-191000-0-sha-3c24ce32">
+<article class="item" id="release-swamp-club-swamp-v20261014-191000-0-sha-3c24ce32">
 <h2><span class="tier A">A</span>log the original error when a handler withholds it from the client (swamp-club#3465) (#3117)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T19:11:53Z">2026-10-14T19:11:53Z</time></span><span>serve</span><span>fix</span></div>
@@ -8324,7 +8348,76 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261014-182448-0-sha-0f66cede">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261015-004123-0-sha-416c29b4">
+<h2><span class="tier C">C</span>swamp 20261015.004123.0-sha.416c29b4</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T00:43:11Z">2026-10-15T00:43:11Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): push and install check the collective of the type each source registers when loaded, and the push summary shows that type, not the file path (swamp-club#3456) (#3133)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3456. Follow-up hardening is tracked in swamp-club#3488.</p>
+<p>A behavior whose <code>type</code> is not a string literal (a constant, an import, a spread) is missing from push&#39;s static metadata. Before this change:</p>
+<ul>
+<li>the push summary showed the file path as the type (with backslashes on Windows, which is how this was reported);</li>
+<li>the content-collective check never saw the type, so an extension could ship a type in another collective, for example <code>@acme/tools</code> registering <code>@swamp/aws-ec2</code>.</li>
+</ul>
+<h4 class="body-h">What changes</h4>
+<ul>
+<li><strong>Push checks the types sources actually register.</strong></li>
+<li>Push installs its own archive into a temp repository, laid out as an install lays it out. It loads every source the way a consumer&#39;s loader does: the top level only, in a worker.</li>
+<li>It checks the loaded types against the extension&#39;s collective, as well as the static ones, so the gate only tightens.</li>
+<li>Helper files and <code>_test.ts</code> sources are covered, because pulled trees load them.</li>
+<li>The error message and JSON details are the same as the existing content-collectives gate.</li>
+<li><strong>The push summary shows the real type.</strong></li>
+<li>It shows the loaded type, or the extended type for an <code>export const extension</code> source, or &quot;type unknown&quot;. It never shows a file path.</li>
+<li>A source that can neither be read nor loa</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.004123.0-sha.416c29b4" rel="noopener">release v20261015.004123.0-sha.416c29b4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/416c29b4" rel="noopener">416c29b4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3133" rel="noopener">#3133</a>𝗔 <a href="https://swamp-club.com/lab/3456" rel="noopener">lab#3456</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261015-002418-0-sha-57be9b7c">
+<h2><span class="tier C">C</span>swamp 20261015.002418.0-sha.57be9b7c</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T00:26:31Z">2026-10-15T00:26:31Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): a run refused for losing its model lock discards its write, so no later sync pushes it (swamp-club#3485) (#3132)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3485.</p>
+<p>On S3 and GCS, a run that lost its model lock refused its push and relied on a best-effort refresh pull to replace its data versions in the cache. When the datastore was unreachable, the pull failed and the refused versions stayed dirty, so the next sync pushed them. Either data from a run reported as failed reached every clone, or, after a breakglass, it overwrote the new holder&#39;s version.</p>
+<p>The refusal now discards the versions the push would publish, before it throws:</p>
+<ul>
+<li><strong>Delete.</strong> Each version is deleted through <code>UnifiedDataRepository.delete</code>, which moves the latest marker back and fixes the catalog.</li>
+<li><strong>Restore.</strong> A removed path stays marked dirty, and the S3/GCS extensions push a marked, locally absent file as a <strong>remote delete</strong>. So each removed file, and the latest marker, is restored as the datastore holds it, read with <code>fetchContent</code> under a 10 s budget. A file the datastore lacks stays removed. Without the restore, a push-only sync after a breakglass would delete the new holder&#39;s same-numbered version.</li>
+<li><strong>Refresh pull.</strong> The best-effort refresh pull still runs, then the catalog is invalidated.</li>
+<li><strong>Unchanged.</strong> Error code <code>model_lock_lost</code> and exit code 1. The message now says the run&#39;s data was discarded. Filesystem, v3 and lock-held pushes do not change.</li>
+</ul>
+<p>`design/enablers/datasto</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.002418.0-sha.57be9b7c" rel="noopener">release v20261015.002418.0-sha.57be9b7c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/57be9b7c" rel="noopener">57be9b7c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3132" rel="noopener">#3132</a>𝗔 <a href="https://swamp-club.com/lab/3485" rel="noopener">lab#3485</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261015-002031-0-sha-ea3631fa">
+<h2><span class="tier C">C</span>swamp 20261015.002031.0-sha.ea3631fa</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T00:22:27Z">2026-10-15T00:22:27Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): a v3 copy restores, refreshes and takes over from its Litestream replica, with a checkout-local commits.db (dormant) (swamp-club#3482) (#3131)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Phase 4 D2 of the datastore rework (swamp-club#3482): a v3 copy restores, refreshes and takes over from its Litestream replica. <strong>Dormant</strong>, behind the internal <code>SWAMP_V3_REPLICA</code> setting as D1. With it unset nothing changes: the dormancy test pins the datastore&#39;s own <code>commits.db</code> and no lineage records.</p>
+<ul>
+<li><strong>A copy per checkout.</strong> While replicating, each checkout keeps its own <code>commits.db</code> under <code>.swamp/_datastore_v3_copies/</code>, so two checkouts on one filesystem-v3 datastore behave like two machines on a bucket. <code>v3CommitsDbPath</code> alone decides the file (a ratchet pins it).</li>
+<li><strong>Published lineages</strong> in <code>_control/lineage/&lt;fence&gt;/</code>: create-only <code>started.json</code> and <code>confirmed.json</code>, and one head per writer (<code>head-&lt;writer fence&gt;.json</code>) holding the TXID and a swamp high-water mark. The current state is the highest started, confirmed lineage with a head; a read takes the highest writer&#39;s head, so a head never goes backwards.</li>
+<li><strong>Refresh before the first read or write.</strong> A missing, behind or foreign copy is restored: <code>litestream restore -txid</code> at the head (latest state when compaction merged that TXID away; spiked on 0.5.17), integrity and schema checks, truncation to the high-water mark so a zombie&#39;s uploads never land, then an in-place install (<code>replaceContentFrom</code>) that keeps open stores, ser</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.002031.0-sha.ea3631fa" rel="noopener">release v20261015.002031.0-sha.ea3631fa</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ea3631fa" rel="noopener">ea3631fa</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3131" rel="noopener">#3131</a>𝗔 <a href="https://swamp-club.com/lab/3482" rel="noopener">lab#3482</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-182448-0-sha-0f66cede">
 <h2><span class="tier C">C</span>push_behavior_test expects forward-slash content file names on Windows (swamp-club#3462) (#3114)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T18:26:46Z">2026-10-14T18:26:46Z</time></span><span>extensions</span><span>test</span></div>
@@ -8695,13 +8788,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>357 items across 1 source(s) in this window:
-0 critical, 328 notable, 13 routine,
-16 minor.</p>
-<ul><li><strong>fix</strong> — 234</li><li><strong>feat</strong> — 94</li><li><strong>refactor</strong> — 11</li><li><strong>test</strong> — 8</li><li><strong>docs</strong> — 8</li><li><strong>perf</strong> — 2</li></ul></section>
+<p>361 items across 1 source(s) in this window:
+0 critical, 329 notable, 13 routine,
+19 minor.</p>
+<ul><li><strong>fix</strong> — 235</li><li><strong>feat</strong> — 94</li><li><strong>refactor</strong> — 11</li><li><strong>test</strong> — 8</li><li><strong>docs</strong> — 8</li><li><strong>changes</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-15T00:10:29.364Z">2026-10-15T00:10:29.364Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-15T01:03:10.866Z">2026-10-15T01:03:10.866Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

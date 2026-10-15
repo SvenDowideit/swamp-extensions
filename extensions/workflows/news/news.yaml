@@ -97,6 +97,12 @@ reports:
 jobs:
 - name: main
   description: Gather feedback, fetch feeds, filter by age, generate HTML.
+  # All local-news steps write to the same model data directory and swamp holds a
+  # per-model lock for the whole of each method. Running two of them in parallel
+  # makes the loser wait 60s and then fail with a lock timeout (which, on a step
+  # marked allowFailure, silently drops the run's feedback). concurrency: 1
+  # serialises the job's steps so same-model methods never contend.
+  concurrency: 1
   steps:
   - name: gather-feedback
     description: Poll the feedback queue server and import any pending feedback entries
@@ -110,7 +116,10 @@ jobs:
         serverUrl: ${{ inputs.feedbackServerUrl }}
         batchSize: ${{ inputs.feedbackBatchSize }}
         maxBatches: ${{ inputs.feedbackMaxBatches }}
-    dependsOn: []
+    dependsOn:
+    - step: ensure-feedback-server
+      condition:
+        type: completed
     weight: 0
     allowFailure: true
   - name: ensure-feedback-server

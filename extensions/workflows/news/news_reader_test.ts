@@ -2282,6 +2282,27 @@ Deno.test("setup throws on invalid config values", async () => {
   assertEquals(joined.includes("setup:"), true);
 });
 
+Deno.test("a failing method logs its error before it propagates", async () => {
+  const logs: Array<{ msg: string; props: Record<string, unknown> }> = [];
+  const ctx = {
+    logger: {
+      info: () => {},
+      warning: (msg: string, props?: Record<string, unknown>) =>
+        logs.push({ msg: render(msg, props), props: props ?? {} }),
+    },
+    globalArgs: baseGlobalArgs,
+  } as unknown as Parameters<typeof model.methods.fetch.execute>[1];
+
+  await assertRejects(
+    () => model.methods.fetch.execute({ feeds: [], maxArticlesPerFeed: 25 }, ctx),
+    Error,
+  );
+
+  const joined = logs.map((l) => l.msg).join("\n");
+  assertEquals(joined.includes("fetch failed"), true);
+  assertEquals(joined.includes("No feed URLs provided"), true);
+});
+
 // ---------------------------------------------------------------------------
 // LLM error classification + circuit breaker
 // ---------------------------------------------------------------------------

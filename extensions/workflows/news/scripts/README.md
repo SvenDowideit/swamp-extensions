@@ -103,7 +103,7 @@ deno run --allow-net --allow-read --allow-write --allow-env scripts/feedback-ser
 # (loopback-only would not be reachable from the phone). No auth — trusted
 # networks or an authenticating proxy only.
 deno run --allow-net --allow-read --allow-write --allow-env scripts/feedback-server.ts \
-  --host 192.168.1.10 --port 8765
+  --host 192.0.2.10 --port 8765
 
 # Or via environment variables
 FEEDBACK_PORT=9999 FEEDBACK_HTML_PATH=news.html FEEDBACK_FEEDS_PATH=feeds.html \

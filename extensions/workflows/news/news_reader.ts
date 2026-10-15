@@ -4145,7 +4145,7 @@ function mobileCard(
 /** Model definition for fetching RSS feeds and generating news summaries. */
 export const model = {
   type: "@svendowideit/news-reader",
-  version: "2026.10.11.1",
+  version: "2026.10.15.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4176,6 +4176,12 @@ export const model = {
       toVersion: "2026.10.11.1",
       description:
         "Add caddyModelName/caddyRouteHostname globals and an ensureCaddyProxy method: when @svendowideit/caddy is installed, declare a route proxying the feedback server to news.<host>.<domain> via a dedicated news-caddy model that caddy merges with the others. The host and domain are read from the caddy model that already owns this machine.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
+      description:
+        "Failure visibility and feedback reliability: every method now logs its error before propagating, so a step marked allowFailure no longer fails silently; gatherFeedback warns (with the server URL) when the feedback server is unreachable or a delete fails, and reports an interested/ignored/seen/read breakdown. No schema changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -5090,6 +5096,7 @@ export const model = {
 
         let totalProcessed = 0;
         let batchCount = 0;
+        const counts = { interested: 0, ignored: 0, seen: 0, read: 0 };
         let queued = 1; // assume pending until first poll reports otherwise
 
         while (batchCount < args.maxBatches && queued > 0) {
@@ -5103,16 +5110,18 @@ export const model = {
             });
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            logger?.info("Feedback server unreachable: {error}", {
-              error: msg,
-            });
+            logger?.warning(
+              "Feedback server unreachable at {url}: {error} — no feedback gathered this run. Is the feedback-server service running?",
+              { url: serverUrl, error: msg },
+            );
             break;
           }
 
           if (!resp.ok) {
-            logger?.info("Feedback server returned {status}", {
-              status: resp.status,
-            });
+            logger?.warning(
+              "Feedback server at {url} returned HTTP {status} — no feedback gathered this run",
+              { url: serverUrl, status: resp.status },
+            );
             break;
           }
 
@@ -5148,10 +5157,12 @@ export const model = {
               if (!prefs.seen.includes(item.articleId)) {
                 prefs.seen.push(item.articleId);
               }
+              counts.seen++;
             } else if (item.action === "read") {
               if (!prefs.read.includes(item.articleId)) {
                 prefs.read.push(item.articleId);
               }
+              counts.read++;
             } else {
               const entry: FeedbackEntry = {
                 articleId: item.articleId,
@@ -5170,6 +5181,7 @@ export const model = {
                 ) {
                   prefs.interested.push(entry);
                 }
+                counts.interested++;
               } else {
                 prefs.interested = prefs.interested.filter((e) =>
                   e.articleId !== item.articleId
@@ -5179,6 +5191,7 @@ export const model = {
                 ) {
                   prefs.ignored.push(entry);
                 }
+                counts.ignored++;
               }
             }
 
@@ -5192,23 +5205,43 @@ export const model = {
             processedIds.join(",")
           }`;
           try {
-            await fetch(deleteUrl, {
+            const del = await fetch(deleteUrl, {
               method: "DELETE",
               signal: AbortSignal.timeout(5000),
             });
+            if (!del.ok) {
+              logger?.warning(
+                "Imported but could not delete {count} processed feedback entries (HTTP {status}) from {url} — they stay queued and will be re-imported next run (idempotent). The queue will keep growing until DELETE succeeds.",
+                {
+                  count: processedIds.length,
+                  status: del.status,
+                  url: serverUrl,
+                },
+              );
+              break;
+            }
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            logger?.info("Failed to delete processed entries: {error}", {
-              error: msg,
-            });
+            logger?.warning(
+              "Imported but could not delete {count} processed feedback entries from {url}: {error} — they stay queued and will be re-imported next run (idempotent)",
+              { count: processedIds.length, url: serverUrl, error: msg },
+            );
+            break;
           }
 
           batchCount++;
         }
 
         logger?.info(
-          "Gathered {count} feedback entries across {batches} batches",
-          { count: totalProcessed, batches: batchCount },
+          "Gathered {count} feedback entries across {batches} batches — interested {interested}, ignored {ignored}, seen {seen}, read {read}",
+          {
+            count: totalProcessed,
+            batches: batchCount,
+            interested: counts.interested,
+            ignored: counts.ignored,
+            seen: counts.seen,
+            read: counts.read,
+          },
         );
 
         const handle = await context.writeResource(
@@ -6162,3 +6195,44 @@ export const model = {
   },
   reports: ["@svendowideit/news-html-report"],
 };
+
+// ---------------------------------------------------------------------------
+// Failure visibility
+// ---------------------------------------------------------------------------
+
+/**
+ * Wrap every method so a thrown error is logged before it propagates.
+ *
+ * Workflow steps marked `allowFailure: true` let a method fail without failing
+ * the run — but swamp suppresses the failure *reason* for those steps, leaving
+ * the operator with a bare `failed <step>` and no clue why. The log lines a
+ * method emits are still rendered even when its step is allowed to fail, so
+ * logging the error here guarantees the reason always reaches the run output.
+ */
+function installFailureLogging(): void {
+  type WrappedMethod = {
+    execute: (args: never, context: never) => Promise<unknown>;
+  };
+  type WarnLogger = {
+    warning?: (msg: string, props?: Record<string, unknown>) => void;
+  };
+  const methods = model.methods as unknown as Record<string, WrappedMethod>;
+  for (const [methodName, method] of Object.entries(methods)) {
+    const original = method.execute;
+    method.execute = async (args, context) => {
+      try {
+        return await original(args, context);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const logger = (context as unknown as { logger?: WarnLogger }).logger;
+        logger?.warning?.("{method} failed: {error}", {
+          method: methodName,
+          error: message,
+        });
+        throw err;
+      }
+    };
+  }
+}
+
+installFailureLogging();

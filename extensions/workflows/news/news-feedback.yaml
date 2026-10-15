@@ -1,0 +1,62 @@
+id: 6a4e3f65-3b48-4af7-8cae-777bc96fa52a
+name: "@svendowideit/news-feedback"
+description: |
+  Feedback-only workflow — drains the feedback queue server and imports every
+  pending entry (interested, ignored, seen, read) into the news-reader's
+  preferences, then deletes the processed entries so the queue stays empty.
+
+  Runs every 30 minutes (offset to :15/:45 so it never overlaps the top-of-hour
+  news-fetch run). Decoupling feedback from the 4-hourly fetch means a
+  read/seen article is hidden on the next page generation without waiting for
+  the next full fetch. There is no fetching, filtering, rendering, or LLM work:
+  just the one feedback step.
+
+  The feedback server itself is still ensured by the news-fetch workflow; this
+  workflow only polls it. If the server is unreachable the step logs a warning
+  and exits without failing (there is nothing to drain), so a host without the
+  optional @svendowideit/systemd-service extension is not spammed with failures.
+
+  Loop: gather-feedback
+tags: {}
+trigger:
+  schedule: "15,45 * * * *"
+inputs:
+  properties:
+    feedbackServerUrl:
+      type: string
+      default: ''
+      description: >-
+        Override URL of the feedback queue HTTP server. Leave empty (default) to
+        use the news-reader's feedbackServerHost/feedbackServerPort globals.
+    feedbackBatchSize:
+      type: integer
+      default: 100
+      description: Number of feedback entries to process per batch.
+    feedbackMaxBatches:
+      type: integer
+      default: 20
+      description: Maximum number of batches to process in one run.
+  required: []
+jobs:
+- name: main
+  description: Drain the feedback queue into the news-reader's preferences.
+  concurrency: 1
+  steps:
+  - name: gather-feedback
+    description: Poll the feedback queue server, import interested/ignored/seen/read
+      entries into preferences, and delete the processed entries.
+    task:
+      type: model_method
+      modelType: "@svendowideit/news-reader"
+      modelName: local-news
+      methodName: gatherFeedback
+      inputs:
+        serverUrl: ${{ inputs.feedbackServerUrl }}
+        batchSize: ${{ inputs.feedbackBatchSize }}
+        maxBatches: ${{ inputs.feedbackMaxBatches }}
+    dependsOn: []
+    weight: 0
+    allowFailure: false
+  dependsOn: []
+  weight: 0
+version: 1

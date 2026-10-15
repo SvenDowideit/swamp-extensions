@@ -5,14 +5,16 @@
 The full news stack — feed discovery, catalog management, preference-aware
 fetching, LLM story fusion, and static HTML rendering. It ships four model
 extensions (`news-feed-discovery`, `news-feed-catalog`, `news-reader`,
-`news-feed-analysis`), one report extension (`news_html_report`), the four news
-workflows (`news-fetch`, `news-fusion`, `news-curation`, `news-full`), and the
-decoupled feedback server that closes the 👍/👎 loop between the generated HTML
-page and the workflows.
+`news-feed-analysis`), one report extension (`news_html_report`), the five news
+workflows (`news-fetch`, `news-feedback`, `news-fusion`, `news-curation`,
+`news-full`), and the decoupled feedback server that closes the 👍/👎 loop
+between the generated HTML page and the workflows.
 
 It turns a set of RSS/Atom feeds into a ranked, deduplicated, optionally
 LLM-fused news digest, rendered as a static HTML page you can read or host. It
-learns your preferences from the interest/ignore feedback on that page, clusters
+learns your preferences from the interested/ignored feedback on that page and
+remembers what you have read and seen so those articles are hidden on the next
+render. It also clusters
 related articles into one story, and — if you point it at an OpenAI-compatible
 LLM — fuses each cluster into a single factual story with citations. Prefer it
 over reading feeds by hand: every stage is a swamp method, so it composes,
@@ -114,7 +116,7 @@ swamp model @svendowideit/news-reader method run setup local-news --input llmTem
 
 # Point the feedback server at a specific LAN interface (persisted as a global;
 # this is the supported way to move the server — not a workflow --input).
-swamp model @svendowideit/news-reader method run setup local-news --input feedbackServerHost=192.168.1.10
+swamp model @svendowideit/news-reader method run setup local-news --input feedbackServerHost=192.0.2.10
 
 # Declare the Caddy route by hand (the news-fetch workflow does this for you when
 # @svendowideit/caddy is installed). Reads the host and domain from the caddy
@@ -157,11 +159,14 @@ fast on the first server error, and `maxFusions=5` for a tighter cap.
 
 ## Run the workflows
 
-The stack ships four workflows. Run them with `swamp workflow run <name>`:
+The stack ships five workflows. Run them with `swamp workflow run <name>`:
 
 ```sh
 # Fast path — feedback, fetch, dedupe, filter, generate HTML (every 4h)
 swamp workflow run @svendowideit/news-fetch
+
+# Feedback only — drain the feedback queue into preferences (every 30 min)
+swamp workflow run @svendowideit/news-feedback
 
 # LLM story fusion — cluster, fuse, seed, render stories (every 12h)
 swamp workflow run @svendowideit/news-fusion
@@ -171,6 +176,13 @@ swamp workflow run @svendowideit/news-curation
 
 # Full loop — discovery → catalog → fetch → filter → fuse → render in one run
 swamp workflow run @svendowideit/news-full
+```
+
+Run the feedback workflow by hand to consume feedback immediately (for example
+after reading the page) without waiting for its 30-minute tick:
+
+```sh
+swamp workflow run @svendowideit/news-feedback
 ```
 
 Optional inputs for the fast path / full loop: `feeds` (array of feed URLs,
@@ -207,20 +219,26 @@ renderStories` take the same `outputPath` argument.
 Each workflow YAML ships with a built-in `trigger.schedule` (cron) plus
 `trigger.inputs` defaults, so no per-user trigger setup is required:
 
-| Workflow                     | Schedule | Trigger inputs            |
-|------------------------------|----------|---------------------------|
-| `@svendowideit/news-fetch`   | every 4h  | `discoverNewFeeds: false` |
-| `@svendowideit/news-fusion`  | every 12h | —                         |
-| `@svendowideit/news-curation`| daily 3am | `discoverNewFeeds: true`  |
-| `@svendowideit/news-full`    | disabled  | —                         |
+| Workflow                     | Schedule        | Trigger inputs            |
+|------------------------------|-----------------|---------------------------|
+| `@svendowideit/news-fetch`   | every 4h        | `discoverNewFeeds: false` |
+| `@svendowideit/news-feedback`| every 30 min (:15/:45) | —                  |
+| `@svendowideit/news-fusion`  | every 12h       | —                         |
+| `@svendowideit/news-curation`| daily 3am       | `discoverNewFeeds: true`  |
+| `@svendowideit/news-full`    | disabled        | —                         |
+
+`@svendowideit/news-feedback` runs at `:15` and `:45` rather than `:00`/`:30` so
+it never overlaps the top-of-the-hour `news-fetch` run and the two never contend
+for the `local-news` model lock.
 
 `@svendowideit/news-full` ships with its schedule commented out — it's the
-manual "run everything once" entry point, not a recurring job. The three
-scheduled workflows (`news-fetch`, `news-fusion`, `news-curation`) cover the
-same ground on their own cadences. To enable it, uncomment the `schedule:` line
-in `news-full.yaml` (or set an override with `swamp workflow trigger set`).
+manual "run everything once" entry point, not a recurring job. The four
+scheduled workflows (`news-fetch`, `news-feedback`, `news-fusion`,
+`news-curation`) cover the same ground on their own cadences. To enable it,
+uncomment the `schedule:` line in `news-full.yaml` (or set an override with
+`swamp workflow trigger set`).
 
-Start the scheduler to register all four:
+Start the scheduler to register all five:
 
 ```sh
 swamp serve          # runs scheduled triggers; live-reloads trigger changes
@@ -282,7 +300,7 @@ schema defaults. `swamp workflow trigger set` replaces the whole override map
 | `generate` | Score articles against learned preferences and write the HTML page. |
 | `generateMobile` | Write the mobile HTML page. |
 | `feedback` | Record an interest/ignore click locally. |
-| `gatherFeedback` | Poll the feedback queue server and import clicks into preferences. |
+| `gatherFeedback` | Poll the feedback queue server and import all feedback kinds (interested, ignored, seen, read) into preferences, then delete the processed entries. Warns with the server URL when the server is unreachable or a delete fails. |
 | `gatherPages` | Poll the pages queue server and add queued pages to the catalog. |
 | `cleanupCdata` | Strip CDATA wrappers from stored keywords in snapshots and preferences. |
 | `clusterArticles` | Deterministically group filtered articles into same-story clusters (no LLM). |
@@ -328,8 +346,12 @@ service when `@svendowideit/systemd-service` is installed) and — when
 `news.<host>.<domain>` to it (see [Reverse proxy with Caddy](#reverse-proxy-with-caddy)).
 Both setup steps skip with a log when their optional extension is absent.
 
-1. **Gather feedback** — polls the feedback queue server for 👍/👎 clicks from
-   the HTML page, imports them into preferences.
+1. **Gather feedback** — polls the feedback queue server for 👍/👎/seen/read
+   events from the HTML page and imports them into preferences. Runs after
+   `ensure-feedback-server` so the server is up first. The job is serialised
+   (`concurrency: 1`) because every `local-news` step writes to the same model
+   data directory and swamp's per-model lock would otherwise make parallel steps
+   time out after 60s.
 2. **Fetch** — downloads RSS/Atom feeds from the catalog, parses articles,
    stores snapshot.
 3. **Dedupe articles** — groups articles by URL, marks duplicates, annotates
@@ -340,6 +362,19 @@ Both setup steps skip with a log when their optional extension is absent.
    writes a static HTML page with fused stories rendered inline.
 6. **Generate feeds HTML** — renders a feeds.html catalog listing with per-feed
    article counts, cross-feed sharing lines, and engagement-based sorting.
+
+#### `news-feedback` (every 30 min)
+
+A single-step workflow that only drains the feedback queue: it polls the
+feedback server, imports every pending **interested / ignored / seen / read**
+entry into the `local-news` preferences, and deletes the processed entries. It
+does no fetching, filtering, rendering, or LLM work.
+
+It exists so read/seen changes take effect on the next page render instead of
+waiting up to 4 hours for the next `news-fetch`. The `gather-feedback` step is
+`allowFailure: false`, so a genuine failure fails the run *with its reason in
+the log*; an unreachable server is not a failure — it logs a warning (with the
+URL) and exits cleanly, so a host without the feedback server is not spammed.
 
 #### `news-fusion` (LLM, every 12h)
 
@@ -447,7 +482,7 @@ workflow then keeps the unit pointing at that address on every run:
 ```sh
 # Validate and print the diff, then persist it into local-news' globalArguments.
 swamp model @svendowideit/news-reader method run setup local-news \
-  --input feedbackServerHost=192.168.1.10 --input feedbackServerPort=8765
+  --input feedbackServerHost=192.0.2.10 --input feedbackServerPort=8765
 swamp model edit local-news      # apply the diff setup printed
 
 # The same settings on the catalog model, which owns gatherFeedState.
@@ -458,13 +493,13 @@ Or run the script by hand on that interface:
 
 ```sh
 deno run --allow-net --allow-read --allow-write --allow-env \
-  scripts/feedback-server.ts --host 192.168.1.10 --port 8765
+  scripts/feedback-server.ts --host 192.0.2.10 --port 8765
 ```
 
 Because `ensure-feedback-server` creates the unit through
 `@svendowideit/systemd-service`, the configured host/port are baked into the
 unit's `ExecStart`, and user lingering makes it start at boot. Then open
-`http://192.168.1.10:8765/` from the other device. Put an authenticating proxy
+`http://192.0.2.10:8765/` from the other device. Put an authenticating proxy
 (e.g. Caddy with basic auth) in front if the network is not trusted.
 
 ### Reverse proxy with Caddy
@@ -530,7 +565,7 @@ If you set it via a workflow input before:
 
    ```sh
    swamp model @svendowideit/news-reader method run setup local-news \
-     --input feedbackServerHost=192.168.1.10 --input feedbackServerPort=8765
+     --input feedbackServerHost=192.0.2.10 --input feedbackServerPort=8765
    swamp model edit local-news
    ```
 
@@ -550,6 +585,15 @@ If you set it via a workflow input before:
 
 ## Design notes
 
+- **Failure visibility.** Swamp suppresses the failure *reason* for a step
+  marked `allowFailure: true`, so an allowed failure used to surface as a bare
+  `failed <step>` with no explanation. Every method in this extension now wraps
+  its body so it logs `"{method} failed: {error}"` before the error propagates.
+  A failed step's log lines are still rendered, so the reason is always visible.
+- **One method per model at a time.** The workflow jobs run with
+  `concurrency: 1`. Swamp holds a per-model lock for the whole of each method,
+  and two steps writing the same model in parallel make the loser wait 60s and
+  then fail with a lock timeout, so serialising the job prevents that.
 - `docs/news-fusing.md` — the fusion design & provenance model.
 - `docs/PLAN.md`, `docs/LLM-FUSION.md` — implementation plans.
 

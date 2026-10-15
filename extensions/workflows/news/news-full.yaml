@@ -153,6 +153,12 @@ jobs:
 - name: main
   description: Gather feedback, fetch feeds, filter by age, generate HTML, discover
     new feeds for next run.
+  # Every local-news step writes to the same model data directory, and swamp holds
+  # a per-model lock for the whole of each method — running two in parallel makes
+  # the loser wait 60s and then fail with a lock timeout (silently, on a step
+  # marked allowFailure). concurrency: 1 serialises the job so same-model methods
+  # never contend.
+  concurrency: 1
   steps:
   - name: gather-feedback
     description: Poll the feedback queue server and import any pending feedback entries
@@ -239,6 +245,9 @@ jobs:
         feeds: '${{ inputs.feeds.size() > 0 ? inputs.feeds : data.latest("feed-catalog",
           "current").?attributes.?feeds.orValue([]) }}'
     dependsOn:
+    - step: gather-feedback
+      condition:
+        type: completed
     - step: dedupe
       condition:
         type: or

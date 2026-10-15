@@ -353,7 +353,7 @@ async function readCrossModelData(
 
 export const model = {
   type: "@svendowideit/news-feed-analysis",
-  version: "2026.09.25.1",
+  version: "2026.10.15.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -366,6 +366,12 @@ export const model = {
       toVersion: "2026.09.25.1",
       description:
         "Typing only: PageEntry is exported so deno doc --lint reports no slow types. No schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.15.1",
+      description:
+        "Failure visibility: analyzePages now logs its error before propagating, so a step marked allowFailure no longer fails silently. No schema changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -507,3 +513,44 @@ export const model = {
     },
   },
 };
+
+// ---------------------------------------------------------------------------
+// Failure visibility
+// ---------------------------------------------------------------------------
+
+/**
+ * Wrap every method so a thrown error is logged before it propagates.
+ *
+ * Workflow steps marked `allowFailure: true` let a method fail without failing
+ * the run — but swamp suppresses the failure *reason* for those steps, leaving
+ * the operator with a bare `failed <step>` and no clue why. The log lines a
+ * method emits are still rendered even when its step is allowed to fail, so
+ * logging the error here guarantees the reason always reaches the run output.
+ */
+function installFailureLogging(): void {
+  type WrappedMethod = {
+    execute: (args: never, context: never) => Promise<unknown>;
+  };
+  type WarnLogger = {
+    warning?: (msg: string, props?: Record<string, unknown>) => void;
+  };
+  const methods = model.methods as unknown as Record<string, WrappedMethod>;
+  for (const [methodName, method] of Object.entries(methods)) {
+    const original = method.execute;
+    method.execute = async (args, context) => {
+      try {
+        return await original(args, context);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const logger = (context as unknown as { logger?: WarnLogger }).logger;
+        logger?.warning?.("{method} failed: {error}", {
+          method: methodName,
+          error: message,
+        });
+        throw err;
+      }
+    };
+  }
+}
+
+installFailureLogging();

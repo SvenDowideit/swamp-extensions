@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/news"
-version: "2026.10.11.1"
+version: "2026.10.15.1"
 description: >
   The full news stack: feed discovery, catalog management, preference-aware
   fetching, LLM story fusion, and static HTML rendering — plus a decoupled
@@ -12,14 +12,18 @@ description: >
     Turns a pile of RSS/Atom feeds into a ranked, deduplicated, optionally
     LLM-fused news digest, rendered as a static HTML page you can read or host.
     It discovers feeds, keeps a catalog of them, fetches and deduplicates
-    articles, learns your preferences from interest/ignore feedback, clusters
-    related articles into one story, and — if you point it at an
-    OpenAI-compatible LLM — fuses each cluster into a single factual story with
-    citations. Prefer it over reading feeds by hand or wiring a one-off script:
-    every stage is a swamp method (so it composes, resumes, and is auditable),
-    the fetch is incremental, and the feedback page closes the loop so the next
-    run ranks what you actually read. It is LLM-optional: without an LLM it
-    still fetches, filters, and renders.
+    articles, learns your preferences from interested/ignored feedback, and
+    remembers what you have read and seen so those articles are hidden on the
+    next render. Clusters related articles into one story, and — if you point
+    it at an OpenAI-compatible LLM — fuses each cluster into a single factual
+    story with citations. Prefer it over reading feeds by hand or wiring a
+    one-off script: every stage is a swamp method (so it composes, resumes, and
+    is auditable), the fetch is incremental, and the feedback page closes the
+    loop so the next run ranks what you actually read. A dedicated
+    `@svendowideit/news-feedback` workflow drains that feedback every 30
+    minutes, so a read/seen article disappears on the next render rather than
+    waiting for the 4-hourly fetch. It is LLM-optional: without an LLM it still
+    fetches, filters, and renders.
 
   INSTALL
 
@@ -45,6 +49,12 @@ description: >
       # the feedback server (when systemd-service is installed) and its Caddy
       # route news.<host>.<domain> (when caddy is installed).
       swamp workflow run @svendowideit/news-fetch
+
+      # Feedback only — drains the feedback queue into preferences. Scheduled
+      # every 30 minutes (at :15/:45) so a read/seen article is hidden on the
+      # next page render without waiting for the next fetch. Run it by hand to
+      # consume feedback immediately.
+      swamp workflow run @svendowideit/news-feedback
 
       # The full loop — discovery → catalog → fetch → filter → fuse → render.
       swamp workflow run @svendowideit/news-full
@@ -132,6 +142,7 @@ reports:
 
 workflows:
   - news.yaml
+  - news-feedback.yaml
   - news-fusion.yaml
   - news-curation.yaml
   - news-full.yaml

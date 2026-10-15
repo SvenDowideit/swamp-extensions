@@ -67,8 +67,158 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261014-233851-0-sha-0b740599"><span class="tier A">A</span>extensions pushed from Windows pack folders as 0755 and file</a><a href="#release-swamp-club-swamp-v20261014-222707-0-sha-ff6c1f45"><span class="tier A">A</span>serve shutdown no longer waits for the continuation sweep&#39;s </a><a href="#release-swamp-club-swamp-v20261014-222313-0-sha-d3487b15"><span class="tier A">A</span>editing any local module a bundle includes rebuilds it, not </a><a href="#release-swamp-club-swamp-v20261014-220449-0-sha-79e0800b"><span class="tier A">A</span>push resolves a range dependency to a published version befo</a><a href="#release-swamp-club-swamp-v20261014-213732-0-sha-06ef8b24"><span class="tier A">A</span>swamp dashboard serves no start page, so its token can&#39;t add</a><a href="#release-swamp-club-swamp-v20261014-205128-0-sha-17edd435"><span class="tier A">A</span>literal() output and foreign text in step inputs no longer l</a><a href="#release-swamp-club-swamp-v20261014-204224-0-sha-8d6dfb6c"><span class="tier A">A</span>install.ps1 leaves the user&#39;s PowerShell session open when a</a><a href="#release-swamp-club-swamp-v20261014-203658-0-sha-4b09c8eb"><span class="tier A">A</span>the Linux binary names its boot, so a v3 catch-up stops sync</a><a href="#release-swamp-club-swamp-v20261014-201457-0-sha-24ef57e3"><span class="tier A">A</span>swamp completions powershell gives PowerShell users tab comp</a><a href="#release-swamp-club-swamp-v20261014-201010-0-sha-7211db16"><span class="tier A">A</span>serve and dashboard shutdown no longer waits for the run ind</a><a href="#release-swamp-club-swamp-v20261014-200600-0-sha-7e026830"><span class="tier A">A</span>pull installs the shared sources push places at the archive </a><a href="#release-swamp-club-swamp-v20261014-194222-0-sha-0bcd937b"><span class="tier A">A</span>run index snapshot cache stops serving a stale run status af</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261015-025901-0-sha-153c8137"><span class="tier A">A</span>install no longer refuses an extension whose types are outsi</a><a href="#release-swamp-club-swamp-v20261015-015437-0-sha-380e3c30"><span class="tier A">A</span>close the D2 replication follow-ups before 4E switches it on</a><a href="#release-swamp-club-swamp-v20261015-013550-0-sha-4a0f4d30"><span class="tier A">A</span>serve confirms each v3 write request is replicated before it</a><a href="#release-swamp-club-swamp-v20261015-004123-0-sha-416c29b4"><span class="tier A">A</span>push and install check the collective of the type each sourc</a><a href="#release-swamp-club-swamp-v20261015-002418-0-sha-57be9b7c"><span class="tier A">A</span>a run refused for losing its model lock discards its write, </a><a href="#release-swamp-club-swamp-v20261015-002031-0-sha-ea3631fa"><span class="tier A">A</span>a v3 copy restores, refreshes and takes over from its Litest</a><a href="#release-swamp-club-swamp-v20261014-233851-0-sha-0b740599"><span class="tier A">A</span>extensions pushed from Windows pack folders as 0755 and file</a><a href="#release-swamp-club-swamp-v20261014-222707-0-sha-ff6c1f45"><span class="tier A">A</span>serve shutdown no longer waits for the continuation sweep&#39;s </a><a href="#release-swamp-club-swamp-v20261014-222313-0-sha-d3487b15"><span class="tier A">A</span>editing any local module a bundle includes rebuilds it, not </a><a href="#release-swamp-club-swamp-v20261014-220449-0-sha-79e0800b"><span class="tier A">A</span>push resolves a range dependency to a published version befo</a><a href="#release-swamp-club-swamp-v20261014-213732-0-sha-06ef8b24"><span class="tier A">A</span>swamp dashboard serves no start page, so its token can&#39;t add</a><a href="#release-swamp-club-swamp-v20261014-205128-0-sha-17edd435"><span class="tier A">A</span>literal() output and foreign text in step inputs no longer l</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261015-025901-0-sha-153c8137">
+<h2><span class="tier A">A</span>install no longer refuses an extension whose types are outside its collective, so older published versions pull again; push still refuses them (swamp-club#3488) (#3136)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T03:01:05Z">2026-10-15T03:01:05Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): install no longer refuses an extension whose types are outside its collective, so older published versions pull again; push still refuses them (swamp-club#3488) (#3136)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Reverts the install half of swamp-club#3456 (#3133), which broke pulling older published versions. Release UAT has failed since #3133 on <code>swamp extension pull @keeb/tailscale@2026.03.02.3</code>.</p>
+<p>That version, like 30 others, registers placeholder <code>@user/...</code> types left over from scaffolding. #3133&#39;s install check refuses them in pull, update, auto-resolve, lockfile install and dependencies, so anyone pinned to such a version can no longer install it.</p>
+<p>A scan of all 40,463 published versions found 31 versions in 11 extensions that register types outside their collective:</p>
+<ul>
+<li>None is a latest version.</li>
+<li>The foreign collectives are only <code>@user/</code> (48 types) and <code>@swamp_data/</code> (1).</li>
+<li>None registers a type that its real collective publishes.</li>
+</ul>
+<h4 class="body-h">What changes</h4>
+<ul>
+<li><strong>Removed:</strong></li>
+<li>the install-time collective check and its rollback (<code>refuseForeignCollectiveTypes</code> in <code>pull.ts</code>);</li>
+<li>the <code>InstallContext.indexExtensionTree</code> hook and its wiring in auto-resolve, CLI pull, lockfile install, the serve admin handler and <code>libswamp/mod.ts</code>;</li>
+<li><code>InstallExtensionService</code>&#39;s reuse of that check&#39;s index.</li>
+</ul>
+<p>  Installs and loads behave as they did before #3133. All of these files are back to their pre-#3133 contents.</p>
+<ul>
+<li><strong>Kept from #3133:</strong></li>
+<li>push checks the types each source registers when</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/SKILL.md" rel="noopener">.claude/skills/swamp/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/troubleshooting.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.025901.0-sha.153c8137" rel="noopener">release v20261015.025901.0-sha.153c8137</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/153c8137597a43f02d4f67a71226bce78e5f60bf" rel="noopener">153c8137</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3136" rel="noopener">#3136</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3133" rel="noopener">#3133</a>𝗔 <a href="https://swamp-club.com/lab/3456" rel="noopener">lab#3456</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261015-015437-0-sha-380e3c30">
+<h2><span class="tier A">A</span>close the D2 replication follow-ups before 4E switches it on (swamp-club#3491) (#3135)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T01:56:12Z">2026-10-15T01:56:12Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): close the D2 replication follow-ups before 4E switches it on (swamp-club#3491) (#3135)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Closes the eight follow-ups that D2&#39;s verify reviews (#3131) left for before Phase 4E switches v3 Litestream replication on. All of it is dormant: with <code>SWAMP_V3_REPLICA</code> unset nothing changes.</p>
+<p>1. <strong>Lineage claims serialised per copy:</strong> serve&#39;s retake beside a writer&#39;s hold at the same fence no longer fails with a misleading &quot;already claimed&quot;.</p>
+<p>2. <strong>Honest fenced messages:</strong></p>
+<ul>
+<li>serve&#39;s retake window says this process holds the lease again and its copy is catching up;</li>
+<li>a lease check that failed for another reason (I/O) is reported as unconfirmed replication, not a takeover.</li>
+</ul>
+<p>3. <strong><code>copy.json</code> only moves forward</strong> (<code>copyStateAdvances</code>).</p>
+<p>4. <strong>The conflict path refuses</strong> a fence that went back to one this copy already began a lineage at, and refuses a same-fence claim under another replica root.</p>
+<p>5. <strong>Doc comments</strong> say a missing copy is hard-linked into place.</p>
+<p>6. <strong><code>swamp datastore namespace list</code></strong> makes the copy current before reading it.</p>
+<p>7. <strong>Migration:</strong> the first writer seeds its copy from the shared <code>commits.db</code> under the lease. The seed keeps running until some lineage is confirmed, so the shared commits become the first lineage even if an earlier seeder failed before confirming.</p>
+<p>8. <strong>Chunk GC</strong> waits while any lineage other than the current one can be restored (<code>decideChunkCollection</code>). Serve says so at info once per datastore, and</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.015437.0-sha.380e3c30" rel="noopener">release v20261015.015437.0-sha.380e3c30</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/380e3c307164501c7d705f7707a864f4612b2785" rel="noopener">380e3c30</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3135" rel="noopener">#3135</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3131" rel="noopener">#3131</a>𝗔 <a href="https://swamp-club.com/lab/3491" rel="noopener">lab#3491</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261015-013550-0-sha-4a0f4d30">
+<h2><span class="tier A">A</span>serve confirms each v3 write request is replicated before it answers, with group commit (dormant) (swamp-club#3489) (#3134)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T01:37:39Z">2026-10-15T01:37:39Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): serve confirms each v3 write request is replicated before it answers, with group commit (dormant) (swamp-club#3489) (#3134)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Phase 4D3 of the datastore rework (swamp-club#3489). Serve answered v3 write requests before their commits were replicated, and published a head only on its 30 s probe, so a D2 takeover after serve died could drop writes serve had acknowledged. Now each write request answers only once a sync has published a head covering its commits, as a CLI write command does at teardown. Dormant: nothing changes while <code>SWAMP_V3_REPLICA</code> is unset.</p>
+<p><strong>Where the confirmation goes.</strong> Most handlers send their success reply inside their root unit of work, before it commits, so a confirm in the root&#39;s flush would come after the reply. Instead, dispatch wraps each write request in <code>confirmRequest</code> (<code>src/serve/handlers/shared.ts</code>).</p>
+<ul>
+<li>The request&#39;s replies are held while its handler runs. Run events pass.</li>
+<li>When the handler ends, serve calls <code>confirmV3Replicated</code>, but only if serve&#39;s commit mark moved during the request. Then the held replies go out in order.</li>
+<li><code>CONFIRMED_WRITE_REQUESTS</code> (<code>src/serve/write_confirmation.ts</code>) lists the wrapped requests, and a fitness rule pins dispatch to it.</li>
+</ul>
+<p><strong>Group commit.</strong> <code>ReplicationGroupCommit</code> (domain) is built on <code>syncAndPublish</code>, which now returns the mark it published.</p>
+<ul>
+<li>One sync runs at a time per datastore.</li>
+<li>Requests waiting when a sync starts are covered by it. The next sync starts</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.013550.0-sha.4a0f4d30" rel="noopener">release v20261015.013550.0-sha.4a0f4d30</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4a0f4d3021ccefaca7d33716913be458f1043a77" rel="noopener">4a0f4d30</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3134" rel="noopener">#3134</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3482" rel="noopener">#3482</a>𝗔 <a href="https://swamp-club.com/lab/3489" rel="noopener">lab#3489</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261015-004123-0-sha-416c29b4">
+<h2><span class="tier A">A</span>push and install check the collective of the type each source registers when loaded, and the push summary shows that type, not the file path (swamp-club#3456) (#3133)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T00:43:11Z">2026-10-15T00:43:11Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): push and install check the collective of the type each source registers when loaded, and the push summary shows that type, not the file path (swamp-club#3456) (#3133)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3456. Follow-up hardening is tracked in swamp-club#3488.</p>
+<p>A behavior whose <code>type</code> is not a string literal (a constant, an import, a spread) is missing from push&#39;s static metadata. Before this change:</p>
+<ul>
+<li>the push summary showed the file path as the type (with backslashes on Windows, which is how this was reported);</li>
+<li>the content-collective check never saw the type, so an extension could ship a type in another collective, for example <code>@acme/tools</code> registering <code>@swamp/aws-ec2</code>.</li>
+</ul>
+<h4 class="body-h">What changes</h4>
+<ul>
+<li><strong>Push checks the types sources actually register.</strong></li>
+<li>Push installs its own archive into a temp repository, laid out as an install lays it out. It loads every source the way a consumer&#39;s loader does: the top level only, in a worker.</li>
+<li>It checks the loaded types against the extension&#39;s collective, as well as the static ones, so the gate only tightens.</li>
+<li>Helper files and <code>_test.ts</code> sources are covered, because pulled trees load them.</li>
+<li>The error message and JSON details are the same as the existing content-collectives gate.</li>
+<li><strong>The push summary shows the real type.</strong></li>
+<li>It shows the loaded type, or the extended type for an <code>export const extension</code> source, or &quot;type unknown&quot;. It never shows a file path.</li>
+<li>A source that can neither be read nor loa</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.004123.0-sha.416c29b4" rel="noopener">release v20261015.004123.0-sha.416c29b4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/416c29b495b0a479a01d58ff46d25f159b4b1ed1" rel="noopener">416c29b4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3133" rel="noopener">#3133</a>𝗔 <a href="https://swamp-club.com/lab/3456" rel="noopener">lab#3456</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261015-002418-0-sha-57be9b7c">
+<h2><span class="tier A">A</span>a run refused for losing its model lock discards its write, so no later sync pushes it (swamp-club#3485) (#3132)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T00:26:31Z">2026-10-15T00:26:31Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): a run refused for losing its model lock discards its write, so no later sync pushes it (swamp-club#3485) (#3132)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3485.</p>
+<p>On S3 and GCS, a run that lost its model lock refused its push and relied on a best-effort refresh pull to replace its data versions in the cache. When the datastore was unreachable, the pull failed and the refused versions stayed dirty, so the next sync pushed them. Either data from a run reported as failed reached every clone, or, after a breakglass, it overwrote the new holder&#39;s version.</p>
+<p>The refusal now discards the versions the push would publish, before it throws:</p>
+<ul>
+<li><strong>Delete.</strong> Each version is deleted through <code>UnifiedDataRepository.delete</code>, which moves the latest marker back and fixes the catalog.</li>
+<li><strong>Restore.</strong> A removed path stays marked dirty, and the S3/GCS extensions push a marked, locally absent file as a <strong>remote delete</strong>. So each removed file, and the latest marker, is restored as the datastore holds it, read with <code>fetchContent</code> under a 10 s budget. A file the datastore lacks stays removed. Without the restore, a push-only sync after a breakglass would delete the new holder&#39;s same-numbered version.</li>
+<li><strong>Refresh pull.</strong> The best-effort refresh pull still runs, then the catalog is invalidated.</li>
+<li><strong>Unchanged.</strong> Error code <code>model_lock_lost</code> and exit code 1. The message now says the run&#39;s data was discarded. Filesystem, v3 and lock-held pushes do not change.</li>
+</ul>
+<p>`design/enablers/datasto</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.002418.0-sha.57be9b7c" rel="noopener">release v20261015.002418.0-sha.57be9b7c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/57be9b7c2bef6cecdfb58d58ec8251ae9100e8bd" rel="noopener">57be9b7c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3132" rel="noopener">#3132</a>𝗔 <a href="https://swamp-club.com/lab/3485" rel="noopener">lab#3485</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261015-002031-0-sha-ea3631fa">
+<h2><span class="tier A">A</span>a v3 copy restores, refreshes and takes over from its Litestream replica, with a checkout-local commits.db (dormant) (swamp-club#3482) (#3131)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T00:22:27Z">2026-10-15T00:22:27Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): a v3 copy restores, refreshes and takes over from its Litestream replica, with a checkout-local commits.db (dormant) (swamp-club#3482) (#3131)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Phase 4 D2 of the datastore rework (swamp-club#3482): a v3 copy restores, refreshes and takes over from its Litestream replica. <strong>Dormant</strong>, behind the internal <code>SWAMP_V3_REPLICA</code> setting as D1. With it unset nothing changes: the dormancy test pins the datastore&#39;s own <code>commits.db</code> and no lineage records.</p>
+<ul>
+<li><strong>A copy per checkout.</strong> While replicating, each checkout keeps its own <code>commits.db</code> under <code>.swamp/_datastore_v3_copies/</code>, so two checkouts on one filesystem-v3 datastore behave like two machines on a bucket. <code>v3CommitsDbPath</code> alone decides the file (a ratchet pins it).</li>
+<li><strong>Published lineages</strong> in <code>_control/lineage/&lt;fence&gt;/</code>: create-only <code>started.json</code> and <code>confirmed.json</code>, and one head per writer (<code>head-&lt;writer fence&gt;.json</code>) holding the TXID and a swamp high-water mark. The current state is the highest started, confirmed lineage with a head; a read takes the highest writer&#39;s head, so a head never goes backwards.</li>
+<li><strong>Refresh before the first read or write.</strong> A missing, behind or foreign copy is restored: <code>litestream restore -txid</code> at the head (latest state when compaction merged that TXID away; spiked on 0.5.17), integrity and schema checks, truncation to the high-water mark so a zombie&#39;s uploads never land, then an in-place install (<code>replaceContentFrom</code>) that keeps open stores, ser</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/AGENTS.md" rel="noopener">AGENTS.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.002031.0-sha.ea3631fa" rel="noopener">release v20261015.002031.0-sha.ea3631fa</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ea3631fa5741258b45f4e014bd8ea40e61e10f7f" rel="noopener">ea3631fa</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3131" rel="noopener">#3131</a>𝗔 <a href="https://swamp-club.com/lab/3482" rel="noopener">lab#3482</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261014-233851-0-sha-0b740599">
 <h2><span class="tier A">A</span>extensions pushed from Windows pack folders as 0755 and files as 0644, so registry scoring can read them (swamp-club#3484) (#3130)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -221,7 +371,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/expressions-and-foreach.md" rel="noopener">.claude/skills/swamp/references/workflow/references/expressions-and-foreach.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.205128.0-sha.17edd435" rel="noopener">release v20261014.205128.0-sha.17edd435</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/17edd435e350b960df8fab984b8bb6dc5f82fc3b" rel="noopener">17edd435</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3125" rel="noopener">#3125</a>𝗔 <a href="https://swamp-club.com/lab/3402" rel="noopener">lab#3402</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261014-204224-0-sha-8d6dfb6c">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261014-204224-0-sha-8d6dfb6c">
 <h2><span class="tier A">A</span>install.ps1 leaves the user&#39;s PowerShell session open when an irm | iex install fails (swamp-club#3474) (#3124)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T20:44:38Z">2026-10-14T20:44:38Z</time></span><span>install</span><span>fix</span></div>
@@ -372,7 +522,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.194222.0-sha.0bcd937b" rel="noopener">release v20261014.194222.0-sha.0bcd937b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0bcd937b7b47beb09b904db5ab358634edaba116" rel="noopener">0bcd937b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3118" rel="noopener">#3118</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3105" rel="noopener">#3105</a>𝗔 <a href="https://swamp-club.com/lab/3467" rel="noopener">lab#3467</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261014-192611-0-sha-13e3af37">
+<article class="item" id="release-swamp-club-swamp-v20261014-192611-0-sha-13e3af37">
 <h2><span class="tier A">A</span>extension pull fixtures bundle from the shared Deno cache, not npm (swamp-club#3461) (#3119)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T19:28:47Z">2026-10-14T19:28:47Z</time></span><span>test</span><span>fix</span></div>
@@ -8348,157 +8498,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261015-025901-0-sha-153c8137">
-<h2><span class="tier C">C</span>swamp 20261015.025901.0-sha.153c8137</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-15T03:01:05Z">2026-10-15T03:01:05Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): install no longer refuses an extension whose types are outside its collective, so older published versions pull again; push still refuses them (swamp-club#3488) (#3136)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Reverts the install half of swamp-club#3456 (#3133), which broke pulling older published versions. Release UAT has failed since #3133 on <code>swamp extension pull @keeb/tailscale@2026.03.02.3</code>.</p>
-<p>That version, like 30 others, registers placeholder <code>@user/...</code> types left over from scaffolding. #3133&#39;s install check refuses them in pull, update, auto-resolve, lockfile install and dependencies, so anyone pinned to such a version can no longer install it.</p>
-<p>A scan of all 40,463 published versions found 31 versions in 11 extensions that register types outside their collective:</p>
-<ul>
-<li>None is a latest version.</li>
-<li>The foreign collectives are only <code>@user/</code> (48 types) and <code>@swamp_data/</code> (1).</li>
-<li>None registers a type that its real collective publishes.</li>
-</ul>
-<h4 class="body-h">What changes</h4>
-<ul>
-<li><strong>Removed:</strong></li>
-<li>the install-time collective check and its rollback (<code>refuseForeignCollectiveTypes</code> in <code>pull.ts</code>);</li>
-<li>the <code>InstallContext.indexExtensionTree</code> hook and its wiring in auto-resolve, CLI pull, lockfile install, the serve admin handler and <code>libswamp/mod.ts</code>;</li>
-<li><code>InstallExtensionService</code>&#39;s reuse of that check&#39;s index.</li>
-</ul>
-<p>  Installs and loads behave as they did before #3133. All of these files are back to their pre-#3133 contents.</p>
-<ul>
-<li><strong>Kept from #3133:</strong></li>
-<li>push checks the types each source registers when</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.025901.0-sha.153c8137" rel="noopener">release v20261015.025901.0-sha.153c8137</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/153c8137" rel="noopener">153c8137</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3136" rel="noopener">#3136</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3133" rel="noopener">#3133</a>𝗔 <a href="https://swamp-club.com/lab/3456" rel="noopener">lab#3456</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261015-015437-0-sha-380e3c30">
-<h2><span class="tier C">C</span>swamp 20261015.015437.0-sha.380e3c30</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-15T01:56:12Z">2026-10-15T01:56:12Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(datastore): close the D2 replication follow-ups before 4E switches it on (swamp-club#3491) (#3135)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Closes the eight follow-ups that D2&#39;s verify reviews (#3131) left for before Phase 4E switches v3 Litestream replication on. All of it is dormant: with <code>SWAMP_V3_REPLICA</code> unset nothing changes.</p>
-<p>1. <strong>Lineage claims serialised per copy:</strong> serve&#39;s retake beside a writer&#39;s hold at the same fence no longer fails with a misleading &quot;already claimed&quot;.</p>
-<p>2. <strong>Honest fenced messages:</strong></p>
-<ul>
-<li>serve&#39;s retake window says this process holds the lease again and its copy is catching up;</li>
-<li>a lease check that failed for another reason (I/O) is reported as unconfirmed replication, not a takeover.</li>
-</ul>
-<p>3. <strong><code>copy.json</code> only moves forward</strong> (<code>copyStateAdvances</code>).</p>
-<p>4. <strong>The conflict path refuses</strong> a fence that went back to one this copy already began a lineage at, and refuses a same-fence claim under another replica root.</p>
-<p>5. <strong>Doc comments</strong> say a missing copy is hard-linked into place.</p>
-<p>6. <strong><code>swamp datastore namespace list</code></strong> makes the copy current before reading it.</p>
-<p>7. <strong>Migration:</strong> the first writer seeds its copy from the shared <code>commits.db</code> under the lease. The seed keeps running until some lineage is confirmed, so the shared commits become the first lineage even if an earlier seeder failed before confirming.</p>
-<p>8. <strong>Chunk GC</strong> waits while any lineage other than the current one can be restored (<code>decideChunkCollection</code>). Serve says so at info once per datastore, and</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.015437.0-sha.380e3c30" rel="noopener">release v20261015.015437.0-sha.380e3c30</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/380e3c30" rel="noopener">380e3c30</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3135" rel="noopener">#3135</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3131" rel="noopener">#3131</a>𝗔 <a href="https://swamp-club.com/lab/3491" rel="noopener">lab#3491</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261015-013550-0-sha-4a0f4d30">
-<h2><span class="tier C">C</span>swamp 20261015.013550.0-sha.4a0f4d30</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-15T01:37:39Z">2026-10-15T01:37:39Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(datastore): serve confirms each v3 write request is replicated before it answers, with group commit (dormant) (swamp-club#3489) (#3134)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Phase 4D3 of the datastore rework (swamp-club#3489). Serve answered v3 write requests before their commits were replicated, and published a head only on its 30 s probe, so a D2 takeover after serve died could drop writes serve had acknowledged. Now each write request answers only once a sync has published a head covering its commits, as a CLI write command does at teardown. Dormant: nothing changes while <code>SWAMP_V3_REPLICA</code> is unset.</p>
-<p><strong>Where the confirmation goes.</strong> Most handlers send their success reply inside their root unit of work, before it commits, so a confirm in the root&#39;s flush would come after the reply. Instead, dispatch wraps each write request in <code>confirmRequest</code> (<code>src/serve/handlers/shared.ts</code>).</p>
-<ul>
-<li>The request&#39;s replies are held while its handler runs. Run events pass.</li>
-<li>When the handler ends, serve calls <code>confirmV3Replicated</code>, but only if serve&#39;s commit mark moved during the request. Then the held replies go out in order.</li>
-<li><code>CONFIRMED_WRITE_REQUESTS</code> (<code>src/serve/write_confirmation.ts</code>) lists the wrapped requests, and a fitness rule pins dispatch to it.</li>
-</ul>
-<p><strong>Group commit.</strong> <code>ReplicationGroupCommit</code> (domain) is built on <code>syncAndPublish</code>, which now returns the mark it published.</p>
-<ul>
-<li>One sync runs at a time per datastore.</li>
-<li>Requests waiting when a sync starts are covered by it. The next sync starts</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.013550.0-sha.4a0f4d30" rel="noopener">release v20261015.013550.0-sha.4a0f4d30</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4a0f4d30" rel="noopener">4a0f4d30</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3134" rel="noopener">#3134</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3482" rel="noopener">#3482</a>𝗔 <a href="https://swamp-club.com/lab/3489" rel="noopener">lab#3489</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261015-004123-0-sha-416c29b4">
-<h2><span class="tier C">C</span>swamp 20261015.004123.0-sha.416c29b4</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-15T00:43:11Z">2026-10-15T00:43:11Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): push and install check the collective of the type each source registers when loaded, and the push summary shows that type, not the file path (swamp-club#3456) (#3133)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3456. Follow-up hardening is tracked in swamp-club#3488.</p>
-<p>A behavior whose <code>type</code> is not a string literal (a constant, an import, a spread) is missing from push&#39;s static metadata. Before this change:</p>
-<ul>
-<li>the push summary showed the file path as the type (with backslashes on Windows, which is how this was reported);</li>
-<li>the content-collective check never saw the type, so an extension could ship a type in another collective, for example <code>@acme/tools</code> registering <code>@swamp/aws-ec2</code>.</li>
-</ul>
-<h4 class="body-h">What changes</h4>
-<ul>
-<li><strong>Push checks the types sources actually register.</strong></li>
-<li>Push installs its own archive into a temp repository, laid out as an install lays it out. It loads every source the way a consumer&#39;s loader does: the top level only, in a worker.</li>
-<li>It checks the loaded types against the extension&#39;s collective, as well as the static ones, so the gate only tightens.</li>
-<li>Helper files and <code>_test.ts</code> sources are covered, because pulled trees load them.</li>
-<li>The error message and JSON details are the same as the existing content-collectives gate.</li>
-<li><strong>The push summary shows the real type.</strong></li>
-<li>It shows the loaded type, or the extended type for an <code>export const extension</code> source, or &quot;type unknown&quot;. It never shows a file path.</li>
-<li>A source that can neither be read nor loa</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.004123.0-sha.416c29b4" rel="noopener">release v20261015.004123.0-sha.416c29b4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/416c29b4" rel="noopener">416c29b4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3133" rel="noopener">#3133</a>𝗔 <a href="https://swamp-club.com/lab/3456" rel="noopener">lab#3456</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261015-002418-0-sha-57be9b7c">
-<h2><span class="tier C">C</span>swamp 20261015.002418.0-sha.57be9b7c</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-15T00:26:31Z">2026-10-15T00:26:31Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(datastore): a run refused for losing its model lock discards its write, so no later sync pushes it (swamp-club#3485) (#3132)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3485.</p>
-<p>On S3 and GCS, a run that lost its model lock refused its push and relied on a best-effort refresh pull to replace its data versions in the cache. When the datastore was unreachable, the pull failed and the refused versions stayed dirty, so the next sync pushed them. Either data from a run reported as failed reached every clone, or, after a breakglass, it overwrote the new holder&#39;s version.</p>
-<p>The refusal now discards the versions the push would publish, before it throws:</p>
-<ul>
-<li><strong>Delete.</strong> Each version is deleted through <code>UnifiedDataRepository.delete</code>, which moves the latest marker back and fixes the catalog.</li>
-<li><strong>Restore.</strong> A removed path stays marked dirty, and the S3/GCS extensions push a marked, locally absent file as a <strong>remote delete</strong>. So each removed file, and the latest marker, is restored as the datastore holds it, read with <code>fetchContent</code> under a 10 s budget. A file the datastore lacks stays removed. Without the restore, a push-only sync after a breakglass would delete the new holder&#39;s same-numbered version.</li>
-<li><strong>Refresh pull.</strong> The best-effort refresh pull still runs, then the catalog is invalidated.</li>
-<li><strong>Unchanged.</strong> Error code <code>model_lock_lost</code> and exit code 1. The message now says the run&#39;s data was discarded. Filesystem, v3 and lock-held pushes do not change.</li>
-</ul>
-<p>`design/enablers/datasto</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.002418.0-sha.57be9b7c" rel="noopener">release v20261015.002418.0-sha.57be9b7c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/57be9b7c" rel="noopener">57be9b7c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3132" rel="noopener">#3132</a>𝗔 <a href="https://swamp-club.com/lab/3485" rel="noopener">lab#3485</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261015-002031-0-sha-ea3631fa">
-<h2><span class="tier C">C</span>swamp 20261015.002031.0-sha.ea3631fa</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-15T00:22:27Z">2026-10-15T00:22:27Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(datastore): a v3 copy restores, refreshes and takes over from its Litestream replica, with a checkout-local commits.db (dormant) (swamp-club#3482) (#3131)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Phase 4 D2 of the datastore rework (swamp-club#3482): a v3 copy restores, refreshes and takes over from its Litestream replica. <strong>Dormant</strong>, behind the internal <code>SWAMP_V3_REPLICA</code> setting as D1. With it unset nothing changes: the dormancy test pins the datastore&#39;s own <code>commits.db</code> and no lineage records.</p>
-<ul>
-<li><strong>A copy per checkout.</strong> While replicating, each checkout keeps its own <code>commits.db</code> under <code>.swamp/_datastore_v3_copies/</code>, so two checkouts on one filesystem-v3 datastore behave like two machines on a bucket. <code>v3CommitsDbPath</code> alone decides the file (a ratchet pins it).</li>
-<li><strong>Published lineages</strong> in <code>_control/lineage/&lt;fence&gt;/</code>: create-only <code>started.json</code> and <code>confirmed.json</code>, and one head per writer (<code>head-&lt;writer fence&gt;.json</code>) holding the TXID and a swamp high-water mark. The current state is the highest started, confirmed lineage with a head; a read takes the highest writer&#39;s head, so a head never goes backwards.</li>
-<li><strong>Refresh before the first read or write.</strong> A missing, behind or foreign copy is restored: <code>litestream restore -txid</code> at the head (latest state when compaction merged that TXID away; spiked on 0.5.17), integrity and schema checks, truncation to the high-water mark so a zombie&#39;s uploads never land, then an in-place install (<code>replaceContentFrom</code>) that keeps open stores, ser</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.002031.0-sha.ea3631fa" rel="noopener">release v20261015.002031.0-sha.ea3631fa</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ea3631fa" rel="noopener">ea3631fa</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3131" rel="noopener">#3131</a>𝗔 <a href="https://swamp-club.com/lab/3482" rel="noopener">lab#3482</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261014-182448-0-sha-0f66cede">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261014-182448-0-sha-0f66cede">
 <h2><span class="tier C">C</span>push_behavior_test expects forward-slash content file names on Windows (swamp-club#3462) (#3114)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T18:26:46Z">2026-10-14T18:26:46Z</time></span><span>extensions</span><span>test</span></div>
@@ -8870,12 +8870,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>364 items across 1 source(s) in this window:
-0 critical, 329 notable, 13 routine,
-22 minor.</p>
-<ul><li><strong>fix</strong> — 235</li><li><strong>feat</strong> — 94</li><li><strong>refactor</strong> — 11</li><li><strong>test</strong> — 8</li><li><strong>docs</strong> — 8</li><li><strong>changes</strong> — 6</li></ul></section>
+0 critical, 335 notable, 13 routine,
+16 minor.</p>
+<ul><li><strong>fix</strong> — 238</li><li><strong>feat</strong> — 97</li><li><strong>refactor</strong> — 11</li><li><strong>test</strong> — 8</li><li><strong>docs</strong> — 8</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-15T06:04:57.075Z">2026-10-15T06:04:57.075Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-15T07:03:07.292Z">2026-10-15T07:03:07.292Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -67,8 +67,27 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261015-025901-0-sha-153c8137"><span class="tier A">A</span>install no longer refuses an extension whose types are outsi</a><a href="#release-swamp-club-swamp-v20261015-015437-0-sha-380e3c30"><span class="tier A">A</span>close the D2 replication follow-ups before 4E switches it on</a><a href="#release-swamp-club-swamp-v20261015-013550-0-sha-4a0f4d30"><span class="tier A">A</span>serve confirms each v3 write request is replicated before it</a><a href="#release-swamp-club-swamp-v20261015-004123-0-sha-416c29b4"><span class="tier A">A</span>push and install check the collective of the type each sourc</a><a href="#release-swamp-club-swamp-v20261015-002418-0-sha-57be9b7c"><span class="tier A">A</span>a run refused for losing its model lock discards its write, </a><a href="#release-swamp-club-swamp-v20261015-002031-0-sha-ea3631fa"><span class="tier A">A</span>a v3 copy restores, refreshes and takes over from its Litest</a><a href="#release-swamp-club-swamp-v20261014-233851-0-sha-0b740599"><span class="tier A">A</span>extensions pushed from Windows pack folders as 0755 and file</a><a href="#release-swamp-club-swamp-v20261014-222707-0-sha-ff6c1f45"><span class="tier A">A</span>serve shutdown no longer waits for the continuation sweep&#39;s </a><a href="#release-swamp-club-swamp-v20261014-222313-0-sha-d3487b15"><span class="tier A">A</span>editing any local module a bundle includes rebuilds it, not </a><a href="#release-swamp-club-swamp-v20261014-220449-0-sha-79e0800b"><span class="tier A">A</span>push resolves a range dependency to a published version befo</a><a href="#release-swamp-club-swamp-v20261014-213732-0-sha-06ef8b24"><span class="tier A">A</span>swamp dashboard serves no start page, so its token can&#39;t add</a><a href="#release-swamp-club-swamp-v20261014-205128-0-sha-17edd435"><span class="tier A">A</span>literal() output and foreign text in step inputs no longer l</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261015-132835-0-sha-884bfffd"><span class="tier A">A</span>a module graph that fails to read once is retried, so the so</a><a href="#release-swamp-club-swamp-v20261015-025901-0-sha-153c8137"><span class="tier A">A</span>install no longer refuses an extension whose types are outsi</a><a href="#release-swamp-club-swamp-v20261015-015437-0-sha-380e3c30"><span class="tier A">A</span>close the D2 replication follow-ups before 4E switches it on</a><a href="#release-swamp-club-swamp-v20261015-013550-0-sha-4a0f4d30"><span class="tier A">A</span>serve confirms each v3 write request is replicated before it</a><a href="#release-swamp-club-swamp-v20261015-004123-0-sha-416c29b4"><span class="tier A">A</span>push and install check the collective of the type each sourc</a><a href="#release-swamp-club-swamp-v20261015-002418-0-sha-57be9b7c"><span class="tier A">A</span>a run refused for losing its model lock discards its write, </a><a href="#release-swamp-club-swamp-v20261015-002031-0-sha-ea3631fa"><span class="tier A">A</span>a v3 copy restores, refreshes and takes over from its Litest</a><a href="#release-swamp-club-swamp-v20261014-233851-0-sha-0b740599"><span class="tier A">A</span>extensions pushed from Windows pack folders as 0755 and file</a><a href="#release-swamp-club-swamp-v20261014-222707-0-sha-ff6c1f45"><span class="tier A">A</span>serve shutdown no longer waits for the continuation sweep&#39;s </a><a href="#release-swamp-club-swamp-v20261014-222313-0-sha-d3487b15"><span class="tier A">A</span>editing any local module a bundle includes rebuilds it, not </a><a href="#release-swamp-club-swamp-v20261014-220449-0-sha-79e0800b"><span class="tier A">A</span>push resolves a range dependency to a published version befo</a><a href="#release-swamp-club-swamp-v20261014-213732-0-sha-06ef8b24"><span class="tier A">A</span>swamp dashboard serves no start page, so its token can&#39;t add</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261015-132835-0-sha-884bfffd">
+<h2><span class="tier A">A</span>a module graph that fails to read once is retried, so the source does not stay on the in-directory fallback (swamp-club#3487) (#3137)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T13:30:18Z">2026-10-15T13:30:18Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): a module graph that fails to read once is retried, so the source does not stay on the in-directory fallback (swamp-club#3487) (#3137)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3487, a follow-up from the adversarial review of #3128 (swamp-club#3385).</p>
+<p>When a source bundled fine but its <code>deno info</code> graph read failed (timeout, killed process, abort under load), the loader recorded the relative-import walk bounded at the kind directory, and kept it for good. The warm scan only re-reads the graph of sources with no list, so a model in <code>extensions/models</code> importing <code>../lib/msg.ts</code> was back to the #3385 behaviour: edits to <code>msg.ts</code> did not rebuild the bundle.</p>
+<ul>
+<li><strong>A failed graph read is retried once.</strong> <code>source_modules</code> gains a <code>graph_pending</code> column, added by migration for catalogs the #3385 binary wrote. The fallback recorded after a failed read is marked pending, and the warm scan finds a pending local source stale once (pulled sources stay exempt). <code>rebundleAndUpdateCatalog</code> clears the mark before it can return or throw, so the retry is used up however it ends: it records the graph, or it keeps the fallback for good if the graph fails again.</li>
+<li><strong>Catalog errors after a good bundle</strong> no longer fail the bundle. The recorded list is forgotten instead, so the next scan rebuilds it rather than keeping a list that may no longer match the source&#39;s imports.</li>
+<li><strong>The 10,000-module cap applies on write.</strong> <code>MAX_SOURCE_MODULES</code> moves to the domain. A graph over it rec</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.132835.0-sha.884bfffd" rel="noopener">release v20261015.132835.0-sha.884bfffd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/884bfffd2a413a9a8ed2a95091148bb22046cc8a" rel="noopener">884bfffd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3137" rel="noopener">#3137</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3128" rel="noopener">#3128</a>𝗔 <a href="https://swamp-club.com/lab/3487" rel="noopener">lab#3487</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261015-025901-0-sha-153c8137">
 <h2><span class="tier A">A</span>install no longer refuses an extension whose types are outside its collective, so older published versions pull again; push still refuses them (swamp-club#3488) (#3136)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -350,7 +369,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/local-dashboard.md" rel="noopener">design/surfaces/local-dashboard.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.213732.0-sha.06ef8b24" rel="noopener">release v20261014.213732.0-sha.06ef8b24</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/06ef8b240f05810e2d535a80e28e39de7c4fd812" rel="noopener">06ef8b24</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3126" rel="noopener">#3126</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261014-205128-0-sha-17edd435">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261014-205128-0-sha-17edd435">
 <h2><span class="tier A">A</span>literal() output and foreign text in step inputs no longer log refusal warnings, and a step reports each refusal once (swamp-club#3402) (#3125)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T20:53:30Z">2026-10-14T20:53:30Z</time></span><span>expressions</span><span>fix</span></div>
@@ -371,7 +390,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/expressions-and-foreach.md" rel="noopener">.claude/skills/swamp/references/workflow/references/expressions-and-foreach.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261014.205128.0-sha.17edd435" rel="noopener">release v20261014.205128.0-sha.17edd435</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/17edd435e350b960df8fab984b8bb6dc5f82fc3b" rel="noopener">17edd435</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3125" rel="noopener">#3125</a>𝗔 <a href="https://swamp-club.com/lab/3402" rel="noopener">lab#3402</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261014-204224-0-sha-8d6dfb6c">
+<article class="item" id="release-swamp-club-swamp-v20261014-204224-0-sha-8d6dfb6c">
 <h2><span class="tier A">A</span>install.ps1 leaves the user&#39;s PowerShell session open when an irm | iex install fails (swamp-club#3474) (#3124)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T20:44:38Z">2026-10-14T20:44:38Z</time></span><span>install</span><span>fix</span></div>
@@ -8498,7 +8517,69 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261014-182448-0-sha-0f66cede">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261015-155234-0-sha-fd2cc7ca">
+<h2><span class="tier C">C</span>swamp 20261015.155234.0-sha.fd2cc7ca</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T15:54:36Z">2026-10-15T15:54:36Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a worker whose enrollment probe was refused for a slot held by a manual probe is probed again when the slot frees (swamp-club#3404) (#3140)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3404. With <code>swamp serve --verify-on-enroll</code>, a manual <code>swamp worker verify</code> that took a worker&#39;s only slot while its enrollment probe was still being set up caused that probe to be refused as at capacity. The re-probe from swamp-club#3388 fired only when the dispatch that freed the slot had run on a socket the worker had since replaced. A manual probe ends on the same socket, so nothing probed again, and the worker stayed <code>unverified</code> until it reconnected.</p>
+<ul>
+<li><code>WorkerGateway</code> now sets <code>probeRefusedForCapacity</code> on the pool entry when it refuses a probe for capacity while the unverified worker&#39;s enrollment verification is running. When a dispatch ends with no slots held, the gateway starts enrollment verification again if that flag is set, whichever socket the dispatch used. This replaces the <code>channelAtStart</code> check. The #3388 reconnect case is still covered, because there the probe was also refused for capacity.</li>
+<li>The flag is cleared when each verification run starts and on a verify-on-enroll reconnect, so a re-probe that fails is not repeated, and a refusal from before the worker was verified does not start a reconnect probe early.</li>
+<li>The deferred <code>verifyAgain</code> re-run now also requires the socket to be open, matching the dispatch-end trigger.</li>
+<li>`design/enablers/remote-execution.m</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.155234.0-sha.fd2cc7ca" rel="noopener">release v20261015.155234.0-sha.fd2cc7ca</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fd2cc7ca" rel="noopener">fd2cc7ca</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3140" rel="noopener">#3140</a>𝗔 <a href="https://swamp-club.com/lab/3404" rel="noopener">lab#3404</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261015-144744-0-sha-dd094735">
+<h2><span class="tier C">C</span>swamp 20261015.144744.0-sha.dd094735</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T14:49:44Z">2026-10-15T14:49:44Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): extension quality --json reports status passed when only rubric factors are missing, matching the exit code (swamp-club#3464) (#3139)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3464.</p>
+<p><code>swamp extension quality --json</code> set <code>status: &quot;failed&quot;</code> whenever any rubric factor was missing (no README, no license, an unverified repository), even when no check failed and the run exited 0. The code comment, the release notes of #2892 (swamp-club#3022) and the manual all define <code>status</code> as the run&#39;s outcome, matching the exit code.</p>
+<ul>
+<li><strong><code>status</code> follows the run outcome alone.</strong> It is <code>&quot;failed&quot;</code> when a check would block a push or the registry cannot score the extension (<code>qualityFailureMessage</code>), the same condition that sets the exit code and that log mode already used. <code>allPassed</code> still reports the rubric&#39;s own result.</li>
+<li><strong>Behaviour change for JSON consumers:</strong> a script that read <code>status == &quot;failed&quot;</code> to detect missing rubric factors should check <code>allPassed == false</code> instead. No in-repo consumer reads <code>status</code> that way; the stagecraft examples in swamp-extensions gate on <code>allPassed</code>, and swamp-uat asserts <code>status: &quot;failed&quot;</code> only alongside a non-zero exit.</li>
+<li>The manual&#39;s wording for the <code>status</code> row is tracked separately as swamp-club#3498.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>extension_quality_test.ts</code> now covers all four combinations of rubric result and run outcome in JSON mode. The extended missing-factor test asserts <code>status: &quot;passed&quot;</code> and <code>allPassed: false</code>, and fails without the fi</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.144744.0-sha.dd094735" rel="noopener">release v20261015.144744.0-sha.dd094735</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/dd094735" rel="noopener">dd094735</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3139" rel="noopener">#3139</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2892" rel="noopener">#2892</a>𝗔 <a href="https://swamp-club.com/lab/3464" rel="noopener">lab#3464</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261015-144136-0-sha-1b43a9a6">
+<h2><span class="tier C">C</span>swamp 20261015.144136.0-sha.1b43a9a6</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T14:43:37Z">2026-10-15T14:43:37Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): push refuses any symlink on an extension file&#39;s path, not only a symlinked file (swamp-club#3421) (#3138)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3421, a sibling of swamp-club#3420.</p>
+<p>Push only checked the last part of each path for a symlink. So a file reached through a symlinked directory was packaged. Inside the repo, push packaged the target&#39;s bytes. Outside the repo, model modules were refused only by the containment check. <code>include</code>, <code>additionalFiles</code>, <code>binaries</code>, workflows and skills had no check at all. A dry run with a collective the author owned packaged a file from outside the repository and reported success.</p>
+<p><strong>What push does now</strong></p>
+<ul>
+<li>Push checks every file it collects for a symlink on its path, before anything reads the file. That covers entry points, imported modules, <code>include</code>, <code>additionalFiles</code>, <code>binaries</code>, workflows and skills. The check covers every component from the outermost root that holds the file (the repository, the extensions root or the manifest&#39;s directory) down to the file. Symlinks above that root, such as macOS <code>/tmp</code> or a symlinked home directory, are still allowed.</li>
+<li>Refused files stay in their lists, unread. The safety gate refuses each one by the existing <code>symlink</code> rule. The message names the symlinked component, never its target, and ends with &quot;Copy the file into the extension tree instead.&quot; The <code>--json</code> shape is unchanged (<code>errors.safety</code>).</li>
+<li>A refused file is never read. The package cache hashes it by path, not c</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.144136.0-sha.1b43a9a6" rel="noopener">release v20261015.144136.0-sha.1b43a9a6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1b43a9a6" rel="noopener">1b43a9a6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3138" rel="noopener">#3138</a>𝗔 <a href="https://swamp-club.com/lab/3495" rel="noopener">lab#3495</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261014-182448-0-sha-0f66cede">
 <h2><span class="tier C">C</span>push_behavior_test expects forward-slash content file names on Windows (swamp-club#3462) (#3114)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-14T18:26:46Z">2026-10-14T18:26:46Z</time></span><span>extensions</span><span>test</span></div>
@@ -8869,13 +8950,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>364 items across 1 source(s) in this window:
-0 critical, 335 notable, 13 routine,
-16 minor.</p>
-<ul><li><strong>fix</strong> — 238</li><li><strong>feat</strong> — 97</li><li><strong>refactor</strong> — 11</li><li><strong>test</strong> — 8</li><li><strong>docs</strong> — 8</li><li><strong>perf</strong> — 2</li></ul></section>
+<p>368 items across 1 source(s) in this window:
+0 critical, 336 notable, 13 routine,
+19 minor.</p>
+<ul><li><strong>fix</strong> — 239</li><li><strong>feat</strong> — 97</li><li><strong>refactor</strong> — 11</li><li><strong>test</strong> — 8</li><li><strong>docs</strong> — 8</li><li><strong>changes</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-15T15:05:16.216Z">2026-10-15T15:05:16.216Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-15T16:04:40.083Z">2026-10-15T16:04:40.083Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

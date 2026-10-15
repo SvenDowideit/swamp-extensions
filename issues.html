@@ -67,8 +67,24 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3464"><span class="tier A">A</span>extension quality --json reports status &quot;failed&quot; when a rubr</a><a href="#issue-3487"><span class="tier A">A</span>bundle freshness: a one-off deno info failure leaves a sourc</a><a href="#issue-3491"><span class="tier A">A</span>Datastore rework Phase 4: close D2 follow-ups before v3 repl</a><a href="#issue-3489"><span class="tier A">A</span>Datastore rework Phase 4: serve confirms each v3 write reque</a><a href="#issue-3482"><span class="tier A">A</span>Datastore rework Phase 4 D2: restore, refresh and takeover f</a><a href="#issue-3485"><span class="tier A">A</span>S3/GCS: a run refused for losing its model lock keeps its wr</a><a href="#issue-3469"><span class="tier A">A</span>Docs: add PowerShell to Set Up Shell Completions</a><a href="#issue-3484"><span class="tier A">A</span>Windows: extension archives still pack directories as 0666, </a><a href="#issue-3472"><span class="tier A">A</span>serve shutdown waits for an unsignalled run index rebuild: t</a><a href="#issue-3385"><span class="tier A">A</span>bundle freshness ignores local modules outside the kind dire</a><a href="#issue-3342"><span class="tier A">A</span>Rescore scores the newest version, but the scorecard reads t</a><a href="#issue-3439"><span class="tier A">A</span>Extension push: a range dependency is sent to OSV as the ran</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3404"><span class="tier A">A</span>A manual worker verify racing an enrollment probe can leave </a><a href="#issue-3498"><span class="tier A">A</span>Manual: extension quality --json status field should say a c</a><a href="#issue-3464"><span class="tier A">A</span>extension quality --json reports status &quot;failed&quot; when a rubr</a><a href="#issue-3487"><span class="tier A">A</span>bundle freshness: a one-off deno info failure leaves a sourc</a><a href="#issue-3491"><span class="tier A">A</span>Datastore rework Phase 4: close D2 follow-ups before v3 repl</a><a href="#issue-3489"><span class="tier A">A</span>Datastore rework Phase 4: serve confirms each v3 write reque</a><a href="#issue-3482"><span class="tier A">A</span>Datastore rework Phase 4 D2: restore, refresh and takeover f</a><a href="#issue-3485"><span class="tier A">A</span>S3/GCS: a run refused for losing its model lock keeps its wr</a><a href="#issue-3469"><span class="tier A">A</span>Docs: add PowerShell to Set Up Shell Completions</a><a href="#issue-3484"><span class="tier A">A</span>Windows: extension archives still pack directories as 0666, </a><a href="#issue-3472"><span class="tier A">A</span>serve shutdown waits for an unsignalled run index rebuild: t</a><a href="#issue-3385"><span class="tier A">A</span>bundle freshness ignores local modules outside the kind dire</a></aside><div>
 
+<article class="item" id="issue-3404">
+<h2><span class="tier A">A</span>A manual worker verify racing an enrollment probe can leave a healthy worker unverified until it reconnects</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-15T15:55:20.416Z">2026-10-15T15:55:20.416Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3404" rel="noopener">lab#3404</a></div>
+</article>
+<article class="item" id="issue-3498">
+<h2><span class="tier A">A</span>Manual: extension quality --json status field should say a check that would block a push</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-15T15:33:07.098Z">2026-10-15T15:33:07.098Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3498" rel="noopener">lab#3498</a></div>
+</article>
 <article class="item" id="issue-3464">
 <h2><span class="tier A">A</span>extension quality --json reports status &quot;failed&quot; when a rubric factor is missing, though the exit code is 0</h2>
 <p class="lede">Shipped bug fix</p>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3385" rel="noopener">lab#3385</a></div>
 </article>
-<article class="item" id="issue-3342">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3342">
 <h2><span class="tier A">A</span>Rescore scores the newest version, but the scorecard reads the stable one</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-14T22:29:42.882Z">2026-10-14T22:29:42.882Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3439" rel="noopener">lab#3439</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3465">
+<article class="item" id="issue-3465">
 <h2><span class="tier A">A</span>serve: handlers that sanitize an error for the client never log the original, so path-bearing failures are undiagnosable</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-14T21:18:26.240Z">2026-10-14T21:18:26.240Z</time></span></div>
@@ -3749,6 +3765,46 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-3501">
+<h2><span class="tier B">B</span>swamp worker list shows a worker as idle while its verify-on-enroll probe is still pending</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-15T16:01:39.782Z">2026-10-15T16:01:39.782Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3501" rel="noopener">lab#3501</a></div>
+</article>
+<article class="item" id="issue-2333">
+<h2><span class="tier B">B</span>gcs-datastore: a failed lock read is reported as &quot;unlocked&quot; — #2298 in the GCS backend</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-15T16:01:33.122Z">2026-10-15T16:01:33.122Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2333" rel="noopener">lab#2333</a></div>
+</article>
+<article class="item" id="issue-3494">
+<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-15T15:58:51.514Z">2026-10-15T15:58:51.514Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3494" rel="noopener">lab#3494</a></div>
+</article>
+<article class="item" id="issue-3490">
+<h2><span class="tier B">B</span>Datastore rework Phase 4 F: a durable outbox for v3 commits, the post-commit chunk check on recovery, and pruning compacted_txns</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-15T15:48:26.387Z">2026-10-15T15:48:26.387Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3490" rel="noopener">lab#3490</a></div>
+</article>
+<article class="item" id="issue-3497">
+<h2><span class="tier B">B</span>Flaky: v3 restore test &#39;serve&#39;s retake after another checkout wrote restores into its open store&#39; fails under full-suite load</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-15T15:37:09.958Z">2026-10-15T15:37:09.958Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3497" rel="noopener">lab#3497</a></div>
+</article>
 <article class="item" id="issue-2583">
 <h2><span class="tier B">B</span>verify-reviews: adversarial review path guard is a hand-kept list, so new extensions silently skip it</h2>
 <p class="lede">Issue in_progress</p>
@@ -3757,30 +3813,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2583" rel="noopener">lab#2583</a></div>
 </article>
-<article class="item" id="issue-3404">
-<h2><span class="tier B">B</span>A manual worker verify racing an enrollment probe can leave a healthy worker unverified until it reconnects</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-15T15:01:22.458Z">2026-10-15T15:01:22.458Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3404" rel="noopener">lab#3404</a></div>
-</article>
-<article class="item" id="issue-3490">
-<h2><span class="tier B">B</span>Datastore rework Phase 4 F: a durable outbox for v3 commits, the post-commit chunk check on recovery, and pruning compacted_txns</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-15T15:00:34.101Z">2026-10-15T15:00:34.101Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3490" rel="noopener">lab#3490</a></div>
-</article>
-<article class="item" id="issue-3498">
-<h2><span class="tier B">B</span>Manual: extension quality --json status field should say a check that would block a push</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-15T15:00:34.025Z">2026-10-15T15:00:34.025Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3498" rel="noopener">lab#3498</a></div>
-</article>
 <article class="item" id="issue-3463">
 <h2><span class="tier B">B</span>auth whoami: log mode labels collectives Free and shows trial expired for a superseded trial</h2>
 <p class="lede">Issue triaged</p>
@@ -3788,22 +3820,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3463" rel="noopener">lab#3463</a></div>
-</article>
-<article class="item" id="issue-3497">
-<h2><span class="tier B">B</span>Flaky: v3 restore test &#39;serve&#39;s retake after another checkout wrote restores into its open store&#39; fails under full-suite load</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-15T14:51:25.132Z">2026-10-15T14:51:25.132Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3497" rel="noopener">lab#3497</a></div>
-</article>
-<article class="item" id="issue-3494">
-<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-15T14:51:24.951Z">2026-10-15T14:51:24.951Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3494" rel="noopener">lab#3494</a></div>
 </article>
 <article class="item" id="issue-3456">
 <h2><span class="tier B">B</span>Windows: extension push type field shows file path instead of exported type name</h2>
@@ -3893,7 +3909,23 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3395">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3174">
+<h2><span class="tier C">C</span>swamp-extensions CI: Review Integrity audit stalls silently on a large trust-root change until Forgejo kills the job</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-15T15:21:56.145Z">2026-10-15T15:21:56.145Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3174" rel="noopener">lab#3174</a></div>
+</article>
+<article class="item" id="issue-3500">
+<h2><span class="tier C">C</span>A bare deno check fails with ~2,000 errors in packages/dashboard; make the dashboard type-check under Deno</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-15T15:08:53.881Z">2026-10-15T15:08:53.881Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3500" rel="noopener">lab#3500</a></div>
+</article>
+<article class="item" id="issue-3395">
 <h2><span class="tier C">C</span>Datastore rework Phase 4 G: S3 and GCS implement the writable datastore-wide control plane and keep _control/writer/ at the bucket root</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-15T14:58:51.111Z">2026-10-15T14:58:51.111Z</time></span></div>
@@ -4468,14 +4500,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3287" rel="noopener">lab#3287</a></div>
-</article>
-<article class="item" id="issue-3174">
-<h2><span class="tier C">C</span>swamp-extensions CI: Review Integrity audit stalls silently on a large trust-root change until Forgejo kills the job</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-12T14:28:59.210Z">2026-10-12T14:28:59.210Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3174" rel="noopener">lab#3174</a></div>
 </article>
 <article class="item" id="issue-3280">
 <h2><span class="tier C">C</span>s3-datastore: first push on a fresh cache prints &#39;Index merge failed&#39; for a missing local .datastore-index.json</h2>
@@ -5310,13 +5334,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>655 items across 1 source(s) in this window:
-0 critical, 460 notable, 18 routine,
-177 minor.</p>
-<ul><li><strong>issues</strong> — 655</li></ul></section>
+<p>658 items across 1 source(s) in this window:
+0 critical, 462 notable, 18 routine,
+178 minor.</p>
+<ul><li><strong>issues</strong> — 658</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-15T15:05:16.216Z">2026-10-15T15:05:16.216Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-15T16:04:40.083Z">2026-10-15T16:04:40.083Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

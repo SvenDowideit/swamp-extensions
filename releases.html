@@ -8348,7 +8348,56 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261015-004123-0-sha-416c29b4">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261015-015437-0-sha-380e3c30">
+<h2><span class="tier C">C</span>swamp 20261015.015437.0-sha.380e3c30</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T01:56:12Z">2026-10-15T01:56:12Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): close the D2 replication follow-ups before 4E switches it on (swamp-club#3491) (#3135)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Closes the eight follow-ups that D2&#39;s verify reviews (#3131) left for before Phase 4E switches v3 Litestream replication on. All of it is dormant: with <code>SWAMP_V3_REPLICA</code> unset nothing changes.</p>
+<p>1. <strong>Lineage claims serialised per copy:</strong> serve&#39;s retake beside a writer&#39;s hold at the same fence no longer fails with a misleading &quot;already claimed&quot;.</p>
+<p>2. <strong>Honest fenced messages:</strong></p>
+<ul>
+<li>serve&#39;s retake window says this process holds the lease again and its copy is catching up;</li>
+<li>a lease check that failed for another reason (I/O) is reported as unconfirmed replication, not a takeover.</li>
+</ul>
+<p>3. <strong><code>copy.json</code> only moves forward</strong> (<code>copyStateAdvances</code>).</p>
+<p>4. <strong>The conflict path refuses</strong> a fence that went back to one this copy already began a lineage at, and refuses a same-fence claim under another replica root.</p>
+<p>5. <strong>Doc comments</strong> say a missing copy is hard-linked into place.</p>
+<p>6. <strong><code>swamp datastore namespace list</code></strong> makes the copy current before reading it.</p>
+<p>7. <strong>Migration:</strong> the first writer seeds its copy from the shared <code>commits.db</code> under the lease. The seed keeps running until some lineage is confirmed, so the shared commits become the first lineage even if an earlier seeder failed before confirming.</p>
+<p>8. <strong>Chunk GC</strong> waits while any lineage other than the current one can be restored (<code>decideChunkCollection</code>). Serve says so at info once per datastore, and</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.015437.0-sha.380e3c30" rel="noopener">release v20261015.015437.0-sha.380e3c30</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/380e3c30" rel="noopener">380e3c30</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3135" rel="noopener">#3135</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3131" rel="noopener">#3131</a>𝗔 <a href="https://swamp-club.com/lab/3491" rel="noopener">lab#3491</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261015-013550-0-sha-4a0f4d30">
+<h2><span class="tier C">C</span>swamp 20261015.013550.0-sha.4a0f4d30</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-15T01:37:39Z">2026-10-15T01:37:39Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): serve confirms each v3 write request is replicated before it answers, with group commit (dormant) (swamp-club#3489) (#3134)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Phase 4D3 of the datastore rework (swamp-club#3489). Serve answered v3 write requests before their commits were replicated, and published a head only on its 30 s probe, so a D2 takeover after serve died could drop writes serve had acknowledged. Now each write request answers only once a sync has published a head covering its commits, as a CLI write command does at teardown. Dormant: nothing changes while <code>SWAMP_V3_REPLICA</code> is unset.</p>
+<p><strong>Where the confirmation goes.</strong> Most handlers send their success reply inside their root unit of work, before it commits, so a confirm in the root&#39;s flush would come after the reply. Instead, dispatch wraps each write request in <code>confirmRequest</code> (<code>src/serve/handlers/shared.ts</code>).</p>
+<ul>
+<li>The request&#39;s replies are held while its handler runs. Run events pass.</li>
+<li>When the handler ends, serve calls <code>confirmV3Replicated</code>, but only if serve&#39;s commit mark moved during the request. Then the held replies go out in order.</li>
+<li><code>CONFIRMED_WRITE_REQUESTS</code> (<code>src/serve/write_confirmation.ts</code>) lists the wrapped requests, and a fitness rule pins dispatch to it.</li>
+</ul>
+<p><strong>Group commit.</strong> <code>ReplicationGroupCommit</code> (domain) is built on <code>syncAndPublish</code>, which now returns the mark it published.</p>
+<ul>
+<li>One sync runs at a time per datastore.</li>
+<li>Requests waiting when a sync starts are covered by it. The next sync starts</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.013550.0-sha.4a0f4d30" rel="noopener">release v20261015.013550.0-sha.4a0f4d30</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4a0f4d30" rel="noopener">4a0f4d30</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3134" rel="noopener">#3134</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3482" rel="noopener">#3482</a>𝗔 <a href="https://swamp-club.com/lab/3489" rel="noopener">lab#3489</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261015-004123-0-sha-416c29b4">
 <h2><span class="tier C">C</span>swamp 20261015.004123.0-sha.416c29b4</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-15T00:43:11Z">2026-10-15T00:43:11Z</time></span></div>
@@ -8788,13 +8837,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>361 items across 1 source(s) in this window:
+<p>363 items across 1 source(s) in this window:
 0 critical, 329 notable, 13 routine,
-19 minor.</p>
-<ul><li><strong>fix</strong> — 235</li><li><strong>feat</strong> — 94</li><li><strong>refactor</strong> — 11</li><li><strong>test</strong> — 8</li><li><strong>docs</strong> — 8</li><li><strong>changes</strong> — 3</li></ul></section>
+21 minor.</p>
+<ul><li><strong>fix</strong> — 235</li><li><strong>feat</strong> — 94</li><li><strong>refactor</strong> — 11</li><li><strong>test</strong> — 8</li><li><strong>docs</strong> — 8</li><li><strong>changes</strong> — 5</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-15T01:03:10.866Z">2026-10-15T01:03:10.866Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-15T02:14:30.181Z">2026-10-15T02:14:30.181Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

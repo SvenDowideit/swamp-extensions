@@ -8939,7 +8939,56 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261015-224757-0-sha-941a44fe">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261016-142354-0-sha-1626b615">
+<h2><span class="tier C">C</span>swamp 20261016.142354.0-sha.1626b615</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-16T14:26:00Z">2026-10-16T14:26:00Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): an empty option value (--title=, --title &quot;&quot;) is reported the same way everywhere and no longer swallows the next flag (swamp-club#3542) (#3160)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3542.</p>
+<p>Cliffy 1.0.1 (<code>@cliffy/flags</code> <code>parseFlags</code>) reads an empty value after <code>=</code> as no value (<code>current.slice(eq + 1) || undefined</code>) and takes the <strong>next</strong> argv token as the value instead. So:</p>
+<ul>
+<li><code>swamp issue bug --title= --no-redact --body desc</code> parsed <strong>successfully</strong> as <code>title: &quot;--no-redact&quot;</code> and silently dropped the flag. This happens for every swamp command, not only <code>issue</code>: an empty <code>--x=</code> placed before <code>--force</code> or <code>--dry-run</code> would swallow that flag.</li>
+<li>The error depended on position: a trailing <code>--body=</code> said <code>Missing value for option &quot;--body&quot;</code>, and anything followed by another token said <code>No arguments allowed</code>. The report put this down to <code>--title</code> vs <code>--body</code>, but position is what decides it.</li>
+</ul>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong><code>src/cli/empty_option_value.ts</code></strong> (new): <code>findEmptyOptionValue(root, args)</code> walks argv against the real Cliffy command tree before parsing. It reuses the telemetry walker&#39;s <code>findOption</code> / <code>optionConsumesNext</code>, now exported and documented as shared. It reports any option that takes a value and is given an empty one: <code>--opt=</code>, <code>-o=</code>, a combined short group <code>-qo=</code> (following Cliffy&#39;s <code>splitFlags</code>), or <code>--opt &quot;&quot;</code>. Boolean and <code>--no-*</code> flags, unknown options, tokens consumed as another option&#39;s value, and everything after <code>--</code> are left alone.</li>
+<li>**<code>src/cli/mod.ts</code></li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.142354.0-sha.1626b615" rel="noopener">release v20261016.142354.0-sha.1626b615</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1626b615" rel="noopener">1626b615</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3160" rel="noopener">#3160</a>𝗔 <a href="https://swamp-club.com/lab/3542" rel="noopener">lab#3542</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261016-132408-0-sha-051bfb0e">
+<h2><span class="tier C">C</span>swamp 20261016.132408.0-sha.051bfb0e</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-16T13:25:39Z">2026-10-16T13:25:39Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): stopping a probe host that is already reaped lists no children under its pid, though child.status has not settled yet (swamp-club#3524) (#3159)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3524. <code>integration/process_bundle_prober_test.ts</code> (&quot;stopping a host that has already exited lists no children under its pid&quot;) flaked in verify-build. The flake comes from a real race in <code>ProcessBundleProber</code>.</p>
+<ul>
+<li><code>stop()</code> in <code>startProbeHost</code> lists the host&#39;s children only while the host&#39;s <code>exited</code> flag is false.</li>
+<li><code>exited</code> is set only when <code>child.status</code> resolves in JS. The runtime reaps the child earlier than that.</li>
+<li>In the gap, <code>stop()</code> listed children under a pid that is already free for reuse. If the OS had handed that pid to another process, <code>stop()</code> could SIGKILL that process&#39;s children.</li>
+<li>Now a host that is gone from the process table (<code>isProcessAlive</code> false) also counts as exited. The check doesn&#39;t run on Windows, where <code>Deno.kill(pid, 0)</code> is no liveness check and the job already handles cleanup.</li>
+</ul>
+<p>The change is one guard in <code>src/infrastructure/runtime/process_bundle_prober.ts</code>. Tests are unchanged.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>A scratch harness drove the real <code>ProcessBundleProber</code> through the test&#39;s steps: probe, SIGKILL the host, poll every 1ms until the pid leaves the process table, <code>release()</code>. It ran with every core busy.</li>
+<li>Before the fix it listed children under the reaped pid in <strong>45 of 100</strong> runs. After the fix, <strong>0 of 100</strong>.</li>
+<li>At the test level, the existing te</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.132408.0-sha.051bfb0e" rel="noopener">release v20261016.132408.0-sha.051bfb0e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/051bfb0e" rel="noopener">051bfb0e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3159" rel="noopener">#3159</a>𝗔 <a href="https://swamp-club.com/lab/3524" rel="noopener">lab#3524</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261015-224757-0-sha-941a44fe">
 <h2><span class="tier C">C</span>characterize worker secret authorization and control-plane secret traffic as the typed-secrets Phase 0 baseline (swamp-club#3512) (#3154)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-15T22:50:01Z">2026-10-15T22:50:01Z</time></span><span>remote</span><span>test</span></div>
@@ -9404,13 +9453,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>386 items across 1 source(s) in this window:
+<p>388 items across 1 source(s) in this window:
 1 critical, 353 notable, 13 routine,
-19 minor.</p>
+21 minor.</p>
 <ul><li><strong>fix</strong> — 251</li><li><strong>feat</strong> — 102</li><li><strong>test</strong> — 11</li><li><strong>refactor</strong> — 11</li><li><strong>docs</strong> — 9</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-16T14:20:43.388Z">2026-10-16T14:20:43.388Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-16T15:03:53.012Z">2026-10-16T15:03:53.012Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

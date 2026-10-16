@@ -67,8 +67,16 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3311"><span class="tier A">A</span>extension push --private: trust the registry&#39;s privateExtens</a><a href="#issue-3531"><span class="tier A">A</span>Datastore rework Phase 4: a provider capability to remove ab</a><a href="#issue-3512"><span class="tier A">A</span>typed-secrets 0.4: characterize worker secret authorization </a><a href="#issue-3500"><span class="tier A">A</span>A bare deno check fails with ~2,000 errors in packages/dashb</a><a href="#issue-3507"><span class="tier A">A</span>Datastore rework Phase 4: a provider-supplied replica target</a><a href="#issue-3513"><span class="tier A">A</span>issue-lifecycle: an approved plan cannot be sent back to pla</a><a href="#issue-3510"><span class="tier A">A</span>typed-secrets 1.1: commit the cel-js 7.6.1 probe harness as </a><a href="#issue-2583"><span class="tier A">A</span>verify-reviews: adversarial review path guard is a hand-kept</a><a href="#issue-3506"><span class="tier A">A</span>v3 commit outbox: a discarded entry is removed without fsync</a><a href="#issue-3509"><span class="tier A">A</span>typed-secrets 0.1: land the typed-secrets plan as a design e</a><a href="#issue-3503"><span class="tier A">A</span>whoami reports a superseded trial as expired, and a Personal</a><a href="#issue-3430"><span class="tier A">A</span>swamp-club.com serves every response uncompressed</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3473"><span class="tier A">A</span>Retention: one timeframe, enforced automatically, after whic</a><a href="#issue-3311"><span class="tier A">A</span>extension push --private: trust the registry&#39;s privateExtens</a><a href="#issue-3531"><span class="tier A">A</span>Datastore rework Phase 4: a provider capability to remove ab</a><a href="#issue-3512"><span class="tier A">A</span>typed-secrets 0.4: characterize worker secret authorization </a><a href="#issue-3500"><span class="tier A">A</span>A bare deno check fails with ~2,000 errors in packages/dashb</a><a href="#issue-3507"><span class="tier A">A</span>Datastore rework Phase 4: a provider-supplied replica target</a><a href="#issue-3513"><span class="tier A">A</span>issue-lifecycle: an approved plan cannot be sent back to pla</a><a href="#issue-3510"><span class="tier A">A</span>typed-secrets 1.1: commit the cel-js 7.6.1 probe harness as </a><a href="#issue-2583"><span class="tier A">A</span>verify-reviews: adversarial review path guard is a hand-kept</a><a href="#issue-3506"><span class="tier A">A</span>v3 commit outbox: a discarded entry is removed without fsync</a><a href="#issue-3509"><span class="tier A">A</span>typed-secrets 0.1: land the typed-secrets plan as a design e</a><a href="#issue-3503"><span class="tier A">A</span>whoami reports a superseded trial as expired, and a Personal</a></aside><div>
 
+<article class="item" id="issue-3473">
+<h2><span class="tier A">A</span>Retention: one timeframe, enforced automatically, after which nothing older remains anywhere in the datastore</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-16T00:41:44.702Z">2026-10-16T00:41:44.702Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3473" rel="noopener">lab#3473</a></div>
+</article>
 <article class="item" id="issue-3311">
 <h2><span class="tier A">A</span>extension push --private: trust the registry&#39;s privateExtensions verdict instead of deciding from plan/trial</h2>
 <p class="lede">Shipped bug fix</p>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3503" rel="noopener">lab#3503</a></div>
 </article>
-<article class="item" id="issue-3430">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3430">
 <h2><span class="tier A">A</span>swamp-club.com serves every response uncompressed</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-15T19:38:09.406Z">2026-10-15T19:38:09.406Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3430" rel="noopener">lab#3430</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3492">
+<article class="item" id="issue-3492">
 <h2><span class="tier A">A</span>Datastore rework Phase 4 G: S3 and GCS extensions implement storage/1 chunk storage for v3</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-15T18:53:03.310Z">2026-10-15T18:53:03.310Z</time></span></div>
@@ -3925,21 +3933,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-3535">
+<h2><span class="tier B">B</span>Retention under serve load: measure and fix automatic passes against #3518&#39;s busy-serve contention, and the large-backlog first pass</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-16T01:00:24.383Z">2026-10-16T01:00:24.383Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3535" rel="noopener">lab#3535</a></div>
+</article>
+<article class="item" id="issue-3532">
+<h2><span class="tier B">B</span>v3: a data name emptied of every version restarts at version 1, reusing a number for different content (use the partition&#39;s highWater; refuse a reused version)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-16T00:52:35.217Z">2026-10-16T00:52:35.217Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3532" rel="noopener">lab#3532</a></div>
+</article>
 <article class="item" id="issue-3508">
 <h2><span class="tier B">B</span>Datastore rework Phase 4 G: S3 and GCS extensions implement replicaTarget() for v3 Litestream replication</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-16T00:02:35.661Z">2026-10-16T00:02:35.661Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-16T00:51:17.607Z">2026-10-16T00:51:17.607Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3508" rel="noopener">lab#3508</a></div>
 </article>
-<article class="item" id="issue-3473">
-<h2><span class="tier B">B</span>Retention: one timeframe, enforced automatically, after which nothing older remains anywhere in the datastore</h2>
+<article class="item" id="issue-3463">
+<h2><span class="tier B">B</span>auth whoami: log mode labels collectives Free and shows trial expired for a superseded trial</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-15T23:38:50.314Z">2026-10-15T23:38:50.314Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-16T00:39:30.673Z">2026-10-16T00:39:30.673Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3473" rel="noopener">lab#3473</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3463" rel="noopener">lab#3463</a></div>
 </article>
 <article class="item" id="issue-3377">
 <h2><span class="tier B">B</span>S3/GCS datastores: write data version files create-only so a second writer cannot overwrite an existing version</h2>
@@ -3956,14 +3980,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3524" rel="noopener">lab#3524</a></div>
-</article>
-<article class="item" id="issue-3463">
-<h2><span class="tier B">B</span>auth whoami: log mode labels collectives Free and shows trial expired for a superseded trial</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-15T16:41:14.613Z">2026-10-15T16:41:14.613Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3463" rel="noopener">lab#3463</a></div>
 </article>
 <article class="item" id="issue-3456">
 <h2><span class="tier B">B</span>Windows: extension push type field shows file path instead of exported type name</h2>
@@ -4037,21 +4053,53 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3533">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3537">
+<h2><span class="tier C">C</span>Docs: garbageCollection retention — per-kind keys, automatic passes, and what is never removed</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-16T00:46:52.357Z">2026-10-16T00:46:52.357Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3537" rel="noopener">lab#3537</a></div>
+</article>
+<article class="item" id="issue-3536">
+<h2><span class="tier C">C</span>extension quality and push report source paths through the repo&#39;s resolved symlink: quality&#39;s entry.file climbs to / and back</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-16T00:35:20.483Z">2026-10-16T00:35:20.483Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3536" rel="noopener">lab#3536</a></div>
+</article>
+<article class="item" id="issue-3174">
+<h2><span class="tier C">C</span>swamp-extensions CI: Review Integrity audit stalls silently on a large trust-root change until Forgejo kills the job</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-16T00:35:04.473Z">2026-10-16T00:35:04.473Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3174" rel="noopener">lab#3174</a></div>
+</article>
+<article class="item" id="issue-2606">
+<h2><span class="tier C">C</span>A collective that cancels inside its 30-day trial window regains trial access to private extensions</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-16T00:32:12.277Z">2026-10-16T00:32:12.277Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2606" rel="noopener">lab#2606</a></div>
+</article>
+<article class="item" id="issue-3534">
+<h2><span class="tier C">C</span>Datastore rework Phase 4 E: v3 on S3 and GCS (solo mode): setup --format 3 on buckets, replication as a datastore property, end to end</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-16T00:26:02.459Z">2026-10-16T00:26:02.459Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3534" rel="noopener">lab#3534</a></div>
+</article>
+<article class="item" id="issue-3533">
 <h2><span class="tier C">C</span>In-memory remote: model create-only data version writes so core tests can pin them (follow-up to swamp-club#3377)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-15T23:15:44.375Z">2026-10-15T23:15:44.375Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3533" rel="noopener">lab#3533</a></div>
-</article>
-<article class="item" id="issue-3532">
-<h2><span class="tier C">C</span>v3: a data name emptied of every version restarts at version 1, reusing a number for different content (use the partition&#39;s highWater; refuse a reused version)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-15T22:52:17.558Z">2026-10-15T22:52:17.558Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3532" rel="noopener">lab#3532</a></div>
 </article>
 <article class="item" id="issue-3530">
 <h2><span class="tier C">C</span>Remote readResource does not apply the legacy schema fallback for untagged sensitive records</h2>
@@ -4076,14 +4124,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3523" rel="noopener">lab#3523</a></div>
-</article>
-<article class="item" id="issue-3174">
-<h2><span class="tier C">C</span>swamp-extensions CI: Review Integrity audit stalls silently on a large trust-root change until Forgejo kills the job</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-15T21:35:15.596Z">2026-10-15T21:35:15.596Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3174" rel="noopener">lab#3174</a></div>
 </article>
 <article class="item" id="issue-3522">
 <h2><span class="tier C">C</span>Pause and resume a scheduled workflow without editing or deleting its definition</h2>
@@ -4644,14 +4684,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3314" rel="noopener">lab#3314</a></div>
-</article>
-<article class="item" id="issue-2606">
-<h2><span class="tier C">C</span>A collective that cancels inside its 30-day trial window regains trial access to private extensions</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-12T20:01:28.353Z">2026-10-12T20:01:28.353Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2606" rel="noopener">lab#2606</a></div>
 </article>
 <article class="item" id="issue-3313">
 <h2><span class="tier C">C</span>extension pull: answering y to a dependency&#39;s overwrite prompt silently skips that dependency</h2>
@@ -5542,13 +5574,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>684 items across 1 source(s) in this window:
-0 critical, 482 notable, 14 routine,
-188 minor.</p>
-<ul><li><strong>issues</strong> — 684</li></ul></section>
+<p>688 items across 1 source(s) in this window:
+0 critical, 483 notable, 15 routine,
+190 minor.</p>
+<ul><li><strong>issues</strong> — 688</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-16T00:04:48.763Z">2026-10-16T00:04:48.763Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-16T01:05:27.438Z">2026-10-16T01:05:27.438Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

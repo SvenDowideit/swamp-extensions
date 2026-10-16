@@ -15,6 +15,12 @@ description: |
         --input 'hosts=[{"name":"host1","address":"host1.lan"}]'
 inputs:
   properties:
+    identity:
+      type: string
+      default: figy
+      description: >
+        Worker identity — must match the generic `worker` model's `identity`
+        global. Token names are `<identity>-<node>`.
     hosts:
       type: array
       items:
@@ -90,13 +96,14 @@ jobs:
         forEach:
           item: h
           in: ${{ inputs.hosts }}
+        concurrency: 1
         task:
           type: model_method
           modelType: "@svendowideit/swamp-worker"
           modelName: worker
           methodName: revokeToken
           inputs:
-            node: ${{ self.h.name }}
+            name: ${{ inputs.identity + "-" + self.h.name }}
             purgeFile: true
         dependsOn:
           - step: remove-on-nodes

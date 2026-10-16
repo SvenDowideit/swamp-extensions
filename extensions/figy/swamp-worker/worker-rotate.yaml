@@ -1,0 +1,203 @@
+id: d2a9fad6-36b0-45dd-9738-f8f44bd21f53
+name: "@figy/swamp-worker-rotate"
+description: |
+  Rotate the enrollment tokens of deployed swamp workers before they expire —
+  without ever stranding a worker.
+
+  Mints a **new** token per node under a generation name (`<identity>-<node>-g<gen>`),
+  delivers it over SSH, re-runs the provisioning script so the unit restarts onto
+  the new token (the old token is still valid at that moment), then revokes the
+  **previous** token. Because the new token is minted and delivered *before* the
+  old one is revoked, a worker is never left without a valid token.
+
+  Run it periodically (a schedule), bumping `generation` each time:
+
+      swamp workflow run @figy/swamp-worker-rotate \
+        --input serveUrl=wss://swamp.x1yoga.fi.gy \
+        --input 'hosts=[{"name":"host1","address":"host1.lan"}]' \
+        --input generation=2
+
+  `previousSuffix` defaults to "" — i.e. the un-suffixed name a first
+  `@figy/swamp-worker-bootstrap` minted; on later rotations pass the prior
+  generation (e.g. `--input previousSuffix=-g2`).
+inputs:
+  properties:
+    serveUrl:
+      type: string
+      default: ""
+      description: The serve URL the workers dial. Required.
+    identity:
+      type: string
+      default: figy
+      description: >
+        Worker identity — must match the generic `worker` model's `identity`
+        global. Token names are `<identity>-<node>-g<gen>`.
+    hosts:
+      type: array
+      items:
+        type: object
+      default: []
+      description: The node set, each {name, address}.
+    generation:
+      type: string
+      default: ""
+      description: >
+        The new generation number; the new token is `<identity>-<node>-g<gen>`.
+        Required, and must be new each rotation.
+    previousSuffix:
+      type: string
+      default: ""
+      description: >
+        Suffix of the token to revoke (e.g. '' for the first rotation, '-g2' next).
+    duration:
+      type: string
+      default: "30d"
+      description: Token lifetime for the new token (a hard deadline).
+    sshUser:
+      type: string
+      default: sven
+      description: Fleet-default SSH user.
+    sshPort:
+      type: integer
+      default: 22
+      description: Fleet-default SSH port.
+    sshKey:
+      type: string
+      default: ~/.ssh/id_ed25519
+      description: Fleet-default SSH private key path.
+    strictHostKeyChecking:
+      type: string
+      default: accept-new
+      description: SSH StrictHostKeyChecking mode.
+  required:
+    - serveUrl
+    - generation
+jobs:
+  - name: rotate
+    description: Mint new, deliver, restart onto it, revoke old, verify.
+    steps:
+      - name: render
+        description: Render the provisioning script (for the apply step).
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          methodName: renderProvision
+          inputs:
+            serveUrl: ${{ inputs.serveUrl }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: mint-new
+        description: >
+          Mint the new token per node under the generation name
+          `<identity>-<node>-g<gen>`, staged 0600 (reused if a re-run staged it).
+          Per-target; serialised so the calls never contend on the model lock.
+        forEach:
+          item: h
+          in: ${{ inputs.hosts }}
+        concurrency: 1
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          methodName: mintToken
+          inputs:
+            name: ${{ inputs.identity + "-" + self.h.name + "-g" + inputs.generation }}
+            duration: ${{ inputs.duration }}
+        dependsOn:
+          - step: render
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: deliver-new
+        description: Copy each node its new token over SSH (to the node's staging path).
+        forEach:
+          item: h
+          in: ${{ inputs.hosts }}
+        concurrency: 1
+        task:
+          type: model_method
+          modelType: "@swamp/ssh"
+          modelName: figy-workers
+          methodName: copy
+          globalArgs:
+            name: figy-workers
+            transport:
+              kind: ssh
+              user: ${{ inputs.sshUser }}
+              port: ${{ inputs.sshPort }}
+              identityFile: ${{ inputs.sshKey }}
+              strictHostKeyChecking: ${{ inputs.strictHostKeyChecking }}
+            hosts: ${{ inputs.hosts }}
+          inputs:
+            hosts: ${{ self.h.name }}
+            src: ${{ "/tmp/swamp-worker-staging/" + inputs.identity + "-" + self.h.name + "-g" + inputs.generation + ".token" }}
+            dst: /tmp/swamp-worker-token
+            direction: to
+        dependsOn:
+          - step: mint-new
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: apply
+        description: >
+          Run the provisioning script: installs the new token and, because it
+          changed, restarts the unit onto it. The previous token is still valid.
+        task:
+          type: model_method
+          modelType: "@swamp/ssh"
+          modelName: figy-workers
+          methodName: script
+          globalArgs:
+            name: figy-workers
+            transport:
+              kind: ssh
+              user: ${{ inputs.sshUser }}
+              port: ${{ inputs.sshPort }}
+              identityFile: ${{ inputs.sshKey }}
+              strictHostKeyChecking: ${{ inputs.strictHostKeyChecking }}
+            hosts: ${{ inputs.hosts }}
+          inputs:
+            hosts: all
+            script: ${{ data.latest("worker", "provision").attributes.script }}
+        dependsOn:
+          - step: deliver-new
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: revoke-previous
+        description: >
+          Revoke the previous token on the orchestrator (the worker is already on
+          the new one) and drop its staged file. purgeFile=false — the canonical
+          token file now holds the new live token. Serialised to avoid the model
+          lock.
+        forEach:
+          item: h
+          in: ${{ inputs.hosts }}
+        concurrency: 1
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          methodName: revokeToken
+          inputs:
+            name: ${{ inputs.identity + "-" + self.h.name + inputs.previousSuffix }}
+            allGenerations: false
+            purgeFile: false
+        dependsOn:
+          - step: apply
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

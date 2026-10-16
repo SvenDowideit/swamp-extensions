@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@figy/swamp-worker"
-version: "2026.10.11.1"
+version: "2026.10.16.1"
 description: >
   Site-specific: deploy a swamp worker to a set of fi.gy hosts over SSH — and
   completely remove it — driving the generic @svendowideit/swamp-worker model
@@ -13,9 +13,12 @@ description: >
     mint one long-duration enrollment token per node (staged 0600 on the
     orchestrator), copy each node its own token over SSH, run the provisioning
     script there (installing the swamp binary, writing the `swamp-worker-figy`
-    systemd user unit and starting it), and verify it. A matching teardown
-    workflow runs the removal script on every node and revokes each node's token,
-    so a worker can never re-enrol and nothing is left behind. Change the worker
+    systemd user unit and starting it), and verify it. Two matching workflows keep
+    the deployment current: `worker-rotate` refreshes the enrollment tokens (mint
+    a new token under a generation name → deliver → restart onto it → revoke the
+    old) so an always-on worker is never stranded, and `worker-teardown` runs the
+    removal script on every node and revokes each node's token, so a worker can
+    never re-enrol and nothing is left behind. Change the worker
     once on the orchestrator and re-run to reconcile every host. This is
     site-specific by design — it encodes the fi.gy node set and identity, so it is
     useless without them; the portable model lives in @svendowideit/swamp-worker
@@ -45,6 +48,13 @@ description: >
         --input serveUrl=wss://swamp.x1yoga.fi.gy \
         --input 'hosts=[{"name":"host1","address":"host1.lan"}]'
 
+      # Rotate the tokens before they expire (never stranding a worker), bumping
+      # the generation each time — schedule this.
+      swamp workflow run @figy/swamp-worker-rotate \
+        --input serveUrl=wss://swamp.x1yoga.fi.gy \
+        --input 'hosts=[{"name":"host1","address":"host1.lan"}]' \
+        --input generation=2
+
       # Completely remove the deployed workers: the removal script runs on every
       # node and each token is revoked on the orchestrator.
       swamp workflow run @figy/swamp-worker-teardown \
@@ -52,10 +62,12 @@ description: >
 
   CONFIGURE
 
-    Both workflows take `hosts` (the node set, each {name, address}), `sshUser`,
-    `sshPort`, `sshKey` and `strictHostKeyChecking`; bootstrap also takes
-    `serveUrl` (required) and `duration` (token lifetime, default `30d`). The
-    generic model's globals (binary path, dirs, concurrency) are set on the
+    All three take `hosts` (the node set, each {name, address}), `identity`
+    (worker identity, default `figy`, matching the generic model's global) and the
+    SSH defaults `sshUser`, `sshPort`, `sshKey` and `strictHostKeyChecking`;
+    bootstrap also takes `serveUrl` (required) and `duration` (token lifetime,
+    default `30d`); rotate also takes `generation` (required) and `previousSuffix`.
+    The generic model's globals (binary path, dirs, concurrency) are set on the
     `worker` model instance as usual.
 
   WHAT IT INSTALLS
@@ -74,6 +86,7 @@ paths:
 
 workflows:
   - worker-bootstrap.yaml
+  - worker-rotate.yaml
   - worker-teardown.yaml
 
 dependencies:

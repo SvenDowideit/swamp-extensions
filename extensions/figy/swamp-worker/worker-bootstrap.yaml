@@ -4,10 +4,11 @@ description: |
   Enlist a set of fi.gy hosts as swamp workers for one `swamp serve`, over SSH.
 
   Renders the per-node provisioning script with @svendowideit/swamp-worker, mints
-  one enrollment token per node (staged 0600 on the orchestrator), copies each
-  node its token over SSH with @swamp/ssh, runs the provisioning script on every
-  node (each installs the swamp binary, writes its systemd user unit and starts
-  it), and verifies the unit is active.
+  one enrollment token per node (`mintToken`, per-target, staged 0600 on the
+  orchestrator), copies each node its token over SSH with @swamp/ssh, and runs
+  the provisioning script on every node (each installs the swamp binary, installs
+  its token, writes its systemd user unit and starts it). The script gates on the
+  unit being active, so no separate SSH verification step is needed.
 
   The SSH fleet is defined inline from the `hosts` input, so only the generic
   model needs to pre-exist:
@@ -25,6 +26,12 @@ inputs:
       type: string
       default: ""
       description: The serve URL the workers dial (wss:// for a TLS front). Required.
+    identity:
+      type: string
+      default: figy
+      description: >
+        Worker identity — must match the generic `worker` model's `identity`
+        global. The token name and staging file are `<identity>-<node>`.
     hosts:
       type: array
       items:
@@ -37,6 +44,12 @@ inputs:
       type: string
       default: "30d"
       description: Enrollment token lifetime (a hard deadline).
+    version:
+      type: string
+      default: ""
+      description: >
+        swamp release tag to install/upgrade the worker to (empty = install only
+        when absent; `latest` upgrades to the newest release).
     sshUser:
       type: string
       default: sven
@@ -70,21 +83,30 @@ jobs:
           methodName: renderProvision
           inputs:
             serveUrl: ${{ inputs.serveUrl }}
+            version: ${{ inputs.version }}
         dependsOn: []
         weight: 0
         allowFailure: false
 
-      - name: stage-tokens
+      - name: mint-token
         description: >
-          Mint one enrollment token per node on the orchestrator and stage each
-          node's plaintext in a 0600 file (never in swamp data).
+          Mint one enrollment token per node on the orchestrator and stage that
+          node's plaintext in its own 0600 file (never in swamp data). Per-target
+          and idempotent: a slow node touches only its own token/file, and a
+          re-run reuses an already-staged token instead of minting a fresh one.
+          Serialised (`concurrency: 1`) so the calls never contend on the shared
+          model lock.
+        forEach:
+          item: h
+          in: ${{ inputs.hosts }}
+        concurrency: 1
         task:
           type: model_method
           modelType: "@svendowideit/swamp-worker"
           modelName: worker
-          methodName: stageTokens
+          methodName: mintToken
           inputs:
-            nodes: ${{ inputs.hosts.map(h, h.name) }}
+            name: ${{ inputs.identity + "-" + self.h.name }}
             duration: ${{ inputs.duration }}
         dependsOn:
           - step: render
@@ -101,6 +123,7 @@ jobs:
         forEach:
           item: h
           in: ${{ inputs.hosts }}
+        concurrency: 1
         task:
           type: model_method
           modelType: "@swamp/ssh"
@@ -117,11 +140,11 @@ jobs:
             hosts: ${{ inputs.hosts }}
           inputs:
             hosts: ${{ self.h.name }}
-            src: ${{ "/tmp/swamp-worker-staging/figy-" + self.h.name + ".token" }}
+            src: ${{ "/tmp/swamp-worker-staging/" + inputs.identity + "-" + self.h.name + ".token" }}
             dst: /tmp/swamp-worker-token
             direction: to
         dependsOn:
-          - step: stage-tokens
+          - step: mint-token
             condition:
               type: succeeded
         weight: 0
@@ -150,25 +173,6 @@ jobs:
             script: ${{ data.latest("worker", "provision").attributes.script }}
         dependsOn:
           - step: deliver-tokens
-            condition:
-              type: succeeded
-        weight: 0
-        allowFailure: false
-
-      - name: clear-staging
-        description: >
-          Delete the orchestrator-side staged token files now that every node has
-          its token; the provisioning script already gates on the unit being
-          active, so no separate SSH check is needed.
-        task:
-          type: model_method
-          modelType: "@svendowideit/swamp-worker"
-          modelName: worker
-          methodName: clearStagedTokens
-          inputs:
-            nodes: ${{ inputs.hosts.map(h, h.name) }}
-        dependsOn:
-          - step: provision
             condition:
               type: succeeded
         weight: 0

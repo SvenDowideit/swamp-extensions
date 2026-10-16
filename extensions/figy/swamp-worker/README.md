@@ -13,12 +13,14 @@ workflows:
 
 | Workflow | Steps | What it does |
 | -------- | ----- | ------------ |
-| `@figy/swamp-worker-bootstrap` | `render` → `stage-tokens` → `deliver-tokens` → `provision` → `clear-staging` | Renders the per-node provisioning script, mints one token per node (staged `0600`, reused unless `force`), copies each node its own token over SSH to a staging path, runs the provisioning script on every node (which installs the token to its final `0600` location, installs/updates the swamp binary, writes the `swamp-worker-figy` systemd user unit, restarts it if the unit **or the token** changed, and fails unless the unit is active), then deletes the orchestrator's staged token files. |
+| `@figy/swamp-worker-bootstrap` | `render` → `mint-token` → `deliver-tokens` → `provision` | Renders the per-node provisioning script, mints one token **per node** (`mintToken`, one call per node, staged `0600`, reused unless `force`), copies each node its own token over SSH to a staging path, then runs the provisioning script on every node (which installs the token to its final `0600` location, installs/updates the swamp binary, writes the `swamp-worker-figy` systemd user unit, restarts it if the unit **or the token** changed, and fails unless the unit is active). |
+| `@figy/swamp-worker-rotate` | `render` → `mint-new` → `deliver-new` → `apply` → `revoke-previous` | Rotates the enrollment tokens before they expire **without ever stranding a worker**: mints a new token per node under a generation name (`<identity>-<node>-g<gen>`), delivers it, restarts the unit onto it, then revokes the previous token — the old token stays valid until the swap completes. |
 | `@figy/swamp-worker-teardown` | `render-removal` → `remove-on-nodes` → `revoke-tokens` | Runs the removal script on every node over SSH (stop, disable and delete the unit, cache dir, token and env files), then revokes each node's token on the orchestrator, so a worker can never re-enrol. |
 
-Both are re-runnable: `stage-tokens` re-mints (overwriting the same `0600` file
-on the node) and the provisioning script restarts the unit **only** when it
-changed. Every artifact is namespaced by `identity`, so a worker this repo
+All three are re-runnable: `mintToken` is per-target, so a re-run reuses each
+node's already-staged token (its `0600` staging file and the node's `0600` token
+file are unchanged) and the provisioning script restarts the unit **only** when
+it changed. Every artifact is namespaced by `identity`, so a worker this repo
 deploys coexists with workers other repos deploy to the same hosts and never
 touches them.
 
@@ -39,8 +41,11 @@ Workflow inputs (identical on both workflows unless noted):
 | Input | Type | Default | Description |
 | ----- | ---- | ------- | ----------- |
 | `serveUrl` | string | — | The serve URL the workers dial (`wss://` for a TLS front). **Required** (bootstrap only). |
-| `hosts` | array | `[]` | The node set, each `{name, address, [user], [port]}`. `name` is the worker's node/token name. |
-| `duration` | string | `30d` | Enrollment token lifetime (a hard deadline). Bootstrap only. |
+| `hosts` | array | `[]` | The node set, each `{name, address, [user], [port]}`. `name` is the worker's node name; the token name is `<identity>-<name>`. |
+| `identity` | string | `figy` | Worker identity — must match the generic `worker` model's `identity`. |
+| `duration` | string | `30d` | Enrollment token lifetime (a hard deadline). Bootstrap and rotate. |
+| `generation` | string | — | Rotation generation; the new token is `<identity>-<node>-g<gen>`. **Required** (rotate only). |
+| `previousSuffix` | string | `""` | Suffix of the token to revoke on a rotation (`""` first, `-g2` next). Rotate only. |
 
 | `sshUser` | string | `sven` | Fleet-default SSH user. |
 | `sshPort` | integer | `22` | Fleet-default SSH port. |
@@ -68,9 +73,19 @@ check the worker's unit active on the node — useful while onboarding a new hos
 ```sh
 swamp workflow run @figy/swamp-worker-bootstrap \
   --input serveUrl=wss://swamp.x1yoga.fi.gy \
-  --input 'hosts=[{"name":"host3","address":"10.0.0.13"}]' \
+  --input 'hosts=[{"name":"host3","address":"192.0.2.13"}]' \
   --input sshPort=2222 --input sshKey=~/.ssh/host3_ed25519
-ssh -p 2222 -i ~/.ssh/host3_ed25519 sven@10.0.0.13 systemctl --user is-active swamp-worker-figy
+ssh -p 2222 -i ~/.ssh/host3_ed25519 sven@192.0.2.13 systemctl --user is-active swamp-worker-figy
+```
+
+Rotate the tokens before they expire — never stranding a worker. Run it on a
+schedule with a new `generation` each time (the previous becomes `previousSuffix`):
+
+```sh
+swamp workflow run @figy/swamp-worker-rotate \
+  --input serveUrl=wss://swamp.x1yoga.fi.gy \
+  --input 'hosts=[{"name":"host1","address":"host1.lan"}]' \
+  --input generation=2
 ```
 
 Completely remove the deployed workers — the removal script runs on each node
@@ -85,7 +100,7 @@ swamp workflow run @figy/swamp-worker-teardown \
 
 `@figy/swamp-worker` ships **no models or reports** — all behaviour lives in
 `@svendowideit/swamp-worker` (script/token rendering) and `@swamp/ssh` (the SSH
-transport). It ships two workflows, above. It installs nothing itself.
+transport). It ships three workflows, above. It installs nothing itself.
 
 How the fan-out fits together:
 
@@ -93,9 +108,10 @@ How the fan-out fits together:
   placeholder, and the provisioning script substitutes each node's own hostname
   at install time — so **one script serves every node** while each worker still
   advertises its real host.
-- `stageTokens` (generic) mints one token per node and writes each plaintext to
-  `/tmp/swamp-worker-staging/figy-<node>.token` (`0600`); the secret never enters
-  swamp data or a command line.
+- `mintToken` (generic) is called once per node (in a `forEach`, serialised) and
+  writes each plaintext to `/tmp/swamp-worker-staging/<identity>-<node>.token`
+  (`0600`); the secret never enters swamp data or a command line. It is
+  per-target, so one node's mint cannot clobber another's file or record.
 - `@swamp/ssh copy` moves each node its own token (the deterministic staging path
   is computed from the node name) to a fixed path on the node; the provisioning
   script installs it to `$HOME/.config/swamp-worker/figy.token` (`0600`), so the

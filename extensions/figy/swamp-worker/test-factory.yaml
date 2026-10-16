@@ -109,15 +109,66 @@ tests:
           outputNotContains: ["error"]
         timeoutSeconds: 120
 
+  - name: rotation-keeps-the-worker-enrolled
+    confirms: >
+      `@figy/swamp-worker-rotate` mints a new token under a generation name,
+      delivers it, restarts the worker onto it, and revokes the previous token —
+      and the worker stays enrolled throughout, never stranded.
+    cannot: >
+      must not leave the worker un-enrolled, and must not leave the previous token
+      valid.
+    documents: README.md#examples
+    variables:
+      SERVE_URL: ws://127.0.0.1:9090
+    steps:
+      - name: rotate
+        run: >
+          swamp workflow run @figy/swamp-worker-rotate
+          --input serveUrl=$SERVE_URL
+          --input 'hosts=[{"name":"node1","address":"127.0.0.1"}]'
+          --input generation=2
+          --input sshUser=$TF_SSH_USER --input sshPort=$TF_SSH_PORT
+          --input sshKey=$TF_SSH_KEY
+        expect:
+          exitCode: 0
+          outputContains: ["succeeded"]
+          outputNotContains: ["panic", "failed"]
+        timeoutSeconds: 300
+      - name: worker-still-enrolled
+        run: |
+          for i in $(seq 1 30); do
+            swamp worker list --json 2>/dev/null \
+              | jq -e '.workers[] | select(.labels.serve=="figy" and .status=="idle")' >/dev/null 2>&1 \
+              && { echo ENROLLED; break; }
+            sleep 2
+          done
+          swamp worker list
+        expect:
+          exitCode: 0
+          outputContains: ["ENROLLED"]
+          outputNotContains: ["error"]
+        timeoutSeconds: 120
+      - name: previous-revoked-new-active
+        run: |
+          old=$(swamp worker token list 2>/dev/null | awk '$1=="figy-node1"{print $2}')
+          new=$(swamp worker token list 2>/dev/null | awk '$1=="figy-node1-g2"{print $2}')
+          echo "figy-node1=$old figy-node1-g2=$new"
+          [ "$old" = "revoked" ] && echo OLD_REVOKED || echo OLD_NOT_REVOKED
+          { [ -n "$new" ] && [ "$new" != "revoked" ]; } && echo NEW_ACTIVE || echo NEW_MISSING
+        expect:
+          stdoutContains: ["OLD_REVOKED", "NEW_ACTIVE"]
+          stdoutNotContains: ["OLD_NOT_REVOKED", "NEW_MISSING"]
+
   - name: fan-out-teardown-removes-the-worker
     confirms: >
       `@figy/swamp-worker-teardown` runs the removal script on the node over SSH
       (stopping, disabling and deleting the unit, cache dir, token and env files)
-      and revokes the node's token on the orchestrator — so the worker is
-      completely gone and can never re-enrol.
+      and revokes **every** token for the node on the orchestrator — including the
+      live generation token minted by the rotation that ran before this test — so
+      the worker is completely gone and can never re-enrol.
     cannot: >
-      must not leave the worker unit active on the node, and must not leave the
-      token un-revoked.
+      must not leave the worker unit active on the node, and must not leave any of
+      the node's tokens (base or rotated generation) valid.
     documents: README.md#examples
     variables:
       SERVE_URL: ws://127.0.0.1:9090
@@ -142,11 +193,16 @@ tests:
         expect:
           stdoutContains: ["GONE", "UNIT_REMOVED", "TOKEN_REMOVED", "CACHE_REMOVED"]
           stdoutNotContains: ["STILL_ACTIVE", "UNIT_PRESENT", "TOKEN_PRESENT", "CACHE_PRESENT"]
-      - name: token-is-revoked-on-the-orchestrator
+      - name: every-token-is-revoked-on-the-orchestrator
         run: |
-          state=$(swamp worker token list 2>/dev/null | awk '$1=="figy-node1"{print $2}')
-          echo "figy-node1=$state"
-          [ "$state" = "revoked" ] && echo TOKEN_REVOKED || echo TOKEN_NOT_REVOKED
+          # The rotation test above moved the worker onto figy-node1-g2; teardown
+          # must retire BOTH the base name and the live generation, so no valid
+          # token survives to let the worker re-enrol.
+          old=$(swamp worker token list 2>/dev/null | awk '$1=="figy-node1"{print $2}')
+          new=$(swamp worker token list 2>/dev/null | awk '$1=="figy-node1-g2"{print $2}')
+          echo "figy-node1=$old figy-node1-g2=$new"
+          [ "$old" = "revoked" ] && echo BASE_REVOKED || echo BASE_LIVE
+          [ "$new" = "revoked" ] && echo GENERATION_REVOKED || echo GENERATION_LIVE
         expect:
-          stdoutContains: ["TOKEN_REVOKED"]
-          stdoutNotContains: ["TOKEN_NOT_REVOKED"]
+          stdoutContains: ["BASE_REVOKED", "GENERATION_REVOKED"]
+          stdoutNotContains: ["BASE_LIVE", "GENERATION_LIVE"]

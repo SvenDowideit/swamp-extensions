@@ -1,0 +1,91 @@
+manifestVersion: 1
+name: "@svendowideit/gpu-facts"
+version: "2026.10.16.4"
+description: >
+  This host's accelerators as swamp data — every GPU (vendor, name, VRAM,
+  driver, compute capability), the total VRAM, system RAM, usable CPU cores and
+  the compute runtime (CUDA / ROCm / Metal / none) — read straight off the
+  machine with no network and no SSH.
+
+  WHAT IT DOES
+
+    Answers "can this model run here, and how?" without guessing. It probes the
+    machine's own accelerators (NVIDIA via `nvidia-smi`, AMD via `rocm-smi`,
+    Apple via `system_profiler`) and writes one `gpu` resource: each device's
+    VRAM and driver, the total VRAM, plus system RAM and CPU cores. A consumer —
+    a Hugging Face recommender choosing a quantisation, or an Ollama Modelfile
+    renderer setting `num_gpu` and `num_ctx` — reads those fields instead of
+    hard-coding them, so the same workflow adapts to a 4090 box, a Jetson or a
+    Mac. Prefer it over shelling out to `nvidia-smi` inside a workflow: it
+    parses every vendor's output into one stable, aligned shape. RAM is read via
+    Deno's `systemMemoryInfo` (which works under swamp's method sandbox) with
+    `/proc`/`sysctl`/`free` fallbacks. A GPU whose VRAM is not queryable —
+    NVIDIA GB10 / Jetson unified memory, where `nvidia-smi` reports `N/A` —
+    records `totalVramMiB: 0`; pass an explicit `vramMiB` budget to a consumer
+    in that case.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/gpu-facts
+
+  DEPENDENCIES
+
+    None. It runs `nvidia-smi`, `rocm-smi`, `system_profiler`, `sysctl` or
+    `nproc` only when they are present, reads `/proc/meminfo` on Linux, and
+    needs no network, no credentials and no other extension.
+
+  RUN
+
+      # Detect this host's accelerators and record them (auto-creates the model
+      # instance `gpu-host` on first use). Run once per host; the `gpu` resource
+      # is what a recommender or Modelfile renderer reads.
+      swamp model @svendowideit/gpu-facts method run collect gpu-host
+
+      # Gate before collecting: report whether a gpu record already exists.
+      swamp model @svendowideit/gpu-facts method run status gpu-host
+
+  CONFIGURE
+
+    Global arguments (set at creation with `--global-arg`, or per call with
+    `--input`):
+
+      vendorOverride  auto | nvidia | amd | apple | none  (default auto)
+      deviceIndex     Keep one 0-based device index       (default -1 = all)
+
+  UPGRADE
+
+    This extension installs nothing on the host, so there is no on-host state
+    to reconcile — upgrade the code alone and `collect` records fresh facts on
+    its next run:
+
+      swamp extension update @svendowideit/gpu-facts
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, cron triggers or webhooks. It
+    reads local commands/files and writes swamp resources (`gpu`, `status`).
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - gpu_facts.ts
+  - gpu_facts_shared.ts
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - gpu_facts_test.ts
+  - gpu_facts_shared_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

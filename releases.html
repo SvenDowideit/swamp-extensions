@@ -9130,7 +9130,82 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261016-205457-0-sha-35b3bcc2">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261016-225544-0-sha-2a5f732b">
+<h2><span class="tier C">C</span>swamp 20261016.225544.0-sha.2a5f732b</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-16T22:57:43Z">2026-10-16T22:57:43Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): v3 on S3 and GCS — setup --format 3 creates a v3 datastore on a bucket, replicated per checkout through Litestream (swamp-club#3534) (#3180)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes <a href="https://swamp-club.com/lab/3534" rel="noopener">swamp-club#3534</a> (Datastore rework Phase 4E).</p>
+<p><code>swamp datastore setup extension @swamp/s3-datastore|@swamp/gcs-datastore --config &#39;{...}&#39; --format 3</code> creates a v3 datastore on a new, empty bucket prefix, and every command and <code>swamp serve</code> run on it in solo mode. One writer at a time across machines (the fenced lease); each checkout keeps its own <code>commits.db</code>, which Litestream replicates to the bucket. v2 stays the default and is unchanged.</p>
+<p><strong>Minimum extension version: <code>@swamp/s3-datastore</code> / <code>@swamp/gcs-datastore</code> 2026.10.16.5</strong> (the first release whose v2 file sync also refuses a format-3 bucket, swamp-club#3549). Pull the latest extension first (<code>swamp extension pull &lt;type&gt;</code>): the version is named in setup&#39;s refusal but not yet checked against the repo&#39;s lockfile.</p>
+<h4 class="body-h">What changed</h4>
+<ul>
+<li><strong>Setup</strong> refuses, writing nothing: an extension without the five v3 capabilities, Windows below the Litestream pin, a replica target the provider refuses, a prefix that is not new and empty (control plane, chunks, v2 namespaces, v2 root index), and a repo with records. It writes the marker with <code>putIfAbsent</code> and resumes a marker-only prefix.</li>
+<li><strong><code>V3DatastoreBinding</code></strong> (<code>v3_datastore_binding.ts</code>): a bucket datastore gets a local root (`.swamp/_datastore_v3_copies/</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.225544.0-sha.2a5f732b" rel="noopener">release v20261016.225544.0-sha.2a5f732b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2a5f732b" rel="noopener">2a5f732b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3180" rel="noopener">#3180</a>𝗔 <a href="https://swamp-club.com/lab/3534" rel="noopener">lab#3534</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261016-225135-0-sha-4a68e87b">
+<h2><span class="tier C">C</span>swamp 20261016.225135.0-sha.4a68e87b</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-16T22:53:32Z">2026-10-16T22:53:32Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): a --repo-dir or SWAMP_REPO_DIR through a symlink resolves to its real path so the .swamp databases open (swamp-club#3552) (#3181)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Since Deno 2.9.7 (picked up by releases from 2026-09-17), <code>node:sqlite</code> refuses to open a database whose path runs through a symlink. Every command given a repo dir spelled through one, by <code>--repo-dir</code> or <code>SWAMP_REPO_DIR</code>, failed at startup with <code>unable to open database file: …/.swamp/_extension_catalog.db</code>. On macOS that includes any <code>--repo-dir /tmp/…</code> or <code>/var/…</code>.</p>
+<ul>
+<li><code>getRepoDirFromArgs</code> / <code>resolveRepoDir</code> now resolve symlinks in the flag and env values (<code>src/cli/context.ts</code>), as the cwd path already did via <code>findAncestorRepoDir</code>. A path that does not exist yet is only made absolute, as before. Windows is unchanged.</li>
+<li>Extension loading stops its walks up from extension files at the repo dir by string comparison. So at startup (<code>configureStartupExtensions</code> in <code>src/cli/mod.ts</code>), an extensions dir or absolute kind dir that names the repository through another spelling is rebased onto the resolved repo dir by the new <code>rebaseOntoRepoDir</code>. Only the shallowest ancestor naming the repo is swapped, as in <code>respellUnderRepoDir</code> (swamp-club#3421). Symlinks below the repo and paths outside it are left as given, so an extensions dir symlinked outside an ordinary repo behaves exactly as on the release.</li>
+<li><code>extension push</code>, <code>quality</code> and <code>fmt</code> keep reporting paths in the spelling the user gave, via <code>repoDirAsGiven</code> (sw</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.225135.0-sha.4a68e87b" rel="noopener">release v20261016.225135.0-sha.4a68e87b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4a68e87b" rel="noopener">4a68e87b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3181" rel="noopener">#3181</a>𝗔 <a href="https://swamp-club.com/lab/3552" rel="noopener">lab#3552</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261016-215252-0-sha-d3b76490">
+<h2><span class="tier C">C</span>swamp 20261016.215252.0-sha.d3b76490</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-16T21:54:18Z">2026-10-16T21:54:18Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>refactor(vaults): typed-secrets 2.2: VaultSecretBag entries hold references, one registry per run, 128-bit sentinels (swamp-club#3558) (#3179)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Closes swamp-club#3558 — typed-secrets 2.2, the structural half of Phase 2</p>
+<p>(design §3.2 and §8.1). Values are still read eagerly, so the existing</p>
+<p>suites prove the refactor preserved behavior before 2.3 stops the read.</p>
+<ul>
+<li><strong><code>SecretBagRegistry</code></strong> (<code>src/domain/vaults/secret_bag_registry.ts</code>): the</li>
+</ul>
+<p>  sentinels one run issued, keyed by sentinel, each with its reference</p>
+<p>  (vault name and key), encoding (<code>raw</code>/<code>json</code>) and data-origin flag beside</p>
+<p>  the value. <code>RunSensitiveValues</code> carries it, so every bag of a run — child</p>
+<p>  runs included — is a view of one registry; <code>context.runModel</code> keeps its</p>
+<p>  own. A fitness test pins where a registry may be created.</p>
+<ul>
+<li><strong><code>VaultSecretBag</code> is a view</strong>: it issues under its own 128-bit prefix</li>
+</ul>
+<p>  (sentinels are now <code>__SWAMP_VSEC_&lt;32 hex&gt;_&lt;n&gt;__</code>) and resolves any</p>
+<p>  sentinel the run issued by lookup, so an earlier pass&#39;s sentinel is never</p>
+<p>  delivered as literal text; foreign-prefix sentinel-shaped text stays</p>
+<p>  data. <code>rawValues</code>/<code>toEntries</code> stay scoped to the bag&#39;s own entries and a</p>
+<p>  dispatch ships <code>entriesFor</code> the step&#39;s unresolved arguments, so a worker</p>
+<p>  never sees another step&#39;s secrets. Rehoming covers vault-origin entries,</p>
+<p>  one target sentinel per source sentinel.</p>
+<ul>
+<li>The vault pass records each entry&#39;s reference; data-origin entries record</li>
+</ul>
+<p>  the source <code>RunSensitiveValues</code> alre</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.215252.0-sha.d3b76490" rel="noopener">release v20261016.215252.0-sha.d3b76490</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d3b76490" rel="noopener">d3b76490</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3179" rel="noopener">#3179</a>𝗔 <a href="https://swamp-club.com/lab/3558" rel="noopener">lab#3558</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261016-205457-0-sha-35b3bcc2">
 <h2><span class="tier C">C</span>swamp 20261016.205457.0-sha.35b3bcc2</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-16T20:56:58Z">2026-10-16T20:56:58Z</time></span></div>
@@ -9877,13 +9952,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>406 items across 1 source(s) in this window:
+<p>409 items across 1 source(s) in this window:
 1 critical, 361 notable, 13 routine,
-31 minor.</p>
-<ul><li><strong>fix</strong> — 259</li><li><strong>feat</strong> — 102</li><li><strong>test</strong> — 11</li><li><strong>refactor</strong> — 11</li><li><strong>changes</strong> — 11</li><li><strong>docs</strong> — 10</li></ul></section>
+34 minor.</p>
+<ul><li><strong>fix</strong> — 259</li><li><strong>feat</strong> — 102</li><li><strong>changes</strong> — 14</li><li><strong>test</strong> — 11</li><li><strong>refactor</strong> — 11</li><li><strong>docs</strong> — 10</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-16T22:05:43.902Z">2026-10-16T22:05:43.902Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-16T23:04:38.888Z">2026-10-16T23:04:38.888Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

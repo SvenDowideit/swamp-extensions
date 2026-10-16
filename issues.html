@@ -67,8 +67,72 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3561"><span class="tier A">A</span>VaultService capability errors label the vault instance name</a><a href="#issue-3557"><span class="tier A">A</span>typed-secrets 2.1: VaultExistenceProvider, its conformance s</a><a href="#issue-3559"><span class="tier A">A</span>MockVaultProvider.get and delete throw synchronously instead</a><a href="#issue-3551"><span class="tier A">A</span>typed-secrets 1.2: pin the Secret Proxy, refusal set and con</a><a href="#issue-3553"><span class="tier A">A</span>v3: a refused commit leaves its staged files in the checkout</a><a href="#issue-3193"><span class="tier A">A</span>Datastore sync: a no-op push after a model-scoped pull arms </a><a href="#issue-3313"><span class="tier A">A</span>extension pull: answering y to a dependency&#39;s overwrite prom</a><a href="#issue-3550"><span class="tier A">A</span>Regression from #3546: legacy (hashless) cache files lose th</a><a href="#issue-3546"><span class="tier A">A</span>@swamp/s3-datastore and @swamp/gcs-datastore: pull&#39;s same-si</a><a href="#issue-3548"><span class="tier A">A</span>serve check-config crashes with a TypeError when a list-valu</a><a href="#issue-3547"><span class="tier A">A</span>access grant list --server shows user subjects as user:user:</a><a href="#issue-3519"><span class="tier A">A</span>Remote worker step marked failed (&#39;aborted due to timeout&#39;) </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3535"><span class="tier A">A</span>Retention under serve load: measure and fix automatic passes</a><a href="#issue-3214"><span class="tier A">A</span>Show wait keys and pending signals to remote clients and the</a><a href="#issue-3556"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3549"><span class="tier A">A</span>S3/GCS datastores: keep v2 sync off v3 buckets (exclude _lit</a><a href="#issue-3560"><span class="tier A">A</span>Flaky: LitestreamReplicator.acquire &#39;concurrent acquires in </a><a href="#issue-3563"><span class="tier A">A</span>VaultService.requireExistenceProvider labels the vault insta</a><a href="#issue-3522"><span class="tier A">A</span>Pause and resume a scheduled workflow without editing or del</a><a href="#issue-3536"><span class="tier A">A</span>extension quality and push report source paths through the r</a><a href="#issue-3561"><span class="tier A">A</span>VaultService capability errors label the vault instance name</a><a href="#issue-3557"><span class="tier A">A</span>typed-secrets 2.1: VaultExistenceProvider, its conformance s</a><a href="#issue-3559"><span class="tier A">A</span>MockVaultProvider.get and delete throw synchronously instead</a><a href="#issue-3551"><span class="tier A">A</span>typed-secrets 1.2: pin the Secret Proxy, refusal set and con</a></aside><div>
 
+<article class="item" id="issue-3535">
+<h2><span class="tier A">A</span>Retention under serve load: measure and fix automatic passes against #3518&#39;s busy-serve contention, and the large-backlog first pass</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-16T20:57:48.903Z">2026-10-16T20:57:48.903Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3535" rel="noopener">lab#3535</a></div>
+</article>
+<article class="item" id="issue-3214">
+<h2><span class="tier A">A</span>Show wait keys and pending signals to remote clients and the dashboard</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-16T20:54:48.236Z">2026-10-16T20:54:48.236Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3214" rel="noopener">lab#3214</a></div>
+</article>
+<article class="item" id="issue-3556">
+<h2><span class="tier A">A</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-16T20:45:26.786Z">2026-10-16T20:45:26.786Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3556" rel="noopener">lab#3556</a></div>
+</article>
+<article class="item" id="issue-3549">
+<h2><span class="tier A">A</span>S3/GCS datastores: keep v2 sync off v3 buckets (exclude _litestream/, refuse a format-3 marker) for swamp releases before v20261009.154711.0</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-16T20:45:22.860Z">2026-10-16T20:45:22.860Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3549" rel="noopener">lab#3549</a></div>
+</article>
+<article class="item" id="issue-3560">
+<h2><span class="tier A">A</span>Flaky: LitestreamReplicator.acquire &#39;concurrent acquires in one process share one sidecar and one hold&#39; fails &#39;no hold leaked&#39; under full-suite load</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-16T20:45:18.314Z">2026-10-16T20:45:18.314Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3560" rel="noopener">lab#3560</a></div>
+</article>
+<article class="item" id="issue-3563">
+<h2><span class="tier A">A</span>VaultService.requireExistenceProvider labels the vault instance name as its type</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-16T20:44:07.696Z">2026-10-16T20:44:07.696Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3563" rel="noopener">lab#3563</a></div>
+</article>
+<article class="item" id="issue-3522">
+<h2><span class="tier A">A</span>Pause and resume a scheduled workflow without editing or deleting its definition</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-16T20:38:55.491Z">2026-10-16T20:38:55.491Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3522" rel="noopener">lab#3522</a></div>
+</article>
+<article class="item" id="issue-3536">
+<h2><span class="tier A">A</span>extension quality and push report source paths through the repo&#39;s resolved symlink: quality&#39;s entry.file climbs to / and back</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-16T20:38:00.815Z">2026-10-16T20:38:00.815Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3536" rel="noopener">lab#3536</a></div>
+</article>
 <article class="item" id="issue-3561">
 <h2><span class="tier A">A</span>VaultService capability errors label the vault instance name as its type</h2>
 <p class="lede">Shipped bug fix</p>
@@ -101,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3551" rel="noopener">lab#3551</a></div>
 </article>
-<article class="item" id="issue-3553">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3553">
 <h2><span class="tier A">A</span>v3: a refused commit leaves its staged files in the checkout for good, so that checkout shows data the datastore doesn&#39;t hold (exposed by #3532; swamp-uat breakglass test failing)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-16T18:50:25.620Z">2026-10-16T18:50:25.620Z</time></span></div>
@@ -165,7 +229,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3519" rel="noopener">lab#3519</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3541">
+<article class="item" id="issue-3541">
 <h2><span class="tier A">A</span>Scheduled flaky-test detection is failing</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-16T15:48:59.916Z">2026-10-16T15:48:59.916Z</time></span></div>
@@ -4077,69 +4141,13 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3214">
-<h2><span class="tier B">B</span>Show wait keys and pending signals to remote clients and the dashboard</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-16T20:15:27.939Z">2026-10-16T20:15:27.939Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3214" rel="noopener">lab#3214</a></div>
-</article>
-<article class="item" id="issue-3522">
-<h2><span class="tier B">B</span>Pause and resume a scheduled workflow without editing or deleting its definition</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-16T20:15:26.297Z">2026-10-16T20:15:26.297Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3522" rel="noopener">lab#3522</a></div>
-</article>
-<article class="item" id="issue-3560">
-<h2><span class="tier B">B</span>Flaky: LitestreamReplicator.acquire &#39;concurrent acquires in one process share one sidecar and one hold&#39; fails &#39;no hold leaked&#39; under full-suite load</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-16T20:13:05.243Z">2026-10-16T20:13:05.243Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3560" rel="noopener">lab#3560</a></div>
-</article>
-<article class="item" id="issue-3556">
-<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-16T20:13:04.846Z">2026-10-16T20:13:04.846Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3556" rel="noopener">lab#3556</a></div>
-</article>
-<article class="item" id="issue-3563">
-<h2><span class="tier B">B</span>VaultService.requireExistenceProvider labels the vault instance name as its type</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-16T20:11:13.798Z">2026-10-16T20:11:13.798Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3563" rel="noopener">lab#3563</a></div>
-</article>
-<article class="item" id="issue-3549">
-<h2><span class="tier B">B</span>S3/GCS datastores: keep v2 sync off v3 buckets (exclude _litestream/, refuse a format-3 marker) for swamp releases before v20261009.154711.0</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-16T20:09:36.465Z">2026-10-16T20:09:36.465Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3549" rel="noopener">lab#3549</a></div>
-</article>
 <article class="item" id="issue-3558">
 <h2><span class="tier B">B</span>typed-secrets 2.2: VaultSecretBag entries hold references, one registry per run, 128-bit sentinels</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-16T20:09:27.328Z">2026-10-16T20:09:27.328Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-16T20:36:59.794Z">2026-10-16T20:36:59.794Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3558" rel="noopener">lab#3558</a></div>
-</article>
-<article class="item" id="issue-3535">
-<h2><span class="tier B">B</span>Retention under serve load: measure and fix automatic passes against #3518&#39;s busy-serve contention, and the large-backlog first pass</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-16T19:45:02.957Z">2026-10-16T19:45:02.957Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3535" rel="noopener">lab#3535</a></div>
 </article>
 <article class="item" id="issue-3534">
 <h2><span class="tier B">B</span>Datastore rework Phase 4 E: v3 on S3 and GCS (solo mode): setup --format 3 on buckets, replication as a datastore property, end to end</h2>
@@ -4148,14 +4156,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3534" rel="noopener">lab#3534</a></div>
-</article>
-<article class="item" id="issue-3536">
-<h2><span class="tier B">B</span>extension quality and push report source paths through the repo&#39;s resolved symlink: quality&#39;s entry.file climbs to / and back</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-16T18:33:37.906Z">2026-10-16T18:33:37.906Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3536" rel="noopener">lab#3536</a></div>
 </article>
 <article class="item" id="issue-3463">
 <h2><span class="tier B">B</span>auth whoami: log mode labels collectives Free and shows trial expired for a superseded trial</h2>
@@ -4229,21 +4229,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3554">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3552">
+<h2><span class="tier C">C</span>A --repo-dir or SWAMP_REPO_DIR through a symlink fails with &#39;unable to open database file&#39;</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-16T20:51:33.433Z">2026-10-16T20:51:33.433Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3552" rel="noopener">lab#3552</a></div>
+</article>
+<article class="item" id="issue-3554">
 <h2><span class="tier C">C</span>issue-lifecycle: pr_merged and ship report success and advance the phase when swamp-club is unreachable, writing nothing upstream</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-16T18:24:07.549Z">2026-10-16T18:24:07.549Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3554" rel="noopener">lab#3554</a></div>
-</article>
-<article class="item" id="issue-3552">
-<h2><span class="tier C">C</span>A --repo-dir or SWAMP_REPO_DIR through a symlink fails with &#39;unable to open database file&#39;</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-16T17:21:17.519Z">2026-10-16T17:21:17.519Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3552" rel="noopener">lab#3552</a></div>
 </article>
 <article class="item" id="issue-3537">
 <h2><span class="tier C">C</span>Docs: garbageCollection retention — per-kind keys, automatic passes, and what is never removed</h2>
@@ -5759,12 +5759,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>711 items across 1 source(s) in this window:
-0 critical, 501 notable, 19 routine,
+0 critical, 509 notable, 11 routine,
 191 minor.</p>
 <ul><li><strong>issues</strong> — 711</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-16T20:19:05.154Z">2026-10-16T20:19:05.154Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-16T21:04:17.137Z">2026-10-16T21:04:17.137Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

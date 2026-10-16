@@ -10,6 +10,7 @@ import {
   baseLabels,
   cacheDirFor,
   type CmdResult,
+  defaultTokenName,
   deriveUnitName,
   envFilePath,
   HOSTNAME_PLACEHOLDER,
@@ -19,7 +20,9 @@ import {
   renderWorkerUnit,
   setRunFn,
   stagedTokenPath,
+  targetTokenNames,
   tokenFilePath,
+  tokenPlaintextName,
   unitPathFor,
 } from "./swamp_worker.ts";
 
@@ -231,6 +234,20 @@ async function withTmp(fn: (tmp: string) => Promise<void>): Promise<void> {
   }
 }
 
+/**
+ * Satisfy `ensureService`'s preconditions: an executable binary at swampBinPath
+ * and a token file at the canonical path (as `install` + `mintToken` would leave).
+ */
+async function withPresence(tmp: string): Promise<void> {
+  await Deno.mkdir(`${tmp}/bin`, { recursive: true });
+  await Deno.writeTextFile(`${tmp}/bin/swamp`, "#!/bin/sh\n");
+  await Deno.mkdir(`${tmp}/config`, { recursive: true });
+  await Deno.writeTextFile(
+    `${tmp}/config/figy.token`,
+    "figy-testhost.secret\n",
+  );
+}
+
 Deno.test("install reports kept when the binary is present", async () => {
   await withTmp(async (tmp) => {
     const g = globals(tmp);
@@ -275,14 +292,14 @@ Deno.test("install reports failed when the download fails", async () => {
   });
 });
 
-Deno.test("clearStagedTokens removes the staging files", async () => {
+Deno.test("clearStagedTokens removes the staging files by name", async () => {
   await withTmp(async (tmp) => {
     const g = globals(tmp);
     await Deno.mkdir(`${tmp}/staging`, { recursive: true });
     await Deno.writeTextFile(`${tmp}/staging/figy-node1.token`, "x\n");
     await Deno.writeTextFile(`${tmp}/staging/figy-node2.token`, "y\n");
     await methods.clearStagedTokens.execute(
-      { nodes: ["node1", "node2"] },
+      { names: ["figy-node1", "figy-node2"] },
       fakeContext(g).ctx,
     );
     assertEquals(await exists(`${tmp}/staging/figy-node1.token`), false);
@@ -290,26 +307,27 @@ Deno.test("clearStagedTokens removes the staging files", async () => {
   });
 });
 
-Deno.test("mintToken reuses an existing token without calling swamp", async () => {
+Deno.test("mintToken reuses a staged token without calling swamp", async () => {
   await withTmp(async (tmp) => {
     const g = globals(tmp);
-    await Deno.mkdir(`${tmp}/config`, { recursive: true });
-    await Deno.writeTextFile(`${tmp}/config/figy.token`, "figy-old.secret\n");
+    await Deno.mkdir(`${tmp}/staging`, { recursive: true });
+    await Deno.writeTextFile(`${tmp}/staging/figy-testhost.token`, "old\n");
     const rec = recorder();
     setRunFn(rec.fn);
     const { ctx, writes } = fakeContext(g);
     await methods.mintToken.execute(
-      { node: "testhost", duration: "1h", force: false },
+      { name: "figy-testhost", duration: "1h", force: false },
       ctx,
     );
     assertEquals(rec.calls.length, 0);
     const data = writes[0].data as Record<string, unknown>;
     assertEquals(data.reused, true);
     assertEquals(data.revoked, false);
+    assertEquals(writes[0].instance, "figy-testhost");
   });
 });
 
-Deno.test("mintToken mints, writes the 0600 file, and never records the secret", async () => {
+Deno.test("mintToken mints, stages the 0600 file, and never records the secret", async () => {
   await withTmp(async (tmp) => {
     const g = globals(tmp);
     const rec = recorder((_bin, args) =>
@@ -324,19 +342,98 @@ Deno.test("mintToken mints, writes the 0600 file, and never records the secret",
     setRunFn(rec.fn);
     const { ctx, writes } = fakeContext(g);
     await methods.mintToken.execute(
-      { node: "testhost", duration: "1h", force: false },
+      { name: "figy-testhost", duration: "1h", force: false },
       ctx,
     );
     assert(rec.calls.some((c) => c.args.includes("create")));
-    const tokenFile = `${tmp}/config/figy.token`;
+    const staged = `${tmp}/staging/figy-testhost.token`;
     assertEquals(
-      (await Deno.readTextFile(tokenFile)).trim(),
+      (await Deno.readTextFile(staged)).trim(),
       "figy-testhost.secret",
     );
-    assertEquals((await Deno.stat(tokenFile)).mode! & 0o777, 0o600);
+    assertEquals((await Deno.stat(staged)).mode! & 0o777, 0o600);
     const data = writes[0].data as Record<string, unknown>;
     assertEquals(data.reused, false);
+    assertEquals(writes[0].instance, "figy-testhost");
     assert(!JSON.stringify(data).includes("secret"));
+  });
+});
+
+Deno.test("mintToken is per-node: two nodes get distinct staged tokens and records", async () => {
+  await withTmp(async (tmp) => {
+    const g = globals(tmp);
+    const rec = recorder((_bin, args) => {
+      const name = args[args.indexOf("create") + 1];
+      return {
+        stdout: JSON.stringify({ token: `${name}.secret` }),
+        stderr: "",
+        code: 0,
+      };
+    });
+    setRunFn(rec.fn);
+    const first = fakeContext(g);
+    await methods.mintToken.execute(
+      { name: "figy-node1", duration: "1h", force: false },
+      first.ctx,
+    );
+    const second = fakeContext(g);
+    await methods.mintToken.execute(
+      { name: "figy-node2", duration: "1h", force: false },
+      second.ctx,
+    );
+    // Neither mint clobbered the other's staged file or record (R1/R2 fixed).
+    assertEquals(
+      (await Deno.readTextFile(`${tmp}/staging/figy-node1.token`)).trim(),
+      "figy-node1.secret",
+    );
+    assertEquals(
+      (await Deno.readTextFile(`${tmp}/staging/figy-node2.token`)).trim(),
+      "figy-node2.secret",
+    );
+    assertEquals(first.writes[0].instance, "figy-node1");
+    assertEquals(second.writes[0].instance, "figy-node2");
+  });
+});
+
+Deno.test("mintToken force revokes the old token and mints a replacement", async () => {
+  await withTmp(async (tmp) => {
+    const g = globals(tmp);
+    await Deno.mkdir(`${tmp}/staging`, { recursive: true });
+    await Deno.writeTextFile(`${tmp}/staging/figy-node1.token`, "old.secret\n");
+    let created = 0;
+    const rec = recorder((_bin, args) => {
+      if (args.includes("create")) {
+        created++;
+        // 'create' rejects an existing name unless it was revoked first.
+        return created === 1
+          ? {
+            stdout: "",
+            stderr: "token figy-node1 already exists — revoke it or wait",
+            code: 1,
+          }
+          : {
+            stdout: JSON.stringify({ token: "figy-node1.new" }),
+            stderr: "",
+            code: 0,
+          };
+      }
+      return undefined;
+    });
+    setRunFn(rec.fn);
+    const { ctx } = fakeContext(g);
+    await methods.mintToken.execute(
+      { name: "figy-node1", duration: "1h", force: true },
+      ctx,
+    );
+    assert(
+      rec.calls.some((c) =>
+        c.args.includes("revoke") && c.args.includes("figy-node1")
+      ),
+    );
+    assertEquals(
+      (await Deno.readTextFile(`${tmp}/staging/figy-node1.token`)).trim(),
+      "figy-node1.new",
+    );
   });
 });
 
@@ -347,7 +444,7 @@ Deno.test("mintToken fails loudly when swamp cannot mint", async () => {
     await assertRejects(
       () =>
         methods.mintToken.execute(
-          { node: "n", duration: "1h", force: false },
+          { name: "figy-n", duration: "1h", force: false },
           fakeContext(globals(tmp)).ctx,
         ),
       Error,
@@ -356,9 +453,27 @@ Deno.test("mintToken fails loudly when swamp cannot mint", async () => {
   });
 });
 
+Deno.test("mintToken refuses a name that is not this identity's", async () => {
+  await withTmp(async (tmp) => {
+    const rec = recorder();
+    setRunFn(rec.fn);
+    await assertRejects(
+      () =>
+        methods.mintToken.execute(
+          { name: "rc-node1", duration: "1h", force: false },
+          fakeContext(globals(tmp)).ctx,
+        ),
+      Error,
+      "Refusing",
+    );
+    assertEquals(rec.calls.length, 0);
+  });
+});
+
 Deno.test("ensureService is a no-op when the unit already matches", async () => {
   await withTmp(async (tmp) => {
     const g = globals(tmp);
+    await withPresence(tmp);
     const expected = renderWorkerUnit({
       unitName: "swamp-worker-figy",
       identity: "figy",
@@ -390,6 +505,7 @@ Deno.test("ensureService is a no-op when the unit already matches", async () => 
         host: "testhost",
         labels: [],
         concurrency: "",
+        name: "figy-testhost",
         force: false,
       },
       ctx,
@@ -406,6 +522,7 @@ Deno.test("ensureService writes, reloads, enables and starts on change", async (
   await withTmp(async (tmp) => {
     const rec = recorder(); // is-active defaults to "" (inactive)
     setRunFn(rec.fn);
+    await withPresence(tmp);
     const { ctx, writes } = fakeContext(globals(tmp));
     await methods.ensureService.execute(
       {
@@ -414,6 +531,7 @@ Deno.test("ensureService writes, reloads, enables and starts on change", async (
         labels: ["tier=prod"],
         concurrency: "",
         force: false,
+        name: "figy-testhost",
       },
       ctx,
     );
@@ -435,6 +553,7 @@ Deno.test("ensureService restarts an already-active unit when it changes", async
         : undefined
     );
     setRunFn(rec.fn);
+    await withPresence(tmp);
     const { ctx } = fakeContext(globals(tmp));
     await methods.ensureService.execute(
       {
@@ -443,11 +562,162 @@ Deno.test("ensureService restarts an already-active unit when it changes", async
         labels: [],
         concurrency: "",
         force: false,
+        name: "figy-testhost",
       },
       ctx,
     );
     const argLines = rec.calls.map((c) => c.args.join(" "));
     assert(argLines.some((a) => a.includes("restart swamp-worker-figy")));
+  });
+});
+
+Deno.test("ensureService installs a staged token and restarts onto it", async () => {
+  await withTmp(async (tmp) => {
+    const g = globals(tmp);
+    const name = defaultTokenName("figy", "testhost");
+    // The unit is already converged, so ONLY the token change can trigger a restart.
+    const expected = renderWorkerUnit({
+      unitName: "swamp-worker-figy",
+      identity: "figy",
+      serveUrl: SERVE,
+      swampBinPath: `${tmp}/bin/swamp`,
+      tokenFile: `${tmp}/config/figy.token`,
+      cacheDir: `${tmp}/cache/figy`,
+      concurrency: "auto",
+      swampHome: `${tmp}/home`,
+      swampConfigDir: `${tmp}/cfg`,
+      envFile: `${tmp}/config/figy.env`,
+      labels: baseLabels("figy", "testhost"),
+    });
+    await Deno.mkdir(`${tmp}/units`, { recursive: true });
+    await Deno.mkdir(`${tmp}/staging`, { recursive: true });
+    // satisfy the binary precondition; the token comes from the staged file
+    await Deno.mkdir(`${tmp}/bin`, { recursive: true });
+    await Deno.writeTextFile(`${tmp}/bin/swamp`, "#!/bin/sh\n");
+    await Deno.writeTextFile(
+      `${tmp}/units/swamp-worker-figy.service`,
+      expected,
+    );
+    await Deno.writeTextFile(
+      `${tmp}/staging/${name}.token`,
+      "figy-testhost.secret\n",
+    );
+    const rec = recorder((bin, args) =>
+      bin === "systemctl" && args.includes("is-active")
+        ? { stdout: "active\n", stderr: "", code: 0 }
+        : undefined
+    );
+    setRunFn(rec.fn);
+    const { ctx, writes } = fakeContext(g);
+    await methods.ensureService.execute(
+      {
+        serveUrl: SERVE,
+        host: "testhost",
+        labels: [],
+        concurrency: "",
+        name: "figy-testhost",
+        force: false,
+      },
+      ctx,
+    );
+    const data = writes[0].data as Record<string, unknown>;
+    assertEquals(data.changed, true);
+    assertEquals(
+      (await Deno.readTextFile(`${tmp}/config/figy.token`)).trim(),
+      "figy-testhost.secret",
+    );
+    assertEquals(
+      (await Deno.stat(`${tmp}/config/figy.token`)).mode! & 0o777,
+      0o600,
+    );
+    const argLines = rec.calls.map((c) => c.args.join(" "));
+    assert(argLines.some((a) => a.includes("restart swamp-worker-figy")));
+  });
+});
+
+Deno.test("ensureService refuses a staged token that is not this target's", async () => {
+  await withTmp(async (tmp) => {
+    const g = globals(tmp);
+    await withPresence(tmp);
+    await Deno.mkdir(`${tmp}/staging`, { recursive: true });
+    // A stale/foreign token (name 'rc-node1') left at THIS target's staging path.
+    await Deno.writeTextFile(
+      `${tmp}/staging/figy-testhost.token`,
+      "rc-node1.secret\n",
+    );
+    const rec = recorder();
+    setRunFn(rec.fn);
+    await assertRejects(
+      () =>
+        methods.ensureService.execute(
+          {
+            serveUrl: SERVE,
+            host: "testhost",
+            labels: [],
+            concurrency: "",
+            name: "figy-testhost",
+            force: false,
+          },
+          fakeContext(g).ctx,
+        ),
+      Error,
+      "foreign/stale token",
+    );
+    // It must not have started the unit.
+    assert(rec.calls.every((c) => !c.args.includes("start")));
+  });
+});
+
+Deno.test("ensureService refuses to start without the swamp binary", async () => {
+  await withTmp(async (tmp) => {
+    const g = globals(tmp);
+    await Deno.mkdir(`${tmp}/config`, { recursive: true });
+    await Deno.writeTextFile(
+      `${tmp}/config/figy.token`,
+      "figy-testhost.secret\n",
+    );
+    setRunFn(recorder().fn);
+    await assertRejects(
+      () =>
+        methods.ensureService.execute(
+          {
+            serveUrl: SERVE,
+            host: "testhost",
+            labels: [],
+            concurrency: "",
+            name: "figy-testhost",
+            force: false,
+          },
+          fakeContext(g).ctx,
+        ),
+      Error,
+      "binary not found",
+    );
+  });
+});
+
+Deno.test("ensureService refuses to start without a token", async () => {
+  await withTmp(async (tmp) => {
+    const g = globals(tmp);
+    await Deno.mkdir(`${tmp}/bin`, { recursive: true });
+    await Deno.writeTextFile(`${tmp}/bin/swamp`, "#!/bin/sh\n");
+    setRunFn(recorder().fn);
+    await assertRejects(
+      () =>
+        methods.ensureService.execute(
+          {
+            serveUrl: SERVE,
+            host: "testhost",
+            labels: [],
+            concurrency: "",
+            name: "figy-testhost",
+            force: false,
+          },
+          fakeContext(g).ctx,
+        ),
+      Error,
+      "token file",
+    );
   });
 });
 
@@ -470,7 +740,7 @@ Deno.test("remove revokes the token and deletes only this identity's artifacts",
     setRunFn(rec.fn);
     const { ctx, writes } = fakeContext(g);
     await methods.remove.execute(
-      { node: "testhost", revokeToken: true, purgeData: true },
+      { name: "figy-testhost", revokeToken: true, purgeData: true },
       ctx,
     );
     // Complete decommission: the token is revoked before the unit is torn down.
@@ -496,7 +766,7 @@ Deno.test("remove skips revocation when revokeToken is false", async () => {
     const rec = recorder();
     setRunFn(rec.fn);
     await methods.remove.execute(
-      { node: "testhost", revokeToken: false, purgeData: true },
+      { name: "figy-testhost", revokeToken: false, purgeData: true },
       fakeContext(globals(tmp)).ctx,
     );
     assert(rec.calls.every((c) => !c.args.includes("revoke")));
@@ -519,10 +789,40 @@ Deno.test("remove completes even when the token is already gone", async () => {
     );
     setRunFn(rec.fn);
     await methods.remove.execute(
-      { node: "testhost", revokeToken: true, purgeData: true },
+      { name: "figy-testhost", revokeToken: true, purgeData: true },
       fakeContext(g).ctx,
     );
     assertEquals(await exists(`${tmp}/units/swamp-worker-figy.service`), false);
+  });
+});
+
+Deno.test("remove retires every generation of a rotated target", async () => {
+  await withTmp(async (tmp) => {
+    const g = globals(tmp);
+    await Deno.mkdir(`${tmp}/units`, { recursive: true });
+    await Deno.writeTextFile(
+      `${tmp}/units/swamp-worker-figy.service`,
+      "[Unit]\n",
+    );
+    const list = JSON.stringify([
+      { name: "figy-testhost" },
+      { name: "figy-testhost-g2" },
+      { name: "figy-other" },
+    ]);
+    const rec = recorder((_bin, args) =>
+      args.includes("list") ? { stdout: list, stderr: "", code: 0 } : undefined
+    );
+    setRunFn(rec.fn);
+    await methods.remove.execute(
+      { name: "figy-testhost", revokeToken: true, purgeData: true },
+      fakeContext(g).ctx,
+    );
+    const revoked = rec.calls
+      .filter((c) => c.args.includes("revoke"))
+      .map((c) => c.args[c.args.indexOf("revoke") + 1]);
+    assert(revoked.includes("figy-testhost"));
+    assert(revoked.includes("figy-testhost-g2"));
+    assert(!revoked.includes("figy-other"));
   });
 });
 
@@ -579,7 +879,7 @@ Deno.test("revokeToken revokes and removes the local token file", async () => {
     setRunFn(rec.fn);
     const { ctx, writes } = fakeContext(globals(tmp));
     await methods.revokeToken.execute(
-      { node: "testhost", purgeFile: true },
+      { name: "figy-testhost", purgeFile: true },
       ctx,
     );
     assert(
@@ -601,17 +901,99 @@ Deno.test("revokeToken revokes and removes the local token file", async () => {
 
 Deno.test("revokeToken fails loudly when swamp cannot revoke", async () => {
   await withTmp(async (tmp) => {
-    const rec = recorder(() => ({ stdout: "", stderr: "nope", code: 1 }));
+    const rec = recorder((_b, args) =>
+      args.includes("revoke")
+        ? { stdout: "", stderr: "nope", code: 1 }
+        : undefined
+    );
     setRunFn(rec.fn);
     await assertRejects(
       () =>
         methods.revokeToken.execute(
-          { node: "testhost", purgeFile: false },
+          { name: "figy-testhost", purgeFile: false },
           fakeContext(globals(tmp)).ctx,
         ),
       Error,
       "token revoke",
     );
+  });
+});
+
+Deno.test("targetTokenNames matches the base and its generations only", () => {
+  const all = [
+    "figy-node1",
+    "figy-node1-g2",
+    "figy-node1-g3",
+    "figy-node10-g1",
+    "figy-other",
+    "rc-node1",
+  ];
+  assertEquals(targetTokenNames("figy-node1", all), [
+    "figy-node1",
+    "figy-node1-g2",
+    "figy-node1-g3",
+  ]);
+});
+
+Deno.test("tokenPlaintextName reads the name before the first dot", () => {
+  assertEquals(tokenPlaintextName("figy-node1.abc123"), "figy-node1");
+  assertEquals(tokenPlaintextName("nodelimiter"), "");
+});
+
+Deno.test("revokeToken retires every generation of a rotated target", async () => {
+  await withTmp(async (tmp) => {
+    const list = JSON.stringify([
+      { name: "figy-node1" },
+      { name: "figy-node1-g2" },
+      { name: "figy-node2" },
+      { name: "rc-node1" },
+    ]);
+    const rec = recorder((_b, args) =>
+      args.includes("list") ? { stdout: list, stderr: "", code: 0 } : undefined
+    );
+    setRunFn(rec.fn);
+    const { ctx, writes } = fakeContext(globals(tmp));
+    await methods.revokeToken.execute(
+      { name: "figy-node1", allGenerations: true, purgeFile: false },
+      ctx,
+    );
+    const revoked = rec.calls
+      .filter((c) => c.args.includes("revoke"))
+      .map((c) => c.args[c.args.indexOf("revoke") + 1]);
+    assert(revoked.includes("figy-node1"));
+    assert(revoked.includes("figy-node1-g2"));
+    // another node and another repo's token are never touched.
+    assert(!revoked.includes("figy-node2"));
+    assert(!revoked.includes("rc-node1"));
+    assertEquals(writes.map((w) => w.instance).sort(), [
+      "figy-node1",
+      "figy-node1-g2",
+    ]);
+  });
+});
+
+Deno.test("revokeToken allGenerations=false revokes only the exact name", async () => {
+  await withTmp(async (tmp) => {
+    const rec = recorder((_b, args) =>
+      args.includes("list")
+        ? {
+          stdout: JSON.stringify([{ name: "figy-node1" }, {
+            name: "figy-node1-g2",
+          }]),
+          stderr: "",
+          code: 0,
+        }
+        : undefined
+    );
+    setRunFn(rec.fn);
+    await methods.revokeToken.execute(
+      { name: "figy-node1", allGenerations: false, purgeFile: false },
+      fakeContext(globals(tmp)).ctx,
+    );
+    const revoked = rec.calls
+      .filter((c) => c.args.includes("revoke"))
+      .map((c) => c.args[c.args.indexOf("revoke") + 1]);
+    assertEquals(revoked, ["figy-node1"]);
   });
 });
 
@@ -660,6 +1042,11 @@ Deno.test("renderProvisionScript installs, locks the token, and starts the unit"
   assert(s.includes(HOSTNAME_PLACEHOLDER));
   assert(s.includes(`sed "s/${HOSTNAME_PLACEHOLDER}/$HOST/g"`));
   assert(s.includes("HOST=$(hostname"));
+  // identity/freshness check on the delivered token + clear non-systemd failure.
+  assert(s.includes("IDENTITY="));
+  assert(s.includes("cut -s -d. -f1"));
+  assert(s.includes("is not an '$IDENTITY-' token"));
+  assert(s.includes("systemctl not found"));
 });
 
 Deno.test("renderProvisionScript pins a requested swamp version", () => {
@@ -694,59 +1081,19 @@ Deno.test("renderRemoveScript stops, disables and deletes the artifacts", () => 
   assert(s.includes("/root/.config/swamp-worker/figy.token"));
 });
 
-Deno.test("stagedTokenPath namespaces the staging file per node", () => {
+Deno.test("defaultTokenName is identity-hostname", () => {
+  assertEquals(defaultTokenName("figy", "node1"), "figy-node1");
+});
+
+Deno.test("stagedTokenPath keys the staging file by full token name", () => {
   const g = {
     identity: "figy",
     stagingDir: "~/.local/share/swamp-worker/staging",
   };
   assertEquals(
-    stagedTokenPath(g as never, "web-1", "/root"),
+    stagedTokenPath(g as never, "figy-web-1", "/root"),
     "/root/.local/share/swamp-worker/staging/figy-web-1.token",
   );
-});
-
-Deno.test("stageTokens mints one token per node into 0600 staging files", async () => {
-  await withTmp(async (tmp) => {
-    const g = globals(tmp);
-    const rec = recorder((_bin, args) => {
-      const name = args[args.indexOf("create") + 1];
-      return {
-        stdout: JSON.stringify({ token: `${name}.secret` }),
-        stderr: "",
-        code: 0,
-      };
-    });
-    setRunFn(rec.fn);
-    const { ctx, writes } = fakeContext(g);
-    await methods.stageTokens.execute(
-      { nodes: ["web-1", "web-2"], duration: "1h" },
-      ctx,
-    );
-    const a = `${tmp}/staging/figy-web-1.token`;
-    const b = `${tmp}/staging/figy-web-2.token`;
-    assertEquals((await Deno.readTextFile(a)).trim(), "figy-web-1.secret");
-    assertEquals((await Deno.readTextFile(b)).trim(), "figy-web-2.secret");
-    assertEquals((await Deno.stat(a)).mode! & 0o777, 0o600);
-    const data = writes[0].data as {
-      tokens: Array<{ node: string; path: string }>;
-    };
-    assertEquals(data.tokens.map((t) => t.node), ["web-1", "web-2"]);
-    assert(!JSON.stringify(data).includes("secret"));
-  });
-});
-
-Deno.test("stageTokens requires at least one node", async () => {
-  await withTmp(async (tmp) => {
-    await assertRejects(
-      () =>
-        methods.stageTokens.execute(
-          { nodes: [], duration: "1h" },
-          fakeContext(globals(tmp)).ctx,
-        ),
-      Error,
-      "at least one node",
-    );
-  });
 });
 
 Deno.test("renderProvision records a script with the per-node hostname placeholder", async () => {
@@ -772,44 +1119,21 @@ Deno.test("renderProvision records a script with the per-node hostname placehold
   });
 });
 
-Deno.test("stageTokens reuses a staged token unless force", async () => {
-  await withTmp(async (tmp) => {
-    const g = globals(tmp);
-    const rec = recorder((_b, args) =>
-      args.includes("create")
-        ? {
-          stdout: JSON.stringify({ token: "prov-node1.secret" }),
-          stderr: "",
-          code: 0,
-        }
-        : undefined
-    );
-    setRunFn(rec.fn);
-    await methods.stageTokens.execute(
-      { nodes: ["node1"], duration: "1h", force: false },
-      fakeContext(g).ctx,
-    );
-    const creates1 = rec.calls.filter((c) => c.args.includes("create")).length;
-    const second = fakeContext(g);
-    await methods.stageTokens.execute(
-      { nodes: ["node1"], duration: "1h", force: false },
-      second.ctx,
-    );
-    assertEquals(
-      rec.calls.filter((c) => c.args.includes("create")).length,
-      creates1,
-    );
-    const data = second.writes[0].data as {
-      tokens: Array<{ reused: boolean }>;
-    };
-    assertEquals(data.tokens[0].reused, true);
-  });
-});
-
 Deno.test("renderProvisionScript restarts on a token change and gates on active", () => {
   const s = renderProvisionScript(PROVISION);
   assert(s.includes("TOKEN_STAMP"));
   assert(s.includes("sha256sum"));
   assert(s.includes("is not active on this host"));
   assert(s.includes("exit 1"));
+});
+
+Deno.test("renderProvisionScript upgrades the binary only when a version is requested", () => {
+  const withVersion = renderProvisionScript({
+    ...PROVISION,
+    version: "latest",
+  });
+  const without = renderProvisionScript({ ...PROVISION });
+  assert(withVersion.includes("upgrading swamp"));
+  assert(withVersion.includes("BINARY_CHANGED=1"));
+  assert(!without.includes("upgrading swamp"));
 });

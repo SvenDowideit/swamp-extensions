@@ -17,11 +17,10 @@ bodies ([remote execution](https://swamp-club.com/manual)). This model owns the
 | `renderUnit` | Render the worker's systemd user unit from the desired state and record it (writes nothing on the host unless `write=true`). |
 | `renderProvision` | Render the per-node **provisioning script** (install binary, lock token, write unit, start it) for a fan-out deploy, with the host label filled from each node's own hostname, so one script serves every node. |
 | `renderRemoval` | Render the per-node **removal script** (stop, disable and delete the unit and its artifacts) for a fan-out teardown. |
-| `stageTokens` | Mint one enrollment token **per node** on the orchestrator and stage each plaintext in a `0600` file, for a site workflow to `copy` to that node. |
 | `install` | Ensure the swamp binary is installed at `swampBinPath`, downloading the release (or a requested `version`) when it is absent or `force`; otherwise a no-op. |
-| `clearStagedTokens` | Delete the orchestrator-side staged token files for the given nodes, after they have been delivered. |
-| `mintToken` | Mint a single enrollment token on the orchestrator and write it to a `0600` file; the plaintext never enters swamp data. Reuses an existing token unless `force` (so re-running is idempotent). |
-| `revokeToken` | Revoke this identity's enrollment token (any worker using it is disconnected) and, by default, delete the local token file. |
+| `mintToken` | Mint **one** enrollment token on the orchestrator, keyed per target by `name` (`<identity>-<hostname>` by default), and stage its plaintext in a `0600` file `<stagingDir>/<name>.token`; the secret never enters swamp data. Call it once per node. Reuses an already-staged token unless `force`. |
+| `clearStagedTokens` | Delete the orchestrator-side staged token files for the given token `names`, after they have been delivered. |
+| `revokeToken` | Revoke one enrollment token by `name` (any worker using it is disconnected) and, by default, delete the local token file. |
 | `ensureService` | Reconcile this host onto the desired worker state — write the unit if it changed, `daemon-reload`, `enable --now` with linger, and restart **only** when the unit changed. |
 | `status` | Report live unit state and whether this identity's workers are enrolled. |
 | `remove` | **Completely decommission** the worker: revoke its token (so it can never re-enroll), then stop/disable the unit and delete the unit, cache dir and token/env files. `revokeToken=false` splits the two when the repo isn't reachable from the host. |
@@ -70,13 +69,12 @@ Per-call arguments:
 | `renderUnit` | `serveUrl` (required), `host`, `labels` (KEY=VALUE), `concurrency`, `write` |
 | `renderProvision` | `serveUrl` (required), `host`, `labels`, `concurrency`, `version` |
 | `renderRemoval` | *(none)* |
-| `stageTokens` | `nodes` (list), `duration` (default `30d`) |
 | `install` | `version`, `force` |
-| `clearStagedTokens` | `nodes` (list) |
-| `mintToken` | `node`, `duration` (default `30d`), `force` |
-| `revokeToken` | `node`, `purgeFile` (default `true`) |
-| `ensureService` | `serveUrl` (required), `host`, `labels`, `concurrency`, `force` |
-| `remove` | `node`, `revokeToken` (default `true`), `purgeData` (default `true`) |
+| `mintToken` | `name` (default `<identity>-<hostname>`), `duration` (default `30d`), `force` |
+| `clearStagedTokens` | `names` (list) |
+| `revokeToken` | `name` (default `<identity>-<hostname>`), `purgeFile` (default `true`) |
+| `ensureService` | `serveUrl` (required), `host`, `labels`, `concurrency`, `name`, `force` |
+| `remove` | `name` (default `<identity>-<hostname>`), `revokeToken` (default `true`), `purgeData` (default `true`) |
 
 The `host` label defaults to the machine hostname; every worker advertises
 `serve=<identity>` and `host=<hostname>` plus any `labels` you pass.
@@ -131,13 +129,16 @@ and token staging; the [`@figy/swamp-worker`](../figy/swamp-worker) site workflo
 (or your own) ships them with `@swamp/ssh`. The primitives:
 
 ```sh
-# Render the provisioning script (host label filled from each node's hostname)
-# and stage one 0600 token per node under stagingDir (/tmp/swamp-worker-staging):
+# Render the provisioning script (host label filled from each node's hostname),
+# then mint and stage one 0600 token per node — one mintToken call per node, each
+# keyed by its own name, so a slow node touches only its own file/record under
+# stagingDir (/tmp/swamp-worker-staging):
 swamp model method run worker renderProvision --input serveUrl=wss://swamp.x1yoga.fi.gy
-swamp model method run worker stageTokens --input 'nodes:json=["host1","host2"]'
+swamp model method run worker mintToken --input name=figy-host1
+swamp model method run worker mintToken --input name=figy-host2
 
 # Then, from a workflow, feed them to @swamp/ssh:
-#   copy   src=/tmp/swamp-worker-staging/figy-<node>.token
+#   copy   src=/tmp/swamp-worker-staging/<name>.token   (name=figy-<node>)
 #          dst=/tmp/swamp-worker-token   (direction: to) — the script installs it
 #   script script=<data.latest("worker","provision").attributes.script
 # The removal script is data.latest("worker","removal").attributes.script.
@@ -158,9 +159,11 @@ dir, and `0600` token/env files under `configDir`; it enables user lingering. It
 does not install cron triggers or webhooks of its own.
 
 Resources: `unit` (rendered content + path), `install` (binary presence),
-`token` (name, duration, path — never the secret), `worker` (reconcile result:
-`changed`/`restarted`/`active`/`enabled` and the label set), `status` (live unit
-state + enrolled workers).
+`token` (**keyed by token name** — name, duration, path; never the secret),
+`worker` (reconcile result: `changed`/`restarted`/`active`/`enabled` and the
+label set), `status` (live unit state + enrolled workers). Every resource is
+keyed by its target, never a fixed slot, so two hosts never overwrite one
+another's record.
 
 The unit is rendered by the pure `renderWorkerUnit` helper and the path helpers
 (`unitPathFor`, `tokenFilePath`, `envFilePath`, `cacheDirFor`) — exported and
@@ -178,7 +181,7 @@ guard that keeps another repo's worker untouched.
 
 # End-to-end, on a systemd host, through @svendowideit/test-factory in a container
 # (the suite ships as test-factory.yaml): enrol, dispatch, reconcile, coexistence,
-# teardown.
+# teardown, and per-node token minting (isolation + idempotency).
 swamp model @svendowideit/test-factory method run test tf \
   --input manifest=extensions/models/swamp-worker/manifest.yaml \
   --input scenario=ubuntu-systemd-standalone

@@ -66,6 +66,13 @@ tests:
           outputContains: ["figy-"]
           outputNotContains: ["panic", "failed"]
         timeoutSeconds: 120
+      - name: ensure-service
+        run: swamp model method run worker ensureService --input serveUrl=$SERVE_URL
+        expect:
+          exitCode: 0
+          outputContains: ["unit changed"]
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
       - name: token-file-is-0600
         run: stat -c '%a' /root/.config/swamp-worker/figy.token
         expect:
@@ -74,18 +81,11 @@ tests:
       - name: token-plaintext-not-in-swamp-data
         run: |
           secret=$(cat /root/.config/swamp-worker/figy.token)
-          swamp data query 'modelName == "worker" && name == "token"' --select content \
+          swamp data query 'modelName == "worker"' --select content \
             | grep -q -- "$secret" && echo PRESENT || echo ABSENT
         expect:
           stdoutContains: ["ABSENT"]
           stdoutNotContains: ["PRESENT"]
-      - name: ensure-service
-        run: swamp model method run worker ensureService --input serveUrl=$SERVE_URL
-        expect:
-          exitCode: 0
-          outputContains: ["unit changed"]
-          outputNotContains: ["panic"]
-        timeoutSeconds: 120
       - name: unit-is-active
         run: systemctl --user is-active swamp-worker-figy
         expect:
@@ -361,7 +361,7 @@ tests:
         run: swamp model method run worker remove
         expect:
           exitCode: 0
-          outputContains: ["Removed worker swamp-worker-figy", "revoked token figy-"]
+          outputContains: ["Removed worker swamp-worker-figy", "revoked 1 of 1 token(s): figy-"]
           outputNotContains: ["panic"]
         timeoutSeconds: 120
       - name: figy-is-completely-gone
@@ -409,14 +409,16 @@ tests:
           stdoutContains: ["RC_GONE", "FOREIGN_SURVIVES"]
           stdoutNotContains: ["RC_ACTIVE", "missing"]
 
-  - name: stage-tokens-are-idempotent
+  - name: mint-token-is-per-node-and-idempotent
     confirms: >
-      `stageTokens` is idempotent: staging a node again reuses the token already
-      staged for it (the 0600 staging file is unchanged), so re-running a deploy
-      does not mint a fresh token and strand the old one. Pass `force` to mint a
-      new one deliberately (rotation).
+      `mintToken` is per-target: minting one node stages only that node's token
+      in its own 0600 file and records it under its own `token` resource instance,
+      leaving every other node untouched; re-minting a node reuses the token
+      already staged for it (its file is unchanged), so re-running a deploy does
+      not mint a fresh token and strand the old one.
     cannot: >
-      must not mint a different token for a node that already has one staged.
+      must not clobber another node's staged token or record, and must not mint a
+      different token for a node that already has one staged.
     documents: README.md#examples
     variables:
       REPO: /work/repo
@@ -429,32 +431,63 @@ tests:
           --global-arg repoDir=$REPO --json >/dev/null 2>&1 || true
         expect:
           exitCode: 0
-      - name: stage-first
-        run: swamp model method run worker-prov stageTokens --input 'nodes:json=["node1"]'
+      - name: mint-node1
+        run: >
+          swamp model method run worker-prov mintToken
+          --input name=prov-node1 --input duration=1h
         expect:
           exitCode: 0
+          outputContains: ["prov-node1"]
           outputNotContains: ["panic"]
         timeoutSeconds: 120
-      - name: remember-the-token
-        run: |
-          sha256sum /tmp/swamp-worker-staging/prov-node1.token | awk '{print $1}' > /tmp/prov.before
-          cat /tmp/prov.before
+      - name: mint-node2
+        run: >
+          swamp model method run worker-prov mintToken
+          --input name=prov-node2 --input duration=1h
         expect:
           exitCode: 0
-      - name: stage-second
-        run: swamp model method run worker-prov stageTokens --input 'nodes:json=["node1"]'
-        expect:
-          exitCode: 0
+          outputContains: ["prov-node2"]
           outputNotContains: ["panic"]
         timeoutSeconds: 120
-      - name: staging-token-is-reused
+      - name: both-nodes-are-staged-independently
         run: |
-          after=$(sha256sum /tmp/swamp-worker-staging/prov-node1.token | awk '{print $1}')
-          before=$(cat /tmp/prov.before)
-          if [ "$after" = "$before" ]; then echo TOKEN_REUSED; else echo TOKEN_REMINTED; fi
+          test -s /tmp/swamp-worker-staging/prov-node1.token && echo NODE1_STAGED || echo NODE1_MISSING
+          test -s /tmp/swamp-worker-staging/prov-node2.token && echo NODE2_STAGED || echo NODE2_MISSING
+          s1=$(sha256sum /tmp/swamp-worker-staging/prov-node1.token | awk '{print $1}')
+          s2=$(sha256sum /tmp/swamp-worker-staging/prov-node2.token | awk '{print $1}')
+          echo "$s1" > /tmp/prov1.sha
+          echo "$s2" > /tmp/prov2.sha
+          [ "$s1" != "$s2" ] && echo DISTINCT_TOKENS || echo SAME_TOKEN
         expect:
-          stdoutContains: ["TOKEN_REUSED"]
-          stdoutNotContains: ["TOKEN_REMINTED"]
+          stdoutContains: ["NODE1_STAGED", "NODE2_STAGED", "DISTINCT_TOKENS"]
+          stdoutNotContains: ["NODE1_MISSING", "NODE2_MISSING", "SAME_TOKEN"]
+      - name: two-token-records-keyed-by-name
+        run: |
+          swamp data query 'modelName == "worker-prov" && specName == "token"' --select name --json \
+            | jq -e '(.results | index("prov-node1") != null) and (.results | index("prov-node2") != null)' >/dev/null \
+            && echo NAMED_RECORDS || echo RECORDS_MISSING
+        expect:
+          stdoutContains: ["NAMED_RECORDS"]
+          stdoutNotContains: ["RECORDS_MISSING"]
+        timeoutSeconds: 120
+      - name: re-mint-node1
+        run: >
+          swamp model method run worker-prov mintToken
+          --input name=prov-node1 --input duration=1h
+        expect:
+          exitCode: 0
+          outputContains: ["Reusing staged enrollment token prov-node1"]
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: node1-reused-node2-untouched
+        run: |
+          n1=$(sha256sum /tmp/swamp-worker-staging/prov-node1.token | awk '{print $1}')
+          n2=$(sha256sum /tmp/swamp-worker-staging/prov-node2.token | awk '{print $1}')
+          [ "$n1" = "$(cat /tmp/prov1.sha)" ] && echo NODE1_REUSED || echo NODE1_REMINTED
+          [ "$n2" = "$(cat /tmp/prov2.sha)" ] && echo NODE2_UNTOUCHED || echo NODE2_CHANGED
+        expect:
+          stdoutContains: ["NODE1_REUSED", "NODE2_UNTOUCHED"]
+          stdoutNotContains: ["NODE1_REMINTED", "NODE2_CHANGED"]
 
   - name: provision-restarts-when-the-token-changes
     confirms: >
@@ -485,23 +518,39 @@ tests:
           outputContains: ["SERVE_READY"]
           outputNotContains: ["SERVE_TIMEOUT"]
         timeoutSeconds: 120
-      - name: stage-two-tokens
-        run: swamp model method run worker-prov stageTokens --input 'nodes:json=["nodea","nodeb"]'
+      - name: mint-two-tokens
+        run: |
+          swamp model method run worker-prov mintToken --input name=prov-nodea --input duration=1h
+          swamp model method run worker-prov mintToken --input name=prov-nodeb --input duration=1h
         expect:
           exitCode: 0
           outputNotContains: ["panic"]
-        timeoutSeconds: 120
+        timeoutSeconds: 180
       - name: render-provision
         run: swamp model method run worker-prov renderProvision --input serveUrl=$SERVE_URL
         expect:
           exitCode: 0
           outputNotContains: ["panic"]
+      - name: script-refuses-a-foreign-token
+        run: |
+          swamp data query 'modelName=="worker-prov" && name=="provision"' --select content --json \
+            | jq -r '.results[0].script' > /tmp/provision.sh
+          # A stale / another repo's token left at the shared node staging path
+          # must be refused (its name is not an 'prov-' token), not installed.
+          printf 'rc-node1.deadbeef\n' > /tmp/swamp-worker-token
+          sh /tmp/provision.sh 2>/tmp/foreign.err && echo UNEXPECTED_OK || echo REFUSED
+          cat /tmp/foreign.err
+        expect:
+          stdoutContains: ["REFUSED", "not an 'prov-' token"]
+          stdoutNotContains: ["UNEXPECTED_OK"]
+        timeoutSeconds: 120
       - name: deploy-with-token-one
         run: |
           mkdir -p /root/.config/swamp-worker
-          install -m600 /tmp/swamp-worker-staging/prov-nodea.token /root/.config/swamp-worker/prov.token
-          swamp data query 'modelName=="worker-prov" && name=="provision"' --select content --json \
-            | jq -r '.results[0].script' > /tmp/provision.sh
+          # Deliver the token the way the site workflow does: to the node's
+          # staging path; the provisioning script installs it to its final 0600
+          # location (and restarts onto it).
+          install -m600 /tmp/swamp-worker-staging/prov-nodea.token /tmp/swamp-worker-token
           sh /tmp/provision.sh
         expect:
           exitCode: 0
@@ -516,7 +565,7 @@ tests:
           exitCode: 0
       - name: deploy-with-token-two
         run: |
-          install -m600 /tmp/swamp-worker-staging/prov-nodeb.token /root/.config/swamp-worker/prov.token
+          install -m600 /tmp/swamp-worker-staging/prov-nodeb.token /tmp/swamp-worker-token
           sh /tmp/provision.sh
         expect:
           exitCode: 0
@@ -533,3 +582,115 @@ tests:
         expect:
           stdoutContains: ["RESTARTED"]
           stdoutNotContains: ["NOT_RESTARTED"]
+
+  - name: update-binary
+    confirms: >
+      Re-running provision with a requested `version` upgrades the swamp binary
+      the worker runs: a stubbed (wrong) binary at swampBinPath is replaced by the
+      requested release, and the unit is restarted onto it.
+    cannot: >
+      must not leave the stubbed binary in place.
+    documents: README.md#examples
+    variables:
+      IDENTITY: bin
+      SERVE_URL: ws://127.0.0.1:9090
+      REPO: /work/repo
+      BIN: /tmp/bin/swamp-under-test
+    steps:
+      - name: ensure-serve
+        run: |
+          if ! curl -fsS http://127.0.0.1:9090/ready >/dev/null 2>&1; then
+            cd "$REPO"
+            nohup swamp serve --host 127.0.0.1 --port 9090 --auth-mode none >/tmp/serve.log 2>&1 &
+            for i in $(seq 1 60); do curl -fsS http://127.0.0.1:9090/ready >/dev/null 2>&1 && break; sleep 1; done
+          fi
+          curl -fsS http://127.0.0.1:9090/ready >/dev/null && echo SERVE_READY
+        expect:
+          exitCode: 0
+          outputContains: ["SERVE_READY"]
+          outputNotContains: ["SERVE_TIMEOUT"]
+        timeoutSeconds: 120
+      - name: stub-the-installed-binary
+        run: |
+          # An "old swamp" that reports a stale version but otherwise delegates to
+          # the real swamp, so the model's own token calls still work.
+          mkdir -p /tmp/bin
+          cat > "$BIN" <<'STUB'
+          #!/bin/sh
+          if [ "${1:-}" = "--version" ]; then echo "swamp 0.0.0-stub"; exit 0; fi
+          exec /usr/local/bin/swamp "$@"
+          STUB
+          chmod +x "$BIN"
+          "$BIN" --version
+        expect:
+          stdoutContains: ["stub"]
+      - name: create-model
+        run: >
+          swamp model create @svendowideit/swamp-worker worker-bin
+          --global-arg identity=$IDENTITY --global-arg swampBinPath=$BIN
+          --global-arg repoDir=$REPO --json >/dev/null 2>&1 || true
+        expect:
+          exitCode: 0
+      - name: mint-token
+        run: swamp model method run worker-bin mintToken --input name=bin-hostb --input duration=1h
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: render-provision-with-version
+        run: swamp model method run worker-bin renderProvision --input serveUrl=$SERVE_URL --input version=latest
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: deploy-and-upgrade
+        run: |
+          mkdir -p /root/.config/swamp-worker
+          install -m600 /tmp/swamp-worker-staging/bin-hostb.token /root/.config/swamp-worker/bin.token
+          swamp data query 'modelName=="worker-bin" && name=="provision"' --select content --json \
+            | jq -r '.results[0].script' > /tmp/provision-bin.sh
+          sh /tmp/provision-bin.sh
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+        timeoutSeconds: 300
+      - name: the-binary-was-upgraded
+        run: '"$BIN" --version'
+        expect:
+          exitCode: 0
+          stdoutNotContains: ["stub"]
+
+  - name: ensure-service-preconditions
+    confirms: >
+      `ensureService` refuses to start a unit that is guaranteed to crash-loop:
+      with no staged and no installed token it fails loudly naming the missing
+      token file, instead of enabling a `Restart=always` unit that would loop.
+    cannot: >
+      must not report success or start the unit when the token is absent.
+    documents: README.md#examples
+    variables:
+      REPO: /work/repo
+      BIN: /usr/local/bin/swamp
+      SERVE_URL: ws://127.0.0.1:9090
+    steps:
+      - name: create-model
+        run: >
+          swamp model create @svendowideit/swamp-worker worker-pre
+          --global-arg identity=pre --global-arg swampBinPath=$BIN
+          --global-arg repoDir=$REPO --json >/dev/null 2>&1 || true
+        expect:
+          exitCode: 0
+      - name: ensure-service-without-a-token-fails-clearly
+        run: >
+          swamp model method run worker-pre ensureService
+          --input serveUrl=$SERVE_URL --input name=pre-untokenised
+        expect:
+          exitCode: [1, 2]
+          outputContains: ["token file"]
+          outputNotContains: ["panic"]
+        timeoutSeconds: 120
+      - name: no-unit-was-written
+        run: |
+          test -f /root/.config/systemd/user/swamp-worker-pre.service && echo UNIT_WRITTEN || echo NO_UNIT
+        expect:
+          stdoutContains: ["NO_UNIT"]
+          stdoutNotContains: ["UNIT_WRITTEN"]

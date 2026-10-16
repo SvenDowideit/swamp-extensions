@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-worker"
-version: "2026.10.11.1"
+version: "2026.10.16.1"
 description: >
   Enlist a host as a swamp worker for one `swamp serve` orchestrator: render and
   reconcile its systemd user unit, ensure the swamp binary, mint its enrollment
@@ -22,9 +22,9 @@ description: >
     cache dir, token/env files), so a worker this repo manages coexists with
     workers other swamps install on the same host and never touches them. For a
     *set* of hosts it also renders the per-node provisioning and removal scripts
-    and stages one enrollment token per node, so a site workflow can ship them
-    over SSH with @swamp/ssh. It is portable: it knows no domain, no serve
-    hostname and no node set of its own.
+    and mints one enrollment token per node (`mintToken`, keyed per target), so a
+    site workflow can ship them over SSH with @swamp/ssh. It is portable: it knows
+    no domain, no serve hostname and no node set of its own.
 
   INSTALL
 
@@ -75,14 +75,15 @@ description: >
         enableLinger    run `loginctl enable-linger`                 (true)
 
     Per call: `renderUnit`/`ensureService` take `serveUrl`, optional `host`,
-    `labels` (KEY=VALUE strings), `concurrency` and `force`; `renderProvision`
-    takes `serveUrl`, `host`, `labels`, `concurrency` and `version`;
-    `renderRemoval` takes nothing; `stageTokens` takes `nodes`, `duration` and
-    `force`; `clearStagedTokens` takes `nodes`; `install` takes `version` and
-    `force`; `mintToken` takes `node`, `duration` and `force`; `revokeToken` takes
-    `node` and `purgeFile`; `remove` takes `node`, `revokeToken` (default true)
-    and `purgeData`. For a fan-out deploy the model renders the scripts and stages
-    the tokens; a site workflow ships them over SSH.
+    `labels` (KEY=VALUE strings), `concurrency` and `force` (`ensureService` also
+    takes `name`); `renderProvision` takes `serveUrl`, `host`, `labels`,
+    `concurrency` and `version`; `renderRemoval` takes nothing; `install` takes
+    `version` and `force`; `mintToken` takes `name` (default
+    `<identity>-<hostname>`), `duration` and `force` — one call per node;
+    `clearStagedTokens` takes `names`; `revokeToken` takes `name` and `purgeFile`;
+    `remove` takes `name`, `revokeToken` (default true) and `purgeData`. For a
+    fan-out deploy the model renders the scripts and mints one token per node; a
+    site workflow ships them over SSH.
 
   WHAT IT INSTALLS
 

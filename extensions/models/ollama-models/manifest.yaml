@@ -1,0 +1,136 @@
+manifestVersion: 1
+name: "@svendowideit/ollama-models"
+version: "2026.10.16.9"
+description: >
+  Everything Ollama lets you do with a model, as swamp methods — and a
+  Modelfile generator that customises a model to this host's GPU and RAM, then
+  builds it and proves it loads.
+
+  WHAT IT DOES
+
+    Drives the Ollama HTTP API at `OLLAMA_HOST` (local or a GPU host on the
+    LAN): list/show/ps, pull/push/copy/delete, and run/chat/embed/unload. Its
+    point of difference is `renderModelfile`: it takes a GGUF path and the
+    model's chat template from a Hugging Face download, derives `num_ctx` and
+    `num_gpu` from the GGUF size and the host's VRAM/RAM budget, and attaches
+    your SYSTEM instructions and parameters — so the same model is built
+    correctly on a 4090 box, a Jetson or a Mac. `create` then builds the Ollama
+    model, and `verify` runs it and asserts it actually loaded on the GPU
+    (`size_vram > 0`) rather than silently spilling to CPU, recording tokens/s.
+    `create` imports a GGUF by uploading it to Ollama as a blob (so it works
+    when the daemon runs as another user or on a LAN host), sends numeric
+    parameters as numbers, and omits `TEMPLATE` unless you supply one — Hugging
+    Face Jinja chat templates are not Ollama Go-templates, so Ollama's own
+    build would otherwise fail on `bos_token`; Ollama then uses the chat
+    template embedded in the GGUF. Prefer it over hand-writing a Modelfile and
+    shelling out to `ollama`: the fit maths, the build and the proof are
+    repeatable swamp data.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/ollama-models
+
+  DEPENDENCIES
+
+    For the methods alone: none — they talk HTTP to an Ollama server. The
+    bundled `@svendowideit/ollama-model-factory` workflow additionally uses
+    `@svendowideit/gpu-facts` (this host's VRAM/RAM budget) and
+    `@svendowideit/huggingface` (search + download), declared in `dependencies:`
+    and installed by the single pull above. Install Ollama itself with
+    `@svendowideit/ollama` if the host does not have it yet.
+
+  RUN
+
+      # A Modelfile customised to this host: derive num_ctx/num_gpu from the
+      # GGUF size and the VRAM/RAM budget, with the chat template and your
+      # instructions. Writes `Modelfile` next to the build.
+      swamp model @svendowideit/ollama-models method run renderModelfile om \
+        --input modelName=coder:latest --input from=/models/coder-Q4_K_M.gguf \
+        --input template="{{ .Prompt }}" --input system="You are a coding assistant." \
+        --input sizeBytes=4683071232 --input contextLength=32768 \
+        --input vramMiB=24564 --input ramMiB=128000 --input outputPath=Modelfile
+
+      # Build the model from the last rendered Modelfile.
+      swamp model @svendowideit/ollama-models method run create om \
+        --input model=coder:latest
+
+      # Prove it runs and loaded on the GPU (fails if size_vram is 0). Point
+      # `host` at a LAN GPU box to do this on another machine.
+      swamp model @svendowideit/ollama-models method run verify om \
+        --input model=coder:latest
+
+      # Push the built model to your namespace on ollama.com (or a registry).
+      swamp model @svendowideit/ollama-models method run push om \
+        --input model=coder:latest --input target=sven/coder:latest
+
+      # See what is loaded right now and how much VRAM it is using.
+      swamp model @svendowideit/ollama-models method run ps om
+
+      # The whole loop in one run: read the host GPU (gpu-facts), recommend a
+      # model (huggingface), ask you if ambiguous, download, render a
+      # Modelfile, build and verify it. Run it on the GPU host itself.
+      swamp workflow run @svendowideit/ollama-model-factory \
+        --input ask="a local coding assistant" --input modelName=coder:latest
+
+  CONFIGURE
+
+    Global arguments (set at creation with `--global-arg`, or per call with
+    `--input`):
+
+      host        Ollama server base URL                (default http://127.0.0.1:11434)
+      registry    Default push registry host            (default: server default)
+      namespace   Default push namespace                (default: push as-is)
+      timeoutSec  Per-request HTTP timeout              (default 120)
+      keepAlive   Default keep_alive for inference      (default 5m)
+
+  SETUP
+
+    `setup` resolves and persists the server config: it reads any existing
+    `config` resource back first, probes `/api/version`, and records whether the
+    host is reachable. Run it after creating the model, or when `host` changes:
+
+      swamp model @svendowideit/ollama-models method run setup om
+
+  UPGRADE
+
+    This extension installs nothing on the host (no service, daemon or unit),
+    so upgrade the code alone and re-run `setup`:
+
+      swamp extension update @svendowideit/ollama-models
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons or triggers. It talks HTTP to an
+    Ollama server and writes swamp resources; `renderModelfile` can also write a
+    `Modelfile` to a path you choose. Models it creates live in Ollama's own
+    store, not in this extension.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - ollama_models.ts
+  - ollama_models_shared.ts
+
+workflows:
+  - ollama-model-factory.yaml
+
+dependencies:
+  - "@svendowideit/gpu-facts"
+  - "@svendowideit/huggingface"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - ollama_models_test.ts
+  - ollama_models_shared_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

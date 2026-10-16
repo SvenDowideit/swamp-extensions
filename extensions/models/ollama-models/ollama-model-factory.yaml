@@ -1,0 +1,382 @@
+id: 567940f8-5da2-42f8-90c3-2f21dc471249
+name: '@svendowideit/ollama-model-factory'
+description: |
+  From an ask to a verified, customised Ollama model, in one run.
+
+  facts → recommend → (clarify → wait-for-choice) → select → inspect →
+  download → render-modelfile → create → verify → (push).
+
+  facts reads this host's GPU/VRAM (gpu-facts). recommend searches Hugging Face
+  and ranks candidates against that budget (huggingface). When more than one
+  candidate fits, clarify emits a question and the run suspends on
+  wait-for-choice; answer it with
+  `swamp workflow signal --workflow @svendowideit/ollama-model-factory
+  --key hf-choice --payload '{"answer":"<repo>#<quant>"}'` then
+  `swamp workflow resume`. When the choice is unambiguous it selects the top
+  candidate automatically. select records the chosen repo/quant, inspect reads
+  its chat template and context length, download fetches the GGUF at a pinned
+  revision, render-modelfile derives num_ctx/num_gpu for this host, create
+  builds the Ollama model, and verify runs it and asserts it loaded on the GPU
+  (size_vram > 0). Set push=true to publish it afterwards.
+
+  Run it on the GPU host itself (or point ollamaHost at one on the LAN):
+
+      swamp workflow run @svendowideit/ollama-model-factory \
+        --input ask="a local coding assistant" --input modelName=coder:latest
+
+  For gated/private models, give the huggingface model a token. Store it once
+  in the repo vault and pre-create the `hf` instance so the run reuses it
+  (never inline a secret):
+
+      swamp vault put huggingface HF_TOKEN "$HF_TOKEN"
+      swamp model create @svendowideit/huggingface hf \
+        --global-arg 'token=${{ vault.get("huggingface","HF_TOKEN") }}'
+
+  `create` uploads the downloaded GGUF to Ollama as a blob, so the daemon may
+  run as a different user or on another host; the chat template is left to
+  Ollama (from the GGUF metadata), because Hugging Face Jinja templates are not
+  Ollama Go-templates.
+
+  Re-run after the wait is signalled:
+
+      swamp workflow signal --workflow @svendowideit/ollama-model-factory \
+        --key hf-choice --payload '{"answer":"Qwen/Qwen2.5-Coder-7B-Instruct-GGUF#Q4_K_M"}'
+      swamp workflow resume @svendowideit/ollama-model-factory
+tags: {}
+autoResume: false
+inputs:
+  properties:
+    ask:
+      type: string
+      description: >-
+        Natural-language requirement, e.g. "a local coding assistant". Used to
+        search Hugging Face.
+    modelName:
+      type: string
+      default: hf-model:latest
+      description: Name to build the Ollama model under (name:tag).
+    system:
+      type: string
+      default: ""
+      description: SYSTEM instructions/persona baked into the Modelfile.
+    quant:
+      type: string
+      default: ""
+      description: >-
+        Preferred GGUF quant (e.g. Q4_K_M). Empty picks the largest GGUF per
+        candidate (ranked by fit).
+    candidates:
+      type: integer
+      default: 4
+      description: How many top search hits to inspect and rank.
+    cacheDir:
+      type: string
+      default: ~/.cache/huggingface
+      description: Directory the GGUF is downloaded into before it is built.
+    modelfilePath:
+      type: string
+      default: Modelfile
+      description: Where to also write the rendered Modelfile.
+    ollamaHost:
+      type: string
+      default: http://127.0.0.1:11434
+      description: Ollama server base URL (point at a LAN GPU box if not local).
+    push:
+      type: boolean
+      default: false
+      description: Push the built model to a registry after verifying it.
+    pushTarget:
+      type: string
+      default: ""
+      description: Full push target (namespace/model:tag). Empty uses the server default.
+    requireVram:
+      type: boolean
+      default: true
+      description: >-
+        Require the built model to load on the GPU (size_vram > 0). Set false on
+        a CPU-only host, or a unified-memory host where Ollama reports no VRAM
+        (e.g. NVIDIA GB10), to accept a CPU run; the `verify` resource still
+        records whether the GPU was actually used.
+  required:
+    - ask
+jobs:
+  - name: main
+    description: >-
+      Read the host budget, recommend a model, ask if ambiguous, download,
+      render a Modelfile, build and verify it.
+    steps:
+      - name: facts
+        description: >-
+          Read this host's accelerators, VRAM, RAM and CPU cores so the
+          recommendation and the Modelfile fit the machine. Writes the `gpu`
+          resource on model `gpu-host`.
+        task:
+          type: model_method
+          modelType: "@svendowideit/gpu-facts"
+          modelName: gpu-host
+          methodName: collect
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: recommend
+        description: >-
+          Search Hugging Face and rank candidates against this host's
+          VRAM/RAM budget. Writes the `recommendation` resource (with
+          `ambiguous` and `options`) on model `hf`.
+        task:
+          type: model_method
+          modelType: "@svendowideit/huggingface"
+          modelName: hf
+          methodName: recommend
+          inputs:
+            ask: ${{ inputs.ask }}
+            vramMiB: ${{ data.latest("gpu-host", "gpu").attributes.totalVramMiB }}
+            ramMiB: ${{ data.latest("gpu-host", "gpu").attributes.ramMiB }}
+            candidates: ${{ inputs.candidates }}
+            quant: ${{ inputs.quant }}
+        dependsOn:
+          - step: facts
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: has-candidates
+        description: >-
+          Fail fast with a clear message when the ask yielded no candidates,
+          rather than proceeding to an index error.
+        task:
+          type: assert
+          expr: size(data.latest("hf", "recommendation").attributes.candidates) > 0
+          message: >-
+            No Hugging Face candidates matched the ask. Try a different ask, or
+            widen it (e.g. name the task: "a coding model").
+          severity: high
+        dependsOn:
+          - step: recommend
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: clarify-question
+        description: >-
+          Emit the question + options for the user when more than one candidate
+          fits. Skipped when the choice is unambiguous (select auto-picks the
+          top candidate). Writes the `clarification` resource.
+        guard: >-
+          ${{ data.latest("hf", "recommendation").attributes.ambiguous == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/huggingface"
+          modelName: hf
+          methodName: clarify
+          inputs:
+            answer: ""
+        dependsOn:
+          - step: recommend
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: wait-for-choice
+        description: >-
+          Suspend until the user picks an option. Answer it with
+          `swamp workflow signal --workflow @svendowideit/ollama-model-factory
+          --key hf-choice --payload '{"answer":"<repo>#<quant>"}'`, then
+          `swamp workflow resume`. The payload becomes this step's output.
+          Skipped when the choice is unambiguous.
+        guard: >-
+          ${{ data.latest("hf", "recommendation").attributes.ambiguous == false }}
+        task:
+          type: wait_for_signal
+          key: hf-choice
+          timeout: 604800
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - answer
+            properties:
+              answer:
+                type: string
+        dependsOn:
+          - step: clarify-question
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: select
+        description: >-
+          Record the chosen repo/quant. When the choice was ambiguous this is
+          the signalled answer; otherwise it is the top-ranked candidate.
+          Writes the `selection` resource.
+        task:
+          type: model_method
+          modelType: "@svendowideit/huggingface"
+          modelName: hf
+          methodName: clarify
+          inputs:
+            answer: >-
+              ${{ data.latest("hf", "recommendation").attributes.ambiguous
+                  ? steps["wait-for-choice"].outputs.?payload.?answer.orValue("")
+                  : data.latest("hf", "recommendation").attributes.candidates[0].repo + "#" + data.latest("hf", "recommendation").attributes.candidates[0].quant }}
+        dependsOn:
+          - step: has-candidates
+            condition:
+              type: succeeded
+          - step: wait-for-choice
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+
+      - name: inspect
+        description: >-
+          Read the chosen repo's chat template and context length — the facts
+          the Modelfile needs. Writes the `model` resource.
+        task:
+          type: model_method
+          modelType: "@svendowideit/huggingface"
+          modelName: hf
+          methodName: inspect
+          inputs:
+            repo: ${{ data.latest("hf", "selection").attributes.repo }}
+            revision: main
+        dependsOn:
+          - step: select
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: download
+        description: >-
+          Download the chosen GGUF at a pinned revision, verifying it against
+          the Hub's SHA-256 when possible. Writes the `download` resource with
+          the local path.
+        task:
+          type: model_method
+          modelType: "@svendowideit/huggingface"
+          modelName: hf
+          methodName: download
+          inputs:
+            repo: ${{ data.latest("hf", "selection").attributes.repo }}
+            revision: main
+            quant: ${{ data.latest("hf", "selection").attributes.quant }}
+            dest: ${{ inputs.cacheDir }}
+            verify: true
+        dependsOn:
+          - step: inspect
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: render-modelfile
+        description: >-
+          Render a Modelfile customised to this host: derive num_ctx/num_gpu
+          from the GGUF size and the host budget, attach the chat template and
+          the SYSTEM instructions, and write it to disk. Writes the
+          `modelfile` resource.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama-models"
+          modelName: om
+          methodName: renderModelfile
+          inputs:
+            modelName: ${{ inputs.modelName }}
+            from: ${{ data.latest("hf", "download").attributes.files[0].localPath }}
+            system: ${{ inputs.system }}
+            quant: ${{ data.latest("hf", "selection").attributes.quant }}
+            sizeBytes: ${{ data.latest("hf", "download").attributes.files[0].sizeBytes }}
+            contextLength: ${{ data.latest("hf", "model").attributes.contextLength }}
+            vramMiB: ${{ data.latest("gpu-host", "gpu").attributes.totalVramMiB }}
+            ramMiB: ${{ data.latest("gpu-host", "gpu").attributes.ramMiB }}
+            outputPath: ${{ inputs.modelfilePath }}
+        dependsOn:
+          - step: download
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: create
+        description: >-
+          Build the Ollama model from the rendered Modelfile. Writes the
+          `create` resource.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama-models"
+          modelName: om
+          methodName: create
+          inputs:
+            model: ${{ inputs.modelName }}
+        dependsOn:
+          - step: render-modelfile
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: verify
+        description: >-
+          Run the built model and assert it loaded on the GPU (size_vram > 0)
+          and answered, recording tokens/second. Fails the run when the model
+          does not load on the GPU.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama-models"
+          modelName: om
+          methodName: verify
+          inputs:
+            model: ${{ inputs.modelName }}
+            requireVram: ${{ inputs.requireVram }}
+        dependsOn:
+          - step: create
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: push
+        description: >-
+          Push the verified model to a registry. Skipped unless
+          `push=true`.
+        guard: ${{ inputs.push == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama-models"
+          modelName: om
+          methodName: push
+          inputs:
+            model: ${{ inputs.modelName }}
+            target: ${{ inputs.pushTarget }}
+        dependsOn:
+          - step: verify
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: print
+        description: >-
+          Log the modelfile/create/verify summary so the run ends with what was
+          built and where.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ollama-models"
+          modelName: om
+          methodName: print
+        dependsOn:
+          - step: verify
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

@@ -1,0 +1,121 @@
+manifestVersion: 1
+name: "@svendowideit/huggingface"
+version: "2026.10.16.6"
+description: >
+  Turn "what models will help me do <something>?" into a ranked, hardware-aware
+  shortlist from the Hugging Face Hub — then download the one you choose, at a
+  pinned revision, ready for an Ollama Modelfile to `FROM`.
+
+  WHAT IT DOES
+
+    Searches the Hub by a natural-language ask plus structured filters (library,
+    pipeline tag), inspects each candidate's file tree, GGUF quants, context
+    length and chat template, and scores them against a real VRAM/RAM budget —
+    so the same ask gives a different answer on a 4090 box, a Jetson or a Mac.
+    When more than one candidate fits, it does not guess: it emits a structured
+    question with the trade-offs for the user to answer (a workflow collects it
+    with `wait_for_signal`), then     downloads the chosen quant with resume and an
+    optional SHA-256 check against the Hub's LFS oid. Search degrades
+    gracefully: the Hub's `search` is a substring match, not semantic, so a
+    natural-language ask is retried as its keywords and then as a filter-only
+    query rather than returning nothing. Prefer it over a manual
+    `huggingface-cli` step: the ranking, the ambiguity handling and the
+    revision-pinned download are repeatable swamp data a workflow can gate on.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/huggingface
+
+  DEPENDENCIES
+
+    None. It talks HTTPS to huggingface.co and needs no other extension. For
+    gated or private repos, provide a token: set the `token` global (marked
+    sensitive, so swamp stores it in the repo vault) or export `HF_TOKEN`. To
+    keep the token in a named vault and reference it without inlining the
+    secret, store it once and wire the global to `vault.get`:
+
+        swamp vault put huggingface HF_TOKEN "$HF_TOKEN"
+        swamp model create @svendowideit/huggingface hf \
+          --global-arg 'token=${{ vault.get("huggingface","HF_TOKEN") }}'
+
+    `auth` reports the identity the Hub sees, and whether the token was
+    accepted, before you rely on a gated download.
+
+  RUN
+
+      # Ask for models that fit a host. Pass the host's VRAM/RAM budget (read
+      # from @svendowideit/gpu-facts) so the ranking reflects this machine.
+      swamp model @svendowideit/huggingface method run recommend hf \
+        --input ask="a local coding assistant" --input vramMiB=24564 --input ramMiB=128000
+
+      # Inspect one repo: its GGUF quants, context length and chat template.
+      swamp model @svendowideit/huggingface method run inspect hf \
+        --input repo=Qwen/Qwen2.5-Coder-7B-Instruct-GGUF
+
+      # Download the chosen quant at a pinned revision, verifying it against
+      # the Hub's recorded SHA-256.
+      swamp model @svendowideit/huggingface method run download hf \
+        --input repo=Qwen/Qwen2.5-Coder-7B-Instruct-GGUF --input quant=Q4_K_M
+
+      # Check that a token is seen before pulling a gated model.
+      swamp model @svendowideit/huggingface method run auth hf
+
+  CONFIGURE
+
+    Global arguments (set at creation with `--global-arg`, or per call with
+    `--input`):
+
+      endpoint     Hub base URL                              (default https://huggingface.co)
+      token        Access token, stored in the vault          (default "" = use env)
+      tokenEnvVar  Env var the token is read from             (default HF_TOKEN)
+      library      Default search library filter              (default gguf)
+      timeoutSec   Per-request HTTP timeout                   (default 30)
+      cacheDir     Default download directory                 (default ~/.cache/huggingface)
+
+  SETUP
+
+    `setup` resolves and persists the config (endpoint, library, token source),
+    reading any existing `config` resource back first so a later run reuses it
+    instead of asking again. Run it after creating the model, or when a setting
+    changes. The token itself is never written to the resource — only whether
+    one is configured and where it came from:
+
+      swamp model @svendowideit/huggingface method run setup hf
+
+  UPGRADE
+
+    This extension installs nothing on the host — upgrade the code alone:
+
+      swamp extension update @svendowideit/huggingface
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons or triggers. It reads the Hub
+    over HTTPS and writes swamp resources (`search`, `model`, `recommendation`,
+    `clarification`, `selection`, `download`, `auth`, `summary`); `download`
+    writes the chosen files under `cacheDir`.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - huggingface.ts
+  - huggingface_shared.ts
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - huggingface_test.ts
+  - huggingface_shared_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

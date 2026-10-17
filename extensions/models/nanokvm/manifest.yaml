@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/nanokvm"
-version: "2026.10.17.3"
+version: "2026.10.17.4"
 description: >
   Operate a Sipeed NanoKVM from swamp: a health verdict, screenshots, GPIO
   power/reset and virtual media, with the device's health pushed to your

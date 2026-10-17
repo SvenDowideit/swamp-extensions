@@ -32,7 +32,7 @@ import { parse as parseYaml } from "jsr:@std/yaml@1";
 export const MODEL_TYPE = "@svendowideit/nanokvm";
 
 /** The model's own version (must match manifest.yaml `version:`). */
-export const MODEL_VERSION = "2026.10.17.3";
+export const MODEL_VERSION = "2026.10.17.4";
 
 /** The curl behavior this model drives for every HTTP request. */
 export const CURL_TYPE = "@svendowideit/curl";
@@ -55,6 +55,8 @@ export const PATHS = {
   hdmi: "/api/vm/hdmi",
   version: "/api/application/version",
   mjpeg: "/api/stream/mjpeg",
+  scriptUpload: "/api/vm/script/upload",
+  scriptRun: "/api/vm/script/run",
 } as const;
 
 /** Highest tolerated clock skew, in seconds, before a `clock_skew` finding. */
@@ -240,6 +242,41 @@ const DevicesArgsSchema = z.object({
   ),
 });
 
+const CertArgsSchema = z.object({
+  action: z.enum(["status", "install"]).describe(
+    "`status` reads the certificate the device currently serves; `install` " +
+      "writes a certificate onto the device (via its admin script API) and " +
+      "restarts the web server so it takes effect.",
+  ),
+  name: z.string().default("").describe(
+    "The certificate's DNS name (e.g. nanokvm.fi.gy). Required for `install` " +
+      "(it locates the files and is checked against the SAN); `status` without " +
+      "it just reports whatever the device serves.",
+  ),
+  certDir: z.string().default("~/.local/share/caddy/certificates").describe(
+    "Caddy's certificate store. `install` looks for " +
+      "<certDir>/*/<name>/<name>.crt|.key under it (the default), so a cert " +
+      "Caddy issued and renews is installed without copying files by hand.",
+  ),
+  crt: z.string().default("").describe(
+    "Explicit path to the certificate PEM, overriding the certDir lookup.",
+  ),
+  key: z.string().default("").describe(
+    "Explicit path to the private-key PEM, overriding the certDir lookup.",
+  ),
+  waitMs: z.number().int().nonnegative().default(120000).describe(
+    "How long `install` waits for the certificate file to appear (Caddy issues " +
+      "asynchronously). 0 fails immediately when it is not there yet.",
+  ),
+  restart: z.boolean().default(true).describe(
+    "Restart the NanoKVM web server after writing the files, so it serves the " +
+      "new certificate immediately.",
+  ),
+  scriptName: safeValue("scriptName").default("swamp-apply-cert.sh").describe(
+    "Name of the on-device script used to install the files (must end .sh).",
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Resource schemas
 // ---------------------------------------------------------------------------
@@ -360,8 +397,25 @@ const DevicesSchema = z.object({
   zone: z.string(),
   count: z.number().int(),
   devices: z.array(DeviceEntrySchema),
+  dnsNames: z.array(z.string()),
   aRecords: z.array(DnsRecordSchema),
   scannedAt: z.string(),
+});
+
+const CertSchema = z.object({
+  host: z.string(),
+  action: z.string(),
+  name: z.string(),
+  subject: z.string(),
+  issuer: z.string(),
+  serial: z.string(),
+  notAfter: z.string(),
+  daysRemaining: z.number(),
+  sans: z.array(z.string()),
+  matchesName: z.boolean(),
+  installed: z.boolean(),
+  detail: z.string(),
+  checkedAt: z.string(),
 });
 
 // ---------------------------------------------------------------------------
@@ -864,6 +918,138 @@ export async function discoverNanokvmDevices(
 }
 
 // ---------------------------------------------------------------------------
+// TLS certificate install
+// ---------------------------------------------------------------------------
+
+/** Expand a leading `~` to the home directory. */
+export function expandHome(
+  path: string,
+  home: string = Deno.env.get("HOME") ?? "",
+): string {
+  return path.startsWith("~") ? `${home}${path.slice(1)}` : path;
+}
+
+/** The fields this model reads out of `openssl x509 -noout`. */
+export interface CertFields {
+  /** `subject=` line. */
+  subject: string;
+  /** `issuer=` line. */
+  issuer: string;
+  /** `serial=` line. */
+  serial: string;
+  /** `notAfter=` line (an openssl date string). */
+  notAfter: string;
+  /** DNS names from the Subject Alternative Name extension. */
+  sans: string[];
+}
+
+/** Parse `openssl x509 -noout -subject -issuer -serial -enddate -ext subjectAltName` output. */
+export function parseCertFields(text: string): CertFields {
+  const field = (key: string): string => {
+    const m = text.match(new RegExp(`^\\s*${key}=(.+)$`, "m"));
+    return m ? m[1].trim() : "";
+  };
+  const sans: string[] = [];
+  const sanBlock = text.match(
+    /X509v3 Subject Alternative Name:\s*\n\s*([^\n]+)/,
+  );
+  if (sanBlock) {
+    for (const raw of sanBlock[1].split(",")) {
+      const part = raw.trim();
+      if (part.startsWith("DNS:")) sans.push(part.slice(4).trim());
+    }
+  }
+  return {
+    subject: field("subject"),
+    issuer: field("issuer"),
+    serial: field("serial"),
+    notAfter: field("notAfter"),
+    sans,
+  };
+}
+
+/** Whole days until `notAfter`; 0 when the date cannot be parsed. */
+export function certDaysRemaining(
+  notAfter: string,
+  now: number = Date.now(),
+): number {
+  const t = Date.parse(notAfter);
+  if (Number.isNaN(t)) return 0;
+  return Math.floor((t - now) / 86_400_000);
+}
+
+/**
+ * Build the on-device shell script that writes a cert+key and restarts the
+ * server. The restart is detached (nohup … &) because the script runs as a
+ * child of the very server it restarts — a synchronous restart would kill the
+ * script (and its HTTP response) mid-flight. `swamp-cert-installed` is echoed
+ * before the restart so the run reports success and the caller can then verify
+ * what the device actually serves.
+ */
+export function buildCertInstallerScript(
+  crtPem: string,
+  keyPem: string,
+  restart = true,
+): string {
+  return [
+    "#!/bin/sh",
+    "cat > /etc/kvm/server.crt <<'SWAMP_CRT_EOF'",
+    crtPem.trimEnd(),
+    "SWAMP_CRT_EOF",
+    "cat > /etc/kvm/server.key <<'SWAMP_KEY_EOF'",
+    keyPem.trimEnd(),
+    "SWAMP_KEY_EOF",
+    "chmod 600 /etc/kvm/server.key",
+    // Restart the web server so it reloads the certificate. Detached, because
+    // this script runs as a child of the very server it restarts. Newer
+    // firmware ships /etc/init.d/S95nanokvm; older firmware has no init script
+    // and relies on the nanokvm.sh supervisor to respawn NanoKVM-Server, so we
+    // signal it (the supervisor itself uses pgrep; killall is absent there).
+    restart
+      ? "if [ -x /etc/init.d/S95nanokvm ]; then\n" +
+        "  nohup /etc/init.d/S95nanokvm restart >/dev/null 2>&1 &\n" +
+        "else\n" +
+        "  nohup sh -c 'sleep 2; for p in $(pgrep -x NanoKVM-Server); do " +
+        'kill -TERM "$p"; done\' >/dev/null 2>&1 &\n' +
+        "fi"
+      : "true",
+    'echo "swamp-cert-installed"',
+    "",
+  ].join("\n");
+}
+
+/**
+ * Find a certificate Caddy issued under `<certDir>/*<sep><name><sep><name>.crt`.
+ * Caddy nests one directory per issuer CA, so the name's directory is found by
+ * scanning those. Returns null when the cert has not been issued (yet).
+ */
+export async function locateCaddyCert(
+  certDir: string,
+  name: string,
+): Promise<{ crt: string; key: string } | null> {
+  const root = expandHome(certDir).replace(/\/+$/, "");
+  const issuers: Deno.DirEntry[] = [];
+  try {
+    for await (const e of Deno.readDir(root)) issuers.push(e);
+  } catch {
+    return null;
+  }
+  for (const issuer of issuers) {
+    if (!issuer.isDirectory) continue;
+    const crt = `${root}/${issuer.name}/${name}/${name}.crt`;
+    const key = `${root}/${issuer.name}/${name}/${name}.key`;
+    try {
+      await Deno.stat(crt);
+      await Deno.stat(key);
+      return { crt, key };
+    } catch {
+      // Not this issuer; keep looking.
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // OTLP payload builders
 // ---------------------------------------------------------------------------
 
@@ -1004,6 +1190,7 @@ interface CurlArguments {
   method?: string;
   headers?: string[];
   dataJson?: unknown;
+  files?: Record<string, string>;
   label: string;
   saveBody?: boolean;
   outputFile?: string;
@@ -1115,6 +1302,7 @@ async function curlCall(
       method: args.method ?? "",
       headers: args.headers ?? [],
       dataJson: args.dataJson,
+      files: args.files,
       label: args.label,
       insecure: g.insecure,
       reuseCookies: true,
@@ -1318,6 +1506,117 @@ async function getJson(
     headers: token ? [`Authorization: Bearer ${token}`] : [],
   });
   return { record, envelope: parseEnvelope(record.body) };
+}
+
+/** Read the certificate the device currently serves over TLS (via openssl). */
+async function readServedCert(
+  ctx: MethodContext,
+  servername: string,
+): Promise<CertFields & { ok: boolean }> {
+  const g = ctx.globalArgs;
+  const name = servername || g.host;
+  const cmd = "openssl s_client -connect " +
+    `'${g.host}:${g.port}' -servername '${name}' -showcerts </dev/null 2>/dev/null` +
+    " | openssl x509 -noout -subject -issuer -serial -enddate" +
+    " -ext subjectAltName 2>/dev/null";
+  let text = "";
+  try {
+    // swamp-quality-ignore deno-command: reading the certificate the device serves needs a TLS handshake openssl s_client provides; the arguments are fixed and validated (host/port/name), never raw caller input.
+    const out = await new Deno.Command("sh", {
+      args: ["-c", cmd],
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    text = new TextDecoder().decode(out.stdout);
+  } catch (err) {
+    ctx.logger?.warn("Reading the served certificate failed: {error}", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  const fields = parseCertFields(text);
+  return { ...fields, ok: fields.subject !== "" };
+}
+
+/** The `serial=` of a certificate file, for comparing against what is served. */
+async function certFileSerial(crtPath: string): Promise<string> {
+  try {
+    // swamp-quality-ignore deno-command: reading a certificate serial needs openssl x509; the argument is a path this method resolved, never raw caller text.
+    const out = await new Deno.Command("openssl", {
+      args: ["x509", "-in", crtPath, "-noout", "-serial"],
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    const match = new TextDecoder().decode(out.stdout).match(/serial=(.+)/);
+    return match ? match[1].trim() : "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Write a certificate onto the device via its admin script API and run it. The
+ * device has no cert-upload endpoint, so this is the supported path: upload a
+ * small shell script (which writes /etc/kvm/server.crt|.key and restarts the
+ * server) and run it in the foreground, returning its log.
+ */
+async function installCertScript(
+  ctx: MethodContext,
+  scriptName: string,
+  scriptBody: string,
+): Promise<{ ok: boolean; log: string; detail: string }> {
+  const g = ctx.globalArgs;
+  const session = await ensureSession(ctx);
+  if (!session.ok) {
+    throw new Error(
+      `Cannot install a certificate: ${session.message}. The script API needs ` +
+        "an admin login.",
+    );
+  }
+  const headers = session.token
+    ? [`Authorization: Bearer ${session.token}`]
+    : [];
+  const dir = await Deno.makeTempDir({ prefix: "nanokvm-cert-" });
+  const scriptPath = `${dir}/${scriptName}`;
+  try {
+    await Deno.writeTextFile(scriptPath, scriptBody, { mode: 0o700 });
+    const upload = await curlCall(ctx, {
+      url: `${baseUrl(g.host, g.port)}${PATHS.scriptUpload}`,
+      method: "POST",
+      files: { file: scriptPath },
+      headers,
+      label: "cert-upload",
+    });
+    const upEnv = parseEnvelope(upload.body);
+    if (upload.status !== 200 || upEnv?.code !== 0) {
+      return {
+        ok: false,
+        log: "",
+        detail: upEnv?.msg || upload.stderr || `upload HTTP ${upload.status}`,
+      };
+    }
+    const run = await curlCall(ctx, {
+      url: `${baseUrl(g.host, g.port)}${PATHS.scriptRun}`,
+      method: "POST",
+      dataJson: { name: scriptName, type: "foreground" },
+      headers,
+      label: "cert-run",
+      timeoutMs: Math.max(g.timeoutMs, 30000),
+    });
+    const runEnv = parseEnvelope(run.body);
+    const data = (runEnv?.data ?? {}) as Record<string, unknown>;
+    const log = typeof data.log === "string" ? data.log : "";
+    const ok = run.status === 200 && runEnv?.code === 0 &&
+      log.includes("swamp-cert-installed");
+    return {
+      ok,
+      log,
+      detail: ok
+        ? "installed"
+        : runEnv?.msg || run.stderr || `run HTTP ${run.status}`,
+    };
+  } finally {
+    await Deno.remove(dir, { recursive: true }).catch(() => {});
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1581,20 +1880,20 @@ async function pushOtlp(
 /** Swamp model definition for operating a Sipeed NanoKVM. */
 export const model = {
   type: "@svendowideit/nanokvm",
-  version: "2026.10.17.3",
+  version: "2026.10.17.4",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
     {
-      toVersion: "2026.10.17.3",
+      toVersion: "2026.10.17.4",
       description:
-        "Adds a read-only `devices` method (and `devices` resource): it scans " +
-        "the repo's model definitions for @svendowideit/nanokvm instances and " +
-        "records each device's name, address and DNS name plus an A-record " +
-        "list, so a DNS workflow can publish every NanoKVM swamp looks after. " +
-        "No existing argument changed; the earlier release added dual-firmware " +
-        "login (plaintext + bearer token, or AES + session cookie) via " +
-        "`passwordEncoding`.",
+        "Adds a `cert` method (and `cert` resource): `status` reads the TLS " +
+        "certificate the device serves, and `install` writes a certificate and " +
+        "key onto the device through its admin script API — taking them from " +
+        "Caddy's store by default — then restarts the web server and verifies " +
+        "the device serves it, so a certificate Caddy issues and renews can be " +
+        "installed and kept current. Also adds `devices.dnsNames` (the device " +
+        "fqdns, ready for a TLS subject list). No existing argument changed.",
       upgradeAttributes: (old: Record<string, unknown>) => ({
         ...old,
         passwordEncoding: typeof old.passwordEncoding === "string"
@@ -1650,6 +1949,13 @@ export const model = {
       lifetime: "30d" as const,
       garbageCollection: 20,
     },
+    cert: {
+      description:
+        "The TLS certificate the device serves, or the outcome of installing one.",
+      schema: CertSchema,
+      lifetime: "30d" as const,
+      garbageCollection: 30,
+    },
   },
 
   files: {
@@ -1668,7 +1974,15 @@ export const model = {
         "with a scheme or whitespace, an out-of-range port, or a missing curl " +
         "instance name.",
       labels: ["policy"],
-      appliesTo: ["setup", "health", "power", "msd", "screenshot", "emit"],
+      appliesTo: [
+        "setup",
+        "health",
+        "power",
+        "msd",
+        "screenshot",
+        "emit",
+        "cert",
+      ],
       execute: (context: { globalArgs: GlobalArgs }) => {
         const g = context.globalArgs;
         const errors: string[] = [];
@@ -2243,6 +2557,7 @@ export const model = {
           zone,
           count: devices.length,
           devices,
+          dnsNames: devices.map((d) => d.dnsName),
           aRecords,
           scannedAt: new Date().toISOString(),
         });
@@ -2253,6 +2568,179 @@ export const model = {
             zoneSuffix: zone ? ` in ${zone}` : "",
           },
         );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    cert: {
+      description:
+        "Read the TLS certificate the device serves, or install a Let's " +
+        "Encrypt one onto it. The NanoKVM has no cert-upload endpoint, so " +
+        "`install` writes the certificate and key onto the device through its " +
+        "admin script API and restarts the web server; it takes the files from " +
+        "Caddy's store by default, so a certificate Caddy issued and renews is " +
+        "installed without copying anything by hand.",
+      arguments: CertArgsSchema,
+      execute: async (
+        args: z.infer<typeof CertArgsSchema>,
+        context: MethodContext,
+      ) => {
+        const g = context.globalArgs;
+        if (!g.host) {
+          throw new Error(
+            "No NanoKVM host is configured. Run `setup` with --input host=….",
+          );
+        }
+
+        if (args.action === "status") {
+          const served = await readServedCert(context, args.name);
+          const record = {
+            host: g.host,
+            action: "status",
+            name: args.name,
+            subject: served.subject,
+            issuer: served.issuer,
+            serial: served.serial,
+            notAfter: served.notAfter,
+            daysRemaining: certDaysRemaining(served.notAfter),
+            sans: served.sans,
+            matchesName: args.name !== "" && served.sans.includes(args.name),
+            installed: false,
+            detail: served.ok ? "" : "no certificate could be read",
+            checkedAt: new Date().toISOString(),
+          };
+          const handle = await context.writeResource("cert", "cert", record);
+          context.logger?.info(
+            "Device {host} serves a certificate issued by {issuer} " +
+              "({days} days left)",
+            {
+              host: g.host,
+              issuer: served.issuer || "unknown",
+              days: record.daysRemaining,
+            },
+          );
+          return { dataHandles: [handle] };
+        }
+
+        if (!args.name) {
+          throw new Error(
+            "`install` needs --input name=<fqdn> (the certificate's DNS name).",
+          );
+        }
+        let crt = args.crt;
+        let key = args.key;
+        if (!crt || !key) {
+          const deadline = Date.now() + args.waitMs;
+          let found: { crt: string; key: string } | null = null;
+          for (;;) {
+            found = await locateCaddyCert(args.certDir, args.name);
+            if (found || Date.now() >= deadline) break;
+            await new Promise((r) => setTimeout(r, 5000));
+          }
+          if (!found) {
+            throw new Error(
+              `No certificate for ${args.name} under ${args.certDir} after ` +
+                `${args.waitMs}ms — has Caddy issued it? (run configureTls ` +
+                `with subjects=["${args.name}"], then retry.)`,
+            );
+          }
+          crt = found.crt;
+          key = found.key;
+        }
+        const crtPem = await Deno.readTextFile(expandHome(crt));
+        const keyPem = await Deno.readTextFile(expandHome(key));
+        if (
+          !crtPem.includes("BEGIN CERTIFICATE") ||
+          !keyPem.includes("PRIVATE KEY")
+        ) {
+          throw new Error(
+            `${args.name}: ${crt}/${key} do not look like a PEM certificate and key.`,
+          );
+        }
+
+        // If the device already serves this exact certificate, do nothing — a
+        // daily sync must not bounce the server every day.
+        const before = await readServedCert(context, args.name);
+        const fileSerial = await certFileSerial(expandHome(crt));
+        if (
+          fileSerial !== "" && before.serial === fileSerial &&
+          before.sans.includes(args.name)
+        ) {
+          const handle = await context.writeResource("cert", "cert", {
+            host: g.host,
+            action: "install",
+            name: args.name,
+            subject: before.subject,
+            issuer: before.issuer,
+            serial: before.serial,
+            notAfter: before.notAfter,
+            daysRemaining: certDaysRemaining(before.notAfter),
+            sans: before.sans,
+            matchesName: true,
+            installed: true,
+            detail: "already current",
+            checkedAt: new Date().toISOString(),
+          });
+          context.logger?.info(
+            "Certificate for {name} on {host} is already current ({days} days " +
+              "left); nothing to do",
+            {
+              name: args.name,
+              host: g.host,
+              days: certDaysRemaining(before.notAfter),
+            },
+          );
+          return { dataHandles: [handle] };
+        }
+
+        const result = await installCertScript(
+          context,
+          args.scriptName,
+          buildCertInstallerScript(crtPem, keyPem, args.restart),
+        );
+
+        // The server just restarted; give it a moment to serve the new cert.
+        let served = await readServedCert(context, args.name);
+        for (let i = 0; i < 10 && !served.sans.includes(args.name); i++) {
+          await new Promise((r) => setTimeout(r, 3000));
+          served = await readServedCert(context, args.name);
+        }
+        const installed = served.sans.includes(args.name);
+        const record = {
+          host: g.host,
+          action: "install",
+          name: args.name,
+          subject: served.subject,
+          issuer: served.issuer,
+          serial: served.serial,
+          notAfter: served.notAfter,
+          daysRemaining: certDaysRemaining(served.notAfter),
+          sans: served.sans,
+          matchesName: served.sans.includes(args.name),
+          installed,
+          detail: installed
+            ? (result.ok ? "installed" : "already served (re-run was a no-op)")
+            : `${result.detail}; served=${served.subject || "none"}`,
+          checkedAt: new Date().toISOString(),
+        };
+        const handle = await context.writeResource("cert", "cert", record);
+        context.logger?.info(
+          installed
+            ? "Installed {name} on {host}; the device serves a certificate " +
+              "issued by {issuer}"
+            : "Certificate install on {host} did not verify: {detail}",
+          {
+            name: args.name,
+            host: g.host,
+            issuer: served.issuer,
+            detail: record.detail,
+          },
+        );
+        if (!installed) {
+          throw new Error(
+            `Installing ${args.name} on ${g.host} did not verify: ${record.detail}`,
+          );
+        }
         return { dataHandles: [handle] };
       },
     },

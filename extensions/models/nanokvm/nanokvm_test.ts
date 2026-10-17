@@ -12,17 +12,21 @@ import { assertEquals, assertStrictEquals } from "jsr:@std/assert@1";
 import { createDecipheriv, createHash } from "node:crypto";
 import {
   baseUrl,
+  buildCertInstallerScript,
   buildOtlpLogs,
   buildOtlpMetrics,
+  certDaysRemaining,
   classifyHealth,
   deviceFromDefinition,
   dnsNameFor,
   encryptPassword,
+  expandHome,
   extractJpeg,
   type HealthSample,
   jpegSize,
   LOGIN_SECRET_KEY,
   loginEncodings,
+  parseCertFields,
   parseEnvelope,
   pickEndpoint,
   sanitizeLabel,
@@ -199,6 +203,61 @@ Deno.test("deviceFromDefinition maps only nanokvm defs that have a host", () => 
     null,
   );
   assertStrictEquals(deviceFromDefinition(null, "fi.gy"), null);
+});
+
+Deno.test("expandHome expands a leading tilde only", () => {
+  assertEquals(
+    expandHome("~/.local/share/caddy", "/home/u"),
+    "/home/u/.local/share/caddy",
+  );
+  assertEquals(expandHome("/abs/path", "/home/u"), "/abs/path");
+});
+
+Deno.test("parseCertFields reads subject/issuer/serial/notAfter/SAN", () => {
+  const text = [
+    "subject=CN = nanokvm.fi.gy",
+    "issuer=C = US, O = Let's Encrypt, CN = R11",
+    "serial=03:AB:CD",
+    "notAfter=Jan  1 00:00:00 2027 GMT",
+    "X509v3 Subject Alternative Name:",
+    "    DNS:nanokvm.fi.gy, IP Address:10.10.12.230",
+  ].join("\n");
+  assertEquals(parseCertFields(text), {
+    subject: "CN = nanokvm.fi.gy",
+    issuer: "C = US, O = Let's Encrypt, CN = R11",
+    serial: "03:AB:CD",
+    notAfter: "Jan  1 00:00:00 2027 GMT",
+    sans: ["nanokvm.fi.gy"],
+  });
+});
+
+Deno.test("certDaysRemaining floors whole days and tolerates junk", () => {
+  const now = Date.parse("2026-10-17T00:00:00Z");
+  assertEquals(
+    certDaysRemaining("Fri, 17 Oct 2026 12:00:00 GMT", now),
+    0,
+  );
+  assertEquals(certDaysRemaining("Sun, 27 Oct 2026 00:00:00 GMT", now), 10);
+  assertEquals(certDaysRemaining("not a date", now), 0);
+});
+
+Deno.test("buildCertInstallerScript embeds both PEMs and restarts", () => {
+  const script = buildCertInstallerScript(
+    "-----BEGIN CERTIFICATE-----\nAAA\n-----END CERTIFICATE-----",
+    "-----BEGIN PRIVATE KEY-----\nBBB\n-----END PRIVATE KEY-----",
+  );
+  assertEquals(script.includes("/etc/kvm/server.crt"), true);
+  assertEquals(script.includes("/etc/kvm/server.key"), true);
+  assertEquals(script.includes("chmod 600 /etc/kvm/server.key"), true);
+  assertEquals(script.includes("/etc/init.d/S95nanokvm restart"), true);
+  assertEquals(script.includes("AAA"), true);
+  assertEquals(script.includes("BBB"), true);
+  // restart=false must not restart the server.
+  assertEquals(
+    buildCertInstallerScript("x", "y", false)
+      .includes("/etc/init.d/S95nanokvm restart"),
+    false,
+  );
 });
 
 Deno.test("classifyHealth fails an unreachable device", () => {

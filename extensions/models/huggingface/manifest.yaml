@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/huggingface"
-version: "2026.10.16.6"
+version: "2026.10.16.8"
 description: >
   Turn "what models will help me do <something>?" into a ranked, hardware-aware
   shortlist from the Hugging Face Hub — then download the one you choose, at a
@@ -21,6 +21,11 @@ description: >
     query rather than returning nothing. Prefer it over a manual
     `huggingface-cli` step: the ranking, the ambiguity handling and the
     revision-pinned download are repeatable swamp data a workflow can gate on.
+    Downloads are **resumable** (HTTP Range; completed files are skipped), so a
+    retry never re-downloads and never hammers the Hub. For very large models,
+    `download` with `detached=true` starts a host-managed background transfer
+    that runs independently of the workflow run, and `downloadStatus` awaits and
+    verifies it.
 
   INSTALL
 

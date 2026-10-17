@@ -38,6 +38,8 @@ import {
   parseContextLength,
   parseHfModelList,
   parseHfTree,
+  renderDownloadScript,
+  type ScriptFile,
   searchTerms,
   selectGgufFiles,
 } from "./huggingface_shared.ts";
@@ -139,6 +141,23 @@ const DownloadArgsSchema = z.object({
   verify: z.boolean().default(true).describe(
     "Verify each file's SHA-256 against the Hub's LFS oid when `sha256sum` is available.",
   ),
+  detached: z.boolean().default(false).describe(
+    "Start the transfer as a host-managed background process (systemd-run/setsid) " +
+      "that outlives this run, and return immediately; use `downloadStatus` to " +
+      "await/verify it. Recommended for very large files.",
+  ),
+});
+
+const DownloadStatusArgsSchema = z.object({
+  wait: z.boolean().default(false).describe(
+    "Poll until the detached transfer finishes (or `maxWaitSec` elapses).",
+  ),
+  maxWaitSec: z.number().int().default(1800).describe(
+    "Maximum seconds to wait when `wait` is set.",
+  ),
+  verify: z.boolean().default(true).describe(
+    "Verify each file's SHA-256 against the Hub's LFS oid when available.",
+  ),
 });
 
 const PrintArgsSchema = z.object({});
@@ -150,6 +169,7 @@ type InspectArgs = z.infer<typeof InspectArgsSchema>;
 type RecommendArgs = z.infer<typeof RecommendArgsSchema>;
 type ClarifyArgs = z.infer<typeof ClarifyArgsSchema>;
 type DownloadArgs = z.infer<typeof DownloadArgsSchema>;
+type DownloadStatusArgs = z.infer<typeof DownloadStatusArgsSchema>;
 type PrintArgs = z.infer<typeof PrintArgsSchema>;
 type SetupArgs = z.infer<typeof SetupArgsSchema>;
 
@@ -258,6 +278,28 @@ const DownloadFileSchema = z.object({
   sizeBytes: z.number().int().default(0),
   expectedOid: z.string().default(""),
   verified: z.boolean().default(false),
+  resumed: z.boolean().default(false),
+});
+
+const TransferFileSchema = z.object({
+  path: z.string(),
+  localPath: z.string(),
+  expectedBytes: z.number().int().default(0),
+  expectedOid: z.string().default(""),
+});
+
+const TransferSchema = z.object({
+  repo: z.string(),
+  revision: z.string().default("main"),
+  dest: z.string(),
+  files: z.array(TransferFileSchema).default([]),
+  scriptPath: z.string().default(""),
+  markerPath: z.string().default(""),
+  failPath: z.string().default(""),
+  unit: z.string().default(""),
+  how: z.string().default(""),
+  status: z.string().default("running"),
+  startedAt: z.string(),
 });
 
 const DownloadSchema = z.object({
@@ -341,6 +383,94 @@ async function getText(
 export function parseSelection(value: string): { repo: string; quant: string } {
   const [repo, quant] = value.split("#");
   return { repo: (repo ?? "").trim(), quant: (quant ?? "").trim() };
+}
+
+/** Run a command, capturing output (never throwing). */
+async function runCommand(
+  bin: string,
+  args: string[],
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  try {
+    const out = await new Deno.Command(bin, {
+      args,
+      stdin: "null",
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    const dec = new TextDecoder();
+    return {
+      code: out.code,
+      stdout: dec.decode(out.stdout),
+      stderr: dec.decode(out.stderr),
+    };
+  } catch {
+    return { code: -1, stdout: "", stderr: `${bin} not found` };
+  }
+}
+
+/** Whether a path exists (any type). */
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The size of a file in bytes, or 0. */
+async function fileSize(path: string): Promise<number> {
+  try {
+    const st = await Deno.stat(path);
+    return st.isFile ? st.size : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Start a shell script detached from this process so it outlives the run.
+ * Prefers a transient systemd **user** unit (host-managed, survives the
+ * worker); falls back to `setsid`/`nohup`.
+ */
+export async function startDetached(opts: {
+  scriptPath: string;
+  unit: string;
+  logPath: string;
+  home: string;
+}): Promise<{ how: string; unit: string; pid: number }> {
+  // Never start a second copy of a transfer that is already running. A
+  // transient oneshot unit reports "activating" while it runs, not "active".
+  const active = await runCommand("systemctl", [
+    "--user",
+    "is-active",
+    opts.unit,
+  ]);
+  const state = active.stdout.trim();
+  if (state === "active" || state === "activating") {
+    return { how: "already-running", unit: opts.unit, pid: 0 };
+  }
+  const sr = await runCommand("systemd-run", [
+    "--user",
+    "--collect",
+    `--unit=${opts.unit}`,
+    "--property=Type=oneshot",
+    `--setenv=HOME=${opts.home}`,
+    "/bin/sh",
+    opts.scriptPath,
+  ]);
+  if (sr.code === 0) return { how: "systemd-run", unit: opts.unit, pid: 0 };
+  const q = (s: string): string => `'${s.replace(/'/g, `'\\''`)}'`;
+  const cmd = `setsid /bin/sh ${q(opts.scriptPath)} >${
+    q(opts.logPath)
+  } 2>&1 </dev/null & echo $!`;
+  const r = await runCommand("sh", ["-c", cmd]);
+  const pid = Number.parseInt(r.stdout.trim(), 10);
+  return {
+    how: r.code === 0 ? "setsid" : "failed",
+    unit: "",
+    pid: Number.isFinite(pid) ? pid : 0,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -431,21 +561,24 @@ async function pickGguf(
 /** A model that searches, recommends and downloads Hugging Face models. */
 export const model = {
   type: HF_TYPE,
-  version: "2026.10.16.6",
+  version: "2026.10.16.8",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
     {
-      toVersion: "2026.10.16.6",
+      toVersion: "2026.10.16.8",
       description:
         "Initial release: search the Hugging Face Hub by ask + filters, inspect " +
         "a repo's tree/GGUF quants/context length/chat template, recommend a " +
         "model scored against a VRAM/RAM budget, ask the user to choose when " +
         "ambiguous (for a workflow wait_for_signal), and download the chosen " +
         "files at a pinned revision. Token via vault (`token`, sensitive) or the " +
-        "HF_TOKEN environment variable. Search now falls back from the raw ask " +
-        "to its keywords to filter-only, because the Hub's `search` is a " +
-        "substring match, not semantic.",
+        "HF_TOKEN environment variable. Search falls back from the raw ask to its " +
+        "keywords to filter-only (the Hub's `search` is a substring match). " +
+        "Downloads are **resumable** (HTTP Range; skip-if-complete) so a retry " +
+        "never re-downloads, and `download` with `detached=true` starts a " +
+        "host-managed background transfer that outlives the run, awaited/verified " +
+        "by the new `downloadStatus` method.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -487,6 +620,12 @@ export const model = {
     selection: {
       description: "The repo/quant the user chose.",
       schema: SelectionSchema,
+      lifetime: "7d" as const,
+      garbageCollection: 10,
+    },
+    transfer: {
+      description: "An in-progress detached (host-managed) download.",
+      schema: TransferSchema,
       lifetime: "7d" as const,
       garbageCollection: 10,
     },
@@ -865,6 +1004,72 @@ export const model = {
           }
           chosen = [gguf.sort((a, b) => b.sizeBytes - a.sizeBytes)[0]];
         }
+
+        // Detached: start a host-managed background transfer that outlives this
+        // run, then return; `downloadStatus` awaits and verifies it.
+        if (args.detached) {
+          const key = `${args.repo}-${args.revision}`
+            .replace(/[^a-z0-9]+/gi, "-")
+            .toLowerCase()
+            .slice(0, 48);
+          const workDir = `${expandHome(g.cacheDir)}/.transfers`;
+          await Deno.mkdir(workDir, { recursive: true });
+          const markerPath = `${workDir}/${key}.done`;
+          const failPath = `${workDir}/${key}.fail`;
+          const scriptPath = `${workDir}/${key}.sh`;
+          const logPath = `${workDir}/${key}.log`;
+          const configPath = token ? `${workDir}/${key}.curlrc` : "";
+          if (configPath) {
+            await Deno.writeTextFile(
+              configPath,
+              `header = "Authorization: Bearer ${token}"\n`,
+              { mode: 0o600 },
+            );
+          }
+          const scriptFiles: ScriptFile[] = chosen.map((f) => ({
+            url: buildResolveUrl(g.endpoint, args.repo, args.revision, f.path),
+            dest: `${dest.replace(/\/+$/, "")}/${f.path.split("/").pop()}`,
+            expectedBytes: f.sizeBytes,
+          }));
+          const script = renderDownloadScript({
+            files: scriptFiles,
+            markerPath,
+            failPath,
+            configPath,
+          });
+          await Deno.writeTextFile(scriptPath, script, { mode: 0o755 });
+          const unit = `hf-download-${key}`.slice(0, 60);
+          const started = await startDetached({
+            scriptPath,
+            unit,
+            logPath,
+            home: expandHome("~"),
+          });
+          const handle = await ctx.writeResource("transfer", "transfer", {
+            repo: args.repo,
+            revision: args.revision,
+            dest,
+            files: chosen.map((f, i) => ({
+              path: f.path,
+              localPath: scriptFiles[i].dest,
+              expectedBytes: f.sizeBytes,
+              expectedOid: f.oid,
+            })),
+            scriptPath,
+            markerPath,
+            failPath,
+            unit: started.unit,
+            how: started.how,
+            status: "running",
+            startedAt: new Date().toISOString(),
+          });
+          ctx.logger?.info(
+            "huggingface download (detached): {n} file(s) started via {how}",
+            { n: scriptFiles.length, how: started.how },
+          );
+          return { dataHandles: [handle] };
+        }
+
         const records = [];
         let total = 0;
         for (const f of chosen) {
@@ -877,17 +1082,24 @@ export const model = {
           const localPath = `${dest.replace(/\/+$/, "")}/${
             f.path.split("/").pop()
           }`;
-          const bytes = await streamToFile(url, token, localPath, g.timeoutSec);
-          total += bytes;
+          const dl = await resumableDownload(
+            url,
+            token,
+            localPath,
+            f.sizeBytes,
+            g.timeoutSec,
+          );
+          total += dl.bytes;
           const verified = args.verify && f.oid
             ? await verifySha256(localPath, f.oid)
             : false;
           records.push({
             path: f.path,
             localPath,
-            sizeBytes: bytes,
+            sizeBytes: dl.bytes,
             expectedOid: f.oid,
             verified,
+            resumed: dl.resumed,
           });
         }
         const handle = await ctx.writeResource("download", "download", {
@@ -903,6 +1115,115 @@ export const model = {
           dest,
         });
         return { dataHandles: [handle] };
+      },
+    },
+
+    downloadStatus: {
+      description:
+        "Await and verify a detached download started by `download` " +
+        "(detached=true). With `wait` it polls until the host-managed transfer " +
+        "finishes; on completion it verifies checksums and writes the `download` " +
+        "resource. Safe to re-run — the transfer runs independently of this run.",
+      arguments: DownloadStatusArgsSchema,
+      execute: async (
+        args: DownloadStatusArgs,
+        ctx: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        const tr = await latestRecord(ctx, "transfer");
+        if (!tr) {
+          throw new Error(
+            "no detached transfer recorded — run `download` with detached=true first",
+          );
+        }
+        const files = (tr["files"] as Array<Record<string, unknown>>) ?? [];
+        const marker = String(tr["markerPath"] ?? "");
+        const fail = String(tr["failPath"] ?? "");
+        const deadline = Date.now() + Math.max(0, args.maxWaitSec) * 1000;
+        const progress = async (): Promise<{ got: number; want: number }> => {
+          let got = 0;
+          let want = 0;
+          for (const f of files) {
+            got += await fileSize(String(f["localPath"] ?? ""));
+            want += Number(f["expectedBytes"] ?? 0);
+          }
+          return { got, want };
+        };
+        while (true) {
+          if (await pathExists(fail)) {
+            throw new Error(
+              `detached download failed — inspect ${tr["scriptPath"]} and ${
+                String(tr["dest"] ?? "")
+              }`,
+            );
+          }
+          if (await pathExists(marker)) break;
+          if (!args.wait) {
+            const p = await progress();
+            ctx.logger?.info(
+              "huggingface downloadStatus: running ({got}/{want} B)",
+              { got: p.got, want: p.want },
+            );
+            const handle = await ctx.writeResource("transfer", "transfer", {
+              ...tr,
+              status: "running",
+            });
+            return { dataHandles: [handle] };
+          }
+          if (Date.now() >= deadline) {
+            const p = await progress();
+            throw new Error(
+              `detached download still running (${p.got}/${p.want} B); it ` +
+                `continues independently of this run — re-run this step to await it`,
+            );
+          }
+          await new Promise((r) => setTimeout(r, 15000));
+        }
+        const canVerify =
+          (await runCommand("sha256sum", ["--version"])).code === 0;
+        const records = [];
+        for (const f of files) {
+          const localPath = String(f["localPath"] ?? "");
+          const oid = String(f["expectedOid"] ?? "");
+          const sizeBytes = await fileSize(localPath);
+          const verified = args.verify && oid && canVerify
+            ? await verifySha256(localPath, oid)
+            : false;
+          records.push({
+            path: String(f["path"] ?? ""),
+            localPath,
+            sizeBytes,
+            expectedOid: oid,
+            verified,
+            resumed: false,
+          });
+        }
+        if (args.verify && canVerify) {
+          const bad = records.filter((r) => r.expectedOid && !r.verified);
+          if (bad.length > 0) {
+            throw new Error(
+              `checksum verification failed for ${
+                bad.map((r) => r.localPath).join(", ")
+              } — the transfer may be corrupt; remove the file and re-run`,
+            );
+          }
+        }
+        const total = records.reduce((s, r) => s + r.sizeBytes, 0);
+        const dl = await ctx.writeResource("download", "download", {
+          repo: String(tr["repo"] ?? ""),
+          revision: String(tr["revision"] ?? "main"),
+          dest: String(tr["dest"] ?? ""),
+          files: records,
+          totalBytes: total,
+          downloadedAt: new Date().toISOString(),
+        });
+        const trh = await ctx.writeResource("transfer", "transfer", {
+          ...tr,
+          status: "complete",
+        });
+        ctx.logger?.info("huggingface downloadStatus: complete ({bytes} B)", {
+          bytes: total,
+        });
+        return { dataHandles: [dl, trh] };
       },
     },
 
@@ -956,27 +1277,50 @@ export const model = {
 // ---------------------------------------------------------------------------
 
 /** Stream an HTTP body to a file, returning the byte count written. */
-async function streamToFile(
+async function resumableDownload(
   url: string,
   token: string,
   localPath: string,
+  expectedBytes: number,
   timeoutSec: number,
-): Promise<number> {
+): Promise<{ bytes: number; resumed: boolean }> {
+  let have = 0;
+  try {
+    const st = await Deno.stat(localPath);
+    if (st.isFile) have = st.size;
+  } catch {
+    have = 0;
+  }
+  // Already complete — nothing to do, and no request made.
+  if (expectedBytes > 0 && have >= expectedBytes) {
+    return { bytes: have, resumed: true };
+  }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutSec * 1000);
+  const timer = setTimeout(
+    () => controller.abort(),
+    Math.max(timeoutSec, 30) * 1000,
+  );
   const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(url, { headers, signal: controller.signal });
-  if (!res.ok || !res.body) {
+  let res: Response;
+  try {
+    // Resume from a partial file with a Range request.
+    if (have > 0) headers["Range"] = `bytes=${have}-`;
+    res = await fetch(url, { headers, signal: controller.signal });
+  } finally {
+    // The timeout covers connect/headers only — a slow body must not be killed.
     clearTimeout(timer);
+  }
+  if (res.status !== 200 && res.status !== 206) {
     throw new Error(`download failed: HTTP ${res.status} for ${url}`);
   }
-  const file = await Deno.open(localPath, {
-    create: true,
-    write: true,
-    truncate: true,
-  });
-  let written = 0;
+  if (!res.body) throw new Error(`download failed: no body for ${url}`);
+  // Append only when the server honoured the Range (206); otherwise restart.
+  const appending = res.status === 206 && have > 0;
+  const file = appending
+    ? await Deno.open(localPath, { create: true, write: true, append: true })
+    : await Deno.open(localPath, { create: true, write: true, truncate: true });
+  let written = appending ? have : 0;
   try {
     for await (const chunk of res.body) {
       await file.write(chunk);
@@ -984,9 +1328,8 @@ async function streamToFile(
     }
   } finally {
     file.close();
-    clearTimeout(timer);
   }
-  return written;
+  return { bytes: written, resumed: have > 0 };
 }
 
 /** Verify a file's SHA-256 against an expected LFS oid using `sha256sum`. */

@@ -5,8 +5,11 @@
  *
  * @module
  */
-import { assertEquals } from "jsr:@std/assert@1";
-import { createModelTestContext } from "jsr:@swamp-club/swamp-testing@^0.3.0";
+import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import {
+  createModelTestContext,
+  withMockedCommand,
+} from "jsr:@swamp-club/swamp-testing@^0.3.0";
 import {
   expandHome,
   model,
@@ -233,6 +236,192 @@ Deno.test("download streams files to the destination and records them", async ()
     assertEquals(files[0].sizeBytes, 11);
     const local = String(files[0].localPath);
     assertEquals(await Deno.readTextFile(local), "hello world");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("download resumes a partial file with a Range request", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "hf-resume-" });
+  const realFetch = globalThis.fetch;
+  const local = `${dir}/m-Q4_K_M.gguf`;
+  await Deno.writeTextFile(local, "hello");
+  let range = "";
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+    const url = typeof input === "string"
+      ? input
+      : input instanceof URL
+      ? input.toString()
+      : input.url;
+    if (url.includes("/tree/")) {
+      return Promise.resolve(
+        Response.json([
+          { type: "file", path: "m-Q4_K_M.gguf", lfs: { size: 11, oid: "o" } },
+        ]),
+      );
+    }
+    range = new Headers(init?.headers).get("range") ?? "";
+    return Promise.resolve(new Response(" world", { status: 206 }));
+  }) as typeof fetch;
+  try {
+    const ctx = await runMethod("download", {
+      repo: "a/b",
+      revision: "main",
+      quant: "Q4_K_M",
+      files: [],
+      dest: dir,
+      verify: false,
+      detached: false,
+    });
+    assertEquals(range, "bytes=5-");
+    const d = ctx.getWrittenResources().find((w) => w.specName === "download")!;
+    const files = d.data.files as Array<Record<string, unknown>>;
+    assertEquals(files[0].sizeBytes, 11);
+    assertEquals(files[0].resumed, true);
+    assertEquals(await Deno.readTextFile(local), "hello world");
+  } finally {
+    globalThis.fetch = realFetch;
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("download skips a complete file without re-fetching it", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "hf-skip-" });
+  const realFetch = globalThis.fetch;
+  await Deno.writeTextFile(`${dir}/m-Q4_K_M.gguf`, "hello world");
+  let resolveCalls = 0;
+  globalThis.fetch = ((input: string | URL | Request) => {
+    const url = typeof input === "string"
+      ? input
+      : input instanceof URL
+      ? input.toString()
+      : input.url;
+    if (url.includes("/tree/")) {
+      return Promise.resolve(
+        Response.json([
+          { type: "file", path: "m-Q4_K_M.gguf", lfs: { size: 11, oid: "o" } },
+        ]),
+      );
+    }
+    resolveCalls++;
+    return Promise.resolve(new Response("nope", { status: 200 }));
+  }) as typeof fetch;
+  try {
+    const ctx = await runMethod("download", {
+      repo: "a/b",
+      revision: "main",
+      quant: "Q4_K_M",
+      files: [],
+      dest: dir,
+      verify: false,
+      detached: false,
+    });
+    assertEquals(resolveCalls, 0);
+    const d = ctx.getWrittenResources().find((w) => w.specName === "download")!;
+    const files = d.data.files as Array<Record<string, unknown>>;
+    assertEquals(files[0].resumed, true);
+    assertEquals(files[0].sizeBytes, 11);
+  } finally {
+    globalThis.fetch = realFetch;
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("download detached starts a host-managed transfer", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "hf-det-" });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = ((input: string | URL | Request) => {
+    const url = typeof input === "string"
+      ? input
+      : input instanceof URL
+      ? input.toString()
+      : input.url;
+    if (url.includes("/tree/")) {
+      return Promise.resolve(
+        Response.json([
+          { type: "file", path: "m-Q4_K_M.gguf", lfs: { size: 11, oid: "o" } },
+        ]),
+      );
+    }
+    return Promise.resolve(new Response("x", { status: 200 }));
+  }) as typeof fetch;
+  try {
+    let ctx: Awaited<ReturnType<typeof runMethod>>;
+    await withMockedCommand(
+      () => ({ stdout: "", stderr: "", code: 0 }),
+      async () => {
+        ctx = await runMethod("download", {
+          repo: "a/b",
+          revision: "main",
+          quant: "Q4_K_M",
+          files: [],
+          dest: dir,
+          verify: false,
+          detached: true,
+        });
+      },
+    );
+    const t = ctx!.getWrittenResources().find((w) =>
+      w.specName === "transfer"
+    )!;
+    assertEquals(t.data.status, "running");
+    assertEquals(t.data.how, "systemd-run");
+    assertStringIncludes(String(t.data.scriptPath), ".transfers/");
+  } finally {
+    globalThis.fetch = realFetch;
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("downloadStatus completes a finished transfer", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "hf-status-" });
+  const file = `${dir}/m.gguf`;
+  await Deno.writeTextFile(file, "complete-bytes");
+  const marker = `${dir}/x.done`;
+  await Deno.writeTextFile(marker, "");
+  const written: Array<{ specName: string; data: Record<string, unknown> }> =
+    [];
+  const transfer = {
+    repo: "a/b",
+    revision: "main",
+    dest: dir,
+    files: [{
+      path: "m.gguf",
+      localPath: file,
+      expectedBytes: 14,
+      expectedOid: "",
+    }],
+    scriptPath: `${dir}/x.sh`,
+    markerPath: marker,
+    failPath: `${dir}/x.fail`,
+    unit: "u",
+    how: "systemd-run",
+    status: "running",
+    startedAt: new Date().toISOString(),
+  };
+  const context = {
+    globalArgs: GLOBALS,
+    logger: { info: () => {}, warn: () => {} },
+    writeResource: (
+      specName: string,
+      name: string,
+      data: Record<string, unknown>,
+    ) => {
+      written.push({ specName, data });
+      return Promise.resolve({ name });
+    },
+    readResource: (n: string) =>
+      Promise.resolve(n === "transfer" ? transfer : null),
+  };
+  const execute = model.methods.downloadStatus.execute as unknown as (
+    a: Record<string, unknown>,
+    c: unknown,
+  ) => Promise<unknown>;
+  try {
+    await execute({ wait: false, maxWaitSec: 0, verify: false }, context);
+    const dl = written.find((w) => w.specName === "download")!;
+    const files = dl.data.files as Array<Record<string, unknown>>;
+    assertEquals(files[0].sizeBytes, 14);
   } finally {
     await Deno.remove(dir, { recursive: true });
   }

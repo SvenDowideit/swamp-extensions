@@ -5,7 +5,7 @@
  *
  * @module
  */
-import { assertEquals } from "jsr:@std/assert@1";
+import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
   assessFit,
   type Budget,
@@ -21,10 +21,48 @@ import {
   parseHfModelList,
   parseHfModelSummary,
   parseHfTree,
+  renderDownloadScript,
   requirementToPipelineTag,
   searchTerms,
   selectGgufFiles,
 } from "./huggingface_shared.ts";
+
+Deno.test("renderDownloadScript is resumable, retrying and marks completion", () => {
+  const s = renderDownloadScript({
+    files: [
+      {
+        url: "https://huggingface.co/a/b/resolve/main/x.gguf",
+        dest: "/d/x.gguf",
+        expectedBytes: 100,
+      },
+    ],
+    markerPath: "/d/.transfers/x.done",
+    failPath: "/d/.transfers/x.fail",
+    configPath: "/d/.transfers/x.curlrc",
+  });
+  assertStringIncludes(s, "set -u");
+  assertStringIncludes(s, "curl -fL --retry 20 --retry-delay 5");
+  assertStringIncludes(s, "-C -"); // resume
+  assertStringIncludes(s, '-K "$CF"'); // auth config, not inline
+  assertStringIncludes(
+    s,
+    "dl 'https://huggingface.co/a/b/resolve/main/x.gguf' '/d/x.gguf' 100",
+  );
+  assertStringIncludes(s, ': > "$DONE"');
+  // A failure writes the fail marker.
+  assertStringIncludes(s, ': > "$FAIL"; exit 1');
+  // Token never appears in the script — only the config path.
+  assertEquals(s.includes("Bearer"), false);
+});
+
+Deno.test("renderDownloadScript omits -K when there is no auth config", () => {
+  const s = renderDownloadScript({
+    files: [{ url: "u", dest: "d", expectedBytes: 0 }],
+    markerPath: "m",
+    failPath: "f",
+  });
+  assertEquals(s.includes('-K "$CF"'), false);
+});
 
 Deno.test("searchTerms falls back from the full ask to keywords to filter-only", () => {
   // The Hub cannot match a sentence, so the first term is the raw ask, then

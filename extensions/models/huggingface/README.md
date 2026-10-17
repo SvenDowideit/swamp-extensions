@@ -84,10 +84,19 @@ swamp model @svendowideit/huggingface method run inspect hf \
   --input repo=Qwen/Qwen2.5-Coder-7B-Instruct-GGUF
 
 # Download the chosen quant at a pinned revision, verifying it against the
-# Hub's recorded SHA-256 (when sha256sum is available).
+# Hub's recorded SHA-256 (when sha256sum is available). Resumable and
+# skip-if-complete, so re-running is safe and never re-downloads.
 swamp model @svendowideit/huggingface method run download hf \
   --input repo=Qwen/Qwen2.5-Coder-7B-Instruct-GGUF --input quant=Q4_K_M \
   --input dest=~/.cache/huggingface
+
+# A very large model: start a host-managed background transfer that outlives
+# the run, then await and verify it. Safe to re-run; the transfer is
+# independent of this process.
+swamp model @svendowideit/huggingface method run download hf \
+  --input repo=Hob-forge/Kolibri-1-GGUF --input quant=Q2_K --input detached=true
+swamp model @svendowideit/huggingface method run downloadStatus hf \
+  --input wait=true --input maxWaitSec=7200
 
 # Check that a token is seen before pulling a gated model — reports the identity
 # the Hub sees (or anonymous).
@@ -138,7 +147,8 @@ The package ships one model type, `@svendowideit/huggingface`.
 | `inspect` | `repo`, `revision` | `model` | One repo's tree, GGUF quants, context length, chat template. |
 | `recommend` | `ask`, `vramMiB`, `ramMiB`, `candidates`, `quant` | `recommendation` | Search + inspect + budget-score, ranked; sets `ambiguous`. |
 | `clarify` | `answer` | `clarification`, `selection` | With no `answer`, emit the question + options; with `answer` (`repo#quant`), write the selection. |
-| `download` | `repo`, `revision`, `quant`, `files`, `dest`, `verify` | `download` | Fetch the chosen files, resume-friendly, optional SHA-256 check. |
+| `download` | `repo`, `revision`, `quant`, `files`, `dest`, `verify`, `detached` | `download`, `transfer` | Fetch the chosen files. Resumable (HTTP Range; complete files skipped). With `detached=true` starts a host-managed background transfer that outlives the run (writes `transfer`). |
+| `downloadStatus` | `wait`, `maxWaitSec`, `verify` | `download`, `transfer` | Await and verify a detached transfer; on completion writes the `download` resource. The transfer keeps running independently if it outlasts the wait. |
 | `print` | *(none)* | `summary` | Log the last recommendation and download. |
 
 The `recommendation` resource carries `ask`, `budget`, `candidates[]` (`repo`,

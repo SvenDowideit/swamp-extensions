@@ -1,0 +1,94 @@
+manifestVersion: 1
+name: "@svendowideit/host-metrics"
+version: "2026.10.17.1"
+description: >
+  Sample every host in a swamp fleet — disk, network IO, load and memory — and
+  push each sample to the swamp-managed OpenTelemetry system, every 15 minutes.
+
+  WHAT IT DOES
+
+    The missing reporting half of a swamp fleet's host telemetry. It reuses
+    @aaronge/host-health for the local disk (`df`), load, memory and thermal
+    reads, and adds the two pieces host-health lacks: network IO counters
+    (`/proc/net/dev`) and an OTLP push. `listWorkers` materialises the
+    connected worker pool as ordinary data; a scheduled workflow fans a
+    per-host sample out over every worker (dispatched to that worker, so it
+    reads *that* host's /proc) plus the serve host itself, then `emit` resolves
+    the OTLP endpoint and bearer token from the @svendowideit/otel-settings
+    contract and POSTs one log record plus gauges — including the change in /
+    free space since the previous sample. Prefer it over per-host scripts or a
+    second metrics agent: the read methods already exist, the fleet list comes
+    from swamp itself, and a host's whole report is one model instance.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/host-metrics
+
+  DEPENDENCIES
+
+    @aaronge/host-health (the disk/load/memory/thermal reads this model
+    consumes, pulled separately) and a rendered @svendowideit/otel-settings
+    contract (the `otel` model) with a reachable OTLP gateway. Linux only
+    (host-health is Linux-only). Without the contract, `emit` is a no-op that
+    records why.
+
+  RUN
+
+      # Sample this machine once — network counter, then the fleet report.
+      swamp model @svendowideit/host-metrics method run readNetwork host-metrics-host
+      swamp model @svendowideit/host-metrics method run emit host-metrics-host \
+        --input healthModel=host-health-host
+
+      # List the swamp worker pool as ordinary data (run on the orchestrator).
+      swamp model @svendowideit/host-metrics method run listWorkers host-metrics-fleet
+      swamp data query 'modelName == "host-metrics-fleet" && name == "workers"' --select content
+
+      # The scheduled pipeline: sample the serve host and every attached worker
+      # every 15 minutes and push each to OTel (run through `swamp serve`).
+      swamp workflow run @svendowideit/host-metrics-fleet --server ws://127.0.0.1:9090
+
+  CONFIGURE
+
+    Global arguments (set at model creation with --global-arg key=value):
+
+        healthInstancePrefix  per-host host-health instance prefix  (host-health-)
+        otelModel             @svendowideit/otel-settings model     (otel)
+        otelVaultName         vault holding the OTLP bearer token   (empty)
+        otelTokenRef          vault/env key for the bearer token    (OTEL_EXPORTER_OTLP_TOKEN)
+
+    Method arguments: `readNetwork` and `listWorkers` take none. `emit` takes
+    host, healthModel, endpoint, mesh, otelModel, otelVaultName and otelTokenRef.
+    The `@svendowideit/host-metrics-fleet` workflow takes otelModel,
+    otelVaultName and otelTokenRef, and reads the worker list from `listWorkers`.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, cron triggers or webhooks. It
+    reads /proc and calls `df` through @aaronge/host-health, writes swamp
+    resources, and POSTs to the collector. The schedule is a swamp `trigger`
+    evaluated by `swamp serve`.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - host_metrics.ts
+
+workflows:
+  - host-metrics-fleet.yaml
+
+dependencies:
+  - "@aaronge/host-health"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - host_metrics_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64

@@ -1,0 +1,234 @@
+id: 45de2e7d-700f-4e0f-aa20-80a3cd47f502
+name: '@svendowideit/host-metrics-fleet'
+description: |
+  Sample every host in a swamp fleet — the serve (orchestrator) host and every
+  worker attached to it — and push each sample to the swamp-managed
+  OpenTelemetry system, every 15 minutes.
+
+  One pass per host: host-health's `readFilesystems` (disk, incl. / free
+  bytes), `readLoad`, `readMemory`, this extension's `readNetwork`
+  (/proc/net/dev IO counters + deltas), then `emit` (one OTLP log record plus
+  gauges, including the change in / free space since the previous snapshot).
+
+  Fan-out: `listWorkers` materialises the connected worker pool as ordinary
+  data, then the worker job's steps are `forEach` over that list, dispatched
+  with `platform: linux` so one iteration lands on each worker. Each host gets
+  its OWN model instance (`host-health-<host>`), so per-host data never
+  collides. The serve-host job carries no placement, so it runs locally on the
+  orchestrator.
+
+  Runs under `swamp serve` (placement requires the orchestrator). Idempotent;
+  re-run any time. `allowFailure` keeps one unreachable host from failing the
+  whole sweep — `emit` still records what it saw.
+
+  Prerequisites: `@aaronge/host-health` and `@svendowideit/host-metrics`
+  pulled, and a rendered `@svendowideit/otel-settings` contract (the `otel`
+  model). Without the contract, `emit` is a no-op that records why.
+tags:
+  phase: '3'
+trigger:
+  schedule: '*/15 * * * *'
+inputs:
+  properties:
+    otelModel:
+      type: string
+      default: otel
+      description: '@svendowideit/otel-settings model supplying the OTLP contract.'
+    otelVaultName:
+      type: string
+      default: ''
+      description: Vault holding the OTLP gateway bearer token (empty = none).
+    otelTokenRef:
+      type: string
+      default: OTEL_EXPORTER_OTLP_TOKEN
+      description: Vault/environment key for the OTLP gateway bearer token.
+  required: []
+jobs:
+  - name: discover
+    description: Materialise the connected worker pool as ordinary data.
+    steps:
+      - name: list-workers
+        description: Read the worker pool the orchestrator knows about.
+        task:
+          type: model_method
+          modelType: '@svendowideit/host-metrics'
+          modelName: host-metrics-fleet
+          methodName: listWorkers
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+
+  - name: workers
+    description: Sample each connected swamp worker on its own host.
+    platform: linux
+    dependsOn:
+      - job: discover
+        condition:
+          type: succeeded
+    steps:
+      - name: read-filesystems
+        description: Read disk usage (incl. / free bytes) on each worker.
+        target: ${{ self.worker.name }}
+        forEach:
+          item: worker
+          in: ${{ data.latest("host-metrics-fleet", "workers").attributes.workers }}
+        task:
+          type: model_method
+          modelType: '@aaronge/host-health'
+          modelName: host-health-${{ self.worker.host }}
+          methodName: readFilesystems
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+      - name: read-load
+        description: Read load averages on each worker.
+        target: ${{ self.worker.name }}
+        forEach:
+          item: worker
+          in: ${{ data.latest("host-metrics-fleet", "workers").attributes.workers }}
+        task:
+          type: model_method
+          modelType: '@aaronge/host-health'
+          modelName: host-health-${{ self.worker.host }}
+          methodName: readLoad
+        dependsOn:
+          - step: read-filesystems
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+      - name: read-memory
+        description: Read memory usage on each worker.
+        target: ${{ self.worker.name }}
+        forEach:
+          item: worker
+          in: ${{ data.latest("host-metrics-fleet", "workers").attributes.workers }}
+        task:
+          type: model_method
+          modelType: '@aaronge/host-health'
+          modelName: host-health-${{ self.worker.host }}
+          methodName: readMemory
+        dependsOn:
+          - step: read-load
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+      - name: read-network
+        description: Read /proc/net/dev network IO counters on each worker.
+        target: ${{ self.worker.name }}
+        forEach:
+          item: worker
+          in: ${{ data.latest("host-metrics-fleet", "workers").attributes.workers }}
+        task:
+          type: model_method
+          modelType: '@svendowideit/host-metrics'
+          modelName: host-metrics-${{ self.worker.host }}
+          methodName: readNetwork
+        dependsOn:
+          - step: read-memory
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+      - name: emit
+        description: Push each worker's sample to the OTel collector.
+        target: ${{ self.worker.name }}
+        forEach:
+          item: worker
+          in: ${{ data.latest("host-metrics-fleet", "workers").attributes.workers }}
+        task:
+          type: model_method
+          modelType: '@svendowideit/host-metrics'
+          modelName: host-metrics-${{ self.worker.host }}
+          methodName: emit
+          inputs:
+            host: ${{ self.worker.host }}
+            healthModel: host-health-${{ self.worker.host }}
+            otelModel: ${{ inputs.otelModel }}
+            otelVaultName: ${{ inputs.otelVaultName }}
+            otelTokenRef: ${{ inputs.otelTokenRef }}
+        dependsOn:
+          - step: read-network
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+    weight: 0
+
+  - name: serve-host
+    description: Sample the serve (orchestrator) host itself, locally.
+    steps:
+      - name: read-filesystems-local
+        description: Read disk usage (incl. / free bytes) on the serve host.
+        task:
+          type: model_method
+          modelType: '@aaronge/host-health'
+          modelName: host-health-serve
+          methodName: readFilesystems
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+      - name: read-load-local
+        description: Read load averages on the serve host.
+        task:
+          type: model_method
+          modelType: '@aaronge/host-health'
+          modelName: host-health-serve
+          methodName: readLoad
+        dependsOn:
+          - step: read-filesystems-local
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+      - name: read-memory-local
+        description: Read memory usage on the serve host.
+        task:
+          type: model_method
+          modelType: '@aaronge/host-health'
+          modelName: host-health-serve
+          methodName: readMemory
+        dependsOn:
+          - step: read-load-local
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+      - name: read-network-local
+        description: Read /proc/net/dev network IO counters on the serve host.
+        task:
+          type: model_method
+          modelType: '@svendowideit/host-metrics'
+          modelName: host-metrics-serve
+          methodName: readNetwork
+        dependsOn:
+          - step: read-memory-local
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+      - name: emit-local
+        description: Push the serve host's sample to the OTel collector.
+        task:
+          type: model_method
+          modelType: '@svendowideit/host-metrics'
+          modelName: host-metrics-serve
+          methodName: emit
+          inputs:
+            host: x1yoga
+            healthModel: host-health-serve
+            otelModel: ${{ inputs.otelModel }}
+            otelVaultName: ${{ inputs.otelVaultName }}
+            otelTokenRef: ${{ inputs.otelTokenRef }}
+        dependsOn:
+          - step: read-network-local
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

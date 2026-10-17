@@ -1,0 +1,107 @@
+manifestVersion: 1
+name: "@figy/nanokvm-health"
+version: "2026.10.17.2"
+description: >
+  fi.gy's scheduled NanoKVM health: check the out-of-band KVM on my LAN every 15
+  minutes, forward its health to the swamp-managed OpenTelemetry collector, and
+  publish a fleet health report.
+
+  WHAT IT DOES
+
+    The private, site-specific half of NanoKVM monitoring. The portable model
+    that talks to a Sipeed NanoKVM — self-signed TLS, dual-firmware login, and a
+    pass/warn/fail verdict — lives in @svendowideit/nanokvm. One workflow pins it
+    to my device (password in the `nanokvm` vault) and my collector on a 15
+    minute cron: it checks the device, pushes the verdict to the local OTLP
+    receiver as a log plus gauges, and requires
+    @svendowideit/nanokvm-health-report. A device that is off is not a failure —
+    it is a `fail` verdict, emitted like any other sample, so a flapping device
+    leaves a trail. A second workflow, @figy/nanokvm-dns, publishes every NanoKVM
+    swamp looks after as `<name>.fi.gy` A records via the shared Caddy.
+
+  INSTALL
+
+      swamp extension pull @figy/nanokvm-health
+
+  DEPENDENCIES
+
+    @svendowideit/nanokvm, @svendowideit/curl and @svendowideit/caddy (pulled
+    automatically), a device reachable at the configured address, the login
+    password stored in the `nanokvm` vault (`swamp vault create
+    @svendowideit/systemd-creds nanokvm` then `swamp vault put nanokvm
+    NANOKVM_PASSWORD`), and a running OTLP gateway listening on 127.0.0.1:4318
+    (the @svendowideit/otel-gateway). Without the gateway the `emit` step still
+    runs and records why it skipped. The DNS workflow additionally needs the
+    `nanokvm-caddy` repo model (created once; see the README).
+
+  RUN
+
+      # Run it now, once, instead of waiting for the 15-minute trigger.
+      swamp workflow run @figy/nanokvm-health
+
+      # Check a different device on the same LAN (any input can be overridden).
+      swamp workflow run @figy/nanokvm-health --input host=10.10.12.231
+
+      # Read the fleet health report this run produced.
+      swamp report get @svendowideit/nanokvm-health-report \
+        --workflow @figy/nanokvm-health --markdown
+
+      # Publish every NanoKVM swamp looks after as <name>.fi.gy A records,
+      # reconciled into the shared Caddy (run after adding or moving a device).
+      swamp workflow run @figy/nanokvm-dns
+
+  CONFIGURE
+
+    Inputs (all overridable per run; the defaults are my repo): device, host,
+    port, username, vaultName, passwordRef, curlModel, otelModel, otelEndpoint,
+    otelMesh, otelVaultName, otelTokenRef. `host` and `vaultName` are the ones
+    that matter — the address of the KVM and the vault holding its password. The
+    trigger itself is read-only inside an extension; change the schedule from the
+    host with `swamp workflow trigger set @figy/nanokvm-health --schedule "…"`.
+    `@figy/nanokvm-dns` takes caddy (the repo caddy model), nanokvmModel (the
+    instance whose `devices` scan runs), zone (default fi.gy) and ttl. See the
+    README for the full tables.
+
+  UPGRADE
+
+    This extension installs nothing on the host, so an upgrade has nothing to
+    rebuild or reconcile. Refresh the pulled workflow with one idempotent
+    command:
+
+        # Pull the newest published copy of the workflow.
+        swamp extension update
+
+    The device model it drives is upgraded by its own extension's `upgrades`
+    entry on the next method run.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, cron triggers, daemons or webhooks. The
+    schedule is a swamp `trigger` evaluated by `swamp serve`; it runs the
+    @svendowideit/nanokvm model, which talks to the device and the collector and
+    writes swamp data.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+workflows:
+  - figy-nanokvm-health.yaml
+  - figy-nanokvm-dns.yaml
+
+dependencies:
+  - "@svendowideit/nanokvm"
+  - "@svendowideit/caddy"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

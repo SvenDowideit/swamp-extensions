@@ -426,6 +426,10 @@ const GlobalArgsSchema = z.object({
   dnsTtl: z.string().default("5m").describe(
     "Default TTL for dnsRecords, e.g. 5m or 300s. Short by default so records added/changed here propagate quickly; a record's own ttl field overrides it.",
   ),
+  dnsResolvers: z.array(z.string()).default(["1.1.1.1:53", "8.8.8.8:53"])
+    .describe(
+      "Recursive DNS servers the ACME DNS-01 propagation check queries when a DNS provider is configured. Set explicitly so a challenge record is not missed because the local resolver (e.g. systemd-resolved) negative-cached the challenge name before it existed — a 3h NXDOMAIN TTL once delayed a new name's first certificate until the cache was flushed. Empty falls back to the system resolver.",
+    ),
   autoRouteTls: z.boolean().default(true).describe(
     "When true, every route hostname under baseDomain is automatically added to the TLS subjects, so Caddy issues it a certificate. Adding a route is a promise that clients will connect on that name, so this defaults on; set false to opt out (e.g. a name served over plain HTTP, or already covered by a wildcard you manage elsewhere).",
   ),
@@ -557,6 +561,12 @@ const ConfigureTlsArgsSchema = z.object({
   ),
   issuer: z.string().optional().describe(
     'Issuer module: "acme" (default, Let\'s Encrypt) or "internal" (Caddy\'s local CA, for non-public names where ACME cannot issue).',
+  ),
+  keyType: z.string().optional().describe(
+    'Private-key type for issued certificates: "rsa2048", "p256" (default), "p384", "p521" or "ed25519". Set "rsa2048" for a device that only accepts RSA keys.',
+  ),
+  resolvers: z.array(z.string()).optional().describe(
+    'Recursive DNS servers for the ACME DNS-01 propagation check (e.g. ["1.1.1.1:53"]). Set these so a stale negative cache in the local resolver cannot hide a freshly written challenge record. Empty uses the model\'s dnsResolvers global, then the system resolver.',
   ),
 });
 
@@ -881,6 +891,11 @@ const DesiredTlsSchema = z.object({
   // Issuer module: "acme" (default) or "internal" (Caddy's local CA, for
   // non-public names / tests where ACME cannot issue).
   issuer: z.string().default(""),
+  // Private-key type for issued certificates (Caddy's `key_type`): "rsa2048",
+  // "p256" (default), "p384", "p521" or "ed25519".
+  keyType: z.string().default(""),
+  // Recursive resolvers for the ACME DNS-01 propagation check.
+  resolvers: z.array(z.string()).default([]),
 });
 
 const DesiredStatusPageSchema = z.object({
@@ -1838,6 +1853,10 @@ export interface DesiredTls {
   subjects: string[];
   /** Issuer module: "acme" (default) or "internal" (Caddy's local CA). */
   issuer?: string;
+  /** Private-key type for issued certs ("rsa2048", "p256", "ed25519", …). */
+  keyType?: string;
+  /** Recursive resolvers for the ACME DNS-01 propagation check. */
+  resolvers?: string[];
 }
 
 /** One model's desired status page. */
@@ -2041,15 +2060,19 @@ export function mergeDesired(states: DesiredState[]): {
       );
     }
     const subjects = new Set<string>();
+    const resolvers = new Set<string>();
     const providerConfig: Record<string, string> = {};
     let dnsEnvVar = "";
     let issuer = "";
+    let keyType = "";
     for (const s of tlsStates) {
       tlsModels.push(s.modelName);
       for (const sub of s.tls!.subjects) subjects.add(sub);
+      for (const r of s.tls!.resolvers ?? []) resolvers.add(r);
       Object.assign(providerConfig, s.tls!.providerConfig);
       dnsEnvVar = dnsEnvVar || s.tls!.dnsEnvVar;
       issuer = issuer || (s.tls!.issuer ?? "");
+      keyType = keyType || (s.tls!.keyType ?? "");
     }
     tls = {
       email: [...emails][0] ?? "",
@@ -2058,6 +2081,8 @@ export function mergeDesired(states: DesiredState[]): {
       providerConfig,
       subjects: [...subjects].sort(),
       issuer,
+      keyType,
+      resolvers: [...resolvers].sort(),
     };
   }
 
@@ -2267,6 +2292,8 @@ export function deriveRouteDnsTls(
         providerConfig: nextTls?.providerConfig ?? {},
         subjects: [...subjects].sort(),
         issuer: nextTls?.issuer ?? "",
+        keyType: nextTls?.keyType ?? "",
+        resolvers: nextTls?.resolvers ?? [],
       };
     }
   }
@@ -2433,6 +2460,8 @@ export function buildReconciledConfig(
         : undefined,
       subjects: merged.tls.subjects,
       issuer: merged.tls.issuer,
+      keyType: merged.tls.keyType,
+      resolvers: merged.tls.resolvers,
     });
     // mergeTlsConfig returns a clone, so keep its result or the tls app is lost.
     next = mergeTlsConfig(next, tlsConfig);
@@ -2985,6 +3014,8 @@ export function renderTlsAutomation(opts: {
   providerConfig?: Record<string, string>;
   subjects?: string[];
   issuer?: string;
+  keyType?: string;
+  resolvers?: string[];
 }): CaddyConfig {
   // `internal` selects Caddy's local CA (self-signed, useful for non-public
   // names and tests where Let's Encrypt cannot issue). The ACME issuer is the
@@ -3004,12 +3035,21 @@ export function renderTlsAutomation(opts: {
     for (const [field, envVar] of Object.entries(credentials)) {
       provider[field] = `{env.${envVar}}`;
     }
-    issuer.challenges = { dns: { provider } };
+    const dns: Record<string, unknown> = { provider };
+    // Query explicit recursive resolvers for the propagation self-check, so a
+    // stale negative cache in the host's resolver cannot hide a freshly written
+    // challenge record (a 3h NXDOMAIN TTL once stalled a new name's first cert).
+    if (opts.resolvers && opts.resolvers.length > 0) {
+      dns.resolvers = opts.resolvers;
+    }
+    issuer.challenges = { dns };
   }
   const policy: Record<string, unknown> = { issuers: [issuer] };
   if (opts.subjects && opts.subjects.length > 0) {
     policy.subjects = opts.subjects;
   }
+  // Caddy's `key_type`; e.g. rsa2048 for a device that only accepts RSA keys.
+  if (opts.keyType) policy.key_type = opts.keyType;
   return {
     apps: {
       tls: {
@@ -5026,7 +5066,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.11.1",
+  version: "2026.10.17.1",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -5318,6 +5358,12 @@ export const model = {
       toVersion: "2026.10.11.1",
       description:
         "A root process can bind 80/443 with no capability, so a config is no longer degraded to high ports merely because the binary lacks CAP_NET_BIND_SERVICE: 'can bind privileged ports' is now true when the binary holds the capability OR the process runs as root. This one test drives the degrade decision, upgradeCheck's gap report, staleness, and normalizeServingSettings. Fixes a regression that pushed an intentionally-unprivileged root config from :80 to :8080. The shipped acceptance suite now also proves end to end that caddy-setup grants CAP_NET_BIND_SERVICE through @svendowideit/sudo over BOTH elevation routes — a passwordless-`sudo` host (`sudo-n`) and a `doas`-only host (`doas-n`) — with the service binding :443 and serving the status page over TLS. No global arguments change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
+      description:
+        'configureTls accepts `keyType` (an ACME policy `key_type`): "rsa2048", "p256" (Caddy\'s default), "p384", "p521" or "ed25519". Some appliances only accept an RSA private key, so a certificate issued for a device that fronts them must be RSA rather than Caddy\'s default ECDSA. It also sets explicit recursive DNS servers for the ACME DNS-01 propagation self-check (new global `dnsResolvers`, default Cloudflare + Google; override with the configureTls `resolvers` argument or empty it for the system resolver). The check ran through the host resolver, whose NXDOMAIN negative cache (a 3h TTL) once hid a freshly written challenge record and stalled a new name\'s first certificate until the cache was flushed; querying public resolvers avoids that. Both DesiredTls fields carry across models and merge. Schema is additive — existing models upgrade with no changes.',
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -6177,6 +6223,12 @@ export const model = {
           providerConfig,
           subjects,
           issuer,
+          keyType: args.keyType || existing?.keyType || "",
+          resolvers: (args.resolvers && args.resolvers.length > 0)
+            ? args.resolvers
+            : (existing?.resolvers && existing.resolvers.length > 0)
+            ? existing.resolvers
+            : (g.dnsResolvers ?? []),
         };
         await saveAndReconcile(context, g, own);
 

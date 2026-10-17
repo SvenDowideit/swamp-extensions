@@ -1,0 +1,197 @@
+manifestVersion: 1
+name: "@svendowideit/magnitude"
+version: "2026.10.18.1"
+description: >
+  ============================================================================
+  ⚠️  SECURITY WARNING — THIS CAN EXPOSE MAGNITUDE ON THE NETWORK
+  ============================================================================
+
+    Turning on the network API (`networkEnabled=true`, a non-empty `networkHost`,
+    or `network.enabled` in config.json) makes Magnitude listen beyond loopback;
+    with `networkHost=0.0.0.0` it listens on EVERY interface. Any device that can
+    route to port 10100 then reaches Magnitude's web UI and its
+    OpenAI-compatible inference API. The API needs the network access key
+    (`networkApiKey`), but the UI is served to anyone, and inference is open when
+    the key is unset/weak or `requireApiKey` is off. Only enable it on a network
+    you trust; prefer binding one interface over `0.0.0.0`; always set a long
+    random `networkApiKey`; and front it with a TLS reverse proxy (see the README
+    TODO) as soon as you can. The README carries the same warning and a TODO to
+    move the bind back to loopback behind Caddy at `magnitude.<host>.<zone>`.
+
+  Install, upgrade and configure Magnitude (https://magnitude.dev) on a Linux
+  machine with systemd — the whole loop from "which version is installed" to
+  "the server is running the new package with my settings", elevated through the
+  @svendowideit/sudo ladder.
+
+  WHAT IT DOES
+
+    Closes the loop around a Magnitude (https://magnitude.dev) install on this
+    machine: it reads the installed `magnitude --version`, resolves the newest
+    release, and installs the checksum-verified distro package for this
+    distribution and architecture (Debian/apt, RPM/dnf, Arch/pacman) only when
+    the version actually changed — never re-downloading a ~200 MB package for a
+    current machine. It then registers and turns on the Magnitude *server* (the
+    boot service that serves models over the network) with `magnitude server
+    setup`, and writes your settings — network access, API key, bind host and
+    port — to `/var/lib/magnitude/config.json`, restarting only when they
+    changed. Privileged steps are delegated to `@svendowideit/sudo`, so any
+    elevation route the host already grants works. Prefer it over hand-running
+    `apt install` and `magnitude server setup` when you want repeatable swamp
+    workflows that reconcile the server as configuration.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/magnitude
+
+  DEPENDENCIES
+
+    `@svendowideit/github-release-install` and `@svendowideit/sudo`, declared in
+    `dependencies:` and installed by the single pull above. The bundled workflow
+    calls github-release-install to resolve the release, match the platform
+    package, record its SHA-256 and download a verified package only when an
+    update is needed; it calls sudo's named operations for every privileged step.
+    A GitHub token is optional (GITHUB_TOKEN / GH_TOKEN / `gh auth token`).
+
+  RUN
+
+      # Install or upgrade Magnitude and register its server. Idempotent:
+      # re-running is a no-op when nothing changed.
+      swamp workflow run @svendowideit/magnitude-install
+
+      # Turn on the network API, set its key and bind it to the LAN.
+      swamp workflow run @svendowideit/magnitude-install \
+        --input networkEnabled=true \
+        --input networkApiKey=mag_examplekey --input networkHost=0.0.0.0
+
+      # Ask for the installed version, the path and the exact status command.
+      swamp model @svendowideit/magnitude method run sync magnitude
+      swamp model @svendowideit/magnitude method run print magnitude
+
+      # Upgrade an existing install in one idempotent command — re-running is a
+      # no-op unless a new release, a changed setting or a stopped server needs
+      # reconciling. Same loop as installing; nothing to pass.
+      swamp workflow run @svendowideit/magnitude-upgrade
+
+      # Remove it again, keeping the downloaded models and settings.
+      swamp workflow run @svendowideit/magnitude-install --input uninstall=true
+
+  CONFIGURE
+
+    Workflow inputs (all optional, with defaults), also settable as model global
+    args with `--global-arg` and overridable per call with `--input`:
+
+      repo            GitHub repository publishing Magnitude (default magnitudedev/magnitude)
+      version         Release to install; empty = latest      (default "")
+      distro          debian | rhel | arch override           (default: host probe)
+      arch            x86_64 | arm64 override                 (default: host probe)
+      githubToken     Raises the releases API rate limit     (default: GITHUB_TOKEN, GH_TOKEN, `gh auth token`)
+      downloadDir     Where the verified package is staged   (default ~/.cache/magnitude)
+      stagingDir      Where the root-side scripts are staged (default ~/.cache/magnitude/staging)
+      packageName     Distro package name                    (default magnitude-desktop)
+      serviceName     systemd service name                   (default magnitude)
+      serviceUser     Run-as user for the server             (default magnitude)
+      configDir       Server settings/models/logs dir        (default /var/lib/magnitude)
+      manageService   auto | "true" | "false"                (default auto: set the server up when the package is present)
+      networkEnabled  Turn on the network API — EXPOSES IT   (default false; see the WARNING)
+      networkApiKey   Bearer key the network API requires    (default: leaves any existing key untouched)
+      networkHost     Address the network API binds          (default: all interfaces; 0.0.0.0 = every interface)
+      sudoInstanceKey Sudo model instance to elevate with    (default default)
+      sudoAllowedOperations  Sudo ops allowed for this run   (default: the standard install set)
+      force           Reinstall even if current              (default false)
+      uninstall       Remove package and service instead     (default false)
+      purgeData       Also delete /var/lib/magnitude         (default false)
+
+    Privileged steps run through `@svendowideit/sudo`'s `sudo-run` workflow, which
+    passes this run's `sudoAllowedOperations` to the sudo model, so a bare
+    auto-created instance works without a prior `swamp model create`. Magnitude
+    tags releases as `@magnitudedev/cli@<version>`, so `--input version=` pinning
+    is best-effort; the default latest release resolves reliably. The releases
+    API allows only 60 anonymous requests per hour per IP, so authenticate for
+    scheduled runs: run `gh auth login` once (its token is then used
+    automatically), or export `GITHUB_TOKEN=$(gh auth token)`.
+
+    Getting the network access key once network access is on: it is the value you
+    passed as `networkApiKey` (the extension never stores it in swamp data); if
+    you did not set one, read it on the server with
+    `sudo cat /var/lib/magnitude/config.json` (the `network.apiKey` field), or see
+    it in the UI under Settings → Network access. Clients send it as
+    `Authorization: Bearer <key>` (or `x-api-key`) against
+    `<server>:10100/inference/v1`. `magnitude status` never prints it.
+
+    Linux only: on macOS and Windows Magnitude ships a desktop app rather than a
+    distro package, and this extension does not manage it.
+
+  SETUP
+
+    The `setup` method detects the server's current state and records it, then
+    merges any settings you pass over it — so configuration is remembered, not
+    re-asked. It reads `/var/lib/magnitude/config.json` and the persisted
+    `settings` resource, then saves the effective values (partial values
+    included) back to `settings` for the next run to reuse; the network API key
+    is never written to swamp data, only to `config.json` on the host. It also
+    reports which capabilities are enabled ("installed", "configured",
+    "network-api"). It changes nothing on the host itself — the install workflow
+    applies the settings as a privileged step, and stops at the failing step
+    with the exact manual commands when it cannot elevate.
+
+        swamp model @svendowideit/magnitude method run setup magnitude
+
+  UPGRADE
+
+    Magnitude install and upgrade are the same reconciled loop, so upgrading is
+    one command with nothing to pass:
+
+        swamp workflow run @svendowideit/magnitude-upgrade
+
+    It reads the installed `magnitude --version`, resolves the newest release,
+    installs the verified package only when the version (not the ACN revision)
+    actually changed, re-registers the server and re-applies your
+    settings, restarting the service only when the unit, package or settings
+    moved. Every step is idempotent, so re-running is safe; it ends on verified
+    reality by printing the version now on the machine.
+
+  WHAT IT INSTALLS
+
+    The Magnitude desktop package for this distribution — `magnitude-desktop`,
+    installed with the host's package manager as root through the elevation
+    ladder. On Linux the package places `/usr/bin/magnitude` (a symlink to the
+    CLI under `/usr/lib/magnitude-desktop/resources/`), the desktop resources and
+    the inert `/usr/lib/systemd/system/magnitude.service` unit; `magnitude server
+    setup` then creates the unprivileged `magnitude` system account, prepares
+    `/var/lib/magnitude` (settings, models, logs) and enables the unit. Your
+    settings are written to `/var/lib/magnitude/config.json`. The verified
+    package is cached under `downloadDir` and the root-side scripts under
+    `stagingDir`. Inspect the server at any time with:
+
+        systemctl status magnitude.service
+
+    On `uninstall=true` it stops and removes the service and the package,
+    keeping `/var/lib/magnitude` (models and settings) unless
+    `purgeData=true`.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - magnitude.ts
+  - magnitude_shared.ts
+
+workflows:
+  - magnitude-install.yaml
+  - magnitude-upgrade.yaml
+
+dependencies:
+  - "@svendowideit/github-release-install"
+  - "@svendowideit/sudo"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - magnitude_shared_test.ts
+  - magnitude_test.ts
+
+platforms: []

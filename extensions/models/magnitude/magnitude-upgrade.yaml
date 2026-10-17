@@ -1,0 +1,43 @@
+id: 5caef184-1fa8-4dbf-a5ed-d87a0a935440
+name: '@svendowideit/magnitude-upgrade'
+description: |
+  Upgrade Magnitude on this machine — one idempotent command, no inputs to
+  remember.
+
+  Magnitude install and upgrade are the same reconciled loop: read the
+  installed `magnitude --version`, resolve the newest release, install the
+  verified package only when it actually changed, then re-run `magnitude server
+  setup` and rewrite your settings, restarting only when something moved. This
+  workflow is that loop, so re-running it is safe and changes only what differs;
+  it delegates to the same `@svendowideit/magnitude-install` workflow and infers
+  everything (there is nothing to pass).
+
+      swamp workflow run @svendowideit/magnitude-upgrade
+
+  Every step runs through the @svendowideit/sudo elevation ladder, so any route
+  the host already grants works. The run ends by printing the version now on the
+  machine, its path and the exact `systemctl status` command.
+tags: {}
+inputs:
+  properties: {}
+  required: []
+jobs:
+  - name: upgrade
+    description: >-
+      Reconcile the package, the server service and the settings to the newest
+      release through the same idempotent install loop.
+    steps:
+      - name: reconcile
+        description: >-
+          Install the newest release (only when the installed version differs),
+          re-run `magnitude server setup` and re-apply the settings, then verify.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/magnitude-install"
+          inputs: {}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

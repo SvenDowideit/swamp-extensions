@@ -1,0 +1,552 @@
+# meta-factory-ignore report-reality prerequisite-allow-failure: the
+# uninstall-service and uninstall-package steps are best-effort so a re-run after
+# a partial teardown still succeeds (idempotent removal); the run's summary prints
+# what was actually removed, so it never claims a removal that did not happen.
+id: cae23fc2-6542-4e21-9228-300506e5f85a
+name: '@svendowideit/magnitude-install'
+description: |
+  Install or upgrade Magnitude on this machine and register its server — the
+  whole loop in one idempotent run, elevated through the @svendowideit/sudo
+  ladder.
+
+  Stages (install): plan → privilege → sync → resolve → assess → download →
+  stage → install → server-setup → configure → service → print. (uninstall):
+  plan → privilege → uninstall-service → uninstall-package → purge-data →
+  print.
+
+  plan resolves this machine's distribution family and architecture, the exact
+  release package and package manager (deb/apt, rpm/dnf, pkg.tar.zst/pacman) and
+  the install/service paths. privilege reports what @svendowideit/sudo can
+  elevate with. sync reads the installed `magnitude --version`. resolve calls
+  @svendowideit/github-release-install to read the newest Magnitude release and
+  the package's SHA-256, and assess compares the two. download fetches the
+  checksum-verified package only when an update is actually needed (or force is
+  set), so a current machine does not re-download a ~200 MB package. stage
+  verifies the package again (defence in depth) and renders the root-side
+  scripts (package install, `magnitude server setup`, server remove, and the
+  settings document) into an unprivileged staging dir. The privileged steps run
+  @svendowideit/sudo's named operations through the elevation ladder: runScript
+  (the staged install script and `magnitude server setup`), installFile (the
+  settings), manageService (restart) and, on uninstall, removePackage/removePath.
+
+  Run it on any Linux host to make Magnitude present, current and running as a
+  server:
+
+      swamp workflow run @svendowideit/magnitude-install
+
+  Turn on the network API and set its key and bind address:
+
+      swamp workflow run @svendowideit/magnitude-install \
+        --input networkEnabled=true \
+        --input networkApiKey=mag_xxxx --input networkHost=0.0.0.0
+
+  Upgrade only when a new release appears (idempotent, no-op otherwise):
+
+      swamp workflow run @svendowideit/magnitude-install
+
+  Remove it again, keeping the models and settings:
+
+      swamp workflow run @svendowideit/magnitude-install --input uninstall=true
+
+  Remove it and delete /var/lib/magnitude as well:
+
+      swamp workflow run @svendowideit/magnitude-install \
+        --input uninstall=true --input purgeData=true
+tags: {}
+inputs:
+  properties:
+    repo:
+      type: string
+      default: magnitudedev/magnitude
+      description: GitHub repository (owner/name) publishing the Magnitude releases.
+    version:
+      type: string
+      default: ""
+      description: >-
+        Release to install. Empty installs the latest. Magnitude tags releases
+        as `@magnitudedev/cli@<version>`, so pinning by bare version is
+        best-effort.
+    distro:
+      type: string
+      default: ""
+      description: >-
+        Override the detected distribution family (debian, rhel, arch). Empty
+        probes /etc/os-release.
+    arch:
+      type: string
+      default: ""
+      description: >-
+        Override the detected architecture (x86_64, arm64). Empty probes
+        `uname -m`.
+    githubToken:
+      type: string
+      default: ""
+      description: >-
+        GitHub token to raise the releases API rate limit. Empty falls back to
+        GITHUB_TOKEN / GH_TOKEN, then the authenticated `gh` CLI.
+    downloadDir:
+      type: string
+      default: ~/.cache/magnitude
+      description: Directory the verified release package is downloaded into.
+    stagingDir:
+      type: string
+      default: ~/.cache/magnitude/staging
+      description: Unprivileged directory the root-side scripts are rendered into.
+    packageName:
+      type: string
+      default: magnitude-desktop
+      description: Distro package name (used for removal).
+    serviceName:
+      type: string
+      default: magnitude
+      description: systemd service name (without the .service suffix).
+    serviceUser:
+      type: string
+      default: magnitude
+      description: Run-as user for the server service.
+    configDir:
+      type: string
+      default: /var/lib/magnitude
+      description: Directory holding the server's settings, models and logs.
+    manageService:
+      type: string
+      enum:
+        - auto
+        - "true"
+        - "false"
+      default: auto
+      description: >-
+        auto (default) sets up and maintains the server when the package is
+        present; true always runs `magnitude server setup`; false installs the
+        package only.
+    networkEnabled:
+      type: boolean
+      default: false
+      description: Turn on the server's network (LAN/remote) API in config.json.
+    networkApiKey:
+      type: string
+      default: ""
+      description: >-
+        Bearer key the network API requires. Empty leaves any existing key
+        untouched; it is written only to /var/lib/magnitude/config.json.
+    networkHost:
+      type: string
+      default: ""
+      description: >-
+        Address the network API binds (network.bind, one IP of this machine).
+        Empty binds all interfaces. Magnitude always serves on 10100.
+    sudoInstanceKey:
+      type: string
+      default: default
+      description: >-
+        Instance key of the @svendowideit/sudo model the workflow elevates
+        through (model name sudo-<instanceKey>).
+    sudoAllowedOperations:
+      type: array
+      items:
+        type: string
+      default:
+        - installPackage
+        - removePackage
+        - manageService
+        - runScript
+        - installFile
+        - ensureDirectory
+        - daemonReload
+        - removePath
+        - createUser
+      description: Operation allowlist passed to the sudo model for every step.
+    force:
+      type: boolean
+      default: false
+      description: Reinstall even when the target version is already installed.
+    uninstall:
+      type: boolean
+      default: false
+      description: Remove Magnitude instead of installing it.
+    purgeData:
+      type: boolean
+      default: false
+      description: >-
+        On an uninstall run, also delete /var/lib/magnitude (models and
+        settings).
+  required: []
+jobs:
+  - name: main
+    description: >-
+      Plan the platform, read the installed version, resolve and download the
+      release only when an update is needed, install it through the elevation
+      ladder, register and configure the server, then verify.
+    steps:
+      - name: render
+        description: >-
+          Render the root-side server scripts (setup, remove, settings) into the
+          staging dir. Runs on every run, install and uninstall, so the
+          privileged steps always have a script to execute.
+        task:
+          type: model_method
+          modelType: "@svendowideit/magnitude"
+          modelName: magnitude
+          methodName: renderScripts
+          inputs:
+            networkEnabled: ${{ inputs.networkEnabled }}
+            networkApiKey: ${{ inputs.networkApiKey }}
+            networkHost: ${{ inputs.networkHost }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: plan
+        description: >-
+          Resolve this machine's distro family/architecture, the release package
+          filter, the package manager and every install/service path. Runs first
+          so every later step uses one consistent plan.
+        task:
+          type: model_method
+          modelType: "@svendowideit/magnitude"
+          modelName: magnitude
+          methodName: plan
+          inputs:
+            distro: ${{ inputs.distro }}
+            arch: ${{ inputs.arch }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: privilege
+        description: >-
+          Report the @svendowideit/sudo ladder for this host. Informational: the
+          placement steps run the ladder themselves.
+        task:
+          type: model_method
+          modelType: "@svendowideit/magnitude"
+          modelName: magnitude
+          methodName: privilege
+        dependsOn:
+          - step: plan
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: setup
+        description: >-
+          Detect the server's current settings, merge the supplied network
+          settings over them, and persist the effective values (partial values
+          included) to the `settings` resource, so a later run reuses them.
+          Read-only: nothing on the host changes here.
+        task:
+          type: model_method
+          modelType: "@svendowideit/magnitude"
+          modelName: magnitude
+          methodName: setup
+          inputs:
+            networkEnabled: ${{ inputs.networkEnabled }}
+            networkApiKey: ${{ inputs.networkApiKey }}
+            networkHost: ${{ inputs.networkHost }}
+        dependsOn:
+          - step: privilege
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: sync
+        description: >-
+          Read the installed `magnitude --version` so assess can decide whether
+          an update is needed. Skipped on an uninstall. Offline: the dedicated
+          resolve step owns the release check.
+        guard: ${{ inputs.uninstall == true }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/magnitude"
+          modelName: magnitude
+          methodName: sync
+          inputs:
+            checkLatest: false
+        dependsOn:
+          - step: setup
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: resolve
+        description: >-
+          Read the latest Magnitude release (or the pinned version), match the
+          package plan resolved, and record its expected SHA-256. Skipped on an
+          uninstall.
+        guard: ${{ inputs.uninstall == true }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/github-release-install"
+          modelName: github-release
+          methodName: check
+          globalArgs:
+            repo: ${{ inputs.repo }}
+            githubToken: ${{ inputs.githubToken }}
+            checksumsName: checksums.txt
+          inputs:
+            version: ${{ inputs.version }}
+            stem: ${{ steps.plan.outputs.assetStem }}
+            pattern: ${{ steps.plan.outputs.assetPattern }}
+            os: ${{ steps.plan.outputs.osFilter }}
+            arch: ${{ steps.plan.outputs.archFilter }}
+        dependsOn:
+          - step: sync
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: assess
+        description: >-
+          Compare the installed version with the resolved release and record
+          whether an update is available. Skipped on an uninstall.
+        guard: ${{ inputs.uninstall == true }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/magnitude"
+          modelName: magnitude
+          methodName: assess
+          inputs:
+            latestVersion: ${{ steps.resolve.outputs.version }}
+        dependsOn:
+          - step: resolve
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: download
+        description: >-
+          Download the resolved package and verify its SHA-256. Runs only when an
+          update is available (or force is set), so a current machine does not
+          re-download a ~200 MB package.
+        guard: >-
+          ${{ inputs.uninstall == true || (inputs.force == false
+          && steps.assess.outputs.?updateAvailable.orValue(false) == false) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/github-release-install"
+          modelName: github-release
+          methodName: download
+          globalArgs:
+            repo: ${{ inputs.repo }}
+            githubToken: ${{ inputs.githubToken }}
+            checksumsName: checksums.txt
+          inputs:
+            outputDir: ${{ inputs.downloadDir }}
+            force: ${{ inputs.force }}
+            stem: ${{ steps.plan.outputs.assetStem }}
+            pattern: ${{ steps.plan.outputs.assetPattern }}
+            assetName: ${{ steps.resolve.outputs.?platform.?archiveName.orValue("") }}
+            downloadUrl: ${{ steps.resolve.outputs.?platform.?downloadUrl.orValue("") }}
+            releaseVersion: ${{ steps.resolve.outputs.version }}
+            checksum: ${{ steps.resolve.outputs.?checksum.orValue("") }}
+            os: ${{ steps.plan.outputs.osFilter }}
+            arch: ${{ steps.plan.outputs.archFilter }}
+        dependsOn:
+          - step: assess
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: stage
+        description: >-
+          Verify the downloaded package again (defence in depth) and render its
+          package-manager install script into the staging dir. Runs only when a
+          package was downloaded.
+        guard: >-
+          ${{ inputs.uninstall == true || (inputs.force == false
+          && steps.assess.outputs.?updateAvailable.orValue(false) == false) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/magnitude"
+          modelName: magnitude
+          methodName: stage
+          inputs:
+            packagePath: ${{ steps.download.outputs.?path.orValue("") }}
+            checksum: ${{ steps.download.outputs.?checksum.orValue("") }}
+        dependsOn:
+          - step: download
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: install
+        description: >-
+          Run the staged package-install script as root through the elevation
+          ladder. Only runs when a package was downloaded.
+        guard: >-
+          ${{ inputs.uninstall == true || (inputs.force == false
+          && steps.assess.outputs.?updateAvailable.orValue(false) == false) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: sudo-${{ inputs.sudoInstanceKey }}
+          methodName: run
+          globalArgs:
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+          inputs:
+            operation: runScript
+            args:
+              script: ${{ data.latest("magnitude", "stage").attributes.?installScriptPath.orValue("") }}
+              args: []
+        dependsOn:
+          - step: stage
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: server-setup
+        description: >-
+          Register and start the Magnitude server as root: `magnitude server
+          setup` through the elevation ladder. Runs on manageService runs.
+        guard: >-
+          ${{ inputs.uninstall == true
+          || steps.plan.outputs.?manageService.orValue(false) == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: sudo-${{ inputs.sudoInstanceKey }}
+          methodName: run
+          globalArgs:
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+          inputs:
+            operation: runScript
+            args:
+              script: ${{ data.latest("magnitude", "scripts").attributes.?setupScriptPath.orValue("") }}
+              args: []
+        dependsOn:
+          - step: install
+            condition:
+              type: always
+          - step: render
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: service
+        description: Confirm the unit's active/enabled state on this host.
+        guard: ${{ inputs.uninstall == true }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/magnitude"
+          modelName: magnitude
+          methodName: service
+        dependsOn:
+          - step: server-setup
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: verify-service
+        description: >-
+          Fail the run unless the Magnitude service is actually active and
+          enabled — the sudo ladder records a non-zero privileged exit in its
+          result rather than failing the step, so this assert is what makes a
+          denied or failed registration visible instead of a false success.
+        guard: ${{ inputs.uninstall == true }}
+        task:
+          type: assert
+          expr: >-
+            data.latest("magnitude", "service").attributes.active == true
+            && data.latest("magnitude", "service").attributes.enabled == true
+          message: >-
+            The Magnitude service is not active and enabled after the run — a
+            privileged step did not take effect. Inspect the sudo result data
+            and the elevation ladder report.
+          severity: high
+        dependsOn:
+          - step: service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: uninstall-service
+        description: >-
+          Stop and remove the Magnitude server service as root. Only runs on an
+          uninstall.
+        guard: ${{ inputs.uninstall == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: sudo-${{ inputs.sudoInstanceKey }}
+          methodName: run
+          globalArgs:
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+          inputs:
+            operation: runScript
+            args:
+              script: ${{ data.latest("magnitude", "scripts").attributes.?removeScriptPath.orValue("") }}
+              args: []
+        dependsOn:
+          - step: render
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: uninstall-package
+        description: >-
+          Remove the distro package as root. Only runs on an uninstall.
+        guard: ${{ inputs.uninstall == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: sudo-${{ inputs.sudoInstanceKey }}
+          methodName: run
+          globalArgs:
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+          inputs:
+            operation: removePackage
+            args:
+              manager: ${{ steps.plan.outputs.?manager.orValue("apt") }}
+              packages:
+                - ${{ inputs.packageName }}
+        dependsOn:
+          - step: uninstall-service
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: purge-data
+        description: >-
+          Delete /var/lib/magnitude (models and settings) as root. Only runs on
+          an uninstall with purgeData=true.
+        guard: ${{ inputs.uninstall == false || inputs.purgeData == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: sudo-${{ inputs.sudoInstanceKey }}
+          methodName: run
+          globalArgs:
+            allowedOperations: ${{ inputs.sudoAllowedOperations }}
+          inputs:
+            operation: removePath
+            args:
+              path: ${{ inputs.configDir }}
+        dependsOn:
+          - step: uninstall-package
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: print
+        description: >-
+          Log the installed version, its path and the exact `systemctl status`
+          command, so the run ends on what is now on the machine.
+        task:
+          type: model_method
+          modelType: "@svendowideit/magnitude"
+          modelName: magnitude
+          methodName: print
+        dependsOn:
+          - step: sync
+            condition:
+              type: always
+          - step: service
+            condition:
+              type: always
+          - step: uninstall-package
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

@@ -1,23 +1,26 @@
 id: ee24e09a-b60f-4b71-a4ef-06b2b463099d
-name: "@figy/swamp-worker-bootstrap"
+name: "@figy/swamp-worker-upgrade"
 description: |
-  Enlist a set of fi.gy hosts as swamp workers for one `swamp serve`, over SSH.
+  Install or upgrade the fi.gy swamp workers in one idempotent run — the same
+  command whether a node has no worker yet or already runs one.
 
-  Renders the per-node provisioning script with @svendowideit/swamp-worker, mints
-  one enrollment token per node (`mintToken`, per-target, staged 0600 on the
-  orchestrator), copies each node its token over SSH with @swamp/ssh, and runs
-  the provisioning script on every node (each installs the swamp binary, installs
-  its token, writes its systemd user unit and starts it). The script gates on the
-  unit being active, so no separate SSH verification step is needed.
+  For each node it renders the per-node provisioning script, mints one enrollment
+  token per node (`mintToken`, per-target, staged 0600 on the orchestrator, reused
+  on re-run), copies each node its own token over SSH with @swamp/ssh, and runs the
+  provisioning script on every node. The script installs the swamp binary when it
+  is absent, or upgrades it to the requested release (`version`, default `latest`)
+  when it differs, installs the token, writes the systemd user unit and starts it.
+  The script gates on the unit being active, so no separate SSH verification step
+  is needed, and re-running is always safe.
 
   The SSH fleet is defined inline from the `hosts` input, so only the generic
   model needs to pre-exist:
 
       swamp model create @svendowideit/swamp-worker worker \
-        --global-arg identity=figy
+        --global-arg identity=figy --global-arg swampBinPath=~/.local/bin/swamp
 
   Run:
-      swamp workflow run @figy/swamp-worker-bootstrap \
+      swamp workflow run @figy/swamp-worker-upgrade \
         --input serveUrl=wss://swamp.x1yoga.fi.gy \
         --input 'hosts=[{"name":"host1","address":"host1.lan"},{"name":"host2","address":"host2.lan"}]'
 inputs:
@@ -46,10 +49,11 @@ inputs:
       description: Enrollment token lifetime (a hard deadline).
     version:
       type: string
-      default: ""
+      default: latest
       description: >
-        swamp release tag to install/upgrade the worker to (empty = install only
-        when absent; `latest` upgrades to the newest release).
+        swamp release to install on each node; `latest` (the default) installs
+        when absent and upgrades when the node's binary differs. Pin a tag to
+        hold the fleet back.
     sshUser:
       type: string
       default: sven
@@ -70,7 +74,7 @@ inputs:
     - serveUrl
 jobs:
   - name: deploy
-    description: Render, stage tokens, deliver, provision, verify.
+    description: Render, stage tokens, deliver, provision (install or upgrade), verify.
     steps:
       - name: render
         description: >
@@ -152,8 +156,8 @@ jobs:
 
       - name: provision
         description: >
-          Run the provisioning script on every node: install the swamp binary if
-          absent, lock the token, write the systemd user unit and start it.
+          Run the provisioning script on every node: install or upgrade the swamp
+          binary, lock the token, write the systemd user unit and start it.
         task:
           type: model_method
           modelType: "@swamp/ssh"

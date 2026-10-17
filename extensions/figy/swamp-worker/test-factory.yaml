@@ -20,7 +20,7 @@ extensions:
 tests:
   - name: fan-out-deploys-a-worker-over-ssh
     confirms: >
-      `@figy/swamp-worker-bootstrap` renders the per-node provisioning script,
+      `@figy/swamp-worker-upgrade` renders the per-node provisioning script,
       mints a token, copies it to the node over SSH with @swamp/ssh, runs the
       script on the node (installing the swamp binary, writing the systemd user
       unit and starting it), and the worker enrols on a real `swamp serve` — the
@@ -74,7 +74,7 @@ tests:
           outputNotContains: ["error"]
       - name: run-the-fan-out
         run: >
-          swamp workflow run @figy/swamp-worker-bootstrap
+          swamp workflow run @figy/swamp-worker-upgrade
           --input serveUrl=$SERVE_URL
           --input 'hosts=[{"name":"node1","address":"127.0.0.1"}]'
           --input sshUser=$TF_SSH_USER --input sshPort=$TF_SSH_PORT

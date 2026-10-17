@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@figy/swamp-worker"
-version: "2026.10.16.1"
+version: "2026.10.17.1"
 description: >
   Site-specific: deploy a swamp worker to a set of fi.gy hosts over SSH — and
   completely remove it — driving the generic @svendowideit/swamp-worker model
@@ -8,24 +8,17 @@ description: >
 
   WHAT IT DOES
 
-    The concrete, private half of the worker setup. It supplies the fi.gy node
-    set and runs the whole fan-out: render the per-node provisioning script,
-    mint one long-duration enrollment token per node (staged 0600 on the
-    orchestrator), copy each node its own token over SSH, run the provisioning
-    script there (installing the swamp binary, writing the `swamp-worker-figy`
-    systemd user unit and starting it), and verify it. Two matching workflows keep
-    the deployment current: `worker-rotate` refreshes the enrollment tokens (mint
-    a new token under a generation name → deliver → restart onto it → revoke the
-    old) so an always-on worker is never stranded, and `worker-teardown` runs the
-    removal script on every node and revokes each node's token, so a worker can
-    never re-enrol and nothing is left behind. Change the worker
-    once on the orchestrator and re-run to reconcile every host. This is
-    site-specific by design — it encodes the fi.gy node set and identity, so it is
-    useless without them; the portable model lives in @svendowideit/swamp-worker
-    and the SSH transport is @swamp/ssh. Prefer it over `swamp worker daemon
-    enable` because that daemon hardcodes the unit name, so only one worker can
-    exist per host — this namespaces every artifact by identity and coexists with
-    other repos' workers.
+    The concrete, private half of the worker setup: it supplies the fi.gy node
+    set and runs the whole fan-out in one idempotent workflow. Run it once to
+    enlist a set of hosts and again to upgrade them — it installs the swamp
+    binary where absent, upgrades it where it differs, writes each node's systemd
+    user unit and starts it, and fails unless the unit is active. Two matching
+    workflows keep the fleet current: `worker-rotate` refreshes enrollment tokens
+    without ever stranding a worker, and `worker-teardown` removes every worker and
+    revokes its token so it can never re-enrol. Change the worker once on the
+    orchestrator and re-run to reconcile every host. It is site-specific by design
+    and useless without the fi.gy node set; the portable model is
+    @svendowideit/swamp-worker and the SSH transport is @swamp/ssh.
 
   INSTALL
 
@@ -33,23 +26,29 @@ description: >
 
   DEPENDENCIES
 
-    @svendowideit/swamp-worker and @swamp/ssh (pulled separately), a running
-    fi.gy `swamp serve` the workers can reach, and OpenSSH key access to the
-    nodes. A `figy`-trusted swamp repo (`swamp extension trust add figy`) so the
-    pull resolves.
+    @svendowideit/swamp-worker and @swamp/ssh (pulled separately), a reachable
+    fi.gy `swamp serve` the workers dial, and OpenSSH key access to the nodes. The
+    serve must speak the same worker protocol as the release installed on the
+    nodes, so keep it current with `swamp model method run swamp-serve
+    updateBinary`. A `figy`-trusted swamp repo (`swamp extension trust add figy`)
+    so the pull resolves.
 
   RUN
 
-      # Create the generic worker model once (identity namespaces the worker),
-      # then deploy a set of nodes in one command; re-run it to reconcile.
+      # Create the generic worker model once. `identity` namespaces the worker;
+      # `swampBinPath` MUST be the swamp binary on THIS orchestrator (it mints the
+      # tokens) and is the same path the provisioning script installs on each node.
       swamp model create @svendowideit/swamp-worker worker \
-        --global-arg identity=figy
-      swamp workflow run @figy/swamp-worker-bootstrap \
+        --global-arg identity=figy \
+        --global-arg swampBinPath=~/.local/bin/swamp
+
+      # Install OR upgrade a set of nodes in one command; re-run it to reconcile.
+      swamp workflow run @figy/swamp-worker-upgrade \
         --input serveUrl=wss://swamp.x1yoga.fi.gy \
         --input 'hosts=[{"name":"host1","address":"host1.lan"}]'
 
-      # Rotate the tokens before they expire (never stranding a worker), bumping
-      # the generation each time — schedule this.
+      # Rotate the enrollment tokens before they expire (never stranding a
+      # worker), bumping the generation each time — schedule this.
       swamp workflow run @figy/swamp-worker-rotate \
         --input serveUrl=wss://swamp.x1yoga.fi.gy \
         --input 'hosts=[{"name":"host1","address":"host1.lan"}]' \
@@ -62,20 +61,29 @@ description: >
 
   CONFIGURE
 
-    All three take `hosts` (the node set, each {name, address}), `identity`
-    (worker identity, default `figy`, matching the generic model's global) and the
-    SSH defaults `sshUser`, `sshPort`, `sshKey` and `strictHostKeyChecking`;
-    bootstrap also takes `serveUrl` (required) and `duration` (token lifetime,
-    default `30d`); rotate also takes `generation` (required) and `previousSuffix`.
-    The generic model's globals (binary path, dirs, concurrency) are set on the
-    `worker` model instance as usual.
+    All three take `hosts` (the node set, each {name, address}), `identity` (worker
+    identity, default `figy`, matching the generic model's global) and the SSH
+    defaults `sshUser`, `sshPort`, `sshKey` and `strictHostKeyChecking`; upgrade
+    also takes `serveUrl` (required), `version` (release to install, default
+    `latest`) and `duration` (token lifetime, default `30d`); rotate also takes
+    `generation` (required) and `previousSuffix`. The generic model's globals
+    (binary path, dirs, concurrency) are set on the `worker` model instance.
+
+  UPGRADE
+
+    Install and upgrade are the same workflow: re-run `@figy/swamp-worker-upgrade`
+    to bring every node's worker up to `version` (default `latest`) and reconcile
+    its unit. It is idempotent, reuses each node's staged token, and needs no new
+    inputs.
 
   WHAT IT INSTALLS
 
     Nothing itself — it drives @svendowideit/swamp-worker on each node, which
     installs a systemd user unit `swamp-worker-<identity>.service`, the worker
     cache dir, and 0600 token/env files, and enables user lingering; and
-    @swamp/ssh, the SSH transport. No cron triggers or webhooks.
+    @swamp/ssh, the SSH transport. Each node also needs a running systemd *user*
+    manager (`systemctl --user`, i.e. a live `logind` and `user@<uid>.service`). No
+    cron triggers or webhooks.
 
 repository: https://github.com/svendowideit/swamp-extensions
 
@@ -85,7 +93,7 @@ paths:
   base: manifest
 
 workflows:
-  - worker-bootstrap.yaml
+  - worker-upgrade.yaml
   - worker-rotate.yaml
   - worker-teardown.yaml
 

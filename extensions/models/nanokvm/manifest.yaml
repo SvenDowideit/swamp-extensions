@@ -1,0 +1,145 @@
+manifestVersion: 1
+name: "@svendowideit/nanokvm"
+version: "2026.10.17.3"
+description: >
+  Operate a Sipeed NanoKVM from swamp: a health verdict, screenshots, GPIO
+  power/reset and virtual media, with the device's health pushed to your
+  swamp-managed OpenTelemetry collector.
+
+  WHAT IT DOES
+
+    A NanoKVM is an out-of-band IP-KVM running Sipeed's own server, not PiKVM's
+    kvmd: a small JSON API over a self-signed HTTPS certificate. Two firmware
+    generations disagree on login — older builds take the password in plaintext
+    and return a bearer token, newer builds take the web UI's AES-encrypted
+    password and set a session cookie — and this model speaks both transparently.
+    `health` returns a pass/warn/fail verdict with findings — firmware behind, no
+    HDMI signal, virtual media left mounted, HID misconfigured — and records an
+    unreachable device as a failure rather than throwing, so a scheduled check
+    always leaves evidence. `emit` forwards that verdict to the swamp-managed
+    OTel system (an OTLP log plus gauges), a no-op that says why when no
+    collector is configured.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/nanokvm
+
+  DEPENDENCIES
+
+    @svendowideit/curl (pulled automatically) — the HTTP primitive this model
+    drives for the login, every read and the OTLP push. Optional:
+    @svendowideit/otel-settings, whose contract supplies the `emit` endpoint;
+    without it `emit` records that it has nowhere to send and does nothing.
+
+  RUN
+
+      # Store the login password once (never in the model definition), then
+      # check the device. Vault-first: the model reads vaultName/passwordRef.
+      swamp vault create @svendowideit/systemd-creds nanokvm
+      swamp vault put nanokvm NANOKVM_PASSWORD
+      swamp model @svendowideit/nanokvm method run setup nanokvm \
+        --input host=192.0.2.10
+      swamp model @svendowideit/nanokvm method run health nanokvm
+
+      # Capture a frame from the video stream, and press the power button —
+      # power and msd change state, so they are dry runs until apply=true.
+      swamp model @svendowideit/nanokvm method run screenshot nanokvm
+      swamp model @svendowideit/nanokvm method run power nanokvm \
+        --input action=power --input apply=true
+
+      # Push the latest health to the swamp-managed OTel collector. A no-op
+      # that records the reason when no @svendowideit/otel-settings contract or
+      # endpoint is configured.
+      swamp model @svendowideit/nanokvm method run emit nanokvm
+
+      # List every NanoKVM swamp looks after (a repo scan, no network) and emit
+      # an A-record list ready for a DNS reconciler.
+      swamp model @svendowideit/nanokvm method run devices nanokvm \
+        --input zone=fi.gy
+
+  CONFIGURE
+
+    Global arguments (set at creation with --global-arg key=value; only host has
+    no default):
+      host                     NanoKVM address, no scheme (e.g. 192.0.2.10)
+      port                     HTTPS port (default 443)
+      username                 web UI user (default admin)
+      vaultName                vault holding the password (default empty)
+      passwordRef              vault key for the password (default NANOKVM_PASSWORD)
+      envRef                   env var fallback for the password (default NANOKVM_PASSWORD)
+      password                 literal password fallback (sensitive; avoid)
+      passwordEncoding         how the login sends the password: auto|plain|aes (default auto)
+      curlModel                @svendowideit/curl instance name (default nanokvm-curl)
+      otelModel                otel-settings model for the emit endpoint (default otel)
+      otelEndpoint             OTLP/HTTP base URL overriding the contract (default empty)
+      otelMesh                 contract mesh to use (default empty = defaultMesh)
+      otelVaultName            vault holding the gateway bearer token (default empty)
+      otelTokenRef             vault/env key for the token (default OTEL_EXPORTER_OTLP_TOKEN)
+      insecure                 skip TLS verification (default true)
+      timeoutMs                per-request timeout (default 15000)
+      maxClockSkewSeconds      tolerated slowness before a warning (default 120)
+
+    Method arguments: `power` takes action (power|reset), durationMs, apply;
+    `msd` takes action (status|mount|umount), file, cdrom, apply; `screenshot`
+    takes timeoutMs and label; `emit` takes health, endpoint and mesh; `devices`
+    takes zone (the DNS suffix for each device's name). `setup` takes the
+    connection overrides it can persist. See the README for the full tables.
+
+  SETUP
+
+    `setup` is the entry point for a new device. It persists what it is given —
+    even when the configuration is incomplete — to the model's `config`
+    resource, reads that resource back on the next run and reuses it, and
+    reports which capabilities are enabled: `canLogin` (a host and a password)
+    and `canEmit` (a collector contract or an explicit endpoint). Supplying
+    only the host stores the rest and leaves `canLogin` false; add the vault
+    later and re-run. `health` refuses to run until a host is configured and
+    reports a missing password as a fail verdict with the reason.
+
+  UPGRADE
+
+    This extension installs nothing on the host, so an upgrade has nothing to
+    rebuild or reconcile. Refresh the pulled model and its bundled files with
+    one idempotent command:
+
+        # Pull the newest published model and its bundled files.
+        swamp extension update
+
+    Model definitions record the version they were created with; the bundled
+    `upgrades` entry migrates them on the next method run. No swamp data is
+    touched.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, cron triggers, daemons or webhooks. It
+    runs the curl binary through @svendowideit/curl, talks to the NanoKVM and
+    (optionally) the OTel collector over the network, and writes swamp
+    resources and a JPEG file.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - nanokvm.ts
+
+reports:
+  - nanokvm_health_report.ts
+
+dependencies:
+  - "@svendowideit/curl"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - nanokvm_test.ts
+  - nanokvm_health_report_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

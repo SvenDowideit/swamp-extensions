@@ -1,0 +1,132 @@
+manifestVersion: 1
+name: "@figy/glkvm-health"
+version: "2026.10.17.1"
+description: >
+  fi.gy's scheduled GL.iNet KVM health: check the out-of-band KVM on my LAN
+  every 15 minutes, forward its verdict to the swamp-managed OpenTelemetry
+  collector, and require the run to leave a health record.
+
+  WHAT IT DOES
+
+    Adds the missing reporting half to @sntxrr/glinet-kvm: that model can check a
+    GL.iNet KVM (Comet GL-RM1 / GL-RM1PE) but cannot report it. This extension
+    adds one `emit` method and one `emit` resource to the type — the same shape
+    @svendowideit/nanokvm ships — and a scheduled workflow that runs `health`
+    then `emit` every 15 minutes. The verdict goes to the collector as one OTLP
+    log record plus gauges (glkvm.up, glkvm.health, glkvm.hdmi_signal, …), with
+    the KVM password read from a vault at run time. Prefer it over a per-host
+    script: the check and the report stay one model, and an unreachable KVM is a
+    `fail` sample rather than a silent gap.
+
+    A second workflow, `@figy/glkvm-dns`, publishes the KVM's address as an A
+    record (`glkvm.fi.gy`) on a dedicated @svendowideit/caddy model, reconciled
+    into the shared Caddy through the caddy mixin.
+
+  INSTALL
+
+      swamp extension pull @figy/glkvm-health
+
+  DEPENDENCIES
+
+    @sntxrr/glinet-kvm (the model this extends, pulled automatically), a GL.iNet
+    KVM reachable at the configured address, its login password in the `glkvm`
+    vault (`swamp vault create @svendowideit/systemd-creds glkvm` then
+    `swamp vault put glkvm GLKVM_PASSWORD`), and a running OTLP gateway listening
+    on 127.0.0.1:4318 (the @svendowideit/otel-gateway). Without the gateway the
+    `emit` step still runs and records why it skipped.
+
+  RUN
+
+      # Run the pipeline once now, instead of waiting for the 15-minute trigger.
+      swamp workflow run @figy/glkvm-health
+
+      # Check a different GL.iNet KVM on the same LAN (any input can be overridden).
+      swamp workflow run @figy/glkvm-health --input host=10.10.6.151
+
+      # Validate the DAG before running it (no device contact).
+      swamp workflow validate @figy/glkvm-health
+
+      # Read the last emit result back (endpoint, HTTP statuses, verdict).
+      swamp data get glkvm emit --json
+
+      # Publish the KVM's address: reconcile glkvm.fi.gy -> the KVM into the
+      # shared Caddy (run after changing the address or the caddy model).
+      swamp workflow run @figy/glkvm-dns
+
+  CONFIGURE
+
+    Inputs (all overridable per run; the defaults are my repo): device, host,
+    port, username, vaultName, passwordRef, timeoutMs, otelModel, otelEndpoint,
+    otelMesh, otelVaultName, otelTokenRef. `host` and `vaultName` are the ones
+    that matter — the KVM's address and the vault holding its password. The
+    trigger is read-only inside an extension; change the schedule from the host
+    with `swamp workflow trigger set @figy/glkvm-health --schedule "…"`. See the
+    README for the full table.
+
+    `@figy/glkvm-dns` drives a @svendowideit/caddy model named `glkvm-caddy` that
+    must be a repo model (under `models/`) — the caddy mixin ignores
+    workflow/auto-created models. Create it once, declaring only the KVM's A
+    record plus the settings shared with the Caddy's other models (`my-caddy`),
+    then reconcile it:
+
+        # One-time: create the repo model declaring glkvm.fi.gy -> the KVM. Its
+        # serviceName/target share my-caddy's Caddy by default; baseDomain, the
+        # ACME email, plugins and environmentFile must match my-caddy's too.
+        swamp model create @svendowideit/caddy glkvm-caddy \
+          --global-arg baseDomain=fi.gy \
+          --global-arg letsEncryptEmail=SvenDowideit@home.org.au \
+          --global-arg environmentFile=$HOME/.config/caddy/dns.env \
+          --global-arg 'plugins:json=["github.com/caddy-dns/gandi"]' \
+          --global-arg 'dnsRecords:json=[{"name":"glkvm.fi.gy","type":"A","value":["10.10.6.150"],"zone":"fi.gy"}]'
+
+        # Reconcile it into the shared Caddy (re-run after changing the address).
+        swamp workflow run @figy/glkvm-dns
+
+    To move the KVM, edit the model's `dnsRecords` and re-run the DNS workflow.
+    See the README for the full input table.
+
+  UPGRADE
+
+    This extension installs nothing on the host, so an upgrade has nothing to
+    rebuild or reconcile. Refresh the pulled copy with one idempotent command:
+
+        swamp extension update
+
+    The @sntxrr/glinet-kvm model it extends is upgraded by that extension's own
+    `upgrades` entry on the next method run.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, cron triggers, daemons or webhooks. The
+    schedule is a swamp `trigger` evaluated by `swamp serve`; it runs the
+    @sntxrr/glinet-kvm model with the added `emit` method, which talks to the
+    device and the collector and writes swamp data.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - glkvm_emit.ts
+
+workflows:
+  - figy-glkvm-health.yaml
+  - figy-glkvm-dns.yaml
+
+dependencies:
+  - "@sntxrr/glinet-kvm"
+  - "@svendowideit/caddy"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - glkvm_emit_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

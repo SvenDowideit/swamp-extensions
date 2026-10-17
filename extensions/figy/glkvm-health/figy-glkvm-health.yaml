@@ -1,0 +1,152 @@
+id: 1cb1b624-8641-448c-9a41-c71bfaf4c99e
+name: '@figy/glkvm-health'
+description: |
+  fi.gy's scheduled GL.iNet KVM health: check the out-of-band KVM at
+  10.10.6.150, forward its health to the swamp-managed OpenTelemetry collector,
+  and require the run to leave a health record.
+
+  This is the concrete, site-specific half. The portable model that knows how to
+  talk to a GL.iNet KVM (the kvmd fork, self-signed TLS, viewer-driven snapshots)
+  is @sntxrr/glinet-kvm; this workflow pins it to my device and my collector.
+  Every 15 minutes it runs `health`, then the `emit` method added by
+  @figy/glkvm-health pushes the latest verdict to the local OTLP receiver
+  (http://127.0.0.1:4318) as a log record plus gauges (glkvm.up, glkvm.health,
+  glkvm.hdmi_signal, ...).
+
+  The KVM password is read from the `glkvm` vault by the workflow (a vault.get
+  expression on the check step), so nothing secret is written into this file. A
+  device that is off or unreachable is not a workflow failure — it is recorded
+  as a `fail` verdict and emitted like any other sample, so the collector always
+  has something to show.
+
+  Run it now instead of waiting for the trigger (override any input):
+    swamp workflow run @figy/glkvm-health
+    swamp workflow run @figy/glkvm-health --input host=10.10.6.151
+
+tags:
+  collective: figy
+trigger:
+  schedule: '*/15 * * * *'
+inputs:
+  properties:
+    device:
+      type: string
+      default: glkvm
+      description: Name of the @sntxrr/glinet-kvm model instance to drive.
+    host:
+      type: string
+      default: '10.10.6.150'
+      description: GL.iNet KVM address (no scheme).
+    port:
+      type: integer
+      default: 443
+      description: HTTPS port of the KVM web server.
+    username:
+      type: string
+      default: admin
+      description: KVM web UI user.
+    vaultName:
+      type: string
+      default: glkvm
+      description: Vault holding the KVM login password.
+    passwordRef:
+      type: string
+      default: GLKVM_PASSWORD
+      description: Vault key holding the login password.
+    timeoutMs:
+      type: integer
+      default: 10000
+      description: Per-request timeout for the KVM and the OTLP push.
+    otelModel:
+      type: string
+      default: otel
+      description: The @svendowideit/otel-settings model supplying the OTLP contract.
+    otelEndpoint:
+      type: string
+      default: 'http://127.0.0.1:4318'
+      description: >-
+        OTLP/HTTP base URL for the local gateway receiver. Empty falls back to
+        the settings contract's endpoint.
+    otelMesh:
+      type: string
+      default: tailscale
+      description: Settings-contract mesh to prefer when otelEndpoint is empty.
+    otelVaultName:
+      type: string
+      default: ''
+      description: Vault holding the OTLP gateway bearer token (empty = none).
+    otelTokenRef:
+      type: string
+      default: OTEL_EXPORTER_OTLP_TOKEN
+      description: Vault/environment key for the OTLP gateway bearer token.
+  required: []
+jobs:
+  - name: health
+    description: Check the device and forward its health to OTel.
+    steps:
+      - name: check
+        description: Run the read-only GL.iNet KVM health check (always records a verdict).
+        task:
+          type: model_method
+          modelType: '@sntxrr/glinet-kvm'
+          modelName: ${{ inputs.device }}
+          methodName: health
+          globalArgs:
+            host: ${{ inputs.host }}
+            port: ${{ inputs.port }}
+            username: ${{ inputs.username }}
+            password: ${{ vault.get(inputs.vaultName, inputs.passwordRef) }}
+            timeoutMs: ${{ inputs.timeoutMs }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: emit
+        description: >-
+          Push the latest health to the OTLP receiver. A no-op that records the
+          reason when no collector is configured, so it is safe to leave enabled.
+        task:
+          type: model_method
+          modelType: '@sntxrr/glinet-kvm'
+          modelName: ${{ inputs.device }}
+          methodName: emit
+          globalArgs:
+            host: ${{ inputs.host }}
+            port: ${{ inputs.port }}
+            username: ${{ inputs.username }}
+            password: ${{ vault.get(inputs.vaultName, inputs.passwordRef) }}
+            timeoutMs: ${{ inputs.timeoutMs }}
+          inputs:
+            health: >-
+              ${{ data.latest(inputs.device, "health").?attributes.orValue({}) }}
+            endpoint: ${{ inputs.otelEndpoint }}
+            mesh: ${{ inputs.otelMesh }}
+            otelModel: ${{ inputs.otelModel }}
+            otelVaultName: ${{ inputs.otelVaultName }}
+            otelTokenRef: ${{ inputs.otelTokenRef }}
+        dependsOn:
+          - step: check
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: assert-checked
+        description: Confirm the health step produced a record (not that the device is up).
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.device, "health").?attributes.?checkedAt.orValue("") != ""
+          message: >-
+            The health step wrote no health record for ${{
+            inputs.device }}; the pipeline did not run.
+          severity: high
+        dependsOn:
+          - step: check
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

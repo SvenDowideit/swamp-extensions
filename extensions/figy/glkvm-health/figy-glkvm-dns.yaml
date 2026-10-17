@@ -1,0 +1,87 @@
+id: 95d8c724-960f-4ad3-8066-11a7349d7552
+name: '@figy/glkvm-dns'
+description: |
+  fi.gy's GL.iNet KVM DNS: reconcile glkvm.fi.gy -> the KVM into the shared
+  Caddy, without giving the KVM its own Caddy.
+
+  The A record lives on its own @svendowideit/caddy model, `glkvm-caddy`, whose
+  only desired state is that one record — plus the shared settings (base domain
+  fi.gy, ACME email, the Gandi DNS provider via the shared environment file) the
+  caddy extension requires of every model sharing one Caddy. Because
+  `glkvm-caddy` shares `my-caddy`'s (target, serviceName), the caddy mixin merges
+  the two. This workflow runs `configureTls` (records need a DNS provider; no
+  TLS subjects, so this Caddy issues no certificate for a name that points at
+  the KVM itself) then `applyDnsRecords`, which reconciles the union of both
+  models' records into Caddy in one apply.
+
+  `glkvm-caddy` is a repo model under `models/`, created once with
+  `swamp model create` (see the README). A workflow-auto-created model lands in
+  `.swamp/auto-definitions` and the caddy mixin treats it as scratch, so it is
+  deliberately not auto-created here.
+
+  Run it after changing the KVM address, or the model's dnsRecords:
+    swamp workflow run @figy/glkvm-dns
+
+tags:
+  collective: figy
+inputs:
+  properties:
+    device:
+      type: string
+      default: glkvm-caddy
+      description: >-
+        Name of the @svendowideit/caddy repo model that declares the KVM's A
+        record.
+  required: []
+jobs:
+  - name: dns
+    description: Configure the KVM's DNS provider and reconcile its A record into the shared Caddy.
+    steps:
+      - name: tls
+        description: >-
+          Ensure the model has a DNS provider (Gandi, inferred from its plugins
+          and environment file) so it can write records. No TLS subjects.
+        task:
+          type: model_method
+          modelType: '@svendowideit/caddy'
+          modelName: ${{ inputs.device }}
+          methodName: configureTls
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: dns
+        description: >-
+          Reconcile this model's A record — merged with its Caddy peers'
+          records — into Caddy.
+        task:
+          type: model_method
+          modelType: '@svendowideit/caddy'
+          modelName: ${{ inputs.device }}
+          methodName: applyDnsRecords
+        dependsOn:
+          - step: tls
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: assert-applied
+        description: Confirm the DNS reconcile wrote its dnsConfig record.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.device, "current").?attributes.?appliedAt.orValue("") != ""
+          message: >-
+            The DNS step wrote no dnsConfig record for ${{ inputs.device }}; the
+            record was not reconciled.
+          severity: high
+        dependsOn:
+          - step: dns
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

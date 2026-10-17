@@ -111,7 +111,7 @@ footer .ver{color:var(--acc)}
 <li><code>stop()</code> waits for any rerun.</li>
 <li><strong>Unconfirmed commits (V3-40).</strong> The exit-75 message now says the kept commits replicate only if this checkout writes next, and are lost if another checkout writes first. A restore</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261017.001604.0-sha.ab2d51aa" rel="noopener">release v20261017.001604.0-sha.ab2d51aa</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ab2d51aaa1112ed47b77029b67043d9992bc462d" rel="noopener">ab2d51aa</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3183" rel="noopener">#3183</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3180" rel="noopener">#3180</a>𝗔 <a href="https://swamp-club.com/lab/3565" rel="noopener">lab#3565</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261016-235906-0-sha-a9a94abd">
@@ -132,7 +132,7 @@ footer .ver{color:var(--acc)}
 </ul>
 <p>How: the datastore kind adapter records each type&#39;s <code>sourcePath</code>; <code>datastore_extension_version.ts</code> finds the pulled extension&#39;s manifest, bounded to the pulled roots and requiring the manifest name to match its directory. The version comparison lives in infrastructure to avoid a new <code>datastore &lt;-&gt; models</code> bounded-context cycle.</p>
 <p>Known limit (documented in <code>design/enablers/datastores.md</code>): a checkout from before setup recorded <code>format: 3</code>, still on an old extension, opens as v2 when the marker read fails</p></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.235906.0-sha.a9a94abd" rel="noopener">release v20261016.235906.0-sha.a9a94abd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a9a94abd66e6154ab49dc1955a33a17bd1b19b17" rel="noopener">a9a94abd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3182" rel="noopener">#3182</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3534" rel="noopener">#3534</a>𝗔 <a href="https://swamp-club.com/lab/3567" rel="noopener">lab#3567</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261016-225544-0-sha-2a5f732b">
@@ -152,7 +152,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Setup</strong> refuses, writing nothing: an extension without the five v3 capabilities, Windows below the Litestream pin, a replica target the provider refuses, a prefix that is not new and empty (control plane, chunks, v2 namespaces, v2 root index), and a repo with records. It writes the marker with <code>putIfAbsent</code> and resumes a marker-only prefix.</li>
 <li><strong><code>V3DatastoreBinding</code></strong> (<code>v3_datastore_binding.ts</code>): a bucket datastore gets a local root (`.swamp/_datastore_v3_copies/</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/api.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.225544.0-sha.2a5f732b" rel="noopener">release v20261016.225544.0-sha.2a5f732b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2a5f732bd7fb823e9e6119dfb2fca42efcb8fa6d" rel="noopener">2a5f732b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3180" rel="noopener">#3180</a>𝗔 <a href="https://swamp-club.com/lab/3534" rel="noopener">lab#3534</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261016-225135-0-sha-4a68e87b">
@@ -380,7 +380,7 @@ footer .ver{color:var(--acc)}
 <li><strong>A unit reports dropped work.</strong> A v3 unit is *touched* once a repository writes into it: the write signal (<code>signalChange</code>, <code>stageTyped</code> before its builder runs) or any change it records, including a committed child&#39;s batches. A touched unit that drops work tells its handle, with its root&#39;s open time.</li>
 <li><strong>The command recovers before it exits.</strong> <code>closeV3Datastores</code> decides, while the lease and copy state are still present, whether this process still writes the datastore. That means the lease is held and current, the commit store&#39;s fence is not above its own, and, while replicating, its copy is current. After compaction and the closing sync, and before the stores close, it runs the existing swamp-club#3299 recovery for the checkout once no un</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.184551.0-sha.e06fd3dd" rel="noopener">release v20261016.184551.0-sha.e06fd3dd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e06fd3dd654566d30c6f617d915016b359c13341" rel="noopener">e06fd3dd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3169" rel="noopener">#3169</a>𝗔 <a href="https://swamp-club.com/lab/3553" rel="noopener">lab#3553</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261016-181509-0-sha-a593c3e4">
@@ -611,7 +611,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Truncation keeps dropped versions.</strong> <code>truncateAfter</code> (D2 restore) keeps the versions the commits it removes recorded, in a snapshot at the new head, and a later truncation below that head carries them over.</li>
 <li><strong><code>commits.db</code> schema 6</strong> (no-op migration): a swamp at schema 5 refuses a store with removed versions as newer (`da</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.021405.0-sha.b46b8895" rel="noopener">release v20261016.021405.0-sha.b46b8895</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b46b88953ba81fcabafc29e3b8ca23a1d0a20b54" rel="noopener">b46b8895</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3158" rel="noopener">#3158</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3473" rel="noopener">#3473</a>𝗔 <a href="https://swamp-club.com/lab/3532" rel="noopener">lab#3532</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261016-003849-0-sha-289d84ac">
@@ -688,7 +688,7 @@ footer .ver{color:var(--acc)}
 <li>only after the new lineage&#39;s first confirmation, once the lease check passed;</li>
 <li>never the current lineage</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/testing.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/testing.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/datastore/testing.md" rel="noopener">.claude/skills/swamp/references/extension/references/datastore/testing.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.233727.0-sha.a39bdd69" rel="noopener">release v20261015.233727.0-sha.a39bdd69</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a39bdd69f257b7f96833e3a6b230ddb99c870ade" rel="noopener">a39bdd69</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3155" rel="noopener">#3155</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3491" rel="noopener">#3491</a>𝗔 <a href="https://swamp-club.com/lab/3531" rel="noopener">lab#3531</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261015-223413-0-sha-afc0a1b6">
@@ -10003,7 +10003,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 268</li><li><strong>feat</strong> — 107</li><li><strong>test</strong> — 12</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 10</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-17T02:21:28.353Z">2026-10-17T02:21:28.353Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-17T03:04:58.877Z">2026-10-17T03:04:58.877Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

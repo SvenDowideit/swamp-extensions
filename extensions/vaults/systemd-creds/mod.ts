@@ -44,6 +44,7 @@ export async function defaultRunCommand(
   stdin?: string,
   binPath = "systemd-creds",
 ): Promise<{ stdout: string; stderr: string; code: number }> {
+  // swamp-quality-ignore deno-command: this vault backend exists to drive the systemd-creds binary; argv is built from validated keys, the secret is piped on stdin and never passed on the command line.
   const cmd = new Deno.Command(binPath, {
     args: ["--user", ...args],
     stdin: stdin !== undefined ? "piped" : "null",
@@ -197,9 +198,9 @@ export function assertSafeSecretKey(secretKey: string): void {
  * `global: true` on a vault to address `<credstoreDir>` itself: that flat
  * directory is the pre-isolation location, kept readable (and writable) so
  * existing installs keep working and can be migrated. A `list` on a per-vault
- * vault shows its own keys plus any same-named keys in the global directory, so
- * the transition is not silent — see the companion `@svendowideit/systemd-creds-admin`
- * model's `migrate` method to move them.
+ * vault reports only its own keys — global keys stay hidden (address them with
+ * a `global: true` vault) so the transition is not silent. Use the bundled
+ * `@svendowideit/vault-migrate` model's `migrate` method to move them.
  */
 export const vault = {
   type: "@svendowideit/systemd-creds",
@@ -273,8 +274,8 @@ export const vault = {
        * Remove a key from this vault's own directory. A key that lives only in
        * the shared global directory is refused: no single vault owns it, and
        * deleting it from here would silently affect every other vault. Migrate
-       * it first (the companion admin model), or manage the global store with a
-       * `global: true` vault.
+       * it first (the bundled `@svendowideit/vault-migrate` model), or manage
+       * the global store with a `global: true` vault.
        */
       delete: async (secretKey: string): Promise<void> => {
         assertSafeSecretKey(secretKey);

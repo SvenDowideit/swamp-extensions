@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/systemd-creds"
-version: "2026.10.01.2"
+version: "2026.10.18.1"
 description: >
   A swamp vault backend that stores secrets encrypted at rest with
   `systemd-creds --user`, so the encrypted files are useless without your UID
@@ -71,6 +71,14 @@ description: >
     pre-isolation directory `<credstoreDir>` itself — a vault created before this
     version keeps working through it, and per-vault reads fall back to it so
     existing secrets remain visible until migrated.
+
+  UPGRADE
+
+    This extension installs nothing on the host, so an upgrade has nothing to
+    rebuild or reconcile. Refresh the pulled vault backend and its bundled
+    `@svendowideit/vault-migrate` model with one idempotent command:
+
+        swamp extension update @svendowideit/systemd-creds
 
   WHAT IT INSTALLS
 

@@ -153,12 +153,18 @@ async function keysInTarget(
 /** The model definition. */
 export const model = {
   type: "@svendowideit/vault-migrate",
-  version: "2026.10.01.1",
+  version: "2026.10.18.1",
   globalArguments: z.object({}),
   upgrades: [
     {
       toVersion: "2026.10.01.1",
       description: "Initial release, no schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.18.1",
+      description:
+        "Documentation-only release: README/manifest upgrade guidance. Schema unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

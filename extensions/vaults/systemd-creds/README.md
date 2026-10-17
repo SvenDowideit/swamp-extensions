@@ -117,6 +117,24 @@ swamp model method run @svendowideit/vault-migrate migrate vault-migrate \
   --input from=legacy --input to=my-vault
 ```
 
+## Upgrade
+
+This extension installs nothing on the host — no services, daemons, cron
+triggers or webhooks — so an upgrade has nothing to rebuild or reconcile.
+Refresh the pulled vault backend and its bundled `@svendowideit/vault-migrate`
+model with one idempotent command:
+
+```sh
+swamp extension update @svendowideit/systemd-creds
+```
+
+Existing vault definitions keep working: the config schema is unchanged, so the
+next `put`, `get` or `list-keys` run simply uses the new code. The one-time move
+of pre-isolation secrets is a **data** migration, not an upgrade step — it is the
+separate, explained procedure in
+[Migrating a pre-isolation install](#migrating-a-pre-isolation-install), and it
+is safe to run whenever you are ready.
+
 ## Details
 
 The extension ships **one vault backend** (`@svendowideit/systemd-creds`) and

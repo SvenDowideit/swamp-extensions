@@ -67,8 +67,24 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3567"><span class="tier A">A</span>Enforce the minimum S3/GCS extension version for v3 bucket d</a><a href="#issue-3570"><span class="tier A">A</span>agent-runner: an effort argument next to model (claude --eff</a><a href="#issue-3041"><span class="tier A">A</span>digitalocean codegen leaves an orphaned security_secret.ts m</a><a href="#issue-3231"><span class="tier A">A</span>vercel/projects update: always resends the unchanged project</a><a href="#issue-3534"><span class="tier A">A</span>Datastore rework Phase 4 E: v3 on S3 and GCS (solo mode): se</a><a href="#issue-3552"><span class="tier A">A</span>A --repo-dir or SWAMP_REPO_DIR through a symlink fails with </a><a href="#issue-3521"><span class="tier A">A</span>ensure_worktree on Windows: drive-letter paths are treated a</a><a href="#issue-3540"><span class="tier A">A</span>Cloudflare extensions reject account-owned API tokens: crede</a><a href="#issue-3543"><span class="tier A">A</span>@swamp/1password: vault delete of a missing item probably fa</a><a href="#issue-3544"><span class="tier A">A</span>@swamp/1password: item or vault names containing &#39;authorizat</a><a href="#issue-3558"><span class="tier A">A</span>typed-secrets 2.2: VaultSecretBag entries hold references, o</a><a href="#issue-3535"><span class="tier A">A</span>Retention under serve load: measure and fix automatic passes</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3572"><span class="tier A">A</span>agent-runner and deno-runner: support Windows (both refuse t</a><a href="#issue-3565"><span class="tier A">A</span>v3 replication: check a possible S1 in serve&#39;s retake, fix s</a><a href="#issue-3567"><span class="tier A">A</span>Enforce the minimum S3/GCS extension version for v3 bucket d</a><a href="#issue-3570"><span class="tier A">A</span>agent-runner: an effort argument next to model (claude --eff</a><a href="#issue-3041"><span class="tier A">A</span>digitalocean codegen leaves an orphaned security_secret.ts m</a><a href="#issue-3231"><span class="tier A">A</span>vercel/projects update: always resends the unchanged project</a><a href="#issue-3534"><span class="tier A">A</span>Datastore rework Phase 4 E: v3 on S3 and GCS (solo mode): se</a><a href="#issue-3552"><span class="tier A">A</span>A --repo-dir or SWAMP_REPO_DIR through a symlink fails with </a><a href="#issue-3521"><span class="tier A">A</span>ensure_worktree on Windows: drive-letter paths are treated a</a><a href="#issue-3540"><span class="tier A">A</span>Cloudflare extensions reject account-owned API tokens: crede</a><a href="#issue-3543"><span class="tier A">A</span>@swamp/1password: vault delete of a missing item probably fa</a><a href="#issue-3544"><span class="tier A">A</span>@swamp/1password: item or vault names containing &#39;authorizat</a></aside><div>
 
+<article class="item" id="issue-3572">
+<h2><span class="tier A">A</span>agent-runner and deno-runner: support Windows (both refuse to start: Unsupported operating system)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-17T00:32:37.029Z">2026-10-17T00:32:37.029Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3572" rel="noopener">lab#3572</a></div>
+</article>
+<article class="item" id="issue-3565">
+<h2><span class="tier A">A</span>v3 replication: check a possible S1 in serve&#39;s retake, fix serve wedging on a retake mid-replacement, and stop &#39;the next write replicates them&#39; being false (bug hunt group 2)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-17T00:18:47.566Z">2026-10-17T00:18:47.566Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3565" rel="noopener">lab#3565</a></div>
+</article>
 <article class="item" id="issue-3567">
 <h2><span class="tier A">A</span>Enforce the minimum S3/GCS extension version for v3 bucket datastores from the lockfile</h2>
 <p class="lede">Shipped feature</p>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3544" rel="noopener">lab#3544</a></div>
 </article>
-<article class="item" id="issue-3558">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3558">
 <h2><span class="tier A">A</span>typed-secrets 2.2: VaultSecretBag entries hold references, one registry per run, 128-bit sentinels</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-16T21:57:06.668Z">2026-10-16T21:57:06.668Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3535" rel="noopener">lab#3535</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3214">
+<article class="item" id="issue-3214">
 <h2><span class="tier A">A</span>Show wait keys and pending signals to remote clients and the dashboard</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-16T20:54:48.236Z">2026-10-16T20:54:48.236Z</time></span></div>
@@ -4229,21 +4245,13 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3565">
-<h2><span class="tier B">B</span>v3 replication: check a possible S1 in serve&#39;s retake, fix serve wedging on a retake mid-replacement, and stop &#39;the next write replicates them&#39; being false (bug hunt group 2)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-17T00:13:14.690Z">2026-10-17T00:13:14.690Z</time></span></div>
+<article class="item" id="issue-3564">
+<h2><span class="tier B">B</span>v3: writer liveness is judged wrong: a same-hostname container takes over a live writer, a stalled writer&#39;s file is reverted then committed, and a fenced retention pass rewinds the new writer (bug hunt group 1)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-17T01:00:14.504Z">2026-10-17T01:00:14.504Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3565" rel="noopener">lab#3565</a></div>
-</article>
-<article class="item" id="issue-3572">
-<h2><span class="tier B">B</span>agent-runner and deno-runner: support Windows (both refuse to start: Unsupported operating system)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-17T00:05:52.781Z">2026-10-17T00:05:52.781Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3572" rel="noopener">lab#3572</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3564" rel="noopener">lab#3564</a></div>
 </article>
 <article class="item" id="issue-3463">
 <h2><span class="tier B">B</span>auth whoami: log mode labels collectives Free and shows trial expired for a superseded trial</h2>
@@ -4348,14 +4356,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3568" rel="noopener">lab#3568</a></div>
-</article>
-<article class="item" id="issue-3564">
-<h2><span class="tier C">C</span>v3: writer liveness is judged wrong: a same-hostname container takes over a live writer, a stalled writer&#39;s file is reverted then committed, and a fenced retention pass rewinds the new writer (bug hunt group 1)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-16T22:52:08.253Z">2026-10-16T22:52:08.253Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3564" rel="noopener">lab#3564</a></div>
 </article>
 <article class="item" id="issue-3554">
 <h2><span class="tier C">C</span>issue-lifecycle: pr_merged and ship report success and advance the phase when swamp-club is unreachable, writing nothing upstream</h2>
@@ -5831,12 +5831,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>720 items across 1 source(s) in this window:
-0 critical, 520 notable, 11 routine,
-189 minor.</p>
+0 critical, 522 notable, 10 routine,
+188 minor.</p>
 <ul><li><strong>issues</strong> — 720</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-17T00:16:17.817Z">2026-10-17T00:16:17.817Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-17T01:04:18.960Z">2026-10-17T01:04:18.960Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

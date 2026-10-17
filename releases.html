@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261015-222935-0-sha-852243ed"><span class="tier S">S</span>a checked-in inventory of every secret sink and boundary, wi</a><a href="#release-swamp-club-swamp-v20261016-225544-0-sha-2a5f732b"><span class="tier A">A</span>v3 on S3 and GCS — setup --format 3 creates a v3 datastore o</a><a href="#release-swamp-club-swamp-v20261016-225135-0-sha-4a68e87b"><span class="tier A">A</span>a --repo-dir or SWAMP_REPO_DIR through a symlink resolves to</a><a href="#release-swamp-club-swamp-v20261016-205457-0-sha-35b3bcc2"><span class="tier A">A</span>run gc and data gc cost the same however much history is kep</a><a href="#release-swamp-club-swamp-v20261016-205012-0-sha-ffd9aa85"><span class="tier A">A</span>show wait keys and pending signals to remote clients and the</a><a href="#release-swamp-club-swamp-v20261016-203849-0-sha-23eea3e6"><span class="tier A">A</span>existence-check capability error names the vault&#39;s configure</a><a href="#release-swamp-club-swamp-v20261016-203421-0-sha-9342fd0f"><span class="tier A">A</span>pause and resume a schedule without editing the workflow (sw</a><a href="#release-swamp-club-swamp-v20261016-201341-0-sha-baf46f1f"><span class="tier A">A</span>the first bundle per deno cache runs alone so concurrent bun</a><a href="#release-swamp-club-swamp-v20261016-200459-0-sha-13559609"><span class="tier A">A</span>capability errors name the vault&#39;s configured type, not its </a><a href="#release-swamp-club-swamp-v20261016-195927-0-sha-000cbe5e"><span class="tier A">A</span>VaultExistenceProvider.has(key), its conformance suite and c</a><a href="#release-swamp-club-swamp-v20261016-193750-0-sha-669ad115"><span class="tier A">A</span>MockVaultProvider.get and delete reject for a missing key in</a><a href="#release-swamp-club-swamp-v20261016-184551-0-sha-e06fd3dd"><span class="tier A">A</span>a v3 command&#39;s dropped work no longer stays in its checkout </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261015-222935-0-sha-852243ed"><span class="tier S">S</span>a checked-in inventory of every secret sink and boundary, wi</a><a href="#release-swamp-club-swamp-v20261016-235906-0-sha-a9a94abd"><span class="tier A">A</span>v3 bucket datastores refuse an S3/GCS extension older than 2</a><a href="#release-swamp-club-swamp-v20261016-225544-0-sha-2a5f732b"><span class="tier A">A</span>v3 on S3 and GCS — setup --format 3 creates a v3 datastore o</a><a href="#release-swamp-club-swamp-v20261016-225135-0-sha-4a68e87b"><span class="tier A">A</span>a --repo-dir or SWAMP_REPO_DIR through a symlink resolves to</a><a href="#release-swamp-club-swamp-v20261016-205457-0-sha-35b3bcc2"><span class="tier A">A</span>run gc and data gc cost the same however much history is kep</a><a href="#release-swamp-club-swamp-v20261016-205012-0-sha-ffd9aa85"><span class="tier A">A</span>show wait keys and pending signals to remote clients and the</a><a href="#release-swamp-club-swamp-v20261016-203849-0-sha-23eea3e6"><span class="tier A">A</span>existence-check capability error names the vault&#39;s configure</a><a href="#release-swamp-club-swamp-v20261016-203421-0-sha-9342fd0f"><span class="tier A">A</span>pause and resume a schedule without editing the workflow (sw</a><a href="#release-swamp-club-swamp-v20261016-201341-0-sha-baf46f1f"><span class="tier A">A</span>the first bundle per deno cache runs alone so concurrent bun</a><a href="#release-swamp-club-swamp-v20261016-200459-0-sha-13559609"><span class="tier A">A</span>capability errors name the vault&#39;s configured type, not its </a><a href="#release-swamp-club-swamp-v20261016-195927-0-sha-000cbe5e"><span class="tier A">A</span>VaultExistenceProvider.has(key), its conformance suite and c</a><a href="#release-swamp-club-swamp-v20261016-193750-0-sha-669ad115"><span class="tier A">A</span>MockVaultProvider.get and delete reject for a missing key in</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20261015-222935-0-sha-852243ed">
 <h2><span class="tier S">S</span>a checked-in inventory of every secret sink and boundary, with canary tests at the allowed boundaries (swamp-club#3511) (#3152)</h2>
@@ -89,6 +89,27 @@ footer .ver{color:var(--acc)}
 </ul></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.222935.0-sha.852243ed" rel="noopener">release v20261015.222935.0-sha.852243ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/852243edf2e7c999e8f4f08c9f54f4e18575c9ff" rel="noopener">852243ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3152" rel="noopener">#3152</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261016-235906-0-sha-a9a94abd">
+<h2><span class="tier A">A</span>v3 bucket datastores refuse an S3/GCS extension older than 2026.10.16.5, as loaded or as pinned (swamp-club#3567) (#3182)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-17T00:00:31Z">2026-10-17T00:00:31Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): v3 bucket datastores refuse an S3/GCS extension older than 2026.10.16.5, as loaded or as pinned (swamp-club#3567) (#3182)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Enforces <code>V3_BUCKET_MIN_EXTENSION_VERSION</code> (2026.10.16.5, the first release whose v2 sync refuses a format-3 bucket, swamp-club#3549) for v3 datastores on S3 and GCS (swamp-club#3567, follow-up to #3534).</p>
+<ul>
+<li><code>datastore setup extension … --format 3</code> refuses when the pulled extension the datastore type was loaded from (its <code>manifest.yaml</code>) is older than the minimum, or when the committed lockfile pins it below the minimum.</li>
+<li>Every command that opens a format-3 bucket datastore refuses the same way (format guard, v3 branch only), so a teammate on an old extension cannot write.</li>
+<li>The refusal names <code>swamp extension update &lt;extension&gt;</code>, which is not itself blocked.</li>
+<li>A <code>.swamp.yaml</code> with no <code>format</code> stays v2 on any extension, offline too. A local or mounted datastore source (no published version) is not checked.</li>
+</ul>
+<p>How: the datastore kind adapter records each type&#39;s <code>sourcePath</code>; <code>datastore_extension_version.ts</code> finds the pulled extension&#39;s manifest, bounded to the pulled roots and requiring the manifest name to match its directory. The version comparison lives in infrastructure to avoid a new <code>datastore &lt;-&gt; models</code> bounded-context cycle.</p>
+<p>Known limit (documented in <code>design/enablers/datastores.md</code>): a checkout from before setup recorded <code>format: 3</code>, still on an old extension, opens as v2 when the marker read fails</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.235906.0-sha.a9a94abd" rel="noopener">release v20261016.235906.0-sha.a9a94abd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a9a94abd66e6154ab49dc1955a33a17bd1b19b17" rel="noopener">a9a94abd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3182" rel="noopener">#3182</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3534" rel="noopener">#3534</a>𝗔 <a href="https://swamp-club.com/lab/3567" rel="noopener">lab#3567</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261016-225544-0-sha-2a5f732b">
 <h2><span class="tier A">A</span>v3 on S3 and GCS — setup --format 3 creates a v3 datastore on a bucket, replicated per checkout through Litestream (swamp-club#3534) (#3180)</h2>
@@ -320,7 +341,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.193750.0-sha.669ad115" rel="noopener">release v20261016.193750.0-sha.669ad115</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/669ad1153008411efb739bbea54fcd0190c9d81e" rel="noopener">669ad115</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3171" rel="noopener">#3171</a>𝗔 <a href="https://swamp-club.com/lab/3559" rel="noopener">lab#3559</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261016-184551-0-sha-e06fd3dd">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261016-184551-0-sha-e06fd3dd">
 <h2><span class="tier A">A</span>a v3 command&#39;s dropped work no longer stays in its checkout (swamp-club#3553) (#3169)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-16T18:47:45Z">2026-10-16T18:47:45Z</time></span><span>datastore</span><span>fix</span></div>
@@ -338,7 +359,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.184551.0-sha.e06fd3dd" rel="noopener">release v20261016.184551.0-sha.e06fd3dd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e06fd3dd654566d30c6f617d915016b359c13341" rel="noopener">e06fd3dd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3169" rel="noopener">#3169</a>𝗔 <a href="https://swamp-club.com/lab/3553" rel="noopener">lab#3553</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261016-181509-0-sha-a593c3e4">
+<article class="item" id="release-swamp-club-swamp-v20261016-181509-0-sha-a593c3e4">
 <h2><span class="tier A">A</span>push, quality and fmt report source paths under the repo dir as the user spelled it, not its symlink-resolved path (swamp-club#3536) (#3168)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-16T18:17:07Z">2026-10-16T18:17:07Z</time></span><span>extensions</span><span>fix</span></div>
@@ -9436,7 +9457,31 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261016-185248-0-sha-9ea7a13e">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261017-001604-0-sha-ab2d51aa">
+<h2><span class="tier C">C</span>swamp 20261017.001604.0-sha.ab2d51aa</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-17T00:17:59Z">2026-10-17T00:17:59Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): v3 replication: serve&#39;s retake during a sidecar replacement no longer loses commits or wedges serve, and an unconfirmed close says when its commits are lost (swamp-club#3565) (#3183)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3565: four bugs found in a v3 replication bug hunt, which went live for S3 and GCS v3 datastores with #3180. One of them was an S1.</p>
+<ul>
+<li><strong>S1, acknowledged commits lost.</strong> A lease retake while serve&#39;s sidecar replacement was inside its restore let the stale restore be marked current and start a lineage at the old fence. The datastore forked, and readers followed the other writer&#39;s lineage, so serve&#39;s acknowledged commit was lost. Now:</li>
+<li>A retake makes the in-flight replacement stale: it marks nothing current and starts no lineage or sidecar at its old fence. Its read model is still rebuilt.</li>
+<li><code>ensureV3CopyCurrent</code> re-checks right before it marks the copy current.</li>
+<li><code>prepareV3WriterLineage</code> refuses to start a lineage below one a newer writer started.</li>
+<li><strong>Serve wedge (V3-54).</strong> A replacement asked for while one was running was dropped, so after the retake serve refused every commit until restart. Now:</li>
+<li>The request reruns once the running replacement settles.</li>
+<li>The probe also replaces a copy that is not current.</li>
+<li><code>stop()</code> waits for any rerun.</li>
+<li><strong>Unconfirmed commits (V3-40).</strong> The exit-75 message now says the kept commits replicate only if this checkout writes next, and are lost if another checkout writes first. A restore</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261017.001604.0-sha.ab2d51aa" rel="noopener">release v20261017.001604.0-sha.ab2d51aa</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ab2d51aa" rel="noopener">ab2d51aa</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3183" rel="noopener">#3183</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3180" rel="noopener">#3180</a>𝗔 <a href="https://swamp-club.com/lab/3565" rel="noopener">lab#3565</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261016-185248-0-sha-9ea7a13e">
 <h2><span class="tier C">C</span>typed-secrets Phase 1.2 pins for the Proxy-based Secret and its refusal inventory on cel-js 7.6.1 (swamp-club#3551) (#3170)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-16T18:54:46Z">2026-10-16T18:54:46Z</time></span><span>cel</span><span>test</span></div>
@@ -9952,13 +9997,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>409 items across 1 source(s) in this window:
-1 critical, 373 notable, 14 routine,
-21 minor.</p>
-<ul><li><strong>fix</strong> — 267</li><li><strong>feat</strong> — 106</li><li><strong>test</strong> — 12</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 10</li><li><strong>perf</strong> — 2</li></ul></section>
+<p>411 items across 1 source(s) in this window:
+1 critical, 374 notable, 14 routine,
+22 minor.</p>
+<ul><li><strong>fix</strong> — 267</li><li><strong>feat</strong> — 107</li><li><strong>test</strong> — 12</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 10</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-17T00:16:17.817Z">2026-10-17T00:16:17.817Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-17T01:04:18.960Z">2026-10-17T01:04:18.960Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

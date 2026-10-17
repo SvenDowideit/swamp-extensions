@@ -1,0 +1,153 @@
+id: 976dbca6-caf8-4b0d-a27b-bc05de09d035
+name: "@svendowideit/swamp-worker-upgrade"
+description: |
+  Install or upgrade this host's swamp worker in one idempotent run — the same
+  command whether the worker is absent or already present.
+
+  On a fresh host it mints a token, installs the swamp binary, writes the systemd
+  user unit and starts it. On a host that already runs the worker it upgrades the
+  swamp binary to the requested release and reconciles the unit, restarting only
+  when the unit or token changed. Every step is idempotent, so re-running is
+  always safe and changes only what differs.
+
+  The `identity` and `swampBinPath` values namespace and locate the worker; they
+  must match the worker this host already runs (for example `identity=figy`,
+  `swampBinPath=~/.local/bin/swamp`).
+
+  Run:
+      swamp workflow run @svendowideit/swamp-worker-upgrade \
+        --input serveUrl=wss://swamp.x1yoga.fi.gy \
+        --input identity=figy --input swampBinPath=~/.local/bin/swamp
+inputs:
+  properties:
+    serveUrl:
+      type: string
+      default: ""
+      description: The serve URL the worker dials (wss:// for a TLS front). Required.
+    identity:
+      type: string
+      default: worker
+      description: >
+        Worker identity that namespaces every artifact; must match the installed
+        worker on this host.
+    swampBinPath:
+      type: string
+      default: ~/.local/bin/swamp
+      description: >
+        Absolute path to the swamp binary the unit runs — and that `install`
+        keeps current. Must match the binary the worker already execs.
+    version:
+      type: string
+      default: latest
+      description: >
+        swamp release to install or upgrade to; `latest` upgrades to the newest
+        release. Pin a tag to hold a host back.
+    host:
+      type: string
+      default: ""
+      description: Host label; empty uses this machine's hostname.
+    labels:
+      type: array
+      items:
+        type: string
+      default: []
+      description: Extra scheduling labels as KEY=VALUE strings.
+    concurrency:
+      type: string
+      default: ""
+      description: Worker `--concurrency` override; empty uses the model global.
+    duration:
+      type: string
+      default: 30d
+      description: Enrollment token lifetime, used only when a token must be minted.
+  required:
+    - serveUrl
+jobs:
+  - name: install-or-upgrade
+    description: Mint if needed, install/upgrade the binary, reconcile the unit, report.
+    steps:
+      - name: token
+        description: >
+          Ensure an enrollment token exists for this identity and host. Reuses an
+          already-staged token, so re-running never mints a second one.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          globalArgs:
+            identity: ${{ inputs.identity }}
+            swampBinPath: ${{ inputs.swampBinPath }}
+          methodName: mintToken
+          inputs:
+            duration: ${{ inputs.duration }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: install
+        description: >
+          Install the swamp binary when it is absent, or upgrade it to the
+          requested release when it is present and differs.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          globalArgs:
+            identity: ${{ inputs.identity }}
+            swampBinPath: ${{ inputs.swampBinPath }}
+          methodName: install
+          inputs:
+            version: ${{ inputs.version }}
+            force: false
+        dependsOn:
+          - step: token
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: reconcile
+        description: >
+          Install the staged token, write the unit only if it changed, enable it
+          with linger, and restart only when the unit or the token changed.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          globalArgs:
+            identity: ${{ inputs.identity }}
+            swampBinPath: ${{ inputs.swampBinPath }}
+          methodName: ensureService
+          inputs:
+            serveUrl: ${{ inputs.serveUrl }}
+            host: ${{ inputs.host }}
+            labels: ${{ inputs.labels }}
+            concurrency: ${{ inputs.concurrency }}
+        dependsOn:
+          - step: install
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: status
+        description: >
+          Report the live unit state and whether this identity's worker is
+          enrolled, so the run ends on verified reality rather than intent.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-worker"
+          modelName: worker
+          globalArgs:
+            identity: ${{ inputs.identity }}
+            swampBinPath: ${{ inputs.swampBinPath }}
+          methodName: status
+        dependsOn:
+          - step: reconcile
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

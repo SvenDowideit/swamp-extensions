@@ -1119,7 +1119,7 @@ type MethodContext = {
 
 export const model = {
   type: "@svendowideit/swamp-worker",
-  version: "2026.10.16.1",
+  version: "2026.10.17.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -1174,6 +1174,14 @@ export const model = {
         "retires every rotation generation by default (opt out with " +
         "`allGenerations: false`), and provisioning that refuses a foreign token " +
         "and fails clearly on a host without systemd.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.1",
+      description: "Unified install/upgrade: ships one idempotent workflow, " +
+        "`@svendowideit/swamp-worker-upgrade`, that installs the worker when it " +
+        "is absent and upgrades the swamp binary and reconciles the unit when it " +
+        "is present — the same command either way. No schema or data changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

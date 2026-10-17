@@ -1,30 +1,24 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-worker"
-version: "2026.10.16.1"
+version: "2026.10.17.1"
 description: >
-  Enlist a host as a swamp worker for one `swamp serve` orchestrator: render and
-  reconcile its systemd user unit, ensure the swamp binary, mint its enrollment
-  token, and report or remove exactly the worker this repo owns.
+  Enlist a host as a swamp worker for one `swamp serve` orchestrator: install or
+  upgrade it, reconcile its systemd user unit, mint its enrollment token, and
+  report or remove exactly the worker this repo owns.
 
   WHAT IT DOES
 
-    Turns "make this host a worker for my serve" into repeatable swamp methods.
-    The model renders the worker's systemd *user* unit from the desired state,
-    writes it only when it changed, and starts it with `enable --now` plus
-    `loginctl enable-linger` so the worker survives logout and reboot. It mints a
-    long-duration enrollment token to a `0600` file, reports live unit and
-    enrollment status, and on `remove` **completely decommissions** the worker —
-    revokes the token on the orchestrator (so it can never re-enroll), then stops,
-    disables and deletes only its own namespaced artifacts.
-    Prefer it over `swamp worker daemon enable`: the built-in daemon hardcodes
-    the unit name `swamp-worker`, so only one worker can exist per host — this
-    model namespaces every artifact by `identity` (`swamp-worker-<identity>`,
-    cache dir, token/env files), so a worker this repo manages coexists with
-    workers other swamps install on the same host and never touches them. For a
-    *set* of hosts it also renders the per-node provisioning and removal scripts
-    and mints one enrollment token per node (`mintToken`, keyed per target), so a
-    site workflow can ship them over SSH with @swamp/ssh. It is portable: it knows
-    no domain, no serve hostname and no node set of its own.
+    Turns "make this host a worker for my serve" into repeatable swamp methods —
+    and, for a single host, into one idempotent install-or-upgrade workflow. The
+    model renders the worker's systemd *user* unit, writes it only when it changed,
+    and starts it with `enable --now` plus `loginctl enable-linger`, so the worker
+    survives logout and reboot. It mints a long-duration enrollment token to a
+    `0600` file, and `remove` decommissions the worker: it revokes the token so it
+    can never re-enrol, then deletes only its own namespaced artifacts. Every
+    artifact is namespaced by `identity`, so this worker coexists with, and never
+    touches, workers other repos install on the same host. For a set of hosts it
+    also renders per-node provisioning and removal scripts. Prefer it over the
+    built-in daemon, which allows only one worker per host.
 
   INSTALL
 
@@ -33,18 +27,23 @@ description: >
   DEPENDENCIES
 
     None installed on the host beyond the swamp binary itself and the host's own
-    systemd (`systemctl --user`, `loginctl`). A site extension
-    (`@figy/swamp-worker`) supplies the serve URL, node set and secret handling
-    and drives this model over SSH. Linux only.
+    systemd (`systemctl --user`, `loginctl`). The host must have a running systemd
+    *user* manager — `systemctl --user` must work (a live `logind` and
+    `user@<uid>.service` with `/run/user/<uid>`) — or the ensure/provision steps
+    fail. A site extension (`@figy/swamp-worker`) supplies the serve URL, node set
+    and secret handling and drives this model over SSH. Linux only.
 
   RUN
 
-      # Create the worker instance, then mint a token and bring the unit up on
-      # THIS host. Set identity so the worker is namespaced and unique per repo.
-      swamp model create @svendowideit/swamp-worker worker \
-        --global-arg identity=figy
-      swamp model method run worker mintToken \
-        --input duration=30d
+      # Install or upgrade this host's worker in one idempotent run. `swampBinPath`
+      # MUST be the swamp binary on THIS host (token minting execs it) and `identity`
+      # must match the site's. Re-run to upgrade the binary and reconcile the unit.
+      swamp workflow run @svendowideit/swamp-worker-upgrade \
+        --input serveUrl=wss://swamp.x1yoga.fi.gy \
+        --input identity=figy --input swampBinPath=~/.local/bin/swamp
+
+      # Or use the methods directly: mint a token, then bring the unit up on this host.
+      swamp model method run worker mintToken --input duration=30d
       swamp model method run worker ensureService \
         --input serveUrl=wss://swamp.x1yoga.fi.gy
 
@@ -54,8 +53,7 @@ description: >
       swamp model method run worker status
 
       # Completely reverse it: `remove` revokes the token (disconnecting the
-      # worker), then stops, disables and deletes its artifacts. Run `revokeToken`
-      # on its own only to rotate/retire a token without removing the worker.
+      # worker), then stops, disables and deletes its artifacts.
       swamp model method run worker remove
 
   CONFIGURE
@@ -70,20 +68,29 @@ description: >
         cacheDirRoot    per-identity cache dir root                  (~/.local/share/swamp-worker)
         unitDir         systemd user unit dir                        (~/.config/systemd/user)
         swampHome       SWAMP_HOME in the unit                       (~/.swamp)
-        swampConfigDir  SWAMP_CONFIG_DIR in the unit                 (~/.config/swamp)
-        concurrency     worker --concurrency                         (auto)
-        enableLinger    run `loginctl enable-linger`                 (true)
+        swampConfigDir  SWAMP_CONFIG_DIR in the unit                (~/.config/swamp)
+        concurrency     worker --concurrency                        (auto)
+        enableLinger    run `loginctl enable-linger`                (true)
 
-    Per call: `renderUnit`/`ensureService` take `serveUrl`, optional `host`,
-    `labels` (KEY=VALUE strings), `concurrency` and `force` (`ensureService` also
-    takes `name`); `renderProvision` takes `serveUrl`, `host`, `labels`,
-    `concurrency` and `version`; `renderRemoval` takes nothing; `install` takes
-    `version` and `force`; `mintToken` takes `name` (default
-    `<identity>-<hostname>`), `duration` and `force` — one call per node;
-    `clearStagedTokens` takes `names`; `revokeToken` takes `name` and `purgeFile`;
-    `remove` takes `name`, `revokeToken` (default true) and `purgeData`. For a
-    fan-out deploy the model renders the scripts and mints one token per node; a
-    site workflow ships them over SSH.
+    `swampBinPath` is the setting that bites: it is exec'd on the orchestrator to
+    mint and revoke tokens, so it must point at an existing swamp binary there — a
+    per-user install is usually `~/.local/bin/swamp`, not the `/usr/local/bin/swamp`
+    default. It is also the path the provisioning script installs on each node, so
+    on a set of hosts it must be writable and identical. Per call:
+    `renderUnit`/`ensureService` take `serveUrl`, optional `host`, `labels`
+    (KEY=VALUE strings), `concurrency` and `force` (`ensureService` also takes
+    `name`); `renderProvision` takes `serveUrl`, `host`, `labels`, `concurrency` and
+    `version`; `renderRemoval` takes nothing; `install` takes `version` and `force`;
+    `mintToken` takes `name` (default `<identity>-<hostname>`), `duration` and
+    `force` — one call per node; `clearStagedTokens` takes `names`; `revokeToken`
+    takes `name` and `purgeFile`; `remove` takes `name`, `revokeToken` (default
+    true) and `purgeData`.
+
+  UPGRADE
+
+    Install and upgrade are the same idempotent workflow: re-run
+    `@svendowideit/swamp-worker-upgrade` to upgrade this host's swamp binary to
+    `version` (default `latest`) and reconcile its unit. It needs no new inputs.
 
   WHAT IT INSTALLS
 
@@ -103,6 +110,9 @@ paths:
 
 models:
   - swamp_worker.ts
+
+workflows:
+  - worker-upgrade.yaml
 
 dependencies: []
 

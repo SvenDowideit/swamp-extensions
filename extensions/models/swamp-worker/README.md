@@ -78,6 +78,10 @@ Global arguments are set at model creation (`swamp model create
 | `swampConfigDir` | string | `~/.config/swamp` | `SWAMP_CONFIG_DIR` exported into the unit. |
 | `concurrency` | string | `auto` | Worker `--concurrency` (`auto` = CPU count). |
 | `enableLinger` | boolean | `true` | Run `loginctl enable-linger` so the worker survives logout/reboot. |
+| `otelSettingsModel` | string | `""` | Name of the `@svendowideit/otel-settings` model to export telemetry to (empty = telemetry off). |
+| `otelServiceName` | string | `swamp-worker` | `OTEL_SERVICE_NAME` (and resource `service.name`) the worker reports. |
+| `telemetryVault` | string | `""` | Vault holding the OTLP gateway bearer token (empty = unauthenticated). |
+| `authRef` | string | `OTEL_EXPORTER_OTLP_TOKEN` | Vault key holding the bearer token (a reference, never the secret). |
 | `releaseBaseUrl` | string | GitHub releases | Base URL for swamp release downloads. |
 
 `swampBinPath` is the setting that bites: the model **exec's it on the
@@ -86,6 +90,19 @@ binary there — a per-user install is usually `~/.local/bin/swamp`, not the
 `/usr/local/bin/swamp` default (which yields `Failed to spawn '/usr/local/bin/swamp'`
 on token minting). The provisioning script installs the same path on each node,
 so on a set of hosts it must be a path each node's user can write.
+
+**Telemetry.** Set `otelSettingsModel` to the site's `@svendowideit/otel-settings`
+model (e.g. `otel`) and the worker unit gains that contract's
+`OTEL_EXPORTER_OTLP_*` env — the default-mesh OTLP endpoint, protocol, service
+name and resource attributes, plus `OTEL_BSP_USE`/`OTEL_BLRP_USE` batching. The
+worker then exports **logs, metrics and traces**. Each node adds a `host=<node>`
+resource attribute, so a single `service.name` (`otelServiceName`) stays
+filterable per host. Set `telemetryVault`/`authRef` when the gateway requires a
+bearer token. With `otelSettingsModel` empty (the default) the unit is
+unchanged. The resolution mirrors `@svendowideit/swamp-serve`: it reads the
+settings model's `settings` document; because the fan-out renders one unit for
+all nodes, the `host` attribute carries the `@@TF_HOSTNAME@@` placeholder and
+the provisioning script substitutes each node's real hostname at install time.
 
 Per-call arguments:
 
@@ -111,6 +128,20 @@ one idempotent command. This is the entry point to reach for; re-running it is a
 no-op when nothing changed:
 
 ```sh
+swamp workflow run @svendowideit/swamp-worker-upgrade \
+  --input serveUrl=wss://swamp.x1yoga.fi.gy \
+  --input identity=figy --input swampBinPath=~/.local/bin/swamp
+```
+
+Give the worker telemetry: set `otelSettingsModel` at creation so its unit
+carries the site's `OTEL_EXPORTER_OTLP_*` env (logs, metrics and traces export
+from every node), then re-run the upgrade to apply it:
+
+```sh
+swamp model create @svendowideit/swamp-worker worker \
+  --global-arg identity=figy \
+  --global-arg swampBinPath=~/.local/bin/swamp \
+  --global-arg otelSettingsModel=otel
 swamp workflow run @svendowideit/swamp-worker-upgrade \
   --input serveUrl=wss://swamp.x1yoga.fi.gy \
   --input identity=figy --input swampBinPath=~/.local/bin/swamp
@@ -221,8 +252,10 @@ differs.
 `@svendowideit/swamp-worker` ships one model type (`@svendowideit/swamp-worker`)
 and one workflow (`@svendowideit/swamp-worker-upgrade`). It installs nothing on
 the host beyond a systemd user unit, the worker's cache dir, and `0600` token/env
-files under `configDir`; it enables user lingering. It does not install cron
-triggers or webhooks of its own.
+files under `configDir`; it enables user lingering. When `otelSettingsModel` is
+set, the unit also carries the contract's `OTEL_EXPORTER_OTLP_*` env (see
+[Configuration](#configuration)), mirroring `@svendowideit/swamp-serve`'s
+telemetry resolution. It does not install cron triggers or webhooks of its own.
 
 Resources: `unit` (rendered content + path), `install` (binary presence),
 `token` (**keyed by token name** — name, duration, path; never the secret),

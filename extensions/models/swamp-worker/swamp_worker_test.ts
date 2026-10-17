@@ -8,6 +8,7 @@ import {
   assertOwnedUnit,
   assertValidUnitName,
   baseLabels,
+  buildTelemetryEnv,
   cacheDirFor,
   type CmdResult,
   defaultTokenName,
@@ -1049,6 +1050,16 @@ Deno.test("renderProvisionScript installs, locks the token, and starts the unit"
   assert(s.includes("systemctl not found"));
 });
 
+Deno.test("renderProvisionScript downloads with curl or wget", () => {
+  const s = renderProvisionScript(PROVISION);
+  // Minimal hosts (e.g. a fresh Ubuntu) may lack curl; fall back to wget.
+  assert(s.includes("command -v curl"));
+  assert(s.includes("command -v wget"));
+  assert(s.includes('wget -qO "$DL_DEST" "$DL_URL"'));
+  // Both binary steps go through the download helper, not a bare curl call.
+  assert(!s.includes('curl -fsSL -o "$SWAMP_BIN"'));
+});
+
 Deno.test("renderProvisionScript pins a requested swamp version", () => {
   const s = renderProvisionScript({ ...PROVISION, version: "1.2.3" });
   assert(s.includes("download/1.2.3/swamp-linux-$ARCH"));
@@ -1136,4 +1147,132 @@ Deno.test("renderProvisionScript upgrades the binary only when a version is requ
   assert(withVersion.includes("upgrading swamp"));
   assert(withVersion.includes("BINARY_CHANGED=1"));
   assert(!without.includes("upgrading swamp"));
+});
+
+const UNIT_BASE = {
+  unitName: "swamp-worker-figy",
+  identity: "figy",
+  serveUrl: "wss://swamp.x1yoga.fi.gy",
+  swampBinPath: "/usr/local/bin/swamp",
+  tokenFile: "/root/.config/swamp-worker/figy.token",
+  cacheDir: "/root/.local/share/swamp-worker/figy",
+  concurrency: "auto",
+  swampHome: "/root/.swamp",
+  swampConfigDir: "/root/.config/swamp",
+};
+
+const OTEL_SETTINGS = {
+  endpoints: [
+    { mesh: "tailscale", otlp_http_url: "https://otlp.fi.gy" },
+    { mesh: "wireguard", otlp_http_url: "https://otlp.wg.otel.fi.gy:4318" },
+  ],
+  defaultMesh: "tailscale",
+  deploymentEnvironment: "dev",
+  site: "home",
+  owner: "sven",
+};
+
+Deno.test("buildTelemetryEnv selects the default mesh and adds the host attribute", () => {
+  const env = buildTelemetryEnv(OTEL_SETTINGS, {
+    serviceName: "swamp-worker",
+    host: "blue",
+  });
+  assertEquals(env.endpoint, "https://otlp.fi.gy");
+  assertEquals(env.serviceName, "swamp-worker");
+  assertEquals(env.headers, "");
+  assertEquals(
+    env.resourceAttributes,
+    "service.name=swamp-worker,deployment.environment=dev,site=home,owner=sven,host=blue",
+  );
+});
+
+Deno.test("buildTelemetryEnv falls back to the first mesh and adds a bearer header", () => {
+  const env = buildTelemetryEnv(
+    {
+      endpoints: [{ mesh: "lan", otlp_http_url: "https://otlp.internal:4318" }],
+    },
+    { serviceName: "swamp-worker", host: "blue", token: "abc.def" },
+  );
+  assertEquals(env.endpoint, "https://otlp.internal:4318");
+  assertEquals(env.headers, "Authorization=Bearer abc.def");
+  assertEquals(env.resourceAttributes, "service.name=swamp-worker,host=blue");
+});
+
+Deno.test("renderWorkerUnit writes the OTEL env when telemetry is resolved", () => {
+  const otel = buildTelemetryEnv(OTEL_SETTINGS, {
+    serviceName: "swamp-worker",
+    host: HOSTNAME_PLACEHOLDER,
+  });
+  const unit = renderWorkerUnit({ ...UNIT_BASE, labels: [], otel });
+  assert(
+    unit.includes(
+      "Environment=OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.fi.gy",
+    ),
+  );
+  assert(
+    unit.includes("Environment=OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf"),
+  );
+  assert(unit.includes("Environment=OTEL_SERVICE_NAME=swamp-worker"));
+  assert(
+    unit.includes(
+      "Environment=OTEL_RESOURCE_ATTRIBUTES=service.name=swamp-worker,deployment.environment=dev,site=home,owner=sven,host=@@TF_HOSTNAME@@",
+    ),
+  );
+  assert(unit.includes("Environment=OTEL_BSP_USE=1"));
+  assert(unit.includes("Environment=OTEL_BLRP_USE=1"));
+});
+
+Deno.test("renderWorkerUnit omits the OTEL env when telemetry is absent", () => {
+  const unit = renderWorkerUnit({ ...UNIT_BASE, labels: [], otel: null });
+  assert(!unit.includes("OTEL_"));
+});
+
+Deno.test("renderProvision resolves telemetry from the settings model and embeds it", async () => {
+  await withTmp(async (tmp) => {
+    const g = globals(tmp);
+    g.otelSettingsModel = "otel";
+    g.otelServiceName = "swamp-worker";
+    const { ctx, writes } = fakeContext(g);
+    const withTelemetry = Object.assign(ctx, {
+      readModelData: (_m: string, _s?: string) =>
+        Promise.resolve([OTEL_SETTINGS as unknown as Record<string, unknown>]),
+    });
+    await methods.renderProvision.execute(
+      {
+        serveUrl: "wss://swamp.example.com",
+        host: "",
+        labels: [],
+        concurrency: "",
+        version: "",
+      },
+      withTelemetry as never,
+    );
+    const data = writes[0].data as { unitContent: string; script: string };
+    assert(
+      data.unitContent.includes(
+        "Environment=OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.fi.gy",
+      ),
+    );
+    // The host attribute keeps the placeholder, so one script serves every node.
+    assert(data.unitContent.includes("host=@@TF_HOSTNAME@@"));
+    assert(data.script.includes(data.unitContent));
+  });
+});
+
+Deno.test("renderProvision omits OTEL when no settings model is configured", async () => {
+  await withTmp(async (tmp) => {
+    const { ctx, writes } = fakeContext(globals(tmp));
+    await methods.renderProvision.execute(
+      {
+        serveUrl: "wss://swamp.example.com",
+        host: "",
+        labels: [],
+        concurrency: "",
+        version: "",
+      },
+      ctx as never,
+    );
+    const data = writes[0].data as { unitContent: string };
+    assert(!data.unitContent.includes("OTEL_"));
+  });
 });

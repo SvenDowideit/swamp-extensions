@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-worker"
-version: "2026.10.17.1"
+version: "2026.10.17.2"
 description: >
   Enlist a host as a swamp worker for one `swamp serve` orchestrator: install or
   upgrade it, reconcile its systemd user unit, mint its enrollment token, and
@@ -71,12 +71,23 @@ description: >
         swampConfigDir  SWAMP_CONFIG_DIR in the unit                (~/.config/swamp)
         concurrency     worker --concurrency                        (auto)
         enableLinger    run `loginctl enable-linger`                (true)
+        otelSettingsModel  @svendowideit/otel-settings model to export to  ("" = off)
+        otelServiceName    OTEL_SERVICE_NAME the worker reports      (swamp-worker)
+        telemetryVault     vault holding the OTLP bearer token       ("")
+        authRef            vault key for the bearer token            (OTEL_EXPORTER_OTLP_TOKEN)
 
     `swampBinPath` is the setting that bites: it is exec'd on the orchestrator to
     mint and revoke tokens, so it must point at an existing swamp binary there — a
     per-user install is usually `~/.local/bin/swamp`, not the `/usr/local/bin/swamp`
     default. It is also the path the provisioning script installs on each node, so
-    on a set of hosts it must be writable and identical. Per call:
+    on a set of hosts it must be writable and identical.
+
+    Telemetry: set `otelSettingsModel` to the @svendowideit/otel-settings model
+    whose contract this site publishes (e.g. `otel`) and the worker unit gains the
+    contract's `OTEL_EXPORTER_OTLP_*` env — so logs, metrics and traces export
+    from every node, attributed to `otelServiceName` with a per-node `host=`
+    resource attribute. Set `telemetryVault`/`authRef` when the gateway needs a
+    bearer token. Empty (the default) leaves the unit untouched. Per call:
     `renderUnit`/`ensureService` take `serveUrl`, optional `host`, `labels`
     (KEY=VALUE strings), `concurrency` and `force` (`ensureService` also takes
     `name`); `renderProvision` takes `serveUrl`, `host`, `labels`, `concurrency` and
@@ -96,7 +107,9 @@ description: >
 
     On the host: a systemd *user* unit `swamp-worker-<identity>.service`, the
     worker's cache dir (holding the enrollment machine-id), and `0600` token and
-    env files under `configDir`. It enables user lingering. It installs no cron
+    env files under `configDir`. When `otelSettingsModel` is set, the unit also
+    carries the contract's `OTEL_EXPORTER_OTLP_*` env, so the worker exports
+    logs, metrics and traces. It enables user lingering. It installs no cron
     triggers or webhooks of its own. `remove` revokes the enrollment token and
     deletes those artifacts and nothing else — foreign worker units are never
     enumerated or touched.

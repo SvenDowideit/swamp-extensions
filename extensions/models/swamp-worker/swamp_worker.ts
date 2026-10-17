@@ -32,6 +32,11 @@
  * @module
  */
 
+// meta-factory-ignore config-lifecycle setup-method-missing: this model is
+// driven by a site workflow and configured via global args at creation, so it
+// ships no `setup` method by design; its `readModelData` call reads a *peer's*
+// published @svendowideit/otel-settings contract, not this extension's own config.
+
 import { z } from "npm:zod@4";
 
 // ---------------------------------------------------------------------------
@@ -89,6 +94,21 @@ const GlobalArgsSchema = z.object({
   enableLinger: z.boolean().default(true).describe(
     "Run `loginctl enable-linger` so the user service survives logout/reboot.",
   ),
+  otelSettingsModel: z.string().default("").describe(
+    "Name of the @svendowideit/otel-settings model whose contract the worker " +
+      "exports telemetry to (empty disables worker telemetry). Set it to the " +
+      "site's settings model so the worker exports logs, metrics and traces.",
+  ),
+  otelServiceName: z.string().default("swamp-worker").describe(
+    "OTEL_SERVICE_NAME the worker reports; the resource `service.name` is set " +
+      "to the same. Each node adds a `host=` resource attribute.",
+  ),
+  telemetryVault: z.string().default("").describe(
+    "Vault holding the gateway OTLP bearer token (empty = unauthenticated).",
+  ),
+  authRef: z.string().default("OTEL_EXPORTER_OTLP_TOKEN").describe(
+    "Vault key holding the gateway bearer token (a reference, never the secret).",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -103,6 +123,14 @@ export function expandHome(path: string, home?: string): string {
   if (path === "~") return h;
   if (path.startsWith("~/")) return `${h}${path.slice(1)}`;
   return path;
+}
+
+/**
+ * The host label (and telemetry `host=`) for a worker: the explicit arg, else
+ * this machine's hostname.
+ */
+export function resolveHost(host?: string): string {
+  return (host ?? "").trim() || Deno.hostname();
 }
 
 /** The unit name for an identity: `swamp-worker-<identity>`. */
@@ -260,6 +288,64 @@ function assertNoNewlines(field: string, value: string): void {
   }
 }
 
+/** The OTLP telemetry a worker unit exports, resolved from a settings contract. */
+export interface TelemetryEnv {
+  endpoint: string;
+  headers: string;
+  serviceName: string;
+  resourceAttributes: string;
+}
+
+/**
+ * Build the worker's OTEL env from an `otel-settings` `settings` document: the
+ * default-mesh OTLP/HTTP endpoint, a bearer header when a token is configured,
+ * the service name, and the resource attributes (with this worker's own
+ * `host`). Pure; mirrors `@svendowideit/swamp-serve`'s telemetry resolution.
+ */
+export function buildTelemetryEnv(
+  settings: {
+    endpoints?: Array<{ mesh?: string; otlp_http_url?: string }>;
+    defaultMesh?: string;
+    deploymentEnvironment?: string;
+    site?: string;
+    owner?: string;
+  },
+  opts: {
+    serviceName: string;
+    host?: string;
+    token?: string;
+    endpoint?: string;
+  },
+): TelemetryEnv {
+  let endpoint = opts.endpoint ?? "";
+  if (!endpoint) {
+    const endpoints = settings.endpoints ?? [];
+    const preferred = settings.defaultMesh
+      ? endpoints.find((e) => e.mesh === settings.defaultMesh)
+      : undefined;
+    endpoint = preferred?.otlp_http_url ?? endpoints[0]?.otlp_http_url ?? "";
+  }
+  const resourceAttributes = [
+    // service.name belongs here as well as in OTEL_SERVICE_NAME: Deno's native
+    // (Rust) telemetry reads OTEL_RESOURCE_ATTRIBUTES but ignores
+    // OTEL_SERVICE_NAME, so without it native records land as
+    // "unknown_service:deno". swamp's Node SDK path honours both.
+    opts.serviceName ? `service.name=${opts.serviceName}` : "",
+    settings.deploymentEnvironment
+      ? `deployment.environment=${settings.deploymentEnvironment}`
+      : "",
+    settings.site ? `site=${settings.site}` : "",
+    settings.owner ? `owner=${settings.owner}` : "",
+    opts.host ? `host=${opts.host}` : "",
+  ].filter(Boolean).join(",");
+  return {
+    endpoint,
+    headers: opts.token ? `Authorization=Bearer ${opts.token}` : "",
+    serviceName: opts.serviceName,
+    resourceAttributes,
+  };
+}
+
 /** Everything needed to render a worker unit. */
 export interface WorkerUnitOptions {
   /** Systemd user unit name (without `.service`). */
@@ -284,6 +370,8 @@ export interface WorkerUnitOptions {
   envFile?: string;
   /** Extra scheduling labels, merged after the base `serve`/`host` labels. */
   labels?: [string, string][];
+  /** Resolved OTLP telemetry; when present its env is written into the unit. */
+  otel?: TelemetryEnv | null;
 }
 
 /**
@@ -305,6 +393,10 @@ export function renderWorkerUnit(o: WorkerUnitOptions): string {
       ["swampHome", o.swampHome],
       ["swampConfigDir", o.swampConfigDir],
       ["envFile", o.envFile ?? ""],
+      ["otelServiceName", o.otel?.serviceName ?? ""],
+      ["otelEndpoint", o.otel?.endpoint ?? ""],
+      ["otelHeaders", o.otel?.headers ?? ""],
+      ["otelResourceAttributes", o.otel?.resourceAttributes ?? ""],
     ] as [string, string][]
   ) {
     assertNoNewlines(field, value);
@@ -342,6 +434,22 @@ export function renderWorkerUnit(o: WorkerUnitOptions): string {
     `Environment=SWAMP_HOME=${o.swampHome}`,
     `Environment=SWAMP_CONFIG_DIR=${o.swampConfigDir}`,
   ];
+  if (o.otel && o.otel.endpoint) {
+    lines.push(`Environment=OTEL_EXPORTER_OTLP_ENDPOINT=${o.otel.endpoint}`);
+    lines.push(`Environment=OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf`);
+    if (o.otel.headers) {
+      lines.push(`Environment=OTEL_EXPORTER_OTLP_HEADERS=${o.otel.headers}`);
+    }
+    lines.push(`Environment=OTEL_SERVICE_NAME=${o.otel.serviceName}`);
+    if (o.otel.resourceAttributes) {
+      lines.push(
+        `Environment=OTEL_RESOURCE_ATTRIBUTES=${o.otel.resourceAttributes}`,
+      );
+    }
+    // A long-running worker batches rather than flushing per record.
+    lines.push(`Environment=OTEL_BSP_USE=1`);
+    lines.push(`Environment=OTEL_BLRP_USE=1`);
+  }
   if (o.envFile) lines.push(`EnvironmentFile=-${o.envFile}`);
   lines.push(
     `Restart=always`,
@@ -473,6 +581,21 @@ if ! command -v systemctl >/dev/null 2>&1; then
   exit 1
 fi
 
+# Download a URL to a file, preferring curl but falling back to wget — minimal
+# hosts (e.g. a fresh Ubuntu) ship wget but not curl.
+download() {
+  DL_URL=$1
+  DL_DEST=$2
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL -o "$DL_DEST" "$DL_URL"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$DL_DEST" "$DL_URL"
+  else
+    echo "neither curl nor wget is available to download $DL_URL" >&2
+    return 1
+  fi
+}
+
 # 1. the swamp binary: install when absent; when a version was requested, upgrade
 BINARY_CHANGED=0
 ARCH=$(uname -m)
@@ -483,7 +606,7 @@ esac
 if [ ! -x "$SWAMP_BIN" ]; then
   mkdir -p "$(dirname "$SWAMP_BIN")"
   echo "installing swamp → $SWAMP_BIN"
-  curl -fsSL -o "$SWAMP_BIN" "${url}"
+  download "${url}" "$SWAMP_BIN"
   chmod +x "$SWAMP_BIN"
   BINARY_CHANGED=1${
     upgrade
@@ -491,7 +614,7 @@ if [ ! -x "$SWAMP_BIN" ]; then
 else
   # upgrade: fetch the requested release and replace only if the bytes differ
   TMP_BIN=$(mktemp)
-  if curl -fsSL -o "$TMP_BIN" "${url}"; then
+  if download "${url}" "$TMP_BIN"; then
     chmod +x "$TMP_BIN"
     if ! cmp -s "$TMP_BIN" "$SWAMP_BIN"; then
       echo "upgrading swamp → $SWAMP_BIN"
@@ -1072,8 +1195,9 @@ function workerRenderInput(
     labels: string[];
     concurrency?: string;
   },
+  otel?: TelemetryEnv | null,
 ): WorkerUnitOptions {
-  const host = (args.host ?? "").trim() || Deno.hostname();
+  const host = resolveHost(args.host);
   const labelPairs: [string, string][] = [
     ...baseLabels(g.identity, host),
   ];
@@ -1096,7 +1220,81 @@ function workerRenderInput(
     swampConfigDir: expandHome(g.swampConfigDir),
     envFile: envFilePath(g),
     labels: labelPairs,
+    otel: otel ?? null,
   };
+}
+
+/**
+ * Read the `settings` document from the configured otel-settings model, through
+ * the sanctioned in-process APIs (never a CLI subprocess).
+ */
+async function readOtelSettings(
+  context: MethodContext,
+  modelName: string,
+): Promise<Parameters<typeof buildTelemetryEnv>[0] | null> {
+  const coerce = (
+    record: Record<string, unknown>,
+  ): Parameters<typeof buildTelemetryEnv>[0] => {
+    const attrs = record.attributes && typeof record.attributes === "object"
+      ? record.attributes as Record<string, unknown>
+      : record;
+    return attrs as Parameters<typeof buildTelemetryEnv>[0];
+  };
+  if (context.readModelData) {
+    try {
+      const records = await context.readModelData(modelName, "settings");
+      if (records && records.length > 0) return coerce(records[0]);
+    } catch {
+      // fall through to queryData
+    }
+  }
+  if (context.queryData) {
+    try {
+      const records = await context.queryData(
+        `modelName == "${modelName}" && specName == "settings"`,
+      );
+      if (records && records.length > 0) {
+        return coerce(records[0] as Record<string, unknown>);
+      }
+    } catch {
+      // no settings available
+    }
+  }
+  return null;
+}
+
+/** Read the gateway bearer token from the vault, when one is configured. */
+async function readTelemetryToken(
+  context: MethodContext,
+  g: GlobalArgs,
+): Promise<string> {
+  if (!g.telemetryVault || !context.vaultService) return "";
+  try {
+    return (await context.vaultService.get(g.telemetryVault, g.authRef)).trim();
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Resolve the worker's OTLP telemetry from the configured otel-settings model.
+ * Returns null when telemetry is disabled (no model configured) or the contract
+ * cannot be read, so a worker without telemetry renders exactly as before.
+ */
+async function resolveTelemetry(
+  context: MethodContext,
+  g: GlobalArgs,
+  host: string,
+): Promise<TelemetryEnv | null> {
+  if (!g.otelSettingsModel) return null;
+  const settings = await readOtelSettings(context, g.otelSettingsModel);
+  if (!settings) return null;
+  const token = await readTelemetryToken(context, g);
+  return buildTelemetryEnv(settings, {
+    serviceName: g.otelServiceName,
+    host,
+    token,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1115,11 +1313,19 @@ type MethodContext = {
     instance: string,
     data: unknown,
   ) => Promise<{ name: string }>;
+  queryData?: (predicate: string, select?: string) => Promise<unknown[]>;
+  readModelData?: (
+    modelName: string,
+    specName?: string,
+  ) => Promise<Array<Record<string, unknown>>>;
+  vaultService?: {
+    get(vaultName: string, secretKey: string, caller?: string): Promise<string>;
+  };
 };
 
 export const model = {
   type: "@svendowideit/swamp-worker",
-  version: "2026.10.17.1",
+  version: "2026.10.17.2",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -1182,6 +1388,21 @@ export const model = {
         "`@svendowideit/swamp-worker-upgrade`, that installs the worker when it " +
         "is absent and upgrades the swamp binary and reconciles the unit when it " +
         "is present — the same command either way. No schema or data changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.2",
+      description:
+        "Robust provisioning download and worker telemetry. The provisioning " +
+        "script now downloads the swamp binary with curl when present and falls " +
+        "back to wget otherwise, so minimal hosts without curl (e.g. a fresh " +
+        "Ubuntu) provision instead of failing with `curl: not found`. New " +
+        "optional globals `otelSettingsModel`, `otelServiceName`, " +
+        "`telemetryVault` and `authRef` render a site's `OTEL_EXPORTER_OTLP_*` " +
+        "env onto the worker unit (read from an @svendowideit/otel-settings " +
+        "contract), so the worker exports logs, metrics and traces with a " +
+        "per-node `host=` resource attribute; both default off. No schema or " +
+        "data changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1249,7 +1470,8 @@ export const model = {
         context: MethodContext,
       ) => {
         const g = context.globalArgs;
-        const input = workerRenderInput(g, args);
+        const otel = await resolveTelemetry(context, g, resolveHost(args.host));
+        const input = workerRenderInput(g, args, otel);
         const content = renderWorkerUnit(input);
         const unitPath = unitPathFor(g);
         let written = false;
@@ -1294,13 +1516,14 @@ export const model = {
       ) => {
         const g = context.globalArgs;
         const home = expandHome("~");
-        const host = (args.host ?? "").trim();
+        const host = (args.host ?? "").trim() || HOSTNAME_PLACEHOLDER;
+        const otel = await resolveTelemetry(context, g, host);
         const input = workerRenderInput(g, {
           serveUrl: args.serveUrl,
-          host: host || HOSTNAME_PLACEHOLDER,
+          host,
           labels: args.labels,
           concurrency: args.concurrency,
-        });
+        }, otel);
         // The node's home dir may differ from the orchestrator's, so rewrite the
         // orchestrator-home prefix to `%h` in the unit (systemd expands it) and
         // `$HOME` in the script (the shell expands it at install time).
@@ -1598,7 +1821,8 @@ export const model = {
         context: MethodContext,
       ) => {
         const g = context.globalArgs;
-        const input = workerRenderInput(g, args);
+        const otel = await resolveTelemetry(context, g, resolveHost(args.host));
+        const input = workerRenderInput(g, args, otel);
         const unitPath = unitPathFor(g);
         const content = renderWorkerUnit(input);
         const tokenFile = tokenFilePath(g);

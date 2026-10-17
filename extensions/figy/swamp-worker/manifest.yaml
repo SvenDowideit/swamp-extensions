@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@figy/swamp-worker"
-version: "2026.10.17.1"
+version: "2026.10.17.2"
 description: >
   Site-specific: deploy a swamp worker to a set of fi.gy hosts over SSH — and
   completely remove it — driving the generic @svendowideit/swamp-worker model
@@ -37,10 +37,13 @@ description: >
 
       # Create the generic worker model once. `identity` namespaces the worker;
       # `swampBinPath` MUST be the swamp binary on THIS orchestrator (it mints the
-      # tokens) and is the same path the provisioning script installs on each node.
+      # tokens) and is the same path the provisioning script installs on each node;
+      # `otelSettingsModel=otel` wires each worker unit to export OTel logs,
+      # metrics and traces to the fi.gy gateway.
       swamp model create @svendowideit/swamp-worker worker \
         --global-arg identity=figy \
-        --global-arg swampBinPath=~/.local/bin/swamp
+        --global-arg swampBinPath=~/.local/bin/swamp \
+        --global-arg otelSettingsModel=otel
 
       # Install OR upgrade a set of nodes in one command; re-run it to reconcile.
       swamp workflow run @figy/swamp-worker-upgrade \
@@ -81,9 +84,12 @@ description: >
     Nothing itself — it drives @svendowideit/swamp-worker on each node, which
     installs a systemd user unit `swamp-worker-<identity>.service`, the worker
     cache dir, and 0600 token/env files, and enables user lingering; and
-    @swamp/ssh, the SSH transport. Each node also needs a running systemd *user*
-    manager (`systemctl --user`, i.e. a live `logind` and `user@<uid>.service`). No
-    cron triggers or webhooks.
+    @swamp/ssh, the SSH transport. With `otelSettingsModel=otel` on the `worker`
+    model, each worker unit also exports OTel logs, metrics and traces to the
+    fi.gy gateway, attributed to the `swamp-worker` service with a per-node
+    `host=`. Each node also needs a running systemd *user* manager (`systemctl
+    --user`, i.e. a live `logind` and `user@<uid>.service`). No cron triggers or
+    webhooks.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

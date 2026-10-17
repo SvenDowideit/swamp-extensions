@@ -66,9 +66,12 @@ Workflow inputs (identical on all three unless noted):
 | `sshKey` | string | `~/.ssh/id_ed25519` | Fleet-default SSH private key path. |
 | `strictHostKeyChecking` | string | `accept-new` | SSH `StrictHostKeyChecking` mode. |
 
-The generic model `worker` must exist with `identity=figy` **and**
-`swampBinPath` set to the swamp binary on the orchestrator (it mints the tokens),
-which is also the path installed on each node.
+The generic model `worker` must exist with `identity=figy`, `swampBinPath` set to
+the swamp binary on the orchestrator (it mints the tokens — also the path
+installed on each node), and `otelSettingsModel=otel` so each worker unit exports
+OTel logs, metrics and traces to the fi.gy gateway (service `swamp-worker`, with
+a per-node `host=` resource attribute). Without `otelSettingsModel` the workers
+run telemetry-silent.
 
 ## Examples
 
@@ -77,11 +80,13 @@ whole point: one command enlists a set of hosts and re-running it upgrades and
 reconciles them:
 
 ```sh
-# Create the generic model once. `identity` namespaces the worker, and
-# `swampBinPath` is the swamp binary on THIS orchestrator (it mints the tokens).
+# Create the generic model once. `identity` namespaces the worker, `swampBinPath`
+# is the swamp binary on THIS orchestrator (it mints the tokens), and
+# `otelSettingsModel=otel` makes each worker unit export OTel telemetry.
 swamp model create @svendowideit/swamp-worker worker \
   --global-arg identity=figy \
-  --global-arg swampBinPath=~/.local/bin/swamp
+  --global-arg swampBinPath=~/.local/bin/swamp \
+  --global-arg otelSettingsModel=otel
 
 # Install OR upgrade a set of hosts in one command; re-run it to reconcile them.
 swamp workflow run @figy/swamp-worker-upgrade \
@@ -101,6 +106,14 @@ swamp workflow run @figy/swamp-worker-upgrade \
   --input sshPort=2222 --input sshKey=~/.ssh/host3_ed25519
 # Then confirm the worker's unit is active on that node.
 ssh -p 2222 -i ~/.ssh/host3_ed25519 sven@192.0.2.13 systemctl --user is-active swamp-worker-figy
+```
+
+Confirm telemetry is wired after a re-run — the unit carries the gateway's OTEL
+env, so the worker exports logs, metrics and traces to the fi.gy backend:
+
+```sh
+# A node's unit should list the OTLP endpoint and service name.
+ssh sven@host1.lan systemctl --user show swamp-worker-figy -p Environment | tr " " "\n" | grep OTEL
 ```
 
 Rotate the tokens before they expire — never stranding a worker. Run it on a

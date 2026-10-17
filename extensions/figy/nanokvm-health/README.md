@@ -6,7 +6,7 @@ publish a fleet health report, and publish every NanoKVM as a DNS record.
 
 ## What it does
 
-The extension ships two workflows.
+The extension ships three workflows.
 
 **`@figy/nanokvm-health`** runs every 15 minutes (`trigger.schedule`) and:
 
@@ -28,11 +28,23 @@ repo's `@svendowideit/nanokvm` model definitions — not the network), then
 reconciles an A record per device into the shared Caddy via the caddy **mixin**,
 so adding a KVM is just adding a model definition. The records live on a
 dedicated repo caddy model (`nanokvm-caddy`); the workflow runs `configureTls`
-then `applyDnsRecords`. See [The caddy model](#the-caddy-model-nanokvm-caddy).
+then `applyDnsRecords`, and declares each device name as a TLS subject with
+`keyType=rsa2048` so Caddy issues and renews a **Let's Encrypt** certificate for
+it via DNS-01 (no reverse-proxy route — the name points at the KVM itself). See
+[The caddy model](#the-caddy-model-nanokvm-caddy).
+
+**`@figy/nanokvm-cert`** installs that certificate **onto the device**, on a
+daily schedule. The NanoKVM has no certificate-upload endpoint, so it drives the
+model's `cert install`, which writes `/etc/kvm/server.crt` and `.key` through the
+device's admin script API and restarts the web server, then verifies the device
+actually serves a certificate carrying the device's name. The certificate is
+RSA — the firmware's own `nanokvm.sh` supervisor runs `openssl rsa -check` and
+would otherwise reject and regenerate a self-signed one — and it is fetched from
+Caddy's store, so the workflow only ever syncs, never issues.
 
 Side effects: it drives the device model (network calls to the KVM and the
-collector), the caddy model (one DNS reconcile), and writes swamp data. It
-installs nothing on the host.
+collector), the caddy model (one DNS reconcile and one certificate issuance), and
+writes swamp data. It installs nothing on the host.
 
 ## Install
 
@@ -123,8 +135,13 @@ swamp report get @svendowideit/nanokvm-health-report \
 swamp data query 'behavior("nanokvm") && name == "emit"' --select content
 
 # Publish every NanoKVM swamp looks after as <name>.fi.gy A records, merged
-# into the shared Caddy (run after adding or moving a device).
+# into the shared Caddy (run after adding or moving a device). Caddy then issues
+# and renews a Let's Encrypt certificate for each name.
 swamp workflow run @figy/nanokvm-dns
+
+# Install the renewed certificate onto the device (scheduled daily; also run
+# after a firmware update, which can wipe /etc/kvm).
+swamp workflow run @figy/nanokvm-cert
 
 # See what the discovery found (the A records the DNS step reconciled).
 swamp data query 'behavior("nanokvm") && name == "devices"' --select content \
@@ -178,7 +195,30 @@ so the caddy model's own desired state is the freshly discovered set each run;
 the mixin merges it with `my-caddy`'s records, and running the workflow never
 removes a peer's records. The record name is the model instance name plus the
 zone (`nanokvm` -> `nanokvm.fi.gy`), so a device is published by adding a
-`@svendowideit/nanokvm` model definition and re-running this workflow.
+`@svendowideit/nanokvm` model definition and re-running this workflow. The `tls`
+step also declares the names as TLS subjects (`keyType=rsa2048`), so Caddy
+obtains a Let's Encrypt certificate for each via DNS-01.
+
+### The certificate workflow
+
+`@figy/nanokvm-cert` — one job (`cert`) with two steps, on the daily
+`trigger.schedule`, installing the Caddy-issued certificate onto the device:
+
+| Step | Task | Purpose |
+| ---- | ---- | ------- |
+| `install` | `@svendowideit/nanokvm` `cert` (`action=install`) | Locate the certificate for `<device>.<zone>` in Caddy's store, write it onto the device via the admin script API, restart the web server and verify it is served. |
+| `assert-installed` | assert | Fails the run if the device does not end up serving a certificate for its name. |
+
+The NanoKVM cannot upload a certificate over its API, so the model writes
+`/etc/kvm/server.crt` and `/etc/kvm/server.key` with a script run through the
+admin script API and restarts the server — detached, because the script is a
+child of the server it restarts, and version-agnostically (`S95nanokvm` on newer
+firmware, otherwise signalling `NanoKVM-Server` for the `nanokvm.sh` supervisor
+to respawn). The key must be **RSA**: the firmware's `makesure_https_crt` runs
+`openssl rsa -check` and would otherwise delete the files and regenerate a
+self-signed `CN=localhost` certificate — hence `keyType=rsa2048` on the `tls`
+step. The workflow is idempotent (an unchanged certificate is a no-op that still
+verifies) and re-installs after a firmware update, which can wipe `/etc/kvm`.
 
 ### Structure and how to extend it
 
@@ -202,6 +242,8 @@ swamp workflow validate @figy/nanokvm-health
 swamp workflow run @figy/nanokvm-health
 swamp workflow validate @figy/nanokvm-dns
 swamp workflow run @figy/nanokvm-dns
+swamp workflow validate @figy/nanokvm-cert
+swamp workflow run @figy/nanokvm-cert
 ```
 
 ## License

@@ -1,0 +1,112 @@
+id: 2299ea7a-de44-4425-a3cf-a39fa152ed28
+name: '@figy/nanokvm-cert'
+description: |
+  fi.gy's NanoKVM TLS: install the Let's Encrypt certificate Caddy issued for
+  <name>.fi.gy onto the device and keep it current.
+
+  The NanoKVM has no certificate-upload endpoint, so this drives
+  @svendowideit/nanokvm's `cert install`, which writes /etc/kvm/server.crt and
+  .key on the device through its admin script API and restarts the web server.
+  The certificate files are taken from Caddy's store
+  (~/.local/share/caddy/certificates), where Caddy issued them and renews them
+  automatically via DNS-01 (@figy/nanokvm-dns declares the device names as TLS
+  subjects) — so this workflow only syncs the device, it never obtains a cert
+  itself.
+
+  Run it on a schedule: Caddy renews roughly 30 days before expiry, and this
+  re-installs onto the device whenever the installed certificate is older or
+  missing (and after a firmware update, which can wipe /etc/kvm). It is
+  idempotent — an unchanged certificate is a no-op that still verifies.
+
+  Run it by hand after adding the certificate subject:
+    swamp workflow run @figy/nanokvm-cert
+
+tags:
+  collective: figy
+trigger:
+  schedule: '30 4 * * *'
+inputs:
+  properties:
+    device:
+      type: string
+      default: nanokvm
+      description: >-
+        Name of the @svendowideit/nanokvm model instance to install onto. Its
+        fqdn is <device>.<zone> (the certificate's DNS name).
+    host:
+      type: string
+      default: '10.10.12.230'
+      description: NanoKVM address (no scheme); maps to the model's `host` global arg.
+    zone:
+      type: string
+      default: fi.gy
+      description: DNS zone the device's certificate name lives under.
+    certDir:
+      type: string
+      default: ~/.local/share/caddy/certificates
+      description: Caddy's certificate store, where the issued certificates live.
+    vaultName:
+      type: string
+      default: nanokvm
+      description: Vault holding the device login password (the script API needs admin).
+    passwordRef:
+      type: string
+      default: NANOKVM_PASSWORD
+      description: Vault key holding the login password.
+    curlModel:
+      type: string
+      default: nanokvm-curl
+      description: Name of the @svendowideit/curl instance that carries the session.
+    restart:
+      type: boolean
+      default: true
+      description: Restart the NanoKVM web server after writing the files.
+  required: []
+jobs:
+  - name: cert
+    description: Install the Caddy-issued certificate onto the device and verify it is served.
+    steps:
+      - name: install
+        description: >-
+          Locate the Caddy-issued certificate for the device's name, push it
+          onto the device through the admin script API, restart the server and
+          verify the device serves it.
+        task:
+          type: model_method
+          modelType: '@svendowideit/nanokvm'
+          modelName: ${{ inputs.device }}
+          methodName: cert
+          globalArgs:
+            host: ${{ inputs.host }}
+            vaultName: ${{ inputs.vaultName }}
+            passwordRef: ${{ inputs.passwordRef }}
+            curlModel: ${{ inputs.curlModel }}
+          inputs:
+            action: install
+            name: ${{ inputs.device + "." + inputs.zone }}
+            certDir: ${{ inputs.certDir }}
+            restart: ${{ inputs.restart }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: assert-installed
+        description: Confirm the device now serves a certificate carrying its name.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.device, "cert").attributes.installed == true &&
+            data.latest(inputs.device, "cert").attributes.matchesName == true
+          message: >-
+            The device did not end up serving a certificate for ${{
+            inputs.device }}.{{ inputs.zone }}; the install did not verify.
+          severity: high
+        dependsOn:
+          - step: install
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

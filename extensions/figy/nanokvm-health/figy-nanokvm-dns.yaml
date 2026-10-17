@@ -1,0 +1,139 @@
+id: 74f2d24a-3d56-4270-9297-2a367a678007
+name: '@figy/nanokvm-dns'
+description: |
+  fi.gy's NanoKVM DNS: publish every NanoKVM swamp looks after as <name>.fi.gy
+  A records, reconciled into the shared Caddy — without giving any KVM its own
+  Caddy.
+
+  It discovers the devices from the repo with @svendowideit/nanokvm's `devices`
+  method (a scan of the model definitions, not the network), so adding a KVM is
+  just adding a model definition: the next run publishes it. Each device's
+  address becomes an A record named after its model instance (`nanokvm` ->
+  nanokvm.fi.gy), plus an entry for any other @svendowideit/nanokvm instance in
+  the repo.
+
+  The records live on the @svendowideit/caddy model `nanokvm-caddy`, whose only
+  desired state is the discovered records plus the shared settings every model
+  sharing one Caddy must agree on (base domain fi.gy, ACME email, the Gandi DNS
+  provider via the shared environment file). Because this model shares
+  `my-caddy`'s (target, serviceName), the caddy mixin merges the two: this
+  workflow runs `configureTls` (so records have a DNS provider; no TLS subjects,
+  as the KVMs present their own certificates) then `applyDnsRecords`, which
+  reconciles the union of both models' records in one apply.
+
+  `nanokvm-caddy` is a repo model under `models/`, created once with
+  `swamp model create` (see the README); a workflow-auto-created model lands in
+  `.swamp/auto-definitions` and the caddy mixin treats it as scratch, so it is
+  deliberately not auto-created here.
+
+  Run it after adding or moving a NanoKVM:
+    swamp workflow run @figy/nanokvm-dns
+
+tags:
+  collective: figy
+inputs:
+  properties:
+    caddy:
+      type: string
+      default: nanokvm-caddy
+      description: >-
+        Name of the @svendowideit/caddy repo model into which the discovered A
+        records are reconciled.
+    nanokvmModel:
+      type: string
+      default: nanokvm
+      description: >-
+        Name of the @svendowideit/nanokvm instance whose `devices` method scans
+        the repo. The instance's own address is irrelevant; only the scan runs.
+    zone:
+      type: string
+      default: fi.gy
+      description: DNS zone each device name is placed under (name.<zone>).
+    ttl:
+      type: string
+      default: 5m
+      description: TTL for the published records; short so a moved KVM propagates.
+  required: []
+jobs:
+  - name: dns
+    description: Discover the NanoKVM devices and reconcile their A records into the shared Caddy.
+    steps:
+      - name: discover
+        description: >-
+          Scan the repo's model definitions for @svendowideit/nanokvm instances
+          and record each device's name, address and fqdn plus an A-record list.
+        task:
+          type: model_method
+          modelType: '@svendowideit/nanokvm'
+          modelName: ${{ inputs.nanokvmModel }}
+          methodName: devices
+          inputs:
+            zone: ${{ inputs.zone }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: tls
+        description: >-
+          Ensure the model has a DNS provider (Gandi, inferred from its plugins
+          and environment file) and declare each device name as a TLS subject,
+          so Caddy issues and renews a Let's Encrypt certificate for it via
+          DNS-01. No reverse-proxy route: the name points at the KVM itself.
+        task:
+          type: model_method
+          modelType: '@svendowideit/caddy'
+          modelName: ${{ inputs.caddy }}
+          methodName: configureTls
+          inputs:
+            subjects: >-
+              ${{ data.latest(inputs.nanokvmModel, "devices").attributes.dnsNames }}
+            keyType: rsa2048
+        dependsOn:
+          - step: discover
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: dns
+        description: >-
+          Reconcile the discovered A records — merged with this Caddy's peer
+          models' records — into Caddy.
+        task:
+          type: model_method
+          modelType: '@svendowideit/caddy'
+          modelName: ${{ inputs.caddy }}
+          methodName: applyDnsRecords
+          globalArgs:
+            dnsRecords: >-
+              ${{ data.latest(inputs.nanokvmModel, "devices").attributes.aRecords }}
+            dnsTtl: ${{ inputs.ttl }}
+        dependsOn:
+          - step: discover
+            condition:
+              type: succeeded
+          - step: tls
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: assert-applied
+        description: Confirm the DNS reconcile wrote its dnsConfig record.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.caddy, "current").?attributes.?appliedAt.orValue("") != ""
+          message: >-
+            The DNS step wrote no dnsConfig record for ${{ inputs.caddy }}; the
+            records were not reconciled.
+          severity: high
+        dependsOn:
+          - step: dns
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

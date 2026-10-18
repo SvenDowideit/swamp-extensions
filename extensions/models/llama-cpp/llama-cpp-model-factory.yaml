@@ -1,0 +1,395 @@
+id: 5122a9f1-f4dc-4630-a33b-3ccba319103d
+name: '@svendowideit/llama-cpp-model-factory'
+description: |
+  From an ask to a running model that needs a customised kernel, in one run.
+
+  facts → recommend → (clarify → wait-for-choice) → select → inspect →
+  download → plan → download-kernel → install → render-service → serve →
+  verify → print.
+
+  This is the sibling of @svendowideit/ollama-model-factory for the models
+  Ollama cannot load — those needing a patched llama.cpp kernel (e.g.
+  Aleph-Alpha Kolibri-1's `kolibri1` MoE). It reuses the same Hugging Face
+  search/download and gpu-facts budget, then `plan` maps the model's kernel to a
+  prebuilt patched build for this host, `download` fetches it, `install`
+  extracts it, `render-service` writes the `llama-server` systemd user unit, and
+  `serve`/`verify` run it and assert it answers.
+
+  Run it on the host that will serve the model:
+
+      swamp workflow run @svendowideit/llama-cpp-model-factory \
+        --input kernel=kolibri1 --input ask="a German reasoning model"
+
+  When more than one GGUF fits, the run suspends on wait-for-choice; answer it
+  with
+  `swamp workflow signal --workflow @svendowideit/llama-cpp-model-factory
+  --key hf-choice --payload '{"answer":"<repo>#<quant>"}'` then
+  `swamp workflow resume`.
+
+  For gated/private GGUFs, give the huggingface model a vault-backed token (see
+  @svendowideit/huggingface); never inline a secret.
+tags: {}
+autoResume: false
+inputs:
+  properties:
+    kernel:
+      type: string
+      description: >-
+        Kernel registry key for the model architecture (e.g. `kolibri1`). Run
+        `swamp model @svendowideit/llama-cpp method run kernels lc` to list them.
+    ask:
+      type: string
+      description: Natural-language requirement used to search Hugging Face for a GGUF.
+    quant:
+      type: string
+      default: ""
+      description: Preferred GGUF quant. Empty picks the largest GGUF per candidate.
+    candidates:
+      type: integer
+      default: 3
+      description: How many top search hits to inspect and rank.
+    cacheDir:
+      type: string
+      default: ~/.cache/huggingface
+      description: Directory the GGUF is downloaded into.
+    serviceName:
+      type: string
+      default: llama-cpp
+      description: systemd user unit name for the served model.
+    serviceScope:
+      type: string
+      enum:
+        - user
+        - system
+      default: user
+      description: Unit scope. `user` needs no root.
+    host:
+      type: string
+      default: 127.0.0.1
+      description: Address `llama-server` binds.
+    port:
+      type: integer
+      default: 8080
+      description: Port `llama-server` binds.
+    ctx:
+      type: integer
+      default: 4096
+      description: Context window for the served model.
+    expectVram:
+      type: boolean
+      default: false
+      description: >-
+        Require the verification to detect GPU offload. Leave false on a
+        CPU-only host (many custom-kernel builds are CPU-only).
+  required:
+    - kernel
+    - ask
+jobs:
+  - name: main
+    description: >-
+      Find a GGUF for the ask, install the custom kernel build for this host,
+      serve the model with llama-server, and verify it answers.
+    steps:
+      - name: facts
+        description: >-
+          Read this host's accelerators, VRAM, RAM and CPU cores (so the
+          recommendation fits, and `plan` knows the accelerator).
+        task:
+          type: model_method
+          modelType: "@svendowideit/gpu-facts"
+          modelName: gpu-host
+          methodName: collect
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: recommend
+        description: >-
+          Search Hugging Face and rank GGUF candidates against this host's
+          budget. Writes the `recommendation` resource on model `hf`.
+        task:
+          type: model_method
+          modelType: "@svendowideit/huggingface"
+          modelName: hf
+          methodName: recommend
+          inputs:
+            ask: ${{ inputs.ask }}
+            vramMiB: ${{ data.latest("gpu-host", "gpu").attributes.totalVramMiB }}
+            ramMiB: ${{ data.latest("gpu-host", "gpu").attributes.ramMiB }}
+            candidates: ${{ inputs.candidates }}
+            quant: ${{ inputs.quant }}
+        dependsOn:
+          - step: facts
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: has-candidates
+        description: Fail fast with a clear message when the ask yielded no candidates.
+        task:
+          type: assert
+          expr: size(data.latest("hf", "recommendation").attributes.candidates) > 0
+          message: >-
+            No Hugging Face candidates matched the ask — try a different ask or
+            name the model family explicitly.
+          severity: high
+        dependsOn:
+          - step: recommend
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: clarify-question
+        description: >-
+          Emit the question + options when more than one candidate fits. Skipped
+          when the choice is unambiguous.
+        guard: >-
+          ${{ data.latest("hf", "recommendation").attributes.ambiguous == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/huggingface"
+          modelName: hf
+          methodName: clarify
+          inputs:
+            answer: ""
+        dependsOn:
+          - step: has-candidates
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: wait-for-choice
+        description: >-
+          Suspend until the user picks a candidate. Answer it with
+          `swamp workflow signal --workflow @svendowideit/llama-cpp-model-factory
+          --key hf-choice --payload '{"answer":"<repo>#<quant>"}'`, then resume.
+          Skipped when the choice is unambiguous.
+        guard: >-
+          ${{ data.latest("hf", "recommendation").attributes.ambiguous == false }}
+        task:
+          type: wait_for_signal
+          key: hf-choice
+          timeout: 604800
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - answer
+            properties:
+              answer:
+                type: string
+        dependsOn:
+          - step: clarify-question
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: select
+        description: >-
+          Record the chosen repo/quant (the signalled answer when ambiguous, else
+          the top-ranked candidate). Writes the `selection` resource.
+        task:
+          type: model_method
+          modelType: "@svendowideit/huggingface"
+          modelName: hf
+          methodName: clarify
+          inputs:
+            answer: >-
+              ${{ data.latest("hf", "recommendation").attributes.ambiguous
+                  ? steps["wait-for-choice"].outputs.?payload.?answer.orValue("")
+                  : data.latest("hf", "recommendation").attributes.candidates[0].repo + "#" + data.latest("hf", "recommendation").attributes.candidates[0].quant }}
+        dependsOn:
+          - step: has-candidates
+            condition:
+              type: succeeded
+          - step: wait-for-choice
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+
+      - name: inspect
+        description: >-
+          Read the chosen repo's context length and chat template. Writes the
+          `model` resource on `hf`.
+        task:
+          type: model_method
+          modelType: "@svendowideit/huggingface"
+          modelName: hf
+          methodName: inspect
+          inputs:
+            repo: ${{ data.latest("hf", "selection").attributes.repo }}
+            revision: main
+        dependsOn:
+          - step: select
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: download
+        description: >-
+          Download the chosen GGUF at a pinned revision. Writes the `download`
+          resource with the local path.
+        task:
+          type: model_method
+          modelType: "@svendowideit/huggingface"
+          modelName: hf
+          methodName: download
+          inputs:
+            repo: ${{ data.latest("hf", "selection").attributes.repo }}
+            revision: main
+            quant: ${{ data.latest("hf", "selection").attributes.quant }}
+            dest: ${{ inputs.cacheDir }}
+            verify: true
+        dependsOn:
+          - step: inspect
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: plan
+        description: >-
+          Resolve this host's platform and the kernel build asset for the
+          requested kernel. Writes the `plan` resource on `lc`.
+        task:
+          type: model_method
+          modelType: "@svendowideit/llama-cpp"
+          modelName: lc
+          methodName: plan
+          inputs:
+            kernel: ${{ inputs.kernel }}
+            accel: >-
+              ${{ data.latest("gpu-host", "gpu").attributes.runtime == "none"
+                  ? "cpu" : data.latest("gpu-host", "gpu").attributes.runtime }}
+        dependsOn:
+          - step: download
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: download-kernel
+        description: >-
+          Download the patched kernel build at `plan.downloadUrl`. Writes the
+          `download` resource on `lc`.
+        task:
+          type: model_method
+          modelType: "@svendowideit/llama-cpp"
+          modelName: lc
+          methodName: download
+          inputs:
+            url: ${{ data.latest("lc", "plan").attributes.downloadUrl }}
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: install
+        description: >-
+          Extract the kernel build and locate `llama-server`/`llama-cli`. Writes
+          the `install` resource.
+        task:
+          type: model_method
+          modelType: "@svendowideit/llama-cpp"
+          modelName: lc
+          methodName: install
+          inputs:
+            archivePath: ${{ data.latest("lc", "download").attributes.path }}
+            archiveName: ${{ data.latest("lc", "download").attributes.assetName }}
+            version: ${{ data.latest("lc", "plan").attributes.releaseTag }}
+        dependsOn:
+          - step: download-kernel
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: render-service
+        description: >-
+          Render (and write) the `llama-server` systemd user unit for the GGUF.
+          Writes the `service` resource.
+        task:
+          type: model_method
+          modelType: "@svendowideit/llama-cpp"
+          modelName: lc
+          methodName: renderService
+          inputs:
+            model: ${{ data.latest("hf", "download").attributes.files[0].localPath }}
+            ctx: ${{ inputs.ctx }}
+            write: true
+          globalArgs:
+            serviceName: ${{ inputs.serviceName }}
+            serviceScope: ${{ inputs.serviceScope }}
+            host: ${{ inputs.host }}
+            port: ${{ inputs.port }}
+        dependsOn:
+          - step: install
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: serve
+        description: Start/restart the llama-server unit and report it active.
+        task:
+          type: model_method
+          modelType: "@svendowideit/llama-cpp"
+          modelName: lc
+          methodName: serve
+          inputs:
+            enable: true
+          globalArgs:
+            serviceName: ${{ inputs.serviceName }}
+            serviceScope: ${{ inputs.serviceScope }}
+        dependsOn:
+          - step: render-service
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: verify
+        description: >-
+          Run a smoke prompt with the custom kernel and assert the model
+          answered. Writes the `verify` resource.
+        task:
+          type: model_method
+          modelType: "@svendowideit/llama-cpp"
+          modelName: lc
+          methodName: verify
+          inputs:
+            model: ${{ data.latest("hf", "download").attributes.files[0].localPath }}
+            prompt: "Reply with the single word: ready."
+            ctx: ${{ inputs.ctx }}
+            expectVram: ${{ inputs.expectVram }}
+        dependsOn:
+          - step: serve
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: print
+        description: Log the plan / install / verify summary.
+        task:
+          type: model_method
+          modelType: "@svendowideit/llama-cpp"
+          modelName: lc
+          methodName: print
+        dependsOn:
+          - step: verify
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

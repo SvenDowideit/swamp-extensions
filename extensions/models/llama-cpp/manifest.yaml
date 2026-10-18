@@ -1,0 +1,145 @@
+manifestVersion: 1
+name: "@svendowideit/llama-cpp"
+version: "2026.10.16.6"
+description: >
+  Run GGUF models that need a customised llama.cpp kernel — the ones stock
+  llama.cpp (and therefore Ollama) cannot load — by installing a patched build,
+  serving them with `llama-server`, and verifying they answer.
+
+  WHAT IT DOES
+
+    Where `@svendowideit/ollama-models` covers everything Ollama can do, this
+    covers the models Ollama *can't* yet run. A kernel registry maps a model
+    architecture to a concrete prebuilt patched build for the host — e.g.
+    Aleph-Alpha Kolibri-1's `kolibri1` MoE needs the `kolibri1-llama.cpp.patch`
+    applied on top of stock llama.cpp. `plan` picks the
+    asset for this OS/arch/accelerator, `download` fetches it, `install` extracts
+    it, `renderService` writes the `llama-server` systemd user unit, and
+    `serve`/`verify` run the model and prove it answers. Prefer it over
+    hand-building a patched llama.cpp and remembering the launch flags: the
+    registry, the asset selection and the unit are repeatable swamp data. The
+    kernel download is resumable (HTTP Range) and skip-if-complete, and the
+    served model is a systemd user service that runs independently of the worker
+    that set it up. The unit is a keep-alive server: it listens always and, after
+    `keepAliveSec` idle (default 1h), the model sleeps to free GPU/RAM and wakes
+    on the next request (`--sleep-idle-seconds`). `plan` selects the build for
+    this host's accelerator and can be pointed at a specific build with
+    `assetName`/`assetUrl` (e.g. a CUDA build), so re-running the flow is an
+    upgrade that re-detects the GPU and rebuilds for it. When no prebuilt build
+    matches the host (e.g. an aarch64+CUDA build that is not published), `plan`
+    falls back to a **source build**: `build` clones llama.cpp at the kernel's
+    pinned commit, applies the patch, cmake-configures for the accelerator and
+    builds — as a host-managed background job that outlives the run — and
+    `buildStatus` awaits it and records the binaries.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/llama-cpp
+
+  DEPENDENCIES
+
+    For the methods alone: none (it runs local binaries). The bundled
+    `@svendowideit/llama-cpp-model-factory` workflow additionally uses
+    `@svendowideit/gpu-facts` (this host's budget) and
+    `@svendowideit/huggingface` (find + download the GGUF), declared in
+    `dependencies:` and installed by the single pull above.
+
+  RUN
+
+      # List the custom-kernel registry — which model architectures need a
+      # patched build, and where each comes from.
+      swamp model @svendowideit/llama-cpp method run kernels lc
+
+      # Resolve the build asset for this host for a kernel (e.g. kolibri1).
+      swamp model @svendowideit/llama-cpp method run plan lc --input kernel=kolibri1
+
+      # Download + extract the kernel, then render, start and verify the server
+      # for a GGUF (the factory workflow wires all of this; one call each here).
+      # No prebuilt build for this host (e.g. arm64 + CUDA)? Build from source,
+      # then await it; buildStatus records the built binaries for renderService.
+      swamp model @svendowideit/llama-cpp method run build lc
+      swamp model @svendowideit/llama-cpp method run buildStatus lc \
+        --input wait=true --input maxWaitSec=3600
+
+      swamp model @svendowideit/llama-cpp method run renderService lc \
+        --input model=/models/kolibri-Q2_K.gguf --input write=true
+      swamp model @svendowideit/llama-cpp method run serve lc
+      swamp model @svendowideit/llama-cpp method run verify lc \
+        --input model=/models/kolibri-Q2_K.gguf
+
+      # The whole loop in one run: find a GGUF, install the kernel, serve and
+      # verify it. Run it on the host that will serve the model.
+      swamp workflow run @svendowideit/llama-cpp-model-factory \
+        --input kernel=kolibri1 --input ask="a German reasoning model"
+
+  CONFIGURE
+
+    Global arguments (set at creation with `--global-arg`, or per call with
+    `--input`):
+
+      installDir     Where the kernel build is extracted  (default ~/.local/llama-cpp)
+      downloadDir    Where the kernel archive is staged   (default ~/.cache/llama-cpp)
+      host / port    llama-server bind                    (default 127.0.0.1:8080)
+      serviceName    systemd unit name                   (default llama-cpp)
+      serviceScope   user | system (user needs no root)  (default user)
+      ctx / ngl      context window / GPU layers         (default 4096 / derive)
+      threads        CPU threads                         (default 0 = server default)
+      keepAliveSec   idle seconds before the model      (default 3600 = 1h; 0 = never)
+                     sleeps (frees GPU/RAM), waking
+                     on the next request
+      extraArgs      extra llama-server arguments        (default "")
+      sudo           escalation for system scope         (default sudo)
+      releaseRepo / releaseTag  override the kernel source (default: the kernel's)
+
+  SETUP
+
+    `setup` resolves and persists the config (dirs, host/port, service, ctx/ngl),
+    reading any existing `config` resource back first so later runs reuse it:
+
+      swamp model @svendowideit/llama-cpp method run setup lc
+
+  UPGRADE
+
+    This extension installs nothing until you run `install`; upgrade the code
+    alone and re-run `install` to pick up a newer kernel build:
+
+      swamp extension update @svendowideit/llama-cpp
+
+  WHAT IT INSTALLS
+
+    On the host: the extracted patched llama.cpp build under `installDir`
+    (`llama-server`, `llama-cli`, its shared libraries), a staged kernel archive
+    under `downloadDir`, and — for a served model — a systemd unit
+    (`~/.config/systemd/user/<serviceName>.service` for user scope). Nothing is
+    installed system-wide unless you choose `serviceScope=system`. It does not
+    touch Ollama or any other extension's files.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - llama_cpp.ts
+  - llama_cpp_shared.ts
+
+workflows:
+  - llama-cpp-model-factory.yaml
+
+dependencies:
+  - "@svendowideit/gpu-facts"
+  - "@svendowideit/huggingface"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - llama_cpp_test.ts
+  - llama_cpp_shared_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - windows-x86_64

@@ -67,6 +67,10 @@ A single pull also installs the declared dependencies
 (`@svendowideit/web-cache`, `@svendowideit/wikipedia`, `@svendowideit/wikidata`).
 Nothing is installed on the host.
 
+`@svendowideit/caddy` is an optional dependency (declared in the manifest's
+`optionalDependencies:`). Pull it separately to enable the HTTP(S) serving step;
+without it that step skips and the pages stay on disk.
+
 ## Configuration
 
 Workflow inputs (all optional):

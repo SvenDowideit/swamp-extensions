@@ -1017,7 +1017,7 @@ export async function runSwampCmd(
 /** Model definition for incrementally scanning and listing local ebooks. */
 export const model = {
   type: "@svendowideit/ebooks",
-  version: "2026.10.18.1",
+  version: "2026.10.18.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1046,6 +1046,14 @@ export const model = {
         "Adds optional caddyModelName and caddyRouteHostname globals (both " +
         'default ""). Schema is additive — existing models upgrade with no ' +
         "changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.18.2",
+      description:
+        "Declares @svendowideit/caddy in the manifest's optionalDependencies, " +
+        "so release tooling can show it as an optional peer (used when " +
+        "installed, never required). No model or resource schema changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/ebooks"
-version: "2026.10.18.1"
+version: "2026.10.18.2"
 description: >
   Find every ebook on your machine, detect its bibliographic metadata, resolve
   authors and titles against Wikipedia + Wikidata, and render a browsable HTML
@@ -39,6 +39,11 @@ description: >
     `@svendowideit/wikidata`, declared in this manifest's `dependencies:` — the
     single `swamp extension pull` above installs them automatically. Nothing is
     installed on the host.
+
+    `@svendowideit/caddy` is an optional dependency, declared in this
+    manifest's `optionalDependencies:`. It is not installed for you: pull it
+    separately to enable the HTTP(S) serving step, which is skipped when it is
+    absent.
 
   RUN
 
@@ -123,6 +128,9 @@ dependencies:
   - "@svendowideit/web-cache"
   - "@svendowideit/wikipedia"
   - "@svendowideit/wikidata"
+
+optionalDependencies:
+  - "@svendowideit/caddy"
 
 additionalFiles:
   - README.md

@@ -23,7 +23,11 @@ review files. `@svendowideit/release-train` reads all of it once and renders:
 - **A dependency graph** — one node per extension, edges from
   `manifest.yaml:dependencies:` (dependent → dependency, external dependencies
   included), rendered as Mermaid with status colours and per-node docs score,
-  unit coverage, acceptance-test count, and review state.
+  unit coverage, acceptance-test count, and review state. Optional integration
+  from `manifest.yaml:optionalDependencies:` is drawn as a **dotted** edge: the
+  extension uses that dependency when it is installed, but it never blocks a
+  publish. The diagram runs **right-to-left**, so the most-reused dependencies
+  sit on the left.
 - **Publish state** — for each extension, its on-disk version, the latest
   version published to **each** of stable / rc / beta, the version actually
   pulled, and whether it is `up-to-date`, `needs-publish`, `blocked` (a
@@ -41,6 +45,10 @@ review files. `@svendowideit/release-train` reads all of it once and renders:
 - **An ordered publish plan** — dependencies first, with each step's advisory
   target channel, the exact `swamp extension push` command, and the hygiene
   failures to fix first.
+- **Optional dependencies** — declared in `optionalDependencies:`, reported per
+  extension as `optionalDependencies`/`optionalDependents`, listed in their own
+  table, and drawn as dotted edges. They are used only when installed, so they
+  never affect the publish order, blockers, or the plan.
 - **Hygiene compliance** — manifest==model version, an `upgrades` entry for the
   version, `swamp extension fmt --check`, workflow validation, the docs score
   against the threshold, and whether an adversarial review exists for the current
@@ -68,20 +76,24 @@ and every section is a markdown table:
 2. **Dependency graph** — the Mermaid diagram, coloured with the swamp-club
    palette (bright green up-to-date on stable, duller lime to-promote, amber
    needs-publish, red blocked, magenta unknown, grey external) and an explicit
-   label text colour, so it stays legible in both GitHub light and dark mode. The
-   Status table above it is the colour key.
+   label text colour, so it stays legible in both GitHub light and dark mode.
+   Required edges are solid and optional edges are dotted; the layout runs
+   right-to-left so the most-reused dependencies are on the left. The Status
+   table above it is the colour key.
 3. **Hygiene and test matrix** — one row per extension: versions, published
    stable/rc/beta, publish state, manifest==model, upgrades, `fmt`, workflow
    validation, docs score, review state, unit-test count + coverage, acceptance
    count, and issue count.
 4. **Publish plan** — the ordered steps with blockers, advised channel, exact
    command, and hygiene failures.
-5. **External dependencies** — dependencies outside the repo, with who depends
-   on them.
-6. **No acceptance tests declared** — each extension with none, with its manifest
+5. **External dependencies** — dependencies outside the repo, with whether they
+   are required or optional and who depends on them.
+6. **Optional dependencies** — each `optionalDependencies:` edge and whether
+   the dependency is in this repo or external.
+7. **No acceptance tests declared** — each extension with none, with its manifest
    path and unit coverage.
-7. **Hygiene issues** and **stale meta-factory data** — the full issue lists.
-8. **Regenerate** — the commands to reproduce the document.
+8. **Hygiene issues** and **stale meta-factory data** — the full issue lists.
+9. **Regenerate** — the commands to reproduce the document.
 
 Because it is one self-contained file, it can be committed, attached to a
 release, or pasted into a gist and shared as a live diagram.
@@ -176,26 +188,28 @@ swamp data get release-train plan --json | jq '.content.steps'
 | ------ | ---- | ------- |
 | `@svendowideit/release-train` | model | `analyze` discovers, graphs, gathers status, and writes the diagram and plan. |
 | `analyze` | method | The single fan-out method (args: none; use the global args). |
-| `@svendowideit/release-train-report` | report (workflow scope) | Renders the one-file dashboard: Mermaid diagram, status legend, hygiene/test matrix, publish plan, external deps, and the no-test/hygiene lists. |
+| `@svendowideit/release-train-report` | report (workflow scope) | Renders the one-file dashboard: Mermaid diagram, status legend, hygiene/test matrix, publish plan, external deps, optional deps, and the no-test/hygiene lists. |
 | `@svendowideit/release-train` | workflow | Runs `analyze`, then the report; never gates. |
 
 ### Resources
 
 | Resource | Instance | Contents |
 | -------- | -------- | -------- |
-| `node` | one per extension (name sanitized) | on-disk/model/upgrades versions, published per channel, installed version, changed, dirty files, publish state, blockers, channel advice, `hygiene` block, `tests` block, dependencies, dependents. |
-| `graph` | `repo` | nodes, edges (with `external` flag), topological `publishOrder`, external nodes, cycle. |
+| `node` | one per extension (name sanitized) | on-disk/model/upgrades versions, published per channel, installed version, changed, dirty files, publish state, blockers, channel advice, `hygiene` block, `tests` block, dependencies, optional dependencies, dependents, optional dependents. |
+| `graph` | `repo` | nodes, edges (with `external` and `optional` flags), topological `publishOrder`, external nodes, cycle. |
 | `plan` | `plan` | ordered steps with state, blockers, target channel, command, hygiene failures. |
 | `summary` | `rollup` | counts by state, hygiene failures, untested-acceptance and stale-data lists, publish order. |
 
 ### How the analysis works
 
 1. **Discover** git-tracked `manifest.yaml` files (`git ls-files`), falling back
-   to a filesystem walk; parse name, version, `dependencies`, models, workflows,
-   additional files.
+   to a filesystem walk; parse name, version, `dependencies`,
+   `optionalDependencies`, models, workflows, additional files.
 2. **Graph** — edges dependent → dependency; external dependencies become
-   external nodes; topological sort (Kahn) gives the publish order, with a
-   deterministic break and a reported `cycle` when one exists.
+   external nodes; optional dependencies are marked on their edge (dotted in the
+   diagram) and ignored by the topological sort. Topological sort (Kahn) gives
+   the publish order, with a deterministic break and a reported `cycle` when one
+   exists.
 3. **Versions** — manifest version, the model's `version:`, the latest
    `upgrades[].toVersion`; published versions from `swamp extension info`
    (stable/rc/beta) with the lockfile as fallback; installed version/channel from

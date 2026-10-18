@@ -4,7 +4,8 @@
  * This is a workflow-scope report: it runs after the `analyze` step and reads
  * the `node`, `graph`, `plan`, and `summary` resources from the run's
  * `stepExecutions`, then renders the dependency diagram (Mermaid), a per-extension
- * hygiene + test matrix, and the ordered publish plan. The pure renderers take
+ * hygiene + test matrix, the optional-dependency table, and the ordered publish
+ * plan. The pure renderers take
  * plain view-model objects, so they are unit-tested directly.
  *
  * @module
@@ -70,6 +71,10 @@ export interface NodeView {
   publishedAsOf: string;
   /** Dependencies that must publish first. */
   blockers: string[];
+  /** Optional dependencies, used only when installed. */
+  optionalDependencies: string[];
+  /** Extensions that optionally use this one. */
+  optionalDependents: string[];
   /** Advisory target channel. */
   channelAdvice: { channel: string; reason: string; confidence: string };
   /** Hygiene details. */
@@ -132,6 +137,8 @@ export interface GraphEdgeView {
   to: string;
   /** True when the dependency is external. */
   external: boolean;
+  /** True when the dependency is optional (drawn as a dotted edge). */
+  optional: boolean;
 }
 
 /** An external dependency node. */
@@ -430,7 +437,7 @@ function stateIcon(publishState: string): string {
  */
 export function renderMermaid(graph: GraphView, nodes: NodeView[]): string {
   const byName = new Map(nodes.map((nd) => [nd.name, nd]));
-  const lines: string[] = ["graph LR"];
+  const lines: string[] = ["graph RL"];
   for (const g of graph.nodes) {
     const nd = byName.get(g.name);
     const advice = g.channelAdvice.channel
@@ -467,14 +474,31 @@ export function renderMermaid(graph: GraphView, nodes: NodeView[]): string {
       }`,
     );
   }
+  // An external node reached only by optional edges is labelled as optional, so
+  // the diagram does not imply it must be installed.
+  const optionalOnly = new Set<string>();
+  const requiredTargets = new Set(
+    graph.edges.filter((e) => !e.optional).map((e) => e.to),
+  );
+  for (const edge of graph.edges) {
+    if (
+      edge.external && edge.optional && !requiredTargets.has(edge.to)
+    ) {
+      optionalOnly.add(edge.to);
+    }
+  }
   for (const ext of graph.externalNodes) {
     const pub = ext.publishedStable || ext.publishedBeta || "unpublished";
+    const kind = optionalOnly.has(ext.name) ? " · optional" : "";
     lines.push(
-      `  ${nodeId(ext.name)}["${ext.name}<br/>external ${pub}"]:::external`,
+      `  ${
+        nodeId(ext.name)
+      }["${ext.name}<br/>external ${pub}${kind}"]:::external`,
     );
   }
   for (const edge of graph.edges) {
-    lines.push(`  ${nodeId(edge.from)} --> ${nodeId(edge.to)}`);
+    const arrow = edge.optional ? "-.->" : "-->";
+    lines.push(`  ${nodeId(edge.from)} ${arrow} ${nodeId(edge.to)}`);
   }
   lines.push(...MERMAID_CLASS_DEFS);
   return lines.join("\n") + "\n";
@@ -585,7 +609,9 @@ export function renderLegend(summary: SummaryView): string {
       "swamp-club palette (`fill`, `stroke`, label text) used for that node in " +
       "the Mermaid diagram. There are two healthy greens: the bright `green` " +
       "means the on-disk version is live on stable, while the duller `lime` " +
-      "means it is only on rc/beta and still needs promoting to stable._",
+      "means it is only on rc/beta and still needs promoting to stable. " +
+      "Dotted edges in the diagram are optional dependencies, used only when " +
+      "the dependency is installed._",
   );
   lines.push("");
   lines.push("| Swatch | State | Colour | Count | Meaning |");
@@ -637,32 +663,72 @@ export function renderExternal(graph: GraphView, nodes: NodeView[]): string {
     lines.push("");
     return lines.join("\n") + "\n";
   }
-  // Which local extensions depend on each external node.
+  // Which local extensions depend on each external node, and how.
   const dependents = new Map<string, string[]>();
+  const optionalDependents = new Map<string, string[]>();
   for (const edge of graph.edges) {
     if (!edge.external) continue;
-    const list = dependents.get(edge.to) ?? [];
+    const target = edge.optional ? optionalDependents : dependents;
+    const list = target.get(edge.to) ?? [];
     list.push(edge.from);
-    dependents.set(edge.to, list);
+    target.set(edge.to, list);
   }
   const localPublish = new Map(nodes.map((nd) => [nd.name, nd.publishState]));
   lines.push(
-    "| External extension | Published stable | Published beta | Depended on by |",
+    "| External extension | Published stable | Published beta | Kind | Depended on by |",
   );
   lines.push(
-    "| ------------------ | ---------------- | -------------- | -------------- |",
+    "| ------------------ | ---------------- | -------------- | ---- | -------------- |",
   );
   for (
     const ext of [...graph.externalNodes].sort((a, b) =>
       a.name.localeCompare(b.name)
     )
   ) {
-    const users = (dependents.get(ext.name) ?? [])
+    const required = dependents.get(ext.name) ?? [];
+    const optional = optionalDependents.get(ext.name) ?? [];
+    const kind = required.length > 0 && optional.length > 0
+      ? "required + optional"
+      : required.length > 0
+      ? "required"
+      : "optional";
+    const users = [...required, ...optional]
       .map((u) => `${u} (${localPublish.get(u) ?? "?"})`)
       .join(", ");
     lines.push(
       `| ${cell(ext.name)} | ${cell(ext.publishedStable || "—")} | ` +
-        `${cell(ext.publishedBeta || "—")} | ${cell(users || "—")} |`,
+        `${cell(ext.publishedBeta || "—")} | ${cell(kind)} | ` +
+        `${cell(users || "—")} |`,
+    );
+  }
+  return lines.join("\n") + "\n";
+}
+
+/** Render the optional dependency table. */
+export function renderOptionalDependencies(graph: GraphView): string {
+  const lines: string[] = [];
+  lines.push("## Optional dependencies");
+  lines.push("");
+  lines.push(
+    "_Used only when the dependency is installed. These are dotted edges in " +
+      "the diagram and never block a publish._",
+  );
+  lines.push("");
+  const optional = graph.edges
+    .filter((e) => e.optional)
+    .sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
+  if (optional.length === 0) {
+    lines.push("None declared.");
+    lines.push("");
+    return lines.join("\n") + "\n";
+  }
+  lines.push("| Extension | Optional dependency | Location |");
+  lines.push("| --------- | ------------------- | -------- |");
+  for (const edge of optional) {
+    lines.push(
+      `| ${cell(edge.from)} | ${cell(edge.to)} | ${
+        edge.external ? "external" : "this repo"
+      } |`,
     );
   }
   return lines.join("\n") + "\n";
@@ -794,9 +860,12 @@ export function renderReport(
   lines.push("## Dependency graph");
   lines.push("");
   lines.push(
-    "_Edge direction is **dependent → dependency**; nodes are coloured by " +
-      "publish state and labelled with docs score, unit coverage, acceptance " +
-      "count, and review state._",
+    "_Edge direction is **dependent → dependency** and the layout runs " +
+      "right-to-left, so the most-reused dependencies sit on the left. Solid " +
+      "edges are required; dotted edges are optional (used only when the " +
+      "dependency is installed). Nodes are coloured by publish state and " +
+      "labelled with docs score, unit coverage, acceptance count, and review " +
+      "state._",
   );
   lines.push("");
   lines.push("```mermaid");
@@ -806,6 +875,7 @@ export function renderReport(
   lines.push(renderMatrix(nodes));
   lines.push(renderPlan(plan));
   lines.push(renderExternal(graph, nodes));
+  lines.push(renderOptionalDependencies(graph));
   lines.push(renderUntested(summary, nodes));
 
   if (summary.hygieneFailures.length > 0) {
@@ -903,6 +973,12 @@ export function toNodeView(raw: Record<string, unknown>): NodeView {
     publishedSource: s(raw.publishedSource) || "registry",
     publishedAsOf: s(raw.publishedAsOf),
     blockers: Array.isArray(raw.blockers) ? raw.blockers.map(s) : [],
+    optionalDependencies: Array.isArray(raw.optionalDependencies)
+      ? raw.optionalDependencies.map(s)
+      : [],
+    optionalDependents: Array.isArray(raw.optionalDependents)
+      ? raw.optionalDependents.map(s)
+      : [],
     channelAdvice: {
       channel: s((raw.channelAdvice as Record<string, unknown>)?.channel),
       reason: s((raw.channelAdvice as Record<string, unknown>)?.reason),

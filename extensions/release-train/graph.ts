@@ -2,10 +2,10 @@
  * Pure graph and release-status logic for release-train.
  *
  * Turns a list of per-extension records (on-disk version, published versions,
- * dependencies, dirty files, review state) into a dependency graph, a
- * topological publish order, per-extension publish state, an advisory target
- * channel, and an ordered publish plan. No I/O: every function here is a pure
- * transformation, unit-tested directly.
+ * required and optional dependencies, dirty files, review state) into a
+ * dependency graph, a topological publish order, per-extension publish state,
+ * an advisory target channel, and an ordered publish plan. No I/O: every
+ * function here is a pure transformation, unit-tested directly.
  *
  * @module
  */
@@ -45,6 +45,8 @@ export interface ExtensionRecord {
   upgradesTo: string;
   /** Declared dependencies (may be external). */
   dependencies: string[];
+  /** Declared optional dependencies, used only when present. */
+  optionalDependencies: string[];
   /** Latest published version per channel. */
   published: ChannelVersions;
   /** Installed version/channel from the lockfile. */
@@ -121,6 +123,8 @@ export interface GraphEdge {
   to: string;
   /** True when `to` is not one of this repo's extensions. */
   external: boolean;
+  /** True when `to` is optional: used when installed, never a blocker. */
+  optional: boolean;
 }
 
 /** An extension not present in this repo but depended upon. */
@@ -344,12 +348,25 @@ export function buildEdges(
 ): GraphEdge[] {
   const edges: GraphEdge[] = [];
   for (const record of records) {
+    const seen = new Set<string>();
     for (const dep of record.dependencies) {
-      if (dep === record.name) continue; // ignore a self-edge
+      if (dep === record.name || seen.has(dep)) continue; // self/duplicate
+      seen.add(dep);
       edges.push({
         from: record.name,
         to: dep,
         external: !localNames.has(dep),
+        optional: false,
+      });
+    }
+    for (const dep of record.optionalDependencies) {
+      if (dep === record.name || seen.has(dep)) continue; // self/required
+      seen.add(dep);
+      edges.push({
+        from: record.name,
+        to: dep,
+        external: !localNames.has(dep),
+        optional: true,
       });
     }
   }

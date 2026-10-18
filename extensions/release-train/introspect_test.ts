@@ -22,6 +22,8 @@ description: >
 dependencies:
   - "@svendowideit/web-cache"
   - "@magistr/obsidian-vault"
+optionalDependencies:
+  - "@svendowideit/caddy"
 models:
   - thing.ts
   - helper.ts
@@ -42,6 +44,7 @@ Deno.test("parseManifest reads identity, lists and dependencies", () => {
     "@svendowideit/web-cache",
     "@magistr/obsidian-vault",
   ]);
+  assertEquals(m.optionalDependencies, ["@svendowideit/caddy"]);
   assertEquals(m.models, ["thing.ts", "helper.ts"]);
   assertEquals(m.workflows, ["thing-flow.yaml"]);
   assertEquals(m.additionalFiles, [

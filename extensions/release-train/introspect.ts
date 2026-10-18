@@ -18,6 +18,8 @@ export interface ManifestInfo {
   version: string;
   /** Declared dependency names (may include external extensions). */
   dependencies: string[];
+  /** Declared optional dependency names (used when present, never required). */
+  optionalDependencies: string[];
   /** Declared model source files. */
   models: string[];
   /** Declared workflow files. */
@@ -55,6 +57,7 @@ export function parseManifest(text: string): ManifestInfo {
     name: "",
     version: "",
     dependencies: [],
+    optionalDependencies: [],
     models: [],
     workflows: [],
     reports: [],
@@ -63,6 +66,7 @@ export function parseManifest(text: string): ManifestInfo {
   };
   const listKeys = [
     "dependencies",
+    "optionalDependencies",
     "models",
     "workflows",
     "reports",

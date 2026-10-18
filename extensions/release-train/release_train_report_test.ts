@@ -9,6 +9,7 @@ import {
   renderLegend,
   renderMatrix,
   renderMermaid,
+  renderOptionalDependencies,
   renderPlan,
   renderReport,
   renderUntested,
@@ -28,6 +29,8 @@ function node(partial: Partial<NodeView>): NodeView {
     publishedSource: "registry",
     publishedAsOf: "",
     blockers: [],
+    optionalDependencies: [],
+    optionalDependents: [],
     channelAdvice: { channel: "beta", reason: "trend", confidence: "medium" },
     hygiene: {
       manifestModelMatch: true,
@@ -66,7 +69,7 @@ const GRAPH: GraphView = {
     publishState: "needs-publish",
     channelAdvice: { channel: "beta", reason: "trend", confidence: "medium" },
   }],
-  edges: [{ from: "@a/app", to: "@a/lib", external: false }],
+  edges: [{ from: "@a/app", to: "@a/lib", external: false, optional: false }],
   publishOrder: ["@a/lib", "@a/app"],
   externalNodes: [{
     name: "@ext/x",
@@ -87,7 +90,7 @@ function assertEqualsStr(a: string, b: string): void {
 
 Deno.test("renderMermaid embeds name, versions, tests and classes", () => {
   const mmd = renderMermaid(GRAPH, [node({})]);
-  assertStringIncludes(mmd, "graph LR");
+  assertStringIncludes(mmd, "graph RL");
   assertStringIncludes(mmd, "@a/lib");
   assertStringIncludes(mmd, "2026.10.05.1 ⚠ →beta");
   assertStringIncludes(mmd, "docs 88");
@@ -125,6 +128,65 @@ Deno.test("STATE_COLOURS covers every publish state", () => {
   ) {
     assert(STATE_COLOURS[state], `missing colour for ${state}`);
   }
+});
+
+Deno.test("renderMermaid draws optional dependencies as dotted edges", () => {
+  const graph: GraphView = {
+    ...GRAPH,
+    nodes: [
+      ...GRAPH.nodes,
+      {
+        name: "@a/opt",
+        onDiskVersion: "2026.10.05.1",
+        publishState: "up-to-date",
+        channelAdvice: {
+          channel: "stable",
+          reason: "trend",
+          confidence: "medium",
+        },
+      },
+    ],
+    edges: [
+      ...GRAPH.edges,
+      { from: "@a/app", to: "@a/opt", external: false, optional: true },
+    ],
+  };
+  const mmd = renderMermaid(graph, [node({})]);
+  assertStringIncludes(mmd, "n__a_app --> n__a_lib");
+  assertStringIncludes(mmd, "n__a_app -.-> n__a_opt");
+});
+
+Deno.test("renderMermaid labels an optional-only external node", () => {
+  const graph: GraphView = {
+    ...GRAPH,
+    edges: [
+      ...GRAPH.edges,
+      { from: "@a/app", to: "@ext/x", external: true, optional: true },
+    ],
+  };
+  const mmd = renderMermaid(graph, [node({})]);
+  assertStringIncludes(mmd, "external 1.0.0 · optional");
+  assertStringIncludes(mmd, "n__a_app -.-> n__ext_x");
+});
+
+Deno.test("renderOptionalDependencies lists optional edges", () => {
+  const graph: GraphView = {
+    ...GRAPH,
+    edges: [
+      ...GRAPH.edges,
+      { from: "@a/app", to: "@ext/x", external: true, optional: true },
+    ],
+  };
+  const md = renderOptionalDependencies(graph);
+  assertStringIncludes(md, "## Optional dependencies");
+  assertStringIncludes(md, "| @a/app | @ext/x | external |");
+});
+
+Deno.test("renderOptionalDependencies says none when there are none", () => {
+  assertStringIncludes(
+    renderOptionalDependencies(GRAPH),
+    "None declared",
+  );
 });
 
 Deno.test("renderMermaid gives a stable up-to-date node the satisfying green", () => {
@@ -302,6 +364,7 @@ Deno.test("renderReport assembles graph, matrix, plan and issues", () => {
   assertStringIncludes(md, "## Stale meta-factory data");
   assertStringIncludes(md, "## Status");
   assertStringIncludes(md, "## External dependencies");
+  assertStringIncludes(md, "## Optional dependencies");
   assertStringIncludes(md, "## Regenerate");
 });
 
@@ -333,7 +396,10 @@ Deno.test("renderLegend explains each publish state", () => {
 Deno.test("renderExternal lists externals and their local dependents", () => {
   const graph: GraphView = {
     ...GRAPH,
-    edges: [...GRAPH.edges, { from: "@a/app", to: "@ext/x", external: true }],
+    edges: [
+      ...GRAPH.edges,
+      { from: "@a/app", to: "@ext/x", external: true, optional: false },
+    ],
   };
   const md = renderExternal(graph, [
     node({ name: "@a/app", publishState: "blocked" }),

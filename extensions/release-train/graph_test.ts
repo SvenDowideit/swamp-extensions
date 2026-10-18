@@ -21,6 +21,7 @@ function record(
     modelVersion: "",
     upgradesTo: "",
     dependencies: [],
+    optionalDependencies: [],
     published: { stable: "", rc: "", beta: "" },
     installed: { version: "", channel: "" },
     dirtyFiles: [],
@@ -170,6 +171,52 @@ Deno.test("buildGraph marks blockers and external edges", () => {
     graph.publishOrder.indexOf("@a/lib") < graph.publishOrder.indexOf("@a/app"),
     true,
   );
+});
+
+Deno.test("buildGraph adds optional edges without blocking", () => {
+  const records = [
+    record({
+      name: "@a/opt",
+      onDiskVersion: "2026.10.05.1",
+      published: { stable: "", rc: "", beta: "2026.10.01.1" },
+    }),
+    record({
+      name: "@a/app",
+      onDiskVersion: "2026.10.05.1",
+      published: { stable: "", rc: "", beta: "" },
+      optionalDependencies: ["@a/opt", "@external/opt"],
+    }),
+  ];
+  const graph = buildGraph(records);
+  const app = graph.nodes.find((n) => n.name === "@a/app");
+  const optional = graph.edges.filter((e) => e.optional);
+  assertEquals(optional.map((e) => e.to), ["@a/opt", "@external/opt"]);
+  assertEquals(
+    optional.find((e) => e.to === "@external/opt")?.external,
+    true,
+  );
+  // An optional dependency is never a publish blocker.
+  assertEquals(app?.publishState, "needs-publish");
+  assertEquals(graph.externalNodes.map((n) => n.name), ["@external/opt"]);
+  assertEquals(
+    graph.publishOrder.indexOf("@a/app") < graph.publishOrder.indexOf("@a/opt"),
+    true,
+  );
+});
+
+Deno.test("buildGraph treats an optional dependency that is also required as required", () => {
+  const records = [
+    record({ name: "@a/lib" }),
+    record({
+      name: "@a/app",
+      dependencies: ["@a/lib"],
+      optionalDependencies: ["@a/lib"],
+    }),
+  ];
+  const graph = buildGraph(records);
+  const edges = graph.edges.filter((e) => e.from === "@a/app");
+  assertEquals(edges.length, 1);
+  assertEquals(edges[0].optional, false);
 });
 
 Deno.test("buildGraph marks an up-to-date extension", () => {

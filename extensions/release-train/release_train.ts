@@ -3,11 +3,11 @@
  * extensions in this repo.
  *
  * One `analyze` fan-out discovers every git-tracked `manifest.yaml`, reads each
- * extension's declared dependencies, on-disk and published versions, dirty
- * files, hygiene signals, and test coverage (reused from
- * `@svendowideit/meta-factory`), then writes a `node` per extension plus `graph`,
- * `plan`, and `summary` resources and a `release-train.mmd` Mermaid file. It
- * publishes nothing, bumps nothing, and edits no extension.
+ * extension's declared dependencies (required and optional), on-disk and
+ * published versions, dirty files, hygiene signals, and test coverage (reused
+ * from `@svendowideit/meta-factory`), then writes a `node` per extension plus
+ * `graph`, `plan`, and `summary` resources and a `release-train.mmd` Mermaid
+ * file. It publishes nothing, bumps nothing, and edits no extension.
  *
  * @module
  */
@@ -162,7 +162,9 @@ const NodeSchema = z.object({
   hygiene: HygieneSchema,
   tests: TestsSchema,
   dependencies: z.array(z.string()),
+  optionalDependencies: z.array(z.string()),
   dependents: z.array(z.string()),
+  optionalDependents: z.array(z.string()),
   analyzedAt: z.string(),
 });
 
@@ -181,6 +183,7 @@ const GraphSchema = z.object({
     from: z.string(),
     to: z.string(),
     external: z.boolean(),
+    optional: z.boolean(),
   })),
   publishOrder: z.array(z.string()),
   externalNodes: z.array(z.object({
@@ -264,6 +267,10 @@ export async function run(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    // release-train shells out to swamp/deno/git for read-only checks; every
+    // argument is a fixed literal or a manifest-derived path — see README
+    // "Side effects".
+    // swamp-quality-ignore deno-command
     const out = await new Deno.Command(bin, {
       args,
       cwd: opts.cwd,
@@ -980,6 +987,7 @@ async function gatherOne(
     modelVersion,
     upgradesTo,
     dependencies: manifest.dependencies,
+    optionalDependencies: manifest.optionalDependencies,
     published,
     installed,
     dirtyFiles,
@@ -1033,6 +1041,7 @@ function failedRecord(d: Discovered, err: unknown): Gathered {
     modelVersion: "",
     upgradesTo: "",
     dependencies: [],
+    optionalDependencies: [],
     published: { stable: "", rc: "", beta: "" },
     installed: { version: "", channel: "" },
     dirtyFiles: [],
@@ -1047,6 +1056,7 @@ function failedRecord(d: Discovered, err: unknown): Gathered {
       name: d.rel,
       version: "",
       dependencies: [],
+      optionalDependencies: [],
       models: [],
       workflows: [],
       reports: [],
@@ -1133,7 +1143,7 @@ async function writeText(
 /** Model definition for the release-train dashboard. */
 export const model = {
   type: "@svendowideit/release-train",
-  version: "2026.10.09.1",
+  version: "2026.10.18.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1150,6 +1160,18 @@ export const model = {
         "already pushed to beta/rc (or whose beta/rc is ahead of stable) is the " +
         "duller lime `promote` tier, with a report header and legend entry. No " +
         "global-argument or resource schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.18.1",
+      description:
+        "Adds optional dependencies. A manifest's `optionalDependencies:` " +
+        "become dotted edges in the diagram and an Optional dependencies " +
+        "table; they are reported in each node's `optionalDependencies` and " +
+        "`optionalDependents` but never affect publish order, blockers, or " +
+        "the plan. The diagram now renders right-to-left so the most-reused " +
+        "dependencies sit on the left. Schema is additive — existing models " +
+        "and resources upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1247,12 +1269,19 @@ export const model = {
 
         const localNames = new Set(records.map((r) => r.name));
         const dependents = new Map<string, string[]>();
+        const optionalDependents = new Map<string, string[]>();
         for (const r of records) {
           for (const dep of r.dependencies) {
             if (!localNames.has(dep)) continue;
             const list = dependents.get(dep) ?? [];
             list.push(r.name);
             dependents.set(dep, list);
+          }
+          for (const dep of r.optionalDependencies) {
+            if (!localNames.has(dep) || r.dependencies.includes(dep)) continue;
+            const list = optionalDependents.get(dep) ?? [];
+            list.push(r.name);
+            optionalDependents.set(dep, list);
           }
         }
         const stateByName = new Map(
@@ -1297,7 +1326,9 @@ export const model = {
             hygiene: x.hygiene,
             tests: x.tests,
             dependencies: r.dependencies,
+            optionalDependencies: r.optionalDependencies,
             dependents: dependents.get(r.name) ?? [],
+            optionalDependents: optionalDependents.get(r.name) ?? [],
             analyzedAt: now,
           };
           nodeRaws.push(data);

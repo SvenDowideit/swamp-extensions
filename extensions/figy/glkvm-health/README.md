@@ -29,16 +29,26 @@ records a `fail` verdict, and `emit` forwards it like any other sample, so a
 flapping device leaves a trail rather than a gap.
 
 The extension ships a **second workflow**, `@figy/glkvm-dns`, that publishes the
-KVM's address. It reconciles an A record (`glkvm.fi.gy` → the KVM) declared on a
-dedicated `@svendowideit/caddy` model into the shared Caddy, using the caddy
-**mixin** so the record merges with the Caddy's other models rather than needing
-a Caddy of its own. The record is declared once on a repo model
-(`glkvm-caddy`); the workflow runs `configureTls` then `applyDnsRecords`. See
-[Configuration](#configuration) and [Details](#details).
+KVM's address and gets it a certificate. It reconciles an A record
+(`glkvm.fi.gy` → the KVM) declared on a dedicated `@svendowideit/caddy` model into
+the shared Caddy, using the caddy **mixin** so the record merges with the Caddy's
+other models rather than needing a Caddy of its own. The `tls` step also declares
+`glkvm.fi.gy` as a TLS subject (`keyType=rsa2048`), so Caddy issues and renews a
+**Let's Encrypt** certificate for it via DNS-01. The record is declared once on a
+repo model (`glkvm-caddy`); the workflow runs `configureTls` then
+`applyDnsRecords`. See [Configuration](#configuration) and [Details](#details).
+
+A **third workflow**, `@figy/glkvm-cert`, installs that certificate **onto the
+KVM's web UI**, on a daily schedule. The GLKVM has no certificate-upload API, so
+it drives the `cert install` method this extension adds to the type, which writes
+`/etc/kvmd/user/ssl/server.crt|.key` over SSH (root, the device password) and
+reloads nginx, then verifies the web UI serves a certificate carrying the KVM's
+name. The certificate is fetched from Caddy's store, so the workflow only ever
+syncs, never issues.
 
 Side effects: it drives the extended model and the caddy model (network calls to
-the KVM and the collector, one DNS reconcile) and writes swamp data. It installs
-nothing on the host.
+the KVM and the collector, one DNS reconcile, one certificate, one SSH session)
+and writes swamp data. It installs nothing on the host.
 
 ## Install
 
@@ -135,11 +145,21 @@ swamp data query 'behavior("glkvm") && name == "emit"' --select content
 # Read the latest verdict and findings the check left behind.
 swamp data query 'behavior("glkvm") && name == "health"' --select content
 
-# Publish the KVM's address: reconcile glkvm.fi.gy into the shared Caddy.
+# Publish the KVM's address and get it a certificate: reconcile glkvm.fi.gy
+# into the shared Caddy and declare it as a TLS subject (Caddy then issues and
+# renews a Let's Encrypt certificate for it).
 swamp workflow run @figy/glkvm-dns
 
 # Confirm the A record was reconciled (provider, changed, records).
 swamp data get glkvm-caddy current --json | jq '.content | {provider, changed, records}'
+
+# Install the certificate onto the KVM's web UI (scheduled daily). The GLKVM has
+# no cert-upload API, so it is written over SSH and nginx is reloaded.
+swamp workflow run @figy/glkvm-cert
+
+# See what the KVM now serves.
+swamp data query 'behavior("glkvm") && name == "cert"' --select content \
+  | jq '{issuer, daysRemaining, sans, installed}'
 ```
 
 ## Upgrade
@@ -167,11 +187,21 @@ automatically.
 | ----- | ---- | ------- |
 | `emit` | method | Read the model's latest `health` (or a passed-in record), resolve the OTLP endpoint and token, and POST one OTLP/HTTP log record plus gauges. |
 | `emit` | resource | One push: `host`, `skipped`, `reason`, `endpoint`, `mesh`, `logsStatus`, `metricsStatus`, `pushed`, `verdict`, `emittedAt`. |
+| `cert` | method | Read the certificate the KVM serves, or install a Let's Encrypt one from Caddy's store onto the KVM over SSH and reload nginx. |
+| `cert` | resource | The served certificate (subject/issuer/serial/notAfter/SAN) or the install outcome. |
 
 `emit` arguments: `health` (optional record; default the latest `health`
 resource), `endpoint` (OTLP/HTTP base URL override), `mesh` (contract mesh),
 `otelModel` (settings model name, default `otel`), `otelVaultName`, and
 `otelTokenRef`. It is a no-op that records the reason when no endpoint resolves.
+
+`cert` arguments: `action` (`status`|`install`), `name` (the certificate's DNS
+name), `certDir` (Caddy's store; default `~/.local/share/caddy/certificates`),
+`crt`/`key` (explicit paths), `waitMs`, `sshUser` (default `root`), `sshPort`,
+and `restart`. The password is the model's `password` global (the workflow
+supplies it from the vault); it reaches ssh through `SSH_ASKPASS`, never argv. An
+install is idempotent: when the KVM already serves the certificate being
+installed it is a no-op that still verifies.
 
 The endpoint and resource attributes come from the `@svendowideit/otel-settings`
 contract: an explicit `endpoint` wins, else the named `mesh`, else the contract's
@@ -197,7 +227,7 @@ caddy model (created per [Configuration](#the-caddy-model-glkvm-caddy)):
 
 | Step | Task | Purpose |
 | ---- | ---- | ------- |
-| `tls` | `@svendowideit/caddy` `configureTls` | Ensure a DNS provider so records can be written; no TLS subjects. |
+| `tls` | `@svendowideit/caddy` `configureTls` | Ensure a DNS provider so records can be written, and declare `glkvm.fi.gy` as a TLS subject (`keyType=rsa2048`) so Caddy issues it a Let's Encrypt certificate via DNS-01. |
 | `dns` | `@svendowideit/caddy` `applyDnsRecords` | Reconcile `glkvm.fi.gy` — merged with the Caddy's peer models' records — into Caddy. |
 | `assert-applied` | assert | Fails the run only if no `dnsConfig` record was written. |
 
@@ -206,14 +236,36 @@ merges every repo model sharing the `glkvm-caddy` model's `(target,
 serviceName)`, so this one record is reconciled alongside `my-caddy`'s TLS,
 routes and records; running the workflow never removes a peer's records.
 
+### The certificate workflow
+
+`@figy/glkvm-cert` — one job (`cert`) with two steps, on the daily
+`trigger.schedule`, installing the Caddy-issued certificate onto the KVM:
+
+| Step | Task | Purpose |
+| ---- | ---- | ------- |
+| `install` | `@sntxrr/glinet-kvm` `cert` (added here) | Locate the certificate for `glkvm.fi.gy` in Caddy's store, write it onto the KVM over SSH, reload nginx and verify the web UI serves it. |
+| `assert-installed` | assert | Fails the run if the KVM does not end up serving a certificate for its name. |
+
+The GLKVM has no certificate-upload API, so the method writes
+`/etc/kvmd/user/ssl/server.crt` and `/etc/kvmd/user/ssl/server.key` (referenced by
+`/etc/kvmd/nginx/ssl.conf`) over SSH as `root` — the device password is also the
+root SSH password — and reloads nginx (`nginx -s reload`, falling back to
+`/etc/init.d/S99kvmd-nginx restart`). The init script's `check_cert_valid` uses
+the generic `openssl pkey`, so a Caddy-issued RSA certificate passes. The
+workflow is idempotent (an unchanged certificate is a no-op that still verifies).
+
 ### Structure and how to extend it
 
 - The pure helpers are exported for testing: `telemetryResource`,
-  `pickEndpoint`, `buildOtlpLogs`, `buildOtlpMetrics`, `normalizeHealth`, plus the
-  `EXT_TYPE`/`EXT_VERSION`/`BASE_TYPE`/`OTEL_SERVICE_NAME` constants. Only the
-  `emit` execute function does IO (one `fetch` per signal).
+  `pickEndpoint`, `buildOtlpLogs`, `buildOtlpMetrics`, `normalizeHealth`,
+  `parseCertFields`, `certDaysRemaining`, `buildCertInstallerScript`,
+  `locateCaddyCert`, `expandHome`, plus the
+  `EXT_TYPE`/`EXT_VERSION`/`BASE_TYPE`/`OTEL_SERVICE_NAME` constants. The `emit`
+  and `cert` execute functions do the IO (one `fetch` per signal; an openssl
+  probe and one ssh session).
 - To add another gauge, extend `buildOtlpMetrics` and its test together; to add a
-  fact to the log record, extend `buildOtlpLogs`.
+  fact to the log record, extend `buildOtlpLogs`; to change the KVM's cert path or
+  reload command, edit `buildCertInstallerScript`.
 - To watch a second KVM, run the workflow again with `--input host=… --input
   device=…`; to change the collector, set `otelEndpoint` (or blank it to follow the
   `otel-settings` contract).
@@ -226,9 +278,13 @@ routes and records; running the workflow never removes a peer's records.
 ### Testing
 
 ```sh
-# Validate the DAG before running it, then run it once against the live KVM.
+# Validate the DAGs before running them, then run each once (live).
 swamp workflow validate @figy/glkvm-health
 swamp workflow run @figy/glkvm-health
+swamp workflow validate @figy/glkvm-dns
+swamp workflow run @figy/glkvm-dns
+swamp workflow validate @figy/glkvm-cert
+swamp workflow run @figy/glkvm-cert
 ```
 
 ## License

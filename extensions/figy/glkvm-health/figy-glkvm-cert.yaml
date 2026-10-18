@@ -1,0 +1,113 @@
+id: 896d4667-76f2-445b-b83b-d6329b58646c
+name: '@figy/glkvm-cert'
+description: |
+  fi.gy's GL.iNet KVM TLS: install the Let's Encrypt certificate Caddy issued
+  for glkvm.fi.gy onto the KVM and keep it current.
+
+  The GLKVM has no certificate-upload API, so this drives the `cert install`
+  method @figy/glkvm-health adds to @sntxrr/glinet-kvm, which writes
+  /etc/kvmd/user/ssl/server.crt and .key over SSH (root, the device password)
+  and reloads nginx. The certificate files are taken from Caddy's store
+  (~/.local/share/caddy/certificates), where Caddy issued them and renews them
+  automatically via DNS-01 (@figy/glkvm-dns declares glkvm.fi.gy as a TLS
+  subject) — so this workflow only syncs the device, it never obtains a cert.
+
+  Run it on a schedule: Caddy renews roughly 30 days before expiry, and this
+  re-installs onto the KVM whenever the served certificate is older or missing.
+  It is idempotent — an unchanged certificate is a no-op that still verifies.
+
+  Run it by hand after the certificate is first issued:
+    swamp workflow run @figy/glkvm-cert
+
+tags:
+  collective: figy
+trigger:
+  schedule: '15 4 * * *'
+inputs:
+  properties:
+    device:
+      type: string
+      default: glkvm
+      description: Name of the @sntxrr/glinet-kvm model instance to install onto.
+    host:
+      type: string
+      default: '10.10.6.150'
+      description: KVM address (no scheme); maps to the model's `host` global arg.
+    port:
+      type: integer
+      default: 443
+      description: HTTPS port of the KVM web server.
+    name:
+      type: string
+      default: glkvm.fi.gy
+      description: The certificate's DNS name (also the SSH is to `host`).
+    certDir:
+      type: string
+      default: ~/.local/share/caddy/certificates
+      description: Caddy's certificate store, where the issued certificate lives.
+    vaultName:
+      type: string
+      default: glkvm
+      description: >-
+        Vault holding the device login password, which is also the root SSH
+        password.
+    passwordRef:
+      type: string
+      default: GLKVM_PASSWORD
+      description: Vault key holding the login/SSH password.
+    sshUser:
+      type: string
+      default: root
+      description: SSH user on the KVM.
+    sshPort:
+      type: integer
+      default: 22
+      description: SSH port on the KVM.
+  required: []
+jobs:
+  - name: cert
+    description: Install the Caddy-issued certificate onto the KVM and verify it is served.
+    steps:
+      - name: install
+        description: >-
+          Locate the Caddy-issued certificate for the KVM's name, write it onto
+          the KVM over SSH, reload nginx and verify the web UI serves it.
+        task:
+          type: model_method
+          modelType: '@sntxrr/glinet-kvm'
+          modelName: ${{ inputs.device }}
+          methodName: cert
+          globalArgs:
+            host: ${{ inputs.host }}
+            port: ${{ inputs.port }}
+            password: ${{ vault.get(inputs.vaultName, inputs.passwordRef) }}
+          inputs:
+            action: install
+            name: ${{ inputs.name }}
+            certDir: ${{ inputs.certDir }}
+            sshUser: ${{ inputs.sshUser }}
+            sshPort: ${{ inputs.sshPort }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: assert-installed
+        description: Confirm the KVM now serves a certificate carrying its name.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.device, "cert").attributes.installed == true &&
+            data.latest(inputs.device, "cert").attributes.matchesName == true
+          message: >-
+            The KVM did not end up serving a certificate for ${{ inputs.name }};
+            the install did not verify.
+          severity: high
+        dependsOn:
+          - step: install
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

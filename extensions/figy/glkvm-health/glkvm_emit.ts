@@ -20,7 +20,7 @@ import { z } from "npm:zod@4";
 export const EXT_TYPE = "@figy/glkvm-health";
 
 /** This extension's own version (must match manifest.yaml `version:`). */
-export const EXT_VERSION = "2026.10.17.1";
+export const EXT_VERSION = "2026.10.17.2";
 
 /** The model type this extension augments. */
 export const BASE_TYPE = "@sntxrr/glinet-kvm";
@@ -65,6 +65,58 @@ const EmitSchema = z.object({
   pushed: z.boolean(),
   verdict: z.string(),
   emittedAt: z.string(),
+});
+
+/** Arguments for the added `cert` method. */
+const CertArgsSchema = z.object({
+  action: z.enum(["status", "install"]).describe(
+    "`status` reads the certificate the web UI serves; `install` writes a " +
+      "certificate onto the KVM over SSH and reloads its nginx.",
+  ),
+  name: z.string().default("").describe(
+    "The certificate's DNS name (e.g. glkvm.fi.gy). Required for `install` " +
+      "(it locates the files and is checked against the SAN).",
+  ),
+  certDir: z.string().default("~/.local/share/caddy/certificates").describe(
+    "Caddy's certificate store. `install` looks for " +
+      "<certDir>/*/<name>/<name>.crt|.key under it, so a certificate Caddy " +
+      "issued and renews is installed without copying anything by hand.",
+  ),
+  crt: z.string().default("").describe(
+    "Explicit certificate PEM path, overriding the certDir lookup.",
+  ),
+  key: z.string().default("").describe(
+    "Explicit private-key PEM path, overriding the certDir lookup.",
+  ),
+  waitMs: z.number().int().nonnegative().default(120000).describe(
+    "How long `install` waits for the certificate file to appear (Caddy issues " +
+      "asynchronously). 0 fails immediately when it is not there yet.",
+  ),
+  sshUser: z.string().default("root").describe("SSH user on the KVM."),
+  sshPort: z.number().int().min(1).max(65535).default(22).describe(
+    "SSH port on the KVM.",
+  ),
+  restart: z.boolean().default(true).describe(
+    "Reload the KVM's nginx after writing the files, so it serves the new " +
+      "certificate immediately.",
+  ),
+});
+
+/** The `cert` resource: the served certificate, or the install outcome. */
+const CertSchema = z.object({
+  host: z.string(),
+  action: z.string(),
+  name: z.string(),
+  subject: z.string(),
+  issuer: z.string(),
+  serial: z.string(),
+  notAfter: z.string(),
+  daysRemaining: z.number(),
+  sans: z.array(z.string()),
+  matchesName: z.boolean(),
+  installed: z.boolean(),
+  detail: z.string(),
+  checkedAt: z.string(),
 });
 
 // ---------------------------------------------------------------------------
@@ -494,6 +546,246 @@ async function pushOtlp(
 }
 
 // ---------------------------------------------------------------------------
+// TLS certificate install (onto the KVM's nginx)
+// ---------------------------------------------------------------------------
+
+/** Expand a leading `~` to the home directory. */
+export function expandHome(
+  path: string,
+  home: string = Deno.env.get("HOME") ?? "",
+): string {
+  return path.startsWith("~") ? `${home}${path.slice(1)}` : path;
+}
+
+/** The fields read out of `openssl x509 -noout`. */
+export interface CertFields {
+  /** `subject=` line. */
+  subject: string;
+  /** `issuer=` line. */
+  issuer: string;
+  /** `serial=` line. */
+  serial: string;
+  /** `notAfter=` line. */
+  notAfter: string;
+  /** DNS names from the Subject Alternative Name extension. */
+  sans: string[];
+}
+
+/** Parse `openssl x509 -noout -subject -issuer -serial -enddate -ext subjectAltName`. */
+export function parseCertFields(text: string): CertFields {
+  const field = (key: string): string => {
+    const m = text.match(new RegExp(`^\\s*${key}=(.+)$`, "m"));
+    return m ? m[1].trim() : "";
+  };
+  const sans: string[] = [];
+  const sanBlock = text.match(
+    /X509v3 Subject Alternative Name:\s*\n\s*([^\n]+)/,
+  );
+  if (sanBlock) {
+    for (const raw of sanBlock[1].split(",")) {
+      const part = raw.trim();
+      if (part.startsWith("DNS:")) sans.push(part.slice(4).trim());
+    }
+  }
+  return {
+    subject: field("subject"),
+    issuer: field("issuer"),
+    serial: field("serial"),
+    notAfter: field("notAfter"),
+    sans,
+  };
+}
+
+/** Whole days until `notAfter`; 0 when the date cannot be parsed. */
+export function certDaysRemaining(
+  notAfter: string,
+  now: number = Date.now(),
+): number {
+  const t = Date.parse(notAfter);
+  if (Number.isNaN(t)) return 0;
+  return Math.floor((t - now) / 86_400_000);
+}
+
+/**
+ * Find a certificate Caddy issued under `<certDir>/*<sep><name><sep><name>.crt`.
+ * Caddy nests one directory per issuer CA, so the name's directory is found by
+ * scanning those. Returns null when the certificate has not been issued (yet).
+ */
+export async function locateCaddyCert(
+  certDir: string,
+  name: string,
+): Promise<{ crt: string; key: string } | null> {
+  const root = expandHome(certDir).replace(/\/+$/, "");
+  const issuers: Deno.DirEntry[] = [];
+  try {
+    for await (const e of Deno.readDir(root)) issuers.push(e);
+  } catch {
+    return null;
+  }
+  for (const issuer of issuers) {
+    if (!issuer.isDirectory) continue;
+    const crt = `${root}/${issuer.name}/${name}/${name}.crt`;
+    const key = `${root}/${issuer.name}/${name}/${name}.key`;
+    try {
+      await Deno.stat(crt);
+      await Deno.stat(key);
+      return { crt, key };
+    } catch {
+      // Not this issuer; keep looking.
+    }
+  }
+  return null;
+}
+
+/**
+ * Build the shell script that writes the KVM's nginx certificate and key and
+ * reloads nginx. The GLKVM serves its web UI from `/etc/kvmd/user/ssl/`
+ * (referenced by /etc/kvmd/nginx/ssl.conf), and its init script accepts either
+ * an RSA or an ECDSA key (`openssl pkey`), so a Caddy-issued RSA certificate is
+ * fine. A reload (not a restart) re-reads the certificate without dropping the
+ * UI.
+ */
+export function buildCertInstallerScript(
+  crtPem: string,
+  keyPem: string,
+  restart = true,
+): string {
+  return [
+    "set -e",
+    "cat > /etc/kvmd/user/ssl/server.crt <<'SWAMP_CRT_EOF'",
+    crtPem.trimEnd(),
+    "SWAMP_CRT_EOF",
+    "cat > /etc/kvmd/user/ssl/server.key <<'SWAMP_KEY_EOF'",
+    keyPem.trimEnd(),
+    "SWAMP_KEY_EOF",
+    "chmod 600 /etc/kvmd/user/ssl/server.key",
+    restart
+      ? "/usr/sbin/nginx -s reload 2>/dev/null || " +
+        "/etc/init.d/S99kvmd-nginx restart"
+      : "true",
+    'echo "swamp-cert-installed"',
+    "",
+  ].join("\n");
+}
+
+/** Read the certificate the KVM serves over TLS (via openssl). */
+async function readServedCert(
+  ctx: MethodContext,
+  servername: string,
+): Promise<CertFields & { ok: boolean }> {
+  const g = ctx.globalArgs;
+  const name = servername || g.host;
+  const cmd = "openssl s_client -connect " +
+    `'${g.host}:${g.port}' -servername '${name}' -showcerts </dev/null 2>/dev/null` +
+    " | openssl x509 -noout -subject -issuer -serial -enddate" +
+    " -ext subjectAltName 2>/dev/null";
+  let text = "";
+  try {
+    // swamp-quality-ignore deno-command: reading the certificate the KVM serves needs a TLS handshake openssl s_client provides; the arguments are fixed and validated, never raw caller input.
+    const out = await new Deno.Command("sh", {
+      args: ["-c", cmd],
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    text = new TextDecoder().decode(out.stdout);
+  } catch (err) {
+    ctx.logger?.info("Reading the served certificate failed: {error}", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  const fields = parseCertFields(text);
+  return { ...fields, ok: fields.subject !== "" };
+}
+
+/** The `serial=` of a certificate file, for comparing against what is served. */
+async function certFileSerial(crtPath: string): Promise<string> {
+  try {
+    // swamp-quality-ignore deno-command: reading a certificate serial needs openssl x509; the argument is a path this method resolved, never raw caller text.
+    const out = await new Deno.Command("openssl", {
+      args: ["x509", "-in", crtPath, "-noout", "-serial"],
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    const match = new TextDecoder().decode(out.stdout).match(/serial=(.+)/);
+    return match ? match[1].trim() : "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Run a shell script on the KVM as root over SSH. The password reaches ssh
+ * through SSH_ASKPASS (not argv), so it does not appear in a process listing;
+ * `setsid` lets a password prompt happen without a controlling terminal. The
+ * GLKVM runs dropbear, which offers password auth but no `sshpass` is needed.
+ */
+async function sshScript(
+  ctx: MethodContext,
+  script: string,
+  sshUser: string,
+  sshPort: number,
+): Promise<{ ok: boolean; output: string }> {
+  const g = ctx.globalArgs;
+  if (!g.password) {
+    throw new Error(
+      "no password configured for SSH (the model's `password` global arg, " +
+        "usually supplied from the vault)",
+    );
+  }
+  const dir = await Deno.makeTempDir({ prefix: "glkvm-cert-" });
+  const askpass = `${dir}/askpass.sh`;
+  try {
+    await Deno.writeTextFile(askpass, '#!/bin/sh\necho "$SSHPASS"\n', {
+      mode: 0o700,
+    });
+    // swamp-quality-ignore deno-command: ssh is the only transport the GLKVM exposes for writing a certificate (it has no cert-upload API); the password goes via SSH_ASKPASS env, never argv.
+    const proc = new Deno.Command("setsid", {
+      args: [
+        "-w",
+        "ssh",
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-o",
+        "UserKnownHostsFile=/dev/null",
+        "-o",
+        "LogLevel=ERROR",
+        "-o",
+        "ConnectTimeout=10",
+        "-o",
+        "PreferredAuthentications=password",
+        "-o",
+        "PubkeyAuthentication=no",
+        "-p",
+        String(sshPort),
+        `${sshUser}@${g.host}`,
+        "sh",
+        "-s",
+      ],
+      env: {
+        ...Deno.env.toObject(),
+        SSHPASS: g.password,
+        SSH_ASKPASS: askpass,
+        SSH_ASKPASS_REQUIRE: "force",
+        DISPLAY: ":0",
+      },
+      stdin: "piped",
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const child = proc.spawn();
+    const writer = child.stdin.getWriter();
+    await writer.write(new TextEncoder().encode(script));
+    await writer.close();
+    const out = await child.output();
+    const decoded = new TextDecoder().decode(out.stdout) +
+      new TextDecoder().decode(out.stderr);
+    return { ok: out.success, output: decoded.trim() };
+  } finally {
+    await Deno.remove(dir, { recursive: true }).catch(() => {});
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The added resource and method
 // ---------------------------------------------------------------------------
 
@@ -501,6 +793,13 @@ const resources = {
   emit: {
     description: "One OTLP push of the KVM health, or why it was skipped.",
     schema: EmitSchema,
+    lifetime: "30d" as const,
+    garbageCollection: 30,
+  },
+  cert: {
+    description:
+      "The TLS certificate the KVM serves, or the outcome of installing one.",
+    schema: CertSchema,
     lifetime: "30d" as const,
     garbageCollection: 30,
   },
@@ -587,6 +886,174 @@ const methods = [
             metrics: metricsStatus,
           },
         );
+        return { dataHandles: [handle] };
+      },
+    },
+  },
+  {
+    cert: {
+      description:
+        "Read the TLS certificate the KVM's web UI serves, or install a " +
+        "Let's Encrypt one. The GLKVM has no certificate-upload API, so " +
+        "`install` writes /etc/kvmd/user/ssl/server.crt|.key over SSH (the " +
+        "model's `password` global) and reloads nginx; it takes the files from " +
+        "Caddy's store, so a certificate Caddy issued and renews is installed " +
+        "without copying anything by hand.",
+      arguments: CertArgsSchema,
+      execute: async (
+        args: z.infer<typeof CertArgsSchema>,
+        context: MethodContext,
+      ) => {
+        const g = context.globalArgs;
+        if (!g.host) {
+          throw new Error("No KVM host is configured on this model.");
+        }
+
+        if (args.action === "status") {
+          const served = await readServedCert(context, args.name);
+          const handle = await context.writeResource("cert", "cert", {
+            host: g.host,
+            action: "status",
+            name: args.name,
+            subject: served.subject,
+            issuer: served.issuer,
+            serial: served.serial,
+            notAfter: served.notAfter,
+            daysRemaining: certDaysRemaining(served.notAfter),
+            sans: served.sans,
+            matchesName: args.name !== "" && served.sans.includes(args.name),
+            installed: false,
+            detail: served.ok ? "" : "no certificate could be read",
+            checkedAt: new Date().toISOString(),
+          });
+          context.logger?.info(
+            "KVM {host} serves a certificate issued by {issuer} ({days} days " +
+              "left)",
+            {
+              host: g.host,
+              issuer: served.issuer || "unknown",
+              days: certDaysRemaining(served.notAfter),
+            },
+          );
+          return { dataHandles: [handle] };
+        }
+
+        if (!args.name) {
+          throw new Error(
+            "`install` needs --input name=<fqdn> (the certificate's DNS name).",
+          );
+        }
+        let crt = args.crt;
+        let key = args.key;
+        if (!crt || !key) {
+          const deadline = Date.now() + args.waitMs;
+          let found: { crt: string; key: string } | null = null;
+          for (;;) {
+            found = await locateCaddyCert(args.certDir, args.name);
+            if (found || Date.now() >= deadline) break;
+            await new Promise((r) => setTimeout(r, 5000));
+          }
+          if (!found) {
+            throw new Error(
+              `No certificate for ${args.name} under ${args.certDir} after ` +
+                `${args.waitMs}ms — has Caddy issued it? (run @figy/glkvm-dns, ` +
+                `which declares the name as a TLS subject.)`,
+            );
+          }
+          crt = found.crt;
+          key = found.key;
+        }
+        const crtPem = await Deno.readTextFile(expandHome(crt));
+        const keyPem = await Deno.readTextFile(expandHome(key));
+        if (
+          !crtPem.includes("BEGIN CERTIFICATE") ||
+          !keyPem.includes("PRIVATE KEY")
+        ) {
+          throw new Error(
+            `${args.name}: ${crt}/${key} do not look like a PEM certificate and key.`,
+          );
+        }
+
+        // Already serving this certificate? Nothing to do — a daily sync must
+        // not reload nginx every day.
+        const before = await readServedCert(context, args.name);
+        const fileSerial = await certFileSerial(expandHome(crt));
+        if (
+          fileSerial !== "" && before.serial === fileSerial &&
+          before.sans.includes(args.name)
+        ) {
+          const handle = await context.writeResource("cert", "cert", {
+            host: g.host,
+            action: "install",
+            name: args.name,
+            subject: before.subject,
+            issuer: before.issuer,
+            serial: before.serial,
+            notAfter: before.notAfter,
+            daysRemaining: certDaysRemaining(before.notAfter),
+            sans: before.sans,
+            matchesName: true,
+            installed: true,
+            detail: "already current",
+            checkedAt: new Date().toISOString(),
+          });
+          context.logger?.info(
+            "Certificate for {name} on {host} is already current; nothing to do",
+            { name: args.name, host: g.host },
+          );
+          return { dataHandles: [handle] };
+        }
+
+        const result = await sshScript(
+          context,
+          buildCertInstallerScript(crtPem, keyPem, args.restart),
+          args.sshUser,
+          args.sshPort,
+        );
+        let served = await readServedCert(context, args.name);
+        for (let i = 0; i < 8 && !served.sans.includes(args.name); i++) {
+          await new Promise((r) => setTimeout(r, 3000));
+          served = await readServedCert(context, args.name);
+        }
+        const installed = served.sans.includes(args.name);
+        const handle = await context.writeResource("cert", "cert", {
+          host: g.host,
+          action: "install",
+          name: args.name,
+          subject: served.subject,
+          issuer: served.issuer,
+          serial: served.serial,
+          notAfter: served.notAfter,
+          daysRemaining: certDaysRemaining(served.notAfter),
+          sans: served.sans,
+          matchesName: served.sans.includes(args.name),
+          installed,
+          detail: installed
+            ? (result.ok ? "installed" : "already served")
+            : `ssh=${result.output.slice(0, 200)}; served=${
+              served.subject || "none"
+            }`,
+          checkedAt: new Date().toISOString(),
+        });
+        context.logger?.info(
+          installed
+            ? "Installed {name} on {host}; nginx serves a certificate issued " +
+              "by {issuer}"
+            : "Certificate install on {host} did not verify: {detail}",
+          {
+            name: args.name,
+            host: g.host,
+            issuer: served.issuer,
+            detail: handle.name,
+          },
+        );
+        if (!installed) {
+          throw new Error(
+            `Installing ${args.name} on ${g.host} did not verify: ${
+              result.output.slice(0, 200)
+            }`,
+          );
+        }
         return { dataHandles: [handle] };
       },
     },

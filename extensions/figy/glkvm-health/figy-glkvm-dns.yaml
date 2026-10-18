@@ -1,18 +1,21 @@
 id: 95d8c724-960f-4ad3-8066-11a7349d7552
 name: '@figy/glkvm-dns'
 description: |
-  fi.gy's GL.iNet KVM DNS: reconcile glkvm.fi.gy -> the KVM into the shared
-  Caddy, without giving the KVM its own Caddy.
+  fi.gy's GL.iNet KVM DNS and certificate: reconcile glkvm.fi.gy -> the KVM into
+  the shared Caddy, and declare the name as a TLS subject so Caddy issues and
+  renews a Let's Encrypt certificate for it (via DNS-01), without giving the KVM
+  its own Caddy.
 
   The A record lives on its own @svendowideit/caddy model, `glkvm-caddy`, whose
   only desired state is that one record — plus the shared settings (base domain
   fi.gy, ACME email, the Gandi DNS provider via the shared environment file) the
   caddy extension requires of every model sharing one Caddy. Because
   `glkvm-caddy` shares `my-caddy`'s (target, serviceName), the caddy mixin merges
-  the two. This workflow runs `configureTls` (records need a DNS provider; no
-  TLS subjects, so this Caddy issues no certificate for a name that points at
-  the KVM itself) then `applyDnsRecords`, which reconciles the union of both
-  models' records into Caddy in one apply.
+  the two. This workflow runs `configureTls` (records need a DNS provider, and
+  the KVM's name is declared as a TLS subject with `keyType=rsa2048`) then
+  `applyDnsRecords`, which reconciles the union of both models' records into
+  Caddy in one apply. The certificate is installed onto the KVM by
+  @figy/glkvm-cert.
 
   `glkvm-caddy` is a repo model under `models/`, created once with
   `swamp model create` (see the README). A workflow-auto-created model lands in
@@ -32,6 +35,18 @@ inputs:
       description: >-
         Name of the @svendowideit/caddy repo model that declares the KVM's A
         record.
+    hostname:
+      type: string
+      default: glkvm.fi.gy
+      description: >-
+        The KVM's fully-qualified name; declared as a TLS subject so Caddy issues
+        and renews a Let's Encrypt certificate for it.
+    keyType:
+      type: string
+      default: rsa2048
+      description: >-
+        Private-key type for the certificate. The GLKVM's web server accepts RSA
+        and ECDSA; rsa2048 keeps it consistent with the shared Caddy policy.
   required: []
 jobs:
   - name: dns
@@ -40,12 +55,18 @@ jobs:
       - name: tls
         description: >-
           Ensure the model has a DNS provider (Gandi, inferred from its plugins
-          and environment file) so it can write records. No TLS subjects.
+          and environment file) so it can write records, and declare the KVM's
+          name as a TLS subject, so Caddy issues and renews a Let's Encrypt
+          certificate for it via DNS-01. No reverse-proxy route: the name points
+          at the KVM itself.
         task:
           type: model_method
           modelType: '@svendowideit/caddy'
           modelName: ${{ inputs.device }}
           methodName: configureTls
+          inputs:
+            subjects: ['${{ inputs.hostname }}']
+            keyType: ${{ inputs.keyType }}
         dependsOn: []
         weight: 0
         allowFailure: false

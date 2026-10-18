@@ -1,26 +1,25 @@
 manifestVersion: 1
 name: "@figy/glkvm-health"
-version: "2026.10.17.1"
+version: "2026.10.17.2"
 description: >
-  fi.gy's scheduled GL.iNet KVM health: check the out-of-band KVM on my LAN
-  every 15 minutes, forward its verdict to the swamp-managed OpenTelemetry
-  collector, and require the run to leave a health record.
+  fi.gy's scheduled GL.iNet KVM health and TLS: check the out-of-band KVM on my
+  LAN every 15 minutes, forward its verdict to the swamp-managed OpenTelemetry
+  collector, and give its web UI a publicly trusted Let's Encrypt certificate.
 
-  WHAT IT DOES
+    WHAT IT DOES
 
     Adds the missing reporting half to @sntxrr/glinet-kvm: that model can check a
     GL.iNet KVM (Comet GL-RM1 / GL-RM1PE) but cannot report it. This extension
-    adds one `emit` method and one `emit` resource to the type — the same shape
-    @svendowideit/nanokvm ships — and a scheduled workflow that runs `health`
-    then `emit` every 15 minutes. The verdict goes to the collector as one OTLP
-    log record plus gauges (glkvm.up, glkvm.health, glkvm.hdmi_signal, …), with
-    the KVM password read from a vault at run time. Prefer it over a per-host
-    script: the check and the report stay one model, and an unreachable KVM is a
-    `fail` sample rather than a silent gap.
-
-    A second workflow, `@figy/glkvm-dns`, publishes the KVM's address as an A
-    record (`glkvm.fi.gy`) on a dedicated @svendowideit/caddy model, reconciled
-    into the shared Caddy through the caddy mixin.
+    adds an `emit` method (health to OTel) and a `cert` method (install a TLS
+    certificate onto the KVM) to the type — the same shape @svendowideit/nanokvm
+    ships — and a scheduled workflow that runs `health` then `emit` every 15
+    minutes. An unreachable KVM is a `fail` sample rather than a silent gap. A
+    second workflow, `@figy/glkvm-dns`, publishes the KVM's address as an A
+    record (`glkvm.fi.gy`) and declares the name as a TLS subject, so the shared
+    Caddy issues and renews a Let's Encrypt certificate for it. A third,
+    `@figy/glkvm-cert`, installs that certificate onto the KVM (over SSH, since
+    the device has no cert-upload API) so its web UI serves a trusted
+    certificate.
 
   INSTALL
 
@@ -49,9 +48,15 @@ description: >
       # Read the last emit result back (endpoint, HTTP statuses, verdict).
       swamp data get glkvm emit --json
 
-      # Publish the KVM's address: reconcile glkvm.fi.gy -> the KVM into the
-      # shared Caddy (run after changing the address or the caddy model).
+      # Publish the KVM's address and declare it for a certificate: reconcile
+      # glkvm.fi.gy -> the KVM into the shared Caddy (run after changing the
+      # address or the caddy model). Caddy then issues and renews a Let's
+      # Encrypt certificate for glkvm.fi.gy.
       swamp workflow run @figy/glkvm-dns
+
+      # Install that certificate onto the KVM's web UI (scheduled daily; the
+      # device has no cert-upload API, so it is written over SSH).
+      swamp workflow run @figy/glkvm-cert
 
   CONFIGURE
 
@@ -115,6 +120,7 @@ models:
 workflows:
   - figy-glkvm-health.yaml
   - figy-glkvm-dns.yaml
+  - figy-glkvm-cert.yaml
 
 dependencies:
   - "@sntxrr/glinet-kvm"

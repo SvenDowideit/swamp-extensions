@@ -10,10 +10,14 @@
 
 import { assertEquals } from "jsr:@std/assert@1";
 import {
+  buildCertInstallerScript,
   buildOtlpLogs,
   buildOtlpMetrics,
+  certDaysRemaining,
   type ContractEndpoint,
+  expandHome,
   normalizeHealth,
+  parseCertFields,
   pickEndpoint,
   telemetryResource,
 } from "./glkvm_emit.ts";
@@ -152,4 +156,57 @@ Deno.test("normalizeHealth coerces a raw record and defaults the host", () => {
   assertEquals(health.findings[0].severity, "fail");
   assertEquals(health.msdConnected, false);
   assertEquals(health.updateAvailable, null);
+});
+
+Deno.test("expandHome expands a leading tilde only", () => {
+  assertEquals(
+    expandHome("~/.local/share/caddy", "/home/u"),
+    "/home/u/.local/share/caddy",
+  );
+  assertEquals(expandHome("/abs/path", "/home/u"), "/abs/path");
+});
+
+Deno.test("parseCertFields reads subject/issuer/serial/notAfter/SAN", () => {
+  const text = [
+    "subject=CN = glkvm.fi.gy",
+    "issuer=C = US, O = Let's Encrypt, CN = YR2",
+    "serial=05:81:7A",
+    "notAfter=Jan 15 13:37:53 2027 GMT",
+    "X509v3 Subject Alternative Name:",
+    "    DNS:glkvm.fi.gy",
+  ].join("\n");
+  assertEquals(parseCertFields(text), {
+    subject: "CN = glkvm.fi.gy",
+    issuer: "C = US, O = Let's Encrypt, CN = YR2",
+    serial: "05:81:7A",
+    notAfter: "Jan 15 13:37:53 2027 GMT",
+    sans: ["glkvm.fi.gy"],
+  });
+});
+
+Deno.test("certDaysRemaining floors whole days and tolerates junk", () => {
+  const now = Date.parse("2026-10-17T00:00:00Z");
+  assertEquals(certDaysRemaining("Sat, 17 Oct 2026 12:00:00 GMT", now), 0);
+  assertEquals(certDaysRemaining("Tue, 27 Oct 2026 00:00:00 GMT", now), 10);
+  assertEquals(certDaysRemaining("not a date", now), 0);
+});
+
+Deno.test("buildCertInstallerScript writes the kvmd ssl files and reloads", () => {
+  const script = buildCertInstallerScript(
+    "-----BEGIN CERTIFICATE-----\nAAA\n-----END CERTIFICATE-----",
+    "-----BEGIN RSA PRIVATE KEY-----\nBBB\n-----END RSA PRIVATE KEY-----",
+  );
+  assertEquals(script.includes("/etc/kvmd/user/ssl/server.crt"), true);
+  assertEquals(script.includes("/etc/kvmd/user/ssl/server.key"), true);
+  assertEquals(
+    script.includes("chmod 600 /etc/kvmd/user/ssl/server.key"),
+    true,
+  );
+  assertEquals(script.includes("/usr/sbin/nginx -s reload"), true);
+  assertEquals(script.includes("AAA"), true);
+  assertEquals(script.includes("BBB"), true);
+  assertEquals(
+    buildCertInstallerScript("x", "y", false).includes("nginx"),
+    false,
+  );
 });

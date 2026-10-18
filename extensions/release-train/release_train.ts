@@ -54,6 +54,15 @@ const GlobalArgsSchema = z.object({
   root: z.string().default("extensions").describe(
     "Directory (relative to the repo root) scanned when git discovery is unavailable.",
   ),
+  owner: z.string().default("").describe(
+    "swamp-club user or collective (bare name, e.g. webframp, or with a " +
+      "leading '@') whose published extensions are analysed remotely. When " +
+      "set, release-train ignores `root`/`gitOnly` and reads the registry at " +
+      "swamp-club.com instead, caching manifests under " +
+      ".swamp/release-train-cache/. Pull/update information comes from the " +
+      "registry; local repo state, hygiene checks, and run counts are not " +
+      "available in this mode.",
+  ),
   gitOnly: z.boolean().default(true).describe(
     "Scan only git-tracked manifests (excludes pulled/generated copies under .swamp/).",
   ),
@@ -1093,6 +1102,257 @@ function failedRecord(d: Discovered, err: unknown): Gathered {
   };
 }
 
+/**
+ * Fetch the published extension roster for a swamp-club owner...
+ */
+async function gatherOwner(
+  g: GlobalArgs,
+  ctx: ExecContext,
+): Promise<Gathered[]> {
+  const owner = g.owner.startsWith("@") ? g.owner : `@${g.owner}`;
+  const host = "swamp-club.com";
+  const apiRoot = `https://${host}/api/v1`;
+
+  const owned: Array<Record<string, unknown>> = [];
+  const seen = new Set<string>();
+  for (let page = 1; page <= 50; page++) {
+    const response = await fetch(
+      `${apiRoot}/extensions/search?perPage=100&sort=updated&page=${page}`,
+      {
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(30000),
+      },
+    );
+    if (!response.ok) break;
+    const body = await response.json() as {
+      extensions?: Array<Record<string, unknown>>;
+      meta?: { total?: number };
+    };
+    const rows = Array.isArray(body.extensions) ? body.extensions : [];
+    if (rows.length === 0) break;
+    for (const raw of rows) {
+      if (String(raw.namespace ?? "") !== owner) continue;
+      const name = String(raw.name ?? "");
+      if (!name || seen.has(name)) continue;
+      seen.add(name);
+      owned.push(raw);
+    }
+    const total = Number(body.meta?.total ?? 0);
+    if (page * 100 >= total || rows.length < 100) break;
+  }
+
+  const repos = new Set<string>();
+  for (const raw of owned) {
+    const repository = String(raw.repository ?? "").trim();
+    if (repository) repos.add(repository);
+  }
+
+  const manifestTextByRepo = new Map<string, Map<string, string>>();
+  for (const repository of repos) {
+    manifestTextByRepo.set(repository, await fetchRepoManifests(repository));
+  }
+
+  const cacheDir = resolve(
+    ctx.repoDir,
+    ".swamp",
+    "release-train-cache",
+    owner.replace(/^@/, ""),
+  );
+  await Deno.mkdir(cacheDir, { recursive: true });
+
+  const safe = (value: string): string =>
+    value.replace(/^@/, "").replace(/[^A-Za-z0-9_.-]+/g, "-");
+
+  const now = new Date().toISOString();
+  const gathered: Gathered[] = [];
+
+  for (const raw of owned) {
+    const name = String(raw.name ?? "");
+    const repository = String(raw.repository ?? "").trim();
+    const manifests = manifestTextByRepo.get(repository) ?? new Map();
+    const text = manifests.get(name) ?? "";
+    let manifest: ManifestInfo;
+    if (text) {
+      manifest = parseManifest(text);
+      if (manifest.name === "") manifest.name = name;
+      if (manifest.version === "") {
+        manifest.version = String(raw.latestVersion ?? "");
+      }
+    } else {
+      manifest = {
+        name,
+        version: String(raw.latestVersion ?? ""),
+        dependencies: [],
+        optionalDependencies: [],
+        models: [],
+        workflows: [],
+        reports: [],
+        additionalFiles: [],
+        description: String(raw.description ?? ""),
+      };
+    }
+
+    if (text) {
+      try {
+        await Deno.writeTextFile(
+          join(cacheDir, `${safe(name)}.manifest.yaml`),
+          text,
+        );
+      } catch {
+        // cache is best-effort
+      }
+    }
+
+    const published: ChannelVersions = {
+      stable: String(raw.latestVersion ?? ""),
+      rc: String(raw.latestRc ?? ""),
+      beta: String(raw.latestBeta ?? ""),
+    };
+
+    const score = (raw.score ?? {}) as {
+      grade?: unknown;
+      percentage?: unknown;
+    };
+    const docsScore = Number.isFinite(Number(score.percentage ?? NaN))
+      ? Number(score.percentage)
+      : null;
+    const docsGrade = String(score.grade ?? "");
+
+    const record: ExtensionRecord = {
+      name,
+      manifestPath: repository || `registry:${name}`,
+      dir: safe(name),
+      onDiskVersion: manifest.version,
+      modelVersion: "",
+      upgradesTo: "",
+      dependencies: manifest.dependencies,
+      optionalDependencies: manifest.optionalDependencies,
+      published,
+      installed: { version: "", channel: "" },
+      dirtyFiles: [],
+      reviewState: "unknown",
+      docsScore,
+      hygieneFailures: [],
+      publishedSource: "registry",
+      publishedAsOf: now,
+    };
+
+    const hygiene: Hygiene = {
+      manifestModelMatch: true,
+      upgradesEntry: true,
+      fmtCheck: null,
+      workflowValidate: null,
+      docsScore,
+      docsGrade,
+      docsThresholdPass: null,
+      reviewState: "unknown",
+      reviewPath: "",
+      issues: [],
+    };
+
+    const tests: Tests = {
+      unitFiles: 0,
+      unitCoverage: null,
+      unitFunctionCoverage: null,
+      unitCoverageAvailable: false,
+      acceptanceDeclared: false,
+      acceptanceCount: null,
+      acceptanceCoveredCommands: 0,
+      acceptanceDocumentedCommands: 0,
+      acceptanceMethodsCovered: 0,
+      acceptanceMethods: 0,
+      acceptanceWorkflowsCovered: 0,
+      acceptanceWorkflows: 0,
+      dataStale: false,
+    };
+
+    gathered.push({ record, manifest, hygiene, tests });
+  }
+
+  return gathered;
+}
+
+/**
+ * Download every manifest.yaml in a GitHub repository and index by manifest name.
+ */
+async function fetchRepoManifests(
+  repository: string,
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  let repoOwner = "";
+  let repoName = "";
+  try {
+    const u = new URL(repository);
+    if (u.host !== "github.com") return map;
+    const parts = u.pathname.replace(/^\/+/, "").replace(/\.git$/, "").split(
+      "/",
+    );
+    repoOwner = parts[0] ?? "";
+    repoName = parts[1] ?? "";
+  } catch {
+    return map;
+  }
+  if (!repoOwner || !repoName) return map;
+
+  let branch = "main";
+  try {
+    const meta = await fetch(
+      `https://api.github.com/repos/${repoOwner}/${repoName}`,
+      {
+        headers: { "User-Agent": "release-train" },
+        signal: AbortSignal.timeout(20000),
+      },
+    );
+    if (meta.ok) {
+      const data = await meta.json() as { default_branch?: string };
+      if (data.default_branch) branch = data.default_branch;
+    }
+  } catch {
+    // fall back to main
+  }
+
+  let paths: string[] = [];
+  try {
+    const tree = await fetch(
+      `https://api.github.com/repos/${repoOwner}/${repoName}/git/trees/${branch}?recursive=1`,
+      {
+        headers: { "User-Agent": "release-train" },
+        signal: AbortSignal.timeout(30000),
+      },
+    );
+    if (tree.ok) {
+      const data = await tree.json() as {
+        tree?: Array<{ path: string; type: string }>;
+      };
+      paths = (data.tree ?? [])
+        .filter((e) => e.type === "blob" && e.path.endsWith("manifest.yaml"))
+        .map((e) => e.path);
+    }
+  } catch {
+    return map;
+  }
+
+  for (const p of paths) {
+    try {
+      const rawRes = await fetch(
+        `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/${p}`,
+        { signal: AbortSignal.timeout(20000) },
+      );
+      if (!rawRes.ok) continue;
+      const text = await rawRes.text();
+      try {
+        const parsed = parseManifest(text);
+        if (parsed.name) map.set(parsed.name, text);
+      } catch {
+        // ignore unparseable manifests
+      }
+    } catch {
+      // skip failed fetches
+    }
+  }
+  return map;
+}
+
 /** Load and parse the pulled-extension lockfile, if present. */
 async function loadUpstream(
   repoDir: string,
@@ -1143,7 +1403,7 @@ async function writeText(
 /** Model definition for the release-train dashboard. */
 export const model = {
   type: "@svendowideit/release-train",
-  version: "2026.10.18.1",
+  version: "2026.10.18.3",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1172,6 +1432,26 @@ export const model = {
         "the plan. The diagram now renders right-to-left so the most-reused " +
         "dependencies sit on the left. Schema is additive — existing models " +
         "and resources upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.18.2",
+      description: "Adds two packaged workflow variants: " +
+        "`@svendowideit/release-train-serve` (installed extensions available to " +
+        "a swamp serve) and `@svendowideit/release-train-club` (a specified " +
+        "swamp-club user or collective). They reuse the same analysis and report " +
+        "shape; no resource schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.18.3",
+      description: "release-train-club now reads the public registry at " +
+        "swamp-club.com for every extension published by the given owner, " +
+        "downloads and caches each manifest under .swamp/release-train-cache/, " +
+        "and renders the same diagram and tables without cloning, modifying, or " +
+        "pushing into any repository. Owner input accepts a bare or @-prefixed " +
+        "name. Reporting/documentation updated for both variants. No resource " +
+        "schema changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1214,28 +1494,38 @@ export const model = {
         const g = context.globalArgs;
         const runFn = args._run ?? run;
 
-        const upstream = await loadUpstream(context.repoDir);
-        const discovered = await discover(g.root, context.repoDir, runFn);
-        if (discovered.length === 0) {
-          throw new Error(
-            `No manifest.yaml found (root=${g.root}, gitOnly=${g.gitOnly})`,
+        const upstream = g.owner ? {} : await loadUpstream(context.repoDir);
+
+        let gathered: Gathered[];
+        if (g.owner) {
+          gathered = await gatherOwner(g, context);
+          if (gathered.length === 0) {
+            throw new Error(
+              `No extensions published by ${g.owner} found in the registry`,
+            );
+          }
+        } else {
+          const discovered = await discover(g.root, context.repoDir, runFn);
+          if (discovered.length === 0) {
+            throw new Error(
+              `No manifest.yaml found (root=${g.root}, gitOnly=${g.gitOnly})`,
+            );
+          }
+          gathered = await mapLimit(
+            discovered,
+            g.concurrency,
+            async (d) => {
+              try {
+                return await gatherOne(d, context, runFn, upstream);
+              } catch (err) {
+                context.logger?.warn("Failed to analyze {path}", {
+                  path: d.rel,
+                });
+                return failedRecord(d, err);
+              }
+            },
           );
         }
-
-        const gathered = await mapLimit(
-          discovered,
-          g.concurrency,
-          async (d) => {
-            try {
-              return await gatherOne(d, context, runFn, upstream);
-            } catch (err) {
-              context.logger?.warn("Failed to analyze {path}", {
-                path: d.rel,
-              });
-              return failedRecord(d, err);
-            }
-          },
-        );
         const records = gathered.map((x) => x.record);
         const graph = buildGraph(records);
         const plan = buildPlan(records, graph);

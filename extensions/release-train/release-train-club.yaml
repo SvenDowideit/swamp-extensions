@@ -1,0 +1,105 @@
+id: 1cde8b93-fe27-4918-b456-da50804c6a24
+name: '@svendowideit/release-train-club'
+description: |
+  Draw the dependency graph of every extension published by a single
+  swamp-club user or collective — plus the extensions they use — annotated
+  with on-disk and published (stable / rc / beta) versions, pull and update
+  information, docs/test scores and hygiene state, and print an ordered publish
+  plan.
+
+  It queries the public registry at swamp-club.com for every extension published
+  by the given user/collective and pulls each manifest into
+  `.swamp/release-train-cache/` (the only file writes it makes, inside the
+  current repository's `.swamp/` directory). It does not clone, modify, or
+  push into any other repository, and it never reuses `extensions/` from the
+  current checkout. Each extension becomes a node annotated with its published
+  stable / rc / beta versions, pull count, registry score, and declared
+  dependencies; the diagram and publish plan are scoped to that owner. Local
+  hygiene checks and run counts are unavailable in this mode and are reported
+  as unknown/not-run.
+
+  Analyze every extension for the owner and render the diagram, matrix and plan:
+    swamp workflow run @svendowideit/release-train-club
+
+  For a different root / owner:
+    swamp workflow run @svendowideit/release-train-club \
+      --input owner=@figy --input root=extensions
+
+  Skip the slower hygiene checks:
+    swamp workflow run @svendowideit/release-train-club --input runChecks=false
+tags: {}
+inputs:
+  properties:
+    owner:
+      type: string
+      default: "svendowideit"
+      description: swamp-club user or collective whose extensions this run pictures (bare name, no '@').
+    offline:
+      type: boolean
+      default: false
+      description: Skip registry lookups and network checks; published versions come from the lockfile.
+    runChecks:
+      type: boolean
+      default: true
+      description: Run the quality/fmt/deno/workflow-validate/push-dry-run hygiene checks.
+    root:
+      type: string
+      default: extensions
+      description: Directory scanned for manifests (usually `extensions`).
+    gitOnly:
+      type: boolean
+      default: true
+      description: Discover only git-tracked manifests, excluding pulled/generated copies.
+    concurrency:
+      type: integer
+      default: 4
+      description: How many extensions to check in parallel.
+    threshold:
+      type: integer
+      default: 75
+      description: Documentation score below which an extension is advised to stay on beta.
+    includeExternal:
+      type: boolean
+      default: true
+      description: Show and query dependencies that are not in this repo as external nodes.
+    metaModel:
+      type: string
+      default: meta-factory
+      description: Meta-factory model whose score/summary resources are read for docs and coverage.
+    markdownFile:
+      type: string
+      default: release-train-club.md
+      description: Path for the one-file dashboard. Empty disables the write.
+  required: []
+jobs:
+  - name: analyze
+    description: Analyze every extension for the owner and render the release dashboard.
+    steps:
+      - name: analyze
+        description: Discover manifests, graph them, gather status, write the diagram and plan.
+        task:
+          type: model_method
+          modelType: "@svendowideit/release-train"
+          modelName: release-train
+          methodName: analyze
+          inputs: {}
+          globalArgs:
+            owner: ${{ inputs.owner }}
+            root: ${{ inputs.root }}
+            gitOnly: ${{ inputs.gitOnly }}
+            offline: ${{ inputs.offline }}
+            runChecks: ${{ inputs.runChecks }}
+            concurrency: ${{ inputs.concurrency }}
+            threshold: ${{ inputs.threshold }}
+            includeExternal: ${{ inputs.includeExternal }}
+            metaModel: ${{ inputs.metaModel }}
+            markdownFile: ${{ inputs.markdownFile }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+reports:
+  require:
+    - "@svendowideit/release-train-report"
+version: 1

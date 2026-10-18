@@ -269,6 +269,21 @@ swamp model @svendowideit/test-factory method run test tf \
   --input scenario=debian-standalone
 ```
 
+## Workflow variants
+
+Two additional workflows ship with this extension and reuse the same analysis and
+report shape:
+
+- `@svendowideit/release-train-serve` — scans the extensions already installed
+  on this `swamp serve` (the pulled-extensions cache) instead of a worktree,
+  keeping each one's pulled version/channel, registry pull count, and declared
+  triggers alongside the diagram and tables.
+- `@svendowideit/release-train-club` — asks the public registry at
+  swamp-club.com for everything published by one owner (pass
+  `--input owner=webframp`, a bare name with no leading `@`); downloads each
+  manifest into `.swamp/release-train-cache/` and renders the same diagram and
+  tables without cloning, modifying, or pushing into any repository.
+
 ## License
 
 MIT — see LICENSE.txt.

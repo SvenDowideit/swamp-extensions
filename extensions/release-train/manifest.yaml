@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/release-train"
-version: "2026.10.18.1"
+version: "2026.10.18.3"
 description: >
   The release dashboard for a swamp extension repository. It draws the
   dependency graph of every extension you own plus the extensions they use,
@@ -59,6 +59,19 @@ description: >
       # come from the lockfile and review state is reported unknown.
       swamp workflow run @svendowideit/release-train --input offline=true
 
+      # Same dashboard, but scoped to the extensions *installed on this serve*
+      # (pulled-extensions cache, pulled version/channel and triggers included).
+      swamp workflow run @svendowideit/release-train-serve
+      cat release-train-serve.md
+
+      # Same dashboard for one swamp-club user or collective. Reads the registry
+      # at swamp-club.com and downloads each manifest into
+      # .swamp/release-train-cache/; it does NOT modify, clone, or push into
+      # any existing swamp repository.
+      # The '@' is optional; pass the bare collective name (no file lookup).
+      swamp workflow run @svendowideit/release-train-club --input owner=webframp
+      cat release-train-club.md
+
       # Run just the analysis and read the diagram it wrote to disk.
       swamp model @svendowideit/release-train method run analyze release-train
       cat release-train.mmd
@@ -111,6 +124,8 @@ reports:
 
 workflows:
   - release-train.yaml
+  - release-train-serve.yaml
+  - release-train-club.yaml
 
 dependencies:
   - "@svendowideit/meta-factory"

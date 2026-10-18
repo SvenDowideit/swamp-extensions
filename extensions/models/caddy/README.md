@@ -58,21 +58,30 @@ derives what the name needs:
 
 - Every route hostname **under `baseDomain`** is added to the **TLS subjects**,
   so Caddy issues it a certificate (`autoRouteTls`, default `true`).
+- **When a DNS provider is configured, the DNS-01 challenge covers *every* name
+  this Caddy serves — automatically.** That is the route hostnames *and* the
+  status page's hostnames (the `baseDomain` and any declared DNS-record names),
+  not just the ones in `subjects`. Loopback (`localhost`, `127.0.0.1`, `::1`)
+  keeps Caddy's internal CA. You do not have to list anything: no served name
+  ever falls back to HTTP-01, which ACME cannot validate when the name resolves
+  to a private/otherwise unreachable address (Let's Encrypt reports *"no valid A
+  records"*). `subjects` is therefore optional — use it only for a wildcard, or
+  for a name you want certified but do not serve from this Caddy.
 - Each such hostname also gets an **A record** in `dnsRecords`
   (`autoRouteDns`, default `true`), pointing at `routeIp` — or, when that is
   empty, at an IP this Caddy already declares for that zone. Writing the record
   needs a DNS provider (set `dnsProvider` via `configureTls`); without one the
   TLS subject is still added but no record is written.
 
-So a model with `baseDomain=example.com`, a `configureTls` DNS provider, and at
-least one existing A record needs **nothing else**:
+So a model with `baseDomain=example.com` and a `configureTls` DNS provider needs
+**nothing else** — not even a `subjects` list:
 
 ```sh
-# Configure TLS once (DNS-01 provider + a shared credential).
+# Configure TLS once (DNS-01 provider + a shared credential). DNS-01 then
+# covers every served name (routes and the status page) by itself.
 swamp model method run my-caddy configureTls \
   --input dnsProvider=gandi \
-  --input 'providerConfig:json={"bearer_token":"GANDI_BEARER_TOKEN"}' \
-  --input 'subjects:json=["*.example.com","example.com"]'
+  --input 'providerConfig:json={"bearer_token":"GANDI_BEARER_TOKEN"}'
 # Add a route — its cert and A record follow automatically.
 swamp model method run my-caddy ensureDnsProxy \
   --input hostname=app.example.com --input upstream=127.0.0.1:8080
@@ -134,6 +143,8 @@ when it is unset.
 | `dnsRemovals` | array | `[]` | Records to delete on every reconcile, e.g. `[{"name":"old.example.com","type":"A","zone":"example.com"}]` (empty `value` removes the whole name+type RRset). Dropping a `dnsRecords` entry does **not** delete it. Apply with `applyDnsRecords`. |
 | `healthRoutes` | boolean | `true` | On status/default hostnames serve `/` → 200 (status page), `/teapot` → 418, any other path → 404. See [Health contract](#health-contract). |
 | `dnsTtl` | string | `5m` | Default TTL for `dnsRecords` (e.g. `5m`/`300s`). Short by default so record changes propagate quickly; a record's own `ttl` overrides it. |
+| `dnsSoa` | object | `{}` | Manage the zone SOA through caddy-host-dns (the `dns_records` app's `soa` block; requires a 2026-10-18+ binary). Written verbatim: `mname`, `rname`, `serial`, `refresh`, `retry`, `expire`, `minimum`, `ttl`, `min_ttl`, `zone`. Set `minimum` (RFC 2308 **negative-caching TTL**, e.g. `300s`) so a newly added/changed name is usable sooner. Gandi does not return the existing SOA, so set `mname`/`rname` (`ns1.gandi.net.` / `hostmaster.gandi.net.`). Empty leaves the SOA untouched. |
+<!-- swamp-quality-ignore ipv4-address-literals -->
 | `dnsResolvers` | array | `["1.1.1.1:53","8.8.8.8:53"]` | Recursive DNS servers the ACME DNS-01 propagation check queries when a DNS provider is set. Explicit resolvers keep a stale NXDOMAIN in the host resolver (e.g. systemd-resolved; Gandi's negative TTL is 3h) from hiding a freshly written challenge record and stalling a new name's first certificate. Empty uses the system resolver. Override per call with `configureTls resolvers`. |
 | `vaultName` | string | *(unset)* | Vault used by `storeConfig` to write secrets. |
 | `environmentFile` | string | *(unset)* | Path to a systemd `EnvironmentFile` for secrets (e.g. `~/.config/caddy/dns.env`, chmod 600), rendered as `EnvironmentFile=-<path>`. Required for DNS-challenge credentials — see [Wildcard certificates with a DNS provider](#wildcard-certificates-with-a-dns-provider-step-by-step). |
@@ -182,8 +193,9 @@ swamp model method run my-caddy checkHealth
 Bundled idempotent workflows:
 
 ```sh
-# Full setup in one command: installCaddy (grants the capability via
-# @svendowideit/sudo) → setCapabilities → createService → startService →
+# Full setup in one command: installCaddy (downloads the binary) →
+# grant-capability (@svendowideit/sudo `run` of operation `setcap` — its own
+# placed step, never runModel) → createService → startService → restart →
 # configureTls (provider inferred from plugins) → applyDnsRecords →
 # configureStatusPage, then a closing gap report. A single caddy model is set up
 # automatically; with several it lists them.
@@ -304,7 +316,7 @@ swamp model get otel-caddy --json | jq '.globalArguments.baseDomain'
 
 Changing a global arg does **not** touch the running service — global args are
 only read when you next run a method. So after editing, re-run whatever consumes
-it: edit `plugins` → `installCaddy` (+ `setCapabilities`); edit `listenAddrs` /
+it: edit `plugins` → `installCaddy`; edit `listenAddrs` /
 `autoHttps` / `environmentFile` → `createService` + `restartService`; edit
 `baseDomain` → `configureTls`, `configureStatusPage`, etc.
 
@@ -438,7 +450,7 @@ To change any of these (then re-run):
   email / TLS     swamp model method run caddy configureTls --input email=you@example.com --input 'subjects:json=["*.YOUR.DOMAIN"]'
   DNS provider    swamp model method run caddy configureTls --input dnsProvider=<provider>   # multi-field providers also --input providerConfig=...
   DNS records     swamp model get caddy --json | jq '{name, version, tags, globalArguments} | .globalArguments.dnsRecords = [/* record objects */]' | swamp model edit caddy --json  then  swamp model method run caddy applyDnsRecords
-  bind 80/443     swamp model method run caddy setCapabilities   # elevates via @svendowideit/sudo
+  bind 80/443     a @svendowideit/sudo step (operation `setcap`); caddy-setup does it for you   # setCapabilities only reports the step
   service         swamp model method run caddy startService
 Upgrade check for caddy: 2 thing(s) to fix:
   ✗ The Caddy binary is missing compiled modules: github.com/caddy-dns/cloudflare.
@@ -479,8 +491,11 @@ gandi, dreamhost.` — and gives a template, rather than guessing one.
 Every fix is a real command: the domain/record/provider fixes are a
 `swamp model get … | jq … | swamp model edit …` pipeline (you replace the
 `YOUR.DOMAIN`/`YOUR.SERVER.IP` placeholders), and the rest are
-`swamp model method run` commands — including `setCapabilities`, which grants
-CAP_NET_BIND_SERVICE by elevating through the `@svendowideit/sudo` extension.
+`swamp model method run` commands and, for the capability, a placed
+`@svendowideit/sudo` step (operation `setcap`) — a caddy method cannot elevate
+in-process because `context.runModel` is unavailable under swamp worker remote
+execution, so the grant is its own workflow step (which `caddy-upgrade` runs for
+you).
 `✗` marks something that blocks serving; `•` marks an optional extra.
 
 **Already up to date → DONE, and a no-op.** If the model's type version is
@@ -492,9 +507,9 @@ live config, not assumed), `upgradeCheck` reports
 and every mutating step. Re-running the upgrade is then a genuine no-op.
 
 It then **pauses at one approval gate** so you can run those commands (the
-capability is granted by `setCapabilities` through `@svendowideit/sudo`, whose
-elevation ladder must find a route — sudo/doas/polkit/… — the host actually
-grants; a DNS token is a secret, so the report names the model's
+capability is granted on resume by a placed `@svendowideit/sudo` step, operation
+`setcap`, whose elevation ladder must find a route — sudo/doas/polkit/container —
+the host actually grants; a DNS token is a secret, so the report names the model's
 `environmentFile` to write instead of asking for it over a signal). Approve and
 resume:
 
@@ -548,8 +563,8 @@ it exposes, with its per-run arguments:
 
 | Method | Arguments | Purpose |
 | ------ | --------- | ------- |
-| `installCaddy` | `plugins` (array), `force` (boolean), `setCapabilities` (boolean, default true), `configureStatusPage` (boolean, default true) | Download the binary (with module packages compiled in — `caddy-host-dns` and `caddy-teapot-module` are always added), place it at `caddyBinPath`, verify it runs (`caddy version` + `caddy list-modules`), grant `CAP_NET_BIND_SERVICE` (see [Privileged ports](#privileged-ports-80443)), and install the status page + health contract when the admin API is up. **Rebuilds automatically when the existing binary is missing a wanted/built-in module** (not just when the file is absent). If it rebuilt a *running* service it applies the capability **first**, then restarts and waits for the service — failing with a `journalctl` hint if it did not come back (Caddy runs `--resume`, so a stale `autosave.json` can crash-loop it). The `install` resource reports `rebuilt`, `missingPluginsBeforeBuild`, and `restarted`. |
-| `setCapabilities` | `capabilities` (array), `binPath` (string), `quiet` (boolean) | Grant `CAP_NET_BIND_SERVICE` to the binary by delegating `setcap` to the `@svendowideit/sudo` extension. Idempotent; records `applied` and the reason when no elevation route is available. |
+| `installCaddy` | `plugins` (array), `force` (boolean), `setCapabilities` (boolean, default false), `configureStatusPage` (boolean, default true) | Download the binary (with module packages compiled in — `caddy-host-dns` and `caddy-teapot-module` are always added), place it at `caddyBinPath`, verify it runs (`caddy version` + `caddy list-modules`), check for `CAP_NET_BIND_SERVICE` (see [Privileged ports](#privileged-ports-80443) — the grant is a separate workflow step, never a method), and install the status page + health contract when the admin API is up. **Rebuilds automatically when the existing binary is missing a wanted/built-in module** (not just when the file is absent). If it rebuilt a *running* service it restarts and waits for the service — failing with a `journalctl` hint if it did not come back (Caddy runs `--resume`, so a stale `autosave.json` can crash-loop it). The `install` resource reports `rebuilt`, `missingPluginsBeforeBuild`, and `restarted`. |
+| `setCapabilities` | `capabilities` (array), `binPath` (string), `quiet` (boolean) | Check for `CAP_NET_BIND_SERVICE` on the binary and, when it is missing, report the exact placed step that grants it (a `@svendowideit/sudo` `run` of operation `setcap`). It never elevates in-process — `context.runModel` is unavailable under swamp worker remote execution — so a workflow must run that step itself (`caddy-setup`/`caddy-upgrade` do). Records `applied`, `requiresSudo` and the command to run. |
 | `normalizeServingSettings` | none | Reconcile `autoHttps` / `listenAddrs` with what the model wants and what the host can do: once the binary can bind privileged ports (CAP_NET_BIND_SERVICE) and the model wants public HTTPS (`baseDomain` + ACME email), correct the unprivileged high-port / HTTPS-off preset back to `autoHttps=on`, `listenAddrs=[":443",":80"]` **and persist it to the model**. Idempotent; a no-op when already right. |
 | `configureStatusPage` | `title` (string), `extraLinks` (array of `{label,url}`), `disabled` (boolean) | Install (or, with `disabled=true`, remove) the status page answering `/` (200) on the status/default hostnames, plus the health contract (`/teapot` → 418, other → 404). Idempotent. |
 | `plan` | none | Read-only: for **one** Caddy, merge all its models' desired state, compute the config that would be applied, read the live config, and record desired/actual routes, `onlyDesired`/`onlyActual` drift, foreign routes, the desired DNS records, and both full configs for diffing. Changes nothing. |
@@ -737,12 +752,18 @@ PAT, or a token without permission on the zone. The status page's
 ### Privileged ports (80/443)
 
 Caddy runs as an unprivileged systemd **user** service, so by default it cannot
-bind ports 80/443. Grant the binary the `CAP_NET_BIND_SERVICE` capability:
+bind ports 80/443. Grant the binary the `CAP_NET_BIND_SERVICE` capability as its
+own workflow step — a caddy method cannot do it in-process because
+`context.runModel` is unavailable under swamp worker remote execution:
 
 ```sh
-# installCaddy grants it automatically (setCapabilities defaults to true).
-# Run it on its own to (re)apply it:
-swamp model method run my-caddy setCapabilities
+# The caddy-setup workflow grants it (and caddy-upgrade re-grants it). To do it
+# by hand, run the @svendowideit/sudo model's `run` with operation `setcap`
+# (path must be absolute). setCapabilities only checks and reports.
+swamp model @svendowideit/sudo method run run sudo-caddy \
+  --global-arg 'allowedOperations:json=["setcap"]' \
+  --input operation=setcap \
+  --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
 ```
 
 **A config is never rejected for a privileged-port bind failure.** Until the
@@ -843,10 +864,10 @@ Notes:
 - **Concrete example** (this repo's `my-caddy`, pointing a host at its LAN IP):
   ```sh
   swamp model get my-caddy --json \
-    | jq '.globalArguments.dnsRecords=[{"name":"x1yoga.fi.gy","type":"A","value":["10.10.13.208"],"zone":"fi.gy"}] | {name,version,tags,globalArguments}' \
+    | jq '.globalArguments.dnsRecords=[{"name":"x1yoga.fi.gy","type":"A","value":["192.0.2.10"],"zone":"fi.gy"}] | {name,version,tags,globalArguments}' \
     | swamp model edit my-caddy --json
   swamp model method run my-caddy applyDnsRecords
-  dig +short @1.1.1.1 x1yoga.fi.gy A     # -> 10.10.13.208
+  dig +short @192.0.2.53 x1yoga.fi.gy A     # -> 192.0.2.10
   ```
 - A model that declares records **and** `configureTls` for the same provider
   keeps TLS and DNS in one place; see [One command to see what's going on](#one-command-to-see-whats-going-on) — `audit` reports the desired DNS records.
@@ -863,21 +884,21 @@ the zone's TTL. Check each half separately:
 #    This ignores cache and is the ground truth. Get them with:
 dig +short NS fi.gy
 # then, per nameserver:
-dig +short @ns-147-a.gandi.net x1yoga.fi.gy A     # -> 10.10.13.208
+dig +short @ns-147-a.gandi.net x1yoga.fi.gy A     # -> 192.0.2.10
 
 # 2. What do public resolvers return? Empty here usually means "not propagated
 #    yet" (or a negative answer cached for the old TTL), not "not set".
-dig +short @1.1.1.1 x1yoga.fi.gy A
-dig +short @8.8.8.8 x1yoga.fi.gy A
+dig +short @192.0.2.53 x1yoga.fi.gy A
+dig +short @198.51.100.53 x1yoga.fi.gy A
 
 # 3. Is the RECORD right but DNS not yet usable? Skip DNS entirely and talk
 #    straight to the host. --resolve maps the name:port to the IP for this one
 #    request, so it works even before propagation:
-curl -v --resolve x1yoga.fi.gy:80:10.10.13.208 http://x1yoga.fi.gy/
+curl -v --resolve x1yoga.fi.gy:80:192.0.2.10 http://x1yoga.fi.gy/
 
 # For HTTPS the same trick pins the address while Caddy still needs a valid
 # cert for the name (so this only succeeds once TLS/DNS-01 has issued):
-curl -v --resolve x1yoga.fi.gy:443:10.10.13.208 https://x1yoga.fi.gy/
+curl -v --resolve x1yoga.fi.gy:443:192.0.2.10 https://x1yoga.fi.gy/
 
 # 4. Confirm the model's desired state and what Caddy was told to own:
 swamp model method run @svendowideit/caddy audit caddy-status

@@ -740,6 +740,67 @@ Deno.test("buildReconciledConfig writes the tls app for a desired TLS config", (
   assertEquals((dns.provider as Record<string, unknown>).name, "gandi");
 });
 
+Deno.test("buildReconciledConfig gives every served host a DNS-01 subject", () => {
+  // The status page's hostnames (the model's baseDomain / declared DNS-record
+  // names) are served but were not in tls.subjects, so they fell back to
+  // HTTP-01 — which ACME cannot validate for a name that resolves to a private
+  // address. When a DNS provider is configured, every non-loopback served
+  // hostname must be in the DNS-01 policy's subjects automatically.
+  const config = buildReconciledConfig(baseConfig(), {
+    routes: [{
+      hostname: "kolibri.eieio.fi.gy",
+      kind: "proxy",
+      upstream: "127.0.0.1:8080",
+      root: "",
+      browse: false,
+    }],
+    listenAddrs: [":443", ":80"],
+    autoHttps: "on",
+    tls: {
+      email: "a@b.com",
+      dnsProvider: "gandi",
+      dnsEnvVar: "",
+      providerConfig: { bearer_token: "GANDI_TOKEN" },
+      subjects: ["kolibri.eieio.fi.gy"],
+    },
+    statusPage: {
+      enabled: true,
+      title: "Caddy",
+      hostnames: [],
+      extraLinks: [],
+      version: "",
+      adminUrl: "localhost:2019",
+      baseDomain: "eieio.fi.gy",
+      email: "",
+      capabilities: [],
+      plugins: [],
+      links: [],
+    },
+    statusPageModel: "eieio-caddy",
+    dnsRecords: [{
+      name: "eieio.fi.gy",
+      type: "A",
+      value: ["10.10.1.77"],
+      zone: "fi.gy",
+      ttl: "",
+    }],
+    healthRoutes: true,
+  });
+  const tls = (config.apps as Record<string, unknown>).tls as Record<
+    string,
+    unknown
+  >;
+  const policy = ((tls.automation as Record<string, unknown>)
+    .policies as Array<Record<string, unknown>>)[0];
+  const subjects = policy.subjects as string[];
+  // The routed name and the status-page host (the declared DNS-record name).
+  assert(subjects.includes("kolibri.eieio.fi.gy"));
+  assert(subjects.includes("eieio.fi.gy"));
+  // Loopback keeps the internal CA, so it must not be an ACME subject.
+  assert(!subjects.includes("localhost"));
+  assert(!subjects.includes("127.0.0.1"));
+});
+
 Deno.test("dnsProviderPlugin maps gandi and dreamhost", () => {
   assertEquals(dnsProviderPlugin("gandi"), "github.com/caddy-dns/gandi");
   assertEquals(
@@ -869,9 +930,9 @@ Deno.test("hasNetBindService detects the capability in any form", () => {
   assertEquals(hasNetBindService([]), false);
 });
 
-Deno.test("setCapabilities delegates setcap to @svendowideit/sudo", async () => {
+Deno.test("setCapabilities never elevates in-process (no runModel)", async () => {
   let captured: Record<string, unknown> = {};
-  const calls: Array<Record<string, unknown>> = [];
+  let runModelCalls = 0;
   const ctx = {
     globalArgs: {
       caddyBinPath: "/nonexistent/caddy",
@@ -884,8 +945,8 @@ Deno.test("setCapabilities delegates setcap to @svendowideit/sudo", async () => 
       sudoInstanceKey: "default",
     },
     logger: { info: () => {}, warning: () => {} },
-    runModel: (opts: Record<string, unknown>) => {
-      calls.push(opts);
+    runModel: () => {
+      runModelCalls++;
       return Promise.resolve({ ok: true, resources: [{ name: "run" }] });
     },
     writeResource: (
@@ -900,21 +961,17 @@ Deno.test("setCapabilities delegates setcap to @svendowideit/sudo", async () => 
   } as any;
   await model.methods.setCapabilities.execute({ quiet: true }, ctx);
 
-  // It calls the sudo extension's run method with operation=setcap, not sudo.
-  assertEquals(calls.length, 1);
-  const call = calls[0];
-  assertEquals(call.modelType, "@svendowideit/sudo");
-  assertEquals(call.name, "sudo-default");
-  assertEquals(call.method, "run");
-  const args = call.arguments as Record<string, unknown>;
-  assertEquals(args.operation, "setcap");
-  assertEquals(args.allowedOperations, ["setcap"]);
-  assertEquals(
-    (args.args as Record<string, unknown>).path,
-    "/nonexistent/caddy",
-  );
-  // No raw `sudo setcap …` command is emitted any more.
-  assert(!String(captured.command).includes("sudo setcap"));
+  // A caddy method must never call runModel: it is unavailable under swamp
+  // worker remote execution. Elevation is a placed workflow step instead, so
+  // the method reports the exact step to run and changes nothing.
+  assertEquals(runModelCalls, 0);
+  assertEquals(captured.applied, false);
+  assertEquals(captured.requiresSudo, true);
+  const command = String(captured.command);
+  assert(command.includes("@svendowideit/sudo"));
+  assert(command.includes("setcap"));
+  // No bare `sudo setcap …` invocation is emitted any more.
+  assert(!command.includes("sudo setcap"));
 });
 
 Deno.test("defaultStatusHostnames is the default for configured names, minus routed", () => {
@@ -2055,6 +2112,37 @@ Deno.test("writeDnsRecords emits the dns_records app with a provider block", () 
     ttl: "5m",
   }]);
   assertEquals(dr.providers[0].remove, [{ name: "old.fi.gy", type: "A" }]);
+});
+
+Deno.test("writeDnsRecords emits the SOA negative-cache block when configured", () => {
+  const config = baseConfig();
+  writeDnsRecords(
+    config,
+    exampleTls,
+    [{
+      name: "eieio.fi.gy",
+      type: "A",
+      value: ["10.10.1.77"],
+      zone: "fi.gy",
+      ttl: "5m",
+    }],
+    [],
+    "5m",
+    { minimum: "300s", min_ttl: "300s" },
+  );
+  // deno-lint-ignore no-explicit-any
+  const dr = (config.apps as any).dns_records;
+  // caddy-host-dns reconciles the zone SOA from this block: minimum is the
+  // RFC 2308 negative-cache TTL, min_ttl clamps every timer to the provider floor.
+  assertEquals(dr.providers[0].soa, { minimum: "300s", min_ttl: "300s" });
+});
+
+Deno.test("writeDnsRecords omits the SOA block by default", () => {
+  const config = baseConfig();
+  writeDnsRecords(config, exampleTls, [], [], "5m");
+  // deno-lint-ignore no-explicit-any
+  const dr = (config.apps as any).dns_records;
+  assertEquals("soa" in dr.providers[0], false);
 });
 
 Deno.test("writeDnsRecords emits a default TTL when given one", () => {

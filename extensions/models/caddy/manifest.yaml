@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.10.17.1"
+version: "2026.10.18.3"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -14,7 +14,12 @@ description: >
     a route implies the DNS and TLS it needs: every route hostname under
     baseDomain automatically gains a TLS subject and an A record, so a single
     ensureDnsProxy makes a host reachable without hand-listing subjects or
-    records. It can also publish a settings/document directory over HTTP(S) with
+    records. When a DNS provider is configured, the DNS-01 challenge covers
+    EVERY name the config serves — route hostnames and the status page's
+    hostnames (the baseDomain and declared record names), not just the subjects
+    a model listed — so no served name falls back to HTTP-01 (which ACME cannot
+    validate for a name that resolves to a private address). It can also publish
+    a settings/document directory over HTTP(S) with
     file_server, issue wildcard certificates through DNS-challenge providers
     (including multi-field ones like Gandi, Namecheap, and DreamHost), manage
     static A/AAAA/CNAME records through any dns.providers module, and serve a
@@ -50,11 +55,12 @@ description: >
       swamp model method run my-caddy createService
       swamp model method run my-caddy startService
 
-      # Do the whole setup idempotently in one command: install the binary and
-      # grant the capability via @svendowideit/sudo, create/start the service,
-      # configure TLS (provider inferred from plugins), apply DNS records, and
-      # install the status page. A single caddy model is set up automatically;
-      # with several it lists them.
+      # Do the whole setup idempotently in one command: install the binary, grant
+      # the capability as its own placed @svendowideit/sudo step (operation
+      # setcap — never runModel, which cannot run on a worker), create/start the
+      # service, configure TLS (provider inferred from plugins), apply DNS
+      # records, and install the status page. A single caddy model is set up
+      # automatically; with several it lists them.
       swamp workflow run @svendowideit/caddy-setup
 
       # Upgrade the Caddy this repo manages after updating the extension. With a
@@ -76,9 +82,14 @@ description: >
         --input hostname=settings.example.com --input root=/srv/settings/current
 
       # Grant CAP_NET_BIND_SERVICE so the unprivileged user service can bind
-      # 80/443. Elevation is delegated to @svendowideit/sudo (run automatically
-      # during installCaddy too).
-      swamp model method run my-caddy setCapabilities
+      # 80/443. A caddy method never elevates in-process (context.runModel is
+      # unavailable under swamp worker remote execution), so the grant is its
+      # own step driving the @svendowideit/sudo model — exactly what the
+      # caddy-setup/caddy-upgrade workflows do. Path must be absolute.
+      swamp model @svendowideit/sudo method run run sudo-caddy \
+        --global-arg 'allowedOperations:json=["setcap"]' \
+        --input operation=setcap \
+        --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
 
       # Install the default status page that answers on http://localhost and
       # https://localhost (done automatically by installCaddy/startService).
@@ -224,6 +235,14 @@ description: >
                          apply with `applyDnsRecords`
       dnsTtl             Default TTL for dnsRecords (default 5m) so changes
                          propagate quickly; a record's own ttl overrides it
+      dnsSoa             Manage the zone SOA through caddy-host-dns (the
+                         dns_records app's soa block; needs a 2026-10-18+ binary),
+                         e.g. {"mname":"ns1.gandi.net.","rname":"hostmaster.gandi.net.",
+                         "refresh":"10800s","retry":"3600s","expire":"604800s",
+                         "minimum":"300s"}. `minimum` is the RFC 2308 negative-
+                         caching TTL: lower it so a new/changed name is usable
+                         sooner. Gandi does not return the SOA, so set mname/rname.
+                         Empty leaves the zone SOA untouched
       healthRoutes       true (default): on status/default hostnames serve
                          '/' -> 200, '/teapot' -> 418, other -> 404
       adminApiAddr       Admin API address (or unix//path)
@@ -239,14 +258,15 @@ description: >
       reconcile          true (default) merges all models for this target; false
                          writes only this model's config
 
-    Ports 80/443 need CAP_NET_BIND_SERVICE on the binary: installCaddy grants it
-    (setCapabilities=false to skip), setCapabilities can (re)apply it, and
-    upgradeCaddy re-grants it after replacing the binary. Elevation is delegated
-    to the @svendowideit/sudo extension; caddy never calls sudo itself. A config
-    is never rejected for a privileged-port bind failure: until the capability is
-    granted, reconcile serves what is wanted on unprivileged ports (:80 -> :8080,
-    :443 -> :8443, plain HTTP) so Caddy always loads it, and reapplies the desired
-    settings once the capability arrives.
+    Ports 80/443 need CAP_NET_BIND_SERVICE on the binary. No caddy method elevates
+    in-process: context.runModel is unavailable under swamp worker remote
+    execution, so the grant is its own placed workflow step driving the
+    @svendowideit/sudo model — the caddy-setup and caddy-upgrade workflows do this
+    (installCaddy takes setCapabilities=false; setCapabilities only checks and
+    reports). A config is never rejected for a privileged-port bind failure: until
+    the capability is granted, reconcile serves what is wanted on unprivileged
+    ports (:80 -> :8080, :443 -> :8443, plain HTTP) so Caddy always loads it, and
+    reapplies the desired settings once the capability arrives.
 
     A status page is wanted by default (opt out with configureStatusPage
     disabled=true): it answers on localhost and, once the port/TLS layer is up,

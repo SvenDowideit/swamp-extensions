@@ -379,6 +379,40 @@ const DnsRemovalSchema = z.object({
   zone: z.string().default(""),
 });
 
+/**
+ * SOA management for the caddy-host-dns `dns_records` app. Setting any field
+ * opts the zone into SOA reconciliation; an empty object leaves the SOA alone.
+ */
+const DnsSoaSchema = z.object({
+  mname: z.string().optional().describe(
+    "Primary nameserver. Required when the provider does not return the existing SOA (Gandi does not).",
+  ),
+  rname: z.string().optional().describe(
+    "Responsible mailbox, e.g. hostmaster.example.com. Required with mname in the same case.",
+  ),
+  serial: z.number().int().nonnegative().optional(),
+  refresh: z.string().optional().describe(
+    "Secondary refresh interval (e.g. 10800s to preserve the existing timer).",
+  ),
+  retry: z.string().optional().describe(
+    "Secondary retry interval (e.g. 3600s).",
+  ),
+  expire: z.string().optional().describe(
+    "Secondary expiry interval (e.g. 604800s).",
+  ),
+  minimum: z.string().optional().describe(
+    "RFC 2308 negative-caching TTL (e.g. 300s).",
+  ),
+  ttl: z.string().optional().describe("TTL of the SOA record itself."),
+  min_ttl: z.string().optional().describe(
+    "Lower bound applied to every SOA timer, so a provider's minimum is not violated.",
+  ),
+  zone: z.string().optional().describe(
+    "Zone whose SOA is managed; defaults to the provider's zone.",
+  ),
+});
+type DnsSoa = z.infer<typeof DnsSoaSchema>;
+
 // ---------------------------------------------------------------------------
 // Global args & method args
 // ---------------------------------------------------------------------------
@@ -426,10 +460,19 @@ const GlobalArgsSchema = z.object({
   dnsTtl: z.string().default("5m").describe(
     "Default TTL for dnsRecords, e.g. 5m or 300s. Short by default so records added/changed here propagate quickly; a record's own ttl field overrides it.",
   ),
+  dnsSoa: DnsSoaSchema.default({}).describe(
+    "Manage the zone SOA through caddy-host-dns (`dns_records` app `soa` block); requires a binary with SOA support (2026-10-18+). Set `minimum` (RFC 2308 negative-caching TTL, e.g. 300s) to make a new/changed name usable sooner; set `mname`/`rname` when the provider does not return the existing SOA (Gandi does not). Empty leaves the SOA untouched.",
+  ),
   dnsResolvers: z.array(z.string()).default(["1.1.1.1:53", "8.8.8.8:53"])
     .describe(
-      "Recursive DNS servers the ACME DNS-01 propagation check queries when a DNS provider is configured. Set explicitly so a challenge record is not missed because the local resolver (e.g. systemd-resolved) negative-cached the challenge name before it existed — a 3h NXDOMAIN TTL once delayed a new name's first certificate until the cache was flushed. Empty falls back to the system resolver.",
+      "Recursive DNS servers the ACME DNS-01 propagation check queries when a DNS provider is configured. Only used when dnsSkipPropagationCheck is false; see that option for why the check is skipped by default.",
     ),
+  dnsSkipPropagationCheck: z.boolean().default(true).describe(
+    "Skip certmagic's own DNS-01 propagation self-check (Caddy propagation_timeout=-1) and rely on dnsPropagationDelay plus Let's Encrypt's own validation. The self-check asks a recursive resolver, whose cached pre-challenge NXDOMAIN (the zone's negative TTL — Gandi is 3h) makes a correctly-written challenge record look absent for hours; Let's Encrypt instead queries the zone's authoritative servers, which have the record. Set false to restore the check.",
+  ),
+  dnsPropagationDelay: z.string().default("30s").describe(
+    "How long to wait after writing the DNS-01 challenge record before it is used (Caddy propagation_delay, e.g. 30s). Gives the provider's write time to reach its authoritative servers; with the self-check skipped this is the only wait.",
+  ),
   autoRouteTls: z.boolean().default(true).describe(
     "When true, every route hostname under baseDomain is automatically added to the TLS subjects, so Caddy issues it a certificate. Adding a route is a promise that clients will connect on that name, so this defaults on; set false to opt out (e.g. a name served over plain HTTP, or already covered by a wildcard you manage elsewhere).",
   ),
@@ -471,8 +514,8 @@ const InstallArgsSchema = z.object({
   force: z.boolean().default(false).describe(
     "Reinstall even if the binary already exists",
   ),
-  setCapabilities: z.boolean().default(true).describe(
-    "After install, grant the binary CAP_NET_BIND_SERVICE (by delegating setcap to the @svendowideit/sudo extension) so the unprivileged systemd user service can bind 80/443.",
+  setCapabilities: z.boolean().default(false).describe(
+    "After install, check whether the binary has CAP_NET_BIND_SERVICE and, if not, report the placed step that grants it (the @svendowideit/sudo model's `run` method, operation setcap). It never elevates in-process: context.runModel is unavailable under swamp worker remote execution, so the grant must be its own workflow step — see the @svendowideit/caddy-setup and @svendowideit/caddy-upgrade workflows. Defaults to false.",
   ),
   configureStatusPage: z.boolean().default(true).describe(
     "After install, install a default status page answering on localhost, summarising the install and linking to the admin API. Requires the admin API to be reachable (a running service); skips with a log otherwise.",
@@ -566,7 +609,13 @@ const ConfigureTlsArgsSchema = z.object({
     'Private-key type for issued certificates: "rsa2048", "p256" (default), "p384", "p521" or "ed25519". Set "rsa2048" for a device that only accepts RSA keys.',
   ),
   resolvers: z.array(z.string()).optional().describe(
-    'Recursive DNS servers for the ACME DNS-01 propagation check (e.g. ["1.1.1.1:53"]). Set these so a stale negative cache in the local resolver cannot hide a freshly written challenge record. Empty uses the model\'s dnsResolvers global, then the system resolver.',
+    'Recursive DNS servers for the ACME DNS-01 propagation check (e.g. ["1.1.1.1:53"]). Empty uses the model\'s dnsResolvers global, then the system resolver.',
+  ),
+  skipPropagationCheck: z.boolean().optional().describe(
+    "Skip certmagic's DNS-01 propagation self-check (propagation_timeout=-1) and rely on propagationDelay plus ACME's own validation. Defaults to the model's dnsSkipPropagationCheck (true).",
+  ),
+  propagationDelay: z.string().optional().describe(
+    "How long to wait after writing the challenge record before use (e.g. 30s). Defaults to the model's dnsPropagationDelay.",
   ),
 });
 
@@ -896,6 +945,9 @@ const DesiredTlsSchema = z.object({
   keyType: z.string().default(""),
   // Recursive resolvers for the ACME DNS-01 propagation check.
   resolvers: z.array(z.string()).default([]),
+  // Skip certmagic's DNS-01 propagation self-check; wait this long instead.
+  skipPropagationCheck: z.boolean().default(false),
+  propagationDelay: z.string().default(""),
 });
 
 const DesiredStatusPageSchema = z.object({
@@ -942,6 +994,7 @@ const DesiredStateSchema = z.object({
   dnsRecords: z.array(DnsRecordSchema).default([]),
   dnsRemovals: z.array(DnsRemovalSchema).default([]),
   dnsTtl: z.string().default("5m"),
+  dnsSoa: DnsSoaSchema.default({}),
   healthRoutes: z.boolean().default(true),
   /** Derive TLS subjects from route hostnames (see global autoRouteTls). */
   autoRouteTls: z.boolean().default(true),
@@ -1373,6 +1426,17 @@ export function routeFileServerRoot(route: CaddyRoute): string {
  */
 export function statusPageHostnames(): string[] {
   return ["localhost", "127.0.0.1", "[::1]"];
+}
+
+/**
+ * Whether a hostname is served by Caddy's local CA rather than ACME. Loopback
+ * names can never be validated by a public ACME CA and Caddy certifies them
+ * internally, so they are excluded from the DNS-challenge subject list.
+ */
+export function isLoopbackHostname(host: string): boolean {
+  const h = host.trim().toLowerCase();
+  return h === "localhost" || h === "::1" || h === "[::1]" ||
+    h.startsWith("127.");
 }
 
 /**
@@ -1857,6 +1921,10 @@ export interface DesiredTls {
   keyType?: string;
   /** Recursive resolvers for the ACME DNS-01 propagation check. */
   resolvers?: string[];
+  /** Skip certmagic's DNS-01 propagation self-check (propagation_timeout=-1). */
+  skipPropagationCheck?: boolean;
+  /** Wait this long after writing the challenge record before using it. */
+  propagationDelay?: string;
 }
 
 /** One model's desired status page. */
@@ -1945,6 +2013,8 @@ export interface DesiredState {
   dnsRemovals: DnsRemoval[];
   /** Default TTL for dnsRecords (a short value propagates changes quickly). */
   dnsTtl: string;
+  /** SOA management for the dns_records app; empty = leave the SOA alone. */
+  dnsSoa?: DnsSoa;
   /** Whether to install the / -> 200, /teapot -> 418, other -> 404 health contract. */
   healthRoutes: boolean;
   /**
@@ -1994,6 +2064,7 @@ export function mergeDesired(states: DesiredState[]): {
     dnsRecords: DnsRecord[];
     dnsRemovals: DnsRemoval[];
     dnsTtl: string;
+    dnsSoa: DnsSoa;
     healthRoutes: boolean;
   };
   errors: string[];
@@ -2065,6 +2136,8 @@ export function mergeDesired(states: DesiredState[]): {
     let dnsEnvVar = "";
     let issuer = "";
     let keyType = "";
+    let skipPropagationCheck = false;
+    let propagationDelay = "";
     for (const s of tlsStates) {
       tlsModels.push(s.modelName);
       for (const sub of s.tls!.subjects) subjects.add(sub);
@@ -2073,6 +2146,9 @@ export function mergeDesired(states: DesiredState[]): {
       dnsEnvVar = dnsEnvVar || s.tls!.dnsEnvVar;
       issuer = issuer || (s.tls!.issuer ?? "");
       keyType = keyType || (s.tls!.keyType ?? "");
+      skipPropagationCheck = skipPropagationCheck ||
+        s.tls!.skipPropagationCheck === true;
+      propagationDelay = propagationDelay || (s.tls!.propagationDelay ?? "");
     }
     tls = {
       email: [...emails][0] ?? "",
@@ -2083,6 +2159,8 @@ export function mergeDesired(states: DesiredState[]): {
       issuer,
       keyType,
       resolvers: [...resolvers].sort(),
+      skipPropagationCheck,
+      propagationDelay,
     };
   }
 
@@ -2140,6 +2218,8 @@ export function mergeDesired(states: DesiredState[]): {
   const healthRoutes = states.some((s) => s.healthRoutes);
   // Default DNS TTL: first model that sets one wins (all default to 5m anyway).
   const dnsTtl = states.find((s) => s.dnsTtl)?.dnsTtl ?? "5m";
+  const dnsSoa = states.find((s) => Object.keys(s.dnsSoa ?? {}).length > 0)
+    ?.dnsSoa ?? {};
 
   const routes = [...routeByHost.values()]
     .map((v) => ({ ...v.route, model: v.model }))
@@ -2189,6 +2269,7 @@ export function mergeDesired(states: DesiredState[]): {
       dnsRecords: auto.dnsRecords,
       dnsRemovals: auto.dnsRemovals,
       dnsTtl,
+      dnsSoa,
       healthRoutes,
     },
     errors,
@@ -2294,6 +2375,8 @@ export function deriveRouteDnsTls(
         issuer: nextTls?.issuer ?? "",
         keyType: nextTls?.keyType ?? "",
         resolvers: nextTls?.resolvers ?? [],
+        skipPropagationCheck: nextTls?.skipPropagationCheck ?? false,
+        propagationDelay: nextTls?.propagationDelay ?? "",
       };
     }
   }
@@ -2355,6 +2438,7 @@ export function buildReconciledConfig(
     dnsRecords?: DnsRecord[];
     dnsRemovals?: DnsRemoval[];
     dnsTtl?: string;
+    dnsSoa?: DnsSoa;
     healthRoutes?: boolean;
   },
   // The extension (package) version for the status page, read from
@@ -2451,6 +2535,24 @@ export function buildReconciledConfig(
   let next = base;
   setRoutes(next, built);
   if (merged.tls) {
+    // DNS-01 must be the challenge for EVERY name this Caddy serves. A name
+    // that is served but absent from the policy's `subjects` falls back to
+    // HTTP-01/tls-alpn-01, which ACME cannot validate when the name resolves
+    // to a private address (Let's Encrypt then reports "no valid A records").
+    // Routes already feed the subjects via autoRouteTls; the status page's
+    // hostnames (the model's baseDomain and declared DNS-record names) do not,
+    // so when a DNS provider is configured fold every non-loopback status
+    // hostname into the subjects too. Loopback stays out so it keeps Caddy's
+    // internal CA. This is automatic: a model never has to list subjects for
+    // DNS-01 to apply.
+    let tlsSubjects = merged.tls.subjects;
+    if (merged.tls.dnsProvider) {
+      const all = new Set(tlsSubjects);
+      for (const h of statusHostnames) {
+        if (!isLoopbackHostname(h)) all.add(h);
+      }
+      tlsSubjects = [...all].sort();
+    }
     const tlsConfig = renderTlsAutomation({
       email: merged.tls.email,
       dnsProvider: merged.tls.dnsProvider || undefined,
@@ -2458,10 +2560,12 @@ export function buildReconciledConfig(
       providerConfig: Object.keys(merged.tls.providerConfig).length > 0
         ? merged.tls.providerConfig
         : undefined,
-      subjects: merged.tls.subjects,
+      subjects: tlsSubjects,
       issuer: merged.tls.issuer,
       keyType: merged.tls.keyType,
       resolvers: merged.tls.resolvers,
+      skipPropagationCheck: merged.tls.skipPropagationCheck,
+      propagationDelay: merged.tls.propagationDelay,
     });
     // mergeTlsConfig returns a clone, so keep its result or the tls app is lost.
     next = mergeTlsConfig(next, tlsConfig);
@@ -2471,7 +2575,14 @@ export function buildReconciledConfig(
   const dnsRecords = merged.dnsRecords ?? [];
   const dnsRemovals = merged.dnsRemovals ?? [];
   if (dnsRecords.length > 0 || dnsRemovals.length > 0) {
-    writeDnsRecords(next, merged.tls, dnsRecords, dnsRemovals, merged.dnsTtl);
+    writeDnsRecords(
+      next,
+      merged.tls,
+      dnsRecords,
+      dnsRemovals,
+      merged.dnsTtl,
+      merged.dnsSoa,
+    );
   } else {
     const apps = (next.apps ??= {}) as Record<string, unknown>;
     delete apps.dns_records;
@@ -3016,6 +3127,8 @@ export function renderTlsAutomation(opts: {
   issuer?: string;
   keyType?: string;
   resolvers?: string[];
+  skipPropagationCheck?: boolean;
+  propagationDelay?: string;
 }): CaddyConfig {
   // `internal` selects Caddy's local CA (self-signed, useful for non-public
   // names and tests where Let's Encrypt cannot issue). The ACME issuer is the
@@ -3041,6 +3154,17 @@ export function renderTlsAutomation(opts: {
     // challenge record (a 3h NXDOMAIN TTL once stalled a new name's first cert).
     if (opts.resolvers && opts.resolvers.length > 0) {
       dns.resolvers = opts.resolvers;
+    }
+    // Or skip the self-check entirely (propagation_timeout = -1, which certmagic
+    // matches exactly): any recursive resolver can negative-cache the
+    // pre-challenge name for the zone's TTL, so the check is unreliable when a
+    // name is new. Wait propagation_delay instead, then let ACME validate
+    // against the authoritative servers.
+    if (opts.skipPropagationCheck) {
+      dns.propagation_timeout = -1;
+    }
+    if (opts.propagationDelay) {
+      dns.propagation_delay = opts.propagationDelay;
     }
     issuer.challenges = { dns };
   }
@@ -3073,6 +3197,7 @@ export function writeDnsRecords(
   records: DnsRecord[],
   removals: DnsRemoval[],
   ttl = "",
+  soa: DnsSoa = {},
 ): void {
   const apps = (config.apps ??= {}) as Record<string, unknown>;
   // The records are still *wanted* even with no provider — they simply cannot be
@@ -3112,6 +3237,7 @@ export function writeDnsRecords(
       dns_provider: provider,
       records: recDto,
       ...(remDto.length ? { remove: remDto } : {}),
+      ...(Object.keys(soa).length ? { soa } : {}),
     }],
     ...(ttl ? { ttl } : {}),
   };
@@ -3323,6 +3449,7 @@ async function runCmd(
   args: string[],
 ): Promise<CmdResult> {
   try {
+    // swamp-quality-ignore deno-command
     const proc = new Deno.Command(binary, {
       args,
       stdout: "piped",
@@ -3485,52 +3612,39 @@ async function readCapabilities(binPath: string): Promise<string[]> {
 }
 
 /**
- * Grant file capabilities by calling the `@svendowideit/sudo` extension's
- * `setcap` operation — caddy never calls `sudo`/`setcap` itself. The sudo
- * extension resolves whichever elevation route the host already grants (sudo,
- * doas, polkit/run0, a held capability, …) and runs `setcap` through it.
+ * Report the file-capability grant a caller must apply itself.
  *
- * The target is the `sudo-<sudoInstanceKey>` model (type `@svendowideit/sudo`),
- * auto-created if absent, with `setcap` added to that call's allowlist because
- * it is an opt-in operation. Never throws: a failure is reported, and the
- * caller decides whether a missing capability is fatal.
+ * Caddy never elevates in-process. `context.runModel` is unavailable under
+ * swamp worker remote execution, so a method cannot drive the
+ * `@svendowideit/sudo` extension; and a nested `type: workflow` step runs on
+ * the orchestrator, not the worker. Elevation is therefore a *placed workflow
+ * step* — see the @svendowideit/caddy-setup and @svendowideit/caddy-upgrade
+ * workflows (and any workflow using a caddy model), which call
+ * `@svendowideit/sudo` method `run` (operation `setcap`) as its own step so it
+ * dispatches to the same worker the caddy workflow runs on.
+ *
+ * This helper only reports the grant; it never calls runModel and never throws.
  */
-async function grantCapabilitiesViaSudo(
+function pendingCapabilityGrant(
   context: MethodContext,
   binPath: string,
   capabilities: string[],
-): Promise<{ applied: boolean; detail: string }> {
+): { applied: boolean; detail: string } {
   if (capabilities.length === 0) {
     return { applied: true, detail: "no capabilities requested" };
   }
-  if (!context.runModel) {
-    return {
-      applied: false,
-      detail:
-        "cannot grant capabilities: runModel is unavailable in this context",
-    };
-  }
-  const result = await context.runModel({
-    modelType: "@svendowideit/sudo",
-    name: `sudo-${context.globalArgs.sudoInstanceKey}`,
-    method: "run",
-    arguments: {
-      // Global arg of the sudo model: setcap is opt-in.
-      allowedOperations: ["setcap"],
-      // Method args of the sudo model's `run`.
-      operation: "setcap",
-      args: { path: binPath, capabilities: capabilities.join(" ") },
-    },
-  });
-  if (!result.ok) {
-    return {
-      applied: false,
-      detail: `@svendowideit/sudo could not setcap ${binPath}: ${
-        result.error?.message ?? "unknown error"
-      }`,
-    };
-  }
-  return { applied: true, detail: capabilities.join(" ") };
+  const command = `swamp model @svendowideit/sudo method run run sudo-` +
+    `${context.globalArgs.sudoInstanceKey} ` +
+    `--global-arg 'allowedOperations:json=["setcap"]' ` +
+    `--input operation=setcap ` +
+    `--input 'args:json={"path":"${binPath}","capabilities":"${
+      capabilities.join(" ")
+    }"}'`;
+  context.logger?.info(
+    "Granting {caps} to {binPath} must be a placed step (runModel is unavailable on a worker): {command}",
+    { caps: capabilities.join(" "), binPath, command },
+  );
+  return { applied: false, detail: command };
 }
 
 // ---------------------------------------------------------------------------
@@ -3968,6 +4082,7 @@ function emptyDesired(
     dnsRecords: g.dnsRecords,
     dnsRemovals: g.dnsRemovals,
     dnsTtl: g.dnsTtl,
+    dnsSoa: g.dnsSoa,
     healthRoutes: g.healthRoutes,
     autoRouteTls: g.autoRouteTls,
     autoRouteDns: g.autoRouteDns,
@@ -4906,6 +5021,7 @@ async function vaultPut(
   key: string,
   value: string,
 ): Promise<void> {
+  // swamp-quality-ignore deno-command
   const proc = new Deno.Command("swamp", {
     args: ["vault", "put", vaultName, key, "--json"],
     stdin: "piped",
@@ -4946,6 +5062,7 @@ async function runSwamp(
   args: string[],
   stdin?: string,
 ): Promise<{ code: number; stdout: string; stderr: string }> {
+  // swamp-quality-ignore deno-command
   const proc = new Deno.Command("swamp", {
     args,
     stdin: stdin === undefined ? "null" : "piped",
@@ -5066,7 +5183,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.17.1",
+  version: "2026.10.18.3",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -5225,6 +5342,7 @@ export const model = {
     {
       toVersion: "2026.10.01.8",
       description:
+        // swamp-quality-ignore long-line
         "Multi-model reconciliation: models that manage the same Caddy (same host + serviceName) no longer overwrite each other. Each mutating method records what the model wants in a `desired` resource, then reconcile merges every peer model's desired state for the target into one valid config and applies it. Routes are tagged with a Caddy @id (swamp:<model>:<host>) so only swamp-managed routes are replaced and hand-added routes survive; listenAddrs/TLS subjects union, and a real conflict (two different upstreams for one host, differing TLS email/provider) is reported naming the models instead of silently resolving. Adds `target` (defaults to the local hostname) and `reconcile` (default true) global args, plus `desired` and `reconcile` resources. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -5237,6 +5355,7 @@ export const model = {
     {
       toVersion: "2026.10.01.10",
       description:
+        // swamp-quality-ignore long-line
         "Adds an `audit` method and `audit` resource: one command finds every caddy model across the repo (no names needed — `swamp model method run @svendowideit/caddy audit <anyname>` auto-creates a scratch instance), groups them by the Caddy each manages, and reports per Caddy the merged desired routes (with the owning model), desired-vs-actual drift, and reachability. Adds a @svendowideit/caddy-status method report that prints the result as a table. The status page again always shows a 'Routes & services' section listing the URLs the Caddy serves (with guidance when empty), which an earlier version dropped. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -5249,36 +5368,42 @@ export const model = {
     {
       toVersion: "2026.10.01.12",
       description:
+        // swamp-quality-ignore long-line
         "plan/audit now report the TLS/DNS layer, so a libdns DNS-01 setup (e.g. the Gandi driver + bearer token) is visible instead of hidden: per-model desired provider/email/subjects and credential fields, the live TLS subjects and whether a DNS challenge is configured, which wanted plugins are compiled into the binary (and which are missing), and whether the environmentFile exists with which keys. desired state stores plugins/environmentFile/caddyBinPath so this is available. The caddy-status report prints a 'TLS / DNS' section and says to run configureTls when the driver/env are set up but no TLS is desired yet. Schema is additive — existing models upgrade with no changes; re-run any method on an older model to refresh its stored desired state.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.01.13",
       description:
+        // swamp-quality-ignore long-line
         "The default status page is now the fallback for EVERY hostname the models name (TLS subjects + explicit status hostnames), not just localhost — minus any hostname that has its own route. It is pushed last so explicit routes win. This also makes Caddy request a certificate for those hostnames (Caddy only issues for names in a route match), fixing 'configured hostname gets no cert / is a blank 404'. audit/plan TLS section now reports certificates actually ISSUED (read from Caddy's data dir) and the subjects still without a cert, so config-presence is no longer mistaken for a working DNS-01 challenge, and lists the status page's extra hostnames. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.02.1",
       description:
+        // swamp-quality-ignore long-line
         "Two always-on Caddy modules are now compiled into every binary: github.com/SvenDowideit/caddy-host-dns (static, provider-agnostic A/AAAA/CNAME records via any dns.providers.* module) and github.com/hairyhenderson/caddy-teapot-module. Adds a default health contract on the status/default hostnames — '/' -> 200 (status page, now path-constrained to '/'), '/teapot' -> 418, any other path -> 404 (Caddy otherwise answers 200 for unrouted paths) — tunable with the healthRoutes global arg. Adds dnsRecords/dnsRemovals globals that write the dns_records app, reusing the TLS provider credential so DNS-01 and record-writing share one env file; audit/plan report a desired DNS section. Re-run installCaddy/upgradeCaddy once so the binary includes the new modules. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.02.2",
       description:
+        // swamp-quality-ignore long-line
         "installCaddy now detects a STALE binary: it reads the modules compiled into the existing binary and rebuilds when any wanted (or built-in) module is missing, instead of treating any existing file as up to date. This fixes the case where a new extension version adds built-in plugins (caddy-host-dns, caddy-teapot-module) but the old binary still lacks them, so the config that needs them failed to load with 'unknown module: http.handlers.teapot'. It also restarts a running service after a rebuild (a replaced binary under a running process keeps the old modules), and the install resource gains rebuilt / missingPluginsBeforeBuild / restarted fields. Reconcile now fails with an actionable message (naming installCaddy/upgradeCaddy) when a config needs a third-party module the binary lacks, instead of surfacing Caddy's opaque 500. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.02.3",
       description:
+        // swamp-quality-ignore long-line
         "Fixes two restart-ordering bugs in the new stale-binary handling. installCaddy now applies CAP_NET_BIND_SERVICE BEFORE restarting: replacing the binary drops the capability, so restarting first left the restarted process unable to bind 80/443. It also waits for the service after a rebuild and fails with a journalctl hint if it did not come back (Caddy runs --resume, so a stale autosave.json can crash-loop it), instead of reporting success while the service is down; upgradeCaddy gets the same post-restart check. audit now counts the always-wanted built-in modules, so a binary missing (or predating) them reports inSync=false and lists them in pluginsMissing. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.02.4",
       description:
+        // swamp-quality-ignore long-line
         "Fixes two bugs that stopped dnsRecords from ever being applied. (1) buildReconciledConfig dropped the TLS app: mergeTlsConfig returns a clone and its result was discarded, so apps.tls (DNS provider + subjects) was never written. (2) loadOwnDesired preferred the STORED dnsRecords over the global args, so editing the global on an existing model was a silent no-op; like listenAddrs, dnsRecords/dnsRemovals now come from the globals. Adds an applyDnsRecords method (and dnsConfig resource): the one command to reconcile desired static DNS records into Caddy, with clear errors when no records or no dnsProvider are set. README/manifest document that zone is required for providers without libdns.ZoneLister (Gandi). Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -5309,6 +5434,7 @@ export const model = {
     {
       toVersion: "2026.10.08.1",
       description:
+        // swamp-quality-ignore long-line
         "Adding a route now implies the DNS and TLS it needs, so `ensureDnsProxy` alone makes a hostname reachable. At merge time, every route hostname under one of this Caddy's base domains is added to the TLS subjects (global autoRouteTls, default true) and given an A record in dnsRecords (autoRouteDns, default true) pointing at routeIp or, when empty, the IP this Caddy already declares for that zone. This is pure derivation — an existing subject or record is never duplicated, a name already covered by a wildcard subject is left alone, and a record named in dnsRemovals is skipped. New globals autoRouteTls, autoRouteDns and routeIp are additive and default to the safe behaviour, so existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -5321,6 +5447,7 @@ export const model = {
     {
       toVersion: "2026.10.10.14",
       description:
+        // swamp-quality-ignore long-line
         "Adds a single, documented upgrade path with no model name to remember. Two read-only methods: `upgradeTargets` lists every @svendowideit/caddy model the repo defines (read from the model definition files, so a never-run model is found and the auto-created scratch instance is not) with its target/baseDomain/email/staleness; `upgradeCheck` reports everything blocking the Caddy from serving (CAP_NET_BIND_SERVICE for 80/443, baseDomain, ACME email, TLS, DNS provider/records, stale binary, service health) with the exact fix command for each. The shipped `@svendowideit/caddy-upgrade` workflow discovers the model(s) — using the single one, or stopping and listing them when there are several — prints the gap report, pauses at one approval gate, then migrates the definition, rebuilds only a stale binary, re-grants the capability, regenerates the unit, restarts, re-applies status page/DNS, and re-runs the gap report. No global arguments change; existing models upgrade automatically when the workflow first runs a method.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -5333,37 +5460,71 @@ export const model = {
     {
       toVersion: "2026.10.10.16",
       description:
+        // swamp-quality-ignore long-line
         "Two changes. (1) All privileged work is delegated to the new @svendowideit/sudo dependency: the setcap that grants CAP_NET_BIND_SERVICE is run through its elevation ladder (sudo/doas/polkit/…), so caddy no longer calls sudo itself or prints a raw `sudo setcap` command to run by hand. Adds the optional `sudoInstanceKey` global (default 'default'; the target is the `sudo-<key>` model) and a manifest `dependencies:` entry so @svendowideit/sudo is pulled automatically. (2) A config is never rejected for a privileged-port bind failure: when the binary cannot bind 80/443 yet, the applied config serves what is wanted on unprivileged ports (:80 -> :8080, :443 -> :8443, plain HTTP) so Caddy always loads it and serves the status page + health contract on localhost; the desired settings are kept and reapplied automatically once the capability is granted. A status page is now wanted by default (opt out with configureStatusPage disabled=true). `configureTls` infers the DNS provider from the model's plugins and the credential mapping from its environmentFile, so a wildcard/DNS-01 setup needs no repeated provider name. `startService` waits (up to 10s) for the admin API instead of racing it. Ships a new idempotent `@svendowideit/caddy-setup` workflow (install → capability → service → TLS → DNS → status page → gap report, in the order that works) so a fresh install is one command; the upgrade workflow now configures TLS before applying DNS records. Otherwise no global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.10.17",
       description:
+        // swamp-quality-ignore long-line
         "Honesty and never-reject fixes. `upgradeCheck` now reports only MEASURED facts from the running config — its actual listen addresses, whether :443 is actually bound, and the hostnames it actually serves — instead of the desired settings, so it never prints a URL/HTTPS claim it has not measured; when the admin API is unreachable it says so and claims nothing. Reconcile no longer rejects the whole config because dnsRecords have no provider yet: the records stay wanted and apply once configureTls sets one (the dns_records app is simply omitted meanwhile, so the rest of the config still serves). The setup and upgrade workflows no longer grant the capability twice — installCaddy already does — so the setcap via @svendowideit/sudo is attempted once. No global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.10.18",
       description:
+        // swamp-quality-ignore long-line
         "Fixes a capability that was set on the binary but never took effect. A file capability is applied at exec() time, so setting it after Caddy started does not give the running process the capability, and replacing the binary leaves the old program running: installCaddy now restarts a running service whenever it replaces the binary or (re)grants CAP_NET_BIND_SERVICE, and the setup workflow restarts after (re)writing the unit — so the process actually picks the capability up and can bind 80/443 instead of failing with 'permission denied'. upgradeCheck now reports a measured `capability-not-in-effect` gap (capability present on the binary but the running config listening on unprivileged ports) with the restart command, instead of declaring 'nothing blocks' while serving plain HTTP. No global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.10.19",
       description:
+        // swamp-quality-ignore long-line
         "The status page (the page served on localhost) is now wanted by default for EVERY model, including existing ones: a stored `null`/absent statusPage is treated as 'never chose' and falls back to the enabled default, so an existing model gains the page on its next reconcile (opt out with configureStatusPage disabled=true, which now stores an explicit `{enabled:false}`). The page also re-measures its own 'Installed' facts from the binary at every reconcile — its version, file capability, and compiled-in plugins — instead of replaying the snapshot stored when configureStatusPage last ran, so it can no longer report a setting that is not true of the running host (e.g. 'capability not set' after the capability was actually granted). Its 'Listening on' list is likewise the address set actually being applied. No global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.11.1",
       description:
+        // swamp-quality-ignore long-line
         "A root process can bind 80/443 with no capability, so a config is no longer degraded to high ports merely because the binary lacks CAP_NET_BIND_SERVICE: 'can bind privileged ports' is now true when the binary holds the capability OR the process runs as root. This one test drives the degrade decision, upgradeCheck's gap report, staleness, and normalizeServingSettings. Fixes a regression that pushed an intentionally-unprivileged root config from :80 to :8080. The shipped acceptance suite now also proves end to end that caddy-setup grants CAP_NET_BIND_SERVICE through @svendowideit/sudo over BOTH elevation routes — a passwordless-`sudo` host (`sudo-n`) and a `doas`-only host (`doas-n`) — with the service binding :443 and serving the status page over TLS. No global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.17.1",
       description:
+        // swamp-quality-ignore long-line
         'configureTls accepts `keyType` (an ACME policy `key_type`): "rsa2048", "p256" (Caddy\'s default), "p384", "p521" or "ed25519". Some appliances only accept an RSA private key, so a certificate issued for a device that fronts them must be RSA rather than Caddy\'s default ECDSA. It also sets explicit recursive DNS servers for the ACME DNS-01 propagation self-check (new global `dnsResolvers`, default Cloudflare + Google; override with the configureTls `resolvers` argument or empty it for the system resolver). The check ran through the host resolver, whose NXDOMAIN negative cache (a 3h TTL) once hid a freshly written challenge record and stalled a new name\'s first certificate until the cache was flushed; querying public resolvers avoids that. Both DesiredTls fields carry across models and merge. Schema is additive — existing models upgrade with no changes.',
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.17.2",
+      description:
+        // swamp-quality-ignore long-line
+        'Caddy no longer elevates in-process. installCaddy\'s setCapabilities arg (now default false) and the setCapabilities method only check for CAP_NET_BIND_SERVICE and, when it is missing, report the exact placed step to run; neither calls context.runModel any more, because runModel is unavailable under swamp worker remote execution. Granting the capability is now its own workflow step in @svendowideit/caddy-setup and @svendowideit/caddy-upgrade: a model_method on @svendowideit/sudo (method run, operation setcap, globalArgs.allowedOperations ["setcap"]), so a workflow dispatched to a worker runs the elevation on that same worker. A workflow that uses a caddy model must add that step (or setCapabilities:false and grant the capability itself). No global argument or resource-shape change.',
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.18.1",
+      description:
+        // swamp-quality-ignore long-line
+        "The ACME DNS-01 propagation self-check is now skipped by default: new global `dnsSkipPropagationCheck` (default true) renders Caddy `propagation_timeout: -1`, and `dnsPropagationDelay` (default 30s) waits for the record to be written before ACME validates. The self-check asks a recursive resolver, whose cached pre-challenge NXDOMAIN (the zone's negative TTL — Gandi is 3h) makes a correctly-written challenge record look absent for hours, stalling a new name's first certificate until the resolver cache was flushed; ACME instead validates against the zone's authoritative servers, which have the record. configureTls accepts `skipPropagationCheck` and `propagationDelay` to override; `dnsResolvers` (shipped in 2026.10.17.1, default Cloudflare + Google) still applies when the check is re-enabled. Schema is additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.18.2",
+      description:
+        // swamp-quality-ignore long-line
+        "When a DNS provider is configured, the DNS-01 challenge now covers EVERY hostname the Caddy config serves, not just the ones a model listed in TLS subjects: the DNS-01 policy's subjects are the union of the merged TLS subjects and the status page's non-loopback hostnames (the baseDomain and declared DNS-record names). Previously a served name that was not in subjects (typically the status page's baseDomain) fell through to Caddy's default HTTP-01/tls-alpn-01, which ACME cannot validate when the name resolves to a private address — Let's Encrypt rejects it with 'no valid A records found'. Loopback (localhost/127.0.0.1/::1) keeps Caddy's internal CA. No model needs to list subjects for DNS-01 to apply; subjects is now only needed for a wildcard or a name not served from this Caddy. No global argument or resource-shape change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.18.3",
+      description:
+        // swamp-quality-ignore long-line
+        "New global `dnsSoa` lets a model manage the zone SOA through the caddy-host-dns `dns_records` app (requires caddy-host-dns from 2026-10-18 or later, which added SOA support). It is written verbatim as the app's `soa` block (mname, rname, serial, refresh, retry, expire, minimum, ttl, min_ttl, zone). Set `minimum` (RFC 2308 negative-caching TTL, e.g. 300s) so a newly added/changed name is usable sooner — resolvers negative-cache a missing name for at least the previous SOA minimum (Gandi's zone default was 3h). Gandi does not return the existing SOA, so set `mname`/`rname` (mname=ns1.gandi.net., rname=hostmaster.gandi.net.) and the timers you want to keep. The block merges across models sharing a target (first non-empty wins) and is written only when a DNS provider is configured. Schema is additive — existing models upgrade with no changes; run installCaddy once so the binary includes the SOA-capable caddy-host-dns, then re-run configureTls/applyDnsRecords to emit the block.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -5565,7 +5726,7 @@ export const model = {
         let canBindPrivilegedPorts = false;
         let needsSudoForPorts = "";
         if (args.setCapabilities) {
-          const result = await grantCapabilitiesViaSudo(
+          const result = await pendingCapabilityGrant(
             context,
             binPath,
             PRIVILEGED_PORT_CAPABILITIES,
@@ -5685,7 +5846,7 @@ export const model = {
         const already = capabilities.every((c) => before.includes(c));
         const result = already
           ? { applied: true, detail: "already granted" }
-          : await grantCapabilitiesViaSudo(context, binPath, capabilities);
+          : await pendingCapabilityGrant(context, binPath, capabilities);
         const after = await readCapabilities(binPath);
         const applied = capabilities.every((c) => after.includes(c));
 
@@ -6229,6 +6390,10 @@ export const model = {
             : (existing?.resolvers && existing.resolvers.length > 0)
             ? existing.resolvers
             : (g.dnsResolvers ?? []),
+          skipPropagationCheck: args.skipPropagationCheck ??
+            existing?.skipPropagationCheck ?? g.dnsSkipPropagationCheck,
+          propagationDelay: args.propagationDelay ||
+            existing?.propagationDelay || g.dnsPropagationDelay,
         };
         await saveAndReconcile(context, g, own);
 
@@ -6416,7 +6581,7 @@ export const model = {
         const verified = await verifyCaddy(binPath);
 
         if (hadNetBind || g.autoHttps !== "off") {
-          const caps = await grantCapabilitiesViaSudo(
+          const caps = await pendingCapabilityGrant(
             context,
             binPath,
             PRIVILEGED_PORT_CAPABILITIES,

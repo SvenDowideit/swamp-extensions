@@ -135,8 +135,9 @@ jobs:
       - name: install
         description: >-
           Migrate the model definition and (re)install the binary. Downloads a
-          new build only when a wanted module is missing, grants the capability
-          first, and restarts a running service so it picks up the new build.
+          new build only when a wanted module is missing, and restarts a running
+          service so it picks up the new build. The capability is granted by the
+          following step, never by the method.
         guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
         task:
           type: model_method
@@ -144,10 +145,39 @@ jobs:
           modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
           methodName: installCaddy
           inputs:
-            setCapabilities: true
+            setCapabilities: false
             configureStatusPage: false
         dependsOn:
           - step: confirm
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: grant-capability
+        description: >-
+          Re-grant CAP_NET_BIND_SERVICE (a replaced binary drops it). Its own
+          placed step driving the @svendowideit/sudo model's `run` method
+          (operation `setcap`), never a context.runModel call inside installCaddy:
+          runModel is unavailable under swamp worker remote execution, whereas a
+          placed model step dispatches to the worker, so the elevation happens on
+          the same worker the workflow runs on.
+        guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: sudo-caddy-upgrade
+          methodName: run
+          globalArgs:
+            allowedOperations:
+              - setcap
+          inputs:
+            operation: setcap
+            args:json: >-
+              {"path": "${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").attributes.firstModel, "install").attributes.binPath }}",
+              "capabilities": "cap_net_bind_service=+ep"}
+        dependsOn:
+          - step: install
             condition:
               type: succeeded
         weight: 0
@@ -159,8 +189,8 @@ jobs:
           wants (public HTTPS) and what this host can do (bind 80/443), correcting
           and persisting them — e.g. leaving the unprivileged high-port preset now
           that the binary can bind privileged ports. Skipped when there is nothing
-          to correct. (installCaddy above already (re)granted CAP_NET_BIND_SERVICE
-          via @svendowideit/sudo, so there is no separate setcap step.)
+          to correct. (grant-capability above already restored
+          CAP_NET_BIND_SERVICE, so there is no separate setcap here.)
         guard: '${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}'
         task:
           type: model_method
@@ -168,7 +198,7 @@ jobs:
           modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
           methodName: normalizeServingSettings
         dependsOn:
-          - step: install
+          - step: grant-capability
             condition:
               type: completed
         weight: 0

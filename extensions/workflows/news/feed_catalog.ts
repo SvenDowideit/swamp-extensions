@@ -657,8 +657,9 @@ export function generateFeedsHtml(
 <title>${escapeHtml(title)}</title>
 <style>
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 960px; margin: 0 auto; padding: 24px; background: #fafafa; color: #222; }
-.header a { color: #1a5276; text-decoration: none; font-size: 0.9em; }
-.header a:hover { text-decoration: underline; }
+.site-nav a { color: #1a5276; text-decoration: none; font-size: 0.9em; margin-right: 8px; }
+.site-nav { margin-bottom: 12px; }
+.site-nav a:hover { text-decoration: underline; }
 h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .meta { color: #666; font-size: 0.9em; margin: 12px 0 24px; }
 h2 { margin-top: 30px; color: #333; }
@@ -694,7 +695,7 @@ h2 { margin-top: 30px; color: #333; }
 </style>
 </head>
 <body>
-<nav class="header"><a href="/">← News summary</a></nav>
+<nav class="site-nav"><a href="/">News</a> · <a href="/news-mobile.html">Mobile</a> · <a href="/feeds.html">Feeds</a> · <a href="/stories.html">Stories</a></nav>
 <h1>${escapeHtml(title)}</h1>
 <div class="meta">${feeds.length} feeds · ${canonical.length} canonical · ${dupMap.size} duplicate groups · ${invalidFeeds.length} invalid · generated <span class="generated-at" data-generated="${
     escapeHtml(generatedAt)

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/news"
-version: "2026.10.15.1"
+version: "2026.10.18.1"
 description: >
   The full news stack: feed discovery, catalog management, preference-aware
   fetching, LLM story fusion, and static HTML rendering — plus a decoupled

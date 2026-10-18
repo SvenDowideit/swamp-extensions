@@ -114,6 +114,21 @@ const GlobalArgsSchema = z.object({
    * Override the full hostname the news pages are proxied under. Empty derives
    * `news.<host>.<domain>` from the caddy model above.
    */
+  typesafeApiKey: z.string().optional().meta({ sensitive: true }).describe(
+    "TypeSafe API key for Jev-based article category classification. Prefer a vault reference.",
+  ),
+  typesafeBaseUrl: z.string().url().default("https://api.typesafe.ai").describe(
+    "TypeSafe API root for Jev-based article category classification.",
+  ),
+  typesafeModel: z.string().min(1).default("jev-latest").describe(
+    "TypeSafe System One model for category classification. Defaults to Jev.",
+  ),
+  categoryThreshold: z.number().min(0).max(1).default(0.2).describe(
+    "Minimum Jev probability for an article category to be kept (multi-label).",
+  ),
+  newCategoryThreshold: z.number().min(0).max(1).default(0.3).describe(
+    "Minimum probability of `needs_new_category` required to ask the LLM for new categories.",
+  ),
   caddyRouteHostname: z.string().default("").describe(
     "Override the full hostname the news pages are proxied under. Empty (default) derives `news.<host>.<domain>` from the caddy model's base domain and this machine's A record.",
   ),
@@ -158,6 +173,11 @@ export type GlobalArgs = {
   /** @svendowideit/caddy model to read the news host/domain from ("" = auto). */
   caddyModelName: string;
   /** Override the full news page hostname ("" = news.<host>.<domain>). */
+  typesafeApiKey?: string;
+  typesafeBaseUrl?: string;
+  typesafeModel?: string;
+  categoryThreshold?: number;
+  newCategoryThreshold?: number;
   caddyRouteHostname: string;
 };
 
@@ -375,6 +395,10 @@ export interface Article {
   duplicateCount?: number;
   /** Cached entity extraction (populated by clusterArticles, reused by fuseStories). */
   entities?: string[];
+  /** Cached Jev category classification (multi-label). */
+  categories?: string[];
+  /** Jev probabilities for each candidate category. */
+  categoryScores?: Record<string, number>;
 }
 
 /** A snapshot of all fetched articles from all feeds. */
@@ -476,6 +500,7 @@ export interface Story {
     topic: string;
     entities: EntityRef[];
     seedArticleIds: string[];
+    categories?: string[];
   };
   /** Stable established facts (survive the age filter window). */
   core: Claim[];
@@ -538,6 +563,9 @@ const ArticleSchema = z.object({
   publishedAt: z.string(),
   summary: z.string(),
   keywords: z.array(z.string()),
+  entities: z.array(z.string()).optional(),
+  categories: z.array(z.string()).optional(),
+  categoryScores: z.record(z.string(), z.number()).optional(),
   duplicate: z.boolean().optional(),
   duplicateOf: z.string().optional(),
   duplicateSources: z.array(z.string()).optional(),
@@ -603,6 +631,7 @@ const StorySchema = z.object({
       kind: z.string().optional(),
     })),
     seedArticleIds: z.array(z.string()),
+    categories: z.array(z.string()).optional(),
   }),
   core: z.array(z.object({
     text: z.string(),
@@ -965,6 +994,7 @@ export async function runSwampCmd(
   args: string[],
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   try {
+    // swamp-quality-ignore deno-command
     const proc = new Deno.Command("swamp", {
       args,
       stdout: "piped",
@@ -1606,6 +1636,11 @@ export async function probeLlm(
           feedbackServerServiceName: "feedback-server",
           caddyModelName: "",
           caddyRouteHostname: "",
+          typesafeBaseUrl: "https://api.typesafe.ai",
+          typesafeModel: "jev-latest",
+          typesafeApiKey: undefined,
+          categoryThreshold: 0.2,
+          newCategoryThreshold: 0.3,
         },
         [
           { role: "system", content: "Reply with the single word OK." },
@@ -1699,6 +1734,275 @@ export function formatGlobalArgsDiffYaml(
 // ---------------------------------------------------------------------------
 // Story clustering (cheap, no LLM)
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Jev category classification (pre-cluster, multi-label)
+// ---------------------------------------------------------------------------
+
+/** Curated baseline news categories. Jev selects from these (+ needs_new_category). */
+export const DEFAULT_NEWS_CATEGORIES: Record<string, string> = {
+  world: "International and global news events",
+  politics: "Government, elections, policy, parties",
+  business: "Companies, earnings, markets, deals",
+  economy: "Macroeconomic indicators, inflation, rates",
+  technology: "Technology products, platforms, software",
+  ai: "Artificial intelligence, machine learning, models",
+  science: "Scientific discoveries and research",
+  health: "Medicine, disease, public health, hospitals",
+  climate: "Climate change, weather, environment",
+  energy: "Oil, gas, renewables, utilities",
+  space: "Space exploration, astronomy, satellites",
+  security: "Cybersecurity, espionage, surveillance",
+  crime: "Crime, policing, courts, trials",
+  law: "Legal rulings, legislation, regulation",
+  defense: "Military, defense, armed forces",
+  immigration: "Migration, borders, refugees",
+  education: "Schools, universities, learning",
+  labor: "Jobs, unions, wages, strikes",
+  transport: "Transport, aviation, shipping, automotive",
+  consumer: "Consumer products, retail, gadgets",
+  semiconductors: "Chips, foundries, semiconductor industry",
+  crypto: "Cryptocurrency, blockchain, web3",
+  opensource: "Open source software and communities",
+  entertainment: "Entertainment, celebrities, culture",
+  film: "Movies, film industry, streaming",
+  music: "Music, artists, concerts",
+  gaming: "Video games, esports",
+  sports: "Sports events, leagues, athletes",
+  local: "Local and regional community news",
+  media: "Journalism, media industry, publishing",
+};
+
+/** Jev choice option used when no existing category fits an article. */
+export const NEW_CATEGORY_LABEL = "needs_new_category";
+
+/** Build the Jev criteria map (categories + the new-category escape hatch). */
+export function buildCategoryCriteria(
+  categories: Record<string, string> = DEFAULT_NEWS_CATEGORIES,
+): Record<string, string | null> {
+  const out: Record<string, string | null> = {};
+  for (const [k, v] of Object.entries(categories)) out[k] = v;
+  out[NEW_CATEGORY_LABEL] =
+    "None of the existing categories fit; a new category is needed.";
+  return out;
+}
+
+/** Parse a Jev Choice answer into kept categories and scores. */
+export function categoriesFromChoice(
+  probabilities: Record<string, number> | undefined,
+  threshold: number,
+  newThreshold: number,
+): {
+  categories: string[];
+  needsNew: boolean;
+  scores: Record<string, number>;
+  newCategoryScore: number;
+} {
+  const scores = probabilities ?? {};
+  const kept: string[] = [];
+  for (const [name, score] of Object.entries(scores)) {
+    if (typeof score === "number" && score >= threshold) kept.push(name);
+  }
+  const newScore = scores[NEW_CATEGORY_LABEL] ?? 0;
+  const needsNew = newScore >= newThreshold ||
+    (kept.length === 0 && newScore > 0);
+  if (needsNew && !kept.includes(NEW_CATEGORY_LABEL)) {
+    kept.push(NEW_CATEGORY_LABEL);
+  }
+  const categories = kept.filter((c) => c !== NEW_CATEGORY_LABEL);
+  return { categories, needsNew, scores, newCategoryScore: newScore };
+}
+
+/** Apply parsed Jev categories to an Article. */
+export function applyArticleCategories(
+  article: Article,
+  categories: string[],
+  scores: Record<string, number>,
+): Article {
+  article.categories = [...new Set(categories)];
+  article.categoryScores = { ...scores };
+  return article;
+}
+
+/** Build a TypeSafe /v1/systemone request body for one article. */
+export function buildCategoryQuestion(
+  article: Article,
+  categories: Record<string, string> = DEFAULT_NEWS_CATEGORIES,
+): Record<string, unknown> {
+  return {
+    state: {
+      title: article.title,
+      summary: article.summary ?? "",
+      source: article.source,
+      publishedAt: article.publishedAt,
+    },
+    questions: {
+      articleCategories: {
+        type: "choice",
+        instructions:
+          "Which topical categories best describe this article? Answer with probabilities; keep every category above threshold. Choose needs_new_category only if none of the existing categories fit.",
+        criteria: buildCategoryCriteria(categories),
+      },
+    },
+  };
+}
+
+/** Parse an LLM JSON response proposing new categories. */
+export function parseNewCategories(
+  raw: string,
+): Array<{ id: string; description: string }> {
+  const cleaned = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  try {
+    const obj = JSON.parse(cleaned) as {
+      categories?: Array<{ id?: string; name?: string; description?: string }>;
+    } | Array<{ id?: string; name?: string; description?: string }>;
+    const arr = Array.isArray(obj) ? obj : (obj.categories ?? []);
+    return arr
+      .map((c) => {
+        const id = (c.id ?? c.name ?? "").toString().toLowerCase()
+          .replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+        const description = (c.description ?? "").toString().trim();
+        return id ? { id, description: description || id } : null;
+      })
+      .filter((c): c is { id: string; description: string } => c !== null);
+  } catch {
+    return [];
+  }
+}
+
+/** Safely fetch JSON. */
+async function typesafeFetchJson(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<unknown> {
+  const resp = await fetch(url, {
+    ...init,
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    throw new Error(
+      `TypeSafe request failed (${resp.status}): ${text.slice(0, 200)}`,
+    );
+  }
+  return await resp.json();
+}
+
+/**
+ * Ask the LLM to propose new categories for an article. Returns proposals.
+ */
+export async function proposeNewCategories(
+  args: GlobalArgs,
+  article: Article,
+  existing: Record<string, string>,
+): Promise<Array<{ id: string; description: string }>> {
+  if (!args.llmModel) return [];
+  const existingList = Object.entries(existing)
+    .map(([id, desc]) => `- ${id}: ${desc}`)
+    .join("\n");
+  const content = await chatCompletion(args, [
+    {
+      role: "system",
+      content: "You output strictly valid JSON. No markdown.",
+    },
+    {
+      role: "user",
+      content: `An article does not fit the existing news categories.\n` +
+        `Article title: ${article.title}\nSummary: ${
+          article.summary ?? ""
+        }\n\n` +
+        `Existing categories:\n${existingList}\n\n` +
+        `Propose 1-3 NEW category ids (lowercase snake_case) with short descriptions ` +
+        `that would benefit this article. Return JSON: {"categories":[{"id":"...","description":"..."}]}.`,
+    },
+  ], { json: true });
+  return parseNewCategories(content);
+}
+
+/**
+ * Classify one article via Jev, returning kept categories and any new proposals.
+ */
+export async function classifyArticleWithJev(
+  article: Article,
+  args: GlobalArgs,
+  categories: Record<string, string>,
+): Promise<{ article: Article; newCategories: Record<string, string> }> {
+  const base = (args.typesafeBaseUrl || "https://api.typesafe.ai").replace(
+    /\/+$/,
+    "",
+  );
+  const apiKey = args.typesafeApiKey ||
+    (typeof Deno !== "undefined"
+      ? Deno.env.get("TYPESAFE_API_KEY") ?? undefined
+      : undefined);
+  const newCategories: Record<string, string> = {};
+  if (!apiKey) {
+    return { article, newCategories };
+  }
+  const body = buildCategoryQuestion(article, categories);
+  const merged = {
+    ...body,
+    model: args.typesafeModel || "jev-latest",
+  };
+  let answerProbabilities: Record<string, number> | undefined;
+  try {
+    const data = await typesafeFetchJson(
+      `${base}/v1/systemone`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(merged),
+      },
+      Math.max(1000, (args.llmTimeoutSec || 30) * 1000),
+    ) as {
+      answers?: Record<string, { probabilities?: Record<string, number> }>;
+    };
+    answerProbabilities = data.answers?.articleCategories?.probabilities;
+  } catch {
+    return { article, newCategories };
+  }
+  const { categories: kept, needsNew, scores } = categoriesFromChoice(
+    answerProbabilities,
+    args.categoryThreshold ?? 0.2,
+    args.newCategoryThreshold ?? 0.3,
+  );
+  let finalCategories = [...kept];
+  if (needsNew) {
+    const proposals = await proposeNewCategories(args, article, categories)
+      .catch(() => []);
+    for (const p of proposals) {
+      newCategories[p.id] = p.description;
+      finalCategories.push(p.id);
+    }
+    finalCategories = finalCategories.filter((c) => c !== NEW_CATEGORY_LABEL);
+  }
+  applyArticleCategories(article, [...new Set(finalCategories)], scores);
+  return { article, newCategories };
+}
+
+/**
+ * Classify a batch of articles in-place, merging any newly proposed categories.
+ */
+export async function categorizeArticlesWithJev(
+  articles: Article[],
+  args: GlobalArgs,
+  categories: Record<string, string> = DEFAULT_NEWS_CATEGORIES,
+  concurrency = 3,
+): Promise<{ articles: Article[]; categories: Record<string, string> }> {
+  const merged = { ...categories };
+  await withConcurrency(articles, Math.max(1, concurrency), async (a) => {
+    const res = await classifyArticleWithJev(a, args, merged).catch(() => ({
+      article: a,
+      newCategories: {},
+    }));
+    for (const [k, v] of Object.entries(res.newCategories)) merged[k] = v;
+  });
+  return { articles, categories: merged };
+}
 
 const STOP_ENTITIES = new Set([
   "the",
@@ -1828,8 +2132,16 @@ export function clusterStories(
       ).length;
       const urlMatch = stCanons.includes(canon);
 
+      // Category containment: never absorb into a story whose categories do
+      // not overlap (when both sides carry cached Jev categories). This is
+      // the main guard against false merges.
+      const aCats = a.categories ?? [];
+      const stCats = st.identity.categories ?? [];
+      const categoryMatch = aCats.length === 0 || stCats.length === 0 ||
+        aCats.some((c) => stCats.includes(c));
+
       // Conservative: require a concrete entity hit OR canonical-URL match.
-      if (urlMatch || entMatch >= 2) {
+      if (categoryMatch && (urlMatch || entMatch >= 2)) {
         matched = true;
         absorbable.push(a);
         break;
@@ -1864,7 +2176,18 @@ export function clusterStories(
         Math.abs(new Date(day).getTime() - new Date(bDay).getTime()) <=
           48 * 3600 * 1000;
 
-      if (shared >= 2 || (shared >= 1 && sameDay) || urlMatch) {
+      // Category containment for fresh clustering: articles must share at
+      // least one Jev category when both have them, otherwise treat as no
+      // merge (prevents unrelated stories with overlapping names merging).
+      const aCats = a.categories ?? [];
+      const bCats = b.categories ?? [];
+      const categoryMatch = aCats.length === 0 || bCats.length === 0 ||
+        aCats.some((c) => bCats.includes(c));
+
+      if (
+        categoryMatch &&
+        (shared >= 2 || (shared >= 1 && sameDay) || urlMatch)
+      ) {
         group.push(b);
         used.add(b.id);
       } else if (shared === 1 && nearDay) {
@@ -2003,6 +2326,9 @@ ${articlesForPrompt(cluster)}`;
       topic,
       entities,
       seedArticleIds: cluster.articles.map((a) => a.id),
+      categories: [
+        ...new Set(cluster.articles.flatMap((a) => a.categories ?? [])),
+      ],
     },
     core: claims,
     updates: claims,
@@ -2936,8 +3262,10 @@ export function scoreAndSortArticles(
 
 const PAGE_STYLE = `
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #fafafa; color: #222; }
-.header a { color: #1a5276; text-decoration: none; font-size: 0.9em; }
-.header a:hover { text-decoration: underline; }
+.header a, .site-nav a { color: #1a5276; text-decoration: none; font-size: 0.9em; }
+.site-nav { margin-bottom: 12px; }
+.site-nav a { margin-right: 8px; }
+.header a:hover, .site-nav a:hover { text-decoration: underline; }
 h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .meta { color: #666; font-size: 0.9em; margin-bottom: 20px; }
 .article { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: white; transition: border-color 0.2s; position: relative; }
@@ -2994,7 +3322,7 @@ function pageShell(
 ` + `<style>${PAGE_STYLE}${extraStyles}</style>` + `
 </head>
 <body>
-<nav class="header"><a href="/feeds.html">Feeds catalog →</a></nav>
+<nav class="site-nav"><a href="/">News</a> · <a href="/news-mobile.html">Mobile</a> · <a href="/feeds.html">Feeds</a> · <a href="/stories.html">Stories</a></nav>
 <h1>${escapeHtml(title)}</h1>
 <div class="meta">${metaText} · generated <span class="generated-at" data-generated="${
     escapeHtml(generatedAt)
@@ -3210,8 +3538,10 @@ export function generateHtml(
 <title>${escapeHtml(title)}</title>
 <style>
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #fafafa; color: #222; }
-.header a { color: #1a5276; text-decoration: none; font-size: 0.9em; }
-.header a:hover { text-decoration: underline; }
+.header a, .site-nav a { color: #1a5276; text-decoration: none; font-size: 0.9em; }
+.site-nav { margin-bottom: 12px; }
+.site-nav a { margin-right: 8px; }
+.header a:hover, .site-nav a:hover { text-decoration: underline; }
 h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 .meta { color: #666; font-size: 0.9em; margin-bottom: 20px; }
 .article { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: white; transition: border-color 0.2s; position: relative; }
@@ -3254,7 +3584,7 @@ h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
 </style>
 </head>
 <body>
-<nav class="header"><a href="/feeds.html">Feeds catalog →</a></nav>
+<nav class="site-nav"><a href="/">News</a> · <a href="/news-mobile.html">Mobile</a> · <a href="/feeds.html">Feeds</a> · <a href="/stories.html">Stories</a></nav>
 <h1>${escapeHtml(title)}</h1>
 <div class="meta">${metaText} · generated <span class="generated-at" data-generated="${
     escapeHtml(generatedAt)
@@ -3622,6 +3952,7 @@ export function generateMobileHtml(
 ${MOBILE_PAGE_STYLE}
 </head>
 <body>
+<nav class="site-nav"><a href="/">News</a> · <a href="/news-mobile.html">Mobile</a> · <a href="/feeds.html">Feeds</a> · <a href="/stories.html">Stories</a></nav>
 <header class="page-bar" id="page-bar"><span class="page-label" id="page-label">1 / ${pageCount}</span><span class="page-meta">${metaText} · generated <span class="generated-at" data-generated="${
     escapeHtml(generatedAt)
   }"></span></span><span class="toggle-box"><button class="toggle-btn" id="toggle-seen" onclick="toggleSeen()">👁<span id="seen-count"></span></button><button class="toggle-btn" id="toggle-read" onclick="toggleRead()">📖<span id="read-count"></span></button></span><button id="list-close" onclick="closeReader()">✕</button></header>
@@ -3988,6 +4319,9 @@ updatePageBar();
 const PER_PAGE = 5;
 
 const MOBILE_PAGE_STYLE = `
+.site-nav { display:block; padding:8px 12px; background:#f0f0f0; font-size:0.9em; }
+.site-nav a { color:#1a5276; margin-right:10px; text-decoration:none; }
+.site-nav a:hover { text-decoration:underline; }
 <style>
 :root { --ink:#222; --mut:#888; --line:#e0e0e0; --card:#fff; --bg:#fafafa; --acc:#4a90d9; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -4145,7 +4479,7 @@ function mobileCard(
 /** Model definition for fetching RSS feeds and generating news summaries. */
 export const model = {
   type: "@svendowideit/news-reader",
-  version: "2026.10.15.1",
+  version: "2026.10.18.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4182,6 +4516,12 @@ export const model = {
       toVersion: "2026.10.15.1",
       description:
         "Failure visibility and feedback reliability: every method now logs its error before propagating, so a step marked allowFailure no longer fails silently; gatherFeedback warns (with the server URL) when the feedback server is unreachable or a delete fails, and reports an interested/ignored/seen/read breakdown. No schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.18.1",
+      description:
+        "Replace entity-only clustering with Jev multi-label category classification: articles are classified into 30+ baseline categories (plus LLM-proposed new categories when Jev requests one); clustering and story absorption now require category overlap in addition to entity/URL matching, reducing false merges.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -4222,6 +4562,12 @@ export const model = {
       schema: ClustersStateSchema,
       lifetime: "7d",
       garbageCollection: 20,
+    },
+    categories: {
+      description: "Persisted Jev news category catalog (baseline + LLM-new)",
+      schema: z.object({ categories: z.record(z.string(), z.string()) }),
+      lifetime: "infinite",
+      garbageCollection: 5,
     },
     storiesHtml: {
       description: "Rendered inline HTML fragment for fused stories",
@@ -5378,6 +5724,31 @@ export const model = {
         const storiesState = await context.readResource("stories-current") as
           | { stories: Story[] }
           | null;
+        // Jev category classification (multi-label) before clustering. This is
+        // what constrains clustering to topically coherent groups and reduces
+        // false merging. Falls back to the baseline catalog if no persisted one.
+        const categoriesState = await context.readResource(
+          "categories-current",
+        ) as
+          | { categories: Record<string, string> }
+          | null;
+        const baseCategories = categoriesState?.categories ??
+          DEFAULT_NEWS_CATEGORIES;
+        const categorization = await categorizeArticlesWithJev(
+          snap.articles,
+          ga,
+          baseCategories,
+          ga.llmConcurrency ?? 3,
+        );
+        const mergedCategories = categorization.categories;
+        await context.writeResource(
+          "categories",
+          "categories-current",
+          { categories: mergedCategories } as unknown as Record<
+            string,
+            unknown
+          >,
+        );
         const clusters = clusterStories(
           snap.articles,
           storiesState?.stories ?? [],
@@ -5649,7 +6020,12 @@ export const model = {
             const shared = aEntities.filter((e) =>
               sEntities.includes(e.toLowerCase())
             ).length;
-            if (shared >= 2) {
+            // Category containment guard.
+            const stCats = s.identity.categories ?? [];
+            const catOk = (a.categories ?? []).length === 0 ||
+              stCats.length === 0 ||
+              (a.categories ?? []).some((c) => stCats.includes(c));
+            if (shared >= 2 && catOk) {
               st = s;
               break;
             }

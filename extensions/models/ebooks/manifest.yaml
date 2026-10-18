@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/ebooks"
-version: "2026.09.24.1"
+version: "2026.10.18.1"
 description: >
   Find every ebook on your machine, detect its bibliographic metadata, resolve
   authors and titles against Wikipedia + Wikidata, and render a browsable HTML
@@ -19,6 +19,15 @@ description: >
     nothing itself — all network I/O is delegated (transitively) to
     `@svendowideit/web-cache`, which paces and caches, so re-analysing an
     already-resolved name costs no network traffic.
+
+    It can also publish those pages over HTTP(S): when `@svendowideit/caddy` is
+    installed, the workflow's final step declares a Caddy `file_server` route
+    serving the render directory at `ebooks.<host>.<domain>`, reading the host
+    and domain from the caddy model that already owns this machine. The route
+    lives on a dedicated `ebooks-caddy` model that caddy merges with the models
+    it already runs, and caddy derives the A record and certificate for the name
+    — so nothing is hardcoded and nothing is duplicated. With caddy absent the
+    step skips with a log and the pages remain on disk.
 
   INSTALL
 
@@ -51,6 +60,12 @@ description: >
       # Read the discovered ebooks and their detected metadata as JSON.
       swamp data get ebook-scan state --json
 
+      # (Re)declare the Caddy file_server route on its own — normally the last
+      # step of @svendowideit/ebook-scan does this for you. Needs
+      # @svendowideit/caddy and a caddy model that already owns this machine; it
+      # serves the render directory at ebooks.<host>.<domain>.
+      swamp model method run ebooks ensure-caddy-serve
+
   CONFIGURE
 
     All workflow inputs are optional:
@@ -63,14 +78,30 @@ description: >
       maxFetches         Origin fetches per get-many call  (default 20)
       skipScan           Skip the directory scan           (default false)
 
-    The ebooks model also reads global arguments `extensions`, `excludePatterns`
-    and `cacheDir`; see the README for values and defaults.
+    The ebooks model also reads global arguments:
+
+      extensions           Ebook file extensions to match
+      excludePatterns      Directory names to skip
+      cacheDir             Shared web-cache directory
+      caddyModelName       @svendowideit/caddy model to read the ebooks host and
+                           domain from, for ensure-caddy-serve
+                           (default: auto-discover the model owning this machine)
+      caddyRouteHostname   Override the served hostname
+                           (default: ebooks.<host>.<domain>)
+
+    See the README for values and defaults.
 
   WHAT IT INSTALLS
 
     Nothing on the host — no services, daemons, cron triggers, or webhooks. It
     reads the filesystem and the shared web-cache and writes swamp data plus the
     two HTML files named by `outputPath` and `authorsOutputPath`.
+
+    If `@svendowideit/caddy` is installed and a caddy model already owns this
+    machine, the final `ebook-scan` step also declares a Caddy `file_server`
+    route serving that directory at `ebooks.<host>.<domain>`, on a dedicated
+    `ebooks-caddy` model that caddy merges with the models it already runs.
+    Nothing new is installed by ebooks itself — no service, no daemon.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

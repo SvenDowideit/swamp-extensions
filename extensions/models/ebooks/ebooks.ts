@@ -18,7 +18,7 @@
  * @module
  */
 import { z } from "npm:zod@4";
-import { isAbsolute, join, resolve } from "jsr:@std/path@1";
+import { dirname, isAbsolute, join, resolve } from "jsr:@std/path@1";
 import {
   type BookMetadata,
   classifyResolved,
@@ -46,6 +46,12 @@ const DEFAULT_EXTENSIONS = [
   "pdf",
 ];
 
+/** Default @svendowideit/caddy model the ebooks file_server route is declared on. */
+export const DEFAULT_EBOOKS_CADDY_MODEL = "ebooks-caddy";
+
+/** Host label the ebooks pages are served under (ebooks.<host>.<domain>). */
+export const EBOOKS_ROUTE_LABEL = "ebooks";
+
 const GlobalArgsSchema = z.object({
   root: z.string()
     .default("~")
@@ -70,6 +76,20 @@ const GlobalArgsSchema = z.object({
     .describe(
       "Shared web-cache directory to read cached Wikipedia/Wikidata responses " +
         "from (must match the @svendowideit/web-cache model's cacheDir).",
+    ),
+  caddyModelName: z.string()
+    .default("")
+    .describe(
+      "Name of the @svendowideit/caddy model whose base domain and host record " +
+        "supply the ebooks hostname. Empty (default) auto-discovers the caddy " +
+        "model that owns this machine. Only used by ensure-caddy-serve, when " +
+        "@svendowideit/caddy is installed.",
+    ),
+  caddyRouteHostname: z.string()
+    .default("")
+    .describe(
+      "Override the full hostname the ebooks pages are served under. Empty " +
+        "(default) derives `ebooks.<host>.<domain>` from the caddy model above.",
     ),
 }).strict();
 
@@ -112,6 +132,29 @@ const RenderAuthorsArgsSchema = z.object({
 });
 
 type RenderAuthorsArgs = z.infer<typeof RenderAuthorsArgsSchema>;
+
+const EnsureCaddyServeArgsSchema = z.object({
+  model: z.string().optional().describe(
+    "Source @svendowideit/caddy model whose base domain and host record supply " +
+      "the ebooks hostname. Defaults to the global caddyModelName, else " +
+      "auto-discovers the caddy model that owns this machine.",
+  ),
+  serveModel: z.string().optional().describe(
+    `The @svendowideit/caddy model the ebooks route is declared on (default ` +
+      `${DEFAULT_EBOOKS_CADDY_MODEL}, auto-created when absent).`,
+  ),
+  hostname: z.string().optional().describe(
+    "Full hostname to serve the pages on. Defaults to the global " +
+      "caddyRouteHostname, else `ebooks.<host>.<domain>` from the source caddy " +
+      "model.",
+  ),
+  serveRoot: z.string().optional().describe(
+    "Directory to serve over HTTP(S). Defaults to the directory of the " +
+      "configured outputPath (e.g. ~/.swamp/ebooks).",
+  ),
+});
+
+type EnsureCaddyServeArgs = z.infer<typeof EnsureCaddyServeArgsSchema>;
 
 /**
  * Pick one name's canonical candidate. The inputs arrive as already-parsed
@@ -283,6 +326,7 @@ type MethodContext = {
   logger: {
     info: (msg: string, props?: Record<string, unknown>) => void;
     debug?: (msg: string, props?: Record<string, unknown>) => void;
+    warning?: (msg: string, props?: Record<string, unknown>) => void;
   };
   writeResource: (
     specName: string,
@@ -801,10 +845,179 @@ export function renderAuthorsHtml(
 `;
 }
 
+// ---------------------------------------------------------------------------
+// Optional @svendowideit/caddy integration (serve the rendered pages over HTTP)
+// ---------------------------------------------------------------------------
+
+/** Status of the file_server route that serves the rendered ebooks pages. */
+const CaddyServeOutputSchema = z.object({
+  hostname: z.string(),
+  root: z.string(),
+  /** The @svendowideit/caddy model the route is declared on (ebooks-caddy). */
+  serveModel: z.string(),
+  /** The caddy model the host and domain were read from. */
+  sourceModel: z.string(),
+  baseDomain: z.string(),
+  changed: z.boolean(),
+  servedAt: z.string(),
+});
+
+/**
+ * Facts about one @svendowideit/caddy model, read from its persisted
+ * `globalArguments`. The ebooks extension reads these to learn the host and
+ * domain the operator already configured in caddy, so it can serve
+ * `ebooks.<host>.<domain>` without hardcoding either.
+ */
+export type CaddyModelFacts = {
+  /** The caddy model name. */
+  modelName: string;
+  /** Base domain the caddy is authoritative for (e.g. `fi.gy`); "" if unset. */
+  baseDomain: string;
+  /** This host's own FQDN (e.g. `x1yoga.fi.gy`), or the base domain. */
+  hostFqdn: string;
+  /** systemd unit name of the caddy it manages (e.g. `caddy`). */
+  serviceName: string;
+  /** Host the caddy runs on; "" means this machine. */
+  target: string;
+};
+
+/**
+ * Read caddy facts from a `swamp model get <caddy> --json` payload.
+ *
+ * The host's own FQDN is the A/AAAA record under the base domain whose leftmost
+ * label is this machine's hostname, else the deepest such record, else the base
+ * domain itself — so a model that owns `x1yoga.fi.gy` yields `x1yoga.fi.gy` and
+ * the route becomes `ebooks.x1yoga.fi.gy`. Pure, so the derivation is testable
+ * without a live swamp.
+ */
+export function parseCaddyModelFacts(
+  modelName: string,
+  raw: { globalArguments?: Record<string, unknown> },
+  hostname = "",
+): CaddyModelFacts {
+  const g = (raw.globalArguments ?? {}) as Record<string, unknown>;
+  const baseDomain = typeof g.baseDomain === "string" ? g.baseDomain : "";
+  const serviceName = typeof g.serviceName === "string" && g.serviceName
+    ? g.serviceName
+    : "caddy";
+  const target = typeof g.target === "string" ? g.target : "";
+  const records = Array.isArray(g.dnsRecords)
+    ? (g.dnsRecords as Array<Record<string, unknown>>)
+    : [];
+
+  const base = baseDomain.toLowerCase().replace(/^\.+/, "");
+  const shortHost = hostname.split(".")[0].toLowerCase();
+  const candidates: string[] = [];
+  for (const r of records) {
+    if (typeof r.name !== "string" || typeof r.type !== "string") continue;
+    const type = r.type.toUpperCase();
+    if (type !== "A" && type !== "AAAA") continue;
+    const name = r.name.toLowerCase().replace(/^\.+/, "");
+    if (base && name !== base && !name.endsWith(`.${base}`)) continue;
+    const value = Array.isArray(r.value) ? r.value : [];
+    if (!value.some((v) => typeof v === "string" && !!v)) continue;
+    candidates.push(name);
+  }
+  const named = candidates.find(
+    (n) => shortHost && n.split(".")[0] === shortHost,
+  );
+  const deepest = candidates.slice().sort(
+    (a, b) => b.split(".").length - a.split(".").length,
+  )[0];
+  const hostFqdn = named ?? deepest ?? baseDomain;
+  return { modelName, baseDomain, hostFqdn, serviceName, target };
+}
+
+/** The names of the @svendowideit/caddy models in a `swamp model list --json` payload. */
+export function caddyModelNames(listJson: string): string[] {
+  try {
+    const parsed = JSON.parse(listJson) as {
+      results?: Array<{ name?: unknown; type?: unknown }>;
+    };
+    return (parsed.results ?? [])
+      .filter((r) =>
+        r.type === "@svendowideit/caddy" && typeof r.name === "string"
+      )
+      .map((r) => r.name as string);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Pick the caddy model that owns this host: the one whose host FQDN starts with
+ * this machine's hostname. Falls back to the only model that has a base domain
+ * set. Returns null when the choice is absent or ambiguous, so the caller skips
+ * rather than guessing.
+ */
+export function pickSourceCaddy(
+  facts: CaddyModelFacts[],
+  hostname: string,
+): CaddyModelFacts | null {
+  const shortHost = hostname.split(".")[0].toLowerCase();
+  const matches = facts.filter(
+    (f) => shortHost && f.hostFqdn.split(".")[0] === shortHost,
+  );
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) return null;
+  const withDomain = facts.filter((f) => f.baseDomain);
+  return withDomain.length === 1 ? withDomain[0] : null;
+}
+
+/**
+ * The hostname the ebooks pages are served under: `<label>.<hostFqdn>`. The
+ * FQDN already carries the domain caddy owns, so `x1yoga.fi.gy` yields
+ * `ebooks.x1yoga.fi.gy`; a FQDN already under the label is returned unchanged.
+ */
+export function ebooksRouteHostname(
+  hostFqdn: string,
+  label = EBOOKS_ROUTE_LABEL,
+): string {
+  const host = hostFqdn.trim().replace(/^\.+/, "");
+  if (!host) return "";
+  const prefix = `${label}.`;
+  return host.startsWith(prefix) ? host : `${prefix}${host}`;
+}
+
+/** This machine's hostname (`Deno.hostname()`, minus any domain part). */
+export function machineHostname(): string {
+  try {
+    return Deno.hostname();
+  } catch {
+    return Deno.env.get("HOSTNAME") ?? "";
+  }
+}
+
+/** Run a `swamp` CLI command and capture stdout/stderr/exit code. */
+export async function runSwampCmd(
+  args: string[],
+): Promise<{ stdout: string; stderr: string; code: number }> {
+  try {
+    // swamp-quality-ignore deno-command: optional caddy peer discovered at runtime; args are fixed literals or globals of this model, never untrusted input — see README.
+    const proc = new Deno.Command("swamp", {
+      args,
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const out = await proc.output();
+    return {
+      stdout: new TextDecoder().decode(out.stdout),
+      stderr: new TextDecoder().decode(out.stderr),
+      code: out.code,
+    };
+  } catch (err) {
+    return {
+      stdout: "",
+      stderr: err instanceof Error ? err.message : String(err),
+      code: 127,
+    };
+  }
+}
+
 /** Model definition for incrementally scanning and listing local ebooks. */
 export const model = {
   type: "@svendowideit/ebooks",
-  version: "2026.09.24.1",
+  version: "2026.10.18.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -821,6 +1034,18 @@ export const model = {
         "and the README uses the canonical sections. The exported metadata types " +
         "are explicit (no behaviour change); global and method arguments are " +
         "unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.18.1",
+      description:
+        "Adds an ensure-caddy-serve method (and caddyServe resource) that, when " +
+        "@svendowideit/caddy is installed, declares a file_server route serving " +
+        "the rendered ebooks directory at ebooks.<host>.<domain> on a dedicated " +
+        "ebooks-caddy model that caddy merges with the models it already runs. " +
+        "Adds optional caddyModelName and caddyRouteHostname globals (both " +
+        'default ""). Schema is additive — existing models upgrade with no ' +
+        "changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -864,6 +1089,14 @@ export const model = {
     page: {
       description: "Result of the last HTML page generation",
       schema: PageResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    caddyServe: {
+      description:
+        "Status of the Caddy file_server route that serves the rendered pages " +
+        "(hostname, root, the ebooks-caddy model it lives on)",
+      schema: CaddyServeOutputSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -1224,6 +1457,227 @@ export const model = {
         context.logger.info(
           "Wrote author index to {path}",
           { path: outputPath },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    "ensure-caddy-serve": {
+      description:
+        "When @svendowideit/caddy is installed, declare a Caddy file_server " +
+        "route that serves the rendered ebooks directory at " +
+        "`ebooks.<host>.<domain>`, reading the host and domain from the caddy " +
+        "model that already owns this machine. Uses a dedicated ebooks-caddy " +
+        "model that the caddy extension merges with the models it already runs, " +
+        "and relies on caddy's route derivation for the A record and " +
+        "certificate. Skips with a log when caddy is not installed or no single " +
+        "caddy model can be chosen.",
+      arguments: EnsureCaddyServeArgsSchema,
+      execute: async (
+        args: EnsureCaddyServeArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: { name: string }[] }> => {
+        const logger = context.logger;
+
+        // Only run when the caddy extension is installed — it is an optional
+        // peer, like the feedback server's systemd-service dependency.
+        const probe = await runSwampCmd([
+          "model",
+          "type",
+          "search",
+          "@svendowideit/caddy",
+          "--json",
+        ]);
+        const installed = probe.code === 0 &&
+          probe.stdout.includes("@svendowideit/caddy");
+        if (!installed) {
+          logger.info(
+            "@svendowideit/caddy not installed — skipping ebooks file-serving setup. Run `swamp extension pull @svendowideit/caddy` to enable it.",
+          );
+          return { dataHandles: [] };
+        }
+
+        // Find the caddy model(s) this repo defines and read their facts.
+        const list = await runSwampCmd(["model", "list", "--json"]);
+        if (list.code !== 0) {
+          logger.info(
+            "Could not list models ({code}) — skipping ebooks file-serving setup.",
+            { code: list.code },
+          );
+          return { dataHandles: [] };
+        }
+        const names = caddyModelNames(list.stdout);
+        if (names.length === 0) {
+          logger.info(
+            "No @svendowideit/caddy model found — skipping ebooks file-serving setup. Create one first, e.g. `swamp model create @svendowideit/caddy my-caddy --global-arg baseDomain=example.com`.",
+          );
+          return { dataHandles: [] };
+        }
+        const host = machineHostname();
+        const facts: CaddyModelFacts[] = [];
+        for (const name of names) {
+          const got = await runSwampCmd(["model", "get", name, "--json"]);
+          if (got.code !== 0) continue;
+          try {
+            facts.push(
+              parseCaddyModelFacts(name, JSON.parse(got.stdout), host),
+            );
+          } catch {
+            // Unparseable model JSON: ignore this model.
+          }
+        }
+
+        const explicit = args.model?.trim() ||
+          context.globalArgs.caddyModelName?.trim();
+        let source: CaddyModelFacts | null;
+        if (explicit) {
+          source = facts.find((f) => f.modelName === explicit) ?? null;
+          if (!source) {
+            logger.info(
+              "caddy model '{model}' not found — skipping ebooks file-serving setup.",
+              { model: explicit },
+            );
+            return { dataHandles: [] };
+          }
+        } else {
+          source = pickSourceCaddy(facts, host);
+          if (!source) {
+            logger.info(
+              "Could not pick a single caddy model to read the ebooks host/domain from ({models}) — skipping ebooks file-serving setup. Set caddyModelName on this model to choose one.",
+              { models: names.join(", ") },
+            );
+            return { dataHandles: [] };
+          }
+        }
+
+        const hostname = args.hostname?.trim() ||
+          context.globalArgs.caddyRouteHostname?.trim() ||
+          ebooksRouteHostname(source.hostFqdn);
+        if (!hostname) {
+          logger.info(
+            "caddy model '{model}' has no base domain — skipping ebooks file-serving setup.",
+            { model: source.modelName },
+          );
+          return { dataHandles: [] };
+        }
+        // Serve the directory the pages are rendered into (default
+        // ~/.swamp/ebooks), so both ebooks.html and index.html are reachable.
+        // NOTE: deliberately named `serveRoot`, not `root` — the model's global
+        // arg `root` (the scan root) would otherwise be bound into this method's
+        // args by the same name and override the derived path.
+        const root = args.serveRoot?.trim()
+          ? absolutePath(args.serveRoot.trim())
+          : dirname(absolutePath(context.globalArgs.outputPath));
+        const serveModel = args.serveModel?.trim() ||
+          DEFAULT_EBOOKS_CADDY_MODEL;
+
+        // Ensure our own caddy model exists. It carries the source model's base
+        // domain and systemd unit so the caddy extension merges its route with
+        // the models already running under that unit — we add a route, not
+        // rewrite theirs. Everything else (certificate, A record) is derived by
+        // caddy at merge time, so nothing else is set here.
+        const existing = await runSwampCmd([
+          "model",
+          "get",
+          serveModel,
+          "--json",
+        ]);
+        if (existing.code !== 0) {
+          const createArgs = [
+            "model",
+            "create",
+            "@svendowideit/caddy",
+            serveModel,
+            "--global-arg",
+            `baseDomain=${source.baseDomain}`,
+            "--global-arg",
+            `serviceName=${source.serviceName}`,
+          ];
+          if (source.target) {
+            createArgs.push("--global-arg", `target=${source.target}`);
+          }
+          const create = await runSwampCmd(createArgs);
+          if (create.code !== 0) {
+            throw new Error(
+              `Failed to create caddy model ${serveModel} (${create.code}): ${
+                create.stderr || create.stdout
+              }`,
+            );
+          }
+          logger.info(
+            "Created caddy model {model} (baseDomain {domain}, unit {unit}) to serve the ebooks pages",
+            {
+              model: serveModel,
+              domain: source.baseDomain,
+              unit: source.serviceName,
+            },
+          );
+        } else {
+          try {
+            const cur = parseCaddyModelFacts(
+              serveModel,
+              JSON.parse(existing.stdout),
+              host,
+            );
+            if (
+              cur.baseDomain && source.baseDomain &&
+              cur.baseDomain !== source.baseDomain
+            ) {
+              logger.warning?.(
+                "caddy model {model} baseDomain '{cur}' differs from '{src}'; update it with `swamp model edit {model} --global-arg baseDomain={src}`",
+                {
+                  model: serveModel,
+                  cur: cur.baseDomain,
+                  src: source.baseDomain,
+                },
+              );
+            }
+          } catch {
+            // Unparseable model JSON: leave the existing model as-is.
+          }
+        }
+
+        // Declare the file_server route. Caddy derives the TLS subject (auto
+        // certificate) and, when a DNS provider is configured, the A record
+        // from the base domain the merged models already own.
+        const run = await runSwampCmd([
+          "model",
+          "method",
+          "run",
+          serveModel,
+          "serveSettings",
+          "--input",
+          `hostname=${hostname}`,
+          "--input",
+          `root=${root}`,
+          "--skip-reports",
+        ]);
+        if (run.code !== 0) {
+          throw new Error(
+            `serveSettings failed (${run.code}): ${run.stderr || run.stdout}`,
+          );
+        }
+
+        logger.info(
+          "Ebooks pages served: {hostname} -> {root} via caddy model {model} (domain from {source})",
+          {
+            hostname,
+            root,
+            model: serveModel,
+            source: source.modelName,
+          },
+        );
+        const handle = await context.writeResource(
+          "caddyServe",
+          "caddy-serve-current",
+          {
+            hostname,
+            root,
+            serveModel,
+            sourceModel: source.modelName,
+            baseDomain: source.baseDomain,
+            changed: true,
+            servedAt: new Date().toISOString(),
+          },
         );
         return { dataHandles: [handle] };
       },

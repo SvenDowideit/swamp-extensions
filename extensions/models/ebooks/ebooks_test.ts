@@ -2,10 +2,16 @@ import { assert, assertEquals } from "jsr:@std/assert@1";
 import { createModelTestContext } from "jsr:@swamp-club/swamp-testing@^0.3.0";
 
 import {
+  caddyModelNames,
+  DEFAULT_EBOOKS_CADDY_MODEL,
+  EBOOKS_ROUTE_LABEL,
+  ebooksRouteHostname,
   esc,
   freshState,
   model,
   nameKey,
+  parseCaddyModelFacts,
+  pickSourceCaddy,
   planNames,
   renderAuthorsHtml,
   renderHtml,
@@ -914,4 +920,122 @@ Deno.test("scan-disk does not follow symlinked directories", async () => {
   } finally {
     await Deno.remove(root, { recursive: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Optional @svendowideit/caddy integration (ensure-caddy-serve helpers)
+// ---------------------------------------------------------------------------
+
+Deno.test("parseCaddyModelFacts prefers this machine's A record under the base domain", () => {
+  const facts = parseCaddyModelFacts("my-caddy", {
+    globalArguments: {
+      baseDomain: "fi.gy",
+      serviceName: "caddy",
+      dnsRecords: [
+        { name: "fi.gy", type: "A", value: ["10.0.0.1"] },
+        { name: "otel.fi.gy", type: "A", value: ["10.0.0.2"] },
+        { name: "x1yoga.fi.gy", type: "A", value: ["10.10.13.208"] },
+      ],
+    },
+  }, "x1yoga");
+  assertEquals(facts, {
+    modelName: "my-caddy",
+    baseDomain: "fi.gy",
+    hostFqdn: "x1yoga.fi.gy",
+    serviceName: "caddy",
+    target: "",
+  });
+});
+
+Deno.test("parseCaddyModelFacts defaults serviceName and falls back to the base domain", () => {
+  const facts = parseCaddyModelFacts("otel-caddy", {
+    globalArguments: { baseDomain: "otel.fi.gy" },
+  }, "x1yoga");
+  assertEquals(facts.hostFqdn, "otel.fi.gy");
+  assertEquals(facts.serviceName, "caddy");
+});
+
+Deno.test("parseCaddyModelFacts ignores records for other domains and non-A types", () => {
+  const facts = parseCaddyModelFacts("c", {
+    globalArguments: {
+      baseDomain: "fi.gy",
+      dnsRecords: [
+        { name: "other.example.com", type: "A", value: ["1.2.3.4"] },
+        { name: "x1yoga.fi.gy", type: "TXT", value: ["nope"] },
+      ],
+    },
+  }, "x1yoga");
+  assertEquals(facts.hostFqdn, "fi.gy");
+});
+
+Deno.test("caddyModelNames filters by type from a model list payload", () => {
+  const names = caddyModelNames(JSON.stringify({
+    results: [
+      { name: "pulse", type: "@svendowideit/swamp-pulse" },
+      { name: "my-caddy", type: "@svendowideit/caddy" },
+      { name: "otel-caddy", type: "@svendowideit/caddy" },
+    ],
+  }));
+  assertEquals(names, ["my-caddy", "otel-caddy"]);
+  assertEquals(caddyModelNames("not json"), []);
+});
+
+Deno.test("pickSourceCaddy chooses the model that owns this host", () => {
+  const mk = (modelName: string, hostFqdn: string, baseDomain: string) => ({
+    modelName,
+    hostFqdn,
+    baseDomain,
+    serviceName: "caddy",
+    target: "",
+  });
+  assertEquals(
+    pickSourceCaddy(
+      [
+        mk("otel-caddy", "otel.fi.gy", "otel.fi.gy"),
+        mk("my-caddy", "x1yoga.fi.gy", "fi.gy"),
+      ],
+      "x1yoga",
+    )?.modelName,
+    "my-caddy",
+  );
+  // Ambiguous host match: refuse to guess.
+  assertEquals(
+    pickSourceCaddy(
+      [
+        mk("a", "x1yoga.fi.gy", "fi.gy"),
+        mk("b", "x1yoga.other.com", "other.com"),
+      ],
+      "x1yoga",
+    ),
+    null,
+  );
+  // No host match: fall back only when exactly one model has a base domain.
+  assertEquals(
+    pickSourceCaddy(
+      [mk("a", "", ""), mk("b", "otel.fi.gy", "otel.fi.gy")],
+      "x1yoga",
+    )?.modelName,
+    "b",
+  );
+  assertEquals(pickSourceCaddy([mk("a", "", "")], "x1yoga"), null);
+});
+
+Deno.test("ebooksRouteHostname places ebooks under the caddy host FQDN", () => {
+  assertEquals(ebooksRouteHostname("x1yoga.fi.gy"), "ebooks.x1yoga.fi.gy");
+  assertEquals(
+    ebooksRouteHostname("ebooks.x1yoga.fi.gy"),
+    "ebooks.x1yoga.fi.gy",
+  );
+  assertEquals(
+    ebooksRouteHostname("x1yoga.fi.gy", "library"),
+    "library.x1yoga.fi.gy",
+  );
+  assertEquals(ebooksRouteHostname("  "), "");
+  assertEquals(EBOOKS_ROUTE_LABEL, "ebooks");
+  assertEquals(DEFAULT_EBOOKS_CADDY_MODEL, "ebooks-caddy");
+});
+
+Deno.test("model exposes ensure-caddy-serve and its caddyServe resource", () => {
+  assert("ensure-caddy-serve" in model.methods);
+  assert("caddyServe" in model.resources);
 });

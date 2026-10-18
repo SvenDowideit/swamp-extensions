@@ -18,7 +18,15 @@ description: |
 
     scan-disk → detect-metadata → plan-resolution
     → forEach name: @svendowideit/ebooks-resolve-name
-    → render-html-list → render-html-authors
+    → render-html-list → render-html-authors → serve-html
+
+  When @svendowideit/caddy is installed, the final serve-html step declares a
+  Caddy file_server route serving the rendered directory at
+  ebooks.<host>.<domain> (the host and domain read from the caddy model that
+  already owns this machine). The route lives on a dedicated ebooks-caddy model
+  that caddy merges with the models it already runs, and caddy derives the A
+  record and certificate for the name. When caddy is absent the step skips with
+  a log — the scan still renders the pages locally.
 
   Usage:
     swamp workflow run @svendowideit/ebook-scan
@@ -176,6 +184,32 @@ jobs:
               type: always
         weight: 0
         allowFailure: false
+      - name: serve-html
+        description: >-
+          When @svendowideit/caddy is installed, declare a Caddy file_server
+          route serving the rendered directory at ebooks.<host>.<domain>. The
+          host and domain are read from the caddy model that already owns this
+          machine; the route lives on a dedicated ebooks-caddy model that caddy
+          merges with the models it already runs, and caddy derives the A record
+          and certificate for the name. Skips with a log when caddy is not
+          installed or no single caddy model can be chosen.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ebooks"
+          modelName: ebooks
+          methodName: ensure-caddy-serve
+          globalArgs:
+            root: ${{ inputs.root }}
+            outputPath: ${{ inputs.outputPath }}
+            authorsOutputPath: ${{ inputs.authorsOutputPath }}
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs: {}
+        dependsOn:
+          - step: render-html-authors
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
     dependsOn: []
     weight: 0
 version: 1

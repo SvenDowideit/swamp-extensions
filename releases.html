@@ -67,8 +67,26 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261019-134527-0-sha-09ccf900"><span class="tier S">S</span>issue bug/feature/security keep a --title given without --bo</a><a href="#release-swamp-club-swamp-v20261015-222935-0-sha-852243ed"><span class="tier S">S</span>a checked-in inventory of every secret sink and boundary, wi</a><a href="#release-swamp-club-swamp-v20261019-185019-0-sha-dc3fb7a5"><span class="tier A">A</span>typed-secrets 3.1: the production Secret, its refusals, the </a><a href="#release-swamp-club-swamp-v20261019-183348-0-sha-62b6ad42"><span class="tier A">A</span>writers warn about data names Windows cannot store, and refu</a><a href="#release-swamp-club-swamp-v20261019-181744-0-sha-3a61e2de"><span class="tier A">A</span>swamp update on Windows stages the new binary beside swamp.e</a><a href="#release-swamp-club-swamp-v20261019-181241-0-sha-fd75f82f"><span class="tier A">A</span>vault create and migrate refuse a local_encryption name whos</a><a href="#release-swamp-club-swamp-v20261019-175122-0-sha-18e12658"><span class="tier A">A</span>install.ps1 never leaves the destination without a working s</a><a href="#release-swamp-club-swamp-v20261019-172240-0-sha-148237ef"><span class="tier A">A</span>push audits the dependency version it ships, and checks JSR </a><a href="#release-swamp-club-swamp-v20261019-165428-0-sha-2ffcdd66"><span class="tier A">A</span>a vault-resolved value in a data name no longer masks the va</a><a href="#release-swamp-club-swamp-v20261019-164820-0-sha-2df50e6c"><span class="tier A">A</span>swamp vault remove removes a vault and its local secrets (sw</a><a href="#release-swamp-club-swamp-v20261019-164359-0-sha-2df50e6c"><span class="tier A">A</span>swamp vault remove removes a vault and its local secrets (sw</a><a href="#release-swamp-club-swamp-v20261019-162501-0-sha-1877cf31"><span class="tier A">A</span>a crashed v3 workflow run keeps its record and its completed</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261019-194443-0-sha-a7fc9351"><span class="tier S">S</span>method run masks sensitive argument values, and run and vali</a><a href="#release-swamp-club-swamp-v20261019-134527-0-sha-09ccf900"><span class="tier S">S</span>issue bug/feature/security keep a --title given without --bo</a><a href="#release-swamp-club-swamp-v20261015-222935-0-sha-852243ed"><span class="tier S">S</span>a checked-in inventory of every secret sink and boundary, wi</a><a href="#release-swamp-club-swamp-v20261019-201211-0-sha-bf63b359"><span class="tier A">A</span>add typed vault.get with up-front reference checks (#3209)</a><a href="#release-swamp-club-swamp-v20261019-194837-0-sha-22349c50"><span class="tier A">A</span>token revoke tells an unknown token from an unknown collecti</a><a href="#release-swamp-club-swamp-v20261019-185019-0-sha-dc3fb7a5"><span class="tier A">A</span>typed-secrets 3.1: the production Secret, its refusals, the </a><a href="#release-swamp-club-swamp-v20261019-183348-0-sha-62b6ad42"><span class="tier A">A</span>writers warn about data names Windows cannot store, and refu</a><a href="#release-swamp-club-swamp-v20261019-181744-0-sha-3a61e2de"><span class="tier A">A</span>swamp update on Windows stages the new binary beside swamp.e</a><a href="#release-swamp-club-swamp-v20261019-181241-0-sha-fd75f82f"><span class="tier A">A</span>vault create and migrate refuse a local_encryption name whos</a><a href="#release-swamp-club-swamp-v20261019-175122-0-sha-18e12658"><span class="tier A">A</span>install.ps1 never leaves the destination without a working s</a><a href="#release-swamp-club-swamp-v20261019-172240-0-sha-148237ef"><span class="tier A">A</span>push audits the dependency version it ships, and checks JSR </a><a href="#release-swamp-club-swamp-v20261019-165428-0-sha-2ffcdd66"><span class="tier A">A</span>a vault-resolved value in a data name no longer masks the va</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261019-194443-0-sha-a7fc9351">
+<h2><span class="tier S">S</span>method run masks sensitive argument values, and run and validate refuse a stored literal sensitive global (swamp-club#3555) (#3207)</h2>
+<p class="lede">Security-related change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-19T19:46:46Z">2026-10-19T19:46:46Z</time></span><span>security</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(security): method run masks sensitive argument values, and run and validate refuse a stored literal sensitive global (swamp-club#3555) (#3207)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp model method run</code> printed values under schema fields marked <code>.meta({ sensitive: true })</code> in clear, in the log Arguments panel and in <code>--json</code> <code>methodArguments</code> / <code>globalArguments</code>, when they came from <code>--input</code>, <code>--stdin</code> or a literal hand-written into the definition. Only values resolved from a vault or a sensitive data read were masked. Separately, a literal sensitive global in a hand-edited definition ran and validated with exit 0, although the troubleshooting guide says method run refuses it. Fixes swamp-club#3555.</p>
+<p><strong>Masking.</strong> <code>maskLiteralSensitiveValues</code> (<code>src/domain/models/sensitive_field_extractor.ts</code>) replaces literal values under sensitive schema paths with <code>***</code> and keeps a <code>vault.get</code> reference as written, so the run output still shows where a secret lives. It uses the same rule the save-time refusal uses. <code>modelMethodRun</code> applies it after the existing vault/data masking to the arguments it shows and passes to reports, which covers log mode, <code>--json</code> and serve.</p>
+<p><strong>Refusing a stored literal.</strong> <code>DefaultModelValidationService.findLiteralSensitiveGlobals</code> reads a stored definition as a run would save it: when an upgrade applies, the upgraded copy (a run upgrades the stored file, expressions included, and saves that); otherwise the stored copy. It is used by:</p>
+<ul>
+<li><code>method run</code> on the s</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261019.194443.0-sha.a7fc9351" rel="noopener">release v20261019.194443.0-sha.a7fc9351</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a7fc9351b57485cb86ac3fa7c6da50c7758b2773" rel="noopener">a7fc9351</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3207" rel="noopener">#3207</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261019-134527-0-sha-09ccf900">
 <h2><span class="tier S">S</span>issue bug/feature/security keep a --title given without --body, and issue search rejects an invalid --type, --status or --limit locally (swamp-club#3576, swamp-club#3577) (#3186)</h2>
 <p class="lede">Security-related change · swamp-club/swamp</p>
@@ -115,6 +133,57 @@ footer .ver{color:var(--acc)}
 </ul></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.222935.0-sha.852243ed" rel="noopener">release v20261015.222935.0-sha.852243ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/852243edf2e7c999e8f4f08c9f54f4e18575c9ff" rel="noopener">852243ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3152" rel="noopener">#3152</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261019-201211-0-sha-bf63b359">
+<h2><span class="tier A">A</span>add typed vault.get with up-front reference checks (#3209)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-19T20:14:17Z">2026-10-19T20:14:17Z</time></span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat: add typed vault.get with up-front reference checks (#3209)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Implement typed-secrets Phase 3.2 for swamp-club issue #3625, behind the existing test-only option. Typed <code>vault.get</code> now returns an opaque reference after authorization and existence checks for every call, including calls in unselected branches. It reuses each checked argument pair at execution and refuses aliases, surrounding local-binding dependencies, Secret arguments, and effectful method calls during checking.</p>
+<p>Shared source-mapped syntax analysis preserves legacy literal identities and the option-off authorization surface. The receiver participates in the existing Secret boundary, refusal inventory, and container rules. Production enablement and later typed-secrets phases remain deferred.</p>
+<h4 class="body-h">Verification</h4>
+<p>Verified commit: <code>6a425736c3e625063c674060355b3ed89ff8866b</code>.</p>
+<ul>
+<li><code>verify-build</code>: passed; 27,768 tests passed, 0 failed; lint, formatting, type checking, dependency audit, compile and binary smoke test passed.</li>
+<li><code>verify-reviews</code>: code and adversarial reviews passed after blocking findings were fixed. Remaining feedback is nonblocking. UX and CI-security checks were skipped by path guards.</li>
+<li><code>verify-skills</code>: passed; both skill checks were skipped by path guards.</li>
+<li>Gate: 9 passed, 4 guarded skips, 0 failures.</li>
+<li>Counting-provider and canary tests cover checking versus delivery, rotation, concurrency, revocation, failure retry, argument identity and refusal without delivery l</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261019.201211.0-sha.bf63b359" rel="noopener">release v20261019.201211.0-sha.bf63b359</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bf63b359bd953c3fb3c43cd7a3c37f732b05ed72" rel="noopener">bf63b359</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3209" rel="noopener">#3209</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3625" rel="noopener">#3625</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261019-194837-0-sha-22349c50">
+<h2><span class="tier A">A</span>token revoke tells an unknown token from an unknown collective (swamp-club#3624) (#3208)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-19T19:50:34Z">2026-10-19T19:50:34Z</time></span><span>auth</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(auth): token revoke tells an unknown token from an unknown collective (swamp-club#3624) (#3208)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes lab #3624. This is the CLI half of lab #2564; the server half is swamp-club#1375, which is deployed.</p>
+<p>swamp-club now sends two different 404 bodies from <code>PATCH</code>/<code>DELETE /api/v1/collectives/&lt;c&gt;/api-tokens/&lt;id&gt;</code>:</p>
+<ul>
+<li><code>{&quot;error&quot;:&quot;Token not found&quot;}</code> when the token is unknown, including a token that belongs to another collective</li>
+<li><code>{&quot;error&quot;:&quot;Not found&quot;}</code> when the collective is unknown</li>
+</ul>
+<p><code>revokeCollectiveToken</code> treated every 404 as a missing token, so an unknown collective was reported as <code>Token &quot;x&quot; not found in collective &quot;y&quot;</code>. A server from before that change sent 422 for an unknown token, which reached the user as a raw <code>HTTP 422</code> message.</p>
+<p>It now reads the error body:</p>
+<p>| Response | Before | After |</p>
+<p>| --- | --- | --- |</p>
+<p>| <code>404 {&quot;error&quot;:&quot;Token not found&quot;}</code> | <code>Token &quot;tok-1&quot; not found in collective &quot;myorg&quot;.</code> | unchanged |</p>
+<p>| <code>404 {&quot;error&quot;:&quot;Not found&quot;}</code> | <code>Token &quot;tok-1&quot; not found in collective &quot;myorg&quot;.</code> | <code>Collective &quot;myorg&quot; not found.</code> |</p>
+<p>| <code>422 {&quot;error&quot;:&quot;Token not found&quot;}</code> (older server) | <code>Failed to revoke collective token (HTTP 422): …</code> | <code>Token &quot;tok-1&quot; not found in collective &quot;myorg&quot;.</code> |</p>
+<p>| any other error | shown verbatim | unchanged |</p>
+<p>The 401, 403, success and dropped-connection paths are untouched. The only caller is <code>swamp auth token revoke</code>, through <code>libswamp/auth/token_revoke.ts</code>, which passes the message through.</p>
+<p>One known trade-off: a 404</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261019.194837.0-sha.22349c50" rel="noopener">release v20261019.194837.0-sha.22349c50</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/22349c50b936ba183cb0978d9c5555afbeccd7cb" rel="noopener">22349c50</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3208" rel="noopener">#3208</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2564" rel="noopener">#2564</a>𝗔 <a href="https://swamp-club.com/lab/3624" rel="noopener">lab#3624</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261019-185019-0-sha-dc3fb7a5">
 <h2><span class="tier A">A</span>typed-secrets 3.1: the production Secret, its refusals, the fault context, the container rule and the boundary conversion, behind the internal option (swamp-club#3619) (#3206)</h2>
@@ -268,7 +337,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/vaults.md" rel="noopener">design/primitives/vaults.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261019.165428.0-sha.2ffcdd66" rel="noopener">release v20261019.165428.0-sha.2ffcdd66</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2ffcdd6650bac3e6059f47c9a438e4a5ba3991f1" rel="noopener">2ffcdd66</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3197" rel="noopener">#3197</a>𝗔 <a href="https://swamp-club.com/lab/3585" rel="noopener">lab#3585</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261019-164820-0-sha-2df50e6c">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261019-164820-0-sha-2df50e6c">
 <h2><span class="tier A">A</span>swamp vault remove removes a vault and its local secrets (swamp-club#3597) (#3199)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-19T16:50:20Z">2026-10-19T16:50:20Z</time></span><span>vault</span><span>feat</span></div>
@@ -331,7 +400,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261019.162501.0-sha.1877cf31" rel="noopener">release v20261019.162501.0-sha.1877cf31</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1877cf315a3282b11ed2715e8d97473125442183" rel="noopener">1877cf31</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3198" rel="noopener">#3198</a>𝗔 <a href="https://swamp-club.com/lab/3587" rel="noopener">lab#3587</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261019-155407-0-sha-aa67c714">
+<article class="item" id="release-swamp-club-swamp-v20261019-155407-0-sha-aa67c714">
 <h2><span class="tier A">A</span>methods run on a worker keep their writeResource and createFileWriter overrides (swamp-club#3574) (#3196)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-19T15:56:10Z">2026-10-19T15:56:10Z</time></span><span>worker</span><span>fix</span></div>
@@ -10470,13 +10539,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>432 items across 1 source(s) in this window:
-2 critical, 395 notable, 14 routine,
+<p>435 items across 1 source(s) in this window:
+3 critical, 397 notable, 14 routine,
 21 minor.</p>
-<ul><li><strong>fix</strong> — 282</li><li><strong>feat</strong> — 114</li><li><strong>test</strong> — 12</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 10</li><li><strong>perf</strong> — 2</li></ul></section>
+<ul><li><strong>fix</strong> — 284</li><li><strong>feat</strong> — 115</li><li><strong>test</strong> — 12</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 10</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-19T20:20:03.307Z">2026-10-19T20:20:03.307Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-19T21:03:54.666Z">2026-10-19T21:03:54.666Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

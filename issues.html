@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3624"><span class="tier A">A</span>swamp CLI: revokeCollectiveToken should tell an unknown toke</a><a href="#issue-2564"><span class="tier A">A</span>swamp-club: unknown collective API token returns 422 instead</a><a href="#issue-3619"><span class="tier A">A</span>typed-secrets 3.1: the production Secret, its refusals, the </a><a href="#issue-3568"><span class="tier A">A</span>Data names aren&#39;t checked for portability: a name with &#39;:&#39; f</a><a href="#issue-3353"><span class="tier A">A</span>Registry scorecard: audit the dependency version that ships,</a><a href="#issue-3621"><span class="tier A">A</span>swamp update on Windows leaves no complete swamp.exe during </a><a href="#issue-3615"><span class="tier A">A</span>Dev stack serves corrupted gzip under Vite: browsers fail wi</a><a href="#issue-3618"><span class="tier A">A</span>install.ps1 keeps the release zip until exit and deletes the</a><a href="#issue-3607"><span class="tier A">A</span>Beta-stage extensions missing from publisher&#39;s profile Exten</a><a href="#issue-3602"><span class="tier A">A</span>Lab issue visibility: removing private status works, then la</a><a href="#issue-3352"><span class="tier A">A</span>extension push: audit the dependency versions the bundle act</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3625"><span class="tier A">A</span>typed-secrets 3.2: vault.get as a CEL function, bare-token r</a><a href="#issue-3624"><span class="tier A">A</span>swamp CLI: revokeCollectiveToken should tell an unknown toke</a><a href="#issue-2564"><span class="tier A">A</span>swamp-club: unknown collective API token returns 422 instead</a><a href="#issue-3619"><span class="tier A">A</span>typed-secrets 3.1: the production Secret, its refusals, the </a><a href="#issue-3568"><span class="tier A">A</span>Data names aren&#39;t checked for portability: a name with &#39;:&#39; f</a><a href="#issue-3353"><span class="tier A">A</span>Registry scorecard: audit the dependency version that ships,</a><a href="#issue-3621"><span class="tier A">A</span>swamp update on Windows leaves no complete swamp.exe during </a><a href="#issue-3615"><span class="tier A">A</span>Dev stack serves corrupted gzip under Vite: browsers fail wi</a><a href="#issue-3618"><span class="tier A">A</span>install.ps1 keeps the release zip until exit and deletes the</a><a href="#issue-3607"><span class="tier A">A</span>Beta-stage extensions missing from publisher&#39;s profile Exten</a><a href="#issue-3602"><span class="tier A">A</span>Lab issue visibility: removing private status works, then la</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3625">
+<h2><span class="tier A">A</span>typed-secrets 3.2: vault.get as a CEL function, bare-token rewriting, AST extraction and up-front existence checks</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-19T20:20:31.514Z">2026-10-19T20:20:31.514Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3625" rel="noopener">lab#3625</a></div>
 </article>
 <article class="item" id="issue-3624">
 <h2><span class="tier A">A</span>swamp CLI: revokeCollectiveToken should tell an unknown token from an unknown collective once swamp-club answers 404</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3602" rel="noopener">lab#3602</a></div>
 </article>
-<article class="item" id="issue-3352">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3352">
 <h2><span class="tier A">A</span>extension push: audit the dependency versions the bundle actually ships (pinned facts, deno info resolution, JSR existence)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-19T17:27:06.860Z">2026-10-19T17:27:06.860Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3352" rel="noopener">lab#3352</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3605">
+<article class="item" id="issue-3605">
 <h2><span class="tier A">A</span>Public Lab issues missing from Lab contributions on user profile</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-19T17:11:44.623Z">2026-10-19T17:11:44.623Z</time></span></div>
@@ -4472,34 +4480,26 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-3611">
 <h2><span class="tier B">B</span>extension push: dependencies named only through a deno.json import map are never audited</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-19T20:17:36.932Z">2026-10-19T20:17:36.932Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-19T20:56:02.610Z">2026-10-19T20:56:02.610Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3611" rel="noopener">lab#3611</a></div>
 </article>
-<article class="item" id="issue-3569">
-<h2><span class="tier B">B</span>Extension lockfile stores machine-local paths (OS separators, gitignored .swamp/ files, pulledAt), so a repo shared by Windows and Linux never stays clean</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-19T20:12:51.372Z">2026-10-19T20:12:51.372Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3569" rel="noopener">lab#3569</a></div>
-</article>
-<article class="item" id="issue-3625">
-<h2><span class="tier B">B</span>typed-secrets 3.2: vault.get as a CEL function, bare-token rewriting, AST extraction and up-front existence checks</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-19T20:12:26.970Z">2026-10-19T20:12:26.970Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3625" rel="noopener">lab#3625</a></div>
-</article>
 <article class="item" id="issue-3613">
 <h2><span class="tier B">B</span>extension push rewrites the author&#39;s deno.lock when bundling</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-19T20:10:01.701Z">2026-10-19T20:10:01.701Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-19T20:47:17.555Z">2026-10-19T20:47:17.555Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3613" rel="noopener">lab#3613</a></div>
+</article>
+<article class="item" id="issue-3569">
+<h2><span class="tier B">B</span>Extension lockfile stores machine-local paths (OS separators, gitignored .swamp/ files, pulledAt), so a repo shared by Windows and Linux never stays clean</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-19T20:27:00.840Z">2026-10-19T20:27:00.840Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3569" rel="noopener">lab#3569</a></div>
 </article>
 <article class="item" id="issue-3626">
 <h2><span class="tier B">B</span>typed-secrets 3.3: sensitive-field accessors, data-origin sentinels and reference validation</h2>
@@ -4589,7 +4589,63 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3637">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3644">
+<h2><span class="tier C">C</span>v3 on S3/GCS: the namespace refusal names setup filesystem, and an unreadable marker on a format-3 repo says &quot;will not open … as format 2&quot; (found by swamp-uat#715)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T20:53:00.498Z">2026-10-19T20:53:00.498Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3644" rel="noopener">lab#3644</a></div>
+</article>
+<article class="item" id="issue-3643">
+<h2><span class="tier C">C</span>v3 on S3/GCS: setup on a prefix holding only swamp&#39;s format-3 marker fails with &quot;this swamp release can&#39;t open&quot; format 3 (found by swamp-uat#715)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T20:52:57.781Z">2026-10-19T20:52:57.781Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3643" rel="noopener">lab#3643</a></div>
+</article>
+<article class="item" id="issue-3642">
+<h2><span class="tier C">C</span>v3 on S3/GCS: a fresh checkout whose restore from the replica fails reports an empty datastore and exits 0 (found by swamp-uat#715)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T20:52:55.230Z">2026-10-19T20:52:55.230Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3642" rel="noopener">lab#3642</a></div>
+</article>
+<article class="item" id="issue-3641">
+<h2><span class="tier C">C</span>Generated vault keys carry raw data-name and vary characters that strict vault providers reject</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T20:50:22.058Z">2026-10-19T20:50:22.058Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3641" rel="noopener">lab#3641</a></div>
+</article>
+<article class="item" id="issue-3640">
+<h2><span class="tier C">C</span>v3 outbox killed-writer test times out waiting for the kill point under CPU load</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T20:37:22.373Z">2026-10-19T20:37:22.373Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3640" rel="noopener">lab#3640</a></div>
+</article>
+<article class="item" id="issue-3639">
+<h2><span class="tier C">C</span>bundleExtension &#39;bundles on different caches do not wait for each other&#39; test fails under CPU load</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T20:34:16.044Z">2026-10-19T20:34:16.044Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3639" rel="noopener">lab#3639</a></div>
+</article>
+<article class="item" id="issue-3638">
+<h2><span class="tier C">C</span>workflow run --detach integration test fails under load: the run finishes before the test attaches</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T20:29:04.512Z">2026-10-19T20:29:04.512Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3638" rel="noopener">lab#3638</a></div>
+</article>
+<article class="item" id="issue-3637">
 <h2><span class="tier C">C</span>extension push: rewrite bare imports in the shipped source to their import-map specifiers</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-19T20:17:14.568Z">2026-10-19T20:17:14.568Z</time></span></div>
@@ -6262,13 +6318,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>774 items across 1 source(s) in this window:
-1 critical, 549 notable, 15 routine,
-209 minor.</p>
-<ul><li><strong>issues</strong> — 774</li></ul></section>
+<p>781 items across 1 source(s) in this window:
+1 critical, 550 notable, 14 routine,
+216 minor.</p>
+<ul><li><strong>issues</strong> — 781</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-19T20:20:03.307Z">2026-10-19T20:20:03.307Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-19T21:03:54.666Z">2026-10-19T21:03:54.666Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

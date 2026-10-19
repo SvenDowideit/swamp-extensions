@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3415"><span class="tier A">A</span>Docs: dependency trust reports unaudited dependencies (follo</a><a href="#issue-3588"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3586"><span class="tier A">A</span>v3 outbox: a reported failure can land, a commit can name a </a><a href="#issue-3577"><span class="tier A">A</span>[nit] swamp issue search: invalid --type/--status/--limit re</a><a href="#issue-3463"><span class="tier A">A</span>auth whoami: log mode labels collectives Free and shows tria</a><a href="#issue-3174"><span class="tier A">A</span>swamp-extensions CI: Review Integrity audit stalls silently </a><a href="#issue-3564"><span class="tier A">A</span>v3: writer liveness is judged wrong: a same-hostname contain</a><a href="#issue-3572"><span class="tier A">A</span>agent-runner and deno-runner: support Windows (both refuse t</a><a href="#issue-3565"><span class="tier A">A</span>v3 replication: check a possible S1 in serve&#39;s retake, fix s</a><a href="#issue-3567"><span class="tier A">A</span>Enforce the minimum S3/GCS extension version for v3 bucket d</a><a href="#issue-3570"><span class="tier A">A</span>agent-runner: an effort argument next to model (claude --eff</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3516"><span class="tier A">A</span>swamp multi-model-eval: install promptfoo without optional d</a><a href="#issue-3574"><span class="tier A">A</span>Worker writes drop writeResource/createFileWriter overrides </a><a href="#issue-3575"><span class="tier A">A</span>worker daemon enable has no --ca-cert or --concurrency (work</a><a href="#issue-3415"><span class="tier A">A</span>Docs: dependency trust reports unaudited dependencies (follo</a><a href="#issue-3588"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3586"><span class="tier A">A</span>v3 outbox: a reported failure can land, a commit can name a </a><a href="#issue-3577"><span class="tier A">A</span>[nit] swamp issue search: invalid --type/--status/--limit re</a><a href="#issue-3463"><span class="tier A">A</span>auth whoami: log mode labels collectives Free and shows tria</a><a href="#issue-3174"><span class="tier A">A</span>swamp-extensions CI: Review Integrity audit stalls silently </a><a href="#issue-3564"><span class="tier A">A</span>v3: writer liveness is judged wrong: a same-hostname contain</a><a href="#issue-3572"><span class="tier A">A</span>agent-runner and deno-runner: support Windows (both refuse t</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,30 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3516">
+<h2><span class="tier A">A</span>swamp multi-model-eval: install promptfoo without optional dependencies to save ~900 MB of disk</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-19T16:08:45.857Z">2026-10-19T16:08:45.857Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3516" rel="noopener">lab#3516</a></div>
+</article>
+<article class="item" id="issue-3574">
+<h2><span class="tier A">A</span>Worker writes drop writeResource/createFileWriter overrides (tags, lifetime, garbageCollection)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-19T16:03:09.220Z">2026-10-19T16:03:09.220Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3574" rel="noopener">lab#3574</a></div>
+</article>
+<article class="item" id="issue-3575">
+<h2><span class="tier A">A</span>worker daemon enable has no --ca-cert or --concurrency (worker connect has both)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-19T15:20:37.808Z">2026-10-19T15:20:37.808Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3575" rel="noopener">lab#3575</a></div>
 </article>
 <article class="item" id="issue-3415">
 <h2><span class="tier A">A</span>Docs: dependency trust reports unaudited dependencies (follows #3350)</h2>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3572" rel="noopener">lab#3572</a></div>
 </article>
-<article class="item" id="issue-3565">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3565">
 <h2><span class="tier A">A</span>v3 replication: check a possible S1 in serve&#39;s retake, fix serve wedging on a retake mid-replacement, and stop &#39;the next write replicates them&#39; being false (bug hunt group 2)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-17T00:18:47.566Z">2026-10-17T00:18:47.566Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3570" rel="noopener">lab#3570</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3041">
+<article class="item" id="issue-3041">
 <h2><span class="tier A">A</span>digitalocean codegen leaves an orphaned security_secret.ts model file after its endpoint left the spec</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-16T23:46:28.540Z">2026-10-16T23:46:28.540Z</time></span></div>
@@ -4309,61 +4333,77 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-3587">
+<h2><span class="tier B">B</span>v3: a crashed workflow run and its completed steps&#39; data are deleted by recovery before workflow recover or serve&#39;s reaper can see them (bug hunt group 6)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-19T16:17:08.319Z">2026-10-19T16:17:08.319Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3587" rel="noopener">lab#3587</a></div>
+</article>
+<article class="item" id="issue-3602">
+<h2><span class="tier B">B</span>Lab issue visibility: removing private status works, then label errors &quot;You are not in a private collective&quot;</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-19T16:16:28.945Z">2026-10-19T16:16:28.945Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3602" rel="noopener">lab#3602</a></div>
+</article>
+<article class="item" id="issue-3604">
+<h2><span class="tier B">B</span>worker daemon enable: an unreadable --ca-cert passes enable, and SWAMP_SERVE_EXTRA_HEADERS is silently dropped under sudo</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-19T16:15:19.916Z">2026-10-19T16:15:19.916Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3604" rel="noopener">lab#3604</a></div>
+</article>
 <article class="item" id="issue-3585">
 <h2><span class="tier B">B</span>Persisted resource redaction masks the vault key inside a sensitive field ref (data name containing a vault-resolved value), so readResource fails with Secret not found</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-19T15:02:39.559Z">2026-10-19T15:02:39.559Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-19T16:13:42.397Z">2026-10-19T16:13:42.397Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3585" rel="noopener">lab#3585</a></div>
 </article>
-<article class="item" id="issue-3516">
-<h2><span class="tier B">B</span>swamp multi-model-eval: install promptfoo without optional dependencies to save ~900 MB of disk</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-19T15:00:18.787Z">2026-10-19T15:00:18.787Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3516" rel="noopener">lab#3516</a></div>
-</article>
-<article class="item" id="issue-3575">
-<h2><span class="tier B">B</span>worker daemon enable has no --ca-cert or --concurrency (worker connect has both)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-19T14:58:31.046Z">2026-10-19T14:58:31.046Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3575" rel="noopener">lab#3575</a></div>
-</article>
-<article class="item" id="issue-3352">
-<h2><span class="tier B">B</span>extension push: audit the dependency versions the bundle actually ships (pinned facts, deno info resolution, JSR existence)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-19T14:57:58.400Z">2026-10-19T14:57:58.400Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3352" rel="noopener">lab#3352</a></div>
-</article>
-<article class="item" id="issue-3574">
-<h2><span class="tier B">B</span>Worker writes drop writeResource/createFileWriter overrides (tags, lifetime, garbageCollection)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-19T14:57:19.638Z">2026-10-19T14:57:19.638Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3574" rel="noopener">lab#3574</a></div>
-</article>
 <article class="item" id="issue-3597">
 <h2><span class="tier B">B</span>Add CLI command to remove a vault configuration</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-19T14:47:56.121Z">2026-10-19T14:47:56.121Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-19T16:05:14.744Z">2026-10-19T16:05:14.744Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3597" rel="noopener">lab#3597</a></div>
 </article>
-<article class="item" id="issue-3587">
-<h2><span class="tier B">B</span>v3: a crashed workflow run and its completed steps&#39; data are deleted by recovery before workflow recover or serve&#39;s reaper can see them (bug hunt group 6)</h2>
+<article class="item" id="issue-3605">
+<h2><span class="tier B">B</span>Public Lab issues missing from Lab contributions on user profile</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-19T16:05:00.230Z">2026-10-19T16:05:00.230Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3605" rel="noopener">lab#3605</a></div>
+</article>
+<article class="item" id="issue-3352">
+<h2><span class="tier B">B</span>extension push: audit the dependency versions the bundle actually ships (pinned facts, deno info resolution, JSR existence)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-19T14:46:03.560Z">2026-10-19T14:46:03.560Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-19T16:03:33.878Z">2026-10-19T16:03:33.878Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3587" rel="noopener">lab#3587</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3352" rel="noopener">lab#3352</a></div>
+</article>
+<article class="item" id="issue-3353">
+<h2><span class="tier B">B</span>Registry scorecard: audit the dependency version that ships, and JSR dependencies</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-19T16:00:25.454Z">2026-10-19T16:00:25.454Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3353" rel="noopener">lab#3353</a></div>
+</article>
+<article class="item" id="issue-3515">
+<h2><span class="tier B">B</span>swamp install.sh: holds three copies of the binary at once (~913 MB peak); delete the archive and move instead of copy</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-19T15:49:20.122Z">2026-10-19T15:49:20.122Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3515" rel="noopener">lab#3515</a></div>
 </article>
 <article class="item" id="issue-3389">
 <h2><span class="tier B">B</span>literal() output is refused in a direct step globalArgs, so foreign ${{ }} text has no escape there</h2>
@@ -4421,29 +4461,101 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3600">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3599">
+<h2><span class="tier C">C</span>Docs: worker daemon enable reference is missing --ca-cert, --concurrency and SWAMP_SERVE_EXTRA_HEADERS</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T16:14:52.387Z">2026-10-19T16:14:52.387Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3599" rel="noopener">lab#3599</a></div>
+</article>
+<article class="item" id="issue-3613">
+<h2><span class="tier C">C</span>extension push rewrites the author&#39;s deno.lock when bundling</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T15:53:09.614Z">2026-10-19T15:53:09.614Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3613" rel="noopener">lab#3613</a></div>
+</article>
+<article class="item" id="issue-3612">
+<h2><span class="tier C">C</span>extension push ignores deno.jsonc: findDenoConfig only looks for deno.json</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T15:53:08.388Z">2026-10-19T15:53:08.388Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3612" rel="noopener">lab#3612</a></div>
+</article>
+<article class="item" id="issue-3611">
+<h2><span class="tier C">C</span>extension push: dependencies named only through a deno.json import map are never audited</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T15:53:07.134Z">2026-10-19T15:53:07.134Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3611" rel="noopener">lab#3611</a></div>
+</article>
+<article class="item" id="issue-3610">
+<h2><span class="tier C">C</span>Docs: manual pages for push auditing the dependency version that ships (deprecated pin, loose specifier, JSR checks)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T15:53:05.992Z">2026-10-19T15:53:05.992Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3610" rel="noopener">lab#3610</a></div>
+</article>
+<article class="item" id="issue-3609">
+<h2><span class="tier C">C</span>Extension tarball analyzer ignores webhook entry points</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T15:36:53.331Z">2026-10-19T15:36:53.331Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3609" rel="noopener">lab#3609</a></div>
+</article>
+<article class="item" id="issue-3608">
+<h2><span class="tier C">C</span>Registry drops contentMetadata.extensions (method grafts) at confirm-push</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T15:36:48.874Z">2026-10-19T15:36:48.874Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3608" rel="noopener">lab#3608</a></div>
+</article>
+<article class="item" id="issue-3607">
+<h2><span class="tier C">C</span>Beta-stage extensions missing from publisher&#39;s profile Extensions pane</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T15:32:32.240Z">2026-10-19T15:32:32.240Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3607" rel="noopener">lab#3607</a></div>
+</article>
+<article class="item" id="issue-3606">
+<h2><span class="tier C">C</span>Workflow step dataOutputOverrides vaultName is accepted but silently dropped</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T15:27:12.470Z">2026-10-19T15:27:12.470Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3606" rel="noopener">lab#3606</a></div>
+</article>
+<article class="item" id="issue-3603">
+<h2><span class="tier C">C</span>Multi-model skill eval: gpt-5.4 and gemini jobs fail preflight every run (OpenAI credits exhausted, Google API key invalid)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T15:20:54.499Z">2026-10-19T15:20:54.499Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3603" rel="noopener">lab#3603</a></div>
+</article>
+<article class="item" id="issue-3601">
+<h2><span class="tier C">C</span>eval-skill-triggers ignores evals/promptfoo/package-lock.json, so promptfoo&#39;s transitive deps are not locked</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-19T15:11:09.665Z">2026-10-19T15:11:09.665Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3601" rel="noopener">lab#3601</a></div>
+</article>
+<article class="item" id="issue-3600">
 <h2><span class="tier C">C</span>local_source_failed drops the indexing error: a transient local extension failure leaves no cause (follow-up to 1672)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-19T15:02:15.823Z">2026-10-19T15:02:15.823Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3600" rel="noopener">lab#3600</a></div>
-</article>
-<article class="item" id="issue-3515">
-<h2><span class="tier C">C</span>swamp install.sh: holds three copies of the binary at once (~913 MB peak); delete the archive and move instead of copy</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-19T14:54:26.829Z">2026-10-19T14:54:26.829Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3515" rel="noopener">lab#3515</a></div>
-</article>
-<article class="item" id="issue-3599">
-<h2><span class="tier C">C</span>Docs: worker daemon enable reference is missing --ca-cert, --concurrency and SWAMP_SERVE_EXTRA_HEADERS</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-19T14:48:22.798Z">2026-10-19T14:48:22.798Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3599" rel="noopener">lab#3599</a></div>
 </article>
 <article class="item" id="issue-3581">
 <h2><span class="tier C">C</span>Explicit pinned host-key policy, argv exec, atomic copy, and agent-based identityContent</h2>
@@ -5060,14 +5172,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3354" rel="noopener">lab#3354</a></div>
-</article>
-<article class="item" id="issue-3353">
-<h2><span class="tier C">C</span>Registry scorecard: audit the dependency version that ships, and JSR dependencies</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-13T14:31:42.510Z">2026-10-13T14:31:42.510Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3353" rel="noopener">lab#3353</a></div>
 </article>
 <article class="item" id="issue-3344">
 <h2><span class="tier C">C</span>extensions_search index is never created if the first attempt fails, until the process restarts</h2>
@@ -5990,13 +6094,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>740 items across 1 source(s) in this window:
-1 critical, 529 notable, 14 routine,
-196 minor.</p>
-<ul><li><strong>issues</strong> — 740</li></ul></section>
+<p>753 items across 1 source(s) in this window:
+1 critical, 532 notable, 16 routine,
+204 minor.</p>
+<ul><li><strong>issues</strong> — 753</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-19T15:05:02.989Z">2026-10-19T15:05:02.989Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-19T16:20:51.484Z">2026-10-19T16:20:51.484Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

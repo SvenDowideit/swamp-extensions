@@ -67,15 +67,39 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3564"><span class="tier A">A</span>v3: writer liveness is judged wrong: a same-hostname contain</a><a href="#issue-3572"><span class="tier A">A</span>agent-runner and deno-runner: support Windows (both refuse t</a><a href="#issue-3565"><span class="tier A">A</span>v3 replication: check a possible S1 in serve&#39;s retake, fix s</a><a href="#issue-3567"><span class="tier A">A</span>Enforce the minimum S3/GCS extension version for v3 bucket d</a><a href="#issue-3570"><span class="tier A">A</span>agent-runner: an effort argument next to model (claude --eff</a><a href="#issue-3041"><span class="tier A">A</span>digitalocean codegen leaves an orphaned security_secret.ts m</a><a href="#issue-3231"><span class="tier A">A</span>vercel/projects update: always resends the unchanged project</a><a href="#issue-3534"><span class="tier A">A</span>Datastore rework Phase 4 E: v3 on S3 and GCS (solo mode): se</a><a href="#issue-3552"><span class="tier A">A</span>A --repo-dir or SWAMP_REPO_DIR through a symlink fails with </a><a href="#issue-3521"><span class="tier A">A</span>ensure_worktree on Windows: drive-letter paths are treated a</a><a href="#issue-3540"><span class="tier A">A</span>Cloudflare extensions reject account-owned API tokens: crede</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3577"><span class="tier A">A</span>[nit] swamp issue search: invalid --type/--status/--limit re</a><a href="#issue-3463"><span class="tier A">A</span>auth whoami: log mode labels collectives Free and shows tria</a><a href="#issue-3174"><span class="tier A">A</span>swamp-extensions CI: Review Integrity audit stalls silently </a><a href="#issue-3564"><span class="tier A">A</span>v3: writer liveness is judged wrong: a same-hostname contain</a><a href="#issue-3572"><span class="tier A">A</span>agent-runner and deno-runner: support Windows (both refuse t</a><a href="#issue-3565"><span class="tier A">A</span>v3 replication: check a possible S1 in serve&#39;s retake, fix s</a><a href="#issue-3567"><span class="tier A">A</span>Enforce the minimum S3/GCS extension version for v3 bucket d</a><a href="#issue-3570"><span class="tier A">A</span>agent-runner: an effort argument next to model (claude --eff</a><a href="#issue-3041"><span class="tier A">A</span>digitalocean codegen leaves an orphaned security_secret.ts m</a><a href="#issue-3231"><span class="tier A">A</span>vercel/projects update: always resends the unchanged project</a><a href="#issue-3534"><span class="tier A">A</span>Datastore rework Phase 4 E: v3 on S3 and GCS (solo mode): se</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
 <p class="lede">Security-related change</p>
-<div class="meta"><span><time datetime="2026-10-17T05:18:13.038Z">2026-10-17T05:18:13.038Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-19T13:50:49.316Z">2026-10-19T13:50:49.316Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3577">
+<h2><span class="tier A">A</span>[nit] swamp issue search: invalid --type/--status/--limit reach the API instead of being rejected locally</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-19T13:50:49.540Z">2026-10-19T13:50:49.540Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3577" rel="noopener">lab#3577</a></div>
+</article>
+<article class="item" id="issue-3463">
+<h2><span class="tier A">A</span>auth whoami: log mode labels collectives Free and shows trial expired for a superseded trial</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-19T13:31:31.678Z">2026-10-19T13:31:31.678Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3463" rel="noopener">lab#3463</a></div>
+</article>
+<article class="item" id="issue-3174">
+<h2><span class="tier A">A</span>swamp-extensions CI: Review Integrity audit stalls silently on a large trust-root change until Forgejo kills the job</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-19T13:21:09.308Z">2026-10-19T13:21:09.308Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3174" rel="noopener">lab#3174</a></div>
 </article>
 <article class="item" id="issue-3564">
 <h2><span class="tier A">A</span>v3: writer liveness is judged wrong: a same-hostname container takes over a live writer, a stalled writer&#39;s file is reverted then committed, and a fenced retention pass rewinds the new writer (bug hunt group 1)</h2>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3534" rel="noopener">lab#3534</a></div>
 </article>
-<article class="item" id="issue-3552">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3552">
 <h2><span class="tier A">A</span>A --repo-dir or SWAMP_REPO_DIR through a symlink fails with &#39;unable to open database file&#39;</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-16T22:55:23.010Z">2026-10-16T22:55:23.010Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3540" rel="noopener">lab#3540</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3543">
+<article class="item" id="issue-3543">
 <h2><span class="tier A">A</span>@swamp/1password: vault delete of a missing item probably fails instead of being a no-op</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-16T22:22:34.089Z">2026-10-16T22:22:34.089Z</time></span></div>
@@ -4263,19 +4287,19 @@ footer .ver{color:var(--acc)}
 </article>
 <article class="item" id="issue-3586">
 <h2><span class="tier B">B</span>v3 outbox: a reported failure can land, a commit can name a deleted chunk, and a fenced writer is told nothing landed when it did (bug hunt group 3)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-17T22:13:11.998Z">2026-10-17T22:13:11.998Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-19T14:00:28.210Z">2026-10-19T14:00:28.210Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3586" rel="noopener">lab#3586</a></div>
 </article>
-<article class="item" id="issue-3463">
-<h2><span class="tier B">B</span>auth whoami: log mode labels collectives Free and shows trial expired for a superseded trial</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-16T00:39:30.673Z">2026-10-16T00:39:30.673Z</time></span></div>
+<article class="item" id="issue-3585">
+<h2><span class="tier B">B</span>Persisted resource redaction masks the vault key inside a sensitive field ref (data name containing a vault-resolved value), so readResource fails with Secret not found</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-19T13:58:25.567Z">2026-10-19T13:58:25.567Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3463" rel="noopener">lab#3463</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3585" rel="noopener">lab#3585</a></div>
 </article>
 <article class="item" id="issue-3415">
 <h2><span class="tier B">B</span>Docs: dependency trust reports unaudited dependencies (follows #3350)</h2>
@@ -4365,14 +4389,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3587" rel="noopener">lab#3587</a></div>
 </article>
-<article class="item" id="issue-3585">
-<h2><span class="tier C">C</span>Persisted resource redaction masks the vault key inside a sensitive field ref (data name containing a vault-resolved value), so readResource fails with Secret not found</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-17T18:24:02.789Z">2026-10-17T18:24:02.789Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3585" rel="noopener">lab#3585</a></div>
-</article>
 <article class="item" id="issue-3581">
 <h2><span class="tier C">C</span>Explicit pinned host-key policy, argv exec, atomic copy, and agent-based identityContent</h2>
 <p class="lede">Open issue</p>
@@ -4444,14 +4460,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2344" rel="noopener">lab#2344</a></div>
-</article>
-<article class="item" id="issue-3577">
-<h2><span class="tier C">C</span>[nit] swamp issue search: invalid --type/--status/--limit reach the API instead of being rejected locally</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-17T05:18:15.678Z">2026-10-17T05:18:15.678Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3577" rel="noopener">lab#3577</a></div>
 </article>
 <article class="item" id="issue-3575">
 <h2><span class="tier C">C</span>worker daemon enable has no --ca-cert or --concurrency (worker connect has both)</h2>
@@ -4604,14 +4612,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3399" rel="noopener">lab#3399</a></div>
-</article>
-<article class="item" id="issue-3174">
-<h2><span class="tier C">C</span>swamp-extensions CI: Review Integrity audit stalls silently on a large trust-root change until Forgejo kills the job</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-16T00:35:04.473Z">2026-10-16T00:35:04.473Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3174" rel="noopener">lab#3174</a></div>
 </article>
 <article class="item" id="issue-2606">
 <h2><span class="tier C">C</span>A collective that cancels inside its 30-day trial window regains trial access to private extensions</h2>
@@ -5975,12 +5975,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>738 items across 1 source(s) in this window:
-1 critical, 523 notable, 10 routine,
-204 minor.</p>
+1 critical, 526 notable, 10 routine,
+201 minor.</p>
 <ul><li><strong>issues</strong> — 738</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-19T13:04:51.099Z">2026-10-19T13:04:51.099Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-19T14:04:35.475Z">2026-10-19T14:04:35.475Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

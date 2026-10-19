@@ -9500,7 +9500,109 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261016-185248-0-sha-9ea7a13e">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261019-135903-0-sha-ee24379d">
+<h2><span class="tier C">C</span>swamp 20261019.135903.0-sha.ee24379d</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-19T14:01:11Z">2026-10-19T14:01:11Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(tracing): model and workflow edit and delete spans record their target, and serve records the requesting principal (swamp-club#3593) (#3188)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp.model.edit</code> and <code>swamp.workflow.edit</code> spans carried no attributes, so an edit could not be traced back to the definition it changed. The delete spans carried only the raw id-or-name argument, and requests sent to serve always pass an id, so a delete span showed a bare UUID. No span recorded who sent a request to serve. Fixes swamp-club#3593, reported by @bixu.</p>
+<ul>
+<li><code>swamp.model.edit</code> and <code>swamp.model.delete</code> record <code>model.name</code>, <code>model.type</code> and <code>model.id</code> once the definition is found. The workflow spans record <code>workflow.name</code> and <code>workflow.id</code>. A renaming stdin or serve update also records <code>model.renamed_to</code> / <code>workflow.renamed_to</code>. A request whose target isn&#39;t found records none of these.</li>
+<li>The create, edit and delete spans for models and workflows record <code>auth.principal.id</code> (<code>kind:id</code>, the same attribute <code>swamp.serve.auth.mint</code> uses) when serve authenticated the request. The six serve handlers pass it to libswamp as an optional <code>principalId</code> input that is only recorded on the span; nothing authorizes on it. Local CLI runs and unauthenticated serve requests record no principal.</li>
+<li>A new <code>setActiveSpanAttributes</code> tracing helper sets attributes that are only known after a <code>withGeneratorSpan</code> has started.</li>
+<li>The tracing reference in the swamp skill lists the new attributes.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit t</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261019.135903.0-sha.ee24379d" rel="noopener">release v20261019.135903.0-sha.ee24379d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ee24379d" rel="noopener">ee24379d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3188" rel="noopener">#3188</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261019-134922-0-sha-1f2f9b6e">
+<h2><span class="tier C">C</span>swamp 20261019.134922.0-sha.1f2f9b6e</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-19T13:51:31Z">2026-10-19T13:51:31Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(dashboard): the collapsed sidebar&#39;s Logout no longer reads as expand, and asks before logging out (swamp-club#3589) (#3187)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3589. In the collapsed sidebar rail, the Logout button showed only a bracket-and-arrow icon. Next to the collapsed rail it looked like &quot;expand sidebar&quot;, and one click revoked the session with no confirmation.</p>
+<ul>
+<li><strong>Icon:</strong> Logout now uses a power symbol, which doesn&#39;t point in any direction.</li>
+<li><strong>Hover label:</strong> hovering Logout in the collapsed rail now shows a &quot;Logout&quot; label straight away, the same tooltip nav items already have.</li>
+<li><strong>Two-step confirm:</strong> clicking Logout asks first, with <strong>Keep</strong> and <strong>Log out</strong> (<code>logout_confirm.ts</code>, which follows the existing <code>cancel_confirm.ts</code>).</li>
+<li>It shows inline in the expanded sidebar and the mobile drawer, and as a flyout beside the collapsed desktop rail. Only CSS decides which, because the saved collapsed setting stays on for phones.</li>
+<li>Keep sits where Logout was and takes focus, so a double-click or Enter backs out.</li>
+<li>Escape (on the confirm only; the page&#39;s own Escape doesn&#39;t run), a click outside, and toggling the rail all close it.</li>
+<li>When the rail scrolls, the flyout follows the Logout button.</li>
+</ul>
+<p>Logout itself (session revoke, socket close) is unchanged.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>logout_confirm_test.ts</code> covers every step and event pair: one click never logs out.</li>
+<li><code>Sidebar_test.tsx</code> checks the power icon replaced the old arrow, the Logout tooltip label, that Keep</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261019.134922.0-sha.1f2f9b6e" rel="noopener">release v20261019.134922.0-sha.1f2f9b6e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1f2f9b6e" rel="noopener">1f2f9b6e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3187" rel="noopener">#3187</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261019-134527-0-sha-09ccf900">
+<h2><span class="tier C">C</span>swamp 20261019.134527.0-sha.09ccf900</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-19T13:47:12Z">2026-10-19T13:47:12Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): issue bug/feature/security keep a --title given without --body, and issue search rejects an invalid --type, --status or --limit locally (swamp-club#3576, swamp-club#3577) (#3186)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3576 and swamp-club#3577, two issue-CLI input nits from the same reporter.</p>
+<p><strong>swamp-club#3576: <code>swamp issue bug|feature|security --title &lt;t&gt;</code> without <code>--body</code></strong></p>
+<ul>
+<li>Before: the editor opened with an empty Title section and the title was dropped. With <code>--json</code>, the error told you to pass <code>--title</code> although you had.</li>
+<li>Now: the editor opens with the title already in its Title section. With <code>--json</code>, the error is <code>--title requires --body with --json (interactive mode is not available).</code></li>
+<li>A title-only <code>--title</code> that the editor could not read back (starts with <code>#</code> or <code>&lt;</code>, or spans lines) is refused up front. Before, the report would have been cancelled and the typed body lost.</li>
+<li>Every other flag combination keeps its existing behaviour and error text. The decision lives in one helper, <code>resolveReportText</code> in <code>issue_submit.ts</code>, shared by all three commands.</li>
+</ul>
+<p><strong>swamp-club#3577: <code>swamp issue search</code> sent invalid filters to the server</strong></p>
+<ul>
+<li>Before: an unknown <code>--type</code> or <code>--status</code>, or a <code>--limit</code> below 1, went to the server and came back as a raw HTTP 400.</li>
+<li>Now: these values are refused before any request, in <code>issue edit</code>&#39;s style (<code>Invalid issue type &quot;bogus&quot;. Must be one of: ...</code>).</li>
+<li>The type list includes <code>platform</code>, which the Lab accepts as a search</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261019.134527.0-sha.09ccf900" rel="noopener">release v20261019.134527.0-sha.09ccf900</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/09ccf900" rel="noopener">09ccf900</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3186" rel="noopener">#3186</a>𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261019-132059-0-sha-5c80daec">
+<h2><span class="tier C">C</span>swamp 20261019.132059.0-sha.5c80daec</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-19T13:22:55Z">2026-10-19T13:22:55Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(auth): whoami log mode states each collective&#39;s standing instead of a Free plan (swamp-club#3463) (#3185)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp auth whoami</code> printed &quot;Free&quot; as the plan of every unpaid collective, a <code>Plan: Free</code> roll-up, and &quot;trial expired&quot; for a covered personal namespace. The web never shows Free as a plan and hides those trials. Fixes swamp-club#3463.</p>
+<p>Each collective now gets one standing cell after its padded slug:</p>
+<ul>
+<li>a plan other than free shows its name; a paid plan also shows its billing status, as before (<code>acme  Team  active</code>, <code>alice  Personal License</code>, <code>swamp  Admin</code>)</li>
+<li>a free collective shows its running trial (<code>trial: 20 days left (ends 2026-11-03)</code>), else <code>covered</code> when the registry&#39;s <code>privateExtensions</code> verdict allows it (only another collective can), else <code>trial ended</code>, else a bare slug</li>
+<li>the <code>Plan:</code> line is left out when the strongest plan is free</li>
+</ul>
+<p>Presentation only, in <code>src/presentation/renderers/auth_whoami.ts</code>. <code>--json</code>, the whoami schema and <code>entitlementsOf</code> are unchanged. Superseded and license-ended trials already arrive as <code>trial: null</code> since swamp-club#3503, and the <code>privateExtensions</code> verdict comes from swamp-club#3311. The arch test drops the plan-column <code>Math.max(...)</code> spread the change removed from its pinned list.</p>
+<p>Before, against production: <code>skunk-ape  Free   trial expired</code>. After: <code>skunk-ape  covered</code>.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Renderer unit tests for every row: paid with status, withheld status, Personal License, Admin, running tr</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261019.132059.0-sha.5c80daec" rel="noopener">release v20261019.132059.0-sha.5c80daec</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5c80daec" rel="noopener">5c80daec</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3185" rel="noopener">#3185</a>𝗔 <a href="https://swamp-club.com/lab/3463" rel="noopener">lab#3463</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261016-185248-0-sha-9ea7a13e">
 <h2><span class="tier C">C</span>typed-secrets Phase 1.2 pins for the Proxy-based Secret and its refusal inventory on cel-js 7.6.1 (swamp-club#3551) (#3170)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-16T18:54:46Z">2026-10-16T18:54:46Z</time></span><span>cel</span><span>test</span></div>
@@ -10016,13 +10118,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>412 items across 1 source(s) in this window:
+<p>416 items across 1 source(s) in this window:
 1 critical, 376 notable, 14 routine,
-21 minor.</p>
-<ul><li><strong>fix</strong> — 269</li><li><strong>feat</strong> — 107</li><li><strong>test</strong> — 12</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 10</li><li><strong>perf</strong> — 2</li></ul></section>
+25 minor.</p>
+<ul><li><strong>fix</strong> — 269</li><li><strong>feat</strong> — 107</li><li><strong>test</strong> — 12</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 10</li><li><strong>changes</strong> — 4</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-19T13:04:51.099Z">2026-10-19T13:04:51.099Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-19T14:04:35.475Z">2026-10-19T14:04:35.475Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

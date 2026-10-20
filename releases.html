@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261019-223708-0-sha-aa34965a"><span class="tier S">S</span>reserve the _swamp. tag prefix, so only vaulting writes _swa</a><a href="#release-swamp-club-swamp-v20261019-211141-0-sha-0a2856a9"><span class="tier S">S</span>datastore catalog pull stores only the pulled namespace&#39;s ro</a><a href="#release-swamp-club-swamp-v20261019-194443-0-sha-a7fc9351"><span class="tier S">S</span>method run masks sensitive argument values, and run and vali</a><a href="#release-swamp-club-swamp-v20261019-134527-0-sha-09ccf900"><span class="tier S">S</span>issue bug/feature/security keep a --title given without --bo</a><a href="#release-swamp-club-swamp-v20261015-222935-0-sha-852243ed"><span class="tier S">S</span>a checked-in inventory of every secret sink and boundary, wi</a><a href="#release-swamp-club-swamp-v20261019-220941-0-sha-dbcd9639"><span class="tier A">A</span>vary instances vault sensitive fields under their own key, s</a><a href="#release-swamp-club-swamp-v20261019-220239-0-sha-0be6263a"><span class="tier A">A</span>extension search --platform names OS/architecture ids, and t</a><a href="#release-swamp-club-swamp-v20261019-214045-0-sha-6dbc53eb"><span class="tier A">A</span>the extension lockfile is the same on every OS, so a repo sh</a><a href="#release-swamp-club-swamp-v20261019-201211-0-sha-bf63b359"><span class="tier A">A</span>add typed vault.get with up-front reference checks (#3209)</a><a href="#release-swamp-club-swamp-v20261019-194837-0-sha-22349c50"><span class="tier A">A</span>token revoke tells an unknown token from an unknown collecti</a><a href="#release-swamp-club-swamp-v20261019-185019-0-sha-dc3fb7a5"><span class="tier A">A</span>typed-secrets 3.1: the production Secret, its refusals, the </a><a href="#release-swamp-club-swamp-v20261019-183348-0-sha-62b6ad42"><span class="tier A">A</span>writers warn about data names Windows cannot store, and refu</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261019-223708-0-sha-aa34965a"><span class="tier S">S</span>reserve the _swamp. tag prefix, so only vaulting writes _swa</a><a href="#release-swamp-club-swamp-v20261019-211141-0-sha-0a2856a9"><span class="tier S">S</span>datastore catalog pull stores only the pulled namespace&#39;s ro</a><a href="#release-swamp-club-swamp-v20261019-194443-0-sha-a7fc9351"><span class="tier S">S</span>method run masks sensitive argument values, and run and vali</a><a href="#release-swamp-club-swamp-v20261019-134527-0-sha-09ccf900"><span class="tier S">S</span>issue bug/feature/security keep a --title given without --bo</a><a href="#release-swamp-club-swamp-v20261015-222935-0-sha-852243ed"><span class="tier S">S</span>a checked-in inventory of every secret sink and boundary, wi</a><a href="#release-swamp-club-swamp-v20261020-005951-0-sha-d446291b"><span class="tier A">A</span>push audits dependencies a bare import reaches through the d</a><a href="#release-swamp-club-swamp-v20261019-234300-0-sha-270eb2fe"><span class="tier A">A</span>push and quality never rewrite the extension&#39;s deno.lock; a </a><a href="#release-swamp-club-swamp-v20261019-220941-0-sha-dbcd9639"><span class="tier A">A</span>vary instances vault sensitive fields under their own key, s</a><a href="#release-swamp-club-swamp-v20261019-220239-0-sha-0be6263a"><span class="tier A">A</span>extension search --platform names OS/architecture ids, and t</a><a href="#release-swamp-club-swamp-v20261019-214045-0-sha-6dbc53eb"><span class="tier A">A</span>the extension lockfile is the same on every OS, so a repo sh</a><a href="#release-swamp-club-swamp-v20261019-201211-0-sha-bf63b359"><span class="tier A">A</span>add typed vault.get with up-front reference checks (#3209)</a><a href="#release-swamp-club-swamp-v20261019-194837-0-sha-22349c50"><span class="tier A">A</span>token revoke tells an unknown token from an unknown collecti</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20261019-223708-0-sha-aa34965a">
 <h2><span class="tier S">S</span>reserve the _swamp. tag prefix, so only vaulting writes _swamp.sensitiveFields (swamp-club#3635) (#3214)</h2>
@@ -186,6 +186,46 @@ footer .ver{color:var(--acc)}
 </ul></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.222935.0-sha.852243ed" rel="noopener">release v20261015.222935.0-sha.852243ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/852243edf2e7c999e8f4f08c9f54f4e18575c9ff" rel="noopener">852243ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3152" rel="noopener">#3152</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261020-005951-0-sha-d446291b">
+<h2><span class="tier A">A</span>push audits dependencies a bare import reaches through the deno.json import map (swamp-club#3611) (#3217)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T01:02:01Z">2026-10-20T01:02:01Z</time></span><span>extensions</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(extensions): push audits dependencies a bare import reaches through the deno.json import map (swamp-club#3611) (#3217)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3611. The dependency trust audit in push (swamp-club#3352) only picked up <code>npm:</code> and <code>jsr:</code> specifiers written out in source. A bare import mapped through the project <code>deno.json</code> (<code>import ms from &quot;ms&quot;</code> with <code>&quot;ms&quot;: &quot;npm:ms@2.1.3&quot;</code>) was bundled and shipped, but never audited.</p>
+<p>Push and quality now resolve each bare import the source uses through the same import map the bundler reads (<code>readImportMap</code>, JSON only, no Deno CLI), then audit the target with the existing pipeline. A mapped import blocks or warns exactly as it would written out, and it blocks straight away.</p>
+<ul>
+<li><strong>Resolution matches Deno.</strong> An exact key wins, then the longest <code>key/</code> prefix. A key mapped to an <code>npm:</code>/<code>jsr:</code> package also covers its subpaths (<code>&quot;@std/path&quot;</code> resolves <code>@std/path/posix</code>) unless the map has its own <code>key/</code> entry. A <code>key/</code> target written <code>npm:/name@v/</code> is read as <code>npm:name@v</code>. All of this was checked against <code>deno info</code>. Only imports the source uses are resolved, so unused map entries are never audited.</li>
+<li><strong>Only real imports.</strong> A quoted specifier counts only in import position: after an import/export clause ending in <code>from</code>, after a side-effect <code>import</code>, or inside <code>import(</code>. Comments and template literals are blanked first, so import text inside a string, comment or template literal is never audited.</li>
+<li><strong>Naming.</strong> A finding&#39;s</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.005951.0-sha.d446291b" rel="noopener">release v20261020.005951.0-sha.d446291b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d446291b3e0bbb14e717f5c768d31c1261166340" rel="noopener">d446291b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3217" rel="noopener">#3217</a>𝗔 <a href="https://swamp-club.com/lab/3611" rel="noopener">lab#3611</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261019-234300-0-sha-270eb2fe">
+<h2><span class="tier A">A</span>push and quality never rewrite the extension&#39;s deno.lock; a stale lock is refused with the command that fixes it (swamp-club#3613) (#3216)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-19T23:44:47Z">2026-10-19T23:44:47Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): push and quality never rewrite the extension&#39;s deno.lock; a stale lock is refused with the command that fixes it (swamp-club#3613) (#3216)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3613. <code>extension push</code> and <code>extension quality</code> ran <code>deno info</code> and <code>deno bundle</code> with the project&#39;s deno.json (or package.json) and Deno&#39;s default lock handling. When the lock no longer satisfied a specifier, Deno silently rewrote it in the author&#39;s working tree, and a project without a lock got a new one.</p>
+<p>Both commands now treat the author&#39;s lockfile as read-only:</p>
+<ul>
+<li>When the lock the bundler honours exists, they run with <code>--frozen</code>. A stale lock fails with an error that names the lock and the config, says that push and quality never rewrite it, and gives the fix: <code>deno install --entrypoint &lt;file&gt;</code>, run in the project directory, then commit the lock. Deno&#39;s own <code>changes:</code> list follows the message.</li>
+<li>When there is no lock, they run with <code>--no-lock</code>, so no lock is created.</li>
+<li>Local model loading, serve reload and <code>extension fmt</code> keep Deno&#39;s default behaviour.</li>
+</ul>
+<p><strong>Why <code>--frozen</code> and not bundling against a copy:</strong> the dependency audit (swamp-club#3352) reads exact versions from deno.lock. With <code>--frozen</code>, the lock it reads is exactly what ships. Bundling against a copy would ship versions the committed lock doesn&#39;t record. <code>--frozen</code> is also the smaller change and adds no new Deno-specific machinery.</p>
+<p>Push and quality share the same path, so a stale lock is a hard failure in b</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/references/publishing.md" rel="noopener">.claude/skills/swamp/references/extension-publish/references/publishing.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261019.234300.0-sha.270eb2fe" rel="noopener">release v20261019.234300.0-sha.270eb2fe</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/270eb2fe6aa031eab6589d7c0dff7201ef9b7bf8" rel="noopener">270eb2fe</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3216" rel="noopener">#3216</a>𝗔 <a href="https://swamp-club.com/lab/3613" rel="noopener">lab#3613</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261019-220941-0-sha-dbcd9639">
 <h2><span class="tier A">A</span>vary instances vault sensitive fields under their own key, so one no longer overwrites another&#39;s secret (swamp-club#3633) (#3213)</h2>
@@ -315,7 +355,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261019.194837.0-sha.22349c50" rel="noopener">release v20261019.194837.0-sha.22349c50</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/22349c50b936ba183cb0978d9c5555afbeccd7cb" rel="noopener">22349c50</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3208" rel="noopener">#3208</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2564" rel="noopener">#2564</a>𝗔 <a href="https://swamp-club.com/lab/3624" rel="noopener">lab#3624</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261019-185019-0-sha-dc3fb7a5">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261019-185019-0-sha-dc3fb7a5">
 <h2><span class="tier A">A</span>typed-secrets 3.1: the production Secret, its refusals, the fault context, the container rule and the boundary conversion, behind the internal option (swamp-club#3619) (#3206)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-19T18:52:29Z">2026-10-19T18:52:29Z</time></span><span>cel</span><span>feat</span></div>
@@ -356,7 +396,7 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/api.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261019.183348.0-sha.62b6ad42" rel="noopener">release v20261019.183348.0-sha.62b6ad42</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/62b6ad429bf1d84a5504e5a896a900aaeac07e96" rel="noopener">62b6ad42</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3205" rel="noopener">#3205</a>𝗔 <a href="https://swamp-club.com/lab/3568" rel="noopener">lab#3568</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261019-181744-0-sha-3a61e2de">
+<article class="item" id="release-swamp-club-swamp-v20261019-181744-0-sha-3a61e2de">
 <h2><span class="tier A">A</span>swamp update on Windows stages the new binary beside swamp.exe before swapping, and deletes the archive once extracted (swamp-club#3621) (#3204)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-19T18:19:46Z">2026-10-19T18:19:46Z</time></span><span>update</span><span>fix</span></div>
@@ -10669,13 +10709,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>440 items across 1 source(s) in this window:
-5 critical, 400 notable, 14 routine,
+<p>442 items across 1 source(s) in this window:
+5 critical, 402 notable, 14 routine,
 21 minor.</p>
-<ul><li><strong>fix</strong> — 289</li><li><strong>feat</strong> — 115</li><li><strong>test</strong> — 12</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 10</li><li><strong>perf</strong> — 2</li></ul></section>
+<ul><li><strong>fix</strong> — 290</li><li><strong>feat</strong> — 116</li><li><strong>test</strong> — 12</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 10</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-20T01:04:54.845Z">2026-10-20T01:04:54.845Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-20T02:09:19.709Z">2026-10-20T02:09:19.709Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

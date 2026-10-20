@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3659"><span class="tier A">A</span>Windows CI: data_writer vary-suffix test writes a data name </a><a href="#issue-2573"><span class="tier A">A</span>S3 datastore rejects valid cache paths as traversal on Windo</a><a href="#issue-3656"><span class="tier A">A</span>Registry client: retry transient upstream failures with boun</a><a href="#issue-3654"><span class="tier A">A</span>Since #3569: Datastore UAT&#39;s extension install row and 17 Wi</a><a href="#issue-3652"><span class="tier A">A</span>ssh: follow-ups from #3581 review — master rekey vs per-call</a><a href="#issue-3611"><span class="tier A">A</span>extension push: dependencies named only through a deno.json </a><a href="#issue-3581"><span class="tier A">A</span>Explicit pinned host-key policy, argv exec, atomic copy, and</a><a href="#issue-3582"><span class="tier A">A</span>dns_records lookup: distinguish no-match from API/auth/netwo</a><a href="#issue-3613"><span class="tier A">A</span>extension push rewrites the author&#39;s deno.lock when bundling</a><a href="#issue-3584"><span class="tier A">A</span>kubernetes/secret: idempotent ensure method and a metadata-o</a><a href="#issue-3648"><span class="tier A">A</span>codegen/vercel: union (oneOf) read responses produce id-only</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3637"><span class="tier A">A</span>extension push: rewrite bare imports in the shipped source t</a><a href="#issue-3672"><span class="tier A">A</span>Flaky: probeStartServer &#39;a closed port is dead&#39; gets unknown</a><a href="#issue-3668"><span class="tier A">A</span>Flaky test: lock hand-off timeout test times out in its own </a><a href="#issue-3638"><span class="tier A">A</span>workflow run --detach integration test fails under load: the</a><a href="#issue-3667"><span class="tier A">A</span>Skill trigger evals run through claude -p so verify-skills w</a><a href="#issue-3626"><span class="tier A">A</span>typed-secrets 3.3: sensitive-field accessors, data-origin se</a><a href="#issue-3653"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3661"><span class="tier A">A</span>Dashboard: a hidden tab keeps polling and re-rendering (heal</a><a href="#issue-3655"><span class="tier A">A</span>On Windows, extension pull and rm report paths with mixed se</a><a href="#issue-3659"><span class="tier A">A</span>Windows CI: data_writer vary-suffix test writes a data name </a><a href="#issue-2573"><span class="tier A">A</span>S3 datastore rejects valid cache paths as traversal on Windo</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,78 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3637">
+<h2><span class="tier A">A</span>extension push: rewrite bare imports in the shipped source to their import-map specifiers</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-20T17:13:09.607Z">2026-10-20T17:13:09.607Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3637" rel="noopener">lab#3637</a></div>
+</article>
+<article class="item" id="issue-3672">
+<h2><span class="tier A">A</span>Flaky: probeStartServer &#39;a closed port is dead&#39; gets unknown under the parallel test run</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-20T17:02:29.734Z">2026-10-20T17:02:29.734Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3672" rel="noopener">lab#3672</a></div>
+</article>
+<article class="item" id="issue-3668">
+<h2><span class="tier A">A</span>Flaky test: lock hand-off timeout test times out in its own setup under load</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-20T17:02:29.542Z">2026-10-20T17:02:29.542Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3668" rel="noopener">lab#3668</a></div>
+</article>
+<article class="item" id="issue-3638">
+<h2><span class="tier A">A</span>workflow run --detach integration test fails under load: the run finishes before the test attaches</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-20T17:02:29.352Z">2026-10-20T17:02:29.352Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3638" rel="noopener">lab#3638</a></div>
+</article>
+<article class="item" id="issue-3667">
+<h2><span class="tier A">A</span>Skill trigger evals run through claude -p so verify-skills works on a subscription login</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-20T16:54:04.726Z">2026-10-20T16:54:04.726Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3667" rel="noopener">lab#3667</a></div>
+</article>
+<article class="item" id="issue-3626">
+<h2><span class="tier A">A</span>typed-secrets 3.3: sensitive-field accessors, data-origin sentinels and reference validation</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-20T16:48:36.984Z">2026-10-20T16:48:36.984Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3626" rel="noopener">lab#3626</a></div>
+</article>
+<article class="item" id="issue-3653">
+<h2><span class="tier A">A</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-20T16:40:19.039Z">2026-10-20T16:40:19.039Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3653" rel="noopener">lab#3653</a></div>
+</article>
+<article class="item" id="issue-3661">
+<h2><span class="tier A">A</span>Dashboard: a hidden tab keeps polling and re-rendering (health stream, live run page)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-20T16:21:52.797Z">2026-10-20T16:21:52.797Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3661" rel="noopener">lab#3661</a></div>
+</article>
+<article class="item" id="issue-3655">
+<h2><span class="tier A">A</span>On Windows, extension pull and rm report paths with mixed separators</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-20T16:20:50.987Z">2026-10-20T16:20:50.987Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3655" rel="noopener">lab#3655</a></div>
 </article>
 <article class="item" id="issue-3659">
 <h2><span class="tier A">A</span>Windows CI: data_writer vary-suffix test writes a data name with a double quote, which #3568 refuses on Windows</h2>
@@ -93,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2573" rel="noopener">lab#2573</a></div>
 </article>
-<article class="item" id="issue-3656">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3656">
 <h2><span class="tier A">A</span>Registry client: retry transient upstream failures with bounded backoff and visible attempt progress</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-20T14:30:54.775Z">2026-10-20T14:30:54.775Z</time></span></div>
@@ -165,7 +237,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3648" rel="noopener">lab#3648</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3642">
+<article class="item" id="issue-3642">
 <h2><span class="tier A">A</span>v3 on S3/GCS: a fresh checkout whose restore from the replica fails reports an empty datastore and exits 0 (found by swamp-uat#715)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-19T23:24:15.878Z">2026-10-19T23:24:15.878Z</time></span></div>
@@ -4589,37 +4661,45 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3637">
-<h2><span class="tier B">B</span>extension push: rewrite bare imports in the shipped source to their import-map specifiers</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-20T16:13:43.750Z">2026-10-20T16:13:43.750Z</time></span></div>
+<article class="item" id="issue-3627">
+<h2><span class="tier B">B</span>typed-secrets 3.4: destination refusals, identifier stand-ins, shell safety and masking</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-20T17:14:27.919Z">2026-10-20T17:14:27.919Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3637" rel="noopener">lab#3637</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3627" rel="noopener">lab#3627</a></div>
 </article>
-<article class="item" id="issue-3661">
-<h2><span class="tier B">B</span>Dashboard: a hidden tab keeps polling and re-rendering (health stream, live run page)</h2>
+<article class="item" id="issue-3367">
+<h2><span class="tier B">B</span>codegen: AWS models emit CloudFormation patterns JavaScript cannot compile, so @swamp/aws/chime, glue and transfer fail to import</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-20T16:08:01.862Z">2026-10-20T16:08:01.862Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-20T17:14:00.872Z">2026-10-20T17:14:00.872Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3661" rel="noopener">lab#3661</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3367" rel="noopener">lab#3367</a></div>
 </article>
-<article class="item" id="issue-3626">
-<h2><span class="tier B">B</span>typed-secrets 3.3: sensitive-field accessors, data-origin sentinels and reference validation</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-20T16:05:20.644Z">2026-10-20T16:05:20.644Z</time></span></div>
+<article class="item" id="issue-3677">
+<h2><span class="tier B">B</span>extension push: the yanked-dependency warning names a version to move to, and dependency warnings appear in the Unresolved warnings summary</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-20T17:12:26.993Z">2026-10-20T17:12:26.993Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3626" rel="noopener">lab#3626</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3677" rel="noopener">lab#3677</a></div>
 </article>
-<article class="item" id="issue-3667">
-<h2><span class="tier B">B</span>Skill trigger evals run through claude -p so verify-skills works on a subscription login</h2>
+<article class="item" id="issue-3606">
+<h2><span class="tier B">B</span>Workflow step dataOutputOverrides vaultName is accepted but silently dropped</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-20T15:48:41.494Z">2026-10-20T15:48:41.494Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-20T16:58:38.848Z">2026-10-20T16:58:38.848Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3667" rel="noopener">lab#3667</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3606" rel="noopener">lab#3606</a></div>
+</article>
+<article class="item" id="issue-3617">
+<h2><span class="tier B">B</span>v3 local durability: chunks aren&#39;t fsynced before the commit naming them, so a power cut can wedge every checkout; torn writer and format markers don&#39;t heal (bug hunt group 4)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-20T16:52:04.438Z">2026-10-20T16:52:04.438Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3617" rel="noopener">lab#3617</a></div>
 </article>
 <article class="item" id="issue-3671">
 <h2><span class="tier B">B</span>S3 and GCS datastore test suites fail on Windows from test-harness path and loopback assumptions</h2>
@@ -4628,38 +4708,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3671" rel="noopener">lab#3671</a></div>
-</article>
-<article class="item" id="issue-3367">
-<h2><span class="tier B">B</span>codegen: AWS models emit CloudFormation patterns JavaScript cannot compile, so @swamp/aws/chime, glue and transfer fail to import</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-20T15:35:19.565Z">2026-10-20T15:35:19.565Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3367" rel="noopener">lab#3367</a></div>
-</article>
-<article class="item" id="issue-3655">
-<h2><span class="tier B">B</span>On Windows, extension pull and rm report paths with mixed separators</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-20T15:16:15.121Z">2026-10-20T15:16:15.121Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3655" rel="noopener">lab#3655</a></div>
-</article>
-<article class="item" id="issue-3653">
-<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-20T01:33:32.648Z">2026-10-20T01:33:32.648Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3653" rel="noopener">lab#3653</a></div>
-</article>
-<article class="item" id="issue-3617">
-<h2><span class="tier B">B</span>v3 local durability: chunks aren&#39;t fsynced before the commit naming them, so a power cut can wedge every checkout; torn writer and format markers don&#39;t heal (bug hunt group 4)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-20T01:16:45.221Z">2026-10-20T01:16:45.221Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3617" rel="noopener">lab#3617</a></div>
 </article>
 <article class="item" id="issue-3585">
 <h2><span class="tier B">B</span>Persisted resource redaction masks the vault key inside a sensitive field ref (data name containing a vault-resolved value), so readResource fails with Secret not found</h2>
@@ -4725,10 +4773,42 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3670">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3676">
+<h2><span class="tier C">C</span>extension push: a deno.json scopes entry can make push ship and audit a different version than the extension resolves</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-20T16:56:05.566Z">2026-10-20T16:56:05.566Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3676" rel="noopener">lab#3676</a></div>
+</article>
+<article class="item" id="issue-3675">
+<h2><span class="tier C">C</span>Docs: doctor datastores reference for the v3 content check and lost format marker repair</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-20T16:51:11.536Z">2026-10-20T16:51:11.536Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3675" rel="noopener">lab#3675</a></div>
+</article>
+<article class="item" id="issue-3674">
+<h2><span class="tier C">C</span>v3: chunk durability barrier costs a full drive-cache flush per command on macOS; use an ordering barrier</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-20T16:50:51.890Z">2026-10-20T16:50:51.890Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3674" rel="noopener">lab#3674</a></div>
+</article>
+<article class="item" id="issue-3673">
+<h2><span class="tier C">C</span>On Windows, v3 outbox tests time out on a writer lock held by a dead fake pid</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-20T16:43:06.294Z">2026-10-20T16:43:06.294Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3673" rel="noopener">lab#3673</a></div>
+</article>
+<article class="item" id="issue-3670">
 <h2><span class="tier C">C</span>codegen: BROKEN_REGEXES override for the @swamp/aws/invoicing InvoiceUnit name lacks the u flag, so it rejects ordinary names</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-20T15:35:03.686Z">2026-10-20T15:35:03.686Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-20T16:23:19.578Z">2026-10-20T16:23:19.578Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3670" rel="noopener">lab#3670</a></div>
@@ -4740,14 +4820,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3669" rel="noopener">lab#3669</a></div>
-</article>
-<article class="item" id="issue-3668">
-<h2><span class="tier C">C</span>Flaky test: lock hand-off timeout test times out in its own setup under load</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-20T15:22:20.140Z">2026-10-20T15:22:20.140Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3668" rel="noopener">lab#3668</a></div>
 </article>
 <article class="item" id="issue-3665">
 <h2><span class="tier C">C</span>Serve: execute independent webhook-triggered workflows concurrently</h2>
@@ -4893,14 +4965,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3639" rel="noopener">lab#3639</a></div>
 </article>
-<article class="item" id="issue-3638">
-<h2><span class="tier C">C</span>workflow run --detach integration test fails under load: the run finishes before the test attaches</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-19T20:29:04.512Z">2026-10-19T20:29:04.512Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3638" rel="noopener">lab#3638</a></div>
-</article>
 <article class="item" id="issue-3632">
 <h2><span class="tier C">C</span>extension push writes node_modules/.deno/ into the author&#39;s package.json project when bundling</h2>
 <p class="lede">Open issue</p>
@@ -4940,14 +5004,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3628" rel="noopener">lab#3628</a></div>
-</article>
-<article class="item" id="issue-3627">
-<h2><span class="tier C">C</span>typed-secrets 3.4: destination refusals, identifier stand-ins, shell safety and masking</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-19T19:29:41.797Z">2026-10-19T19:29:41.797Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3627" rel="noopener">lab#3627</a></div>
 </article>
 <article class="item" id="issue-3392">
 <h2><span class="tier C">C</span>Registry scorecard: dependency licenses follow the CLI&#39;s SPDX rules</h2>
@@ -5052,14 +5108,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3608" rel="noopener">lab#3608</a></div>
-</article>
-<article class="item" id="issue-3606">
-<h2><span class="tier C">C</span>Workflow step dataOutputOverrides vaultName is accepted but silently dropped</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-19T15:27:12.470Z">2026-10-19T15:27:12.470Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3606" rel="noopener">lab#3606</a></div>
 </article>
 <article class="item" id="issue-3583">
 <h2><span class="tier C">C</span>workflow resume --input reuses succeeded gate steps (and approvals) so a gated destructive step runs on a target its gate would reject</h2>
@@ -6478,13 +6526,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>801 items across 1 source(s) in this window:
-1 critical, 564 notable, 17 routine,
+<p>807 items across 1 source(s) in this window:
+1 critical, 573 notable, 14 routine,
 219 minor.</p>
-<ul><li><strong>issues</strong> — 801</li></ul></section>
+<ul><li><strong>issues</strong> — 807</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-20T16:17:22.379Z">2026-10-20T16:17:22.379Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-20T17:17:34.518Z">2026-10-20T17:17:34.518Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

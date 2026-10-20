@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3654"><span class="tier A">A</span>Since #3569: Datastore UAT&#39;s extension install row and 17 Wi</a><a href="#issue-3652"><span class="tier A">A</span>ssh: follow-ups from #3581 review — master rekey vs per-call</a><a href="#issue-3611"><span class="tier A">A</span>extension push: dependencies named only through a deno.json </a><a href="#issue-3581"><span class="tier A">A</span>Explicit pinned host-key policy, argv exec, atomic copy, and</a><a href="#issue-3582"><span class="tier A">A</span>dns_records lookup: distinguish no-match from API/auth/netwo</a><a href="#issue-3613"><span class="tier A">A</span>extension push rewrites the author&#39;s deno.lock when bundling</a><a href="#issue-3584"><span class="tier A">A</span>kubernetes/secret: idempotent ensure method and a metadata-o</a><a href="#issue-3648"><span class="tier A">A</span>codegen/vercel: union (oneOf) read responses produce id-only</a><a href="#issue-3642"><span class="tier A">A</span>v3 on S3/GCS: a fresh checkout whose restore from the replic</a><a href="#issue-3610"><span class="tier A">A</span>Docs: manual pages for push auditing the dependency version </a><a href="#issue-3569"><span class="tier A">A</span>Extension lockfile stores machine-local paths (OS separators</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3656"><span class="tier A">A</span>Registry client: retry transient upstream failures with boun</a><a href="#issue-3654"><span class="tier A">A</span>Since #3569: Datastore UAT&#39;s extension install row and 17 Wi</a><a href="#issue-3652"><span class="tier A">A</span>ssh: follow-ups from #3581 review — master rekey vs per-call</a><a href="#issue-3611"><span class="tier A">A</span>extension push: dependencies named only through a deno.json </a><a href="#issue-3581"><span class="tier A">A</span>Explicit pinned host-key policy, argv exec, atomic copy, and</a><a href="#issue-3582"><span class="tier A">A</span>dns_records lookup: distinguish no-match from API/auth/netwo</a><a href="#issue-3613"><span class="tier A">A</span>extension push rewrites the author&#39;s deno.lock when bundling</a><a href="#issue-3584"><span class="tier A">A</span>kubernetes/secret: idempotent ensure method and a metadata-o</a><a href="#issue-3648"><span class="tier A">A</span>codegen/vercel: union (oneOf) read responses produce id-only</a><a href="#issue-3642"><span class="tier A">A</span>v3 on S3/GCS: a fresh checkout whose restore from the replic</a><a href="#issue-3610"><span class="tier A">A</span>Docs: manual pages for push auditing the dependency version </a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3656">
+<h2><span class="tier A">A</span>Registry client: retry transient upstream failures with bounded backoff and visible attempt progress</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-20T14:30:54.775Z">2026-10-20T14:30:54.775Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3656" rel="noopener">lab#3656</a></div>
 </article>
 <article class="item" id="issue-3654">
 <h2><span class="tier A">A</span>Since #3569: Datastore UAT&#39;s extension install row and 17 Windows extension unit tests fail on every release</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3610" rel="noopener">lab#3610</a></div>
 </article>
-<article class="item" id="issue-3569">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3569">
 <h2><span class="tier A">A</span>Extension lockfile stores machine-local paths (OS separators, gitignored .swamp/ files, pulledAt), so a repo shared by Windows and Linux never stays clean</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-19T21:46:37.453Z">2026-10-19T21:46:37.453Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3569" rel="noopener">lab#3569</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3625">
+<article class="item" id="issue-3625">
 <h2><span class="tier A">A</span>typed-secrets 3.2: vault.get as a CEL function, bare-token rewriting, AST extraction and up-front existence checks</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-19T20:20:31.514Z">2026-10-19T20:20:31.514Z</time></span></div>
@@ -4565,21 +4573,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-3637">
+<h2><span class="tier B">B</span>extension push: rewrite bare imports in the shipped source to their import-map specifiers</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-20T14:59:56.736Z">2026-10-20T14:59:56.736Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3637" rel="noopener">lab#3637</a></div>
+</article>
+<article class="item" id="issue-3659">
+<h2><span class="tier B">B</span>Windows CI: data_writer vary-suffix test writes a data name with a double quote, which #3568 refuses on Windows</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-20T14:41:21.536Z">2026-10-20T14:41:21.536Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3659" rel="noopener">lab#3659</a></div>
+</article>
+<article class="item" id="issue-2573">
+<h2><span class="tier B">B</span>S3 datastore rejects valid cache paths as traversal on Windows</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-20T14:38:04.337Z">2026-10-20T14:38:04.337Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2573" rel="noopener">lab#2573</a></div>
+</article>
 <article class="item" id="issue-3655">
 <h2><span class="tier B">B</span>On Windows, extension pull and rm report paths with mixed separators</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-20T14:19:32.567Z">2026-10-20T14:19:32.567Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-20T14:34:21.099Z">2026-10-20T14:34:21.099Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3655" rel="noopener">lab#3655</a></div>
-</article>
-<article class="item" id="issue-3656">
-<h2><span class="tier B">B</span>Registry client: retry transient upstream failures with bounded backoff and visible attempt progress</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-20T14:15:34.666Z">2026-10-20T14:15:34.666Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3656" rel="noopener">lab#3656</a></div>
 </article>
 <article class="item" id="issue-3367">
 <h2><span class="tier B">B</span>codegen: AWS models emit CloudFormation patterns JavaScript cannot compile, so @swamp/aws/chime, glue and transfer fail to import</h2>
@@ -4588,14 +4612,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3367" rel="noopener">lab#3367</a></div>
-</article>
-<article class="item" id="issue-3637">
-<h2><span class="tier B">B</span>extension push: rewrite bare imports in the shipped source to their import-map specifiers</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-20T13:56:43.799Z">2026-10-20T13:56:43.799Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3637" rel="noopener">lab#3637</a></div>
 </article>
 <article class="item" id="issue-3653">
 <h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
@@ -4685,29 +4701,45 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3661">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3665">
+<h2><span class="tier C">C</span>Serve: execute independent webhook-triggered workflows concurrently</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-20T14:51:53.199Z">2026-10-20T14:51:53.199Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3665" rel="noopener">lab#3665</a></div>
+</article>
+<article class="item" id="issue-3664">
+<h2><span class="tier C">C</span>Docs: bare imports mapped by deno.json are rewritten on push and scored</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-20T14:33:14.366Z">2026-10-20T14:33:14.366Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3664" rel="noopener">lab#3664</a></div>
+</article>
+<article class="item" id="issue-3663">
+<h2><span class="tier C">C</span>vary/forEach object values with no key/name/id produce data names Windows refuses</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-20T14:28:02.411Z">2026-10-20T14:28:02.411Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3663" rel="noopener">lab#3663</a></div>
+</article>
+<article class="item" id="issue-3662">
+<h2><span class="tier C">C</span>Registry dependency audit: audit the version the bundle ships, not the registry&#39;s newest match for a range specifier</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-20T14:24:20.832Z">2026-10-20T14:24:20.832Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3662" rel="noopener">lab#3662</a></div>
+</article>
+<article class="item" id="issue-3661">
 <h2><span class="tier C">C</span>Dashboard: a hidden tab keeps polling and re-rendering (health stream, live run page)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-20T13:56:28.937Z">2026-10-20T13:56:28.937Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3661" rel="noopener">lab#3661</a></div>
-</article>
-<article class="item" id="issue-2573">
-<h2><span class="tier C">C</span>S3 datastore rejects valid cache paths as traversal on Windows</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-20T13:55:55.087Z">2026-10-20T13:55:55.087Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2573" rel="noopener">lab#2573</a></div>
-</article>
-<article class="item" id="issue-3659">
-<h2><span class="tier C">C</span>Windows CI: data_writer vary-suffix test writes a data name with a double quote, which #3568 refuses on Windows</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-20T13:55:38.822Z">2026-10-20T13:55:38.822Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3659" rel="noopener">lab#3659</a></div>
 </article>
 <article class="item" id="issue-3629">
 <h2><span class="tier C">C</span>registry scorecard reports dependency trust passed for versions with bare imports it cannot audit</h2>
@@ -6406,13 +6438,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>792 items across 1 source(s) in this window:
-1 critical, 561 notable, 15 routine,
-215 minor.</p>
-<ul><li><strong>issues</strong> — 792</li></ul></section>
+<p>796 items across 1 source(s) in this window:
+1 critical, 562 notable, 16 routine,
+217 minor.</p>
+<ul><li><strong>issues</strong> — 796</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-20T14:24:46.015Z">2026-10-20T14:24:46.015Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-20T15:04:35.611Z">2026-10-20T15:04:35.611Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

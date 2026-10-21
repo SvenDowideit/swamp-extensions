@@ -67,8 +67,51 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261019-223708-0-sha-aa34965a"><span class="tier S">S</span>reserve the _swamp. tag prefix, so only vaulting writes _swa</a><a href="#release-swamp-club-swamp-v20261019-211141-0-sha-0a2856a9"><span class="tier S">S</span>datastore catalog pull stores only the pulled namespace&#39;s ro</a><a href="#release-swamp-club-swamp-v20261019-194443-0-sha-a7fc9351"><span class="tier S">S</span>method run masks sensitive argument values, and run and vali</a><a href="#release-swamp-club-swamp-v20261019-134527-0-sha-09ccf900"><span class="tier S">S</span>issue bug/feature/security keep a --title given without --bo</a><a href="#release-swamp-club-swamp-v20261015-222935-0-sha-852243ed"><span class="tier S">S</span>a checked-in inventory of every secret sink and boundary, wi</a><a href="#release-swamp-club-swamp-v20261020-175130-0-sha-72af7c6c"><span class="tier A">A</span>a step&#39;s dataOutputOverrides vaultName routes its sensitive </a><a href="#release-swamp-club-swamp-v20261020-171730-0-sha-f469323c"><span class="tier A">A</span>v3 local durability: chunks are synced before a commit names</a><a href="#release-swamp-club-swamp-v20261020-170803-0-sha-b5ef0fea"><span class="tier A">A</span>push ships each bare import as its deno.json import-map targ</a><a href="#release-swamp-club-swamp-v20261020-164503-0-sha-b7790f66"><span class="tier A">A</span>skill trigger evals run through claude -p on a claude.ai log</a><a href="#release-swamp-club-swamp-v20261020-161252-0-sha-5621543f"><span class="tier A">A</span>typed-secrets 3.3: sensitive-field accessors return data-ori</a><a href="#release-swamp-club-swamp-v20261020-160840-0-sha-ecadc5b5"><span class="tier A">A</span>a hidden tab closes its health stream and stops the live-run</a><a href="#release-swamp-club-swamp-v20261020-144029-0-sha-674132e0"><span class="tier A">A</span>pull, update and rm report every path in the lockfile&#39;s / fo</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261020-194417-0-sha-130c7cb4"><span class="tier S">S</span>redact the remote worker&#39;s result error before the step leas</a><a href="#release-swamp-club-swamp-v20261020-192849-0-sha-a6c92702"><span class="tier S">S</span>serve and the worker redact a secret resolveSecret delivers </a><a href="#release-swamp-club-swamp-v20261019-223708-0-sha-aa34965a"><span class="tier S">S</span>reserve the _swamp. tag prefix, so only vaulting writes _swa</a><a href="#release-swamp-club-swamp-v20261019-211141-0-sha-0a2856a9"><span class="tier S">S</span>datastore catalog pull stores only the pulled namespace&#39;s ro</a><a href="#release-swamp-club-swamp-v20261019-194443-0-sha-a7fc9351"><span class="tier S">S</span>method run masks sensitive argument values, and run and vali</a><a href="#release-swamp-club-swamp-v20261019-134527-0-sha-09ccf900"><span class="tier S">S</span>issue bug/feature/security keep a --title given without --bo</a><a href="#release-swamp-club-swamp-v20261015-222935-0-sha-852243ed"><span class="tier S">S</span>a checked-in inventory of every secret sink and boundary, wi</a><a href="#release-swamp-club-swamp-v20261021-015131-0-sha-bfde0792"><span class="tier A">A</span>v3 materialised files keep their executable and private acce</a><a href="#release-swamp-club-swamp-v20261021-014525-0-sha-2c20f178"><span class="tier A">A</span>a fresh managedConfig checkout of an S3/GCS v3 datastore joi</a><a href="#release-swamp-club-swamp-v20261021-004732-0-sha-60564211"><span class="tier A">A</span>v3 namespace cache roots no longer collide with each other, </a><a href="#release-swamp-club-swamp-v20261021-003131-0-sha-764fd4d5"><span class="tier A">A</span>keep git commit ids and non-address colon runs out of issue </a><a href="#release-swamp-club-swamp-v20261021-000812-0-sha-2d4b4e97"><span class="tier A">A</span>a checkout holding v2 records is refused when it first joins</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261020-194417-0-sha-130c7cb4">
+<h2><span class="tier S">S</span>redact the remote worker&#39;s result error before the step lease and the step see it (swamp-club#3525) (#3237)</h2>
+<p class="lede">Security-related change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T19:46:29Z">2026-10-20T19:46:29Z</time></span><span>security</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(security): redact the remote worker&#39;s result error before the step lease and the step see it (swamp-club#3525) (#3237)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3525.</p>
+<p>When a remotely dispatched method threw, the runner put the raw message in the dispatch result&#39;s <code>error</code> field; only the result&#39;s console lines went through the dispatch redactor. Serve then passed that error to the step lease&#39;s <code>fail</code> transition and to the step&#39;s <code>Error</code>, so a secret in a thrown message reached a durable lease record, the run, serve logs and the worker console, even when the value was in the dispatch&#39;s <code>secretValues</code>.</p>
+<p>The error is now scrubbed on both hops:</p>
+<ul>
+<li><strong>Runner</strong> (<code>src/worker/exec_dispatch.ts</code>): the result&#39;s <code>error</code> goes through the same per-dispatch redactor as the console capture. <code>dispatchRedactor</code> in <code>src/worker/remote_method_context.ts</code> is now the one place the worker turns shipped <code>secretValues</code> into a <code>SecretRedactor</code>; the method context uses it, and the runner starts from it before the context exists, so a failure in bundle load or method lookup is scrubbed too.</li>
+<li><strong>Serve</strong> (<code>src/serve/dispatch_service.ts</code>): <code>result.error</code> is scrubbed with the dispatch&#39;s registered redactor before the lease <code>fail</code> record and the thrown <code>Error</code>. The registration&#39;s redactor is read at result time because #3235 (swamp-club#3527) grows it with every value <code>resolveSecret</code> delivers and creates it when the step shipped no secrets. A worker built before this fix still enrolls on the same</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.194417.0-sha.130c7cb4" rel="noopener">release v20261020.194417.0-sha.130c7cb4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/130c7cb43be27de2941afa9451381d715d969616" rel="noopener">130c7cb4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3237" rel="noopener">#3237</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3235" rel="noopener">#3235</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261020-192849-0-sha-a6c92702">
+<h2><span class="tier S">S</span>serve and the worker redact a secret resolveSecret delivers mid-dispatch (swamp-club#3527) (#3235)</h2>
+<p class="lede">Security-related change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T19:30:59Z">2026-10-20T19:30:59Z</time></span><span>security</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(security): serve and the worker redact a secret resolveSecret delivers mid-dispatch (swamp-club#3527) (#3235)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Serve built each dispatch&#39;s redactor once from the pre-dispatch <code>secretValues</code>, so a value <code>CapabilityService.resolveSecret</code> handed the worker afterwards was never added to it, and <code>POST /data/resource</code> stored that value verbatim. The worker&#39;s vault proxy had the same gap on the receiving side.</p>
+<ul>
+<li><strong>Serve:</strong> <code>CapabilityService.resolveSecret</code> registers the delivered value with the dispatch&#39;s redactor before the reply leaves, creating the redactor when the step shipped no pre-dispatch secrets. The data plane reads the registry entry on every resource write, so the next write is scrubbed.</li>
+<li><strong>Worker:</strong> the redactor is built before the vault proxy, and the proxy&#39;s <code>get</code> registers every value it receives, so output lines and console text leave the worker scrubbed. Annotation reads register nothing on either side.</li>
+<li>The output-protection baseline test now pins the fix instead of the disclosure, and <code>design/enablers/remote-execution.md</code> describes both redaction layers as they now behave.</li>
+</ul>
+<p>Out of scope, unchanged: the file-writer data-plane routes (documented known limit) and values a method writes with <code>putSecret</code>.</p>
+<p>Fixes swamp-club#3527.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit: three new <code>resolveSecret</code> cases in <code>src/serve/capability_service_test.ts</code> (value masked by an existing redactor, redactor created on the registry entry when none existed, annotati</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.192849.0-sha.a6c92702" rel="noopener">release v20261020.192849.0-sha.a6c92702</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a6c92702b090d676cd0acb3e8ad0111827624a2a" rel="noopener">a6c92702</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3235" rel="noopener">#3235</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261019-223708-0-sha-aa34965a">
 <h2><span class="tier S">S</span>reserve the _swamp. tag prefix, so only vaulting writes _swamp.sensitiveFields (swamp-club#3635) (#3214)</h2>
 <p class="lede">Security-related change · swamp-club/swamp</p>
@@ -186,6 +229,351 @@ footer .ver{color:var(--acc)}
 </ul></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.222935.0-sha.852243ed" rel="noopener">release v20261015.222935.0-sha.852243ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/852243edf2e7c999e8f4f08c9f54f4e18575c9ff" rel="noopener">852243ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3152" rel="noopener">#3152</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261021-015131-0-sha-bfde0792">
+<h2><span class="tier A">A</span>v3 materialised files keep their executable and private access in every checkout (swamp-club#3693) (#3254)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-21T01:53:30Z">2026-10-21T01:53:30Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): v3 materialised files keep their executable and private access in every checkout (swamp-club#3693) (#3254)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3693. On a v3 datastore a put recorded a file&#39;s bytes but not its mode, and the read model wrote every file through a temp file at the default mode. So:</p>
+<ul>
+<li>an output made executable arrived as 0644 in other checkouts;</li>
+<li>the writer&#39;s own small (inline-sized) files dropped to 0644 after its next command;</li>
+<li>a 0600 file widened to 0644 everywhere.</li>
+</ul>
+<p>What changed:</p>
+<ul>
+<li><strong>The put records a file access.</strong> It is <code>executable</code>, <code>private</code> or <code>private-executable</code>; a plain file records none. The writer takes it from the stat it already does when staging a data version&#39;s content file (<code>rawSource</code>). No full POSIX modes, owners or umask bits are recorded.</li>
+<li><strong>The read model applies it.</strong> The temp file gets its access before the rename, on all four write paths: a commit, the compacted base, the check after a reboot, and an unreadable record&#39;s retry. The mode is derived from what the checkout&#39;s umask gave the new file, so private never widens.</li>
+<li><strong>Kept files are corrected safely.</strong> A file the checkout-copy guard keeps for its bytes is rewritten through a temp file when its put records an access it lacks. It is never chmodded by path. Plain puts, including every commit made before this change, keep the file&#39;s mode as before.</li>
+<li><strong>The access is stored wherever the read model keeps a put&#39;s content.</strong></li>
+<li><code>commits.db</code> schema 7 (`b</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261021.015131.0-sha.bfde0792" rel="noopener">release v20261021.015131.0-sha.bfde0792</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bfde0792a242543ac6a86fef89dfd64838349cbc" rel="noopener">bfde0792</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3254" rel="noopener">#3254</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261021-014525-0-sha-2c20f178">
+<h2><span class="tier A">A</span>a fresh managedConfig checkout of an S3/GCS v3 datastore joins instead of being refused over the lockfile its extension install wrote (swamp-club#3696) (#3253)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-21T01:47:28Z">2026-10-21T01:47:28Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): a fresh managedConfig checkout of an S3/GCS v3 datastore joins instead of being refused over the lockfile its extension install wrote (swamp-club#3696) (#3253)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Regression of swamp-club#3690 (introduced in <code>20261021.000812.0</code>). A fresh checkout of a managedConfig repo on an S3 or GCS v3 datastore was refused on its first command. The datastore extension is auto-installed before the v3 join check runs, and under managedConfig that install writes <code>.swamp/config/upstream_extensions.json</code>. The join check counted that lockfile as a <code>config</code> record. Following the suggested <code>doctor datastores --repair -y</code> moved the lockfile aside for nothing, and the next command was refused again. All eight <code>s3-v3</code>/<code>gcs-v3</code> Datastore UAT shards failed for this reason.</p>
+<ul>
+<li><strong>The fix:</strong> a new <code>isJoinOwnFile</code> in <code>src/infrastructure/datastore_v3/v3_checkout_join.ts</code>. It exempts what <code>isCheckoutLocalKey</code> already exempts, plus exactly <code>config/upstream_extensions.json</code>. The join check (<code>preV3CheckoutRecordDirs</code>) and its repair move (<code>movePreV3CheckoutRecords</code>) both use it.</li>
+<li><strong>Crash recovery is untouched:</strong> <code>isCheckoutLocalKey</code> still decides what recovery removes. On v3 the lockfile is a committed config-tier record, so recovery must still be able to remove an uncommitted copy.</li>
+<li><strong>Real records are still refused:</strong> a checkout holding v2 definitions, vault configs or data is refused, as #3690 intended.</li>
+<li><strong>Single source for the file name:</strong> <code>LOCKFILE_NAME</code> is</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261021.014525.0-sha.2c20f178" rel="noopener">release v20261021.014525.0-sha.2c20f178</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2c20f178b1d6dcb68bbd3c76f3d63ad79e914f3b" rel="noopener">2c20f178</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3253" rel="noopener">#3253</a>𝗔 <a href="https://swamp-club.com/lab/3696" rel="noopener">lab#3696</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261021-004732-0-sha-60564211">
+<h2><span class="tier A">A</span>v3 namespace cache roots no longer collide with each other, the local tier, or swamp&#39;s own .swamp/ directories (swamp-club#3691) (#3251)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-21T00:49:16Z">2026-10-21T00:49:16Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): v3 namespace cache roots no longer collide with each other, the local tier, or swamp&#39;s own .swamp/ directories (swamp-club#3691) (#3251)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3691: on a v3 datastore, namespace cache roots (<code>.swamp/&lt;ns&gt;</code>, or <code>.swamp/</code> for the solo namespace) collided with each other, with a checkout&#39;s local tier, and with swamp&#39;s own <code>.swamp/</code> directories.</p>
+<ul>
+<li><strong>Cross-namespace reads (V3-04).</strong></li>
+<li><code>fromRow</code> no longer reads the reader&#39;s own path for a foreign row.</li>
+<li>A v3 local foreign-content fetcher, put in the existing <code>fetchForeignContent</code> slot, reads <code>v3CacheRoot(repo, row.namespace)</code>.</li>
+<li><code>data.latest(&quot;beta:m1&quot;, …)</code> in workflows, <code>data query</code> and <code>--select content</code> now return the other namespace&#39;s content.</li>
+<li>An unreadable foreign record now reports as unreadable rather than empty.</li>
+<li><strong>The local tier (V3-06, S1).</strong> The v3 read model no longer writes or indexes a solo- or own-namespace key that the checkout&#39;s <code>directories</code>/<code>exclude</code> keep local. It follows the existing refused-key path; catalog actions are dropped through <code>ProjectedCatalog</code>. Another checkout&#39;s commit can no longer overwrite local-only data.</li>
+<li><strong>Symlinked subdirectories (V3-25).</strong> A materialised subdirectory whose real path leaves its cache root is refused at v3 setup and open. Before, it wedged every catch-up.</li>
+<li><strong>Reserved names (V3-31, V3-32).</strong></li>
+<li>Every first-level <code>.swamp/</code> name swamp owns is reserved (<code>SWAMP_OWNED_DIR_NAMES</code>).</li>
+<li>A rules test guards the</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261021.004732.0-sha.60564211" rel="noopener">release v20261021.004732.0-sha.60564211</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/60564211b418a6476b77da23f65beb7f1a39d475" rel="noopener">60564211</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3251" rel="noopener">#3251</a>𝗔 <a href="https://swamp-club.com/lab/3691" rel="noopener">lab#3691</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261021-003131-0-sha-764fd4d5">
+<h2><span class="tier A">A</span>keep git commit ids and non-address colon runs out of issue redaction, and confirm redactions before posting (swamp-club#3686) (#3250)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-21T00:33:33Z">2026-10-21T00:33:33Z</time></span><span>issues</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(issues): keep git commit ids and non-address colon runs out of issue redaction, and confirm redactions before posting (swamp-club#3686) (#3250)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3686. <code>swamp issue</code> redaction replaced a 40-character commit id with <code>[REDACTED-SECRET-1]</code> and a fast-check replay path (<code>992:3:11:17:17:12</code>) with <code>[IP-1]</code>, destroying the reproduction data the report existed to carry, and posted without asking.</p>
+<ul>
+<li><strong>Git object ids</strong>: a 40 or 64 hex run right after a git word (<code>commit</code>, <code>sha</code>, <code>rev</code>, <code>git checkout/show/revert/cherry-pick/reset</code>, or a <code>/commit/</code>, <code>/commits/</code>, <code>/tree/</code>, <code>/blob/</code> URL segment) is kept. A secret label (<code>token</code>, <code>key</code>, <code>password</code>, <code>secret</code>, <code>auth</code>, <code>credential</code>, <code>signature</code>, <code>hmac</code>) in the 40 characters before it still forces redaction, as does any other length or a bare value.</li>
+<li><strong>IPv6</strong>: each colon-joined token is judged per run of hex groups between word parts. A run is an address with eight or more groups, a <code>::</code>, an embedded IPv4 tail, or six consecutive two-hex groups (MAC). Replay paths, timestamps, <code>::</code> code paths (<code>std::collections</code>, <code>AWS::EC2::VPC</code>) and all-zero runs (passwd fields) are kept; labels (<code>remote_addr:</code>, <code>peer:addr:</code>) stay outside the placeholder; addresses with a port, a message colon, or a unit stuck on the end are redacted whole.</li>
+<li><strong>Confirmation</strong>: in log mode on an interactive terminal, when anything was redacted, <code>issue bug|feature|security|edit|ripple</code> (and the extension-repository handoff)</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261021.003131.0-sha.764fd4d5" rel="noopener">release v20261021.003131.0-sha.764fd4d5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/764fd4d53cd5319dfa1e6fbcf648223324e696ce" rel="noopener">764fd4d5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3250" rel="noopener">#3250</a>𝗔 <a href="https://swamp-club.com/lab/3686" rel="noopener">lab#3686</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261021-000812-0-sha-2d4b4e97">
+<h2><span class="tier A">A</span>a checkout holding v2 records is refused when it first joins a v3 datastore, and doctor datastores --repair moves them aside (swamp-club#3690) (#3249)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-21T00:10:10Z">2026-10-21T00:10:10Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): a checkout holding v2 records is refused when it first joins a v3 datastore, and doctor datastores --repair moves them aside (swamp-club#3690) (#3249)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3690 (V3-18, S2). A teammate joins a v3 datastore by pulling the committed <code>.swamp.yaml</code> that says <code>format: 3</code>. That path never ran setup&#39;s &quot;a v3 datastore starts empty&quot; check. A checkout whose <code>.swamp/</code> already held v2 records therefore caught up over them:</p>
+<ul>
+<li>its own versions were overwritten;</li>
+<li>versions that no commit holds stayed readable;</li>
+<li><code>data list</code> and <code>data versions</code> disagreed;</li>
+<li>its next write left the other checkouts with a gap in their version history, permanently.</li>
+</ul>
+<ul>
+<li><strong>Join check.</strong> The first v3 open of a checkout runs setup&#39;s records check. A first open is one with no <code>_read_model_v3</code> state yet. The check is shared from <code>src/infrastructure/persistence/datastore_records.ts</code>, and it skips the files v3 treats as the checkout&#39;s own: pulled extension sources, dot-prefixed locks and indexes, and run logs. A checkout that holds records is refused with <code>v3_checkout_holds_records</code> before any lease, copy restore, catch-up or write. The check runs in <code>resolveDatastoreForRepo</code> right after the format guard. <code>holdV3Writer</code> and <code>v3RepositoryFactoryConfig</code> run it too. Once v3 state exists, the check is a single file lookup.</li>
+<li><strong>Repair.</strong> <code>swamp doctor datastores --repair</code> previews the move, and <code>-y</code> moves the record files into `.swamp/pre-v3-records/&lt;stamp&gt;-&lt;suff</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261021.000812.0-sha.2d4b4e97" rel="noopener">release v20261021.000812.0-sha.2d4b4e97</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2d4b4e970e2a2fce646cef0df21b8af4e7b99d62" rel="noopener">2d4b4e97</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3249" rel="noopener">#3249</a>𝗔 <a href="https://swamp-club.com/lab/3690" rel="noopener">lab#3690</a></div>
+</article>
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261020-231557-0-sha-bc7bbaa6">
+<h2><span class="tier A">A</span>authorize vault references in remote workflow steps (swamp-club#3529) (#3248)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T23:18:07Z">2026-10-20T23:18:07Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): authorize vault references in remote workflow steps (swamp-club#3529) (#3248)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Workflow arguments reach remote dispatch after <code>vault.get()</code> expressions have been resolved, leaving the secret allowlist empty. Remote steps consequently reject secret reads their arguments authorize. Preserve those references through argument resolution so remote steps can resolve the secrets they use.</p>
+<ul>
+<li>Carry method and global argument references into each dispatch&#39;s allowlist while retaining support for literal expressions from direct callers.</li>
+<li>Allow remote reads of sensitive resource fields through optional name/version claims. Verify the stored record&#39;s ownership, writer version, reference shape, path containment, and content checksum before granting access; retain vault scope and denylist enforcement.</li>
+<li>Harden sensitive resource writes against dotted-key collisions and redaction collisions. Validate the final serialized references before committing vault values so rejected updates preserve the previous resource and secrets.</li>
+<li>Document the behavior and cover it with unit, property, and integration regressions. Retain the existing trust boundary for the orchestrator&#39;s own stored data. Legacy records still require an independent argument allowlist.</li>
+</ul>
+<p>Fixes swamp-club#3529.</p>
+<h4 class="body-h">Verification</h4>
+<p>Verified commit: <code>9a045f467f7492c4fc3d9a1a10894ba8679e0985</code>.</p>
+<ul>
+<li><code>verify-build</code>, <code>verify-reviews</code>, and <code>verify-skills</code> passed: 9 checks succeeded, 4 guarded skips</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/typed-secrets.md" rel="noopener">design/enablers/typed-secrets.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.231557.0-sha.bc7bbaa6" rel="noopener">release v20261020.231557.0-sha.bc7bbaa6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bc7bbaa6ceb2368bef0eb9b85620871bce6d50ac" rel="noopener">bc7bbaa6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3248" rel="noopener">#3248</a>𝗔 <a href="https://swamp-club.com/lab/3529" rel="noopener">lab#3529</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261020-224559-0-sha-877fb3d2">
+<h2><span class="tier A">A</span>pin inputs across resume and cache replay (#3247)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T22:48:05Z">2026-10-20T22:48:05Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): pin inputs across resume and cache replay (#3247)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A suspended workflow could resume with a different input value after earlier steps had checked or approved the original value. Inputs are now write-once for each run: resume may add an absent input or repeat an existing value, but changing a value requires a new run. Refusals identify the input keys without exposing their values and explain how to recover.</p>
+<p>Evaluated workflow replay now uses the inputs recorded with its cache and rejects mismatches before superseding an existing run. Behavior definitions are evaluated fresh against those inputs. Cache and run persistence preserve input provenance and every own input key, including <code>__proto__</code>.</p>
+<p>Nested workflows retain late vault selectors across child suspension and resume, including optional CEL expressions such as <code>inputs.?keyName.orValue(&#39;missing&#39;)</code>. Secrets are still loaded in the child&#39;s scope when needed. Evaluation validates coerced/defaulted inputs consistently, and malformed or unsafe legacy caches fail with recovery guidance.</p>
+<p>Addresses swamp-club#3583.</p>
+<h4 class="body-h">Compatibility</h4>
+<p>Workflows that previously supplied placeholder values and replaced them on resume must use optional, absence-tolerant inputs and validate them after they arrive. Hosts sharing a datastore should upgrade together; regenerate legacy evaluated caches with the intended inputs or start a fresh run.</p>
+<h4 class="body-h">Verification</h4>
+<p>Verified commit: `d55495744f93d26dde736</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/execution-semantics.md" rel="noopener">.claude/skills/swamp/references/workflow/references/execution-semantics.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/input-pinning.md" rel="noopener">design/enablers/input-pinning.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/inputs.md" rel="noopener">design/enablers/inputs.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.224559.0-sha.877fb3d2" rel="noopener">release v20261020.224559.0-sha.877fb3d2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/877fb3d24dfe64513ac7ccf02580f7723a62d4bc" rel="noopener">877fb3d2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3247" rel="noopener">#3247</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261020-214938-0-sha-d693eeaf">
+<h2><span class="tier A">A</span>mask dispatch stderr and support Codex verification (#3240)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T21:51:42Z">2026-10-20T21:51:42Z</time></span><span>worker</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(worker): mask dispatch stderr and support Codex verification (#3240)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3526. Worker dispatch secrets previously reached stderr through method logs, console output, failure warnings, and the supervisor’s debug re-log. One dispatch redactor now covers those paths, learns vault values during execution, and stays active through buffered tracing shutdown. Formatting masks secrets before wrapping or truncating them, including multiline and mixed-quote values.</p>
+<p>Verification now supports optional Codex reviews and skill evaluations while retaining Claude as the default. Both review providers use the existing explicit verdict gate. Attestations bind the recorded inputs to the evaluated review commands and model, and CI hashes the new skill-eval provider.</p>
+<h4 class="body-h">Validation</h4>
+<ul>
+<li>Regression coverage for runner and supervisor stderr, structured logging, console.dir, buffered traces, and inspected secret representations.</li>
+<li>Provider tests cover Claude defaults, Codex routing across all three eval phases, isolated execution, failed processes, and missing or invalid answers.</li>
+<li>Negative attestation tests reject altered models and injected review commands.</li>
+<li>All 13 verification steps passed on <code>70dee71d</code>: build (including 28,593 passing tests and 54 ignored tests), four Codex <code>gpt-6-astra</code> reviews, and both skill checks. No verification steps were skipped. Skill evaluations passed 184/187 cases (98.4%); skill quality scores were 96% and 98%.</li>
+<li>Fre</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/agent-constraints/verification-conventions.md" rel="noopener">agent-constraints/verification-conventions.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/contributing/skills-pipeline.md" rel="noopener">contributing/skills-pipeline.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.214938.0-sha.d693eeaf" rel="noopener">release v20261020.214938.0-sha.d693eeaf</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d693eeaf6790da62e2cc5bcf4578a953ce43e8c4" rel="noopener">d693eeaf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3240" rel="noopener">#3240</a>𝗔 <a href="https://swamp-club.com/lab/3685" rel="noopener">lab#3685</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261020-210623-0-sha-d79a442d">
+<h2><span class="tier A">A</span>v3 setup completes a bucket prefix holding only its format-3 marker, and v3 bucket refusals name the right setup command and format (swamp-club#3643, swamp-club#3644) (#3245)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T21:08:20Z">2026-10-20T21:08:20Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): v3 setup completes a bucket prefix holding only its format-3 marker, and v3 bucket refusals name the right setup command and format (swamp-club#3643, swamp-club#3644) (#3245)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><strong>swamp-club#3643.</strong> <code>swamp datastore setup extension … --format 3</code> on a bucket prefix holding only a format-3 marker failed with &quot;could not be inspected (… this swamp release can&#39;t open … Upgrade swamp …)&quot;. So a re-run of an interrupted setup, or another repo&#39;s setup of that prefix, could never complete. After <code>inspectV3BucketTarget</code> found the marker, it still probed for v2 root data through the extension&#39;s sync service, which refuses any format-3 prefix since swamp-club#3549.</p>
+<ul>
+<li>Once a valid format-3 marker is there, the v2 root-data probe is skipped. Setup made that probe before it wrote the marker, and no compliant swamp writes v2 data beside one. The record, chunk and v2-namespace checks still run. <code>listNamespaces</code> lists the bucket through the provider, not the sync service, so it is unaffected.</li>
+<li>The extension&#39;s &quot;can&#39;t open / upgrade swamp&quot; text is never shown. If the extension&#39;s format refusal still reaches the check, setup re-reads the marker. If one has appeared (another setup wrote it), it says to run the command again. Otherwise it says the extension refused the read.</li>
+<li>Accepted limit: v2 root files planted by hand beside a format-3 marker are no longer detected. This is documented in <code>design/enablers/datastores.md</code> and pinned by a test.</li>
+</ul>
+<p>**swa</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.210623.0-sha.d79a442d" rel="noopener">release v20261020.210623.0-sha.d79a442d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d79a442daa307d85b87188052ffc4d4c76e21673" rel="noopener">d79a442d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3245" rel="noopener">#3245</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/715" rel="noopener">#715</a>𝗔 <a href="https://swamp-club.com/lab/3643" rel="noopener">lab#3643</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261020-210139-0-sha-d79a442d">
+<h2><span class="tier A">A</span>v3 setup completes a bucket prefix holding only its format-3 marker, and v3 bucket refusals name the right setup command and format (swamp-club#3643, swamp-club#3644) (#3245)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T21:03:22Z">2026-10-20T21:03:22Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): workflow steps store sensitive outputs in the repo&#39;s defaultVault (swamp-club#3680) (#3244)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3680. A workflow step built its vault service without the repo&#39;s <code>defaultVault</code> (<code>.swamp.yaml</code>), so its sensitive outputs went to the first user vault. <code>swamp behavior run</code> and <code>swamp workflow validate</code> used the default vault. In a repo with several vaults, workflow outputs landed in whichever vault sorted first. Under vault scoping, <code>validate</code> passed and the run was then refused.</p>
+<ul>
+<li><code>WorkflowExecutionService</code> now takes the default vault and passes it through <code>StepExecutionContext</code> into the step&#39;s <code>VaultService.fromRepository({ defaultVaultName })</code>. Nested child runs inherit it.</li>
+<li><code>swamp workflow run</code> and <code>swamp workflow resume</code> pass the repo marker&#39;s <code>defaultVault</code>.</li>
+<li>Serve passes the <code>defaultVault</code> it read at startup to API, scheduled, webhook and resumed runs (<code>createWorkflowRunDeps</code>, <code>executeWorkflowWithLocks</code>, <code>WebhookService</code>), as its other vault services already do.</li>
+<li>A fitness rule (<code>integration/serve_deps_rules_test.ts</code>) fails when any <code>WorkflowExecutionService</code> construction, <code>createWorkflowRunDeps</code> call or triggered serve run leaves out <code>defaultVault</code>.</li>
+</ul>
+<p>Resolution order is unchanged: the field&#39;s vault, then the step override or definition <code>resources</code> <code>vaultName</code>, then the spec&#39;s, then <code>defaultVault</code>, then the first vault. Without <code>defaultVault</code>, or when it names a vault that doesn&#39;t exist, the first-vault fall</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.210139.0-sha.d79a442d" rel="noopener">release v20261020.210139.0-sha.d79a442d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d79a442daa307d85b87188052ffc4d4c76e21673" rel="noopener">d79a442d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3244" rel="noopener">#3244</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3245" rel="noopener">#3245</a>𝗔 <a href="https://swamp-club.com/lab/3680" rel="noopener">lab#3680</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261020-205335-0-sha-096774bc">
+<h2><span class="tier A">A</span>workflow steps store sensitive outputs in the repo&#39;s defaultVault (swamp-club#3680) (#3244)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T20:55:35Z">2026-10-20T20:55:35Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(secrets): enforce typed-secret destination policy (swamp-club#3627) (#3246)</li>
+</ul>
+<p>Secrets authored under globalArguments could be resolved into a reused definition and reach a shell command line as plaintext. Preserve the caller&#39;s sentinels across deliveries and build the shell/check argument merge before resolution so those secrets are delivered through the process environment.</p>
+<p>This implements typed-secrets Phase 3.4 (swamp-club#3627): schema-marked destination refusals and a local method hook run before vault reads; shell placement plans reject unsafe destinations, avoid authored environment-name collisions, and reject NUL values before launch. Sentinel-derived masks and placeholders also cover unloaded secrets, and method-boundary failure records redact loaded values.</p>
+<p>The destination policy remains behind the internal typedSecrets option, disabled at production entry points. Preserving definitions, fixing the merged-global shell path, redacting failure records, and failing shell resolution before writing a result also apply with the option off. Production activation and remote delivery remain later phases.</p>
+<p>Validation at a4ecf7fbe0224ea8f76d79942f84fd7ebf0b785f:</p>
+<ul>
+<li>verify-build passed: lint, formatting, type checking, dependency audit, compilation, and binary smoke test; 28,177 tests passed, 0 failed, 54 ignored.</li>
+<li>verify-reviews passed: code, adversarial, and UX reviews each returned GATE_VERDICT: pass. CI security review was skipped by its path gua</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.205335.0-sha.096774bc" rel="noopener">release v20261020.205335.0-sha.096774bc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/096774bc000371865cd60b7f83ebea0349c8e621" rel="noopener">096774bc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3246" rel="noopener">#3246</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3244" rel="noopener">#3244</a>𝗔 <a href="https://swamp-club.com/lab/3627" rel="noopener">lab#3627</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261020-201838-0-sha-66792fea">
+<h2><span class="tier A">A</span>extension quality scores a deno doc failure instead of crashing, as the registry does (swamp-club#3669) (#3241)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T20:21:04Z">2026-10-20T20:21:04Z</time></span><span>extensions</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): extension quality scores a deno doc failure instead of crashing, as the registry does (swamp-club#3669) (#3241)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes <a href="https://swamp-club.com/lab/3669" rel="noopener">Lab 3669</a>. In package.json mode an extension archive can ship a bare import. <code>swamp extension quality</code> then crashed with <code>[FTL] deno doc --json failed ... Failed resolving &#39;zod&#39;</code> and a stack trace, and printed no rubric. Push was unaffected because it never runs <code>deno doc</code> locally.</p>
+<ul>
+<li><strong>Scorer</strong> (<code>extension_rubric_scorer.ts</code>): a failed <code>deno doc --json</code> is now scored instead of thrown, the way swamp-club&#39;s scorer has handled it since swamp-club#3370. Lint is skipped and the documentation factors score 0. <code>RubricScore.docAnalysisError</code> says what did not resolve; it comes from <code>extension_doc_failure.ts</code>, a port of the registry&#39;s <code>describeDocFailure</code>, which prints only names and archive-relative paths. Invalid JSON from a successful run still throws.</li>
+<li><strong>Quality</strong>: prints the <code>deno doc</code> failure after the rubric and adds <code>docAnalysisError</code> (a string, or null) to <code>--json</code>. It exits non-zero. When a bare-specifiers finding already explains the failure, that finding is the only reason given; otherwise the reason is &quot;deno doc could not analyse the source the registry would score&quot;.</li>
+<li><strong>Wording</strong>: the registry has published a scorecard in this case since swamp-club#3370, so the shared bare-specifiers message and quality&#39;s <code>registryScorable</code> reason now say the registry &quot;would score the d</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/references/publishing.md" rel="noopener">.claude/skills/swamp/references/extension-publish/references/publishing.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.201838.0-sha.66792fea" rel="noopener">release v20261020.201838.0-sha.66792fea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/66792feab4f52f11b99ef5bd2ad7252c4b7ff2cc" rel="noopener">66792fea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3241" rel="noopener">#3241</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3637" rel="noopener">#3637</a>𝗔 <a href="https://swamp-club.com/lab/3669" rel="noopener">lab#3669</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261020-200440-0-sha-446c86ae">
+<h2><span class="tier A">A</span>a yanked dependency names the version to move to, and dependency warnings reach the Unresolved warnings summary (swamp-club#3677) (#3238)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T20:06:54Z">2026-10-20T20:06:54Z</time></span><span>extensions</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(extensions): a yanked dependency names the version to move to, and dependency warnings reach the Unresolved warnings summary (swamp-club#3677) (#3238)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3677. A yanked JSR dependency now says what a yank means and names the version to move to, and every dependency-trust warning with a cause reaches the <strong>Unresolved warnings</strong> summary with a <code>fix:</code> line. It stays a warning that <code>--yes</code> accepts; nothing about what blocks a push changes.</p>
+<ul>
+<li><code>jsr-yanked</code> message: <code>version 0.225.0 was withdrawn (yanked) by its author on JSR. Newest version that isn&#39;t yanked: 0.225.3.</code> (or <code>No other version is available.</code>)</li>
+<li>New pure <code>suggestVersion</code> helper: newest stable version that is not yanked or deprecated, preferring the shipped version&#39;s major (its minor for 0.x), else the newest overall. Only semver-valid versions qualify, so registry metadata cannot put arbitrary text in a suggestion.</li>
+<li><code>DependencyTrustIssue</code> gains optional <code>suggestedVersion</code> (<code>jsr-yanked</code>, <code>deprecated-version</code>) and <code>remediation</code> (every finding with a cause). Both are additive in <code>--json</code> (<code>warnings.dependencyTrust</code>, <code>acceptedWarnings.dependencyTrust</code>, quality&#39;s <code>dependencyTrust.warnings</code>). When the lockfile chose the version, the fix also says to refresh it.</li>
+<li><code>buildFindingsReport</code> lists those findings under Unresolved warnings (<code>ruleId</code> = the cause, <code>file</code> = <code>(dependency)</code>, the finding&#39;s <code>remediation</code> as the <code>fix:</code> line) in push, dry run and <code>extension quality</code>. Caus</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.200440.0-sha.446c86ae" rel="noopener">release v20261020.200440.0-sha.446c86ae</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/446c86ae09da73ab88587e90cecb54e5598663c0" rel="noopener">446c86ae</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3238" rel="noopener">#3238</a>𝗔 <a href="https://swamp-club.com/lab/3677" rel="noopener">lab#3677</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261020-195813-0-sha-446c86ae">
+<h2><span class="tier A">A</span>a yanked dependency names the version to move to, and dependency warnings reach the Unresolved warnings summary (swamp-club#3677) (#3238)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T20:00:21Z">2026-10-20T20:00:21Z</time></span><span>extensions</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(security): the data-plane bytes route is held to the dispatch&#39;s behavior type, as getData is (swamp-club#3528) (#3239)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>The worker data plane&#39;s bytes route <code>GET /data/{type}/{modelId}/{dataName}/{version}</code> checked only the bearer credential and the control-plane hidden list, so a dispatch&#39;s per-dispatch credential could read any other non-control-plane behavior type&#39;s stored bytes, while the <code>getData</code> verb already refused that read.</li>
+<li>The route now resolves the active dispatch after the hidden check (400 when none or ambiguous, as writes already do) and answers 403 before the lookup and the ETag branch when the <code>ModelType</code> normalized form differs from the dispatch&#39;s, using the same phrase <code>getData</code> uses.</li>
+<li>The remote-execution and data design notes and the module header now say both transports hold reads to the dispatch.</li>
+</ul>
+<p>Fixes swamp-club#3528.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>src/serve/data_plane_test.ts</code>: new tests for the 403 (no ETag, none of the bytes), the If-None-Match probe (403, never 304), a folded spelling of the dispatch type (200), the <code>@</code> user-namespace spelling (403), and reads with no or an ambiguous dispatch (400). The two existing read tests register a dispatch, and the in-memory repository keys entries by the normalized type as the real store does.</li>
+<li><code>integration/remote_secrets_baseline_read_resource_test.ts</code>: the bytes-read case now asserts the refusal and that the canary never leaves serve.</li>
+<li>`integration/worker_capability_control_</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.195813.0-sha.446c86ae" rel="noopener">release v20261020.195813.0-sha.446c86ae</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/446c86ae09da73ab88587e90cecb54e5598663c0" rel="noopener">446c86ae</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3239" rel="noopener">#3239</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3238" rel="noopener">#3238</a>𝗔 <a href="https://swamp-club.com/lab/3677" rel="noopener">lab#3677</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261020-193805-0-sha-ff76b169">
+<h2><span class="tier A">A</span>dependency-trust scores 2/1/0: a yanked JSR version costs both points, a loose specifier one (swamp-club#3354) (#3236)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T19:39:47Z">2026-10-20T19:39:47Z</time></span><span>extensions</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(extensions): dependency-trust scores 2/1/0: a yanked JSR version costs both points, a loose specifier one (swamp-club#3354) (#3236)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The <code>dependency-trust</code> rubric factor (2 points) in <code>swamp extension quality</code> is no longer all or nothing. Nothing becomes a push error; every finding below stays a warning that <code>--yes</code> accepts.</p>
+<ul>
+<li><strong>0/2:</strong> any error, <code>deprecated-version</code>, <code>jsr-yanked</code> or <code>not-audited</code> finding. <code>dependencyTrustBlockerCount</code> now counts <code>jsr-yanked</code>.</li>
+<li><strong>1/2:</strong> no 0/2 finding, but a <code>loose-specifier</code> finding on at least one dependency (one point however many, counted by distinct dependency in <code>looseSpecifierCount</code>).</li>
+<li><strong>2/2:</strong> none of the above.</li>
+</ul>
+<p>The remediation text names which findings cost which points. <code>testdata/dependency_audit_vectors.json</code> replaces <code>costsPoint</code> with per-finding <code>pointsLost</code> and adds a <code>scoring</code> block of combined scenarios, so the registry scorecard (swamp-club#3682) can match. Design doc and quality rubric reference updated.</p>
+<p>Release notes: <code>extension quality</code> reports 1/2 for loose specifiers and 0/2 for yanked JSR versions. Versions already published are not rescored.</p>
+<p>Note: the rule differs from the issue body, where <code>jsr-yanked</code> was 1/2; it counts like <code>deprecated-version</code> per Seth (2026-10-20).</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit tests for the count functions, <code>dependencyTrustRow</code> (all combinations) and the <code>quality.ts</code> wiring.</li>
+<li>Shared vectors score 11 combined scenarios through the real code.</li>
+<li>UAT (<code>swamp-uat</code></li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/quality/rubric.md" rel="noopener">.claude/skills/swamp/references/extension/references/quality/rubric.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.193805.0-sha.ff76b169" rel="noopener">release v20261020.193805.0-sha.ff76b169</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ff76b1692e382f936b97d02ba48dab87ca42185a" rel="noopener">ff76b169</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3236" rel="noopener">#3236</a>𝗔 <a href="https://swamp-club.com/lab/3354" rel="noopener">lab#3354</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261020-190225-0-sha-626c5028">
+<h2><span class="tier A">A</span>the skill evals install promptfoo from its committed lockfile, and the lockfile and installer are pinned and agent-reviewed as trust-root files (swamp-club#3601) (#3234)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T19:04:32Z">2026-10-20T19:04:32Z</time></span><span>evals</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(evals): the skill evals install promptfoo from its committed lockfile, and the lockfile and installer are pinned and agent-reviewed as trust-root files (swamp-club#3601) (#3234)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3601. The promptfoo install passed <code>--package-lock=false</code>, so npm resolved the whole tree fresh on every run and <code>evals/promptfoo/package-lock.json</code> pinned nothing, while <code>scripts/audit_deps.ts</code> audited that lockfile. On promptfoo 0.122.0, 86 of 343 shared packages resolved away from it (for example <code>@ai-sdk/gateway</code> 3.0.218 vs 3.0.133 locked). The flag shipped with the lockfile in #1115, so the lock never applied (not a regression).</p>
+<ul>
+<li><strong>Install from the lockfile.</strong> <code>npmInstallArgs</code> passes <code>--no-save</code> instead: npm installs the locked tree and never rewrites the lockfile. A plain <code>npm install</code> on macOS rewrites the lockfile&#39;s platform-specific optional entries. <code>npm ci</code> stays out: npm 11 refuses a lockfile that lacks those entries for the host.</li>
+<li><strong>Lock/manifest sync test.</strong> A promptfoo bump without a regenerated lockfile now fails, instead of quietly unpinning the changed packages.</li>
+<li><strong>Trust root (ADV-1).</strong> Now that the lockfile decides what runs:</li>
+<li>the lockfile and installer are hash-pinned in the attestation and in <code>ci.yml</code>;</li>
+<li>they, plus <code>package.json</code>, join the <code>trust_root</code> filter and the review-integrity re-trigger pattern;</li>
+<li>the review-integrity prompt now names every hash-pinned script and eval file (it listed none of them before), an</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.190225.0-sha.626c5028" rel="noopener">release v20261020.190225.0-sha.626c5028</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/626c5028a5686cbc923cb1526e9b07ab2903bf80" rel="noopener">626c5028</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3234" rel="noopener">#3234</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1115" rel="noopener">#1115</a>𝗔 <a href="https://swamp-club.com/lab/3601" rel="noopener">lab#3601</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261020-175130-0-sha-72af7c6c">
 <h2><span class="tier A">A</span>a step&#39;s dataOutputOverrides vaultName routes its sensitive outputs, and merges with the definition&#39;s override field by field (swamp-club#3606) (#3232)</h2>
@@ -343,7 +731,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.144029.0-sha.674132e0" rel="noopener">release v20261020.144029.0-sha.674132e0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/674132e0ba21f59428a2ea9d6cb4d87a71b6dbcf" rel="noopener">674132e0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3222" rel="noopener">#3222</a>𝗔 <a href="https://swamp-club.com/lab/3655" rel="noopener">lab#3655</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261020-143515-0-sha-3df48e4f">
+<article class="item" id="release-swamp-club-swamp-v20261020-143515-0-sha-3df48e4f">
 <h2><span class="tier A">A</span>the Workers view leads with the connected count, and disconnected records read as gone, not failed (swamp-club#3657) (#3221)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-20T14:37:36Z">2026-10-20T14:37:36Z</time></span><span>dashboard</span><span>fix</span></div>
@@ -10411,55 +10799,10 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261021-015131-0-sha-bfde0792">
-<h2><span class="tier C">C</span>swamp 20261021.015131.0-sha.bfde0792</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-21T01:53:30Z">2026-10-21T01:53:30Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(datastore): v3 materialised files keep their executable and private access in every checkout (swamp-club#3693) (#3254)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3693. On a v3 datastore a put recorded a file&#39;s bytes but not its mode, and the read model wrote every file through a temp file at the default mode. So:</p>
-<ul>
-<li>an output made executable arrived as 0644 in other checkouts;</li>
-<li>the writer&#39;s own small (inline-sized) files dropped to 0644 after its next command;</li>
-<li>a 0600 file widened to 0644 everywhere.</li>
-</ul>
-<p>What changed:</p>
-<ul>
-<li><strong>The put records a file access.</strong> It is <code>executable</code>, <code>private</code> or <code>private-executable</code>; a plain file records none. The writer takes it from the stat it already does when staging a data version&#39;s content file (<code>rawSource</code>). No full POSIX modes, owners or umask bits are recorded.</li>
-<li><strong>The read model applies it.</strong> The temp file gets its access before the rename, on all four write paths: a commit, the compacted base, the check after a reboot, and an unreadable record&#39;s retry. The mode is derived from what the checkout&#39;s umask gave the new file, so private never widens.</li>
-<li><strong>Kept files are corrected safely.</strong> A file the checkout-copy guard keeps for its bytes is rewritten through a temp file when its put records an access it lacks. It is never chmodded by path. Plain puts, including every commit made before this change, keep the file&#39;s mode as before.</li>
-<li><strong>The access is stored wherever the read model keeps a put&#39;s content.</strong></li>
-<li><code>commits.db</code> schema 7 (`b</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261021.015131.0-sha.bfde0792" rel="noopener">release v20261021.015131.0-sha.bfde0792</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bfde0792" rel="noopener">bfde0792</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3254" rel="noopener">#3254</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261021-014525-0-sha-2c20f178">
-<h2><span class="tier C">C</span>swamp 20261021.014525.0-sha.2c20f178</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-21T01:47:28Z">2026-10-21T01:47:28Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(datastore): a fresh managedConfig checkout of an S3/GCS v3 datastore joins instead of being refused over the lockfile its extension install wrote (swamp-club#3696) (#3253)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Regression of swamp-club#3690 (introduced in <code>20261021.000812.0</code>). A fresh checkout of a managedConfig repo on an S3 or GCS v3 datastore was refused on its first command. The datastore extension is auto-installed before the v3 join check runs, and under managedConfig that install writes <code>.swamp/config/upstream_extensions.json</code>. The join check counted that lockfile as a <code>config</code> record. Following the suggested <code>doctor datastores --repair -y</code> moved the lockfile aside for nothing, and the next command was refused again. All eight <code>s3-v3</code>/<code>gcs-v3</code> Datastore UAT shards failed for this reason.</p>
-<ul>
-<li><strong>The fix:</strong> a new <code>isJoinOwnFile</code> in <code>src/infrastructure/datastore_v3/v3_checkout_join.ts</code>. It exempts what <code>isCheckoutLocalKey</code> already exempts, plus exactly <code>config/upstream_extensions.json</code>. The join check (<code>preV3CheckoutRecordDirs</code>) and its repair move (<code>movePreV3CheckoutRecords</code>) both use it.</li>
-<li><strong>Crash recovery is untouched:</strong> <code>isCheckoutLocalKey</code> still decides what recovery removes. On v3 the lockfile is a committed config-tier record, so recovery must still be able to remove an uncommitted copy.</li>
-<li><strong>Real records are still refused:</strong> a checkout holding v2 definitions, vault configs or data is refused, as #3690 intended.</li>
-<li><strong>Single source for the file name:</strong> <code>LOCKFILE_NAME</code> is</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261021.014525.0-sha.2c20f178" rel="noopener">release v20261021.014525.0-sha.2c20f178</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2c20f178" rel="noopener">2c20f178</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3253" rel="noopener">#3253</a>𝗔 <a href="https://swamp-club.com/lab/3696" rel="noopener">lab#3696</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261021-005504-0-sha-2bdc48c8">
-<h2><span class="tier C">C</span>swamp 20261021.005504.0-sha.2bdc48c8</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-21T00:56:41Z">2026-10-21T00:56:41Z</time></span></div>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261021-005504-0-sha-2bdc48c8">
+<h2><span class="tier C">C</span>README uses swamp-club.com&#39;s tagline, primitives and behavior terminology (swamp-club#3692) (#3252)</h2>
+<p class="lede">`docs` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-21T00:56:41Z">2026-10-21T00:56:41Z</time></span><span>docs</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>docs: README uses swamp-club.com&#39;s tagline, primitives and behavior terminology (swamp-club#3692) (#3252)</li>
@@ -10482,204 +10825,13 @@ footer .ver{color:var(--acc)}
 <ul>
 <li><code>verify-build</code>, `v</li>
 </ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261021.005504.0-sha.2bdc48c8" rel="noopener">release v20261021.005504.0-sha.2bdc48c8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2bdc48c8" rel="noopener">2bdc48c8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3252" rel="noopener">#3252</a>𝗔 <a href="https://swamp-club.com/lab/3692" rel="noopener">lab#3692</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261021-004732-0-sha-60564211">
-<h2><span class="tier C">C</span>swamp 20261021.004732.0-sha.60564211</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-21T00:49:16Z">2026-10-21T00:49:16Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(datastore): v3 namespace cache roots no longer collide with each other, the local tier, or swamp&#39;s own .swamp/ directories (swamp-club#3691) (#3251)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3691: on a v3 datastore, namespace cache roots (<code>.swamp/&lt;ns&gt;</code>, or <code>.swamp/</code> for the solo namespace) collided with each other, with a checkout&#39;s local tier, and with swamp&#39;s own <code>.swamp/</code> directories.</p>
-<ul>
-<li><strong>Cross-namespace reads (V3-04).</strong></li>
-<li><code>fromRow</code> no longer reads the reader&#39;s own path for a foreign row.</li>
-<li>A v3 local foreign-content fetcher, put in the existing <code>fetchForeignContent</code> slot, reads <code>v3CacheRoot(repo, row.namespace)</code>.</li>
-<li><code>data.latest(&quot;beta:m1&quot;, …)</code> in workflows, <code>data query</code> and <code>--select content</code> now return the other namespace&#39;s content.</li>
-<li>An unreadable foreign record now reports as unreadable rather than empty.</li>
-<li><strong>The local tier (V3-06, S1).</strong> The v3 read model no longer writes or indexes a solo- or own-namespace key that the checkout&#39;s <code>directories</code>/<code>exclude</code> keep local. It follows the existing refused-key path; catalog actions are dropped through <code>ProjectedCatalog</code>. Another checkout&#39;s commit can no longer overwrite local-only data.</li>
-<li><strong>Symlinked subdirectories (V3-25).</strong> A materialised subdirectory whose real path leaves its cache root is refused at v3 setup and open. Before, it wedged every catch-up.</li>
-<li><strong>Reserved names (V3-31, V3-32).</strong></li>
-<li>Every first-level <code>.swamp/</code> name swamp owns is reserved (<code>SWAMP_OWNED_DIR_NAMES</code>).</li>
-<li>A rules test guards the</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261021.004732.0-sha.60564211" rel="noopener">release v20261021.004732.0-sha.60564211</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/60564211" rel="noopener">60564211</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3251" rel="noopener">#3251</a>𝗔 <a href="https://swamp-club.com/lab/3691" rel="noopener">lab#3691</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261021-003131-0-sha-764fd4d5">
-<h2><span class="tier C">C</span>swamp 20261021.003131.0-sha.764fd4d5</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-21T00:33:33Z">2026-10-21T00:33:33Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(issues): keep git commit ids and non-address colon runs out of issue redaction, and confirm redactions before posting (swamp-club#3686) (#3250)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3686. <code>swamp issue</code> redaction replaced a 40-character commit id with <code>[REDACTED-SECRET-1]</code> and a fast-check replay path (<code>992:3:11:17:17:12</code>) with <code>[IP-1]</code>, destroying the reproduction data the report existed to carry, and posted without asking.</p>
-<ul>
-<li><strong>Git object ids</strong>: a 40 or 64 hex run right after a git word (<code>commit</code>, <code>sha</code>, <code>rev</code>, <code>git checkout/show/revert/cherry-pick/reset</code>, or a <code>/commit/</code>, <code>/commits/</code>, <code>/tree/</code>, <code>/blob/</code> URL segment) is kept. A secret label (<code>token</code>, <code>key</code>, <code>password</code>, <code>secret</code>, <code>auth</code>, <code>credential</code>, <code>signature</code>, <code>hmac</code>) in the 40 characters before it still forces redaction, as does any other length or a bare value.</li>
-<li><strong>IPv6</strong>: each colon-joined token is judged per run of hex groups between word parts. A run is an address with eight or more groups, a <code>::</code>, an embedded IPv4 tail, or six consecutive two-hex groups (MAC). Replay paths, timestamps, <code>::</code> code paths (<code>std::collections</code>, <code>AWS::EC2::VPC</code>) and all-zero runs (passwd fields) are kept; labels (<code>remote_addr:</code>, <code>peer:addr:</code>) stay outside the placeholder; addresses with a port, a message colon, or a unit stuck on the end are redacted whole.</li>
-<li><strong>Confirmation</strong>: in log mode on an interactive terminal, when anything was redacted, <code>issue bug|feature|security|edit|ripple</code> (and the extension-repository handoff)</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261021.003131.0-sha.764fd4d5" rel="noopener">release v20261021.003131.0-sha.764fd4d5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/764fd4d5" rel="noopener">764fd4d5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3250" rel="noopener">#3250</a>𝗔 <a href="https://swamp-club.com/lab/3686" rel="noopener">lab#3686</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261021-000812-0-sha-2d4b4e97">
-<h2><span class="tier C">C</span>swamp 20261021.000812.0-sha.2d4b4e97</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-21T00:10:10Z">2026-10-21T00:10:10Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(datastore): a checkout holding v2 records is refused when it first joins a v3 datastore, and doctor datastores --repair moves them aside (swamp-club#3690) (#3249)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3690 (V3-18, S2). A teammate joins a v3 datastore by pulling the committed <code>.swamp.yaml</code> that says <code>format: 3</code>. That path never ran setup&#39;s &quot;a v3 datastore starts empty&quot; check. A checkout whose <code>.swamp/</code> already held v2 records therefore caught up over them:</p>
-<ul>
-<li>its own versions were overwritten;</li>
-<li>versions that no commit holds stayed readable;</li>
-<li><code>data list</code> and <code>data versions</code> disagreed;</li>
-<li>its next write left the other checkouts with a gap in their version history, permanently.</li>
-</ul>
-<ul>
-<li><strong>Join check.</strong> The first v3 open of a checkout runs setup&#39;s records check. A first open is one with no <code>_read_model_v3</code> state yet. The check is shared from <code>src/infrastructure/persistence/datastore_records.ts</code>, and it skips the files v3 treats as the checkout&#39;s own: pulled extension sources, dot-prefixed locks and indexes, and run logs. A checkout that holds records is refused with <code>v3_checkout_holds_records</code> before any lease, copy restore, catch-up or write. The check runs in <code>resolveDatastoreForRepo</code> right after the format guard. <code>holdV3Writer</code> and <code>v3RepositoryFactoryConfig</code> run it too. Once v3 state exists, the check is a single file lookup.</li>
-<li><strong>Repair.</strong> <code>swamp doctor datastores --repair</code> previews the move, and <code>-y</code> moves the record files into `.swamp/pre-v3-records/&lt;stamp&gt;-&lt;suff</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261021.000812.0-sha.2d4b4e97" rel="noopener">release v20261021.000812.0-sha.2d4b4e97</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2d4b4e97" rel="noopener">2d4b4e97</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3249" rel="noopener">#3249</a>𝗔 <a href="https://swamp-club.com/lab/3690" rel="noopener">lab#3690</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-231557-0-sha-bc7bbaa6">
-<h2><span class="tier C">C</span>swamp 20261020.231557.0-sha.bc7bbaa6</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T23:18:07Z">2026-10-20T23:18:07Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): authorize vault references in remote workflow steps (swamp-club#3529) (#3248)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Workflow arguments reach remote dispatch after <code>vault.get()</code> expressions have been resolved, leaving the secret allowlist empty. Remote steps consequently reject secret reads their arguments authorize. Preserve those references through argument resolution so remote steps can resolve the secrets they use.</p>
-<ul>
-<li>Carry method and global argument references into each dispatch&#39;s allowlist while retaining support for literal expressions from direct callers.</li>
-<li>Allow remote reads of sensitive resource fields through optional name/version claims. Verify the stored record&#39;s ownership, writer version, reference shape, path containment, and content checksum before granting access; retain vault scope and denylist enforcement.</li>
-<li>Harden sensitive resource writes against dotted-key collisions and redaction collisions. Validate the final serialized references before committing vault values so rejected updates preserve the previous resource and secrets.</li>
-<li>Document the behavior and cover it with unit, property, and integration regressions. Retain the existing trust boundary for the orchestrator&#39;s own stored data. Legacy records still require an independent argument allowlist.</li>
-</ul>
-<p>Fixes swamp-club#3529.</p>
-<h4 class="body-h">Verification</h4>
-<p>Verified commit: <code>9a045f467f7492c4fc3d9a1a10894ba8679e0985</code>.</p>
-<ul>
-<li><code>verify-build</code>, <code>verify-reviews</code>, and <code>verify-skills</code> passed: 9 checks succeeded, 4 guarded skips</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.231557.0-sha.bc7bbaa6" rel="noopener">release v20261020.231557.0-sha.bc7bbaa6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bc7bbaa6" rel="noopener">bc7bbaa6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3248" rel="noopener">#3248</a>𝗔 <a href="https://swamp-club.com/lab/3529" rel="noopener">lab#3529</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-224559-0-sha-877fb3d2">
-<h2><span class="tier C">C</span>swamp 20261020.224559.0-sha.877fb3d2</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T22:48:05Z">2026-10-20T22:48:05Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): pin inputs across resume and cache replay (#3247)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>A suspended workflow could resume with a different input value after earlier steps had checked or approved the original value. Inputs are now write-once for each run: resume may add an absent input or repeat an existing value, but changing a value requires a new run. Refusals identify the input keys without exposing their values and explain how to recover.</p>
-<p>Evaluated workflow replay now uses the inputs recorded with its cache and rejects mismatches before superseding an existing run. Behavior definitions are evaluated fresh against those inputs. Cache and run persistence preserve input provenance and every own input key, including <code>__proto__</code>.</p>
-<p>Nested workflows retain late vault selectors across child suspension and resume, including optional CEL expressions such as <code>inputs.?keyName.orValue(&#39;missing&#39;)</code>. Secrets are still loaded in the child&#39;s scope when needed. Evaluation validates coerced/defaulted inputs consistently, and malformed or unsafe legacy caches fail with recovery guidance.</p>
-<p>Addresses swamp-club#3583.</p>
-<h4 class="body-h">Compatibility</h4>
-<p>Workflows that previously supplied placeholder values and replaced them on resume must use optional, absence-tolerant inputs and validate them after they arrive. Hosts sharing a datastore should upgrade together; regenerate legacy evaluated caches with the intended inputs or start a fresh run.</p>
-<h4 class="body-h">Verification</h4>
-<p>Verified commit: `d55495744f93d26dde736</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.224559.0-sha.877fb3d2" rel="noopener">release v20261020.224559.0-sha.877fb3d2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/877fb3d2" rel="noopener">877fb3d2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3247" rel="noopener">#3247</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-214938-0-sha-d693eeaf">
-<h2><span class="tier C">C</span>swamp 20261020.214938.0-sha.d693eeaf</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T21:51:42Z">2026-10-20T21:51:42Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(worker): mask dispatch stderr and support Codex verification (#3240)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3526. Worker dispatch secrets previously reached stderr through method logs, console output, failure warnings, and the supervisor’s debug re-log. One dispatch redactor now covers those paths, learns vault values during execution, and stays active through buffered tracing shutdown. Formatting masks secrets before wrapping or truncating them, including multiline and mixed-quote values.</p>
-<p>Verification now supports optional Codex reviews and skill evaluations while retaining Claude as the default. Both review providers use the existing explicit verdict gate. Attestations bind the recorded inputs to the evaluated review commands and model, and CI hashes the new skill-eval provider.</p>
-<h4 class="body-h">Validation</h4>
-<ul>
-<li>Regression coverage for runner and supervisor stderr, structured logging, console.dir, buffered traces, and inspected secret representations.</li>
-<li>Provider tests cover Claude defaults, Codex routing across all three eval phases, isolated execution, failed processes, and missing or invalid answers.</li>
-<li>Negative attestation tests reject altered models and injected review commands.</li>
-<li>All 13 verification steps passed on <code>70dee71d</code>: build (including 28,593 passing tests and 54 ignored tests), four Codex <code>gpt-6-astra</code> reviews, and both skill checks. No verification steps were skipped. Skill evaluations passed 184/187 cases (98.4%); skill quality scores were 96% and 98%.</li>
-<li>Fre</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.214938.0-sha.d693eeaf" rel="noopener">release v20261020.214938.0-sha.d693eeaf</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d693eeaf" rel="noopener">d693eeaf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3240" rel="noopener">#3240</a>𝗔 <a href="https://swamp-club.com/lab/3685" rel="noopener">lab#3685</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-210623-0-sha-d79a442d">
-<h2><span class="tier C">C</span>swamp 20261020.210623.0-sha.d79a442d</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T21:08:20Z">2026-10-20T21:08:20Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(datastore): v3 setup completes a bucket prefix holding only its format-3 marker, and v3 bucket refusals name the right setup command and format (swamp-club#3643, swamp-club#3644) (#3245)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p><strong>swamp-club#3643.</strong> <code>swamp datastore setup extension … --format 3</code> on a bucket prefix holding only a format-3 marker failed with &quot;could not be inspected (… this swamp release can&#39;t open … Upgrade swamp …)&quot;. So a re-run of an interrupted setup, or another repo&#39;s setup of that prefix, could never complete. After <code>inspectV3BucketTarget</code> found the marker, it still probed for v2 root data through the extension&#39;s sync service, which refuses any format-3 prefix since swamp-club#3549.</p>
-<ul>
-<li>Once a valid format-3 marker is there, the v2 root-data probe is skipped. Setup made that probe before it wrote the marker, and no compliant swamp writes v2 data beside one. The record, chunk and v2-namespace checks still run. <code>listNamespaces</code> lists the bucket through the provider, not the sync service, so it is unaffected.</li>
-<li>The extension&#39;s &quot;can&#39;t open / upgrade swamp&quot; text is never shown. If the extension&#39;s format refusal still reaches the check, setup re-reads the marker. If one has appeared (another setup wrote it), it says to run the command again. Otherwise it says the extension refused the read.</li>
-<li>Accepted limit: v2 root files planted by hand beside a format-3 marker are no longer detected. This is documented in <code>design/enablers/datastores.md</code> and pinned by a test.</li>
-</ul>
-<p>**swa</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.210623.0-sha.d79a442d" rel="noopener">release v20261020.210623.0-sha.d79a442d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d79a442d" rel="noopener">d79a442d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3245" rel="noopener">#3245</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/715" rel="noopener">#715</a>𝗔 <a href="https://swamp-club.com/lab/3643" rel="noopener">lab#3643</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-210139-0-sha-d79a442d">
-<h2><span class="tier C">C</span>swamp 20261020.210139.0-sha.d79a442d</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T21:03:22Z">2026-10-20T21:03:22Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(workflows): workflow steps store sensitive outputs in the repo&#39;s defaultVault (swamp-club#3680) (#3244)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3680. A workflow step built its vault service without the repo&#39;s <code>defaultVault</code> (<code>.swamp.yaml</code>), so its sensitive outputs went to the first user vault. <code>swamp behavior run</code> and <code>swamp workflow validate</code> used the default vault. In a repo with several vaults, workflow outputs landed in whichever vault sorted first. Under vault scoping, <code>validate</code> passed and the run was then refused.</p>
-<ul>
-<li><code>WorkflowExecutionService</code> now takes the default vault and passes it through <code>StepExecutionContext</code> into the step&#39;s <code>VaultService.fromRepository({ defaultVaultName })</code>. Nested child runs inherit it.</li>
-<li><code>swamp workflow run</code> and <code>swamp workflow resume</code> pass the repo marker&#39;s <code>defaultVault</code>.</li>
-<li>Serve passes the <code>defaultVault</code> it read at startup to API, scheduled, webhook and resumed runs (<code>createWorkflowRunDeps</code>, <code>executeWorkflowWithLocks</code>, <code>WebhookService</code>), as its other vault services already do.</li>
-<li>A fitness rule (<code>integration/serve_deps_rules_test.ts</code>) fails when any <code>WorkflowExecutionService</code> construction, <code>createWorkflowRunDeps</code> call or triggered serve run leaves out <code>defaultVault</code>.</li>
-</ul>
-<p>Resolution order is unchanged: the field&#39;s vault, then the step override or definition <code>resources</code> <code>vaultName</code>, then the spec&#39;s, then <code>defaultVault</code>, then the first vault. Without <code>defaultVault</code>, or when it names a vault that doesn&#39;t exist, the first-vault fall</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.210139.0-sha.d79a442d" rel="noopener">release v20261020.210139.0-sha.d79a442d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d79a442d" rel="noopener">d79a442d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3244" rel="noopener">#3244</a>𝗔 <a href="https://swamp-club.com/lab/3680" rel="noopener">lab#3680</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-205335-0-sha-096774bc">
-<h2><span class="tier C">C</span>swamp 20261020.205335.0-sha.096774bc</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T20:55:35Z">2026-10-20T20:55:35Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(secrets): enforce typed-secret destination policy (swamp-club#3627) (#3246)</li>
-</ul>
-<p>Secrets authored under globalArguments could be resolved into a reused definition and reach a shell command line as plaintext. Preserve the caller&#39;s sentinels across deliveries and build the shell/check argument merge before resolution so those secrets are delivered through the process environment.</p>
-<p>This implements typed-secrets Phase 3.4 (swamp-club#3627): schema-marked destination refusals and a local method hook run before vault reads; shell placement plans reject unsafe destinations, avoid authored environment-name collisions, and reject NUL values before launch. Sentinel-derived masks and placeholders also cover unloaded secrets, and method-boundary failure records redact loaded values.</p>
-<p>The destination policy remains behind the internal typedSecrets option, disabled at production entry points. Preserving definitions, fixing the merged-global shell path, redacting failure records, and failing shell resolution before writing a result also apply with the option off. Production activation and remote delivery remain later phases.</p>
-<p>Validation at a4ecf7fbe0224ea8f76d79942f84fd7ebf0b785f:</p>
-<ul>
-<li>verify-build passed: lint, formatting, type checking, dependency audit, compilation, and binary smoke test; 28,177 tests passed, 0 failed, 54 ignored.</li>
-<li>verify-reviews passed: code, adversarial, and UX reviews each returned GATE_VERDICT: pass. CI security review was skipped by its path gua</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.205335.0-sha.096774bc" rel="noopener">release v20261020.205335.0-sha.096774bc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/096774bc" rel="noopener">096774bc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3246" rel="noopener">#3246</a>𝗔 <a href="https://swamp-club.com/lab/3627" rel="noopener">lab#3627</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/README.md" rel="noopener">README.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261021.005504.0-sha.2bdc48c8" rel="noopener">release v20261021.005504.0-sha.2bdc48c8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2bdc48c8303bb6e6804adec2872e40298c46cbe0" rel="noopener">2bdc48c8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3252" rel="noopener">#3252</a>𝗔 <a href="https://swamp-club.com/lab/3692" rel="noopener">lab#3692</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261020-203454-0-sha-e34cfe88">
-<h2><span class="tier C">C</span>swamp 20261020.203454.0-sha.e34cfe88</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T20:36:50Z">2026-10-20T20:36:50Z</time></span></div>
+<h2><span class="tier C">C</span>cover uncertain abandonment after expired checkpoints (swamp-club#3685) (#3243)</h2>
+<p class="lede">`test` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-20T20:36:50Z">2026-10-20T20:36:50Z</time></span><span>datastore</span><span>test</span></div>
 <div class="body"><h4 class="body-h">What&#39;s Changed</h4>
 <ul>
 <li>test(datastore): cover uncertain abandonment after expired checkpoints (swamp-club#3685) (#3243)</li>
@@ -10705,159 +10857,7 @@ footer .ver{color:var(--acc)}
 <p>```bash</p>
 <p>curl -L <a href="https://github.com/swamp-club/swamp" rel="noopener">https://github.com/swamp-club/swamp</a></p></div>
 
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.203454.0-sha.e34cfe88" rel="noopener">release v20261020.203454.0-sha.e34cfe88</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e34cfe88" rel="noopener">e34cfe88</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3243" rel="noopener">#3243</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3233" rel="noopener">#3233</a>𝗔 <a href="https://swamp-club.com/lab/3685" rel="noopener">lab#3685</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-201838-0-sha-66792fea">
-<h2><span class="tier C">C</span>swamp 20261020.201838.0-sha.66792fea</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T20:21:04Z">2026-10-20T20:21:04Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(extensions): extension quality scores a deno doc failure instead of crashing, as the registry does (swamp-club#3669) (#3241)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes <a href="https://swamp-club.com/lab/3669" rel="noopener">Lab 3669</a>. In package.json mode an extension archive can ship a bare import. <code>swamp extension quality</code> then crashed with <code>[FTL] deno doc --json failed ... Failed resolving &#39;zod&#39;</code> and a stack trace, and printed no rubric. Push was unaffected because it never runs <code>deno doc</code> locally.</p>
-<ul>
-<li><strong>Scorer</strong> (<code>extension_rubric_scorer.ts</code>): a failed <code>deno doc --json</code> is now scored instead of thrown, the way swamp-club&#39;s scorer has handled it since swamp-club#3370. Lint is skipped and the documentation factors score 0. <code>RubricScore.docAnalysisError</code> says what did not resolve; it comes from <code>extension_doc_failure.ts</code>, a port of the registry&#39;s <code>describeDocFailure</code>, which prints only names and archive-relative paths. Invalid JSON from a successful run still throws.</li>
-<li><strong>Quality</strong>: prints the <code>deno doc</code> failure after the rubric and adds <code>docAnalysisError</code> (a string, or null) to <code>--json</code>. It exits non-zero. When a bare-specifiers finding already explains the failure, that finding is the only reason given; otherwise the reason is &quot;deno doc could not analyse the source the registry would score&quot;.</li>
-<li><strong>Wording</strong>: the registry has published a scorecard in this case since swamp-club#3370, so the shared bare-specifiers message and quality&#39;s <code>registryScorable</code> reason now say the registry &quot;would score the d</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.201838.0-sha.66792fea" rel="noopener">release v20261020.201838.0-sha.66792fea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/66792fea" rel="noopener">66792fea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3241" rel="noopener">#3241</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3637" rel="noopener">#3637</a>𝗔 <a href="https://swamp-club.com/lab/3669" rel="noopener">lab#3669</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-200440-0-sha-446c86ae">
-<h2><span class="tier C">C</span>swamp 20261020.200440.0-sha.446c86ae</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T20:06:54Z">2026-10-20T20:06:54Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(extensions): a yanked dependency names the version to move to, and dependency warnings reach the Unresolved warnings summary (swamp-club#3677) (#3238)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3677. A yanked JSR dependency now says what a yank means and names the version to move to, and every dependency-trust warning with a cause reaches the <strong>Unresolved warnings</strong> summary with a <code>fix:</code> line. It stays a warning that <code>--yes</code> accepts; nothing about what blocks a push changes.</p>
-<ul>
-<li><code>jsr-yanked</code> message: <code>version 0.225.0 was withdrawn (yanked) by its author on JSR. Newest version that isn&#39;t yanked: 0.225.3.</code> (or <code>No other version is available.</code>)</li>
-<li>New pure <code>suggestVersion</code> helper: newest stable version that is not yanked or deprecated, preferring the shipped version&#39;s major (its minor for 0.x), else the newest overall. Only semver-valid versions qualify, so registry metadata cannot put arbitrary text in a suggestion.</li>
-<li><code>DependencyTrustIssue</code> gains optional <code>suggestedVersion</code> (<code>jsr-yanked</code>, <code>deprecated-version</code>) and <code>remediation</code> (every finding with a cause). Both are additive in <code>--json</code> (<code>warnings.dependencyTrust</code>, <code>acceptedWarnings.dependencyTrust</code>, quality&#39;s <code>dependencyTrust.warnings</code>). When the lockfile chose the version, the fix also says to refresh it.</li>
-<li><code>buildFindingsReport</code> lists those findings under Unresolved warnings (<code>ruleId</code> = the cause, <code>file</code> = <code>(dependency)</code>, the finding&#39;s <code>remediation</code> as the <code>fix:</code> line) in push, dry run and <code>extension quality</code>. Caus</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.200440.0-sha.446c86ae" rel="noopener">release v20261020.200440.0-sha.446c86ae</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/446c86ae" rel="noopener">446c86ae</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3238" rel="noopener">#3238</a>𝗔 <a href="https://swamp-club.com/lab/3677" rel="noopener">lab#3677</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-195813-0-sha-446c86ae">
-<h2><span class="tier C">C</span>swamp 20261020.195813.0-sha.446c86ae</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T20:00:21Z">2026-10-20T20:00:21Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(security): the data-plane bytes route is held to the dispatch&#39;s behavior type, as getData is (swamp-club#3528) (#3239)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<ul>
-<li>The worker data plane&#39;s bytes route <code>GET /data/{type}/{modelId}/{dataName}/{version}</code> checked only the bearer credential and the control-plane hidden list, so a dispatch&#39;s per-dispatch credential could read any other non-control-plane behavior type&#39;s stored bytes, while the <code>getData</code> verb already refused that read.</li>
-<li>The route now resolves the active dispatch after the hidden check (400 when none or ambiguous, as writes already do) and answers 403 before the lookup and the ETag branch when the <code>ModelType</code> normalized form differs from the dispatch&#39;s, using the same phrase <code>getData</code> uses.</li>
-<li>The remote-execution and data design notes and the module header now say both transports hold reads to the dispatch.</li>
-</ul>
-<p>Fixes swamp-club#3528.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li><code>src/serve/data_plane_test.ts</code>: new tests for the 403 (no ETag, none of the bytes), the If-None-Match probe (403, never 304), a folded spelling of the dispatch type (200), the <code>@</code> user-namespace spelling (403), and reads with no or an ambiguous dispatch (400). The two existing read tests register a dispatch, and the in-memory repository keys entries by the normalized type as the real store does.</li>
-<li><code>integration/remote_secrets_baseline_read_resource_test.ts</code>: the bytes-read case now asserts the refusal and that the canary never leaves serve.</li>
-<li>`integration/worker_capability_control_</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.195813.0-sha.446c86ae" rel="noopener">release v20261020.195813.0-sha.446c86ae</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/446c86ae" rel="noopener">446c86ae</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3239" rel="noopener">#3239</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-194417-0-sha-130c7cb4">
-<h2><span class="tier C">C</span>swamp 20261020.194417.0-sha.130c7cb4</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T19:46:29Z">2026-10-20T19:46:29Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(security): redact the remote worker&#39;s result error before the step lease and the step see it (swamp-club#3525) (#3237)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3525.</p>
-<p>When a remotely dispatched method threw, the runner put the raw message in the dispatch result&#39;s <code>error</code> field; only the result&#39;s console lines went through the dispatch redactor. Serve then passed that error to the step lease&#39;s <code>fail</code> transition and to the step&#39;s <code>Error</code>, so a secret in a thrown message reached a durable lease record, the run, serve logs and the worker console, even when the value was in the dispatch&#39;s <code>secretValues</code>.</p>
-<p>The error is now scrubbed on both hops:</p>
-<ul>
-<li><strong>Runner</strong> (<code>src/worker/exec_dispatch.ts</code>): the result&#39;s <code>error</code> goes through the same per-dispatch redactor as the console capture. <code>dispatchRedactor</code> in <code>src/worker/remote_method_context.ts</code> is now the one place the worker turns shipped <code>secretValues</code> into a <code>SecretRedactor</code>; the method context uses it, and the runner starts from it before the context exists, so a failure in bundle load or method lookup is scrubbed too.</li>
-<li><strong>Serve</strong> (<code>src/serve/dispatch_service.ts</code>): <code>result.error</code> is scrubbed with the dispatch&#39;s registered redactor before the lease <code>fail</code> record and the thrown <code>Error</code>. The registration&#39;s redactor is read at result time because #3235 (swamp-club#3527) grows it with every value <code>resolveSecret</code> delivers and creates it when the step shipped no secrets. A worker built before this fix still enrolls on the same</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.194417.0-sha.130c7cb4" rel="noopener">release v20261020.194417.0-sha.130c7cb4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/130c7cb4" rel="noopener">130c7cb4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3237" rel="noopener">#3237</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3235" rel="noopener">#3235</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-193805-0-sha-ff76b169">
-<h2><span class="tier C">C</span>swamp 20261020.193805.0-sha.ff76b169</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T19:39:47Z">2026-10-20T19:39:47Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(extensions): dependency-trust scores 2/1/0: a yanked JSR version costs both points, a loose specifier one (swamp-club#3354) (#3236)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>The <code>dependency-trust</code> rubric factor (2 points) in <code>swamp extension quality</code> is no longer all or nothing. Nothing becomes a push error; every finding below stays a warning that <code>--yes</code> accepts.</p>
-<ul>
-<li><strong>0/2:</strong> any error, <code>deprecated-version</code>, <code>jsr-yanked</code> or <code>not-audited</code> finding. <code>dependencyTrustBlockerCount</code> now counts <code>jsr-yanked</code>.</li>
-<li><strong>1/2:</strong> no 0/2 finding, but a <code>loose-specifier</code> finding on at least one dependency (one point however many, counted by distinct dependency in <code>looseSpecifierCount</code>).</li>
-<li><strong>2/2:</strong> none of the above.</li>
-</ul>
-<p>The remediation text names which findings cost which points. <code>testdata/dependency_audit_vectors.json</code> replaces <code>costsPoint</code> with per-finding <code>pointsLost</code> and adds a <code>scoring</code> block of combined scenarios, so the registry scorecard (swamp-club#3682) can match. Design doc and quality rubric reference updated.</p>
-<p>Release notes: <code>extension quality</code> reports 1/2 for loose specifiers and 0/2 for yanked JSR versions. Versions already published are not rescored.</p>
-<p>Note: the rule differs from the issue body, where <code>jsr-yanked</code> was 1/2; it counts like <code>deprecated-version</code> per Seth (2026-10-20).</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>Unit tests for the count functions, <code>dependencyTrustRow</code> (all combinations) and the <code>quality.ts</code> wiring.</li>
-<li>Shared vectors score 11 combined scenarios through the real code.</li>
-<li>UAT (<code>swamp-uat</code></li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.193805.0-sha.ff76b169" rel="noopener">release v20261020.193805.0-sha.ff76b169</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ff76b169" rel="noopener">ff76b169</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3236" rel="noopener">#3236</a>𝗔 <a href="https://swamp-club.com/lab/3354" rel="noopener">lab#3354</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-192849-0-sha-a6c92702">
-<h2><span class="tier C">C</span>swamp 20261020.192849.0-sha.a6c92702</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T19:30:59Z">2026-10-20T19:30:59Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(security): serve and the worker redact a secret resolveSecret delivers mid-dispatch (swamp-club#3527) (#3235)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Serve built each dispatch&#39;s redactor once from the pre-dispatch <code>secretValues</code>, so a value <code>CapabilityService.resolveSecret</code> handed the worker afterwards was never added to it, and <code>POST /data/resource</code> stored that value verbatim. The worker&#39;s vault proxy had the same gap on the receiving side.</p>
-<ul>
-<li><strong>Serve:</strong> <code>CapabilityService.resolveSecret</code> registers the delivered value with the dispatch&#39;s redactor before the reply leaves, creating the redactor when the step shipped no pre-dispatch secrets. The data plane reads the registry entry on every resource write, so the next write is scrubbed.</li>
-<li><strong>Worker:</strong> the redactor is built before the vault proxy, and the proxy&#39;s <code>get</code> registers every value it receives, so output lines and console text leave the worker scrubbed. Annotation reads register nothing on either side.</li>
-<li>The output-protection baseline test now pins the fix instead of the disclosure, and <code>design/enablers/remote-execution.md</code> describes both redaction layers as they now behave.</li>
-</ul>
-<p>Out of scope, unchanged: the file-writer data-plane routes (documented known limit) and values a method writes with <code>putSecret</code>.</p>
-<p>Fixes swamp-club#3527.</p>
-<h4 class="body-h">Test Plan</h4>
-<ul>
-<li>Unit: three new <code>resolveSecret</code> cases in <code>src/serve/capability_service_test.ts</code> (value masked by an existing redactor, redactor created on the registry entry when none existed, annotati</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.192849.0-sha.a6c92702" rel="noopener">release v20261020.192849.0-sha.a6c92702</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a6c92702" rel="noopener">a6c92702</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3235" rel="noopener">#3235</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261020-190225-0-sha-626c5028">
-<h2><span class="tier C">C</span>swamp 20261020.190225.0-sha.626c5028</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-20T19:04:32Z">2026-10-20T19:04:32Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(evals): the skill evals install promptfoo from its committed lockfile, and the lockfile and installer are pinned and agent-reviewed as trust-root files (swamp-club#3601) (#3234)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Fixes swamp-club#3601. The promptfoo install passed <code>--package-lock=false</code>, so npm resolved the whole tree fresh on every run and <code>evals/promptfoo/package-lock.json</code> pinned nothing, while <code>scripts/audit_deps.ts</code> audited that lockfile. On promptfoo 0.122.0, 86 of 343 shared packages resolved away from it (for example <code>@ai-sdk/gateway</code> 3.0.218 vs 3.0.133 locked). The flag shipped with the lockfile in #1115, so the lock never applied (not a regression).</p>
-<ul>
-<li><strong>Install from the lockfile.</strong> <code>npmInstallArgs</code> passes <code>--no-save</code> instead: npm installs the locked tree and never rewrites the lockfile. A plain <code>npm install</code> on macOS rewrites the lockfile&#39;s platform-specific optional entries. <code>npm ci</code> stays out: npm 11 refuses a lockfile that lacks those entries for the host.</li>
-<li><strong>Lock/manifest sync test.</strong> A promptfoo bump without a regenerated lockfile now fails, instead of quietly unpinning the changed packages.</li>
-<li><strong>Trust root (ADV-1).</strong> Now that the lockfile decides what runs:</li>
-<li>the lockfile and installer are hash-pinned in the attestation and in <code>ci.yml</code>;</li>
-<li>they, plus <code>package.json</code>, join the <code>trust_root</code> filter and the review-integrity re-trigger pattern;</li>
-<li>the review-integrity prompt now names every hash-pinned script and eval file (it listed none of them before), an</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.190225.0-sha.626c5028" rel="noopener">release v20261020.190225.0-sha.626c5028</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/626c5028" rel="noopener">626c5028</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3234" rel="noopener">#3234</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1115" rel="noopener">#1115</a>𝗔 <a href="https://swamp-club.com/lab/3601" rel="noopener">lab#3601</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261020.203454.0-sha.e34cfe88" rel="noopener">release v20261020.203454.0-sha.e34cfe88</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e34cfe881f89c01e4bedc0938ab1deb4e3f68d5a" rel="noopener">e34cfe88</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3243" rel="noopener">#3243</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3233" rel="noopener">#3233</a>𝗔 <a href="https://swamp-club.com/lab/3685" rel="noopener">lab#3685</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261020-174414-0-sha-e89330bc">
 <h2><span class="tier C">C</span>v3 outbox tests no longer fail on an abandon that may land or a slow worker start (swamp-club#3673, swamp-club#3645, swamp-club#3640) (#3233)</h2>
@@ -11512,12 +11512,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>477 items across 1 source(s) in this window:
-5 critical, 411 notable, 14 routine,
-47 minor.</p>
-<ul><li><strong>fix</strong> — 295</li><li><strong>feat</strong> — 120</li><li><strong>changes</strong> — 20</li><li><strong>test</strong> — 18</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 10</li></ul></section>
+7 critical, 427 notable, 14 routine,
+29 minor.</p>
+<ul><li><strong>fix</strong> — 310</li><li><strong>feat</strong> — 123</li><li><strong>test</strong> — 19</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 11</li><li><strong>perf</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-21T05:05:01.199Z">2026-10-21T05:05:01.199Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-21T06:17:37.250Z">2026-10-21T06:17:37.250Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

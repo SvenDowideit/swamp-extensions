@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3741"><span class="tier A">A</span>serve: add child spans and attributes to workflow.history.ge</a><a href="#issue-3737"><span class="tier A">A</span>v3 chunk barrier on macOS: use F_BARRIERFSYNC (ordering) ins</a><a href="#issue-3729"><span class="tier A">A</span>swamp serve: remote &#39;model method history get|logs&#39; cannot f</a><a href="#issue-3740"><span class="tier A">A</span>serve: webhook-triggered workflow runs can&#39;t be cancelled — </a><a href="#issue-3724"><span class="tier A">A</span>Installers intermittently fail resolving stable release: add</a><a href="#issue-3726"><span class="tier A">A</span>A workflow step fails on a static validation error in a meth</a><a href="#issue-3694"><span class="tier A">A</span>extension_source_add_test globs the real home directory and </a><a href="#issue-3628"><span class="tier A">A</span>typed-secrets 3.5: local entry points, validation diagnostic</a><a href="#issue-3706"><span class="tier A">A</span>data query: filter on data lifecycle so deleted resources ca</a><a href="#issue-3708"><span class="tier A">A</span>model.method in a workflow guard fails with &#39;Do not know how</a><a href="#issue-3713"><span class="tier A">A</span>CEL expression results that hold a timestamp, duration or ui</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3742"><span class="tier A">A</span>dashboard: run page polling stacks history.get and history.l</a><a href="#issue-3741"><span class="tier A">A</span>serve: add child spans and attributes to workflow.history.ge</a><a href="#issue-3737"><span class="tier A">A</span>v3 chunk barrier on macOS: use F_BARRIERFSYNC (ordering) ins</a><a href="#issue-3729"><span class="tier A">A</span>swamp serve: remote &#39;model method history get|logs&#39; cannot f</a><a href="#issue-3740"><span class="tier A">A</span>serve: webhook-triggered workflow runs can&#39;t be cancelled — </a><a href="#issue-3724"><span class="tier A">A</span>Installers intermittently fail resolving stable release: add</a><a href="#issue-3726"><span class="tier A">A</span>A workflow step fails on a static validation error in a meth</a><a href="#issue-3694"><span class="tier A">A</span>extension_source_add_test globs the real home directory and </a><a href="#issue-3628"><span class="tier A">A</span>typed-secrets 3.5: local entry points, validation diagnostic</a><a href="#issue-3706"><span class="tier A">A</span>data query: filter on data lifecycle so deleted resources ca</a><a href="#issue-3708"><span class="tier A">A</span>model.method in a workflow guard fails with &#39;Do not know how</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3742">
+<h2><span class="tier A">A</span>dashboard: run page polling stacks history.get and history.logs requests while serve is slow</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-21T20:05:48.995Z">2026-10-21T20:05:48.995Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3742" rel="noopener">lab#3742</a></div>
 </article>
 <article class="item" id="issue-3741">
 <h2><span class="tier A">A</span>serve: add child spans and attributes to workflow.history.get (and run_summary/run_search) to diagnose slow dashboard loads</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3708" rel="noopener">lab#3708</a></div>
 </article>
-<article class="item" id="issue-3713">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3713">
 <h2><span class="tier A">A</span>CEL expression results that hold a timestamp, duration or uint become an empty object</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-21T16:34:58.106Z">2026-10-21T16:34:58.106Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3713" rel="noopener">lab#3713</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3631">
+<article class="item" id="issue-3631">
 <h2><span class="tier A">A</span>Docs: extension dependency trust pages — import-map auditing, bare-import rewrite and scoring, and the clarified warning/error plan</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-21T16:31:13.176Z">2026-10-21T16:31:13.176Z</time></span></div>
@@ -4973,6 +4981,30 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-3755">
+<h2><span class="tier B">B</span>serve: multi-minute write_resource latency during concurrent worker readiness</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-21T21:02:49.086Z">2026-10-21T21:02:49.086Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3755" rel="noopener">lab#3755</a></div>
+</article>
+<article class="item" id="issue-3665">
+<h2><span class="tier B">B</span>Serve: execute independent webhook-triggered workflows concurrently</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-21T20:48:14.243Z">2026-10-21T20:48:14.243Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3665" rel="noopener">lab#3665</a></div>
+</article>
+<article class="item" id="issue-3739">
+<h2><span class="tier B">B</span>serve: a run orphaned by a container restart can&#39;t be cancelled — the restarted serve reuses the dead owner&#39;s pid, so cancel reports the owner still alive</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-21T20:43:02.520Z">2026-10-21T20:43:02.520Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3739" rel="noopener">lab#3739</a></div>
+</article>
 <article class="item" id="issue-3738">
 <h2><span class="tier B">B</span>Source glob expansion crashes when a directory under the glob parent disappears mid-walk</h2>
 <p class="lede">Issue in_progress</p>
@@ -4980,14 +5012,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3738" rel="noopener">lab#3738</a></div>
-</article>
-<article class="item" id="issue-3739">
-<h2><span class="tier B">B</span>serve: a run orphaned by a container restart can&#39;t be cancelled — the restarted serve reuses the dead owner&#39;s pid, so cancel reports the owner still alive</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-21T19:57:58.005Z">2026-10-21T19:57:58.005Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3739" rel="noopener">lab#3739</a></div>
 </article>
 <article class="item" id="issue-3717">
 <h2><span class="tier B">B</span>extension fmt --check writes deno.lock in deno.json mode, which push and quality then bundle against with --frozen</h2>
@@ -5012,14 +5036,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3718" rel="noopener">lab#3718</a></div>
-</article>
-<article class="item" id="issue-3742">
-<h2><span class="tier B">B</span>dashboard: run page polling stacks history.get and history.logs requests while serve is slow</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-21T19:48:50.279Z">2026-10-21T19:48:50.279Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3742" rel="noopener">lab#3742</a></div>
 </article>
 <article class="item" id="issue-3730">
 <h2><span class="tier B">B</span>typed-secrets 4.1: workflow passes bind sentinels as Secrets: typed guards and asserts, forEach items and identities, child bindings, webhook inputs, and the synchronous authorization step</h2>
@@ -5109,7 +5125,23 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3743">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3748">
+<h2><span class="tier C">C</span>Workflow step failures carry the error&#39;s stable code in the event, the run record and JSON output</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-21T20:37:16.832Z">2026-10-21T20:37:16.832Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3748" rel="noopener">lab#3748</a></div>
+</article>
+<article class="item" id="issue-3745">
+<h2><span class="tier C">C</span>The evaluated cache is written before the method&#39;s arguments pass their schema, so a refused run replaces the last good evaluation</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-21T20:36:57.741Z">2026-10-21T20:36:57.741Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3745" rel="noopener">lab#3745</a></div>
+</article>
+<article class="item" id="issue-3743">
 <h2><span class="tier C">C</span>Interactive history and output search pickers cannot open a run under a non-default datastore</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-21T19:37:38.742Z">2026-10-21T19:37:38.742Z</time></span></div>
@@ -5348,14 +5380,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3670" rel="noopener">lab#3670</a></div>
-</article>
-<article class="item" id="issue-3665">
-<h2><span class="tier C">C</span>Serve: execute independent webhook-triggered workflows concurrently</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-20T14:51:53.199Z">2026-10-20T14:51:53.199Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3665" rel="noopener">lab#3665</a></div>
 </article>
 <article class="item" id="issue-3663">
 <h2><span class="tier C">C</span>vary/forEach object values with no key/name/id produce data names Windows refuses</h2>
@@ -6926,13 +6950,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>857 items across 1 source(s) in this window:
-1 critical, 612 notable, 17 routine,
-227 minor.</p>
-<ul><li><strong>issues</strong> — 857</li></ul></section>
+<p>860 items across 1 source(s) in this window:
+1 critical, 613 notable, 18 routine,
+228 minor.</p>
+<ul><li><strong>issues</strong> — 860</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-21T20:05:31.041Z">2026-10-21T20:05:31.041Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-21T21:06:06.603Z">2026-10-21T21:06:06.603Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

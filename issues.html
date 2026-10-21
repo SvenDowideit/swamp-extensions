@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3354"><span class="tier A">A</span>Dependency trust scoring (CLI): yanked and loose specifiers </a><a href="#issue-3644"><span class="tier A">A</span>v3 on S3/GCS: the namespace refusal names setup filesystem, </a><a href="#issue-3643"><span class="tier A">A</span>v3 on S3/GCS: setup on a prefix holding only swamp&#39;s format-</a><a href="#issue-3680"><span class="tier A">A</span>Workflow runs ignore defaultVault: step sensitive outputs la</a><a href="#issue-3627"><span class="tier A">A</span>typed-secrets 3.4: destination refusals, identifier stand-in</a><a href="#issue-3530"><span class="tier A">A</span>Remote readResource does not apply the legacy schema fallbac</a><a href="#issue-3669"><span class="tier A">A</span>extension quality crashes with deno doc --json failed when a</a><a href="#issue-3685"><span class="tier A">A</span>Flaky: datastore_v3_outbox_model_property_test throws MayLan</a><a href="#issue-3677"><span class="tier A">A</span>extension push: the yanked-dependency warning names a versio</a><a href="#issue-3601"><span class="tier A">A</span>eval-skill-triggers ignores evals/promptfoo/package-lock.jso</a><a href="#issue-3367"><span class="tier A">A</span>codegen: AWS models emit CloudFormation patterns JavaScript </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3692"><span class="tier A">A</span>README.md needs updating with current language and content</a><a href="#issue-3691"><span class="tier A">A</span>v3 namespaces: cross-namespace reads return the reader&#39;s own</a><a href="#issue-3686"><span class="tier A">A</span>swamp issue redacts git commit SHAs as secrets and fast-chec</a><a href="#issue-3690"><span class="tier A">A</span>v3: a checkout holding v2 records joins a v3 datastore throu</a><a href="#issue-3354"><span class="tier A">A</span>Dependency trust scoring (CLI): yanked and loose specifiers </a><a href="#issue-3644"><span class="tier A">A</span>v3 on S3/GCS: the namespace refusal names setup filesystem, </a><a href="#issue-3643"><span class="tier A">A</span>v3 on S3/GCS: setup on a prefix holding only swamp&#39;s format-</a><a href="#issue-3680"><span class="tier A">A</span>Workflow runs ignore defaultVault: step sensitive outputs la</a><a href="#issue-3627"><span class="tier A">A</span>typed-secrets 3.4: destination refusals, identifier stand-in</a><a href="#issue-3530"><span class="tier A">A</span>Remote readResource does not apply the legacy schema fallbac</a><a href="#issue-3669"><span class="tier A">A</span>extension quality crashes with deno doc --json failed when a</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,38 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3692">
+<h2><span class="tier A">A</span>README.md needs updating with current language and content</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-21T00:59:50.466Z">2026-10-21T00:59:50.466Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3692" rel="noopener">lab#3692</a></div>
+</article>
+<article class="item" id="issue-3691">
+<h2><span class="tier A">A</span>v3 namespaces: cross-namespace reads return the reader&#39;s own content, a namespaced local tier is overwritten by solo commits, and namespaces can collide with swamp&#39;s own .swamp/ directories (bug hunt group 7)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-21T00:50:38.649Z">2026-10-21T00:50:38.649Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3691" rel="noopener">lab#3691</a></div>
+</article>
+<article class="item" id="issue-3686">
+<h2><span class="tier A">A</span>swamp issue redacts git commit SHAs as secrets and fast-check replay paths as IP addresses</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-21T00:33:55.100Z">2026-10-21T00:33:55.100Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3686" rel="noopener">lab#3686</a></div>
+</article>
+<article class="item" id="issue-3690">
+<h2><span class="tier A">A</span>v3: a checkout holding v2 records joins a v3 datastore through .swamp.yaml unguarded, overwriting its records and diverging for good (bug hunt group 5)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-21T00:14:02.126Z">2026-10-21T00:14:02.126Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3690" rel="noopener">lab#3690</a></div>
 </article>
 <article class="item" id="issue-3354">
 <h2><span class="tier A">A</span>Dependency trust scoring (CLI): yanked and loose specifiers cost one of the two dependency-trust points (no new push errors)</h2>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3669" rel="noopener">lab#3669</a></div>
 </article>
-<article class="item" id="issue-3685">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3685">
 <h2><span class="tier A">A</span>Flaky: datastore_v3_outbox_model_property_test throws MayLandLaterError on a random seed (aged commit, failed discard-and-mark checkpoint, power cut)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-20T20:23:53.911Z">2026-10-20T20:23:53.911Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3367" rel="noopener">lab#3367</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3640">
+<article class="item" id="issue-3640">
 <h2><span class="tier A">A</span>v3 outbox killed-writer test times out waiting for the kill point under CPU load</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-20T18:00:31.715Z">2026-10-20T18:00:31.715Z</time></span></div>
@@ -4789,13 +4821,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3690">
-<h2><span class="tier B">B</span>v3: a checkout holding v2 records joins a v3 datastore through .swamp.yaml unguarded, overwriting its records and diverging for good (bug hunt group 5)</h2>
+<article class="item" id="issue-3675">
+<h2><span class="tier B">B</span>Docs: doctor datastores reference for the v3 content check and lost format marker repair</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-20T23:32:26.437Z">2026-10-20T23:32:26.437Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-21T01:01:48.259Z">2026-10-21T01:01:48.259Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3690" rel="noopener">lab#3690</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3675" rel="noopener">lab#3675</a></div>
+</article>
+<article class="item" id="issue-3678">
+<h2><span class="tier B">B</span>Docs: step dataOutputOverrides vaultName and the field-by-field override merge (swamp-club#3606)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-21T01:01:48.062Z">2026-10-21T01:01:48.062Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3678" rel="noopener">lab#3678</a></div>
+</article>
+<article class="item" id="issue-3622">
+<h2><span class="tier B">B</span>Docs: data name portability rule and warning</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-21T01:01:47.861Z">2026-10-21T01:01:47.861Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3622" rel="noopener">lab#3622</a></div>
+</article>
+<article class="item" id="issue-3623">
+<h2><span class="tier B">B</span>Docs: vault create and vault migrate refuse a local_encryption name with leftover storage</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-21T01:01:47.644Z">2026-10-21T01:01:47.644Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3623" rel="noopener">lab#3623</a></div>
 </article>
 <article class="item" id="issue-3529">
 <h2><span class="tier B">B</span>Remote resolveSecret allowlist is always empty for workflow steps that use vault.get</h2>
@@ -4804,22 +4860,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3529" rel="noopener">lab#3529</a></div>
-</article>
-<article class="item" id="issue-3686">
-<h2><span class="tier B">B</span>swamp issue redacts git commit SHAs as secrets and fast-check replay paths as IP addresses</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-20T23:11:14.281Z">2026-10-20T23:11:14.281Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3686" rel="noopener">lab#3686</a></div>
-</article>
-<article class="item" id="issue-3691">
-<h2><span class="tier B">B</span>v3 namespaces: cross-namespace reads return the reader&#39;s own content, a namespaced local tier is overwritten by solo commits, and namespaces can collide with swamp&#39;s own .swamp/ directories (bug hunt group 7)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-20T23:00:33.760Z">2026-10-20T23:00:33.760Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3691" rel="noopener">lab#3691</a></div>
 </article>
 <article class="item" id="issue-3682">
 <h2><span class="tier B">B</span>Registry scorecard: a loose specifier costs one of the two dependency-trust points and a yanked one costs both, matching the CLI (#3354)</h2>
@@ -4901,7 +4941,31 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3688">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3599">
+<h2><span class="tier C">C</span>Docs: worker daemon enable reference is missing --ca-cert, --concurrency and SWAMP_SERVE_EXTRA_HEADERS</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-21T00:37:03.923Z">2026-10-21T00:37:03.923Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3599" rel="noopener">lab#3599</a></div>
+</article>
+<article class="item" id="issue-3695">
+<h2><span class="tier C">C</span>Docs: issue redaction keeps git ids and non-address colon runs, and asks before posting (swamp-club#3686)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-21T00:31:45.692Z">2026-10-21T00:31:45.692Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3695" rel="noopener">lab#3695</a></div>
+</article>
+<article class="item" id="issue-3694">
+<h2><span class="tier C">C</span>extension_source_add_test globs the real home directory and flakes when a file in ~ disappears mid-walk</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-21T00:17:34.218Z">2026-10-21T00:17:34.218Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3694" rel="noopener">lab#3694</a></div>
+</article>
+<article class="item" id="issue-3688">
 <h2><span class="tier C">C</span>Scorecard: copy the updated jsr-yanked wording from dependency_audit_vectors.json</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-20T21:39:51.864Z">2026-10-20T21:39:51.864Z</time></span></div>
@@ -4933,14 +4997,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3631" rel="noopener">lab#3631</a></div>
 </article>
-<article class="item" id="issue-3692">
-<h2><span class="tier C">C</span>README.md needs updating with current language and content</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-20T21:35:08.966Z">2026-10-20T21:35:08.966Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3692" rel="noopener">lab#3692</a></div>
-</article>
 <article class="item" id="issue-3632">
 <h2><span class="tier C">C</span>extension push writes node_modules/.deno/ into the author&#39;s package.json project when bundling</h2>
 <p class="lede">Open issue</p>
@@ -4956,22 +5012,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3683" rel="noopener">lab#3683</a></div>
-</article>
-<article class="item" id="issue-3678">
-<h2><span class="tier C">C</span>Docs: step dataOutputOverrides vaultName and the field-by-field override merge (swamp-club#3606)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-20T18:47:46.522Z">2026-10-20T18:47:46.522Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3678" rel="noopener">lab#3678</a></div>
-</article>
-<article class="item" id="issue-3675">
-<h2><span class="tier C">C</span>Docs: doctor datastores reference for the v3 content check and lost format marker repair</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-20T18:47:43.481Z">2026-10-20T18:47:43.481Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3675" rel="noopener">lab#3675</a></div>
 </article>
 <article class="item" id="issue-3679">
 <h2><span class="tier C">C</span>Preserve active worker execution across serve restarts and upgrades; reconnect and reattach dispatches</h2>
@@ -5165,22 +5205,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3514" rel="noopener">lab#3514</a></div>
 </article>
-<article class="item" id="issue-3622">
-<h2><span class="tier C">C</span>Docs: data name portability rule and warning</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-19T18:20:41.644Z">2026-10-19T18:20:41.644Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3622" rel="noopener">lab#3622</a></div>
-</article>
-<article class="item" id="issue-3623">
-<h2><span class="tier C">C</span>Docs: vault create and vault migrate refuse a local_encryption name with leftover storage</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-19T18:20:37.376Z">2026-10-19T18:20:37.376Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3623" rel="noopener">lab#3623</a></div>
-</article>
 <article class="item" id="issue-3603">
 <h2><span class="tier C">C</span>Multi-model skill eval: gpt-5.4 and gemini jobs fail preflight every run (OpenAI credits exhausted, Google API key invalid)</h2>
 <p class="lede">Open issue</p>
@@ -5212,14 +5236,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3616" rel="noopener">lab#3616</a></div>
-</article>
-<article class="item" id="issue-3599">
-<h2><span class="tier C">C</span>Docs: worker daemon enable reference is missing --ca-cert, --concurrency and SWAMP_SERVE_EXTRA_HEADERS</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-19T16:14:52.387Z">2026-10-19T16:14:52.387Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3599" rel="noopener">lab#3599</a></div>
 </article>
 <article class="item" id="issue-3608">
 <h2><span class="tier C">C</span>Registry drops contentMetadata.extensions (method grafts) at confirm-push</h2>
@@ -6630,13 +6646,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>820 items across 1 source(s) in this window:
-1 critical, 589 notable, 14 routine,
-216 minor.</p>
-<ul><li><strong>issues</strong> — 820</li></ul></section>
+<p>822 items across 1 source(s) in this window:
+1 critical, 593 notable, 15 routine,
+213 minor.</p>
+<ul><li><strong>issues</strong> — 822</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-21T00:04:49.013Z">2026-10-21T00:04:49.013Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-21T01:04:51.107Z">2026-10-21T01:04:51.107Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

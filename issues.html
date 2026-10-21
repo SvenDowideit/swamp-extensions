@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3706"><span class="tier A">A</span>data query: filter on data lifecycle so deleted resources ca</a><a href="#issue-3708"><span class="tier A">A</span>model.method in a workflow guard fails with &#39;Do not know how</a><a href="#issue-3713"><span class="tier A">A</span>CEL expression results that hold a timestamp, duration or ui</a><a href="#issue-3631"><span class="tier A">A</span>Docs: extension dependency trust pages — import-map auditing</a><a href="#issue-3682"><span class="tier A">A</span>Registry scorecard: a loose specifier costs one of the two d</a><a href="#issue-3529"><span class="tier A">A</span>Remote resolveSecret allowlist is always empty for workflow </a><a href="#issue-3696"><span class="tier A">A</span>v3 join check refuses a fresh managedConfig checkout on S3/G</a><a href="#issue-3675"><span class="tier A">A</span>Docs: doctor datastores reference for the v3 content check a</a><a href="#issue-3678"><span class="tier A">A</span>Docs: step dataOutputOverrides vaultName and the field-by-fi</a><a href="#issue-3622"><span class="tier A">A</span>Docs: data name portability rule and warning</a><a href="#issue-3623"><span class="tier A">A</span>Docs: vault create and vault migrate refuse a local_encrypti</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3628"><span class="tier A">A</span>typed-secrets 3.5: local entry points, validation diagnostic</a><a href="#issue-3706"><span class="tier A">A</span>data query: filter on data lifecycle so deleted resources ca</a><a href="#issue-3708"><span class="tier A">A</span>model.method in a workflow guard fails with &#39;Do not know how</a><a href="#issue-3713"><span class="tier A">A</span>CEL expression results that hold a timestamp, duration or ui</a><a href="#issue-3631"><span class="tier A">A</span>Docs: extension dependency trust pages — import-map auditing</a><a href="#issue-3682"><span class="tier A">A</span>Registry scorecard: a loose specifier costs one of the two d</a><a href="#issue-3529"><span class="tier A">A</span>Remote resolveSecret allowlist is always empty for workflow </a><a href="#issue-3696"><span class="tier A">A</span>v3 join check refuses a fresh managedConfig checkout on S3/G</a><a href="#issue-3675"><span class="tier A">A</span>Docs: doctor datastores reference for the v3 content check a</a><a href="#issue-3678"><span class="tier A">A</span>Docs: step dataOutputOverrides vaultName and the field-by-fi</a><a href="#issue-3622"><span class="tier A">A</span>Docs: data name portability rule and warning</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3628">
+<h2><span class="tier A">A</span>typed-secrets 3.5: local entry points, validation diagnostics, context.runModel and model.method delivery</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-21T17:23:51.757Z">2026-10-21T17:23:51.757Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3628" rel="noopener">lab#3628</a></div>
 </article>
 <article class="item" id="issue-3706">
 <h2><span class="tier A">A</span>data query: filter on data lifecycle so deleted resources can be excluded</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3622" rel="noopener">lab#3622</a></div>
 </article>
-<article class="item" id="issue-3623">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3623">
 <h2><span class="tier A">A</span>Docs: vault create and vault migrate refuse a local_encryption name with leftover storage</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-21T01:17:58.267Z">2026-10-21T01:17:58.267Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3623" rel="noopener">lab#3623</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3692">
+<article class="item" id="issue-3692">
 <h2><span class="tier A">A</span>README.md needs updating with current language and content</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-21T00:59:50.466Z">2026-10-21T00:59:50.466Z</time></span></div>
@@ -4909,34 +4917,82 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3628">
-<h2><span class="tier B">B</span>typed-secrets 3.5: local entry points, validation diagnostics, context.runModel and model.method delivery</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-21T16:58:44.342Z">2026-10-21T16:58:44.342Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3628" rel="noopener">lab#3628</a></div>
-</article>
-<article class="item" id="issue-3724">
-<h2><span class="tier B">B</span>Installers intermittently fail resolving stable release: add bounded retries and actionable diagnostics</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-21T16:45:13.055Z">2026-10-21T16:45:13.055Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3724" rel="noopener">lab#3724</a></div>
-</article>
 <article class="item" id="issue-3717">
 <h2><span class="tier B">B</span>extension fmt --check writes deno.lock in deno.json mode, which push and quality then bundle against with --frozen</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-21T16:42:37.196Z">2026-10-21T16:42:37.196Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-21T18:20:51.651Z">2026-10-21T18:20:51.651Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3717" rel="noopener">lab#3717</a></div>
 </article>
+<article class="item" id="issue-3730">
+<h2><span class="tier B">B</span>typed-secrets 4.1: workflow passes bind sentinels as Secrets: typed guards and asserts, forEach items and identities, child bindings, webhook inputs, and the synchronous authorization step</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-21T18:18:45.349Z">2026-10-21T18:18:45.349Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3730" rel="noopener">lab#3730</a></div>
+</article>
+<article class="item" id="issue-3726">
+<h2><span class="tier B">B</span>A workflow step fails on a static validation error in a method it does not invoke, where swamp behavior run of the same method succeeds</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-21T18:18:42.484Z">2026-10-21T18:18:42.484Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3726" rel="noopener">lab#3726</a></div>
+</article>
+<article class="item" id="issue-3739">
+<h2><span class="tier B">B</span>serve: a run orphaned by a container restart can&#39;t be cancelled — the restarted serve reuses the dead owner&#39;s pid, so cancel reports the owner still alive</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-21T18:18:40.819Z">2026-10-21T18:18:40.819Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3739" rel="noopener">lab#3739</a></div>
+</article>
+<article class="item" id="issue-3694">
+<h2><span class="tier B">B</span>extension_source_add_test globs the real home directory and flakes when a file in ~ disappears mid-walk</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-21T18:12:44.819Z">2026-10-21T18:12:44.819Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3694" rel="noopener">lab#3694</a></div>
+</article>
+<article class="item" id="issue-3736">
+<h2><span class="tier B">B</span>v3 recovery sweep: dot-prefixed data names escape it, HFS+ non-ASCII names are deleted by it, and an old mtime keeps a dropped write&#39;s file (bug hunt group 8)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-21T18:12:00.408Z">2026-10-21T18:12:00.408Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3736" rel="noopener">lab#3736</a></div>
+</article>
+<article class="item" id="issue-3737">
+<h2><span class="tier B">B</span>v3 chunk barrier on macOS: use F_BARRIERFSYNC (ordering) instead of F_FULLFSYNC (full drive-cache flush), cutting ~10-25 ms (200 ms+ on a busy disk) per command</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-21T18:07:18.080Z">2026-10-21T18:07:18.080Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3737" rel="noopener">lab#3737</a></div>
+</article>
+<article class="item" id="issue-3729">
+<h2><span class="tier B">B</span>swamp serve: remote &#39;model method history get|logs&#39; cannot find a run that remote &#39;history search&#39; lists</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-21T18:07:11.358Z">2026-10-21T18:07:11.358Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3729" rel="noopener">lab#3729</a></div>
+</article>
+<article class="item" id="issue-3724">
+<h2><span class="tier B">B</span>Installers intermittently fail resolving stable release: add bounded retries and actionable diagnostics</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-21T18:01:45.996Z">2026-10-21T18:01:45.996Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3724" rel="noopener">lab#3724</a></div>
+</article>
 <article class="item" id="issue-3612">
 <h2><span class="tier B">B</span>extension push resolves the Deno config and import map the way Deno does: deno.jsonc, importMap file references and scopes</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-21T16:41:39.724Z">2026-10-21T16:41:39.724Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-21T17:57:15.181Z">2026-10-21T17:57:15.181Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3612" rel="noopener">lab#3612</a></div>
@@ -4944,7 +5000,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-3718">
 <h2><span class="tier B">B</span>extension quality names the wrong cause: a bundle failure prints no reason, the not-audited row always blames an outage, and symbols-docs blames JSDoc when deno doc failed</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-21T16:39:52.493Z">2026-10-21T16:39:52.493Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-21T17:26:00.428Z">2026-10-21T17:26:00.428Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3718" rel="noopener">lab#3718</a></div>
@@ -5021,13 +5077,61 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3726">
-<h2><span class="tier C">C</span>A workflow step fails on a static validation error in a method it does not invoke, where swamp behavior run of the same method succeeds</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3738">
+<h2><span class="tier C">C</span>Source glob expansion crashes when a directory under the glob parent disappears mid-walk</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-21T16:58:09.282Z">2026-10-21T16:58:09.282Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-21T18:03:50.417Z">2026-10-21T18:03:50.417Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3726" rel="noopener">lab#3726</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3738" rel="noopener">lab#3738</a></div>
+</article>
+<article class="item" id="issue-3734">
+<h2><span class="tier C">C</span>typed-secrets 4.5: the inline resolutions refuse or mask: placement, task selectors, child references and deferred targets refuse secrets, assert messages mask them, and the deprecated resolvers go</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-21T17:57:52.989Z">2026-10-21T17:57:52.989Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3734" rel="noopener">lab#3734</a></div>
+</article>
+<article class="item" id="issue-3735">
+<h2><span class="tier C">C</span>typed-secrets 4.6: turn the typed path on for every entry point, remove the internal option, and delete the regular-expression rewrite, the value search and the plaintext resolution of tagged fields</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-21T17:52:53.227Z">2026-10-21T17:52:53.227Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3735" rel="noopener">lab#3735</a></div>
+</article>
+<article class="item" id="issue-3733">
+<h2><span class="tier C">C</span>typed-secrets 4.4: persistence and resume hold references: rehydration stops reading the vault, every persisted copy uses the persisted form, and run events are masked</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-21T17:52:50.400Z">2026-10-21T17:52:50.400Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3733" rel="noopener">lab#3733</a></div>
+</article>
+<article class="item" id="issue-3732">
+<h2><span class="tier C">C</span>typed-secrets 4.3: the expression-facing query view registers Secret in DataQueryService</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-21T17:52:48.714Z">2026-10-21T17:52:48.714Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3732" rel="noopener">lab#3732</a></div>
+</article>
+<article class="item" id="issue-3731">
+<h2><span class="tier C">C</span>typed-secrets 4.2: live and reconstructed step outputs and child outputs return references through the accessor adapter</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-21T17:52:47.101Z">2026-10-21T17:52:47.101Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3731" rel="noopener">lab#3731</a></div>
+</article>
+<article class="item" id="issue-3728">
+<h2><span class="tier C">C</span>Docs: extension fmt never writes deno.lock and warns on a stale one (swamp-club#3717)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-21T17:21:30.462Z">2026-10-21T17:21:30.462Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3728" rel="noopener">lab#3728</a></div>
 </article>
 <article class="item" id="issue-3725">
 <h2><span class="tier C">C</span>Docs: extension manual pages describe push and quality resolving only the deno.json import map</h2>
@@ -5140,14 +5244,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3695" rel="noopener">lab#3695</a></div>
-</article>
-<article class="item" id="issue-3694">
-<h2><span class="tier C">C</span>extension_source_add_test globs the real home directory and flakes when a file in ~ disappears mid-walk</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-21T00:17:34.218Z">2026-10-21T00:17:34.218Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3694" rel="noopener">lab#3694</a></div>
 </article>
 <article class="item" id="issue-3689">
 <h2><span class="tier C">C</span>Docs: extension publishing reference quotes stale bare-specifiers and quality messages</h2>
@@ -6798,13 +6894,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>841 items across 1 source(s) in this window:
-1 critical, 604 notable, 14 routine,
-222 minor.</p>
-<ul><li><strong>issues</strong> — 841</li></ul></section>
+<p>853 items across 1 source(s) in this window:
+1 critical, 605 notable, 20 routine,
+227 minor.</p>
+<ul><li><strong>issues</strong> — 853</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-21T17:05:22.373Z">2026-10-21T17:05:22.373Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-21T18:23:36.301Z">2026-10-21T18:23:36.301Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

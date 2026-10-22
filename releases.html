@@ -10879,7 +10879,71 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261012.163314.0-sha.bb132c57" rel="noopener">release v20261012.163314.0-sha.bb132c57</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb132c57717eb75570f7ed998271c218cc00726f" rel="noopener">bb132c57</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3019" rel="noopener">#3019</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261021-235412-0-sha-2f9b061b">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261022-144737-0-sha-bc388c72">
+<h2><span class="tier C">C</span>swamp 20261022.144737.0-sha.bc388c72</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-22T14:52:49Z">2026-10-22T14:52:49Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(secrets): a sensitive argument fed from an input reaches the evaluated cache as the mask, and --last-evaluated refuses to replay it (swamp-club#3681) (#3289)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Core slice of swamp-club#3681: a sensitive argument whose value came from an input no longer lands in plaintext in <code>.swamp/definitions-evaluated</code>.</p>
+<ul>
+<li><code>persistEvaluatedDefinition</code> takes the type&#39;s argument schemas and writes every literal left under a sensitive path as <code>***</code> after vault values have become references. The cache records the masked positions in <code>maskedPaths</code>. A string that still holds a runtime expression (<code>vault.get</code>, <code>env.X</code>) is kept as written (<code>holdsRuntimeExpression</code>). Inside a sensitive container, only the leaves a reference covers are left.</li>
+<li>One predicate, <code>findPlaintextSensitiveArguments</code>, drives the mask, the replay refusal and a fail-closed guard in <code>YamlEvaluatedDefinitionRepository.save</code>.</li>
+<li><code>swamp behavior run --last-evaluated</code> refuses such a cache with <code>evaluated_cache_holds_sensitive_arguments</code>. The message names the paths, never a value, and points at the vault remedy. The check covers the global arguments and the replayed method&#39;s arguments, leaves out one an <code>--input</code> override replaces, and counts recorded masks whatever the type marks later.</li>
+<li>Behavior run, workflow steps and behavior evaluate pass the schemas. Evaluate and the guard both resolve types with <code>ModelRegistry.getOrLoad</code>. Workflow <code>--last-evaluated</code> re-evaluates each step (swamp-club#3583),</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261022.144737.0-sha.bc388c72" rel="noopener">release v20261022.144737.0-sha.bc388c72</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bc388c72" rel="noopener">bc388c72</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3289" rel="noopener">#3289</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3747" rel="noopener">#3747</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3748" rel="noopener">#3748</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261022-143020-0-sha-4569663b">
+<h2><span class="tier C">C</span>swamp 20261022.143020.0-sha.4569663b</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-22T14:36:23Z">2026-10-22T14:36:23Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(secrets): typed-secrets 4.1: the workflow passes bind sentinels as Secrets (swamp-club#3730) (#3288)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Typed-secrets Phase 4.1 (<code>design/enablers/typed-secrets.md</code>): the workflow passes bind sentinels as Secrets behind the internal typed-secrets option.</p>
+<ul>
+<li>Every workflow pass selects its evaluator through one seam, <code>ExpressionEvaluationService.passEvaluatorFor</code>. With an untyped registry it returns the legacy evaluator, so the option-off path is unchanged.</li>
+<li>Guards and asserts evaluate as predicate destinations (<code>secretResult: &quot;refuse&quot;</code>): a Secret that reaches the result is refused and nothing is issued into the bag.</li>
+<li>The synchronous passes get an authorization step, <code>CelEvaluator.prepareSynchronousReads</code>. A failed check (denial, unavailable vault, missing vault scope) is kept per reference in <code>deniedReferences</code> and raised only by the read that touches the denied record, so a denied vault on an unrelated record of the same model no longer fails a step that reads an allowed one.</li>
+<li>forEach names authorize first, replace sentinels with the <code>sensitive-&lt;index&gt;</code> stand-in, and fail the expansion loudly on a secret refusal or a denied read instead of taking the suffixed fallback.</li>
+<li>A step name resolved at run start keeps the <code>sensitive-&lt;vault&gt;.&lt;key&gt;</code> stand-in instead of a sentinel, so no sentinel reaches <code>forEachTemplate</code>, the step events or the run record.</li>
+<li>Two small fixes come along: <code>model.method(...)</code> finds its record by the handle&#39;s data name</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261022.143020.0-sha.4569663b" rel="noopener">release v20261022.143020.0-sha.4569663b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4569663b" rel="noopener">4569663b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3288" rel="noopener">#3288</a>𝗔 <a href="https://swamp-club.com/lab/3730" rel="noopener">lab#3730</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261022-142135-0-sha-d301a818">
+<h2><span class="tier C">C</span>swamp 20261022.142135.0-sha.d301a818</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-22T14:30:05Z">2026-10-22T14:30:05Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): a v3 command prints its result only after its root commits, and a commit that cannot reach the storage says nothing was committed (swamp-club#3759) (#3287)</li>
+</ul>
+<p>Fixes swamp-club#3759.</p>
+<h4 class="body-h">The problem</h4>
+<p>On a v3 bucket datastore, a write whose commit could not reach the bucket printed <code>&quot;status&quot;: &quot;succeeded&quot;</code> on <code>--json</code>, then exited 1, and the write was lost. It was absent from the writer&#39;s checkout, from a fresh clone, and from the outbox.</p>
+<p><strong>Cause.</strong> A command rendered its result *inside* its root unit of work, before the root committed. A large output is stored as chunks, and committing those chunks needs the bucket. A cut after the method wrote its content but before the commit therefore printed success, then failed the commit and discarded the root.</p>
+<h4 class="body-h">The fix</h4>
+<p>This is the issue&#39;s option 2: output is held at the root seam. Rendering after the root in each command would mean changing about 35 commands that write stdout from roughly 1,100 places.</p>
+<ul>
+<li><strong>Output waits for the commit, on v3 roots only.</strong> <code>runCommandInRootUnit</code> (and so <code>runManagedConfigMutation</code>) and <code>runInCoordinatorRoot</code> hold stdout (<code>console.log</code>, <code>info</code>, <code>debug</code>) while a commit-log root is open (<code>src/cli/committed_output.ts</code>).</li>
+<li>Held output is written if the root committed and dropped if it did not.</li>
+<li>Held debug lines go to stderr, so a requested trace survives.</li>
+<li><strong>v2 is unchanged;</strong> a test pins that v2 output order stays the same, including when the command fails.</li>
+<li>`</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261022.142135.0-sha.d301a818" rel="noopener">release v20261022.142135.0-sha.d301a818</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d301a818" rel="noopener">d301a818</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3287" rel="noopener">#3287</a>𝗔 <a href="https://swamp-club.com/lab/3759" rel="noopener">lab#3759</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261021-235412-0-sha-2f9b061b">
 <h2><span class="tier C">C</span>align README heading with swamp-club.com (#3284)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-21T23:59:44Z">2026-10-21T23:59:44Z</time></span><span>docs</span></div>
@@ -11637,13 +11701,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>481 items across 1 source(s) in this window:
+<p>484 items across 1 source(s) in this window:
 7 critical, 430 notable, 14 routine,
-30 minor.</p>
-<ul><li><strong>fix</strong> — 313</li><li><strong>feat</strong> — 123</li><li><strong>test</strong> — 19</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 12</li><li><strong>perf</strong> — 2</li></ul></section>
+33 minor.</p>
+<ul><li><strong>fix</strong> — 313</li><li><strong>feat</strong> — 123</li><li><strong>test</strong> — 19</li><li><strong>refactor</strong> — 12</li><li><strong>docs</strong> — 12</li><li><strong>changes</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-22T14:20:09.271Z">2026-10-22T14:20:09.271Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-22T15:04:37.795Z">2026-10-22T15:04:37.795Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

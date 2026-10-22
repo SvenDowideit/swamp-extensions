@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3785"><span class="tier A">A</span>typed-secrets: the accessor adapter reads a legacy row stamp</a><a href="#issue-3790"><span class="tier A">A</span>typed-secrets query view: route a row&#39;s JSON content by whet</a><a href="#issue-3722"><span class="tier A">A</span>Expose run provenance (definitionHash, modelVersion, trigger</a><a href="#issue-3789"><span class="tier A">A</span>flaky: for_each_name_property_test lets the text around a se</a><a href="#issue-3732"><span class="tier A">A</span>typed-secrets 4.3: the expression-facing query view register</a><a href="#issue-3382"><span class="tier A">A</span>Teach defineBehavior in the extension skill now that swamp-t</a><a href="#issue-3714"><span class="tier A">A</span>CEL duration arithmetic is off by a second when a duration h</a><a href="#issue-3782"><span class="tier A">A</span>extension push finds no local modules when a folder above th</a><a href="#issue-3630"><span class="tier A">A</span>extension push (package.json mode): audit dependencies resol</a><a href="#issue-3731"><span class="tier A">A</span>typed-secrets 4.2: live and reconstructed step outputs and c</a><a href="#issue-3764"><span class="tier A">A</span>Local verification docs still tell agents to put ANTHROPIC_A</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3768"><span class="tier A">A</span>auth login leaves a new active API token per login; no clean</a><a href="#issue-3785"><span class="tier A">A</span>typed-secrets: the accessor adapter reads a legacy row stamp</a><a href="#issue-3790"><span class="tier A">A</span>typed-secrets query view: route a row&#39;s JSON content by whet</a><a href="#issue-3722"><span class="tier A">A</span>Expose run provenance (definitionHash, modelVersion, trigger</a><a href="#issue-3789"><span class="tier A">A</span>flaky: for_each_name_property_test lets the text around a se</a><a href="#issue-3732"><span class="tier A">A</span>typed-secrets 4.3: the expression-facing query view register</a><a href="#issue-3382"><span class="tier A">A</span>Teach defineBehavior in the extension skill now that swamp-t</a><a href="#issue-3714"><span class="tier A">A</span>CEL duration arithmetic is off by a second when a duration h</a><a href="#issue-3782"><span class="tier A">A</span>extension push finds no local modules when a folder above th</a><a href="#issue-3630"><span class="tier A">A</span>extension push (package.json mode): audit dependencies resol</a><a href="#issue-3731"><span class="tier A">A</span>typed-secrets 4.2: live and reconstructed step outputs and c</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3768">
+<h2><span class="tier A">A</span>auth login leaves a new active API token per login; no cleanup process</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-22T22:24:06.186Z">2026-10-22T22:24:06.186Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3768" rel="noopener">lab#3768</a></div>
 </article>
 <article class="item" id="issue-3785">
 <h2><span class="tier A">A</span>typed-secrets: the accessor adapter reads a legacy row stamped with the empty namespace as foreign, so its tagged fields stay reference text on the typed path</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3731" rel="noopener">lab#3731</a></div>
 </article>
-<article class="item" id="issue-3764">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3764">
 <h2><span class="tier A">A</span>Local verification docs still tell agents to put ANTHROPIC_API_KEY in verify.env for reviews</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-22T16:04:38.844Z">2026-10-22T16:04:38.844Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3764" rel="noopener">lab#3764</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3773">
+<article class="item" id="issue-3773">
 <h2><span class="tier A">A</span>A coded UserError a model method throws reaches a workflow step without its code, because InProcessExecutor keeps only the message</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-22T15:45:57.840Z">2026-10-22T15:45:57.840Z</time></span></div>
@@ -5253,42 +5261,26 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3768">
-<h2><span class="tier B">B</span>auth login leaves a new active API token per login; no cleanup process</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-22T21:56:42.994Z">2026-10-22T21:56:42.994Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3768" rel="noopener">lab#3768</a></div>
-</article>
-<article class="item" id="issue-3794">
-<h2><span class="tier B">B</span>extension push drops local modules when the repo under a node_modules folder is reached through a symlinked path (macOS /var, the swamp-club#3782 fix)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-22T21:55:58.440Z">2026-10-22T21:55:58.440Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3794" rel="noopener">lab#3794</a></div>
-</article>
-<article class="item" id="issue-3791">
-<h2><span class="tier B">B</span>flaky: LitestreamReplicator &#39;a failed launch releases its lock probe, so the next acquire starts a sidecar&#39; fails by timing in verify-build</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-22T21:55:58.241Z">2026-10-22T21:55:58.241Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3791" rel="noopener">lab#3791</a></div>
-</article>
 <article class="item" id="issue-3733">
 <h2><span class="tier B">B</span>typed-secrets 4.4: persistence and resume hold references: rehydration stops reading the vault, every persisted copy uses the persisted form, and run events are masked</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-22T21:43:00.451Z">2026-10-22T21:43:00.451Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-22T23:01:08.602Z">2026-10-22T23:01:08.602Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3733" rel="noopener">lab#3733</a></div>
 </article>
+<article class="item" id="issue-3796">
+<h2><span class="tier B">B</span>main fails type check: query_view_test.ts passes a namespace string where expressionQueryView now takes a NamespaceReader (semantic conflict between #3790 and #3785)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-22T22:50:55.013Z">2026-10-22T22:50:55.013Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3796" rel="noopener">lab#3796</a></div>
+</article>
 <article class="item" id="issue-3662">
 <h2><span class="tier B">B</span>extension push: record each dependency&#39;s audited (locked) version in the archive, so the registry audits what ships (swamp half; registry half #3778)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-22T21:13:30.973Z">2026-10-22T21:13:30.973Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-22T22:20:02.816Z">2026-10-22T22:20:02.816Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3662" rel="noopener">lab#3662</a></div>
@@ -5296,10 +5288,26 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-3786">
 <h2><span class="tier B">B</span>serve/fleet: close OpenTelemetry attribution gaps across dispatch, data plane and worker lifecycle</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-22T19:19:47.285Z">2026-10-22T19:19:47.285Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-22T22:17:52.329Z">2026-10-22T22:17:52.329Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3786" rel="noopener">lab#3786</a></div>
+</article>
+<article class="item" id="issue-3794">
+<h2><span class="tier B">B</span>extension push drops local modules when the repo under a node_modules folder is reached through a symlinked path (macOS /var, the swamp-club#3782 fix)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-22T22:09:28.967Z">2026-10-22T22:09:28.967Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3794" rel="noopener">lab#3794</a></div>
+</article>
+<article class="item" id="issue-3791">
+<h2><span class="tier B">B</span>flaky: LitestreamReplicator &#39;a failed launch releases its lock probe, so the next acquire starts a sidecar&#39; fails by timing in verify-build</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-22T22:06:53.890Z">2026-10-22T22:06:53.890Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3791" rel="noopener">lab#3791</a></div>
 </article>
 <article class="item" id="issue-3739">
 <h2><span class="tier B">B</span>serve: a run orphaned by a container restart can&#39;t be cancelled — the restarted serve reuses the dead owner&#39;s pid, so cancel reports the owner still alive</h2>
@@ -5405,21 +5413,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3793">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3798">
+<h2><span class="tier C">C</span>data_writer_property_test: a secret holding a newline and a literal backslash-n escapes the persisted-content property (seed 1648929202)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-22T22:59:21.825Z">2026-10-22T22:59:21.825Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3798" rel="noopener">lab#3798</a></div>
+</article>
+<article class="item" id="issue-3792">
+<h2><span class="tier C">C</span>Docs: dashboard Approvals view shows run context, reason and per-viewer decide state</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-22T22:54:29.314Z">2026-10-22T22:54:29.314Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3792" rel="noopener">lab#3792</a></div>
+</article>
+<article class="item" id="issue-3795">
+<h2><span class="tier C">C</span>forEachNameWithoutSecrets property test fails intermittently: an empty-string secret and an overlapping recorded value give different names</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-22T22:19:28.861Z">2026-10-22T22:19:28.861Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3795" rel="noopener">lab#3795</a></div>
+</article>
+<article class="item" id="issue-3793">
 <h2><span class="tier C">C</span>extension push (package.json mode): two installed copies under one declared range are audited once, so the second shipped version goes unaudited</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-22T21:12:42.925Z">2026-10-22T21:12:42.925Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3793" rel="noopener">lab#3793</a></div>
-</article>
-<article class="item" id="issue-3792">
-<h2><span class="tier C">C</span>Docs: dashboard Approvals view shows run context, reason and per-viewer decide state</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-22T21:06:02.386Z">2026-10-22T21:06:02.386Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3792" rel="noopener">lab#3792</a></div>
 </article>
 <article class="item" id="issue-3788">
 <h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
@@ -7198,13 +7222,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>891 items across 1 source(s) in this window:
-1 critical, 647 notable, 19 routine,
-224 minor.</p>
-<ul><li><strong>issues</strong> — 891</li></ul></section>
+<p>894 items across 1 source(s) in this window:
+1 critical, 648 notable, 19 routine,
+226 minor.</p>
+<ul><li><strong>issues</strong> — 894</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-22T22:04:32.451Z">2026-10-22T22:04:32.451Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-22T23:05:59.204Z">2026-10-22T23:05:59.204Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

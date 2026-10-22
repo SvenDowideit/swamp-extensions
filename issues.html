@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3764"><span class="tier A">A</span>Local verification docs still tell agents to put ANTHROPIC_A</a><a href="#issue-3773"><span class="tier A">A</span>A coded UserError a model method throws reaches a workflow s</a><a href="#issue-3779"><span class="tier A">A</span>Dashboard Workflows page takes ~19s on a serve with many ext</a><a href="#issue-3599"><span class="tier A">A</span>Docs: worker daemon enable reference is missing --ca-cert, -</a><a href="#issue-3695"><span class="tier A">A</span>Docs: issue redaction keeps git ids and non-address colon ru</a><a href="#issue-3769"><span class="tier A">A</span>agent-runner: let the Codex provider use a custom model prov</a><a href="#issue-3759"><span class="tier A">A</span>v3 on S3/GCS: a write whose commit cannot reach the bucket p</a><a href="#issue-3770"><span class="tier A">A</span>@swamp/cve/php-rce-2026-10 follow-ups: dry-run heading, comm</a><a href="#issue-3761"><span class="tier A">A</span>swamp-club /cve/dirtyfrag page shows --input targetHost/sshU</a><a href="#issue-3760"><span class="tier A">A</span>v3: datastore config migrate skips every workflow that has r</a><a href="#issue-3762"><span class="tier A">A</span>@swamp/cve/dirtyfrag report suggests commands for dirtyfrag-</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3731"><span class="tier A">A</span>typed-secrets 4.2: live and reconstructed step outputs and c</a><a href="#issue-3764"><span class="tier A">A</span>Local verification docs still tell agents to put ANTHROPIC_A</a><a href="#issue-3773"><span class="tier A">A</span>A coded UserError a model method throws reaches a workflow s</a><a href="#issue-3779"><span class="tier A">A</span>Dashboard Workflows page takes ~19s on a serve with many ext</a><a href="#issue-3599"><span class="tier A">A</span>Docs: worker daemon enable reference is missing --ca-cert, -</a><a href="#issue-3695"><span class="tier A">A</span>Docs: issue redaction keeps git ids and non-address colon ru</a><a href="#issue-3769"><span class="tier A">A</span>agent-runner: let the Codex provider use a custom model prov</a><a href="#issue-3759"><span class="tier A">A</span>v3 on S3/GCS: a write whose commit cannot reach the bucket p</a><a href="#issue-3770"><span class="tier A">A</span>@swamp/cve/php-rce-2026-10 follow-ups: dry-run heading, comm</a><a href="#issue-3761"><span class="tier A">A</span>swamp-club /cve/dirtyfrag page shows --input targetHost/sshU</a><a href="#issue-3760"><span class="tier A">A</span>v3: datastore config migrate skips every workflow that has r</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3731">
+<h2><span class="tier A">A</span>typed-secrets 4.2: live and reconstructed step outputs and child outputs return references through the accessor adapter</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-22T17:06:23.803Z">2026-10-22T17:06:23.803Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3731" rel="noopener">lab#3731</a></div>
 </article>
 <article class="item" id="issue-3764">
 <h2><span class="tier A">A</span>Local verification docs still tell agents to put ANTHROPIC_API_KEY in verify.env for reviews</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3760" rel="noopener">lab#3760</a></div>
 </article>
-<article class="item" id="issue-3762">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3762">
 <h2><span class="tier A">A</span>@swamp/cve/dirtyfrag report suggests commands for dirtyfrag-scanner whatever the model is named</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-22T02:16:45.052Z">2026-10-22T02:16:45.052Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3762" rel="noopener">lab#3762</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3612">
+<article class="item" id="issue-3612">
 <h2><span class="tier A">A</span>extension push resolves the Deno config and import map the way Deno does: deno.jsonc, importMap file references and scopes</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-22T02:09:22.576Z">2026-10-22T02:09:22.576Z</time></span></div>
@@ -5173,21 +5181,61 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-3732">
+<h2><span class="tier B">B</span>typed-secrets 4.3: the expression-facing query view registers Secret in DataQueryService</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-22T17:08:51.306Z">2026-10-22T17:08:51.306Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3732" rel="noopener">lab#3732</a></div>
+</article>
+<article class="item" id="issue-3782">
+<h2><span class="tier B">B</span>extension push finds no local modules when a folder above the repo is named node_modules</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-22T16:58:15.927Z">2026-10-22T16:58:15.927Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3782" rel="noopener">lab#3782</a></div>
+</article>
 <article class="item" id="issue-3630">
 <h2><span class="tier B">B</span>extension push (package.json mode): audit dependencies resolved through package.json, and leave the author&#39;s node_modules/ unchanged (merges #3632)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-22T16:05:16.058Z">2026-10-22T16:05:16.058Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-22T16:58:15.755Z">2026-10-22T16:58:15.755Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3630" rel="noopener">lab#3630</a></div>
 </article>
-<article class="item" id="issue-3731">
-<h2><span class="tier B">B</span>typed-secrets 4.2: live and reconstructed step outputs and child outputs return references through the accessor adapter</h2>
+<article class="item" id="issue-3382">
+<h2><span class="tier B">B</span>Teach defineBehavior in the extension skill now that swamp-testing 0.20261013.52 exports it</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-22T16:51:55.420Z">2026-10-22T16:51:55.420Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3382" rel="noopener">lab#3382</a></div>
+</article>
+<article class="item" id="issue-3714">
+<h2><span class="tier B">B</span>CEL duration arithmetic is off by a second when a duration has negative nanos (cel-js 7.6.1)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-22T15:56:29.740Z">2026-10-22T15:56:29.740Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-22T16:51:51.588Z">2026-10-22T16:51:51.588Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3731" rel="noopener">lab#3731</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3714" rel="noopener">lab#3714</a></div>
+</article>
+<article class="item" id="issue-3722">
+<h2><span class="tier B">B</span>Expose run provenance (definitionHash, modelVersion, triggeredBy) in method-summary reports or the extension context</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-22T16:42:50.128Z">2026-10-22T16:42:50.128Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3722" rel="noopener">lab#3722</a></div>
+</article>
+<article class="item" id="issue-3768">
+<h2><span class="tier B">B</span>auth login leaves a new active API token per login; no cleanup process</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-22T16:36:32.060Z">2026-10-22T16:36:32.060Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3768" rel="noopener">lab#3768</a></div>
 </article>
 <article class="item" id="issue-3739">
 <h2><span class="tier B">B</span>serve: a run orphaned by a container restart can&#39;t be cancelled — the restarted serve reuses the dead owner&#39;s pid, so cancel reports the owner still alive</h2>
@@ -5293,13 +5341,13 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3782">
-<h2><span class="tier C">C</span>extension push finds no local modules when a folder above the repo is named node_modules</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3783">
+<h2><span class="tier C">C</span>Registry scorecard: score secret-safe-docs (rubric v4) and keep sensitive on extracted arguments</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-22T15:47:19.454Z">2026-10-22T15:47:19.454Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-22T16:50:49.047Z">2026-10-22T16:50:49.047Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3782" rel="noopener">lab#3782</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3783" rel="noopener">lab#3783</a></div>
 </article>
 <article class="item" id="issue-3781">
 <h2><span class="tier C">C</span>Share the extension quality rubric between the swamp CLI and swamp-club instead of mirroring it</h2>
@@ -5381,14 +5429,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3772" rel="noopener">lab#3772</a></div>
 </article>
-<article class="item" id="issue-3768">
-<h2><span class="tier C">C</span>auth login leaves a new active API token per login; no cleanup process</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-22T03:04:58.762Z">2026-10-22T03:04:58.762Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3768" rel="noopener">lab#3768</a></div>
-</article>
 <article class="item" id="issue-3763">
 <h2><span class="tier C">C</span>v3 on a bucket: after a commit fails because the bucket is unreachable, the closing sync still waits its full 60 s before the command exits</h2>
 <p class="lede">Open issue</p>
@@ -5412,14 +5452,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3765" rel="noopener">lab#3765</a></div>
-</article>
-<article class="item" id="issue-3382">
-<h2><span class="tier C">C</span>Teach defineBehavior in the extension skill now that swamp-testing 0.20261013.52 exports it</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-21T23:47:18.847Z">2026-10-21T23:47:18.847Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3382" rel="noopener">lab#3382</a></div>
 </article>
 <article class="item" id="issue-3745">
 <h2><span class="tier C">C</span>The evaluated cache is written before the method&#39;s arguments pass their schema, so a refused run replaces the last good evaluation</h2>
@@ -5452,30 +5484,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3733" rel="noopener">lab#3733</a></div>
-</article>
-<article class="item" id="issue-3732">
-<h2><span class="tier C">C</span>typed-secrets 4.3: the expression-facing query view registers Secret in DataQueryService</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-21T17:52:48.714Z">2026-10-21T17:52:48.714Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3732" rel="noopener">lab#3732</a></div>
-</article>
-<article class="item" id="issue-3722">
-<h2><span class="tier C">C</span>Expose run provenance (definitionHash, modelVersion, triggeredBy) in method-summary reports or the extension context</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-21T16:27:53.906Z">2026-10-21T16:27:53.906Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3722" rel="noopener">lab#3722</a></div>
-</article>
-<article class="item" id="issue-3714">
-<h2><span class="tier C">C</span>CEL duration arithmetic is off by a second when a duration has negative nanos (cel-js 7.6.1)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-21T14:51:06.613Z">2026-10-21T14:51:06.613Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3714" rel="noopener">lab#3714</a></div>
 </article>
 <article class="item" id="issue-3707">
 <h2><span class="tier C">C</span>Catalog rebuild restores pre-rename versions of a name renamed away and written again</h2>
@@ -7110,13 +7118,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>880 items across 1 source(s) in this window:
-1 critical, 637 notable, 15 routine,
-227 minor.</p>
-<ul><li><strong>issues</strong> — 880</li></ul></section>
+<p>881 items across 1 source(s) in this window:
+1 critical, 638 notable, 20 routine,
+222 minor.</p>
+<ul><li><strong>issues</strong> — 881</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-22T16:21:12.827Z">2026-10-22T16:21:12.827Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-22T17:17:12.275Z">2026-10-22T17:17:12.275Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

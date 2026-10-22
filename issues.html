@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3789"><span class="tier A">A</span>flaky: for_each_name_property_test lets the text around a se</a><a href="#issue-3732"><span class="tier A">A</span>typed-secrets 4.3: the expression-facing query view register</a><a href="#issue-3382"><span class="tier A">A</span>Teach defineBehavior in the extension skill now that swamp-t</a><a href="#issue-3714"><span class="tier A">A</span>CEL duration arithmetic is off by a second when a duration h</a><a href="#issue-3782"><span class="tier A">A</span>extension push finds no local modules when a folder above th</a><a href="#issue-3630"><span class="tier A">A</span>extension push (package.json mode): audit dependencies resol</a><a href="#issue-3731"><span class="tier A">A</span>typed-secrets 4.2: live and reconstructed step outputs and c</a><a href="#issue-3764"><span class="tier A">A</span>Local verification docs still tell agents to put ANTHROPIC_A</a><a href="#issue-3773"><span class="tier A">A</span>A coded UserError a model method throws reaches a workflow s</a><a href="#issue-3779"><span class="tier A">A</span>Dashboard Workflows page takes ~19s on a serve with many ext</a><a href="#issue-3599"><span class="tier A">A</span>Docs: worker daemon enable reference is missing --ca-cert, -</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3785"><span class="tier A">A</span>typed-secrets: the accessor adapter reads a legacy row stamp</a><a href="#issue-3790"><span class="tier A">A</span>typed-secrets query view: route a row&#39;s JSON content by whet</a><a href="#issue-3722"><span class="tier A">A</span>Expose run provenance (definitionHash, modelVersion, trigger</a><a href="#issue-3789"><span class="tier A">A</span>flaky: for_each_name_property_test lets the text around a se</a><a href="#issue-3732"><span class="tier A">A</span>typed-secrets 4.3: the expression-facing query view register</a><a href="#issue-3382"><span class="tier A">A</span>Teach defineBehavior in the extension skill now that swamp-t</a><a href="#issue-3714"><span class="tier A">A</span>CEL duration arithmetic is off by a second when a duration h</a><a href="#issue-3782"><span class="tier A">A</span>extension push finds no local modules when a folder above th</a><a href="#issue-3630"><span class="tier A">A</span>extension push (package.json mode): audit dependencies resol</a><a href="#issue-3731"><span class="tier A">A</span>typed-secrets 4.2: live and reconstructed step outputs and c</a><a href="#issue-3764"><span class="tier A">A</span>Local verification docs still tell agents to put ANTHROPIC_A</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,30 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3785">
+<h2><span class="tier A">A</span>typed-secrets: the accessor adapter reads a legacy row stamped with the empty namespace as foreign, so its tagged fields stay reference text on the typed path</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-22T21:49:24.298Z">2026-10-22T21:49:24.298Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3785" rel="noopener">lab#3785</a></div>
+</article>
+<article class="item" id="issue-3790">
+<h2><span class="tier A">A</span>typed-secrets query view: route a row&#39;s JSON content by whether the adapter adapted the record, not by the service&#39;s namespace rule</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-22T21:44:20.812Z">2026-10-22T21:44:20.812Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3790" rel="noopener">lab#3790</a></div>
+</article>
+<article class="item" id="issue-3722">
+<h2><span class="tier A">A</span>Expose run provenance (definitionHash, modelVersion, triggeredBy) in method-summary reports or the extension context</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-22T21:05:49.880Z">2026-10-22T21:05:49.880Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3722" rel="noopener">lab#3722</a></div>
 </article>
 <article class="item" id="issue-3789">
 <h2><span class="tier A">A</span>flaky: for_each_name_property_test lets the text around a sentinel equal the secret&#39;s value, so the untyped value search replaces both and the property fails by seed</h2>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3764" rel="noopener">lab#3764</a></div>
 </article>
-<article class="item" id="issue-3773">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3773">
 <h2><span class="tier A">A</span>A coded UserError a model method throws reaches a workflow step without its code, because InProcessExecutor keeps only the message</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-22T15:45:57.840Z">2026-10-22T15:45:57.840Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3599" rel="noopener">lab#3599</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3695">
+<article class="item" id="issue-3695">
 <h2><span class="tier A">A</span>Docs: issue redaction keeps git ids and non-address colon runs, and asks before posting (swamp-club#3686)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-22T15:13:07.890Z">2026-10-22T15:13:07.890Z</time></span></div>
@@ -5232,42 +5256,42 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-3768">
 <h2><span class="tier B">B</span>auth login leaves a new active API token per login; no cleanup process</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-22T21:02:25.085Z">2026-10-22T21:02:25.085Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-22T21:56:42.994Z">2026-10-22T21:56:42.994Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3768" rel="noopener">lab#3768</a></div>
 </article>
-<article class="item" id="issue-3722">
-<h2><span class="tier B">B</span>Expose run provenance (definitionHash, modelVersion, triggeredBy) in method-summary reports or the extension context</h2>
+<article class="item" id="issue-3794">
+<h2><span class="tier B">B</span>extension push drops local modules when the repo under a node_modules folder is reached through a symlinked path (macOS /var, the swamp-club#3782 fix)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-22T21:01:59.504Z">2026-10-22T21:01:59.504Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-22T21:55:58.440Z">2026-10-22T21:55:58.440Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3722" rel="noopener">lab#3722</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3794" rel="noopener">lab#3794</a></div>
 </article>
-<article class="item" id="issue-3785">
-<h2><span class="tier B">B</span>typed-secrets: the accessor adapter reads a legacy row stamped with the empty namespace as foreign, so its tagged fields stay reference text on the typed path</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-22T20:58:50.769Z">2026-10-22T20:58:50.769Z</time></span></div>
+<article class="item" id="issue-3791">
+<h2><span class="tier B">B</span>flaky: LitestreamReplicator &#39;a failed launch releases its lock probe, so the next acquire starts a sidecar&#39; fails by timing in verify-build</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-22T21:55:58.241Z">2026-10-22T21:55:58.241Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3785" rel="noopener">lab#3785</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3791" rel="noopener">lab#3791</a></div>
 </article>
 <article class="item" id="issue-3733">
 <h2><span class="tier B">B</span>typed-secrets 4.4: persistence and resume hold references: rehydration stops reading the vault, every persisted copy uses the persisted form, and run events are masked</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-22T20:56:53.545Z">2026-10-22T20:56:53.545Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-22T21:43:00.451Z">2026-10-22T21:43:00.451Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3733" rel="noopener">lab#3733</a></div>
 </article>
-<article class="item" id="issue-3791">
-<h2><span class="tier B">B</span>flaky: LitestreamReplicator &#39;a failed launch releases its lock probe, so the next acquire starts a sidecar&#39; fails by timing in verify-build</h2>
+<article class="item" id="issue-3662">
+<h2><span class="tier B">B</span>extension push: record each dependency&#39;s audited (locked) version in the archive, so the registry audits what ships (swamp half; registry half #3778)</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-22T20:10:48.844Z">2026-10-22T20:10:48.844Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-22T21:13:30.973Z">2026-10-22T21:13:30.973Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3791" rel="noopener">lab#3791</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3662" rel="noopener">lab#3662</a></div>
 </article>
 <article class="item" id="issue-3786">
 <h2><span class="tier B">B</span>serve/fleet: close OpenTelemetry attribution gaps across dispatch, data plane and worker lifecycle</h2>
@@ -5276,14 +5300,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3786" rel="noopener">lab#3786</a></div>
-</article>
-<article class="item" id="issue-3662">
-<h2><span class="tier B">B</span>extension push: record each dependency&#39;s audited (locked) version in the archive, so the registry audits what ships (swamp half; registry half #3778)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-22T17:38:33.054Z">2026-10-22T17:38:33.054Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3662" rel="noopener">lab#3662</a></div>
 </article>
 <article class="item" id="issue-3739">
 <h2><span class="tier B">B</span>serve: a run orphaned by a container restart can&#39;t be cancelled — the restarted serve reuses the dead owner&#39;s pid, so cancel reports the owner still alive</h2>
@@ -5389,13 +5405,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3790">
-<h2><span class="tier C">C</span>typed-secrets query view: route a row&#39;s JSON content by whether the adapter adapted the record, not by the service&#39;s namespace rule</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3793">
+<h2><span class="tier C">C</span>extension push (package.json mode): two installed copies under one declared range are audited once, so the second shipped version goes unaudited</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-22T19:50:43.943Z">2026-10-22T19:50:43.943Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-22T21:12:42.925Z">2026-10-22T21:12:42.925Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3790" rel="noopener">lab#3790</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3793" rel="noopener">lab#3793</a></div>
+</article>
+<article class="item" id="issue-3792">
+<h2><span class="tier C">C</span>Docs: dashboard Approvals view shows run context, reason and per-viewer decide state</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-22T21:06:02.386Z">2026-10-22T21:06:02.386Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3792" rel="noopener">lab#3792</a></div>
 </article>
 <article class="item" id="issue-3788">
 <h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
@@ -7174,13 +7198,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>888 items across 1 source(s) in this window:
-1 critical, 644 notable, 20 routine,
-223 minor.</p>
-<ul><li><strong>issues</strong> — 888</li></ul></section>
+<p>891 items across 1 source(s) in this window:
+1 critical, 647 notable, 19 routine,
+224 minor.</p>
+<ul><li><strong>issues</strong> — 891</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-22T21:05:38.803Z">2026-10-22T21:05:38.803Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-22T22:04:32.451Z">2026-10-22T22:04:32.451Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

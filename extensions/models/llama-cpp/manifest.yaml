@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/llama-cpp"
-version: "2026.10.16.6"
+version: "2026.10.22.1"
 description: >
   Run GGUF models that need a customised llama.cpp kernel — the ones stock
   llama.cpp (and therefore Ollama) cannot load — by installing a patched build,
@@ -67,6 +67,10 @@ description: >
       swamp model @svendowideit/llama-cpp method run verify lc \
         --input model=/models/kolibri-Q2_K.gguf
 
+      # When @svendowideit/caddy is installed on this host, declare a
+      # reverse-proxy route for the served model without any extra input:
+      swamp model @svendowideit/llama-cpp method run ensure-caddy-proxy lc
+
       # The whole loop in one run: find a GGUF, install the kernel, serve and
       # verify it. Run it on the host that will serve the model.
       swamp workflow run @svendowideit/llama-cpp-model-factory \
@@ -131,6 +135,9 @@ workflows:
 dependencies:
   - "@svendowideit/gpu-facts"
   - "@svendowideit/huggingface"
+
+optionalDependencies:
+  - "@svendowideit/caddy"
 
 additionalFiles:
   - README.md

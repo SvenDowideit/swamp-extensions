@@ -101,6 +101,15 @@ const GlobalArgsSchema = z.object({
   releaseTag: z.string().default("").describe(
     "Override the kernel release tag. Empty uses the kernel's pinned tag.",
   ),
+  caddyModelName: z.string().default("").describe(
+    "Name of the @svendowideit/caddy model that owns this machine. Empty " +
+      "auto-discovers the caddy model whose host matches this machine. Only used " +
+      "by ensure-caddy-proxy.",
+  ),
+  caddyRouteHostname: z.string().default("").describe(
+    "Override the Caddy route hostname for ensure-caddy-proxy. Empty derives " +
+      "`<serviceName>.<host>.<domain>` from the source caddy model.",
+  ),
 }).strict();
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -227,6 +236,19 @@ const VerifyArgsSchema = RunArgsSchema.extend({
   ),
 });
 const PrintArgsSchema = z.object({});
+const EnsureCaddyProxyArgsSchema = z.object({
+  model: z.string().default("").describe(
+    "Source @svendowideit/caddy model. Empty auto-discovers the model that owns " +
+      "this machine (or uses global caddyModelName).",
+  ),
+  hostname: z.string().default("").describe(
+    "Override the proxied hostname. Empty derives `<serviceName>.<host>.<domain>`.",
+  ),
+  serveModel: z.string().default("").describe(
+    "Dedicated caddy model that carries the route (unused). Empty runs against " +
+      "the source model directly.",
+  ),
+});
 
 type PlanArgs = z.infer<typeof PlanArgsSchema>;
 type SetupArgs = z.infer<typeof SetupArgsSchema>;
@@ -242,6 +264,7 @@ type StatusArgs = z.infer<typeof StatusArgsSchema>;
 type RunArgs = z.infer<typeof RunArgsSchema>;
 type VerifyArgs = z.infer<typeof VerifyArgsSchema>;
 type PrintArgs = z.infer<typeof PrintArgsSchema>;
+type EnsureCaddyProxyArgs = z.infer<typeof EnsureCaddyProxyArgsSchema>;
 
 // ---------------------------------------------------------------------------
 // Output schemas
@@ -386,6 +409,14 @@ const VerifySchema = z.object({
 });
 
 const SummarySchema = z.object({ text: z.string(), printedAt: z.string() });
+const CaddyProxySchema = z.object({
+  hostname: z.string(),
+  upstream: z.string(),
+  sourceModel: z.string(),
+  baseDomain: z.string(),
+  changed: z.boolean(),
+  ensuredAt: z.string(),
+});
 
 // ---------------------------------------------------------------------------
 // Command + fs helpers
@@ -404,6 +435,7 @@ export interface RunResult {
 /** Run a command, capturing stdout/stderr (never throwing). */
 async function runCommand(bin: string, args: string[]): Promise<RunResult> {
   try {
+    // swamp-quality-ignore deno-command: run arbitrary local binaries (uname, cmake, etc.) by design.
     const out = await new Deno.Command(bin, {
       args,
       stdin: "null",
@@ -624,8 +656,8 @@ function unitDirFor(g: GlobalArgs): string {
 
 /** A model that installs a customised llama.cpp kernel and serves a GGUF with it. */
 export const model = {
-  type: LLAMA_CPP_TYPE,
-  version: "2026.10.16.6",
+  type: "@svendowideit/llama-cpp",
+  version: "2026.10.22.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -650,6 +682,16 @@ export const model = {
         "builds, as a host-managed background job; `buildStatus` awaits it and " +
         "records the `install` resource. Complements @svendowideit/ollama-models " +
         "for the models Ollama cannot load.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.22.1",
+      description:
+        "Adds an optional Caddy integration: when @svendowideit/caddy is " +
+        "installed, ensure-caddy-proxy discovers the machine's caddy model and " +
+        "declares a reverse-proxy route from <serviceName>.<host>.<domain> to the " +
+        "model's localhost API port, with clear log notices. Schema is additive " +
+        "(caddyModelName, caddyRouteHostname global args).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -725,6 +767,13 @@ export const model = {
       description: "A printed summary.",
       schema: SummarySchema,
       lifetime: "7d" as const,
+      garbageCollection: 5,
+    },
+    caddyProxy: {
+      description:
+        "Status of the Caddy reverse-proxy route declared for this model.",
+      schema: CaddyProxySchema,
+      lifetime: "infinite" as const,
       garbageCollection: 5,
     },
   },
@@ -1541,6 +1590,249 @@ export const model = {
           printedAt: new Date().toISOString(),
         });
         ctx.logger?.info("llama-cpp summary:\n{text}", { text });
+        return { dataHandles: [handle] };
+      },
+    },
+    "ensure-caddy-proxy": {
+      description:
+        "When @svendowideit/caddy is installed, ensure a reverse-proxy route " +
+        "`<serviceName>.<host>.<domain>` for this model's localhost API port, " +
+        "so traffic is fronted automatically. Skips with a log when caddy is " +
+        "not installed or no source caddy model can be chosen.",
+      arguments: EnsureCaddyProxyArgsSchema,
+      execute: async (args: EnsureCaddyProxyArgs, ctx: MethodContext) => {
+        const g = ctx.globalArgs;
+        const log = ctx.logger;
+        const runSwamp = async (cliArgs: string[]) => {
+          // swamp-quality-ignore deno-command: optional caddy peer discovered at runtime; args are fixed literals or globals of this model, never untrusted input.
+          const proc = new Deno.Command("swamp", {
+            args: cliArgs,
+            stdout: "piped",
+            stderr: "piped",
+          });
+          const out = await proc.output();
+          return {
+            code: out.code,
+            stdout: new TextDecoder().decode(out.stdout),
+            stderr: new TextDecoder().decode(out.stderr),
+          };
+        };
+
+        const probe = await runSwamp([
+          "model",
+          "type",
+          "search",
+          "@svendowideit/caddy",
+          "--json",
+        ]);
+        const installed = probe.code === 0 &&
+          probe.stdout.includes("@svendowideit/caddy");
+        if (!installed) {
+          log?.info(
+            "@svendowideit/caddy not installed — skipping automatic caddy proxy setup.",
+          );
+          return { dataHandles: [] };
+        }
+
+        const list = await runSwamp(["model", "list", "--json"]);
+        if (list.code !== 0) {
+          log?.info(
+            "Could not list models ({code}) — skipping automatic caddy proxy setup.",
+            { code: list.code },
+          );
+          return { dataHandles: [] };
+        }
+        let all: Array<{ name: string; type: string }> = [];
+        try {
+          const parsed = JSON.parse(list.stdout) as {
+            results?: Array<{ name: string; type: string }>;
+          };
+          all = parsed.results ?? [];
+        } catch {
+          all = [];
+        }
+        const names = all
+          .filter((r) => r.type === "@svendowideit/caddy")
+          .map((r) => r.name);
+        if (names.length === 0) {
+          log?.info(
+            "No @svendowideit/caddy model found — skipping automatic caddy proxy setup. Create one first, e.g. `swamp model create @svendowideit/caddy my-caddy --global-arg baseDomain=example.com`.",
+          );
+          return { dataHandles: [] };
+        }
+
+        const host = (() => {
+          try {
+            return Deno.hostname();
+          } catch {
+            return "";
+          }
+        })();
+        const facts: Array<{
+          modelName: string;
+          baseDomain: string;
+          hostFqdn: string;
+          serviceName: string;
+          target: string;
+        }> = [];
+        for (const name of names) {
+          const got = await runSwamp(["model", "get", name, "--json"]);
+          if (got.code !== 0) continue;
+          try {
+            const raw = JSON.parse(got.stdout) as {
+              globalArguments?: Record<string, unknown>;
+            };
+            const gRaw = raw.globalArguments ?? {};
+            const baseDomain = typeof gRaw.baseDomain === "string"
+              ? gRaw.baseDomain
+              : "";
+            const serviceName = typeof gRaw.serviceName === "string" &&
+                gRaw.serviceName
+              ? gRaw.serviceName
+              : "caddy";
+            const target = typeof gRaw.target === "string" ? gRaw.target : "";
+            const records = Array.isArray(gRaw.dnsRecords)
+              ? gRaw.dnsRecords as Array<Record<string, unknown>>
+              : [];
+            const base = baseDomain.toLowerCase().replace(/^\.+/, "");
+            const candidates: string[] = [];
+            for (const r of records) {
+              if (
+                typeof r.name !== "string" || typeof r.type !== "string"
+              ) continue;
+              if (
+                r.type.toUpperCase() !== "A" && r.type.toUpperCase() !== "AAAA"
+              ) {
+                continue;
+              }
+              const name = (r.name as string).toLowerCase().replace(
+                /^\.+/,
+                "",
+              );
+              if (base && name !== base && !name.endsWith(`.${base}`)) {
+                continue;
+              }
+              const value = Array.isArray(r.value) ? r.value : [];
+              if (!value.some((v) => typeof v === "string" && !!v)) {
+                continue;
+              }
+              candidates.push(name);
+            }
+            const shortHost = host.split(".")[0].toLowerCase();
+            const named = candidates.find(
+              (n) => shortHost && n.split(".")[0] === shortHost,
+            );
+            const deepest = candidates.slice().sort(
+              (a, b) => b.split(".").length - a.split(".").length,
+            )[0];
+            const hostFqdn = named ?? deepest ?? baseDomain;
+            facts.push({
+              modelName: name,
+              baseDomain,
+              hostFqdn,
+              serviceName,
+              target,
+            });
+          } catch {
+            // ignore
+          }
+        }
+
+        const explicit = args.model?.trim() || g.caddyModelName?.trim();
+        let source: {
+          modelName: string;
+          baseDomain: string;
+          hostFqdn: string;
+          serviceName: string;
+          target: string;
+        } | null = null;
+        if (explicit) {
+          source = facts.find((f) => f.modelName === explicit) ?? null;
+          if (!source) {
+            log?.info(
+              "caddy model '{model}' not found — skipping automatic caddy proxy setup.",
+              { model: explicit },
+            );
+            return { dataHandles: [] };
+          }
+        } else {
+          const shortHost = host.split(".")[0].toLowerCase();
+          const matches = facts.filter(
+            (f) => shortHost && f.hostFqdn.split(".")[0] === shortHost,
+          );
+          if (matches.length === 1) source = matches[0];
+          else if (matches.length > 1) {
+            log?.info(
+              "Could not pick a single caddy model to proxy through ({models}) — skipping automatic caddy proxy setup. Set caddyModelName on this model to choose one.",
+              { models: names.join(", ") },
+            );
+            return { dataHandles: [] };
+          } else {
+            const withDomain = facts.filter((f) => f.baseDomain);
+            if (withDomain.length === 1) source = withDomain[0];
+          }
+          if (!source) {
+            log?.info(
+              "Could not pick a single caddy model to proxy through ({models}) — skipping automatic caddy proxy setup. Set caddyModelName on this model to choose one.",
+              { models: names.join(", ") },
+            );
+            return { dataHandles: [] };
+          }
+        }
+
+        const serviceName = g.serviceName || "llama-cpp";
+        const hostname = args.hostname?.trim() ||
+          g.caddyRouteHostname?.trim() ||
+          (
+            source.hostFqdn.startsWith(`${serviceName}.`)
+              ? source.hostFqdn
+              : `${serviceName}.${source.hostFqdn}`
+          );
+        if (!hostname || !source.baseDomain) {
+          log?.info(
+            "caddy model '{model}' has no base domain — skipping automatic caddy proxy setup.",
+            { model: source.modelName },
+          );
+          return { dataHandles: [] };
+        }
+        const upstream = `127.0.0.1:${g.port}`;
+        log?.info(
+          "Ensuring caddy proxy {hostname} -> {upstream} via {model}",
+          { hostname, upstream, model: source.modelName },
+        );
+
+        const result = await runSwamp([
+          "model",
+          "method",
+          "run",
+          source.modelName,
+          "ensureDnsProxy",
+          "--input",
+          `hostname=${hostname}`,
+          "--input",
+          `upstream=${upstream}`,
+          "--skip-reports",
+        ]);
+        if (result.code !== 0) {
+          throw new Error(
+            `ensureDnsProxy failed (${result.code}): ${
+              result.stderr || result.stdout
+            }`,
+          );
+        }
+        log?.info(
+          "Caddy proxy ensured: {hostname} -> {upstream} (via {model}); run `swamp model method run {model} plan` to verify it is live.",
+          { hostname, upstream, model: source.modelName },
+        );
+
+        const handle = await ctx.writeResource("caddyProxy", "current", {
+          hostname,
+          upstream,
+          sourceModel: source.modelName,
+          baseDomain: source.baseDomain,
+          changed: true,
+          ensuredAt: new Date().toISOString(),
+        });
         return { dataHandles: [handle] };
       },
     },

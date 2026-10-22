@@ -30,6 +30,10 @@ patched build for each OS/architecture/accelerator. The methods then:
 - `serve`/`stop`/`status` — start, stop, and report the unit and its `/health`;
 - `run`/`verify` — a one-shot `llama-cli` completion, and a smoke test that
   asserts the model answered (and, when asked, that it offloaded to the GPU).
+- `ensure-caddy-proxy` — when `@svendowideit/caddy` is installed, auto-detect
+  the Caddy model for this host and declare a reverse-proxy route from
+  `<serviceName>.<host>.<domain>` to `127.0.0.1:<port>`; skips with a notice when
+  caddy is absent.
 
 Side effects: it downloads the kernel build from GitHub, extracts it under
 `installDir`, stages the archive under `downloadDir`, and (for a served model)

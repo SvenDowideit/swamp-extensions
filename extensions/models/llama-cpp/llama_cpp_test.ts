@@ -182,6 +182,7 @@ Deno.test("install extracts a kernel archive and locates binaries", async () => 
     await Deno.writeTextFile(`${src}/bin/llama-server`, "#!/bin/sh\necho s\n");
     await Deno.writeTextFile(`${src}/bin/llama-cli`, "#!/bin/sh\necho c\n");
     const tarball = `${dir}/build.tar.gz`;
+    // swamp-quality-ignore deno-command: build test fixture archive.
     await new Deno.Command("tar", {
       args: ["-czf", tarball, "-C", src, "."],
     }).output();

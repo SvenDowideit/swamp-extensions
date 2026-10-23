@@ -165,9 +165,20 @@ type MethodContext = {
 
 /** Expand `~` to the home directory. Exported so tests can cover it directly. */
 export function expandHome(raw: string): string {
-  if (raw.startsWith("~")) {
-    const home = Deno.env.get("HOME") ?? "~";
-    return raw === "~" ? home : `${home}${raw.slice(1)}`;
+  if (raw === "~") {
+    return Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? "~";
+  }
+  if (raw.startsWith("~/")) {
+    if (raw === "~/.swamp" || raw.startsWith("~/.swamp/")) {
+      const swampHome = Deno.env.get("SWAMP_HOME");
+      if (swampHome) {
+        const base = swampHome.replace(/\/+$/, "");
+        const suffix = raw.slice("~/.swamp".length);
+        return suffix ? `${base}${suffix}` : base;
+      }
+    }
+    const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE");
+    if (home) return `${home}${raw.slice(1)}`;
   }
   return raw;
 }
@@ -401,7 +412,7 @@ const UrlResultSchema = z.object({
 /** A read-only Wikidata domain client layered over @svendowideit/web-cache. */
 export const model = {
   type: "@svendowideit/wikidata",
-  version: "2026.09.20.3",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -409,6 +420,12 @@ export const model = {
       description:
         "No schema changes — export URL builders/cache helpers for testing and " +
         "add method execute-path test coverage",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description:
+        "Honour SWAMP_HOME when resolving ~/.swamp-relative cache paths.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3857"><span class="tier A">A</span>serve: concurrent run-index repairs queue repeated validatio</a><a href="#issue-3854"><span class="tier A">A</span>Test suite leaves hundreds of swamp-* temp directories in /t</a><a href="#issue-3826"><span class="tier A">A</span>method run masks a sensitive array from --input element by e</a><a href="#issue-3858"><span class="tier A">A</span>dashboard: sidebar and overview send duplicate workflow.appr</a><a href="#issue-3856"><span class="tier A">A</span>serve: retention discards run indexes and triggers full rebu</a><a href="#issue-3834"><span class="tier A">A</span>--json error envelope and exit codes are documented only on </a><a href="#issue-3836"><span class="tier A">A</span>-t means --tool, --type or --title depending on the command,</a><a href="#issue-3837"><span class="tier A">A</span>The model tree&#39;s help says &quot;legacy spelling&quot; but never says </a><a href="#issue-3838"><span class="tier A">A</span>auth whoami calls the sign-in site serverUrl, but --server a</a><a href="#issue-3783"><span class="tier A">A</span>Registry scorecard: score secret-safe-docs (rubric v4) and k</a><a href="#issue-3804"><span class="tier A">A</span>Tier 15 capstone claimed but its banked 1,000,000 never gran</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3847"><span class="tier A">A</span>swamp-testing getWrittenFiles types content as Uint8Array fo</a><a href="#issue-3849"><span class="tier A">A</span>swamp-testing: createModelTestContext is not generic over gl</a><a href="#issue-3873"><span class="tier A">A</span>workflow validate derives required arguments from zod&#39;s JSON</a><a href="#issue-3874"><span class="tier A">A</span>Workflow run-start evaluation is quadratic in behavior count</a><a href="#issue-3857"><span class="tier A">A</span>serve: concurrent run-index repairs queue repeated validatio</a><a href="#issue-3854"><span class="tier A">A</span>Test suite leaves hundreds of swamp-* temp directories in /t</a><a href="#issue-3826"><span class="tier A">A</span>method run masks a sensitive array from --input element by e</a><a href="#issue-3858"><span class="tier A">A</span>dashboard: sidebar and overview send duplicate workflow.appr</a><a href="#issue-3856"><span class="tier A">A</span>serve: retention discards run indexes and triggers full rebu</a><a href="#issue-3834"><span class="tier A">A</span>--json error envelope and exit codes are documented only on </a><a href="#issue-3836"><span class="tier A">A</span>-t means --tool, --type or --title depending on the command,</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,38 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3847">
+<h2><span class="tier A">A</span>swamp-testing getWrittenFiles types content as Uint8Array for writeText, forcing a decode in every test</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-23T22:27:36.048Z">2026-10-23T22:27:36.048Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3847" rel="noopener">lab#3847</a></div>
+</article>
+<article class="item" id="issue-3849">
+<h2><span class="tier A">A</span>swamp-testing: createModelTestContext is not generic over globalArgs, so interface-typed args are rejected</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-23T22:27:35.651Z">2026-10-23T22:27:35.651Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3849" rel="noopener">lab#3849</a></div>
+</article>
+<article class="item" id="issue-3873">
+<h2><span class="tier A">A</span>workflow validate derives required arguments from zod&#39;s JSON Schema, so zod 4.6.7 rejects workflows that omit optional preprocess and catch arguments</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-23T22:22:10.047Z">2026-10-23T22:22:10.047Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3873" rel="noopener">lab#3873</a></div>
+</article>
+<article class="item" id="issue-3874">
+<h2><span class="tier A">A</span>Workflow run-start evaluation is quadratic in behavior count: provenance map construction and data-hydrating scans in spliceOrigin (~100+ s for @swamp/ci-uat/run)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-23T22:20:39.826Z">2026-10-23T22:20:39.826Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3874" rel="noopener">lab#3874</a></div>
 </article>
 <article class="item" id="issue-3857">
 <h2><span class="tier A">A</span>serve: concurrent run-index repairs queue repeated validation behind the same rebuild</h2>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3836" rel="noopener">lab#3836</a></div>
 </article>
-<article class="item" id="issue-3837">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3837">
 <h2><span class="tier A">A</span>The model tree&#39;s help says &quot;legacy spelling&quot; but never says the legacy spellings are kept</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-23T19:54:11.011Z">2026-10-23T19:54:11.011Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3804" rel="noopener">lab#3804</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3852">
+<article class="item" id="issue-3852">
 <h2><span class="tier A">A</span>credentials-sensitive-field misses .meta({ sensitive: true }) when deno fmt wraps the object over lines</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-23T18:49:54.790Z">2026-10-23T18:49:54.790Z</time></span></div>
@@ -5597,21 +5629,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3873">
-<h2><span class="tier B">B</span>workflow validate derives required arguments from zod&#39;s JSON Schema, so zod 4.6.7 rejects workflows that omit optional preprocess and catch arguments</h2>
+<article class="item" id="issue-3860">
+<h2><span class="tier B">B</span>v2 S3: about 4-5% of serial workflow runs fail with datastore_unpublished_data_version (&#39;a concurrent run or the serve poller synced&#39;) when nothing else is running (found by #3756)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T22:00:18.612Z">2026-10-23T22:00:18.612Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-23T22:59:51.185Z">2026-10-23T22:59:51.185Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3873" rel="noopener">lab#3873</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3860" rel="noopener">lab#3860</a></div>
 </article>
-<article class="item" id="issue-3874">
-<h2><span class="tier B">B</span>Workflow run-start evaluation is quadratic in behavior count: provenance map construction and data-hydrating scans in spliceOrigin (~100+ s for @swamp/ci-uat/run)</h2>
+<article class="item" id="issue-3803">
+<h2><span class="tier B">B</span>v3 first clone and restore of a bucket datastore take 2.6-3x v2, missing #3418&#39;s 1.5x target (found by #3756)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T21:54:32.950Z">2026-10-23T21:54:32.950Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-23T22:36:24.641Z">2026-10-23T22:36:24.641Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3874" rel="noopener">lab#3874</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3803" rel="noopener">lab#3803</a></div>
 </article>
 <article class="item" id="issue-3735">
 <h2><span class="tier B">B</span>typed-secrets 4.6: turn the typed path on for every entry point, remove the internal option, and delete the regular-expression rewrite, the value search and the plaintext resolution of tagged fields</h2>
@@ -5620,22 +5652,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3735" rel="noopener">lab#3735</a></div>
-</article>
-<article class="item" id="issue-3847">
-<h2><span class="tier B">B</span>swamp-testing getWrittenFiles types content as Uint8Array for writeText, forcing a decode in every test</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T21:42:38.402Z">2026-10-23T21:42:38.402Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3847" rel="noopener">lab#3847</a></div>
-</article>
-<article class="item" id="issue-3849">
-<h2><span class="tier B">B</span>swamp-testing: createModelTestContext is not generic over globalArgs, so interface-typed args are rejected</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T21:42:38.006Z">2026-10-23T21:42:38.006Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3849" rel="noopener">lab#3849</a></div>
 </article>
 <article class="item" id="issue-3725">
 <h2><span class="tier B">B</span>Docs: dependency trust across push, quality, fmt and the registry — Deno-config resolution, read-only lock, package.json mode, the archive&#39;s audit record (merges #3728)</h2>
@@ -5653,14 +5669,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3793" rel="noopener">lab#3793</a></div>
 </article>
-<article class="item" id="issue-3860">
-<h2><span class="tier B">B</span>v2 S3: about 4-5% of serial workflow runs fail with datastore_unpublished_data_version (&#39;a concurrent run or the serve poller synced&#39;) when nothing else is running (found by #3756)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T20:43:12.534Z">2026-10-23T20:43:12.534Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3860" rel="noopener">lab#3860</a></div>
-</article>
 <article class="item" id="issue-3828">
 <h2><span class="tier B">B</span>stagecraft studio: show a factory&#39;s open tickets that have no work item yet on the Board</h2>
 <p class="lede">Issue in_progress</p>
@@ -5668,14 +5676,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3828" rel="noopener">lab#3828</a></div>
-</article>
-<article class="item" id="issue-3803">
-<h2><span class="tier B">B</span>v3 first clone and restore of a bucket datastore take 2.6-3x v2, missing #3418&#39;s 1.5x target (found by #3756)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T13:01:06.837Z">2026-10-23T13:01:06.837Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3803" rel="noopener">lab#3803</a></div>
 </article>
 <article class="item" id="issue-3786">
 <h2><span class="tier B">B</span>serve/fleet: close OpenTelemetry attribution gaps across dispatch, data plane and worker lifecycle</h2>
@@ -5773,7 +5773,23 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3875">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3674">
+<h2><span class="tier C">C</span>v3: chunk durability barrier costs a full drive-cache flush per command on macOS; use an ordering barrier</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-23T23:00:38.981Z">2026-10-23T23:00:38.981Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3674" rel="noopener">lab#3674</a></div>
+</article>
+<article class="item" id="issue-3841">
+<h2><span class="tier C">C</span>trigger.schedule is evaluated in the serve host&#39;s local time zone, with no zone field and no doc saying so</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-23T23:00:36.508Z">2026-10-23T23:00:36.508Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3841" rel="noopener">lab#3841</a></div>
+</article>
+<article class="item" id="issue-3875">
 <h2><span class="tier C">C</span>Docs: document workflow evaluation counts and subphase timings</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-23T21:45:46.882Z">2026-10-23T21:45:46.882Z</time></span></div>
@@ -5900,14 +5916,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3843" rel="noopener">lab#3843</a></div>
-</article>
-<article class="item" id="issue-3841">
-<h2><span class="tier C">C</span>trigger.schedule is evaluated in the serve host&#39;s local time zone, with no zone field and no doc saying so</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-23T17:22:50.246Z">2026-10-23T17:22:50.246Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3841" rel="noopener">lab#3841</a></div>
 </article>
 <article class="item" id="issue-3839">
 <h2><span class="tier C">C</span>workflow validate/run say &quot;Workflow not found&quot; for a file that doctor workflows explains is misnamed</h2>
@@ -6156,14 +6164,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3664" rel="noopener">lab#3664</a></div>
-</article>
-<article class="item" id="issue-3674">
-<h2><span class="tier C">C</span>v3: chunk durability barrier costs a full drive-cache flush per command on macOS; use an ordering barrier</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-20T16:50:51.890Z">2026-10-20T16:50:51.890Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3674" rel="noopener">lab#3674</a></div>
 </article>
 <article class="item" id="issue-3663">
 <h2><span class="tier C">C</span>vary/forEach object values with no key/name/id produce data names Windows refuses</h2>
@@ -7703,12 +7703,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>954 items across 1 source(s) in this window:
-1 critical, 690 notable, 22 routine,
+1 critical, 694 notable, 18 routine,
 241 minor.</p>
 <ul><li><strong>issues</strong> — 954</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-23T22:05:44.201Z">2026-10-23T22:05:44.201Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-23T23:05:49.068Z">2026-10-23T23:05:49.068Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

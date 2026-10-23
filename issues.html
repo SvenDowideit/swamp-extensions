@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3804"><span class="tier A">A</span>Tier 15 capstone claimed but its banked 1,000,000 never gran</a><a href="#issue-3852"><span class="tier A">A</span>credentials-sensitive-field misses .meta({ sensitive: true }</a><a href="#issue-3848"><span class="tier A">A</span>Docs: templates.md and rubric.md still score deno doc --lint</a><a href="#issue-3850"><span class="tier A">A</span>Docs: checks.md names four methods for pre-flight checks; th</a><a href="#issue-3853"><span class="tier A">A</span>Docs: --global-arg reference says values become strings; rul</a><a href="#issue-3665"><span class="tier A">A</span>Serve: execute independent webhook-triggered workflows concu</a><a href="#issue-3778"><span class="tier A">A</span>Registry dependency audit: audit the locked version push rec</a><a href="#issue-3827"><span class="tier A">A</span>Registry drops argument descriptions from .meta() and skips </a><a href="#issue-3767"><span class="tier A">A</span>CVE pages: horizontally scrolling code blocks are not keyboa</a><a href="#issue-3800"><span class="tier A">A</span>Homepage club plate link has no visible keyboard focus</a><a href="#issue-3788"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3834"><span class="tier A">A</span>--json error envelope and exit codes are documented only on </a><a href="#issue-3836"><span class="tier A">A</span>-t means --tool, --type or --title depending on the command,</a><a href="#issue-3837"><span class="tier A">A</span>The model tree&#39;s help says &quot;legacy spelling&quot; but never says </a><a href="#issue-3838"><span class="tier A">A</span>auth whoami calls the sign-in site serverUrl, but --server a</a><a href="#issue-3783"><span class="tier A">A</span>Registry scorecard: score secret-safe-docs (rubric v4) and k</a><a href="#issue-3804"><span class="tier A">A</span>Tier 15 capstone claimed but its banked 1,000,000 never gran</a><a href="#issue-3852"><span class="tier A">A</span>credentials-sensitive-field misses .meta({ sensitive: true }</a><a href="#issue-3848"><span class="tier A">A</span>Docs: templates.md and rubric.md still score deno doc --lint</a><a href="#issue-3850"><span class="tier A">A</span>Docs: checks.md names four methods for pre-flight checks; th</a><a href="#issue-3853"><span class="tier A">A</span>Docs: --global-arg reference says values become strings; rul</a><a href="#issue-3665"><span class="tier A">A</span>Serve: execute independent webhook-triggered workflows concu</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,46 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3834">
+<h2><span class="tier A">A</span>--json error envelope and exit codes are documented only on behavior run and model method run</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-23T19:54:11.386Z">2026-10-23T19:54:11.386Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3834" rel="noopener">lab#3834</a></div>
+</article>
+<article class="item" id="issue-3836">
+<h2><span class="tier A">A</span>-t means --tool, --type or --title depending on the command, and -f/--force has five one-off meanings</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-23T19:54:11.198Z">2026-10-23T19:54:11.198Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3836" rel="noopener">lab#3836</a></div>
+</article>
+<article class="item" id="issue-3837">
+<h2><span class="tier A">A</span>The model tree&#39;s help says &quot;legacy spelling&quot; but never says the legacy spellings are kept</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-23T19:54:11.011Z">2026-10-23T19:54:11.011Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3837" rel="noopener">lab#3837</a></div>
+</article>
+<article class="item" id="issue-3838">
+<h2><span class="tier A">A</span>auth whoami calls the sign-in site serverUrl, but --server and SWAMP_SERVER_URL mean the serve orchestrator</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-23T19:54:10.822Z">2026-10-23T19:54:10.822Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3838" rel="noopener">lab#3838</a></div>
+</article>
+<article class="item" id="issue-3783">
+<h2><span class="tier A">A</span>Registry scorecard: score secret-safe-docs (rubric v4) and keep sensitive on extracted arguments</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-23T19:22:26.757Z">2026-10-23T19:22:26.757Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3783" rel="noopener">lab#3783</a></div>
 </article>
 <article class="item" id="issue-3804">
 <h2><span class="tier A">A</span>Tier 15 capstone claimed but its banked 1,000,000 never granted (no badges source)</h2>
@@ -125,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3665" rel="noopener">lab#3665</a></div>
 </article>
-<article class="item" id="issue-3778">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3778">
 <h2><span class="tier A">A</span>Registry dependency audit: audit the locked version push records in the archive, not the registry&#39;s newest match for a range specifier (swamp-club half of #3662)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-23T18:12:53.608Z">2026-10-23T18:12:53.608Z</time></span></div>
@@ -165,7 +205,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3788" rel="noopener">lab#3788</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3822">
+<article class="item" id="issue-3822">
 <h2><span class="tier A">A</span>swamp update downloads before failing in a sticky directory with another user&#39;s binary, and blames an immutable flag</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-23T16:13:00.715Z">2026-10-23T16:13:00.715Z</time></span></div>
@@ -5517,37 +5557,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3783">
-<h2><span class="tier B">B</span>Registry scorecard: score secret-safe-docs (rubric v4) and keep sensitive on extracted arguments</h2>
+<article class="item" id="issue-3854">
+<h2><span class="tier B">B</span>Test suite leaves hundreds of swamp-* temp directories in /tmp after every run</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T19:00:49.517Z">2026-10-23T19:00:49.517Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-23T19:59:21.629Z">2026-10-23T19:59:21.629Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3783" rel="noopener">lab#3783</a></div>
-</article>
-<article class="item" id="issue-3858">
-<h2><span class="tier B">B</span>dashboard: sidebar and overview send duplicate workflow.approvals requests on initial load</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T18:59:05.207Z">2026-10-23T18:59:05.207Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3858" rel="noopener">lab#3858</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3854" rel="noopener">lab#3854</a></div>
 </article>
 <article class="item" id="issue-3856">
 <h2><span class="tier B">B</span>serve: retention discards run indexes and triggers full rebuilds that block initial dashboard loads</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T18:58:45.880Z">2026-10-23T18:58:45.880Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-23T19:34:39.236Z">2026-10-23T19:34:39.236Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3856" rel="noopener">lab#3856</a></div>
 </article>
-<article class="item" id="issue-3854">
-<h2><span class="tier B">B</span>Test suite leaves hundreds of swamp-* temp directories in /tmp after every run</h2>
+<article class="item" id="issue-3858">
+<h2><span class="tier B">B</span>dashboard: sidebar and overview send duplicate workflow.approvals requests on initial load</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T18:52:44.675Z">2026-10-23T18:52:44.675Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-23T19:32:59.147Z">2026-10-23T19:32:59.147Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3854" rel="noopener">lab#3854</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3858" rel="noopener">lab#3858</a></div>
+</article>
+<article class="item" id="issue-3860">
+<h2><span class="tier B">B</span>v2 S3: about 4-5% of serial workflow runs fail with datastore_unpublished_data_version (&#39;a concurrent run or the serve poller synced&#39;) when nothing else is running (found by #3756)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-23T19:14:39.036Z">2026-10-23T19:14:39.036Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3860" rel="noopener">lab#3860</a></div>
 </article>
 <article class="item" id="issue-3828">
 <h2><span class="tier B">B</span>stagecraft studio: show a factory&#39;s open tickets that have no work item yet on the Board</h2>
@@ -5564,38 +5604,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3735" rel="noopener">lab#3735</a></div>
-</article>
-<article class="item" id="issue-3838">
-<h2><span class="tier B">B</span>auth whoami calls the sign-in site serverUrl, but --server and SWAMP_SERVER_URL mean the serve orchestrator</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T18:32:55.395Z">2026-10-23T18:32:55.395Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3838" rel="noopener">lab#3838</a></div>
-</article>
-<article class="item" id="issue-3834">
-<h2><span class="tier B">B</span>--json error envelope and exit codes are documented only on behavior run and model method run</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T18:07:31.079Z">2026-10-23T18:07:31.079Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3834" rel="noopener">lab#3834</a></div>
-</article>
-<article class="item" id="issue-3836">
-<h2><span class="tier B">B</span>-t means --tool, --type or --title depending on the command, and -f/--force has five one-off meanings</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T18:07:30.871Z">2026-10-23T18:07:30.871Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3836" rel="noopener">lab#3836</a></div>
-</article>
-<article class="item" id="issue-3837">
-<h2><span class="tier B">B</span>The model tree&#39;s help says &quot;legacy spelling&quot; but never says the legacy spellings are kept</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T18:07:30.682Z">2026-10-23T18:07:30.682Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3837" rel="noopener">lab#3837</a></div>
 </article>
 <article class="item" id="issue-3826">
 <h2><span class="tier B">B</span>method run masks a sensitive array from --input element by element, exposing its shape (regression from #3752)</h2>
@@ -5709,15 +5717,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3860">
-<h2><span class="tier C">C</span>v2 S3: about 4-5% of serial workflow runs fail with datastore_unpublished_data_version (&#39;a concurrent run or the serve poller synced&#39;) when nothing else is running (found by #3756)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-23T18:43:54.881Z">2026-10-23T18:43:54.881Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3860" rel="noopener">lab#3860</a></div>
-</article>
-<article class="item" id="issue-3835">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3835">
 <h2><span class="tier C">C</span>Listing a collection is `search` on 15 commands and `list` on 16, and `list` is an alias on only some</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-23T18:40:39.395Z">2026-10-23T18:40:39.395Z</time></span></div>
@@ -7647,12 +7647,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>947 items across 1 source(s) in this window:
-1 critical, 680 notable, 24 routine,
-242 minor.</p>
+1 critical, 685 notable, 20 routine,
+241 minor.</p>
 <ul><li><strong>issues</strong> — 947</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-23T19:05:12.352Z">2026-10-23T19:05:12.352Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-23T20:21:22.876Z">2026-10-23T20:21:22.876Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -223,9 +223,20 @@ type MethodContext = {
 
 /** Expand `~` to the home directory. */
 function expandHome(raw: string): string {
-  if (raw.startsWith("~")) {
-    const home = Deno.env.get("HOME") ?? "~";
-    return raw === "~" ? home : `${home}${raw.slice(1)}`;
+  if (raw === "~") {
+    return Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? "~";
+  }
+  if (raw.startsWith("~/")) {
+    if (raw === "~/.swamp" || raw.startsWith("~/.swamp/")) {
+      const swampHome = Deno.env.get("SWAMP_HOME");
+      if (swampHome) {
+        const base = swampHome.replace(/\/+$/, "");
+        const suffix = raw.slice("~/.swamp".length);
+        return suffix ? `${base}${suffix}` : base;
+      }
+    }
+    const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE");
+    if (home) return `${home}${raw.slice(1)}`;
   }
   return raw;
 }
@@ -614,7 +625,7 @@ async function cachedFetch(
 /** A managed, disk-backed HTTP GET cache with pacing and retry. */
 export const model = {
   type: "@svendowideit/web-cache",
-  version: "2026.09.25.1",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -644,6 +655,12 @@ export const model = {
         "the per-call fetch cap (maxFetches) is exhausted. Previously the cap " +
         "was checked before the cache, so cached hits after the cap were " +
         "needlessly skipped. No schema or argument changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description:
+        "Honour SWAMP_HOME when resolving ~/.swamp-relative cache paths.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

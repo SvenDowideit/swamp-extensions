@@ -1,0 +1,190 @@
+id: dc628771-bf01-440b-a72d-3a555eba164b
+name: "@svendowideit/dreamhost-inventory-all"
+description: >
+  Inventory multiple DreamHost shell accounts through a shared
+  `@svendowideit/dreamhost/inventory` model. Provide the DreamHost SSH
+  host and a list of shell usernames; the workflow runs each account's
+  account info, home manifest, configuration, database reference, mail,
+  special-file, repository, and crontab inventory.
+tags: {}
+trigger:
+  inputs:
+    host: ""
+    usernames: []
+inputs:
+  properties:
+    host:
+      type: string
+      default: ""
+      description: SSH host shared by the listed DreamHost shell accounts.
+    usernames:
+      type: array
+      items:
+        type: string
+      default: []
+      description: Shell usernames to inventory.
+    inventoryModel:
+      type: string
+      default: dreamhost-inventory
+      description: Name of the configured dreamhost inventory model.
+    maxEntries:
+      type: integer
+      default: 100000
+      description: Maximum paths per account in each home manifest.
+  required:
+  - host
+  - usernames
+reports:
+  require: []
+jobs:
+- name: main
+  description: Inventory every listed username.
+  concurrency: 1
+  steps:
+  - name: account-info-${{ self.username }}
+    description: Collect account, host, and shell details.
+    forEach:
+      item: username
+      in: ${{ inputs.usernames }}
+    concurrency: 1
+    task:
+      type: model_method
+      modelType: "@svendowideit/dreamhost/inventory"
+      modelName: ${{ inputs.inventoryModel }}
+      methodName: accountInfo
+      inputs:
+        host: ${{ inputs.host }}
+        user: ${{ self.username }}
+  - name: home-manifest-${{ self.username }}
+    description: Build a recursive home-directory manifest for the account.
+    forEach:
+      item: username
+      in: ${{ inputs.usernames }}
+    concurrency: 1
+    task:
+      type: model_method
+      modelType: "@svendowideit/dreamhost/inventory"
+      modelName: ${{ inputs.inventoryModel }}
+      methodName: homeManifest
+      inputs:
+        host: ${{ inputs.host }}
+        user: ${{ self.username }}
+        root: "~"
+        maxEntries: ${{ inputs.maxEntries }}
+    dependsOn:
+    - step: account-info-${{ self.username }}
+      condition:
+        type: succeeded
+  - name: find-configs-${{ self.username }}
+    description: Find likely application configuration files.
+    forEach:
+      item: username
+      in: ${{ inputs.usernames }}
+    concurrency: 1
+    task:
+      type: model_method
+      modelType: "@svendowideit/dreamhost/inventory"
+      modelName: ${{ inputs.inventoryModel }}
+      methodName: findConfigs
+      inputs:
+        host: ${{ inputs.host }}
+        user: ${{ self.username }}
+        root: "~"
+    dependsOn:
+    - step: home-manifest-${{ self.username }}
+      condition:
+        type: succeeded
+  - name: database-refs-${{ self.username }}
+    description: Discover redacted database references.
+    forEach:
+      item: username
+      in: ${{ inputs.usernames }}
+    concurrency: 1
+    task:
+      type: model_method
+      modelType: "@svendowideit/dreamhost/inventory"
+      modelName: ${{ inputs.inventoryModel }}
+      methodName: databaseRefs
+      inputs:
+        host: ${{ inputs.host }}
+        user: ${{ self.username }}
+        root: "~"
+    dependsOn:
+    - step: find-configs-${{ self.username }}
+      condition:
+        type: succeeded
+  - name: mail-inventory-${{ self.username }}
+    description: Inventory mail directories.
+    forEach:
+      item: username
+      in: ${{ inputs.usernames }}
+    concurrency: 1
+    task:
+      type: model_method
+      modelType: "@svendowideit/dreamhost/inventory"
+      modelName: ${{ inputs.inventoryModel }}
+      methodName: mailInventory
+      inputs:
+        host: ${{ inputs.host }}
+        user: ${{ self.username }}
+        root: "~"
+    dependsOn:
+    - step: database-refs-${{ self.username }}
+      condition:
+        type: succeeded
+  - name: special-files-${{ self.username }}
+    description: Inventory symlinks and special files.
+    forEach:
+      item: username
+      in: ${{ inputs.usernames }}
+    concurrency: 1
+    task:
+      type: model_method
+      modelType: "@svendowideit/dreamhost/inventory"
+      modelName: ${{ inputs.inventoryModel }}
+      methodName: specialFiles
+      inputs:
+        host: ${{ inputs.host }}
+        user: ${{ self.username }}
+        root: "~"
+    dependsOn:
+    - step: mail-inventory-${{ self.username }}
+      condition:
+        type: succeeded
+  - name: repository-roots-${{ self.username }}
+    description: Find repository metadata directories.
+    forEach:
+      item: username
+      in: ${{ inputs.usernames }}
+    concurrency: 1
+    task:
+      type: model_method
+      modelType: "@svendowideit/dreamhost/inventory"
+      modelName: ${{ inputs.inventoryModel }}
+      methodName: repositoryRoots
+      inputs:
+        host: ${{ inputs.host }}
+        user: ${{ self.username }}
+        root: "~"
+    dependsOn:
+    - step: special-files-${{ self.username }}
+      condition:
+        type: succeeded
+  - name: cron-hints-${{ self.username }}
+    description: Collect crontab output.
+    forEach:
+      item: username
+      in: ${{ inputs.usernames }}
+    concurrency: 1
+    task:
+      type: model_method
+      modelType: "@svendowideit/dreamhost/inventory"
+      modelName: ${{ inputs.inventoryModel }}
+      methodName: cronHints
+      inputs:
+        host: ${{ inputs.host }}
+        user: ${{ self.username }}
+    dependsOn:
+    - step: repository-roots-${{ self.username }}
+      condition:
+        type: succeeded

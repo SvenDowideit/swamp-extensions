@@ -1,0 +1,109 @@
+manifestVersion: 1
+name: "@svendowideit/dreamhost"
+version: "2026.10.23.1"
+description: >-
+  Inventory and back up DreamHost shared-hosting accounts over SSH, and manage
+  DreamHost DNS records through the official API.
+
+  WHAT IT DOES
+
+    Gives a read-first inventory of a DreamHost shell account: the full home
+    directory tree, likely application configuration files, redacted database
+    references, mail directories, symlinks and special files, repository
+    metadata, and crontab hints. It can also reconcile DNS records without
+    modifying DreamHost-managed records. Use it to discover what must be
+    preserved before a migration or retirement, rather than assuming the first
+    rsync captured everything.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/dreamhost
+
+  DEPENDENCIES
+
+    None. SSH, rsync, and a DreamHost API key are expected to be available;
+    no other extension is required for the inventory and DNS capabilities.
+
+  RUN
+
+      # Create an inventory behavior once, then confirm account and host details
+      swamp model create @svendowideit/dreamhost/inventory dreamhost-inventory \
+        --global-arg host=dreamhost.example --global-arg user=myshelluser
+      swamp model method run dreamhost-inventory accountInfo
+
+      # Build a recursive home-directory manifest of that account
+      swamp model method run dreamhost-inventory homeManifest \
+        --input maxEntries=100000
+
+      # Create a DNS behavior and export its zones for cutover planning
+      swamp model create @svendowideit/dreamhost/dns dreamhost-dns \
+        --global-arg 'authToken=${{ vault.get("dreamhost", "API_KEY") }}'
+      swamp model method run dreamhost-dns listZones
+
+      # Fan out the full inventory workflow across several shell usernames on one host
+      swamp workflow run @svendowideit/dreamhost-inventory-all \
+        --input host=dreamhost.example \
+        --input 'usernames=["shell-user-one","shell-user-two"]'
+
+      # Back up one account's remote files to a local directory
+      swamp model method run dreamhost-inventory backup \
+        --input localPath=./dreamhost-backup-fosiki
+
+      # Verify the local backup against the recorded inventory manifest
+      swamp model method run dreamhost-inventory verifyBackup \
+        --input localPath=./dreamhost-backup-fosiki
+
+  CONFIGURE
+
+    All SSH-based models use these global arguments:
+
+      host            SSH host                           (required)
+      user            DreamHost shell username          (required)
+      port            SSH port                           (default 22)
+      identityFile    Private key path                   (optional)
+      identityContent Vault-provided private key         (optional)
+      password        SSH password via sshpass          (discouraged)
+      sshOptions      Extra ssh -o options               (default [])
+      remotePath      Remote web root for site publishing (optional)
+
+    DNS models require an authToken with the DNS commands enabled.
+
+  UPGRADE
+
+    Nothing is installed on the host. Bring an existing install up to date with:
+      swamp extension update @svendowideit/dreamhost
+    Behavior definitions and their global arguments remain valid across
+    releases; recreated workflow files (if any) are noted in the release
+    notes and validated with `swamp workflow validate`.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host. It only reads remote state and local vault secrets,
+    writes swamp resources, and can call the DreamHost DNS API.
+
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+dependencies: []
+
+workflows:
+  - dreamhost-inventory-all.yaml
+
+paths:
+  base: manifest
+
+models:
+  - dreamhost_dns.ts
+  - dreamhost_inventory.ts
+  - dreamhost_site.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - dreamhost_dns_test.ts
+  - dreamhost_site_test.ts
+  - dreamhost_inventory_test.ts
+
+platforms: []

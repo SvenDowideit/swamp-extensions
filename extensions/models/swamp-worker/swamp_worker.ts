@@ -119,8 +119,17 @@ type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
 /** Expand a leading `~` to the user's home directory. */
 export function expandHome(path: string, home?: string): string {
-  const h = home ?? Deno.env.get("HOME") ?? "";
+  const h = home ?? Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? "";
   if (path === "~") return h;
+  // Swamp's own operational data (under ~/.swamp) follows SWAMP_HOME when set.
+  if (!home && (path === "~/.swamp" || path.startsWith("~/.swamp/"))) {
+    const swampHome = Deno.env.get("SWAMP_HOME");
+    if (swampHome) {
+      const base = swampHome.replace(/\/+$/, "");
+      const suffix = path.slice("~/.swamp".length);
+      return suffix ? `${base}${suffix}` : base;
+    }
+  }
   if (path.startsWith("~/")) return `${h}${path.slice(1)}`;
   return path;
 }
@@ -1325,7 +1334,7 @@ type MethodContext = {
 
 export const model = {
   type: "@svendowideit/swamp-worker",
-  version: "2026.10.17.2",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -1403,6 +1412,12 @@ export const model = {
         "contract), so the worker exports logs, metrics and traces with a " +
         "per-node `host=` resource attribute; both default off. No schema or " +
         "data changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description:
+        "Honour SWAMP_HOME when resolving the ~/.swamp-based worker/install defaults.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

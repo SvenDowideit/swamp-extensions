@@ -299,13 +299,14 @@ export const WEIGHTS = {
   /** Source JSDoc coverage via `deno doc --json`. */
   symbols: 3,
   /** `deno doc --lint` fast-type cleanliness. */
-  fasttypes: 2,
+  fasttypes: 0,
+  homePaths: 2,
   /** Dependency trust audit (partial when offline). */
   deps: 2,
 } as const;
 
 /** Sum of all weights — the maximum possible score. */
-export const MAX_SCORE: number = Object.values(WEIGHTS).reduce(
+export const MAX_SCORE: number = Object.values(WEIGHTS).reduce<number>(
   (a, b) => a + b,
   0,
 );
@@ -376,6 +377,8 @@ export interface ScoreResult {
   definitionIssues: DefinitionIssueSummary[];
   /** Config-lifecycle issues (persist/read-back/reuse rule), for the report. */
   configLifecycleIssues: ConfigLifecycleIssueSummary[];
+  /** Home-path issues, for the report. */
+  homePathIssues: HomePathIssueSummary[];
 }
 
 /** Parsed manifest shape (loosely typed — manifests are user input). */
@@ -2054,6 +2057,57 @@ export function checkVersionSource(
 }
 
 /**
+ * A home-path problem contributed by `home-path-lint.ts`.
+ */
+export interface HomePathIssueSummary {
+  /** `error` is the only severity the lint currently emits. */
+  severity: "error" | "warning";
+  /** Stable rule id (`home-derived-swamp-path`). */
+  rule: string;
+  /** Human-readable description, including the fix. */
+  message: string;
+  /** 1-based line number in the source file. */
+  line?: number;
+  /** Path of the offending source file. */
+  path?: string;
+}
+
+/**
+ * Score whether the extension honours SWAMP_HOME for swamp data paths.
+ *
+ * Fails when model source reads HOME/USERPROFILE directly to build a .swamp
+ * path without guarding on SWAMP_HOME. Zero-weight: purely informational until
+ * the migration is complete.
+ */
+export function checkHomePaths(
+  issues: HomePathIssueSummary[],
+): CheckResult {
+  const max = WEIGHTS.homePaths;
+  if (issues.length === 0) {
+    return {
+      id: "home-paths",
+      label: "Swamp data paths honour SWAMP_HOME",
+      earned: max,
+      max,
+      status: "pass",
+      note: "no model derives a .swamp path directly from HOME/USERPROFILE",
+    };
+  }
+  const detail = issues
+    .slice(0, 3)
+    .map((i) => `${i.path ? `${i.path}:` : ""}line ${i.line ?? "?"} ${i.rule}`)
+    .join("; ");
+  return {
+    id: "home-paths",
+    label: "Swamp data paths honour SWAMP_HOME",
+    earned: 0,
+    max,
+    status: issues.some((i) => i.severity === "error") ? "fail" : "pass",
+    note: `${issues.length} home-path issue(s): ${detail}`,
+  };
+}
+
+/**
  * A config-lifecycle problem contributed by `config-lifecycle-lint.ts`.
  *
  * Kept structural (not the linter's own type) so the rubric stays free of a
@@ -2214,6 +2268,8 @@ export interface ScoreInput {
   versionSourceIssues?: VersionSourceIssueSummary[];
   /** Config-lifecycle issues from `config-lifecycle-lint.ts`. */
   configLifecycleIssues?: ConfigLifecycleIssueSummary[];
+  /** Home-path issues from `home-path-lint.ts`. */
+  homePathIssues?: HomePathIssueSummary[];
   /** Whether the dependency audit actually ran. */
   depsAudited?: boolean;
   /** Whether the dependency audit passed. */
@@ -2265,6 +2321,7 @@ export function scoreExtension(input: ScoreInput): ScoreResult {
     checkDefinitions(input.definitionIssues ?? []),
     checkVersionSource(input.versionSourceIssues ?? []),
     checkConfigLifecycle(input.configLifecycleIssues ?? []),
+    checkHomePaths(input.homePathIssues ?? []),
     checkSymbols(docJson),
     checkFastTypes(lintStdout),
     checkDeps(
@@ -2302,6 +2359,7 @@ export function scoreExtension(input: ScoreInput): ScoreResult {
     nextActions,
     definitionIssues: input.definitionIssues ?? [],
     configLifecycleIssues: input.configLifecycleIssues ?? [],
+    homePathIssues: input.homePathIssues ?? [],
   };
 }
 

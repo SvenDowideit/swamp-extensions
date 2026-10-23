@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-worker"
-version: "2026.10.17.2"
+version: "2026.10.23.1"
 description: >
   Enlist a host as a swamp worker for one `swamp serve` orchestrator: install or
   upgrade it, reconcile its systemd user unit, mint its enrollment token, and

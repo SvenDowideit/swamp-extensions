@@ -338,8 +338,17 @@ export const TELEMETRY_ENV_KEYS = [
 
 /** Expand a leading `~` to the user's home directory. */
 export function expandHome(path: string, home?: string): string {
-  const h = home ?? Deno.env.get("HOME") ?? "";
+  const h = home ?? Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? "";
   if (path === "~") return h;
+  // Swamp's own operational data (under ~/.swamp) follows SWAMP_HOME when set.
+  if (!home && (path === "~/.swamp" || path.startsWith("~/.swamp/"))) {
+    const swampHome = Deno.env.get("SWAMP_HOME");
+    if (swampHome) {
+      const base = swampHome.replace(/\/+$/, "");
+      const suffix = path.slice("~/.swamp".length);
+      return suffix ? `${base}${suffix}` : base;
+    }
+  }
   if (path.startsWith("~/")) return `${h}${path.slice(1)}`;
   return path;
 }
@@ -1214,7 +1223,7 @@ export function configPathFor(g: ServeGlobals): string {
 /** The swamp model definition for `@svendowideit/swamp-serve`. */
 export const model = {
   type: "@svendowideit/swamp-serve",
-  version: "2026.10.05.1",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -1291,6 +1300,12 @@ export const model = {
         "unknown_service:deno. New autoTrustedHosts global (default true) adds " +
         "the derived serve/dashboard hostnames to --trusted-hosts and the serve " +
         "config so a proxied dashboard's WebSocket origin is accepted.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description:
+        "Honour SWAMP_HOME when resolving the ~/.swamp-based worker/install defaults.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -59,6 +59,7 @@ import {
   type VersionSourceFile,
 } from "./version-source-lint.ts";
 import { lintConfigLifecycles } from "./config-lifecycle-lint.ts";
+import { lintHomePathSources } from "./home-path-lint.ts";
 import {
   lintReportRealities,
   type ReportRealityFile,
@@ -1330,6 +1331,7 @@ async function scoreManifest(
   const sourceFiles = await versionSourceIssuesFor(manifest, manifestDir);
   const versionSourceIssues = lintVersionSources(sourceFiles);
   const configLifecycleIssues = lintConfigLifecycles(sourceFiles);
+  const homePathIssues = lintHomePathSources(sourceFiles);
   const realityFiles: ReportRealityFile[] = [
     ...sourceFiles.map((f) => ({ path: f.path, source: f.source })),
     ...(await workflowSourcesFor(manifest, manifestDir)),
@@ -1349,6 +1351,7 @@ async function scoreManifest(
     definitionIssues,
     versionSourceIssues,
     configLifecycleIssues,
+    homePathIssues,
     depsAudited: audit.audited,
     depsPassed: audit.passed,
     depsDetail: audit.detail,

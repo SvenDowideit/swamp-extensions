@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-serve"
-version: "2026.10.05.1"
+version: "2026.10.23.1"
 description: >
   Run a swamp repository as a long-lived, always-on `swamp serve` service —
   binary, systemd user unit, HTTPS reverse proxy, and OTLP telemetry in one

@@ -11398,6 +11398,117 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.222935.0-sha.852243ed" rel="noopener">release v20261015.222935.0-sha.852243ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/852243edf2e7c999e8f4f08c9f54f4e18575c9ff" rel="noopener">852243ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3152" rel="noopener">#3152</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261023-022735-0-sha-cb473655">
+<h2><span class="tier C">C</span>swamp 20261023.022735.0-sha.cb473655</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-23T02:33:33Z">2026-10-23T02:33:33Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore-v3): S3 checkouts that spell the endpoint differently share one datastore, and a hostname change no longer blocks writes (swamp-club#3801) (#3319)</li>
+</ul>
+<p>Fixes swamp-club#3801. Found by the Phase 4 dogfood (swamp-club#3756); blocks announcing v3 on buckets.</p>
+<h4 class="body-h">The two bugs</h4>
+<p><strong>1. S3 checkouts that spell the endpoint differently forked the datastore silently.</strong></p>
+<ul>
+<li><strong>Cause:</strong> <code>replicaRootOf</code> put the S3 endpoint into the replica root (<code>s3:&lt;endpoint&gt;:&lt;bucket&gt;:&lt;path&gt;</code>), and every lineage rule trusted only a lineage under an identical root string. A clone reaching the same bucket and prefix through a proxy, a trailing slash, or the default endpoint left implicit saw an empty datastore. Its first command, even a read-only <code>workflow approvals</code>, then started a lineage of its own beside the writer&#39;s.</li>
+<li><strong>Fix:</strong> a <code>ReplicaRoot</code> value object. It still writes the root in full, but for S3 it matches on bucket and path whatever the endpoint. A lineage under a genuinely different root that would decide the state is refused for readers and writers with <code>datastore_v3_replica_root_mismatch</code>, naming both roots, instead of being forked. <code>workflow approvals</code>, <code>run history</code>, <code>vault audit-trail</code> and <code>vault read-secret</code> only read, so they now use the read-only context and never take the writer lease or start a lineage.</li>
+</ul>
+<p><strong>2. A hostname change blocked every v3 bucket write for about 5 minutes.</strong></p>
+<ul>
+<li><strong>Cause:</strong> the replicator judged its own Litestream sidecar by <code>hostname</code> plu</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261023.022735.0-sha.cb473655" rel="noopener">release v20261023.022735.0-sha.cb473655</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cb473655" rel="noopener">cb473655</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3319" rel="noopener">#3319</a>𝗔 <a href="https://swamp-club.com/lab/3801" rel="noopener">lab#3801</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261023-022020-0-sha-7bbeadcf">
+<h2><span class="tier C">C</span>swamp 20261023.022020.0-sha.7bbeadcf</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-23T02:26:07Z">2026-10-23T02:26:07Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>docs: document SWAMP_HOME so Windows users blocked by application control can keep swamp in an allowed folder (swamp-club#3596) (#3320)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A Windows user whose organisation only lets programs run from one folder could put <code>swamp.exe</code> there, but <code>swamp extension pull</code> was still blocked: swamp unpacks Deno and downloads esbuild into <code>C:\Users\&lt;you&gt;\.swamp</code>. Swamp already moves that whole folder with <code>SWAMP_HOME</code>, and since #3318 the installers put swamp itself in <code>$SWAMP_HOME\bin</code>, but none of this was documented where that user would look. (swamp-club#3596)</p>
+<p><strong><code>README.md</code></strong></p>
+<ul>
+<li>A new &quot;Swamp Home Directory&quot; section lists what lives in <code>.swamp</code>: the Deno runtime, the Deno cache where extension builds download esbuild, the Litestream binary, datastore caches, workspaces, source and logs. It explains that <code>SWAMP_HOME</code> moves all of it, including the login (<code>$SWAMP_HOME/config</code>, with <code>SWAMP_CONFIG_DIR</code> still taking priority), that nothing is migrated, and that the installers use <code>$SWAMP_HOME/bin</code>.</li>
+<li>&quot;Windows: running swamp from an allowed folder&quot; is a four-step PowerShell walkthrough: set <code>SWAMP_HOME</code> as a User variable and for the session, optionally copy the old folder (before the installer creates the new one), run the standard <code>irm … | iex</code> installer, and log in again. It also covers how to confirm and undo it.</li>
+<li>The Getting Started Windows paragraph links to the section.</li>
+</ul>
+<p><strong><code>.claude/skills/swamp/references/troubleshooting/guide.md</code></strong></p>
+<ul>
+<li>A symptom row</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261023.022020.0-sha.7bbeadcf" rel="noopener">release v20261023.022020.0-sha.7bbeadcf</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7bbeadcf" rel="noopener">7bbeadcf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3320" rel="noopener">#3320</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3318" rel="noopener">#3318</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261023-020256-0-sha-5b13fb31">
+<h2><span class="tier C">C</span>swamp 20261023.020256.0-sha.5b13fb31</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-23T02:08:39Z">2026-10-23T02:08:39Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(install): install.sh and install.ps1 install into the SWAMP_HOME bin directory when SWAMP_HOME is set (swamp-club#3809, swamp-club#3811) (#3318)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>When <code>SWAMP_HOME</code> is set and no destination flag is passed, both installers now install into <code>$SWAMP_HOME/bin</code>. That lines up with swamp treating <code>SWAMP_HOME</code> as its whole data directory (<code>src/infrastructure/persistence/paths.ts</code>). <code>-d</code> / <code>-Destination</code> still overrides it. With <code>SWAMP_HOME</code> unset, behaviour is unchanged. (swamp-club#3809)</p>
+<p><strong><code>scripts/install.sh</code></strong></p>
+<ul>
+<li>A set <code>SWAMP_HOME</code> beats the root default (<code>/usr/local/bin</code>) and the <code>~/.local/bin</code> / <code>~/bin</code> / <code>~/.swamp/bin</code> choices. A relative value is made absolute, and a trailing slash is dropped.</li>
+<li>If <code>$SWAMP_HOME/bin</code> isn&#39;t already on PATH, the binary is linked into <code>/usr/local/bin</code>, the same as the <code>~/.swamp/bin</code> fallback. The PATH check compares directories by identity (<code>-ef</code>), so <code>/tmp</code> and <code>/private/tmp</code> count as the same folder, and regex characters in the path are safe.</li>
+<li>When run as root, the <code>/usr/local/bin</code> link is created directly instead of through <code>sudo</code>, so containers without <code>sudo</code> work.</li>
+<li>After installing, it warns when an earlier <code>swamp</code> on PATH would still run instead of the new one.</li>
+</ul>
+<p><strong><code>scripts/install.ps1</code></strong></p>
+<ul>
+<li><code>Get-DefaultDestination</code> returns <code>$env:SWAMP_HOME\bin</code>, resolved against the PowerShell location, ahead of the admin and <code>%LOCALAPPDATA%</code> defaults. The existing PATH step adds the folder.</li>
+<li>It gives the same shadowe</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261023.020256.0-sha.5b13fb31" rel="noopener">release v20261023.020256.0-sha.5b13fb31</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5b13fb31" rel="noopener">5b13fb31</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3318" rel="noopener">#3318</a>𝗔 <a href="https://swamp-club.com/lab/3811" rel="noopener">lab#3811</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261023-012247-0-sha-06b63974">
+<h2><span class="tier C">C</span>swamp 20261023.012247.0-sha.06b63974</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-23T01:28:30Z">2026-10-23T01:28:30Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(secrets): a stored sensitive-field reference whose vault cannot be read is reported as that vault&#39;s failure, not as data content (swamp-club#3806) (#3317)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3806.</p>
+<p>A behavior&#39;s sensitive output is stored as a <code>vault.get(...)</code> reference. When another behavior read that field and the vault read failed, swamp threw away the error. The four places that resolve a record&#39;s tagged fields caught every error except an access denial and left the reference text in place without logging anything. The run then refused that text as &quot;arrived as data content&quot; and failed with &quot;Unresolved expression&quot;. Nothing named the vault, not even at <code>--log-level debug</code>. The reporter spent time chasing expression trust when the real cause was a 1Password approval timeout.</p>
+<p>Now:</p>
+<ul>
+<li><strong>Failed reads are recorded.</strong> The expression read sites (<code>ModelResolver</code>, both <code>data_record_mapper</code> paths, <code>step_output_resolver</code>) use a new <code>resolveSensitiveVaultRefsLeavingUnread</code>.</li>
+<li>It reads each tagged field on its own. A field that fails stays as its stored reference, is logged at debug with the vault, key and provider error, and is recorded on the run&#39;s <code>RunSensitiveValues</code>. The remaining fields are still read.</li>
+<li>If the vault service can&#39;t be built at all, every tagged reference in the record is recorded the same way.</li>
+<li>Access denials are still raised immediately.</li>
+<li><strong><code>readResource</code> is unchanged.</strong> <code>resolveSensitiveVaultRefs</code> still throws, because <code>readResource</code> (i</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261023.012247.0-sha.06b63974" rel="noopener">release v20261023.012247.0-sha.06b63974</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/06b63974" rel="noopener">06b63974</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3317" rel="noopener">#3317</a>𝗔 <a href="https://swamp-club.com/lab/3806" rel="noopener">lab#3806</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261023-003850-0-sha-6482ce42">
+<h2><span class="tier C">C</span>swamp 20261023.003850.0-sha.6482ce42</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-23T00:44:46Z">2026-10-23T00:44:46Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): push keeps local modules for a repo under node_modules reached through a symlinked path, and the failed-launch replicator test polls its lock probe (swamp-club#3791, swamp-club#3794) (#3316)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><strong>swamp-club#3791 (flaky test).</strong> The test <code>LitestreamReplicator: a failed launch releases its lock probe</code> checked the freed <code>supervisor.lock</code> once, right after the failed launch. Under full-suite load the closed descriptor&#39;s lock was still visible for a moment. The replicator already releases the probe in a <code>finally</code> before the error reaches the caller, so production code is unchanged. The test now polls with <code>waitFor</code>, the same fix two sibling tests got for swamp-club#3560. A probe that is never released still fails when the wait runs out (mutation-checked).</p>
+<p><strong>swamp-club#3794 (linked, found while verifying).</strong> The #3782 test failed every time on macOS, so verify-build failed for every PR verified on a Mac.</p>
+<ul>
+<li><strong>Cause:</strong> below a <code>node_modules</code>, <code>deno info</code> reports imported modules by their real path but names the root exactly as given. A repo reached through a symlink (every macOS temp dir: <code>/var</code> is a link to <code>/private/var</code>) was therefore read in two spellings. Its own modules looked like installed packages, and push silently built an archive containing only the entry point.</li>
+<li><strong>Fix:</strong></li>
+<li><code>denoInfoEntryPoint</code> (<code>src/domain/models/bundle.ts</code>) gives <code>deno info</code> the real path of an entry point whose real path differs from the given one and</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261023.003850.0-sha.6482ce42" rel="noopener">release v20261023.003850.0-sha.6482ce42</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6482ce42" rel="noopener">6482ce42</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3316" rel="noopener">#3316</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3782" rel="noopener">#3782</a>𝗔 <a href="https://swamp-club.com/lab/3791" rel="noopener">lab#3791</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261022-233857-0-sha-25439674">
 <h2><span class="tier C">C</span>swamp 20261022.233857.0-sha.25439674</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
@@ -12294,13 +12405,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>508 items across 1 source(s) in this window:
+<p>513 items across 1 source(s) in this window:
 20 critical, 439 notable, 14 routine,
-35 minor.</p>
-<ul><li><strong>fix</strong> — 328</li><li><strong>feat</strong> — 130</li><li><strong>test</strong> — 20</li><li><strong>docs</strong> — 14</li><li><strong>refactor</strong> — 12</li><li><strong>perf</strong> — 2</li></ul></section>
+40 minor.</p>
+<ul><li><strong>fix</strong> — 328</li><li><strong>feat</strong> — 130</li><li><strong>test</strong> — 20</li><li><strong>docs</strong> — 14</li><li><strong>refactor</strong> — 12</li><li><strong>changes</strong> — 7</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-23T02:09:37.976Z">2026-10-23T02:09:37.976Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-23T03:04:40.752Z">2026-10-23T03:04:40.752Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

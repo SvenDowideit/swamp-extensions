@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3805"><span class="tier A">A</span>Repos without defaultVault: the fallback vault for sensitive</a><a href="#issue-3820"><span class="tier A">A</span>&#39;swamp start&#39; launcher overrides configured terminal on maco</a><a href="#issue-3804"><span class="tier A">A</span>Tier 15 capstone claimed but its banked 1,000,000 never gran</a><a href="#issue-3801"><span class="tier A">A</span>v3 identity on buckets: S3 checkouts with different endpoint</a><a href="#issue-3811"><span class="tier A">A</span>typed_workflow_passes_test child-sentinel case flakes under </a><a href="#issue-3806"><span class="tier A">A</span>When the vault behind a stored sensitive-field reference can</a><a href="#issue-3796"><span class="tier A">A</span>main fails type check: query_view_test.ts passes a namespace</a><a href="#issue-3797"><span class="tier A">A</span>data_writer property test finds a registered secret left unr</a><a href="#issue-3794"><span class="tier A">A</span>extension push drops local modules when the repo under a nod</a><a href="#issue-3791"><span class="tier A">A</span>flaky: LitestreamReplicator &#39;a failed launch releases its lo</a><a href="#issue-3733"><span class="tier A">A</span>typed-secrets 4.4: persistence and resume hold references: r</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3819"><span class="tier A">A</span>behavior type describe &lt;installed extension name&gt; suggests a</a><a href="#issue-3802"><span class="tier A">A</span>v3 bucket outage: a workflow run whose checkpoint committed </a><a href="#issue-3805"><span class="tier A">A</span>Repos without defaultVault: the fallback vault for sensitive</a><a href="#issue-3820"><span class="tier A">A</span>&#39;swamp start&#39; launcher overrides configured terminal on maco</a><a href="#issue-3804"><span class="tier A">A</span>Tier 15 capstone claimed but its banked 1,000,000 never gran</a><a href="#issue-3801"><span class="tier A">A</span>v3 identity on buckets: S3 checkouts with different endpoint</a><a href="#issue-3811"><span class="tier A">A</span>typed_workflow_passes_test child-sentinel case flakes under </a><a href="#issue-3806"><span class="tier A">A</span>When the vault behind a stored sensitive-field reference can</a><a href="#issue-3796"><span class="tier A">A</span>main fails type check: query_view_test.ts passes a namespace</a><a href="#issue-3797"><span class="tier A">A</span>data_writer property test finds a registered secret left unr</a><a href="#issue-3794"><span class="tier A">A</span>extension push drops local modules when the repo under a nod</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3819">
+<h2><span class="tier A">A</span>behavior type describe &lt;installed extension name&gt; suggests a registry search instead of the type it provides</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-23T11:51:54.017Z">2026-10-23T11:51:54.017Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3819" rel="noopener">lab#3819</a></div>
+</article>
+<article class="item" id="issue-3802">
+<h2><span class="tier A">A</span>v3 bucket outage: a workflow run whose checkpoint committed is told nothing was committed, three outage errors have no stable code, and exit takes 15-60 s (found by #3756)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-23T11:05:05.289Z">2026-10-23T11:05:05.289Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3802" rel="noopener">lab#3802</a></div>
 </article>
 <article class="item" id="issue-3805">
 <h2><span class="tier A">A</span>Repos without defaultVault: the fallback vault for sensitive outputs is not defined, changed between releases, and doctor vaults does not flag it</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3794" rel="noopener">lab#3794</a></div>
 </article>
-<article class="item" id="issue-3791">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3791">
 <h2><span class="tier A">A</span>flaky: LitestreamReplicator &#39;a failed launch releases its lock probe, so the next acquire starts a sidecar&#39; fails by timing in verify-build</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-23T00:40:08.802Z">2026-10-23T00:40:08.802Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3733" rel="noopener">lab#3733</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3798">
+<article class="item" id="issue-3798">
 <h2><span class="tier A">A</span>data_writer_property_test: a secret holding a newline and a literal backslash-n escapes the persisted-content property (seed 1648929202)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-22T23:48:28.453Z">2026-10-22T23:48:28.453Z</time></span></div>
@@ -5357,13 +5373,13 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3802">
-<h2><span class="tier B">B</span>v3 bucket outage: a workflow run whose checkpoint committed is told nothing was committed, three outage errors have no stable code, and exit takes 15-60 s (found by #3756)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-23T10:59:15.394Z">2026-10-23T10:59:15.394Z</time></span></div>
+<article class="item" id="issue-3817">
+<h2><span class="tier B">B</span>swamp update suggests sudo for a binary in ~/.local/bin, and following it breaks every later update</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-23T12:02:05.137Z">2026-10-23T12:02:05.137Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3802" rel="noopener">lab#3802</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3817" rel="noopener">lab#3817</a></div>
 </article>
 <article class="item" id="issue-3786">
 <h2><span class="tier B">B</span>serve/fleet: close OpenTelemetry attribution gaps across dispatch, data plane and worker lifecycle</h2>
@@ -5508,22 +5524,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3818" rel="noopener">lab#3818</a></div>
-</article>
-<article class="item" id="issue-3819">
-<h2><span class="tier C">C</span>behavior type describe &lt;installed extension name&gt; suggests a registry search instead of the type it provides</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-23T08:49:56.345Z">2026-10-23T08:49:56.345Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3819" rel="noopener">lab#3819</a></div>
-</article>
-<article class="item" id="issue-3817">
-<h2><span class="tier C">C</span>swamp update suggests sudo for a binary in ~/.local/bin, and following it breaks every later update</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-23T08:49:52.772Z">2026-10-23T08:49:52.772Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3817" rel="noopener">lab#3817</a></div>
 </article>
 <article class="item" id="issue-3816">
 <h2><span class="tier C">C</span>CEL: data.latest(...).version is a double, but data.version() only accepts int, so &quot;version - 1&quot; fails at run time</h2>
@@ -7359,12 +7359,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>911 items across 1 source(s) in this window:
-1 critical, 660 notable, 17 routine,
-233 minor.</p>
+1 critical, 662 notable, 17 routine,
+231 minor.</p>
 <ul><li><strong>issues</strong> — 911</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-23T11:05:37.862Z">2026-10-23T11:05:37.862Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-23T12:05:50.583Z">2026-10-23T12:05:50.583Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

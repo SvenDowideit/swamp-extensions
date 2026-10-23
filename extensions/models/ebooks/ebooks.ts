@@ -358,7 +358,15 @@ type MethodContext = {
 /** Expand `~` and relative paths to an absolute path. */
 function absolutePath(raw: string): string {
   if (raw.startsWith("~")) {
-    const home = Deno.env.get("HOME") ?? "~";
+    if (raw === "~/.swamp" || raw.startsWith("~/.swamp/")) {
+      const swampHome = Deno.env.get("SWAMP_HOME");
+      if (swampHome) {
+        const base = swampHome.replace(/\/+$/, "");
+        const suffix = raw.slice("~/.swamp".length).replace(/^[/\\]/, "");
+        return suffix ? join(base, suffix) : base;
+      }
+    }
+    const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? "~";
     return join(home, raw.slice(1).replace(/^[/\\]/, "") || "");
   }
   if (!isAbsolute(raw)) return resolve(raw);
@@ -1017,7 +1025,7 @@ export async function runSwampCmd(
 /** Model definition for incrementally scanning and listing local ebooks. */
 export const model = {
   type: "@svendowideit/ebooks",
-  version: "2026.10.18.2",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1054,6 +1062,12 @@ export const model = {
         "Declares @svendowideit/caddy in the manifest's optionalDependencies, " +
         "so release tooling can show it as an optional peer (used when " +
         "installed, never required). No model or resource schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description:
+        "Honour SWAMP_HOME when resolving ~/.swamp-relative output/cache paths.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

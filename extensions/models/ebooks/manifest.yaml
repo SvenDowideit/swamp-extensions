@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/ebooks"
-version: "2026.10.18.2"
+version: "2026.10.23.1"
 description: >
   Find every ebook on your machine, detect its bibliographic metadata, resolve
   authors and titles against Wikipedia + Wikidata, and render a browsable HTML

@@ -218,7 +218,15 @@ type MethodContext = {
 /** Expand `~` and relative paths to an absolute path. */
 function absolutePath(raw: string): string {
   if (raw.startsWith("~")) {
-    const home = Deno.env.get("HOME") ?? "~";
+    if (raw === "~/.swamp" || raw.startsWith("~/.swamp/")) {
+      const swampHome = Deno.env.get("SWAMP_HOME");
+      if (swampHome) {
+        const base = swampHome.replace(/\/+$/, "");
+        const suffix = raw.slice("~/.swamp".length).replace(/^[/\\]/, "");
+        return suffix ? join(base, suffix) : base;
+      }
+    }
+    const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? "~";
     return join(home, raw.slice(1).replace(/^[/\\]/, "") || "");
   }
   if (!isAbsolute(raw)) return resolve(raw);
@@ -971,7 +979,7 @@ export function classifyResolved(
 /** Generic book-metadata model, reusable for ebooks and physical books. */
 export const model = {
   type: "@svendowideit/book-metadata",
-  version: "2026.09.24.1",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -985,6 +993,11 @@ export const model = {
         "Typing only: BookMetadata and Resolution are now explicit types rather " +
         "than z.infer exports, so deno doc --lint reports no slow types. The " +
         "stored shape is unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description: "Honour SWAMP_HOME when resolving ~/.swamp-relative paths.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

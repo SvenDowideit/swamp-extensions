@@ -176,8 +176,17 @@ const CreateOutputSchema = z.object({
 
 /** Expand a leading `~` to the user's home directory. */
 export function expandHome(path: string, home?: string): string {
-  const h = home ?? Deno.env.get("HOME") ?? "";
+  const h = home ?? Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? "";
   if (path === "~") return h;
+  // Swamp's own operational data (under ~/.swamp) follows SWAMP_HOME when set.
+  if (!home && (path === "~/.swamp" || path.startsWith("~/.swamp/"))) {
+    const swampHome = Deno.env.get("SWAMP_HOME");
+    if (swampHome) {
+      const base = swampHome.replace(/\/+$/, "");
+      const suffix = path.slice("~/.swamp".length);
+      return suffix ? `${base}${suffix}` : base;
+    }
+  }
   if (path.startsWith("~/")) return `${h}${path.slice(1)}`;
   return path;
 }
@@ -680,7 +689,7 @@ type MethodContext = {
  */
 export const model = {
   type: "@svendowideit/systemd-service",
-  version: "2026.10.02.1",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -705,6 +714,12 @@ export const model = {
       toVersion: "2026.10.02.1",
       description:
         "Add the `audit` method: one call reports models of this type with their live systemd unit state, declared and listening TCP ports, last reported state, drift, and orphan managed units, and logs an aligned table. `audit` takes an optional `serviceName` (default 'all': every model; otherwise a single matching model, erroring when absent). Adds the optional `cgroupRoot` global argument (default /sys/fs/cgroup), an `audit` resource, and the `@svendowideit/systemd-service-audit` workflow. Existing global and method arguments unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description:
+        "Honour SWAMP_HOME when resolving the ~/.swamp/deno/deno denoPath default.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -802,8 +817,25 @@ export const model = {
         const unitDir = expandHome(g.unitDir);
 
         if (args.linger) {
-          // No username arg => operate on the current user.
-          const linger = await runCmd("loginctl", ["enable-linger"]);
+          // Target the user we are actually running as: loginctl with no
+          // username arg does not resolve the current user in every container.
+          const user = (await runCmd("id", ["-un"])).stdout.trim();
+          let linger = await runCmd(
+            "loginctl",
+            user ? ["enable-linger", user] : ["enable-linger"],
+          );
+          // Inside sandboxes and recovery tooling the current user may not have
+          // the polkit rights for loginctl; try the passwordless sudo route that
+          // the test factory provisions before giving up.
+          if (linger.code !== 0) {
+            const sudo = await runCmd("sudo", [
+              "-n",
+              "loginctl",
+              "enable-linger",
+              ...(user ? [user] : []),
+            ]);
+            if (sudo.code === 0) linger = sudo;
+          }
           if (linger.code !== 0) {
             throw new Error(
               `loginctl enable-linger failed (${linger.code}): ${

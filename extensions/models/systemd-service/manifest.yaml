@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/systemd-service"
-version: "2026.10.02.1"
+version: "2026.10.23.1"
 description: >
   Generic systemd *user* service management: idempotently create, start, stop,
   restart, and remove a persistent user service for any command line — and
@@ -103,6 +103,7 @@ additionalFiles:
   - README.md
   - LICENSE.txt
   - systemd_service_test.ts
+  - test-factory.yaml
 
 platforms:
   - linux-x86_64

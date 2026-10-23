@@ -367,9 +367,21 @@ const CookieJarRecordSchema = z.object({
 
 /** Expand a leading `~` to the user's home directory. */
 export function expandHome(raw: string): string {
-  if (raw === "~") return Deno.env.get("HOME") ?? "~";
+  if (raw === "~") {
+    return Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? "~";
+  }
   if (raw.startsWith("~/")) {
-    const home = Deno.env.get("HOME");
+    // Swamp's own operational data (under ~/.swamp) follows SWAMP_HOME so a
+    // relocated data dir is honoured instead of a stale home-relative path.
+    if (raw === "~/.swamp" || raw.startsWith("~/.swamp/")) {
+      const swampHome = Deno.env.get("SWAMP_HOME");
+      if (swampHome) {
+        const base = swampHome.replace(/\/+$/, "");
+        const suffix = raw.slice("~/.swamp".length);
+        return suffix ? `${base}${suffix}` : base;
+      }
+    }
+    const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE");
     if (home) return `${home}${raw.slice(1)}`;
   }
   return raw;
@@ -1245,7 +1257,7 @@ async function runRequest(
 /** A tracked curl wrapper: every request's in/out evidence, with a cookie jar. */
 export const model = {
   type: "@svendowideit/curl",
-  version: "2026.10.11.2",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -1269,6 +1281,15 @@ export const model = {
         "(needed for the Dependency-Track BOM upload). Both are recorded " +
         "(multipartFields, uploadFiles) with field values redactable; no " +
         "existing argument changed.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description:
+        "Honour SWAMP_HOME when resolving ~/.swamp-relative state paths: " +
+        "expandHome now maps ~/.swamp (and ~/.swamp/...) to SWAMP_HOME when set " +
+        "(falling back to HOME/USERPROFILE as before), so a relocated swamp " +
+        "data directory is used for the cookie-jar stateDir.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

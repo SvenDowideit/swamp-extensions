@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/curl"
-version: "2026.10.11.2"
+version: "2026.10.23.1"
 description: >
   A tracked curl wrapper: every HTTP request records exactly what went out and
   what came back — headers, cookies, body, redirects and timing — with secrets
@@ -98,3 +98,4 @@ platforms:
   - linux-aarch64
   - darwin-x86_64
   - darwin-aarch64
+  - windows-x86_64

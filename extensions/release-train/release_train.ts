@@ -317,7 +317,9 @@ export async function resolveDenoPath(runFn: RunFn): Promise<string> {
       // fall through
     }
   }
-  const home = Deno.env.get("HOME") ?? "";
+  const swampHome = Deno.env.get("SWAMP_HOME");
+  if (swampHome) return join(swampHome, "deno", "deno");
+  const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? "";
   return join(home, ".swamp", "deno", "deno");
 }
 
@@ -1403,7 +1405,7 @@ async function writeText(
 /** Model definition for the release-train dashboard. */
 export const model = {
   type: "@svendowideit/release-train",
-  version: "2026.10.18.3",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1452,6 +1454,13 @@ export const model = {
         "pushing into any repository. Owner input accepts a bare or @-prefixed " +
         "name. Reporting/documentation updated for both variants. No resource " +
         "schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description:
+        "Honour SWAMP_HOME when resolving the bundled Deno path fallback " +
+        "(previously always HOME/.swamp/deno/deno).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

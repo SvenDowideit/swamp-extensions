@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/release-train"
-version: "2026.10.18.3"
+version: "2026.10.23.1"
 description: >
   The release dashboard for a swamp extension repository. It draws the
   dependency graph of every extension you own plus the extensions they use,

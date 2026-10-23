@@ -1,44 +1,62 @@
 manifestVersion: 1
 name: "@svendowideit/wikipedia"
-version: "2026.09.20.4"
+version: "2026.10.23.1"
 description: |
-  A Wikipedia/Wikidata domain client that reads responses from the shared web
-  cache owned by @svendowideit/web-cache. It does not fetch or cache anything
-  itself — fetch, cache, pacing and rate-limit retry are web-cache's job.
+  A Wikipedia domain parser that reads cached responses from the shared cache
+  owned by @svendowideit/web-cache. It fetches nothing itself — fetch, cache,
+  pacing and rate-limit retry are web-cache's job.
 
-  The seam is a workflow: a web-cache.get step fetches + caches a URL, then a
-  wikipedia.get-page / search / get-infobox step reads that cached body and
-  parses the domain content (wikitext, rendered HTML, Parsoid, REST summary,
-  raw JSON, or the page's infobox as key/value pairs). Both models share the
-  same cacheDir (default ~/.swamp/web-cache) and a URL-only cache-key scheme.
+  WHAT IT DOES
 
-  WHAT'S INSIDE
-
-    @svendowideit/wikipedia — the domain parser:
-      search        Parse a cached opensearch response into titles/descriptions/URLs.
-      get-page      Parse a cached page (wikitext | html | parsoid | summary | json).
-      get-infobox   Extract an infobox as key/value pairs from cached wikitext.
+    Parses cached MediaWiki responses into structured swamp data: opensearch
+    search, a page's wikitext/HTML/Parsoid/summary/JSON, and an infobox
+    extracted as key/value pairs. Markdown output extensions and URL-only
+    cache-key scheme make it composable with the fetch seam.
 
   INSTALL
 
       swamp extension pull @svendowideit/web-cache
       swamp extension pull @svendowideit/wikipedia
 
-  RUN (see README for the full workflow seam)
+  DEPENDENCIES
 
-      # 1. fetch + cache (web-cache)
+    @svendowideit/web-cache (hard dependency, declared in this manifest). No
+    host packages are installed.
+
+  RUN
+
+      # Fetch + cache a page.
       swamp model @svendowideit/web-cache method run get cache \
         --input url="https://en.wikipedia.org/w/api.php?action=parse&page=Alfred+Bester&prop=wikitext&format=json"
 
-      # 2. parse (wikipedia reads the cache)
+      # Parse the cached page's wikitext.
       swamp model @svendowideit/wikipedia method run get-page wiki \
         --input title="Alfred Bester" --input format=wikitext
 
-  CONFIGURE (all optional global arguments)
+      # Search cached opensearch results.
+      swamp model @svendowideit/wikipedia method run search wiki \
+        --input query="Alfred Bester"
 
-      cacheDir         Shared cache dir to read from  (default ~/.swamp/web-cache)
-      apiUrl           MediaWiki action API base      (default en.wikipedia.org)
-      restUrl          Wikipedia REST v1 base         (default en.wikipedia.org)
+  CONFIGURE
+
+    All optional global arguments: cacheDir (default ~/.swamp/web-cache), apiUrl
+    (default en.wikipedia.org), restUrl
+    (default en.wikipedia.org). See the README for the full argument tables.
+
+  UPGRADE
+
+    This extension installs nothing on the host, so an upgrade is:
+
+        swamp extension update
+
+    Model definitions record the version they were created with; the model's
+    bundled upgrades entry migrates them on the next method run. Swamp data is
+    preserved.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, triggers, or webhooks. Only pulled
+    extension files and swamp data resources.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

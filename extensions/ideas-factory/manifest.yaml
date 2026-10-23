@@ -1,17 +1,65 @@
 manifestVersion: 1
 name: "@svendowideit/ideas-factory"
-version: "2026.09.07.1"
+version: "2026.10.23.1"
 description: >
-  Idea factory — capture thoughts, classify them, route new-idea / todo thoughts
-  into common ideas and todos, and render a kanban board. Everything is stored
-  in swamp model data resources (inbox, classification, ideas, todos). Phase 0:
-  deterministic keyword classification + a web capture front end.
+  Idea factory: capture raw thoughts, classify them deterministically, route
+  new-idea/todo thoughts into common ideas and todos, plan and implement them,
+  and render a kanban board. Everything lives in swamp model data resources.
 
-  Install: swamp extension pull @svendowideit/ideas-factory.
-  The idea-factory model instance is auto-registered on first run of the
-  ideas-factory workflow — no manual swamp model create needed.
-  Run: swamp workflow run @svendowideit/ideas-factory
-  UI: ~/.swamp/deno/deno run --allow-net --allow-read --allow-write --allow-env --allow-run scripts/capture-server.ts
+  WHAT IT DOES
+
+    Captures anything (links, snippets, voice-to-text) into an inbox resource,
+    classifies each thought with cheap keyword/regex rules (no LLM), and
+    clusters related thoughts into ideas. Ideas and todo thoughts are tracked in
+    their own resources, can be planned into phases with acceptance criteria,
+    implemented with recorded notes, and reviewed through a target. A web
+    capture front end (scripts/capture-server.ts) posts thoughts from a phone or
+    browser, and a board method renders a kanban view. All state is swamp data,
+    so the pipeline is queryable and resumable.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/ideas-factory
+
+  DEPENDENCIES
+
+    None — pure swamp, no other extension and no host package is required.
+
+  RUN
+
+      # Capture a thought from the CLI (auto-creates the model instance).
+      swamp model @svendowideit/ideas-factory method run ingestThought ideas-factory \
+        --input raw="idea: build a swamp report for todo triage"
+
+      # Classify the inbox, cluster related thoughts, and route them into
+      # ideas/todos in one run of the shipped workflow.
+      swamp workflow run @svendowideit/ideas-factory
+
+      # Render the current store as a static kanban HTML board.
+      swamp model @svendowideit/ideas-factory method run renderBoard ideas-factory
+
+  CONFIGURE
+
+    Optional global arguments: ingestThought takes raw/source; workflow steps are
+    wired with CEL against inbox/classification/ideas/todos resources. Source
+    code and scripts live under the pulled extension; the capture server listens
+    on IDEA_FACTORY_PORT. See the README for the full method and argument tables.
+
+  UPGRADE
+
+    This extension installs nothing on the host, so an upgrade changes only the
+    pulled model type and bundled files:
+
+        swamp extension update
+
+    Model definitions record the version they were created with; the model's
+    bundled `upgrades` entry migrates them automatically on the next method
+    run. Swamp data is preserved.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, cron triggers, daemons or webhooks. Only
+    the pulled extension files and swamp data resources.
 
 repository: https://github.com/svendowideit/swamp-extensions
 

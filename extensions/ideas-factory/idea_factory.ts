@@ -33,7 +33,7 @@ const GlobalArgsSchema = z.object({
   llmModel: z.string().optional().describe(
     "Model name for the LLM (default deepseek-v4-flash:cloud)",
   ),
-  llmApiKey: z.string().optional().describe(
+  llmApiKey: z.string().optional().meta({ sensitive: true }).describe(
     "Optional API key for the LLM (omit for local Ollama)",
   ),
   llmTemperature: z.number().min(0).max(2).optional().describe(
@@ -827,6 +827,7 @@ async function runCommand(
   args: string[],
   cwd: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  // swamp-quality-ignore deno-command: orchestrating child processes is this extensions purpose.
   const command = new Deno.Command(cmd, {
     args,
     cwd,
@@ -888,8 +889,17 @@ function buildImplementPrompt(
 
 export const model = {
   type: "@svendowideit/ideas-factory",
-  version: "2026.09.07.1",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.10.23.1",
+      description:
+        "Honour SWAMP_HOME when resolving the ideas-factory board output path " +
+        "(previously always HOME/.swamp/ideas-factory).",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     inbox: {
       description: "Raw captured thoughts awaiting classification",
@@ -1680,7 +1690,9 @@ export const model = {
         // re-planning never drops remaining work.
         if (tasks.length === 0 && currentPlan) {
           tasks = currentPlan.tasks
-            .filter((t) => t.status !== "verified" && t.status !== "in-progress")
+            .filter((t) =>
+              t.status !== "verified" && t.status !== "in-progress"
+            )
             .map((t) => ({ ...t, status: "ready" as const }));
         }
 
@@ -2187,7 +2199,10 @@ export const model = {
         const { outputDir, outPath } = resolveBoardPath(
           args.path,
           context.globalArgs.outputDir ||
-            `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/ideas-factory`,
+            `${
+              Deno.env.get("SWAMP_HOME") ??
+                `${Deno.env.get("HOME") ?? "/tmp"}/.swamp`
+            }/ideas-factory`,
         );
         await Deno.mkdir(outputDir, { recursive: true });
         await Deno.writeTextFile(outPath, html);

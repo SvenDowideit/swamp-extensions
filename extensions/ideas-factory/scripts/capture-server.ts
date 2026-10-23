@@ -23,7 +23,9 @@
  */
 const PORT = parseInt(Deno.env.get("IDEA_FACTORY_PORT") ?? "8877");
 const BOARD_PATH = Deno.env.get("IDEA_FACTORY_BOARD") ??
-  `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/ideas-factory/kanban.html`;
+  `${
+    Deno.env.get("SWAMP_HOME") ?? `${Deno.env.get("HOME") ?? "/tmp"}/.swamp`
+  }/ideas-factory/kanban.html`;
 
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
@@ -35,6 +37,7 @@ function json(status: number, body: Record<string, unknown>) {
 async function runSwamp(
   args: string[],
 ): Promise<{ ok: boolean; output: string }> {
+  // swamp-quality-ignore deno-command: the capture server shells out to swamp.
   const cmd = new Deno.Command("swamp", {
     args,
     stdout: "piped",

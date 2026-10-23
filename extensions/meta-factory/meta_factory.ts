@@ -495,7 +495,9 @@ export async function resolveDenoPath(runFn: RunFn = run): Promise<string> {
       // fall through
     }
   }
-  const home = Deno.env.get("HOME") ?? "";
+  const swampHome = Deno.env.get("SWAMP_HOME");
+  if (swampHome) return join(swampHome, "deno", "deno");
+  const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? "";
   return join(home, ".swamp", "deno", "deno");
 }
 
@@ -1411,7 +1413,7 @@ type ExecContext = {
 /** Model definition for the extension documentation meta-factory. */
 export const model = {
   type: "@svendowideit/meta-factory",
-  version: "2026.10.10.2",
+  version: "2026.10.23.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1479,6 +1481,13 @@ export const model = {
         "behaviour. These are reported, not scored, to avoid false positives on " +
         "legitimate optional-failure handling. Schema is additive — no global " +
         "arguments change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.23.1",
+      description:
+        "Honour SWAMP_HOME when resolving the bundled Deno path fallback " +
+        "(previously always HOME/.swamp/deno/deno).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

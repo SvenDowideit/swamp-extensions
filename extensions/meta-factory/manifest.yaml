@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/meta-factory"
-version: "2026.10.10.2"
+version: "2026.10.23.1"
 description: >
   The documentation quality gate for swamp extensions. Enforces one guiding
   principle — the published manifest plus README must be enough for a user or

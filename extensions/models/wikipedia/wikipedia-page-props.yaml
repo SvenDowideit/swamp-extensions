@@ -32,8 +32,8 @@ inputs:
       description: Shared cache directory
     maxFetches:
       type: number
-      default: 20
-      description: Run-level origin-fetch budget
+      default: 0
+      description: Run-level origin-fetch budget (0 = unlimited)
     budgetId:
       type: string
       default: ""

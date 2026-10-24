@@ -853,7 +853,7 @@ const EnterpriseCleanupResultSchema = z.object({
 /** A read-only Wikipedia domain client layered over @svendowideit/web-cache. */
 export const model = {
   type: "@svendowideit/wikipedia",
-  version: "2026.10.24.1",
+  version: "2026.10.24.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -880,6 +880,12 @@ export const model = {
         "Add dual-cache reads (public + Enterprise URLs) and Enterprise " +
         "planning/session/quota methods. No direct HTTP: fetch through " +
         "web-cache and curl.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.2",
+      description:
+        "Workflow maxFetches defaults to 0 (unlimited); no model-schema changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

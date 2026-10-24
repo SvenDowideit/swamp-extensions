@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/wikipedia"
-version: "2026.10.24.1"
+version: "2026.10.24.2"
 description: |
   A fetch-free Wikipedia/Wikidata domain client. It builds URLs and request
   plans, reads the shared web cache, and parses the result; it never opens an
